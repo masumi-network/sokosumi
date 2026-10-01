@@ -3171,13 +3171,13 @@ extension WorkspaceStateTests {
   @Test(arguments: [true, false])
   func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
     let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
     transport.pauseSokoBotFeedback = true
     let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful, auth: auth) }
     while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
       await Task.yield()
     }
-    #expect(state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // A second tap while the POST is in flight sends nothing.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
@@ -3185,15 +3185,15 @@ extension WorkspaceStateTests {
     try await send.value
     let bodyIndex = try #require(transport.operationIDs.firstIndex(of: sokoBotFeedbackOperation))
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["useful": useful])
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     // Rated turns stay rated: web hides the thumbs after one answer.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     #expect(transport.remainingStubs == 0)
     state.reset()
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
   }
 
   @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
@@ -3205,11 +3205,11 @@ extension WorkspaceStateTests {
       try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
     }
     #expect(error == .unprocessable(statusCode: 404, message: "Turn not found"))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // The thumbs come back, so the owner can try again.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == true)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == true)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 2)
     #expect(transport.remainingStubs == 0)
   }
@@ -3224,8 +3224,29 @@ extension WorkspaceStateTests {
     state.reset()
     transport.releasePausedRequest()
     try await send.value
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+  }
+
+  /// The toolbar's thumbs (row 38b): unrated, locked while the POST runs, then locked on the stored rating.
+  @Test func aMessagesThumbsFollowItsTurnThroughARating() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":false}"#))])
+    var reply = durableRoomMessage(roomId: "room_1")
+    reply.metadata = try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": sokoBotTurnId])])
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId))
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: false, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, isSending: true))
+    transport.releasePausedRequest()
+    try await send.value
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, rating: false))
+    // A message without a turn, or one deleted since, has no thumbs.
+    #expect(state.sokoBotFeedback(for: durableRoomMessage(roomId: "room_1")) == nil)
+    reply.deletedAt = Date()
+    #expect(state.sokoBotFeedback(for: reply) == nil)
   }
 }
 
