@@ -922,6 +922,8 @@ export type SokoBotUsage = {
     costUsd: number;
     billableCostUsd: number;
     credits: number;
+    delegatedCredits: number;
+    totalCredits: number;
 };
 
 export type SokoBot = {
