@@ -4493,8 +4493,8 @@
         },
         "Table": {
           "feature": "Función",
-          "startsAt": "Inicio (UTC)",
-          "endsAt": "Fin (UTC)",
+          "startsAt": "Inicio",
+          "endsAt": "Fin",
           "status": "Estado",
           "actions": "Acciones",
           "empty": "Aún no hay campañas."
@@ -4502,7 +4502,8 @@
         "Actions": {
           "edit": "Editar fechas",
           "endNow": "Finalizar ahora",
-          "delete": "Eliminar"
+          "delete": "Eliminar",
+          "startNow": "Iniciar ahora"
         },
         "Form": {
           "createTitle": "Nueva campaña",
@@ -4510,12 +4511,18 @@
           "feature": "Función",
           "featurePlaceholder": "Elige una función",
           "featureRequired": "Elige primero una función.",
-          "startsAt": "Inicio (UTC)",
-          "endsAt": "Fin (UTC)",
-          "endsAtHelper": "Se fija en {days} días después del inicio, salvo que lo cambies.",
+          "startsAt": "Inicio",
+          "endsAt": "Fin",
           "audienceHelper": "Solo los usuarios que se registraron antes del inicio ven la insignia.",
           "create": "Crear campaña",
-          "save": "Guardar fechas"
+          "save": "Guardar fechas",
+          "startNow": "Iniciar ahora",
+          "timeZoneHelper": "Las horas están en tu zona horaria ({timeZone}).",
+          "runsFor": "Duración",
+          "weeks": "{count, plural, one {# semana} other {# semanas}}",
+          "custom": "Personalizada",
+          "endsOn": "Termina el {date}",
+          "endsPending": "Elige un inicio para ver cuándo termina."
         },
         "Toasts": {
           "created": "Campaña creada",
@@ -4523,7 +4530,8 @@
           "ended": "Campaña finalizada",
           "deleted": "Campaña eliminada",
           "saveFailed": "No se pudo guardar la campaña",
-          "deleteFailed": "No se pudo eliminar la campaña"
+          "deleteFailed": "No se pudo eliminar la campaña",
+          "started": "Campaña iniciada"
         }
       }
     },

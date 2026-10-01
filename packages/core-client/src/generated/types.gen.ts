@@ -8829,6 +8829,99 @@ export type EndAdminBadgeCampaignResponses = {
 
 export type EndAdminBadgeCampaignResponse = EndAdminBadgeCampaignResponses[keyof EndAdminBadgeCampaignResponses];
 
+export type StartAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/start';
+};
+
+export type StartAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started, or starting now overlaps another campaign for this feature
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignError = StartAdminBadgeCampaignErrors[keyof StartAdminBadgeCampaignErrors];
+
+export type StartAdminBadgeCampaignResponses = {
+    /**
+     * The started campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignResponse = StartAdminBadgeCampaignResponses[keyof StartAdminBadgeCampaignResponses];
+
 export type SearchAdminUsersData = {
     body?: never;
     path?: never;

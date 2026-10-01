@@ -24,6 +24,7 @@ import {
 import {
   deleteAdminBadgeCampaignAction,
   endAdminBadgeCampaignAction,
+  startAdminBadgeCampaignAction,
 } from "@/lib/actions/admin-badge-campaigns/action";
 
 import {
@@ -51,8 +52,24 @@ export function BadgeCampaignsTable({
   const [editing, setEditing] = useState<BadgeCampaign | null>(null);
   const [isPending, startTransition] = useTransition();
 
-  function formatUtc(date: Date) {
-    return formatter.dateTime(date, "dateTimeMedium", { timeZone: "UTC" });
+  // The reader's own time zone, the one the rest of the app uses.
+  function formatDate(date: Date) {
+    return formatter.dateTime(date, "dateTimeMedium");
+  }
+
+  function handleStartNow(campaign: BadgeCampaign) {
+    startTransition(async () => {
+      const result = await startAdminBadgeCampaignAction({
+        input: { id: campaign.id },
+      });
+      if (!result.ok) {
+        toast.error(t("Toasts.saveFailed"), {
+          description: result.error.message,
+        });
+        return;
+      }
+      toast.success(t("Toasts.started"));
+    });
   }
 
   function handleEndNow(campaign: BadgeCampaign) {
@@ -108,10 +125,10 @@ export function BadgeCampaignsTable({
                 {featureLabels[campaign.feature]}
               </TableCell>
               <TableCell className="tabular-nums">
-                {formatUtc(campaign.startsAt)}
+                {formatDate(campaign.startsAt)}
               </TableCell>
               <TableCell className="tabular-nums">
-                {formatUtc(campaign.endsAt)}
+                {formatDate(campaign.endsAt)}
               </TableCell>
               <TableCell>
                 <Badge variant={status === "live" ? "default" : "outline"}>
@@ -136,6 +153,16 @@ export function BadgeCampaignsTable({
                       onClick={() => handleEndNow(campaign)}
                     >
                       {t("Actions.endNow")}
+                    </Button>
+                  ) : null}
+                  {status === "scheduled" ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isPending}
+                      onClick={() => handleStartNow(campaign)}
+                    >
+                      {t("Actions.startNow")}
                     </Button>
                   ) : null}
                   {status === "scheduled" ? (

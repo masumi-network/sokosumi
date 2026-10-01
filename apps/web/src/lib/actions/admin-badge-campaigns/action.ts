@@ -98,6 +98,16 @@ export const updateAdminBadgeCampaignAction = withSession<
   ),
 );
 
+/** Starts a scheduled campaign by Core's clock, not the admin's browser. */
+export const startAdminBadgeCampaignAction = withSession<
+  AdminBadgeCampaignParameters,
+  ActionResultDto<BadgeCampaign, ActionError>
+>(({ input, session }) =>
+  runCampaignAction(session, input, campaignIdSchema, ({ id }) =>
+    coreClient.startAdminBadgeCampaign(id),
+  ),
+);
+
 /** Ends a running campaign by Core's clock, not the admin's browser. */
 export const endAdminBadgeCampaignAction = withSession<
   AdminBadgeCampaignParameters,
