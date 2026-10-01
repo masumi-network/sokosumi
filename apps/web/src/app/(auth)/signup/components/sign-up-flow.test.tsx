@@ -167,6 +167,7 @@ describe("SignUpFlow", () => {
     expect(socialButtonsMock).toHaveBeenCalledWith({
       returnUrl: "/agents",
       lastUsedMethod: "google",
+      eventType: "signUp",
     });
     expect(signUpFormMock).not.toHaveBeenCalled();
   });

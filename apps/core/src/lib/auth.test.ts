@@ -43,6 +43,7 @@ const {
   prismaMock,
   prismaTransactionMock,
   prismaUserUpdateManyMock,
+  prismaVerificationCreateManyMock,
   reconcileActiveStripeBackedSubscriptionMock,
   renderEmailCodeEmailMock,
   renderVerificationEmailMock,
@@ -77,6 +78,7 @@ const {
     async (callback: (tx: unknown) => unknown) => callback({}),
   );
   const prismaUserUpdateManyMock = vi.fn();
+  const prismaVerificationCreateManyMock = vi.fn();
   const prismaUserFindUniqueMock = vi.fn();
   const prismaOrganizationFindUniqueMock = vi.fn();
   const prismaMemberFindFirstMock = vi.fn();
@@ -118,12 +120,16 @@ const {
     enterpriseContract: {
       findFirst: prismaEnterpriseContractFindFirstMock,
     },
+    verification: {
+      createMany: prismaVerificationCreateManyMock,
+    },
     oauthClient: {
       findFirst: vi.fn(),
     },
   };
 
   return {
+    prismaVerificationCreateManyMock,
     adminPluginMock: vi.fn(),
     apiKeyPluginMock: vi.fn(),
     betterAuthMock: vi.fn(),
@@ -1818,6 +1824,78 @@ describe("core auth config", () => {
         userId: "user_123",
       }),
       expect.anything(),
+    );
+  });
+
+  it("records a social sign-up before the provider callback answers", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (
+                  user: { email: string; id: string; name: string },
+                  ctx: { path: string; params: Record<string, string> },
+                ) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after(
+      { email: "andreas@example.com", id: "user_123", name: "Andreas" },
+      { path: "/callback/:id", params: { id: "google" } },
+    );
+
+    expect(prismaVerificationCreateManyMock).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          identifier: "sign-up-conversion:user_123",
+          value: "google",
+        }),
+      ]),
+    });
+  });
+
+  it("reports a failed social sign-up record to Sentry without blocking the sign-up", async () => {
+    prismaVerificationCreateManyMock.mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (
+                  user: { email: string; id: string; name: string },
+                  ctx: { path: string; params: Record<string, string> },
+                ) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.databaseHooks.user.create.after(
+        { email: "andreas@example.com", id: "user_123", name: "Andreas" },
+        { path: "/callback/:id", params: { id: "microsoft" } },
+      ),
+    ).resolves.toBeUndefined();
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { context: "sign_up_conversion" },
+      }),
     );
   });
 

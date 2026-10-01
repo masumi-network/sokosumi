@@ -34,6 +34,8 @@ interface SocialButtonsProps {
   returnUrl?: string;
   lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
+  /** Which intent the provider buttons report to Vercel Analytics. */
+  eventType?: "signIn" | "signUp";
 }
 
 const socialButtons: Array<{
@@ -57,6 +59,7 @@ export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
   showPasskey = false,
+  eventType = "signIn",
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
@@ -159,7 +162,10 @@ export default function SocialButtons({
   }, [finishPasskeySignIn, showPasskey]);
 
   const handleClick = async (key: SocialButtonProviderId) => {
-    track("Sign In", { provider: key, direct_signup_link: false });
+    track(eventType === "signUp" ? "Sign Up" : "Sign In", {
+      provider: key,
+      direct_signup_link: false,
+    });
 
     const result = await authClient.signIn.social({
       provider: key,

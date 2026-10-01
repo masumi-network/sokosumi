@@ -3,6 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { claimSignUpConversion } from "@/lib/actions/auth/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   createAuthSessionGetter,
@@ -49,9 +50,15 @@ export default function SocialAuthCallback({
         }).catch(() => null);
         if (session) {
           switch (eventType) {
-            case "signUp":
-              fireGTMEvent.signUp(validationResult.data);
+            case "signUp": {
+              // Core recorded the new account; claiming it counts it once,
+              // here or on the OAuth hand-back (apps/web/TRACKING.md).
+              const provider = await claimSignUpConversion().catch(() => null);
+              if (provider) {
+                fireGTMEvent.signUp(provider);
+              }
               break;
+            }
             case "signIn":
               fireGTMEvent.signIn(validationResult.data);
               break;

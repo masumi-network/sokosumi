@@ -26,6 +26,8 @@ Vercel Analytics + Speed Insights run separately
 (`components/analytics/client-analytics.tsx`) for traffic and web-vitals.
 They are **not** part of this pipeline and **not** gated by `sokosumi_consent`
 — `ClientAnalytics` mounts them on every page regardless of the banner.
+Vercel custom events are listed under
+[Vercel Analytics events](#vercel-analytics-events).
 
 **One container, one property, both domains.** The marketing site and the app
 load the *same* GTM container and feed the *same* GA4 property, so a visit that
@@ -77,7 +79,7 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 
 | Event                 | Fires when…                                    | Where |
 |-----------------------|------------------------------------------------|-------|
-| `sign_up` `{provider}`| account created. Credential and email code fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`; social fires on the callback page | `signup/components/form.tsx`, `components/social-auth-callback.tsx` |
+| `sign_up` `{provider}`| account created. Credential and email code fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`. Social fires once per new account, on whichever page claims it first: the callback page, or the OAuth hand-back during a Sign in with Sokosumi request — see [Social sign-ups](#social-sign-ups) | `signup/components/form.tsx`, `components/social-auth-callback.tsx`, `components/oauth-hand-back.tsx` |
 | `login` `{provider}`  | signed in. Social fires on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`), passkey and email code (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
@@ -121,6 +123,13 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
   `/auth/callback/signin?provider=…`. That page lives outside the `(auth)`
   marketing layout so the hard nav does not re-render the hero, and its own
   `router.replace` is fine because it runs in a fresh document.
+- **An OAuth request skips the social callback page.** When a product such as
+  CMO sends someone through Sign in with Sokosumi, Core's OAuth provider
+  answers the Google/Microsoft callback itself (its after hook on every
+  response that sets the session cookie) and redirects to the product. Better
+  Auth's `newUserCallbackURL` is never followed, so `/auth/callback/signup`
+  never ran and those sign-ups fired no `sign_up` until Oct 2026. See
+  [Social sign-ups](#social-sign-ups).
 - **Hard navigations after a push are a race.** `begin_checkout` is pushed and
   then `window.location.href = stripeUrl` runs on the next line. GA4 sends via
   `sendBeacon`, so it mostly survives, but push *before* navigating, never after.
@@ -135,6 +144,54 @@ Lessons from the Aug 2026 GA4 audit — keep these in mind when adding events.
   expect undercounts for repeated in-app events.
 - **`onboarding_*`, `agent_hired`** no longer exist in the app (SOK-805 removed
   the marketplace Hire). GA4/Ads/LinkedIn/Meta tags keyed on them are dead.
+
+### Social sign-ups
+
+A Google or Microsoft sign-up leaves through the provider, so no page that
+started it can count it. Core is the one place that sees every new account:
+
+1. `databaseHooks.user.create.after` records a pending sign-up conversion
+   when the account comes from a provider callback (`/callback/:id` or the
+   preview completion `/callback/:id/oauth-proxy`): two
+   `verification` rows, `sign-up-conversion:<userId>` and
+   `sign-up-conversion-redirect:<userId>`, valid one hour
+   (`apps/core/src/lib/auth-sign-up-conversion.ts`).
+2. Outside an OAuth request the browser lands on `/auth/callback/signup`.
+   During one, a `prompt=create` request lands on `/signup` anyway; otherwise
+   the OAuth provider's `signup.shouldRedirect` takes the redirect row and
+   sends the authorization to `/signup`. There the hand-back counts the
+   sign-up before `/oauth2/continue`. The redirect row is single-use, so a
+   claim that keeps failing cannot loop the browser back to `/signup`.
+3. Either page calls `claimSignUpConversion`, which asks Core
+   (`POST /v1/users/me/sign-up-conversion`) with the existing UTM cookie data.
+   Only an interactive session may claim its own conversion through `me`.
+   Core deletes both rows and records UTM attribution in one transaction.
+   A failed write rolls back the claim and keeps the cookie for a later retry.
+   Core returns the provider to the first claim, so the second page, a reload,
+   or a later hand-back gets `null` and fires nothing.
+
+A sign-up no page claims within the hour is not counted, and neither is one
+whose Core record failed (reported to Sentry, tag `sign_up_conversion`).
+Claim errors are logged on the Web server and let sign-in continue; the Core
+request times out after five seconds. The count is the claim, not `sign_up`'s delivery: a
+refused consent or a blocked tag still claims it. The hand-back pushes
+`sign_up` and then waits for `/oauth2/continue` before the page leaves.
+This is at-most-once claiming, not exactly-once analytics delivery: a lost
+claim response, a closed page, or a blocked tag can lose the browser event.
+
+### Vercel Analytics events
+
+Custom events sent with `track` from `@vercel/analytics`. They record intent
+(the button or form used), not success, and are not consent-gated.
+
+| Event | Properties | Fires when… | Where |
+|-------|------------|-------------|-------|
+| `Sign In` | `provider` (`google`, `microsoft`, `passkey`, `credential`, `email-otp`); `direct_signup_link: false` on provider buttons | a sign-in method is chosen on `/signin` | `signin/components/form.tsx`, `components/social-buttons.tsx` |
+| `Sign Up` | `provider` (`google`, `microsoft`, `credential`, `email-otp`); `direct_signup_link` on provider sign-ups (`true` for `/auth/google` and `/auth/microsoft`) | a sign-up method is chosen on `/signup`, or a direct sign-up link starts | `signup/components/form.tsx`, `components/social-buttons.tsx`, `components/social-signup-auto-initiator.tsx` |
+| `Project created` | `source`, `variant` | a project is created | `projects/components/create-project-wizard.tsx`, `projects/components/project-form.tsx` |
+
+Before Oct 2026 the provider buttons on `/signup` and the direct sign-up links
+sent `Sign In`, so earlier `Sign Up` counts lack social sign-ups.
 
 ### Purchase tracking
 
@@ -252,7 +309,9 @@ GA4 understands standard `utm_*` parameters with no extra work. Cross-domain
 measurement (configured on the GA4 tag in GTM) carries the session — and thus
 the original UTM source — from a `sokosumi.com` ad click through to a signup and
 purchase on `app.sokosumi.com`. The app additionally persists first-touch UTMs
-server-side (`POST /users/{id}/utm-attribution`).
+server-side (`POST /users/{id}/utm-attribution`): credential and email code
+sign-ups before leaving the form, social sign-ups when their sign-up is
+claimed (see [Social sign-ups](#social-sign-ups)).
 
 ## Adding an event
 

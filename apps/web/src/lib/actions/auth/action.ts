@@ -1,5 +1,6 @@
 "use server";
 
+import type { SignUpConversionResponse } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 
 import {
@@ -97,5 +98,21 @@ export async function handleUtmConversion(): Promise<void> {
     await utmService.handleUTMConversion();
   } catch (error) {
     console.error("Failed to create utm attribution", error);
+  }
+}
+
+/**
+ * Counts a new social account once: claims it from Core and records its UTM
+ * attribution. Returns the provider for the GTM `sign_up` event, or `null`
+ * when this session's account is not an uncounted social sign-up.
+ */
+export async function claimSignUpConversion(): Promise<
+  SignUpConversionResponse["provider"]
+> {
+  try {
+    return await utmService.claimSignUpConversion();
+  } catch (error) {
+    console.error("Failed to claim social sign-up", error);
+    return null;
   }
 }
