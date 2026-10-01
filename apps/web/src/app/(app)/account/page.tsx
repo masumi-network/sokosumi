@@ -110,6 +110,7 @@ async function AccountPageContent() {
             ) : undefined
           }
           userName={session?.user.name}
+          userEmail={session?.user.email}
           userFirstName={session?.user.firstName}
           userLastName={session?.user.lastName}
           userImage={session?.user.image}

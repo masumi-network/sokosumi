@@ -12,6 +12,8 @@ public let chatRoomMessageEventName = "chat_room_message"
 public let chatRoomPinnedMessageEventName = "chat_room_pinned_message"
 public let chatMembershipRevokedEventName = "chat_membership_revoked"
 public let chatRoomsChangedEventName = "chat_rooms_changed"
+/// Room read receipt on the room channel (`@sokosumi/utils` `chat-room-read-event.ts`): one member's Room last-read moved.
+public let chatRoomReadEventName = "chat_room_read"
 
 /// Shared room-scoped channel for `chat_room_message` fan-out.
 public func chatRoomChannelName(roomId: String) -> String {

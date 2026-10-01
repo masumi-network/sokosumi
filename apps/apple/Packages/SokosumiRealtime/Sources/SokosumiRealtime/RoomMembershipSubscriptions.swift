@@ -134,7 +134,7 @@ final class RoomMembershipSubscriptions: @unchecked Sendable {
     let channel = realtime.channels.get(chatRoomChannelName(roomId: id))
     let subscriptionId = UUID()
     channels[id] = Subscription(channel: channel, id: subscriptionId)
-    for name in [chatRoomMessageEventName, chatRoomPinnedMessageEventName] {
+    for name in [chatRoomMessageEventName, chatRoomPinnedMessageEventName, chatRoomReadEventName] {
       channel.subscribe(name) { [weak self] message in
         let event = resolveRealtimeDelivery(channel: chatRoomChannelName(roomId: id), event: message.name ?? "", data: message.data ?? NSNull())
         self?.queue.async { [weak self] in
