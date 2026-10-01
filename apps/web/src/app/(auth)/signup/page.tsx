@@ -3,7 +3,9 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import OAuthHandBack from "@/auth/components/oauth-hand-back";
+import OAuthHandBack, {
+  OAuthRequestError,
+} from "@/auth/components/oauth-hand-back";
 import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -42,6 +44,9 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
   const env = getEnvSecrets();
   const { email, invitationId, returnUrl, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
+  if (oauthRequest?.hasExpired) {
+    return <OAuthRequestError client={oauthRequest.client} />;
+  }
   if (oauthRequest?.canHandBack) {
     return (
       <OAuthHandBack
