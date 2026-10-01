@@ -298,7 +298,7 @@ interface RoomRosterPanelProps {
   openingDirectKey: string | null;
   onClose: () => void;
   /** Opens the edit dialog. Set only for callers who may change the roster. */
-  onAddMembers?: () => void;
+  onAddMembers?: (opener: HTMLElement) => void;
   /** Seen by: what a row should say about a member, or null for silence. */
   readStateFor: (userId: string) => RoomMemberReadState | null;
   labels: RoomRosterPanelLabels;
@@ -364,7 +364,7 @@ export function RoomRosterPanel({
               size="sm"
               className="gap-1.5"
               data-testid="room-roster-add"
-              onClick={onAddMembers}
+              onClick={(event) => onAddMembers(event.currentTarget)}
             >
               <UserPlus className="size-4" aria-hidden />
               {labels.add}
