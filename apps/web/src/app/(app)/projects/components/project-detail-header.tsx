@@ -14,6 +14,8 @@ interface ProjectDetailHeaderProps {
   backHref?: string;
   className?: string;
   projectName: string;
+  /** Short workspace-unique prefix such as SOK; shown beside the name. */
+  projectIdentifier?: string | null;
   projectLogo?: string | null;
   websiteUrl?: string | null;
   backLabel: string;
@@ -33,6 +35,7 @@ export function ProjectDetailHeader({
   backHref = "/projects",
   className,
   projectName,
+  projectIdentifier,
   projectLogo,
   websiteUrl,
   backLabel,
@@ -71,6 +74,11 @@ export function ProjectDetailHeader({
               <h1 className="truncate text-lg leading-tight font-semibold tracking-tight">
                 {projectName}
               </h1>
+              {projectIdentifier ? (
+                <span className="text-muted-foreground text-sm tabular-nums">
+                  {projectIdentifier}
+                </span>
+              ) : null}
               {websiteUrl && websiteHostname ? (
                 <a
                   href={websiteUrl}
