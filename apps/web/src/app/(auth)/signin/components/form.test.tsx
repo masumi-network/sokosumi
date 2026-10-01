@@ -1,5 +1,6 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -432,6 +433,29 @@ describe("SignInForm", () => {
       "href",
       "/signup?client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D",
     );
+  });
+
+  it("retains the one-time hint in Strict Mode", () => {
+    rememberAuthEmailHint("ada@example.com");
+    render(
+      <StrictMode>
+        <SignInForm />
+      </StrictMode>,
+    );
+    expect(screen.getByPlaceholderText("Fields.Email.placeholder")).toHaveValue(
+      "ada@example.com",
+    );
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("clears an old hint for a middle-click Register", () => {
+    render(<SignInForm />);
+    rememberAuthEmailHint("stale@example.com");
+    fireEvent(
+      screen.getByRole("link", { name: "Register.link" }),
+      new MouseEvent("auxclick", { bubbles: true, button: 1 }),
+    );
+    expect(takeAuthEmailHint()).toBeNull();
   });
 
   it("hands the typed email to sign-up instead of putting it in the register link", async () => {

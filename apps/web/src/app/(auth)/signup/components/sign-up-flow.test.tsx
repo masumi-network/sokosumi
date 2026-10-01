@@ -1,5 +1,14 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
+import { hydrateRoot } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -468,6 +477,63 @@ describe("SignUpFlow", () => {
     expect(takeAuthEmailHint()).toBeNull();
   });
 
+  it("consumes storage only after hydration", async () => {
+    rememberAuthEmailHint("ada@example.com");
+    const ui = <SignUpFlow showMagicLink lastUsedMethod={null} />;
+    const container = document.createElement("div");
+    container.innerHTML = renderToString(ui);
+    document.body.append(container);
+    expect(container.querySelector("input[name=email]")).toHaveValue("");
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(
+      "ada@example.com",
+    );
+    const errors = vi.spyOn(console, "error");
+    const root = hydrateRoot(container, ui);
+    try {
+      await waitFor(() =>
+        expect(container.querySelector("input[name=email]")).toHaveValue(
+          "ada@example.com",
+        ),
+      );
+      expect(takeAuthEmailHint()).toBeNull();
+      expect(errors).not.toHaveBeenCalled();
+    } finally {
+      await act(() => root.unmount());
+      container.remove();
+      errors.mockRestore();
+    }
+  });
+
+  it("keeps a normal query email over an unrelated hint", () => {
+    rememberAuthEmailHint("stale@example.com");
+    render(
+      <SignUpFlow
+        showMagicLink
+        lastUsedMethod={null}
+        prefilledEmail="query@example.com"
+      />,
+    );
+    expect(emailField()).toHaveValue("query@example.com");
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("keeps the hint through Strict Mode and the details Change round trip", async () => {
+    const user = userEvent.setup();
+    rememberAuthEmailHint("ada@example.com");
+    render(
+      <StrictMode>
+        <SignUpFlow showMagicLink lastUsedMethod={null} />
+      </StrictMode>,
+    );
+    expect(emailField()).toHaveValue("ada@example.com");
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    await screen.findByRole("button", { name: "changeEmail" });
+    rememberAuthEmailHint("stale@example.com");
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    expect(emailField()).toHaveValue("ada@example.com");
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
   it("leaves an email from the query editable without an invitation", async () => {
     const user = userEvent.setup();
     render(
@@ -497,6 +563,8 @@ describe("SignUpFlow", () => {
     emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
     mockSearchParams = new URLSearchParams({
       returnUrl: "/accept-invitation/inv_1",
+      email: "invited@example.com",
+      invitationId: "inv_1",
     });
     render(
       <SignUpFlow
@@ -517,7 +585,7 @@ describe("SignUpFlow", () => {
     expect(screen.getByRole("status")).toHaveTextContent("AccountExists.title");
     expect(recoveryLink).toHaveAttribute(
       "href",
-      "/signin?returnUrl=%2Faccept-invitation%2Finv_1",
+      "/signin?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
     );
   });
 

@@ -179,22 +179,19 @@ function buildAuthPageUrl(
   return query ? `${path}?${query}` : path;
 }
 
-// No typed email in either direction: a query email locks the field, so a
-// typed or mistyped address would trap the person. It goes over as an
-// editable starting value instead: see `auth-email-hint.ts`. Only an
-// invitation's address travels in the query, with its id, because sign-up
-// keeps that one fixed.
+// Typed emails travel as editable session hints. Only an invitation's
+// address travels in the query with its id, keeping both auth links bound
+// to the same invitation.
 export function buildSignUpUrlFromSignIn(
   params: BuildAuthPageUrlParams,
 ): string {
   return buildAuthPageUrl("/signup", params);
 }
 
-export function buildSignInUrlFromSignUp({
-  returnUrl,
-  oauthQuery,
-}: Pick<BuildAuthPageUrlParams, "returnUrl" | "oauthQuery">): string {
-  return buildAuthPageUrl("/signin", { returnUrl, oauthQuery });
+export function buildSignInUrlFromSignUp(
+  params: BuildAuthPageUrlParams,
+): string {
+  return buildAuthPageUrl("/signin", params);
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable

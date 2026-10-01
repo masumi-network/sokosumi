@@ -209,12 +209,14 @@ export default function SignInForm({
             </span>
             <Link
               href={signUpUrl}
+              onAuxClick={() => takeAuthEmailHint()}
               // A typed email stays out of the link, which would lock it on
               // sign-up. Only an invitation's address belongs there.
               onClick={(event) => {
-                if (!invitation) {
-                  rememberAuthEmailHintOnClick(event, form.getValues("email"));
-                }
+                rememberAuthEmailHintOnClick(
+                  event,
+                  invitation ? "" : form.getValues("email"),
+                );
               }}
               className="text-primary text-sm font-medium hover:underline"
             >

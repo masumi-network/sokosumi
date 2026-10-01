@@ -620,3 +620,32 @@ describe("createAuthSessionGetter", () => {
     await expect(getSession()).resolves.toBeNull();
   });
 });
+
+describe("auth page URL round trips", () => {
+  it.each([buildSignUpUrlFromSignIn, buildSignInUrlFromSignUp])(
+    "preserves signed multi-value OAuth parameters and an escaped return URL",
+    (buildUrl) => {
+      const oauthQuery =
+        "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
+      const returnUrl =
+        "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
+      const url = new URL(
+        buildUrl({
+          oauthQuery,
+          returnUrl,
+          invitation: { id: "inv_1", email: "ada+invite@example.com" },
+        }),
+        "https://sokosumi.test",
+      );
+      expect(url.searchParams.get("returnUrl")).toBe(returnUrl);
+      expect(url.searchParams.get("sig")).toBe("abc+def/ghi=");
+      expect(url.searchParams.getAll("ba_param")).toEqual([
+        "scope",
+        "client_id",
+      ]);
+      expect(url.searchParams.get("scope")).toBe("openid email");
+      expect(url.searchParams.get("email")).toBe("ada+invite@example.com");
+      expect(url.searchParams.get("invitationId")).toBe("inv_1");
+    },
+  );
+});

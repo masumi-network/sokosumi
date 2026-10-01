@@ -85,7 +85,7 @@ export function SignUpEmailStep({
     // Sign-in sends a person here with the email they typed. It is a
     // starting value, not a locked one like an invitation's address.
     const emailHint = takeAuthEmailHint();
-    if (emailHint && !emailLocked) {
+    if (emailHint && !emailLocked && !form.getValues("email").trim()) {
       form.setValue("email", emailHint);
     }
     if (autoFocus) {
@@ -220,6 +220,7 @@ export function SignUpEmailStep({
                 href={signInHref}
                 inert={!accountExists}
                 aria-describedby={accountExists ? noticeId : undefined}
+                onAuxClick={() => takeAuthEmailHint()}
                 onClick={(event) => {
                   const shownFor =
                     performance.now() - accountExistsSince.current;
@@ -227,7 +228,10 @@ export function SignUpEmailStep({
                     event.preventDefault();
                     return;
                   }
-                  rememberAuthEmailHintOnClick(event, form.getValues("email"));
+                  rememberAuthEmailHintOnClick(
+                    event,
+                    emailLocked ? "" : form.getValues("email"),
+                  );
                 }}
               >
                 {t("AccountExists.logIn")}
