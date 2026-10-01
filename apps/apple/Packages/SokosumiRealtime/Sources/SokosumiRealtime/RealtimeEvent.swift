@@ -13,6 +13,8 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case roomHealth(roomId: String, healthy: Bool, continuityLost: Bool)
   case connectionHealth(healthy: Bool)
   case revoked(roomId: String)
+  /// `chat_rooms_changed` on the user's control channel: these sidebar collections went stale (SOK-986).
+  case roomsChanged(Set<ChatRoomCollection>)
   /// Full member set of one organization's presence channel (ADR 0003).
   case presenceRoster(organizationId: String, members: [ChatPresenceMember])
   /// A chat-kind row on the user notifications channel.
@@ -90,7 +92,7 @@ func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any
   ))
 }
 
-/// Pins, notifications and membership revokes: events identified by name alone. Nil for every other event.
+/// Pins, notifications, membership revokes and rooms changed: events identified by name alone. Nil for every other event.
 private func resolveNamedDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery? {
   if eventName == chatRoomPinnedMessageEventName {
     guard let roomId = parseChatRoomId(fromChannelName: channel),
@@ -112,7 +114,23 @@ private func resolveNamedDelivery(channel: String, event eventName: String, data
     }
     return .revoked(roomId: roomId)
   }
+  if eventName == chatRoomsChangedEventName {
+    guard channel.hasPrefix("chat_control:user_"), let collections = parseRoomsChanged(data) else { return .ignored }
+    return .roomsChanged(collections)
+  }
   return nil
+}
+
+/// Web `chatRoomsChangedEventSchema`: one or more known collections, a non-empty room id or null, and an ISO time.
+/// One unknown collection rejects the whole event, as on web.
+private func parseRoomsChanged(_ data: Any) -> Set<ChatRoomCollection>? {
+  guard let dict = data as? [String: Any],
+        let names = dict["collections"] as? [String], !names.isEmpty,
+        dict["roomId"] is NSNull || (dict["roomId"] as? String)?.isEmpty == false,
+        let sentAt = dict["at"] as? String, realtimeDate(from: sentAt) != nil
+  else { return nil }
+  let collections = names.compactMap(ChatRoomCollection.init(rawValue:))
+  return collections.count == names.count ? Set(collections) : nil
 }
 
 private struct PinEvent: Decodable {

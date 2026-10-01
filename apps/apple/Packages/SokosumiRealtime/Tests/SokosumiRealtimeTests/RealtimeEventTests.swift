@@ -311,6 +311,50 @@ struct RealtimeEventTests {
     ).isIgnored)
   }
 
+  /// Web `chat-rooms-changed-event.test.ts`: Core's payload names its collections; a null room is a user-wide change.
+  @Test func roomsChangedNamesTheStaleCollections() {
+    let control = "chat_control:user_user_1"
+    let named = resolveRealtimeDelivery(channel: control, event: "chat_rooms_changed", data: [
+      "collections": ["active", "archived"], "roomId": "room-1", "at": "2026-09-09T12:00:00.000Z"
+    ])
+    guard case let .roomsChanged(collections) = named else {
+      Issue.record("expected roomsChanged, got \(named)")
+      return
+    }
+    #expect(collections == [.active, .archived])
+    let userWide = resolveRealtimeDelivery(channel: control, event: "chat_rooms_changed", data: [
+      "collections": ["invitations"], "roomId": NSNull(), "at": "2026-09-09T12:00:00.000Z"
+    ])
+    guard case let .roomsChanged(invitations) = userWide else {
+      Issue.record("expected roomsChanged, got \(userWide)")
+      return
+    }
+    #expect(invitations == [.invitations])
+  }
+
+  /// Web rejects the whole event on an unknown collection or an empty list, and so does every malformed field here.
+  @Test func malformedRoomsChangedIsIgnored() {
+    let control = "chat_control:user_user_1"
+    let sentAt = "2026-09-09T12:00:00.000Z"
+    let payloads: [Any] = [
+      ["collections": ["starred"], "roomId": NSNull(), "at": sentAt],
+      ["collections": ["active", "starred"], "roomId": NSNull(), "at": sentAt],
+      ["collections": [String](), "roomId": NSNull(), "at": sentAt],
+      ["collections": "active", "roomId": NSNull(), "at": sentAt],
+      ["collections": ["active"], "roomId": "", "at": sentAt],
+      ["collections": ["active"], "at": sentAt],
+      ["collections": ["active"], "roomId": NSNull(), "at": "yesterday"],
+      ["collections": ["active"], "roomId": NSNull()],
+      NSNull()
+    ]
+    for payload in payloads {
+      #expect(resolveRealtimeDelivery(channel: control, event: "chat_rooms_changed", data: payload).isIgnored, "\(payload)")
+    }
+    // Only the control channel carries it.
+    #expect(resolveRealtimeDelivery(channel: "chat_rooms:room_\(roomId)", event: "chat_rooms_changed",
+                                    data: ["collections": ["active"], "roomId": NSNull(), "at": sentAt]).isIgnored)
+  }
+
   @Test func tokenFieldsSerializeForAbly() {
     let token = Components.Schemas.AblyTokenRequest(
       keyName: "app.key",
