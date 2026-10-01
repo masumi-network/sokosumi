@@ -151,6 +151,7 @@ import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
   SokoBotMessageFooter,
+  SokoBotSourceLabel,
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -2766,6 +2767,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 />
               ) : (
                 <>
+                  <SokoBotSourceLabel metadata={message.metadata} />
                   {thoughtView?.disclosure ? (
                     <div className="mb-1">
                       <CoworkerThoughtTrace
