@@ -5561,18 +5561,18 @@ export type CreateAdCampaignRequest = {
 };
 
 export type GetAdMarketProfileResponse = {
-    profile: AdMarketProfile;
+    /**
+     * Null until a market profile is saved
+     */
+    profile: AdMarketProfile | null;
 };
 
-/**
- * Null until a market profile is saved
- */
 export type AdMarketProfile = {
     keywords: Array<string>;
     countryCode: AdMarketCountryCode;
     languageCode: AdMarketLanguageCode;
     updatedAt: Date;
-} | null;
+};
 
 /**
  * ISO 3166-1 alpha-2 code of a supported market

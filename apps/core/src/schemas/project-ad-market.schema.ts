@@ -46,7 +46,8 @@ export const adMarketProfileSchema = z
 
 export const getAdMarketProfileResponseSchema = z
   .object({
-    profile: adMarketProfileSchema.nullable().openapi({
+    // Union-with-null, not `.nullable()`: see `finalizeProjectAdConnectionResponseSchema`.
+    profile: z.union([adMarketProfileSchema, z.null()]).openapi({
       description: "Null until a market profile is saved",
     }),
   })

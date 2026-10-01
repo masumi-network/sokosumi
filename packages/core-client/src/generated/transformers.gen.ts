@@ -2581,7 +2581,9 @@ const adMarketProfileSchemaResponseTransformer = (data: any) => {
 };
 
 const getAdMarketProfileResponseSchemaResponseTransformer = (data: any) => {
-    data.profile = adMarketProfileSchemaResponseTransformer(data.profile);
+    if (data.profile) {
+        data.profile = adMarketProfileSchemaResponseTransformer(data.profile);
+    }
     return data;
 };
 

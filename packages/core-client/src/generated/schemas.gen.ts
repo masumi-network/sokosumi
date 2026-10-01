@@ -18694,7 +18694,15 @@ export const GetAdMarketProfileResponseSchema = {
     type: 'object',
     properties: {
         profile: {
-            $ref: '#/components/schemas/AdMarketProfile'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdMarketProfile'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a market profile is saved'
         }
     },
     required: [
@@ -18703,10 +18711,7 @@ export const GetAdMarketProfileResponseSchema = {
 } as const;
 
 export const AdMarketProfileSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         keywords: {
             type: 'array',
@@ -18731,8 +18736,7 @@ export const AdMarketProfileSchema = {
         'countryCode',
         'languageCode',
         'updatedAt'
-    ],
-    description: 'Null until a market profile is saved'
+    ]
 } as const;
 
 export const AdMarketCountryCodeSchema = {
