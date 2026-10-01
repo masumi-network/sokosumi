@@ -102,11 +102,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Task refs resolve by the live project identifier. Once numbers exist,
     // renaming the prefix would 404 every bookmarked /tasks/SOK-N URL; freeze
     // instead of building a second alias table for prefixes.
-    if (
+    const identifierChanging =
       body.identifier !== undefined &&
-      body.identifier !== existingProject.identifier &&
-      existingProject.taskCounter > 0
-    ) {
+      body.identifier !== existingProject.identifier;
+    if (identifierChanging && existingProject.taskCounter > 0) {
       throw conflict(
         "Project identifier cannot change after task numbers have been issued",
         { kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE },
@@ -147,9 +146,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
+    // Gate identifier renames on taskCounter: 0 so a create that races between
+    // the read above and this write loses here instead of minting a stale prefix.
     const updateResult = await prisma.project
       .updateMany({
-        where: { id, workspaceId: workspaceContext.workspaceId },
+        where: {
+          id,
+          workspaceId: workspaceContext.workspaceId,
+          ...(identifierChanging ? { taskCounter: 0 } : {}),
+        },
         data: updateData,
       })
       .catch((error: unknown) => {
@@ -161,6 +166,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
     if (updateResult.count === 0) {
+      if (identifierChanging) {
+        const racedProject = await prisma.project.findFirst({
+          where: { id, workspaceId: workspaceContext.workspaceId },
+          select: { taskCounter: true },
+        });
+        if (racedProject) {
+          throw conflict(
+            "Project identifier cannot change after task numbers have been issued",
+            { kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE },
+          );
+        }
+      }
       throw notFound("Project not found");
     }
     await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
