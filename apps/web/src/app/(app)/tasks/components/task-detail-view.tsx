@@ -164,11 +164,15 @@ export async function TaskDetailView({
                   {parentTask ? (
                     <p className="text-muted-foreground text-sm">
                       <Link
-                        href={taskHref({
-                          id: parentTask.id,
-                          identifier: parentTask.identifier,
-                          name: parentTask.name,
-                        })}
+                        href={
+                          relatedTaskHrefBasePath
+                            ? `${relatedTaskHrefBasePath}/${parentTask.id}`
+                            : taskHref({
+                                id: parentTask.id,
+                                identifier: parentTask.identifier,
+                                name: parentTask.name,
+                              })
+                        }
                         className="text-primary hover:underline"
                       >
                         {t("clonedFrom", { name: parentTask.name })}
