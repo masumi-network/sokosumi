@@ -5984,4 +5984,40 @@ describe("archive_task without approval cards", () => {
     );
     expect(createDecision).not.toHaveBeenCalled();
   });
+
+  it("says why a Task the owner may not change can't be archived", async () => {
+    const service = new SokoBotRuntimeService();
+    vi.spyOn(
+      service as unknown as { requireMutationAuthority: () => Promise<void> },
+      "requireMutationAuthority",
+    ).mockResolvedValue(undefined);
+    // Hidden by the owner's write access, but there in the workspace.
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: TASK_ID });
+    serializableTransactionMock.mockImplementationOnce(async (operation) =>
+      operation({ task: { findFirst } }),
+    );
+    await expect(
+      service["mutateTask"](
+        {
+          turn: {
+            id: "turn_1",
+            userId: "u",
+            workspaceId: "w",
+            sokoBotId: "bot",
+            source: "CHAT",
+          },
+        } as never,
+        { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).rejects.toThrow("only its owner can change or archive it");
+    expect(findFirst).toHaveBeenLastCalledWith({
+      where: { id: TASK_ID, workspaceId: "w" },
+      select: { id: true },
+    });
+  });
 });
