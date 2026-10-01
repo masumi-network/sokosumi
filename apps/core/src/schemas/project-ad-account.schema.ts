@@ -76,7 +76,10 @@ export const initiateProjectAdConnectionRequestSchema = z
 
 export const finalizeProjectAdConnectionResponseSchema = z
   .object({
-    connection: projectAdConnectionSchema.nullable().openapi({
+    // Union-with-null, not `.nullable()`: `.nullable()` on a named schema drops
+    // `| null` from the OpenAPI doc, so the generated client types it non-null
+    // and its transformer reads `data.connection.createdAt` unguarded.
+    connection: z.union([projectAdConnectionSchema, z.null()]).openapi({
       description:
         "Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked",
     }),

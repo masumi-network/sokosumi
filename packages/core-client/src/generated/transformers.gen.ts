@@ -2553,7 +2553,9 @@ const projectAdConnectionSchemaResponseTransformer = (data: any) => {
 };
 
 const finalizeProjectAdConnectionResponseSchemaResponseTransformer = (data: any) => {
-    data.connection = projectAdConnectionSchemaResponseTransformer(data.connection);
+    if (data.connection) {
+        data.connection = projectAdConnectionSchemaResponseTransformer(data.connection);
+    }
     return data;
 };
 

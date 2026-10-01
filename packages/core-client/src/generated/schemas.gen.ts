@@ -18394,7 +18394,15 @@ export const FinalizeProjectAdConnectionResponseSchema = {
     type: 'object',
     properties: {
         connection: {
-            $ref: '#/components/schemas/ProjectAdConnection'
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectAdConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked'
         },
         availableAccounts: {
             type: 'array',
@@ -18410,10 +18418,7 @@ export const FinalizeProjectAdConnectionResponseSchema = {
 } as const;
 
 export const ProjectAdConnectionSchema = {
-    type: [
-        'object',
-        'null'
-    ],
+    type: 'object',
     properties: {
         id: {
             type: 'string',
@@ -18443,8 +18448,7 @@ export const ProjectAdConnectionSchema = {
         'provider',
         'status',
         'createdAt'
-    ],
-    description: 'Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked'
+    ]
 } as const;
 
 export const AvailableAdAccountSchema = {

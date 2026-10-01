@@ -5444,13 +5444,13 @@ export type InitiateProjectAdConnectionRequest = {
 };
 
 export type FinalizeProjectAdConnectionResponse = {
-    connection: ProjectAdConnection;
+    /**
+     * Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked
+     */
+    connection: ProjectAdConnection | null;
     availableAccounts: Array<AvailableAdAccount>;
 };
 
-/**
- * Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked
- */
 export type ProjectAdConnection = {
     /**
      * Pass this as `adConnectionId` when attaching accounts
@@ -5459,7 +5459,7 @@ export type ProjectAdConnection = {
     provider: ProjectAdProvider;
     status: 'active' | 'reauthorization_required' | 'disconnected';
     createdAt: Date;
-} | null;
+};
 
 export type AvailableAdAccount = {
     /**
