@@ -30,6 +30,7 @@ const ctx: Parameters<typeof generate.execute>[1] = {
   abortSignal: new AbortController().signal,
   callId: "call-1",
   toolName: "generate_image",
+  messages: [],
   session: {
     id: "session-1",
     turn: { id: "turn-1", sequence: 1 },
