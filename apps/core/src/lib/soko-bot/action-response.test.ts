@@ -82,6 +82,78 @@ describe("action lines the owner reads", () => {
     expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
   });
 
+  it("collapses repeated Task changes into one line naming up to five", async () => {
+    const ids = ["a", "b", "c"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Updated 3 Tasks: [Task a](/tasks/a), [Task b](/tasks/b), [Task c](/tasks/c).",
+    );
+  });
+
+  it("counts more than five Task changes without naming them", async () => {
+    const ids = ["a", "b", "c", "d", "e", "f"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Updated 6 Tasks.");
+  });
+
+  it("says repeated refused archives once, with a count", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      Array.from({ length: 9 }, (_, index) =>
+        receipt({
+          id: `receipt-${index}`,
+          toolCallId: `call-${index}`,
+          capability: "archive_task",
+          status: "FAILED",
+          disposition: "REJECTED",
+          verification: "NONE",
+          committedAt: null,
+          targetId: null,
+          input: { taskId: `task-${index}` },
+        }),
+      ),
+    );
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Not confirmed: archived 9 Tasks.");
+    expect(result.unfulfilledActions).toHaveLength(9);
+  });
+
   it("links a scheduled social post to where the owner finds it", async () => {
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({

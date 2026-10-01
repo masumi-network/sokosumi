@@ -179,6 +179,36 @@ function actionTarget(
     : link;
 }
 
+/** Names are listed up to this many; past it a count says enough. */
+const MAX_NAMED_TARGETS = 5;
+
+/** "Archived task" ×4 → "Archived 4 Tasks"; other labels keep a count. */
+function countedLabel(label: string, count: number): string {
+  if (count === 1) return label;
+  const task = /^(.*) task$/i.exec(label);
+  return task ? `${task[1]} ${count} Tasks` : `${label} (${count}×)`;
+}
+
+function collapseActionLines(
+  lines: { head: string; target: string }[],
+): string[] {
+  const groups = new Map<string, string[]>();
+  for (const { head, target } of lines) {
+    const targets = groups.get(head) ?? [];
+    if (!targets.includes(target)) targets.push(target);
+    groups.set(head, targets);
+  }
+  return [...groups].map(([head, targets]) => {
+    if (targets.length === 1)
+      return `${[head, targets[0]].filter(Boolean).join(" ")}.`;
+    const named = targets.filter(Boolean);
+    const label = countedLabel(head, targets.length);
+    return named.length && targets.length <= MAX_NAMED_TARGETS
+      ? `${label}: ${named.join(", ")}.`
+      : `${label}.`;
+  });
+}
+
 const QUESTIONS = {
   TARGET: "Which task or item do you mean?",
   SCOPE: "What should I change, and what should stay as it is?",
@@ -506,23 +536,18 @@ export async function buildActionResponse(
       .filter((call) => call.capability === "assign_task")
       .map((call) => call.targetId),
   );
-  // One line per effect: a hire the runtime executed on its accepted call and
-  // recorded twice, or one Task reached two ways, is still one thing done.
-  const actionText = [
-    ...new Set(
-      unique.map(
-        (call) =>
-          `${call.turnId !== turnId ? "Previously verified: " : ""}${[
-            call.disposition === "ALREADY_SATISFIED"
-              ? "Already satisfied"
-              : actionLabel(call),
-            actionTarget(call, tasks, jobAgents, assignedTaskIds),
-          ]
-            .filter(Boolean)
-            .join(" ")}.`,
-      ),
-    ),
-  ];
+  // One line per kind of effect: a hire recorded twice, or one Task reached
+  // two ways, is still one thing done, and thirteen archives are one line.
+  const actionText = collapseActionLines(
+    unique.map((call) => ({
+      head: `${call.turnId !== turnId ? "Previously verified: " : ""}${
+        call.disposition === "ALREADY_SATISFIED"
+          ? "Already satisfied"
+          : actionLabel(call)
+      }`,
+      target: actionTarget(call, tasks, jobAgents, assignedTaskIds),
+    })),
+  );
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -553,13 +578,23 @@ export async function buildActionResponse(
   )
     ? await isOwnerStarted()
     : true;
+  const unfulfilledCounts = new Map<string, number>();
   for (const action of unfulfilledActions) {
-    const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
-    if (action.reason === "UNKNOWN")
-      actionText.push(
-        `I couldn't confirm whether this went through: ${label}. Check before trying again.`,
-      );
-    else if (ownerAsked) actionText.push(`Not confirmed: ${label}.`);
+    if (action.reason !== "UNKNOWN" && !ownerAsked) continue;
+    const key = `${action.reason}:${action.action}`;
+    unfulfilledCounts.set(key, (unfulfilledCounts.get(key) ?? 0) + 1);
+  }
+  for (const [key, count] of unfulfilledCounts) {
+    const [reason, action] = key.split(/:(.*)/s);
+    const label = countedLabel(
+      (ACTION_LABELS[action] ?? action).toLowerCase(),
+      count,
+    );
+    actionText.push(
+      reason === "UNKNOWN"
+        ? `I couldn't confirm whether this went through: ${label}. Check before trying again.`
+        : `Not confirmed: ${label}.`,
+    );
   }
   const narrative =
     parseActionNarrative(narrativeInput) ??
