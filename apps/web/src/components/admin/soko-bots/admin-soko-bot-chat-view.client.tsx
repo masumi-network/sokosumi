@@ -64,6 +64,7 @@ export function AdminSokoBotChatView({
   if (!selectedRoomId) {
     return <p className="text-muted-foreground text-sm">{t("empty")}</p>;
   }
+  const selectedRoom = rooms.find((room) => room.id === selectedRoomId);
 
   function loadOlder() {
     if (!cursor || !selectedRoomId) return;
@@ -99,10 +100,18 @@ export function AdminSokoBotChatView({
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >
-                {room.isOwnerRoom ? t("ownerRoom") : roomLabel(room)}
+                {room.isOwnerRoom
+                  ? `${roomLabel(room)} · ${t("ownerRoom")}`
+                  : roomLabel(room)}
               </Link>
             ))}
           </nav>
+        ) : selectedRoom ? (
+          <span className="text-muted-foreground text-xs">
+            {selectedRoom.isOwnerRoom
+              ? `${roomLabel(selectedRoom)} · ${t("ownerRoom")}`
+              : roomLabel(selectedRoom)}
+          </span>
         ) : (
           <span />
         )}

@@ -83,12 +83,19 @@ async function destinationStillAuthorized(
   turn: {
     sokoBotId: string;
     userId: string;
+    requestedByUserId?: string | null;
     workspaceId: string;
     source: string;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
 ): Promise<boolean> {
+  // A chat reply goes back to whoever asked: the owner, or a teammate who
+  // messaged someone else's bot in their own direct chat with it.
+  const recipientId =
+    turn.source === "CHAT"
+      ? (turn.requestedByUserId ?? turn.userId)
+      : turn.userId;
   const bot = await tx.sokoBot.findFirst({
     where: {
       id: turn.sokoBotId,
@@ -116,7 +123,7 @@ async function destinationStillAuthorized(
       archivedAt: null,
       ...(turn.source === "CHAT" ? {} : { kind: "direct" }),
       sokoBotMembers: { some: { sokoBotId: turn.sokoBotId } },
-      userMembers: { some: { userId: turn.userId } },
+      userMembers: { some: { userId: recipientId } },
     },
     select: {
       id: true,
