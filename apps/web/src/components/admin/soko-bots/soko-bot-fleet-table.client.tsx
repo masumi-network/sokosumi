@@ -4,6 +4,7 @@ import type {
   AdminSokoBotList,
   AdminSokoBotListItem,
 } from "@sokosumi/core-client";
+import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState, useTransition } from "react";
@@ -11,6 +12,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -130,13 +132,16 @@ export function SokoBotFleetTable({
               <TableHead>{t("version")}</TableHead>
               <TableHead className="text-right">{t("turns")}</TableHead>
               <TableHead className="text-right">{t("lastActivity")}</TableHead>
+              <TableHead>
+                <span className="sr-only">{t("chat")}</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {rows.length === 0 ? (
               <TableRow>
                 <TableCell
-                  colSpan={6}
+                  colSpan={7}
                   className="text-muted-foreground py-8 text-center text-sm"
                 >
                   {t("empty")}
@@ -198,6 +203,14 @@ export function SokoBotFleetTable({
                     {item.lastActivityAt
                       ? format.dateTime(item.lastActivityAt, "dateTimeShort")
                       : "—"}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`${ADMIN_SOKO_BOTS_ROUTE}/${item.id}/chat`}>
+                        <MessageSquare aria-hidden className="size-3.5" />
+                        {t("chat")}
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
