@@ -7055,7 +7055,7 @@
       "description": "Persönliche Assistenten, die Arbeit delegieren, nachhaken und dich im Chat auf dem Laufenden halten.",
       "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
       "createAssistant": "Erstelle deinen Assistenten",
-      "createAssistantHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
+      "createAssistantHint": "Hol dir einen Assistenten, der Tasks übernimmt, nachhakt und dich auf dem Laufenden hält. Die Einrichtung dauert eine Minute.",
       "assistantFallback": "Persönlicher Assistent",
       "chatError": "Der Chat konnte nicht geöffnet werden.",
       "manage": "Einstellungen",
@@ -7072,7 +7072,13 @@
       "statsMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}} in {days} Tagen",
       "assistantOf": "Assistent von",
       "message": "Schreiben",
-      "roleLine": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden."
+      "roleLine": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden.",
+      "heroCaption": "Soko Bots für alle in deinem Team",
+      "heroTitle": "Persönliche Assistenten für dein Team",
+      "chatWith": "Mit {name} chatten",
+      "yourAssistantTitle": "Dein Assistent",
+      "teamTitle": "Die Assistenten deines Teams",
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
     },
     "Calendar": {
       "Metadata": {
