@@ -9,6 +9,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
+import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
@@ -34,9 +35,6 @@ import {
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { signUpFormSchema } from "@/lib/schemas/auth";
-
-const LINK_CLASS =
-  "text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed";
 
 interface SignUpFormProps {
   /** Confirmed on the step before this one. */
@@ -289,46 +287,12 @@ export default function SignUpForm({
           className="w-full"
         />
       </div>
-      {/* A div, not a p: the captcha widget may render inside it. */}
-      <div className="text-muted-foreground text-center text-sm">
-        {isCodeStep ? (
-          <button
-            type="button"
-            className={LINK_CLASS}
-            onClick={() => switchTo("password")}
-          >
-            {t("usePasswordInstead")}
-          </button>
-        ) : wasCodeSent ? (
-          <>
-            {t("codeStillWorks")}{" "}
-            <button
-              type="button"
-              className={LINK_CLASS}
-              onClick={() => switchTo("code")}
-            >
-              {t("useCodeInstead")}
-            </button>
-          </>
-        ) : (
-          <>
-            {emailCode.captcha}
-            <button
-              type="button"
-              className={LINK_CLASS}
-              disabled={emailCode.isSending}
-              onClick={async () => {
-                await emailCode.sendCode(email);
-                switchTo("code");
-              }}
-            >
-              {emailCode.isSending
-                ? t("emailCodeSending")
-                : t("emailCodeInstead")}
-            </button>
-          </>
-        )}
-      </div>
+      <EmailCodeSwitch
+        email={email}
+        emailCode={emailCode}
+        isCodeStep={isCodeStep}
+        onSwitch={switchTo}
+      />
     </BaseForm>
   );
 }

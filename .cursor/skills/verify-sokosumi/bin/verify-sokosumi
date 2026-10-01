@@ -32,6 +32,9 @@ DEFAULT_FIXTURE_EMAIL="${VERIFY_SOKOSUMI_EMAIL:-alice@sokosumi.test}"
 DEFAULT_FIXTURE_PASSWORD="${VERIFY_SOKOSUMI_PASSWORD:-Password123!}"
 AUTH_EMAIL_SELECTOR='[data-testid="auth-field-email"]'
 AUTH_PASSWORD_SELECTOR='[data-testid="auth-field-currentPassword"]'
+# Step 2 of /signin: the confirmed address, hidden, for password managers.
+AUTH_USERNAME_SELECTOR='[data-testid="auth-field-username"]'
+AUTH_USE_PASSWORD_SELECTOR='[data-testid="auth-use-password"]'
 # Cloudflare dummy token. The always-pass secret accepts any non-empty value;
 # a missing x-captcha-response header 400s once TURNSTILE_SECRET_KEY is set.
 TURNSTILE_DUMMY_TOKEN='XXXX.DUMMY.TOKEN.XXXX'
@@ -671,6 +674,30 @@ function sign_in_cookie() {
   return 0
 }
 
+function continue_to_password_step() {
+  # /signin asks for the email alone first. Continue checks the address and
+  # opens step 2 on the code or the password, whichever this browser used
+  # last. A cleared browser gets the code (Core emails it); switch away from
+  # it. Fill only testids — never click Google/Microsoft/Passkey.
+  local email="$1"
+  if ! agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"; then
+    echo "error: could not fill auth-field-email (passkey/OAuth may have stolen focus — retry once)." >&2
+    agent-browser wait 500 >/dev/null || true
+    agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email" || return 1
+  fi
+  # react-hook-form: wait for controlled state, then Enter (not a click).
+  agent-browser wait 400 >/dev/null || sleep 0.4
+  agent-browser press Enter
+  if ! agent-browser wait --fn "Boolean(document.querySelector('$AUTH_PASSWORD_SELECTOR, $AUTH_USE_PASSWORD_SELECTOR'))" >/dev/null; then
+    echo "error: /signin did not reach step 2 for $email (no account, captcha, or Core down)." >&2
+    return 1
+  fi
+  if [[ "$(agent-browser eval "Boolean(document.querySelector('$AUTH_USE_PASSWORD_SELECTOR'))" 2>/dev/null)" == "true" ]]; then
+    agent-browser click "$AUTH_USE_PASSWORD_SELECTOR" >/dev/null
+  fi
+  agent-browser wait "$AUTH_PASSWORD_SELECTOR" >/dev/null
+}
+
 function sign_in_ui() {
   local email="$1"
   local password="$2"
@@ -688,11 +715,9 @@ function sign_in_ui() {
   agent-browser open "$WEB_URL/signin" >/dev/null
   agent-browser wait --load networkidle >/dev/null || agent-browser wait 1500 >/dev/null || true
 
-  # Fill only password-form testids — never click Google/Microsoft/Passkey/Email.
-  if ! agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"; then
-    echo "error: could not fill auth-field-email (passkey/OAuth may have stolen focus — retry once)." >&2
-    agent-browser wait 500 >/dev/null || true
-    agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"
+  if ! continue_to_password_step "$email"; then
+    agent-browser snapshot -i >"$art_dir/ui-fail.snapshot.txt" || true
+    return 1
   fi
   agent-browser fill "$AUTH_PASSWORD_SELECTOR" "$password"
   # react-hook-form: wait for controlled state, then Enter (not click auth-submit).
@@ -738,7 +763,7 @@ function sign_in_vault() {
     echo "  agent-browser auth save $profile \\" >&2
     echo "    --url $WEB_URL/signin \\" >&2
     echo "    --username you@example.com --password-stdin \\" >&2
-    echo "    --username-selector '$AUTH_EMAIL_SELECTOR' \\" >&2
+    echo "    --username-selector '$AUTH_USERNAME_SELECTOR' \\" >&2
     echo "    --password-selector '$AUTH_PASSWORD_SELECTOR'" >&2
     return 1
   fi
@@ -750,9 +775,19 @@ function sign_in_vault() {
   agent-browser open "$WEB_URL/signin" >/dev/null
   agent-browser wait 1500 >/dev/null || sleep 1.5
 
+  if [[ -z "$email" ]]; then
+    echo "error: auth profile '$profile' names no username; /signin asks for the email first." >&2
+    return 1
+  fi
+  if ! continue_to_password_step "$email"; then
+    agent-browser snapshot -i >"$art_dir/ui-fail.snapshot.txt" || true
+    return 1
+  fi
+  # Step 2 keeps the address in a hidden username field; the profile fills it
+  # and the password on the page as it is.
   if ! agent-browser auth login "$profile" \
-    --url "$WEB_URL/signin" \
-    --username-selector "$AUTH_EMAIL_SELECTOR" \
+    --no-navigate \
+    --username-selector "$AUTH_USERNAME_SELECTOR" \
     --password-selector "$AUTH_PASSWORD_SELECTOR"; then
     echo "error: agent-browser auth login $profile failed." >&2
     return 1

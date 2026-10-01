@@ -21,7 +21,7 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 
 - Start every recipe from the baseline state unless its preconditions say otherwise.
 - Prefer `data-testid` and accessible names over CSS position or coordinates.
-- Sign-in: prefer `verify-sokosumi sign-in`. Manual drive: fill email/password testids only, then `agent-browser press Enter` (do not click submit or OAuth/passkey/email code).
+- Sign-in: prefer `verify-sokosumi sign-in`. Manual drive: fill the email testid, `agent-browser press Enter`, switch step 2 to the password (`auth-use-password`), fill it, `press Enter` (do not click submit or OAuth/passkey).
 - Re-snapshot after navigation (`agent-browser snapshot -i`).
 - Treat Ably/chat realtime failures as environment gaps unless the feature under test is chat messaging.
 - Prefer `agent-browser`. Cloud Agent computer-use is allowed with the same rules when the CLI harness is unavailable.

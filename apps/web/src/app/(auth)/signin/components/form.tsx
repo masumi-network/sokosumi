@@ -6,51 +6,78 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { AuthForm } from "@/auth/components/form/auth-form";
+import * as z from "zod";
+
+import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
+import { BaseForm } from "@/auth/components/form/base-form";
+import { FormFields } from "@/auth/components/form/form-fields";
+import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { signInFormData } from "@/auth/signin/data";
+import type { EmailCode } from "@/auth/components/use-email-code";
+import { signInRememberMeFormData } from "@/auth/signin/data";
+import {
+  EMAIL_CODE_LENGTH,
+  EmailCodeField,
+  useDescribeEmailCodeError,
+} from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
   buildOAuthResumeUrlFromSearchParams,
-  buildSignedOAuthQueryFromSearchParams,
-  buildSignUpUrlFromSignIn,
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
-import {
-  rememberAuthEmailHintOnClick,
-  takeAuthEmailHint,
-} from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
-import type { FormData } from "@/lib/form";
-import { fireGTMEvent } from "@/lib/gtm-events";
-import {
-  type SignInFormSchemaType,
-  signInFormSchema,
-} from "@/lib/schemas/auth";
+import { signInFormSchema } from "@/lib/schemas/auth";
+
+export type SignInMethod = "code" | "password";
 
 interface SignInFormProps {
+  /** Confirmed on the step before this one. */
+  email: string;
   returnUrl?: string | undefined;
-  prefilledEmail?: string | undefined;
-  /** The invitation `prefilledEmail` belongs to; it stays fixed on sign-up. */
-  invitationId?: string | undefined;
-  isLastUsedEmailLogin?: boolean;
+  /** The way this browser signed in last; the code when it is not known. */
+  initialMethod: SignInMethod;
+  /** The code step 1 sent to `email`, if it went out. */
+  emailCode: EmailCode;
+  onFormStart: () => void;
+  onPendingChange: (pending: boolean) => void;
 }
 
+/**
+ * Second sign-in step: the code step 1 emailed, or the password. It opens on
+ * the way this browser signed in last, and on the password when no code went
+ * out. Either is one switch away.
+ */
 export default function SignInForm({
+  email,
   returnUrl,
-  prefilledEmail,
-  invitationId,
-  isLastUsedEmailLogin = false,
+  initialMethod,
+  emailCode,
+  onFormStart,
+  onPendingChange,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const authT = useTranslations("Auth");
+  const codeT = useTranslations("Components.EmailCodeForm");
+  const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
-  const loginAreaFormStart = useRef(false);
+  const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
+  const [prefersPassword, setPrefersPassword] = useState(
+    initialMethod === "password",
+  );
+  const [refusedCode, setRefusedCode] = useState(0);
   const {
     widget: captcha,
     runWithCaptcha,
@@ -62,177 +89,218 @@ export default function SignInForm({
     [returnUrl, searchParams],
   );
 
-  const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(
-      signInFormSchema(useTranslations("Library.Auth.Schema")),
-    ),
+  const isCodeStep = emailCode.sentTo === email && !prefersPassword;
+  // Read by the resolver, which validates whichever way the step finishes.
+  const isCodeStepRef = useRef(isCodeStep);
+  isCodeStepRef.current = isCodeStep;
+
+  const passwordStepSchema = signInFormSchema(schemaT).safeExtend({
+    code: z.string(),
+  });
+  const codeStepSchema = signInFormSchema(schemaT).safeExtend({
+    currentPassword: z.string(),
+    code: z
+      .string()
+      .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") }),
+  });
+  type Values = z.infer<typeof passwordStepSchema>;
+  const form = useForm<Values>({
+    resolver: (values, context, options) =>
+      zodResolver(isCodeStepRef.current ? codeStepSchema : passwordStepSchema)(
+        values,
+        context,
+        options,
+      ),
     defaultValues: {
-      email: prefilledEmail ?? "",
       currentPassword: "",
+      code: "",
       // Persistent session cookie (Max-Age). false → Better Auth omits Max-Age;
       // iOS then drops the cookie when it kills the PWA after backgrounding.
       rememberMe: true,
     },
   });
 
-  // when user first sees the login area
-  useEffect(() => {
-    fireGTMEvent.viewLoginArea();
-  }, []);
-
-  // Sign-up sends a person who already has an account here with the email
-  // they typed. It is a starting value, not a locked one like `prefilledEmail`.
+  // The step replaced the one the person was typing in, so focus follows.
   useMountEffect(() => {
-    const emailHint = takeAuthEmailHint();
-    if (!emailHint || prefilledEmail) {
-      return;
-    }
-    form.setValue("email", emailHint);
-    form.setFocus("currentPassword");
+    form.setFocus(isCodeStep ? "code" : "currentPassword");
   });
 
-  // when user starts typing in the form
-  useEffect(() => {
-    if (loginAreaFormStart.current) return;
-    if (form.formState.isDirty) {
-      loginAreaFormStart.current = true;
-      fireGTMEvent.loginAreaFormStart();
+  const handleCodeSubmit = async (values: Values) => {
+    track("Sign In", { provider: "email-otp" });
+    const error = await emailCode.signInWithCode(email, values.code);
+    if (error) {
+      form.setError("code", { message: describeCodeError(error) });
+      setRefusedCode((count) => count + 1);
+      return;
     }
-  }, [form.formState.isDirty]);
+    // The page is leaving; keep the step locked until it has.
+    setIsLeaving(true);
+    onPendingChange(true);
+  };
 
-  const handleSubmit = async (values: SignInFormSchemaType) => {
+  const handlePasswordSubmit = async (values: Values) => {
     track("Sign In", { provider: "credential" });
 
-    await runWithCaptcha(async (fetchOptions) => {
-      const result = await signIn.email({
-        fetchOptions,
-        email: values.email,
-        password: values.currentPassword,
-        rememberMe: values.rememberMe,
-      });
+    onPendingChange(true);
+    let willLeave = false;
+    try {
+      await runWithCaptcha(async (fetchOptions) => {
+        const result = await signIn.email({
+          fetchOptions,
+          email,
+          password: values.currentPassword,
+          rememberMe: values.rememberMe,
+        });
 
-      if (result.error) {
-        if (isRejectedOAuthRequestError(result.error)) {
-          toast.error(oauthT("errorDescription"));
+        if (result.error) {
+          if (isRejectedOAuthRequestError(result.error)) {
+            toast.error(oauthT("errorDescription"));
+            return;
+          }
+
+          const errorCode =
+            "code" in result.error ? result.error.code : undefined;
+
+          switch (errorCode) {
+            case AuthErrorCode.TERMS_NOT_ACCEPTED:
+              toast.error(t("Errors.termsNotAccepted"));
+              break;
+            default:
+              toast.error(
+                getErrorMessage(
+                  result.error,
+                  result.error.message ?? t("error"),
+                ),
+              );
+              break;
+          }
           return;
         }
 
-        const errorCode =
-          "code" in result.error ? result.error.code : undefined;
-
-        switch (errorCode) {
-          case AuthErrorCode.TERMS_NOT_ACCEPTED:
-            toast.error(t("Errors.termsNotAccepted"));
-            break;
-          default:
-            toast.error(
-              getErrorMessage(result.error, result.error.message ?? t("error")),
-            );
-            break;
-        }
-        return;
-      }
-
-      // No `callbackURL`: Better Auth would hard-redirect through a callback
-      // page. Like passkey, finish in place and leave with a full document
-      // load — a soft nav is served the pre-login middleware redirect.
-      setIsLeaving(true);
-      await finishAuthInPlace({
-        eventType: "signIn",
-        provider: "credential",
-        returnUrl: effectiveReturnUrl,
-        result: result.data,
+        // No `callbackURL`: Better Auth would hard-redirect through a callback
+        // page. Like passkey, finish in place and leave with a full document
+        // load — a soft nav is served the pre-login middleware redirect.
+        willLeave = true;
+        setIsLeaving(true);
+        await finishAuthInPlace({
+          eventType: "signIn",
+          provider: "credential",
+          returnUrl: effectiveReturnUrl,
+          result: result.data,
+        });
       });
-    });
+    } finally {
+      // Keep the flow locked after success until the page navigates away.
+      if (!willLeave) onPendingChange(false);
+    }
   };
 
-  const email = useWatch({
-    control: form.control,
-    name: "email",
-  });
-  const formData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
-    signInFormData.map((item) =>
-      item.name === "email" && prefilledEmail
-        ? { ...item, disabled: true }
-        : item,
-    );
-  const forgotPasswordUrl = useMemo(
-    () =>
-      `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
-    [email],
-  );
-  const invitation =
-    invitationId && prefilledEmail
-      ? { id: invitationId, email: prefilledEmail }
-      : undefined;
-  const signUpUrl = buildSignUpUrlFromSignIn({
-    returnUrl,
-    oauthQuery: returnUrl
-      ? undefined
-      : buildSignedOAuthQueryFromSearchParams(searchParams),
-    invitation,
-  });
+  const switchTo = (method: SignInMethod) => {
+    form.clearErrors(method === "code" ? "currentPassword" : "code");
+    setPrefersPassword(method === "password");
+  };
 
   const { isSubmitting } = form.formState;
   const isPending = isSubmitting || isLeaving;
 
+  // A refused code sends focus back to its field. A submitting fieldset
+  // cannot receive focus; wait until it is enabled again.
+  useEffect(() => {
+    if (refusedCode === 0 || isSubmitting) return;
+    form.setFocus("code");
+  }, [refusedCode, isSubmitting, form]);
+
   return (
-    <AuthForm
+    <BaseForm
       form={form}
-      formData={formData}
-      namespace="Auth.Pages.SignIn.Form"
-      onSubmit={handleSubmit}
+      onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
+      onChange={onFormStart}
     >
-      <div className="flex flex-col gap-4">
-        {captcha}
-        <div className="relative">
-          {isLastUsedEmailLogin && (
-            <span
-              aria-hidden="true"
-              className="bg-background text-foreground border-border pointer-events-none absolute top-1/2 right-2 z-10 -translate-y-1/2 rounded-full border px-2 py-0.5 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
-          )}
-          <SubmitButton
-            isSubmitting={isPending}
-            spinnerPosition="start"
-            label={t("submit")}
-            className="w-full"
-            data-testid="auth-submit"
-          />
-        </div>
-        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-          <div className="flex flex-row items-center gap-2">
-            <span className="text-muted-foreground text-sm">
-              {t("Register.message")}
-            </span>
-            <Link
-              href={signUpUrl}
-              onAuxClick={() => takeAuthEmailHint()}
-              // A typed email stays out of the link, which would lock it on
-              // sign-up. Only an invitation's address belongs there.
-              onClick={(event) => {
-                rememberAuthEmailHintOnClick(
-                  event,
-                  invitation ? "" : form.getValues("email"),
-                );
+      {/* Password managers pair the password with this address. */}
+      <input
+        data-testid="auth-field-username"
+        type="email"
+        autoComplete="username"
+        autoCapitalize="none"
+        spellCheck={false}
+        value={email}
+        readOnly
+        tabIndex={-1}
+        aria-hidden="true"
+        className="sr-only"
+      />
+      {isCodeStep ? (
+        <Controller
+          control={form.control}
+          name="code"
+          render={({ field, fieldState }) => (
+            <EmailCodeField
+              inputRef={field.ref}
+              value={field.value}
+              onChange={field.onChange}
+              onBlur={field.onBlur}
+              error={fieldState.error?.message}
+              sentAt={emailCode.sentAt}
+              onResend={() => {
+                void emailCode.sendCode(email);
               }}
-              className="text-primary text-sm font-medium hover:underline"
-            >
-              {t("Register.link")}
-            </Link>
-          </div>
-          <div className="flex flex-col items-center gap-2 sm:items-end">
-            <Link
-              href={forgotPasswordUrl}
-              className="text-muted-foreground text-sm hover:underline"
-            >
-              {t("forgotPassword")}
-            </Link>
-          </div>
-        </div>
+              isResending={emailCode.isSending}
+              disabled={isPending}
+            />
+          )}
+        />
+      ) : (
+        <>
+          <FormField
+            control={form.control}
+            name="currentPassword"
+            render={({ field }) => (
+              <FormItem>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                  <FormLabel>{t("Fields.Password.label")}</FormLabel>
+                  <Link
+                    href={`/forgot-password?email=${encodeURIComponent(email)}`}
+                    className="text-muted-foreground hover:text-foreground text-sm hover:underline"
+                  >
+                    {t("forgotPassword")}
+                  </Link>
+                </div>
+                <FormControl>
+                  <PasswordInput
+                    data-testid="auth-field-currentPassword"
+                    autoComplete="current-password"
+                    showLabel={authT("PasswordToggle.show")}
+                    hideLabel={authT("PasswordToggle.hide")}
+                    {...field}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormFields
+            form={form}
+            formData={signInRememberMeFormData}
+            namespace="Auth.Pages.SignIn.Form"
+          />
+        </>
+      )}
+      <div className="flex flex-col gap-4">
+        {isCodeStep ? emailCode.captcha : captcha}
+        <SubmitButton
+          isSubmitting={isPending}
+          spinnerPosition="start"
+          label={t("submit")}
+          className="w-full"
+          data-testid="auth-submit"
+        />
       </div>
-    </AuthForm>
+      <EmailCodeSwitch
+        email={email}
+        emailCode={emailCode}
+        isCodeStep={isCodeStep}
+        onSwitch={switchTo}
+      />
+    </BaseForm>
   );
 }
