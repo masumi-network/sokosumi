@@ -316,6 +316,18 @@ describe("legacy PUT /{id}/schedule", () => {
       expect(data.scheduleId).not.toBe(foreign.id);
     });
 
+    it.each([
+      ["a seconds field", "0 0 9 * * 1"],
+      ["a macro", "@daily"],
+    ])("refuses a cron with %s, as the new routes do", async (_label, expr) => {
+      seedBlueprint();
+
+      const response = await put({ ...WEEKLY, expr });
+
+      expect(response.status).toBe(400);
+      expect(taskScheduleTestDb.schedules).toHaveLength(0);
+    });
+
     it("rejects a Task that already starts once", async () => {
       seedBlueprint({ status: TaskStatus.QUEUED, runAt: new Date(RUN_AT) });
 
