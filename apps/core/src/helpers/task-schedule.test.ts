@@ -59,6 +59,12 @@ describe("validateTaskScheduleRule", () => {
     ).toThrow("timezone is invalid");
   });
 
+  it("rejects a cron that is not five fields", () => {
+    expect(() =>
+      validateTaskScheduleRule({ ...rule, expr: "0 0 9 * * 1" }),
+    ).toThrow("expr must be a five-field cron expression");
+  });
+
   it("rejects an end in the past", () => {
     expect(() =>
       validateTaskScheduleRule({

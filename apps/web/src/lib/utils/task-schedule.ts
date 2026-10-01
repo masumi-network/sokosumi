@@ -3,7 +3,7 @@ import type {
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
 } from "@sokosumi/core-client";
-import { isValidTimezone } from "@sokosumi/utils";
+import { isFiveFieldCronExpression, isValidTimezone } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
 import { DOW, parseCron } from "@/lib/schedules/cron";
 import {
@@ -396,6 +396,7 @@ export function schedulableRunAtLocalIso(
 }
 
 export function isValidCronExpression(expr: string, timezone: string): boolean {
+  if (!isFiveFieldCronExpression(expr)) return false;
   try {
     cronParser.parse(expr, { tz: timezone });
     return true;

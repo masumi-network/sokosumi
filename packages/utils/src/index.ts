@@ -151,6 +151,7 @@ export {
   selectCreditTopUpTier,
   ZERO_MARGIN_CREDIT_TOPUP_LOOKUP_KEY,
 } from "./credit-topup-pricing.js";
+export { isFiveFieldCronExpression } from "./cron-expression.js";
 export {
   createDataTableSchema,
   tableBatchSchema,

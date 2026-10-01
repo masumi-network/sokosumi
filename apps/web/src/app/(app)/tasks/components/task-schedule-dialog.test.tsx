@@ -258,6 +258,8 @@ describe("TaskScheduleDialog", () => {
 
   it.each([
     ["a custom cron", { expr: "15 7 1,15 * *" }],
+    // Stored before Core required five fields; it keeps running untouched.
+    ["a six-field cron", { expr: "0 15 7 1,15 * *" }],
     [
       "an every-N-days rule",
       {
@@ -380,6 +382,20 @@ describe("TaskScheduleDialog", () => {
     await user.click(monday);
 
     expect(screen.getByText("pickADay")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+  });
+
+  it("blocks saving a custom cron that is not five fields", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    const cron = screen.getByLabelText("cron");
+    await user.clear(cron);
+    await user.type(cron, "0 30 8 * * MON");
+
+    expect(cron).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("cronInvalid")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
   });
 

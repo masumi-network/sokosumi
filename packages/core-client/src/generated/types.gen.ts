@@ -6814,7 +6814,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -6868,7 +6868,7 @@ export type UpdateTaskScheduleRequest = {
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**

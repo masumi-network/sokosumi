@@ -181,7 +181,10 @@ export function TaskScheduleDialog({
   const isPrivateSchedule = schedule
     ? schedule.visibility === TaskVisibility.PRIVATE
     : showPrivateControl && isPrivate;
-  const saveDisabled = isSaving || !name.trim() || !rule;
+  // An edit that leaves the rule alone does not send it, so a stored rule the
+  // controls reject (one from before the five-field cron) still saves.
+  const ruleRequired = !schedule || whenTouched;
+  const saveDisabled = isSaving || !name.trim() || (ruleRequired && !rule);
 
   function reportError(error: TaskScheduleActionError) {
     if (error.kind === "stale") {
@@ -193,7 +196,7 @@ export function TaskScheduleDialog({
 
   async function handleSave() {
     const trimmedName = name.trim();
-    if (!rule || !trimmedName) return;
+    if (!trimmedName || (ruleRequired && !rule)) return;
 
     const input: TaskScheduleBlueprintInput = {
       name: trimmedName,
@@ -210,17 +213,19 @@ export function TaskScheduleDialog({
             expectedRevision: schedule.revision,
             // Replacing the rule drops skipped and moved Runs, so an edit
             // that leaves it alone does not send it.
-            ...(hasTaskScheduleChanged(initialSelection, selection)
+            ...(rule && hasTaskScheduleChanged(initialSelection, selection)
               ? { rule }
               : {}),
           })
-        : await createTaskSchedule({
+        : rule &&
+          (await createTaskSchedule({
             ...input,
             visibility: isPrivateSchedule
               ? TaskVisibility.PRIVATE
               : TaskVisibility.PUBLIC,
             rule,
-          });
+          }));
+      if (!result) return;
       if (!result.ok) {
         reportError(result.error);
         return;
