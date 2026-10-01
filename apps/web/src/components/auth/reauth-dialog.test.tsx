@@ -1,5 +1,5 @@
 import type { Account } from "@sokosumi/utils";
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -342,16 +342,30 @@ describe("ReauthDialog", () => {
     expect(screen.getByText("noMethod")).toBeInTheDocument();
   });
 
-  it("sends a new code on request", async () => {
-    renderDialog([]);
+  it("sends a new code on request once the wait is over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderDialog([]);
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+      // The first email is usually still on its way.
+      expect(
+        await screen.findByRole("button", { name: "resendIn" }),
+      ).toBeDisabled();
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-    await user.click(await screen.findByRole("button", { name: "resend" }));
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      await user.click(screen.getByRole("button", { name: "resend" }));
 
-    await waitFor(() => {
-      expect(mockSendEmailCode).toHaveBeenCalledTimes(2);
-    });
+      await waitFor(() => {
+        expect(mockSendEmailCode).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("names a terms block instead of blaming the password", async () => {

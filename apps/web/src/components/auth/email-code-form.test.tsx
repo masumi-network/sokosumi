@@ -18,6 +18,8 @@ function renderForm(
     onSubmitCode: vi.fn().mockResolvedValue(undefined),
     onResend: vi.fn(),
     isResending: false,
+    // Long enough ago that a new code may be asked for.
+    sentAt: 0,
     ...overrides,
   };
   render(<EmailCodeForm {...props} />);
@@ -143,6 +145,20 @@ describe("EmailCodeForm", () => {
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled(),
     );
+  });
+
+  it("leaves the address out when the page already shows it", () => {
+    renderForm({ email: undefined });
+
+    expect(
+      screen.getByRole("textbox", { name: "codeLabel" }),
+    ).toHaveAccessibleDescription("sentNoAddress");
+  });
+
+  it("offers a new code beside the field only after the wait", () => {
+    renderForm({ sentAt: Date.now() });
+
+    expect(screen.getByRole("button", { name: /^resendIn/ })).toBeDisabled();
   });
 
   it("sends a new code on request", async () => {

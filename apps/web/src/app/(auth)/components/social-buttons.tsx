@@ -78,6 +78,7 @@ export default function SocialButtons({
     captcha,
     isSending: isSendingEmailCode,
     sentTo: emailCodeSentTo,
+    sentAt: emailCodeSentAt,
     sendCode,
     signInWithCode,
   } = useEmailCode({ eventType: "signIn", returnUrl: effectiveReturnUrl });
@@ -190,6 +191,7 @@ export default function SocialButtons({
       return;
     }
 
+    track("Sign In", { provider: "email-otp", direct_signup_link: false });
     await sendCode(trimmedEmailCodeEmail);
   };
 
@@ -352,6 +354,7 @@ export default function SocialButtons({
               onResend={() => {
                 void sendCode(trimmedEmailCodeEmail);
               }}
+              sentAt={emailCodeSentAt}
               isResending={isSendingEmailCode}
             />
           ) : null}

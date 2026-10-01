@@ -8,13 +8,15 @@
     },
     "EmailCodeForm": {
       "sent": "We sent a 6-digit code to {email}.",
-      "codeLabel": "Code",
+      "sentNoAddress": "We emailed you a 6-digit code.",
+      "codeLabel": "Code from the email",
       "incomplete": "Enter the 6-digit code from the email.",
       "invalid": "That code is not right. Check the email and try again.",
       "expired": "This code has expired. Send a new code.",
       "tooManyAttempts": "Too many wrong tries. Send a new code.",
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
+      "resendIn": "Send a new code in {seconds}s",
       "termsNotAccepted": "Accept the updated terms before signing in again.",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again."
     },
@@ -1164,7 +1166,6 @@
       "continueWith": "Continue with {provider}",
       "passwordDivider": "or sign in with password",
       "orDivider": "or",
-      "emailCodeDivider": "or skip the password",
       "emailCodeProvider": "email code",
       "emailCodeInputLabel": "Email for sign-in code",
       "emailCodePlaceholder": "Enter your email",
@@ -1293,7 +1294,9 @@
           },
           "emailCodeInstead": "Email me a code instead",
           "emailCodeSending": "Sending code...",
-          "usePasswordInstead": "Use a password instead"
+          "usePasswordInstead": "Use a password instead",
+          "codeStillWorks": "The code we sent still works.",
+          "useCodeInstead": "Use the code instead"
         }
       },
       "ForgotPassword": {

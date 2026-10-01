@@ -15,6 +15,7 @@ import SignUpFlow from "./sign-up-flow";
 const socialButtonsMock = vi.fn();
 const signUpFormMock = vi.fn();
 const emailStatusMock = vi.fn();
+const sendEmailCodeMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -38,8 +39,15 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     $fetch: (...args: unknown[]) => emailStatusMock(...args),
+    emailOtp: {
+      sendVerificationOtp: (...args: unknown[]) => sendEmailCodeMock(...args),
+    },
   },
 }));
+
+vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
+
+vi.mock("@/lib/actions/auth/action", () => ({ handleUtmConversion: vi.fn() }));
 
 vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
 
@@ -87,6 +95,52 @@ describe("SignUpFlow", () => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    sendEmailCodeMock.mockResolvedValue({
+      data: { success: true },
+      error: null,
+    });
+  });
+
+  it("emails a code to a new address on Continue, so step 2 opens on it", async () => {
+    const user = userEvent.setup();
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => {
+      expect(signUpFormMock).toHaveBeenCalled();
+    });
+    expect(sendEmailCodeMock).toHaveBeenCalledWith({
+      fetchOptions: captchaFetchOptions,
+      email: "ada@example.com",
+      type: "sign-in",
+    });
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
+      }),
+    );
+  });
+
+  it("opens step 2 on the password when the code could not be sent", async () => {
+    sendEmailCodeMock.mockResolvedValue({
+      data: null,
+      error: { message: "Mail is down" },
+    });
+    const user = userEvent.setup();
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => {
+      expect(signUpFormMock).toHaveBeenCalled();
+    });
+    expect(toast.error).toHaveBeenCalledWith("Mail is down");
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        emailCode: expect.objectContaining({ sentTo: null }),
+      }),
+    );
   });
 
   it("opens on the email step beside the providers", () => {
@@ -220,6 +274,8 @@ describe("SignUpFlow", () => {
     // Having an account is not a mistake in the field.
     expect(emailField()).not.toHaveAttribute("aria-invalid", "true");
     expect(signUpFormMock).not.toHaveBeenCalled();
+    // An existing account is sent to sign-in, not a code.
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
   describe("after the notice has opened", () => {

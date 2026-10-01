@@ -8,13 +8,15 @@
     },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
-      "codeLabel": "Code",
+      "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
+      "codeLabel": "Code aus der E-Mail",
       "incomplete": "Gib den 6-stelligen Code aus der E-Mail ein.",
       "invalid": "Dieser Code stimmt nicht. Prüfe die E-Mail und versuche es erneut.",
       "expired": "Dieser Code ist abgelaufen. Sende einen neuen Code.",
       "tooManyAttempts": "Zu viele falsche Versuche. Sende einen neuen Code.",
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
+      "resendIn": "Neuer Code in {seconds} s",
       "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
     },
@@ -1164,7 +1166,6 @@
       "continueWith": "Weiter mit {provider}",
       "passwordDivider": "oder mit Passwort anmelden",
       "orDivider": "oder",
-      "emailCodeDivider": "oder ohne Passwort",
       "emailCodeProvider": "E-Mail-Code",
       "emailCodeInputLabel": "E-Mail für den Anmeldecode",
       "emailCodePlaceholder": "E-Mail-Adresse eingeben",
@@ -1293,7 +1294,9 @@
           },
           "emailCodeInstead": "Stattdessen Code per E-Mail senden",
           "emailCodeSending": "Code wird gesendet...",
-          "usePasswordInstead": "Stattdessen ein Passwort verwenden"
+          "usePasswordInstead": "Stattdessen ein Passwort verwenden",
+          "codeStillWorks": "Der gesendete Code gilt weiterhin.",
+          "useCodeInstead": "Stattdessen den Code verwenden"
         }
       },
       "ForgotPassword": {

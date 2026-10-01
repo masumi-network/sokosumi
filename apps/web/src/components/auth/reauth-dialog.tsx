@@ -72,7 +72,8 @@ export function ReauthDialog({
   // so without the same choice the dialog would quietly turn a viewer's
   // "do not keep me signed in" into a persistent cookie.
   const [rememberMe, setRememberMe] = useState(true);
-  const [emailCodeSent, setEmailCodeSent] = useState(false);
+  // When the code went out; null until one has.
+  const [emailCodeSentAt, setEmailCodeSentAt] = useState<number | null>(null);
   // `fromPassword` keeps the field's invalid marking on the path that owns it.
   // A failed provider or email attempt must not mark an untouched password.
   const [error, setError] = useState<{
@@ -114,7 +115,7 @@ export function ReauthDialog({
     if (!nextOpen) {
       setPassword("");
       setError(null);
-      setEmailCodeSent(false);
+      setEmailCodeSentAt(null);
     }
 
     onOpenChange(nextOpen);
@@ -177,7 +178,7 @@ export function ReauthDialog({
   const finishReauthentication = () => {
     // A code may have been sent before the viewer chose the password instead.
     // Leaving its field up would ask for a stale code next time.
-    setEmailCodeSent(false);
+    setEmailCodeSentAt(null);
     // This path keeps the document, so a client the Ably singleton retired
     // for the lost session would outlive the session that lost it.
     discardRetiredAblyRealtimeClientAfterSignIn();
@@ -211,7 +212,7 @@ export function ReauthDialog({
         return;
       }
 
-      setEmailCodeSent(true);
+      setEmailCodeSentAt(Date.now());
     } catch {
       setError({ fromPassword: false, message: t("emailCodeError") });
     } finally {
@@ -349,9 +350,10 @@ export function ReauthDialog({
                   </p>
                 ) : null}
                 {emailCodeCaptcha.widget}
-                {emailCodeSent ? (
+                {emailCodeSentAt !== null ? (
                   <EmailCodeForm
                     email={email}
+                    sentAt={emailCodeSentAt}
                     submitLabel={t("confirmCode")}
                     onSubmitCode={handleEmailCodeSubmit}
                     onResend={() => {

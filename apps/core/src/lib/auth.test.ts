@@ -1214,7 +1214,7 @@ describe("core auth config", () => {
     expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
   });
 
-  it("signs in with a six-digit email code that lasts ten minutes and allows five tries", async () => {
+  it("signs in with a six-digit email code that lasts ten minutes, allows five tries and survives a resend", async () => {
     await import("./auth");
 
     expect(emailOTPPluginMock).toHaveBeenCalledTimes(1);
@@ -1223,7 +1223,9 @@ describe("core auth config", () => {
         otpLength: 6,
         expiresIn: 600,
         allowedAttempts: 5,
-        storeOTP: "hashed",
+        // A resend repeats the code, so a late first email still works.
+        storeOTP: "encrypted",
+        resendStrategy: "reuse",
         disableSignUp: false,
       }),
     );

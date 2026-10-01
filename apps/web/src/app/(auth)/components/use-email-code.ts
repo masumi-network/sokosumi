@@ -1,10 +1,9 @@
 "use client";
 
-import { track } from "@vercel/analytics";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-import type { EmailCodeError } from "@/components/auth/email-code-form";
+import type { EmailCodeError } from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -43,12 +42,11 @@ export function useEmailCode({
   } = useAuthCaptcha("email-code");
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState(0);
 
+  // Not counted as an attempt here: sign-up sends on Continue, before anyone
+  // chose a code. The pages count the choice.
   async function sendCode(email: string) {
-    track(eventType === "signUp" ? "Sign Up" : "Sign In", {
-      provider: "email-otp",
-      direct_signup_link: false,
-    });
     setIsSending(true);
 
     try {
@@ -70,6 +68,7 @@ export function useEmailCode({
         }
 
         setSentTo(email);
+        setSentAt(Date.now());
       });
     } catch (_error) {
       toast.error(t("emailCodeError"));
@@ -98,5 +97,7 @@ export function useEmailCode({
     return undefined;
   }
 
-  return { captcha, isSending, sentTo, sendCode, signInWithCode };
+  return { captcha, isSending, sentTo, sentAt, sendCode, signInWithCode };
 }
+
+export type EmailCode = ReturnType<typeof useEmailCode>;

@@ -559,7 +559,11 @@ export const auth = betterAuth({
       otpLength: 6,
       expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
       allowedAttempts: 5,
-      storeOTP: "hashed",
+      // A resend repeats the code rather than replacing it, so whichever email
+      // arrives first works. Reuse needs the code recoverable, so it is stored
+      // encrypted with the auth secret instead of hashed.
+      storeOTP: "encrypted",
+      resendStrategy: "reuse",
       disableSignUp: false,
       sendVerificationOTP: async ({ email, otp }, ctx) => {
         const renderedEmail = await renderEmailCodeEmail({
