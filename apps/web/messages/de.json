@@ -7053,7 +7053,7 @@
       "description": "Persönliche Assistenten, die Arbeit delegieren, nachhaken und dich im Chat auf dem Laufenden halten.",
       "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
       "createAssistant": "Erstelle deinen Assistenten",
-      "createAssistantHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
+      "createAssistantHint": "Hol dir einen Assistenten, der Tasks übernimmt, nachhakt und dich auf dem Laufenden hält. Die Einrichtung dauert eine Minute.",
       "assistantFallback": "Persönlicher Assistent",
       "chatError": "Der Chat konnte nicht geöffnet werden.",
       "manage": "Einstellungen",

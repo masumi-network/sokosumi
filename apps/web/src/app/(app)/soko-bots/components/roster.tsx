@@ -217,7 +217,8 @@ export async function YourAssistantSection({
               {t("createAssistantHint")}
             </p>
           </div>
-          <Button asChild className="w-full sm:w-auto">
+          {/* The hero carries the primary "Create"; this one stays secondary. */}
+          <Button asChild variant="outline" className="w-full sm:w-auto">
             <Link href={SOKO_BOT_ROUTE}>
               {t("createAssistant")}
               <ArrowRight aria-hidden className="size-4" />

@@ -7053,7 +7053,7 @@
       "description": "Asistentes personales que delegan trabajo, hacen seguimiento y te mantienen al día en el chat.",
       "unavailable": "La vista del equipo no está disponible ahora mismo.",
       "createAssistant": "Crea tu asistente",
-      "createAssistantHint": "Lleva un minuto: elige un nombre y una cara.",
+      "createAssistantHint": "Consigue un asistente que se encarga de tareas, hace seguimiento y te mantiene al día. Configurarlo lleva un minuto.",
       "assistantFallback": "Asistente personal",
       "chatError": "No se pudo abrir el chat.",
       "manage": "Ajustes",
