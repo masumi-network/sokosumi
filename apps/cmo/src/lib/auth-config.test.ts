@@ -2,8 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readCmoAuthConfig } from "./auth-config";
 
-const CORE_PREVIEW =
-  "sokosumi-core-mainnet-git-feat-long-branch-name-fceb86.preview.sokosumi.com";
+const CORE_ALIAS = "sokosumi-core-mainnet-git-feat-long-branch-name-fceb86";
 
 /** `VERCEL_RELATED_PROJECTS` as Vercel sets it for a preview build. */
 function relatedProjects(branch: string | undefined) {
@@ -23,7 +22,11 @@ describe("readCmoAuthConfig", () => {
     vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_ID", "cmo-client");
     vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_SECRET", "cmo-secret");
     vi.stubEnv("CORE_APP_BASE_URL", "https://api.sokosumi.com/");
-    vi.stubEnv("VERCEL_RELATED_PROJECTS", relatedProjects(CORE_PREVIEW));
+    // As observed on a CMO preview: Core's alias with CMO's own suffix.
+    vi.stubEnv(
+      "VERCEL_RELATED_PROJECTS",
+      relatedProjects(`${CORE_ALIAS}.preview.cmo.xyz`),
+    );
   });
 
   afterEach(() => {
@@ -36,7 +39,7 @@ describe("readCmoAuthConfig", () => {
 
     expect(readCmoAuthConfig()).toMatchObject({
       baseURL: "https://sokosumi-cmo-git-feat.preview.cmo.xyz",
-      coreBaseUrl: `https://${CORE_PREVIEW}`,
+      coreBaseUrl: `https://${CORE_ALIAS}.preview.sokosumi.com`,
     });
   });
 

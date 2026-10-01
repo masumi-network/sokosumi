@@ -6,6 +6,9 @@ import type { CmoAuthConfig } from "./auth";
 /** The Core project whose branch preview a CMO preview signs in against. */
 const CORE_PREVIEW_PROJECT = "sokosumi-core-mainnet";
 
+/** Core's preview deployment suffix; CMO's own previews use preview.cmo.xyz. */
+const CORE_PREVIEW_DOMAIN = "preview.sokosumi.com";
+
 function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) throw new Error(`${name} is not set`);
@@ -24,14 +27,16 @@ function vercelHostUrl(name: string): string | undefined {
  */
 function readCoreBaseUrl(vercelEnv: string | undefined): string {
   if (vercelEnv !== "preview") return requireEnv("CORE_APP_BASE_URL");
-  const coreBaseUrl = withRelatedProject({
+  const relatedUrl = withRelatedProject({
     projectName: CORE_PREVIEW_PROJECT,
     defaultHost: "",
   });
-  if (!coreBaseUrl) {
+  if (!relatedUrl) {
     throw new Error(`${CORE_PREVIEW_PROJECT} has no preview for this branch`);
   }
-  return coreBaseUrl;
+  // Vercel names the alias right but appends CMO's suffix, not Core's.
+  const [alias] = new URL(relatedUrl).hostname.split(".");
+  return `https://${alias}.${CORE_PREVIEW_DOMAIN}`;
 }
 
 /**
