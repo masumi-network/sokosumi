@@ -10,6 +10,7 @@ import type {
 import { requireAdminAuthContext } from "@/middleware/auth";
 
 import mountDeleteAdminBadgeCampaign from "./[id]/delete";
+import mountEndAdminBadgeCampaign from "./[id]/end/post";
 import mountPatchAdminBadgeCampaign from "./[id]/patch";
 import mountListAdminBadgeCampaigns from "./get";
 import mountCreateAdminBadgeCampaign from "./post";
@@ -96,6 +97,7 @@ function createApp() {
   mountCreateAdminBadgeCampaign(app);
   mountPatchAdminBadgeCampaign(app);
   mountDeleteAdminBadgeCampaign(app);
+  mountEndAdminBadgeCampaign(app);
   return app;
 }
 
@@ -277,5 +279,54 @@ describe("admin badge campaigns", () => {
 
     expect(response.status).toBe(409);
     expect(deleteMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses to move a started campaign's start into the future", async () => {
+    findUniqueMock.mockResolvedValueOnce(
+      campaignRow({ startsAt: new Date("2026-09-30T00:00:00.000Z") }),
+    );
+
+    const response = await jsonRequest("PATCH", `/${CAMPAIGN_ID}`, {
+      startsAt: "2026-10-05T00:00:00.000Z",
+      endsAt: "2026-10-26T00:00:00.000Z",
+    });
+
+    expect(response.status).toBe(409);
+    expect(updateMock).not.toHaveBeenCalled();
+  });
+
+  it("ends a live campaign at Core's clock", async () => {
+    findUniqueMock.mockResolvedValueOnce(
+      campaignRow({ startsAt: new Date("2026-09-30T00:00:00.000Z") }),
+    );
+    updateMock.mockResolvedValueOnce(
+      campaignRow({
+        startsAt: new Date("2026-09-30T00:00:00.000Z"),
+        endsAt: NOW,
+      }),
+    );
+
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}/end`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(updateMock).toHaveBeenCalledWith({
+      where: { id: CAMPAIGN_ID },
+      data: { endsAt: NOW },
+    });
+  });
+
+  it("refuses to end a campaign that is not running", async () => {
+    findUniqueMock.mockResolvedValueOnce(campaignRow());
+
+    const response = await createApp().request(
+      `http://localhost/${CAMPAIGN_ID}/end`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(409);
+    expect(updateMock).not.toHaveBeenCalled();
   });
 });

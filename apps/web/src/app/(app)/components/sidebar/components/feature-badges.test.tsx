@@ -22,7 +22,7 @@ import {
   type BadgeCampaignSummary,
   FeatureBadgesProvider,
 } from "./feature-badges";
-import { SidebarLabelWithNew } from "./sidebar-new-badge";
+import { SidebarFeatureLabel } from "./sidebar-feature-label";
 
 const DRIVE_CAMPAIGN: BadgeCampaignSummary = {
   id: "campaign-drive",
@@ -45,10 +45,10 @@ async function renderRows(campaigns: BadgeCampaignSummary[]) {
   const view = render(
     <FeatureBadgesProvider campaigns={settled(campaigns)}>
       <span data-testid="drive">
-        <SidebarLabelWithNew label="Drive" feature="DRIVE" />
+        <SidebarFeatureLabel label="Drive" feature="DRIVE" />
       </span>
       <span data-testid="studio">
-        <SidebarLabelWithNew label="Content Studio" feature="CONTENT_STUDIO" />
+        <SidebarFeatureLabel label="Content Studio" feature="CONTENT_STUDIO" />
       </span>
     </FeatureBadgesProvider>,
   );
@@ -79,7 +79,7 @@ describe("New badges in the sidebar", () => {
     view.rerender(
       <FeatureBadgesProvider campaigns={settled([DRIVE_CAMPAIGN])}>
         <span data-testid="drive">
-          <SidebarLabelWithNew label="Drive" feature="DRIVE" />
+          <SidebarFeatureLabel label="Drive" feature="DRIVE" />
         </span>
       </FeatureBadgesProvider>,
     );
@@ -108,7 +108,7 @@ describe("New badges in the sidebar", () => {
   });
 
   it("shows no pill outside the provider", () => {
-    render(<SidebarLabelWithNew label="Drive" feature="DRIVE" />);
+    render(<SidebarFeatureLabel label="Drive" feature="DRIVE" />);
 
     expect(screen.queryByText("new")).toBeNull();
   });

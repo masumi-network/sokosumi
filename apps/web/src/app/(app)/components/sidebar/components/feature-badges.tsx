@@ -1,6 +1,9 @@
 "use client";
 
-import type { AnnouncedFeature } from "@sokosumi/core-client";
+import type {
+  AnnouncedFeature,
+  UserBadgeCampaigns,
+} from "@sokosumi/core-client";
 import { usePathname } from "next/navigation";
 import {
   createContext,
@@ -15,10 +18,7 @@ import {
 import { markBadgeCampaignSeenAction } from "@/lib/actions/badge-campaign/action";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
-export interface BadgeCampaignSummary {
-  id: string;
-  feature: AnnouncedFeature;
-}
+export type BadgeCampaignSummary = UserBadgeCampaigns["badgeCampaigns"][number];
 
 /** Where each Announced feature lives: opening any of these is opening it. */
 const FEATURE_PATHS: Record<AnnouncedFeature, readonly string[]> = {

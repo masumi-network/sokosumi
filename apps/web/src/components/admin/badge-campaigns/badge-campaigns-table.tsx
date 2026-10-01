@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/table";
 import {
   deleteAdminBadgeCampaignAction,
-  updateAdminBadgeCampaignAction,
+  endAdminBadgeCampaignAction,
 } from "@/lib/actions/admin-badge-campaigns/action";
 
 import { BadgeCampaignForm } from "./badge-campaign-form";
@@ -48,12 +48,8 @@ export function BadgeCampaignsTable({ rows }: { rows: BadgeCampaignRow[] }) {
 
   function handleEndNow(campaign: BadgeCampaign) {
     startTransition(async () => {
-      const result = await updateAdminBadgeCampaignAction({
-        input: {
-          id: campaign.id,
-          startsAt: campaign.startsAt.toISOString(),
-          endsAt: new Date().toISOString(),
-        },
+      const result = await endAdminBadgeCampaignAction({
+        input: { id: campaign.id },
       });
       if (!result.ok) {
         toast.error(t("Toasts.saveFailed"), {
@@ -115,16 +111,14 @@ export function BadgeCampaignsTable({ rows }: { rows: BadgeCampaignRow[] }) {
               </TableCell>
               <TableCell>
                 <div className="flex justify-end gap-2">
-                  {status !== "ended" ? (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={isPending}
-                      onClick={() => setEditing(campaign)}
-                    >
-                      {t("Actions.edit")}
-                    </Button>
-                  ) : null}
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={isPending}
+                    onClick={() => setEditing(campaign)}
+                  >
+                    {t("Actions.edit")}
+                  </Button>
                   {status === "live" ? (
                     <Button
                       size="sm"

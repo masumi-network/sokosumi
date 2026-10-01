@@ -9,14 +9,14 @@ import { useHasNewBadge } from "./feature-badges";
  * where the pill always shows and the name takes the rest, truncating only if
  * a translation is too long for the row.
  */
-export const SIDEBAR_NEW_LABEL_CLASS = "flex min-w-0 items-center gap-x-1";
+export const SIDEBAR_FEATURE_LABEL_CLASS = "flex min-w-0 items-center gap-x-1";
 
 /**
  * A nav row's name, followed by a compact "New" pill while a Badge campaign
  * for its Announced feature runs for this reader. The pill streams in on its
  * own, so the name never waits for it.
  */
-export function SidebarLabelWithNew({
+export function SidebarFeatureLabel({
   label,
   feature,
 }: {

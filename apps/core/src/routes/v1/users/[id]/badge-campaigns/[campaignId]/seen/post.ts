@@ -2,6 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { empty } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
@@ -53,6 +54,6 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       skipDuplicates: true,
     });
 
-    return c.body(null, 204);
+    return empty(c);
   });
 }

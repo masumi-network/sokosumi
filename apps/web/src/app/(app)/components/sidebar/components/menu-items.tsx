@@ -38,9 +38,9 @@ import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-con
 import { cn } from "@/lib/utils";
 
 import {
-  SIDEBAR_NEW_LABEL_CLASS,
-  SidebarLabelWithNew,
-} from "./sidebar-new-badge";
+  SIDEBAR_FEATURE_LABEL_CLASS,
+  SidebarFeatureLabel,
+} from "./sidebar-feature-label";
 
 interface MenuItemConfig {
   key: string;
@@ -241,11 +241,11 @@ function ScopedMenuItems({
                       className={cn(
                         SIDEBAR_ROW_LABEL_CLASS,
                         SIDEBAR_ROW_FIXED_LABEL_CLASS,
-                        feature && SIDEBAR_NEW_LABEL_CLASS,
+                        feature && SIDEBAR_FEATURE_LABEL_CLASS,
                       )}
                     >
                       {feature ? (
-                        <SidebarLabelWithNew label={label} feature={feature} />
+                        <SidebarFeatureLabel label={label} feature={feature} />
                       ) : (
                         label
                       )}

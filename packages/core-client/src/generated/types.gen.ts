@@ -8667,7 +8667,7 @@ export type UpdateAdminBadgeCampaignErrors = {
         };
     };
     /**
-     * Conflict - another campaign for this feature overlaps
+     * Conflict - another campaign for this feature overlaps, or a started campaign's start moves into the future
      */
     409: {
         error: string;
@@ -8715,6 +8715,99 @@ export type UpdateAdminBadgeCampaignResponses = {
 };
 
 export type UpdateAdminBadgeCampaignResponse = UpdateAdminBadgeCampaignResponses[keyof UpdateAdminBadgeCampaignResponses];
+
+export type EndAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/end';
+};
+
+export type EndAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign is not running
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignError = EndAdminBadgeCampaignErrors[keyof EndAdminBadgeCampaignErrors];
+
+export type EndAdminBadgeCampaignResponses = {
+    /**
+     * The ended campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignResponse = EndAdminBadgeCampaignResponses[keyof EndAdminBadgeCampaignResponses];
 
 export type SearchAdminUsersData = {
     body?: never;

@@ -26,9 +26,9 @@ import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
 import {
-  SIDEBAR_NEW_LABEL_CLASS,
-  SidebarLabelWithNew,
-} from "./sidebar-new-badge";
+  SIDEBAR_FEATURE_LABEL_CLASS,
+  SidebarFeatureLabel,
+} from "./sidebar-feature-label";
 
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's
@@ -88,11 +88,11 @@ export default function PersonalAssistantNav({
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
                       SIDEBAR_ROW_FIXED_LABEL_CLASS,
-                      SIDEBAR_NEW_LABEL_CLASS,
+                      SIDEBAR_FEATURE_LABEL_CLASS,
                       "font-medium",
                     )}
                   >
-                    <SidebarLabelWithNew
+                    <SidebarFeatureLabel
                       label={t("sokoBot")}
                       feature={AnnouncedFeature.SOKO_BOTS}
                     />

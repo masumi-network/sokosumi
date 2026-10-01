@@ -1,17 +1,11 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
 import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse } from "@/helpers/openapi";
+import { empty } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-const params = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    description: "Badge campaign ID",
-    example: "01960001-0001-7001-8001-000000000001",
-  }),
-});
+import { badgeCampaignIdParamsSchema } from "@/schemas/badge-campaign.schema";
 
 const route = createRoute({
   method: "delete",
@@ -20,7 +14,7 @@ const route = createRoute({
   description:
     "Delete a badge campaign that has not started (admin only). A started campaign is ended instead, so who saw it is kept.",
   tags: ["Admin"],
-  request: { params },
+  request: { params: badgeCampaignIdParamsSchema },
   responses: {
     204: { description: "Campaign deleted" },
     401: jsonErrorResponse("Unauthorized"),
@@ -47,6 +41,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     await prisma.badgeCampaign.delete({ where: { id } });
 
-    return c.body(null, 204);
+    return empty(c);
   });
 }

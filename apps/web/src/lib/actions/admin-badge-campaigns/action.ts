@@ -1,6 +1,7 @@
 "use server";
 
 import { AnnouncedFeature, type BadgeCampaign } from "@sokosumi/core-client";
+import type { Session } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -20,25 +21,20 @@ import {
 
 const ADMIN_BADGE_CAMPAIGNS_PATH = "/admin/badge-campaigns";
 
-const windowSchema = z.object({
+const campaignWindowSchema = z.object({
   startsAt: z.iso.datetime().transform((value) => new Date(value)),
   endsAt: z.iso.datetime().transform((value) => new Date(value)),
 });
 
-const createSchema = windowSchema.extend({
+const createSchema = campaignWindowSchema.extend({
   feature: z.enum(AnnouncedFeature),
 });
 
-const updateSchema = windowSchema.extend({
+const updateSchema = campaignWindowSchema.extend({
   id: z.string().min(1),
 });
 
-const deleteSchema = z.object({ id: z.string().min(1) });
-
-const BAD_INPUT: ActionError = {
-  code: CommonErrorCode.BAD_INPUT,
-  message: "Invalid badge campaign input",
-};
+const campaignIdSchema = z.object({ id: z.string().min(1) });
 
 function toAdminActionError(error: unknown): ActionError {
   if (isAdminAccessRequiredError(error)) {
@@ -50,6 +46,36 @@ function toAdminActionError(error: unknown): ActionError {
   return toCoreApiActionError(error);
 }
 
+/**
+ * The shape every campaign action shares: admin only, validated input, and
+ * the list page refreshed after Core accepts the change.
+ */
+async function runCampaignAction<Input, Output>(
+  session: Session,
+  input: unknown,
+  schema: z.ZodType<Input>,
+  run: (parsed: Input) => Promise<Output>,
+): Promise<ActionResultDto<Output, ActionError>> {
+  try {
+    assertAdminSession(session);
+    const parsed = schema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Invalid badge campaign input",
+        }),
+      );
+    }
+
+    const output = await run(parsed.data);
+    revalidatePath(ADMIN_BADGE_CAMPAIGNS_PATH);
+    return toActionResult(ok(output));
+  } catch (error) {
+    return toActionResult(err(toAdminActionError(error)));
+  }
+}
+
 interface AdminBadgeCampaignParameters extends AuthenticatedRequest {
   input: unknown;
 }
@@ -57,57 +83,36 @@ interface AdminBadgeCampaignParameters extends AuthenticatedRequest {
 export const createAdminBadgeCampaignAction = withSession<
   AdminBadgeCampaignParameters,
   ActionResultDto<BadgeCampaign, ActionError>
->(async ({ input, session }) => {
-  try {
-    assertAdminSession(session);
-    const parsed = createSchema.safeParse(input);
-    if (!parsed.success) {
-      return toActionResult(err(BAD_INPUT));
-    }
-
-    const campaign = await coreClient.createAdminBadgeCampaign(parsed.data);
-    revalidatePath(ADMIN_BADGE_CAMPAIGNS_PATH);
-    return toActionResult(ok(campaign));
-  } catch (error) {
-    return toActionResult(err(toAdminActionError(error)));
-  }
-});
+>(({ input, session }) =>
+  runCampaignAction(session, input, createSchema, (body) =>
+    coreClient.createAdminBadgeCampaign(body),
+  ),
+);
 
 export const updateAdminBadgeCampaignAction = withSession<
   AdminBadgeCampaignParameters,
   ActionResultDto<BadgeCampaign, ActionError>
->(async ({ input, session }) => {
-  try {
-    assertAdminSession(session);
-    const parsed = updateSchema.safeParse(input);
-    if (!parsed.success) {
-      return toActionResult(err(BAD_INPUT));
-    }
+>(({ input, session }) =>
+  runCampaignAction(session, input, updateSchema, ({ id, ...campaignWindow }) =>
+    coreClient.updateAdminBadgeCampaign(id, campaignWindow),
+  ),
+);
 
-    const { id, ...window } = parsed.data;
-    const campaign = await coreClient.updateAdminBadgeCampaign(id, window);
-    revalidatePath(ADMIN_BADGE_CAMPAIGNS_PATH);
-    return toActionResult(ok(campaign));
-  } catch (error) {
-    return toActionResult(err(toAdminActionError(error)));
-  }
-});
+/** Ends a running campaign by Core's clock, not the admin's browser. */
+export const endAdminBadgeCampaignAction = withSession<
+  AdminBadgeCampaignParameters,
+  ActionResultDto<BadgeCampaign, ActionError>
+>(({ input, session }) =>
+  runCampaignAction(session, input, campaignIdSchema, ({ id }) =>
+    coreClient.endAdminBadgeCampaign(id),
+  ),
+);
 
 export const deleteAdminBadgeCampaignAction = withSession<
   AdminBadgeCampaignParameters,
   ActionResultDto<void, ActionError>
->(async ({ input, session }) => {
-  try {
-    assertAdminSession(session);
-    const parsed = deleteSchema.safeParse(input);
-    if (!parsed.success) {
-      return toActionResult(err(BAD_INPUT));
-    }
-
-    await coreClient.deleteAdminBadgeCampaign(parsed.data.id);
-    revalidatePath(ADMIN_BADGE_CAMPAIGNS_PATH);
-    return toActionResult(ok(undefined));
-  } catch (error) {
-    return toActionResult(err(toAdminActionError(error)));
-  }
-});
+>(({ input, session }) =>
+  runCampaignAction(session, input, campaignIdSchema, ({ id }) =>
+    coreClient.deleteAdminBadgeCampaign(id),
+  ),
+);

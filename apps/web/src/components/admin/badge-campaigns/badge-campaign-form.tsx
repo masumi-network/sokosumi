@@ -79,7 +79,7 @@ export function BadgeCampaignForm({
       return;
     }
 
-    const window = {
+    const campaignWindow = {
       startsAt: fromUtcInputValue(startsAt),
       endsAt: fromUtcInputValue(endsAt),
     };
@@ -87,10 +87,10 @@ export function BadgeCampaignForm({
     startTransition(async () => {
       const result = campaign
         ? await updateAdminBadgeCampaignAction({
-            input: { id: campaign.id, ...window },
+            input: { id: campaign.id, ...campaignWindow },
           })
         : await createAdminBadgeCampaignAction({
-            input: { feature, ...window },
+            input: { feature, ...campaignWindow },
           });
 
       if (!result.ok) {

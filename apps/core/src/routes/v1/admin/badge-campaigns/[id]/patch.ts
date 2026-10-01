@@ -1,34 +1,27 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 
-import { notFound } from "@/helpers/error";
+import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
+  badgeCampaignIdParamsSchema,
   badgeCampaignSchema,
   updateBadgeCampaignRequestSchema,
 } from "@/schemas/badge-campaign.schema";
 
 import { assertNoOverlappingBadgeCampaign } from "../overlap";
 
-const params = z.object({
-  id: z.string().openapi({
-    param: { name: "id", in: "path" },
-    description: "Badge campaign ID",
-    example: "01960001-0001-7001-8001-000000000001",
-  }),
-});
-
 const route = createRoute({
   method: "patch",
   path: "/{id}",
   operationId: "updateAdminBadgeCampaign",
   description:
-    "Move a badge campaign's start and end (admin only). End a live campaign by setting its end to now.",
+    "Move a badge campaign's start and end (admin only). A started campaign's start cannot move into the future.",
   tags: ["Admin"],
   request: {
-    params,
+    params: badgeCampaignIdParamsSchema,
     body: {
       content: {
         "application/json": { schema: updateBadgeCampaignRequestSchema },
@@ -42,7 +35,7 @@ const route = createRoute({
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found - campaign missing"),
     409: jsonErrorResponse(
-      "Conflict - another campaign for this feature overlaps",
+      "Conflict - another campaign for this feature overlaps, or a started campaign's start moves into the future",
     ),
   },
 });
@@ -57,6 +50,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const existing = await prisma.badgeCampaign.findUnique({ where: { id } });
     if (!existing) {
       throw notFound("Badge campaign not found");
+    }
+    // Un-starting a campaign would make it deletable, and deleting drops who
+    // saw it: a started campaign is ended, never rewound.
+    const now = new Date();
+    if (existing.startsAt <= now && startsAt > now) {
+      throw conflict("A started campaign's start cannot move into the future");
     }
 
     await assertNoOverlappingBadgeCampaign({

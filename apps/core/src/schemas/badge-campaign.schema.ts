@@ -31,6 +31,14 @@ export const badgeCampaignSchema = z
   })
   .openapi("BadgeCampaign");
 
+export const badgeCampaignIdParamsSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    description: "Badge campaign ID",
+    example: "01960001-0001-7001-8001-000000000001",
+  }),
+});
+
 const badgeCampaignWindowShape = {
   startsAt: z.iso
     .datetime()

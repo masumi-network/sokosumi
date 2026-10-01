@@ -183,6 +183,7 @@ import {
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
+  endAdminBadgeCampaign as coreEndAdminBadgeCampaign,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
@@ -3755,6 +3756,21 @@ export function createCoreClient(getClient: GetCoreClient) {
     return response.data;
   }
 
+  async function endAdminBadgeCampaign(id: string) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreEndAdminBadgeCampaign({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to end badge campaign",
+    );
+
+    return response.data;
+  }
+
   async function deleteAdminBadgeCampaign(id: string) {
     await executeCoreOperation(
       getClient,
@@ -5940,6 +5956,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     listAdminBadgeCampaigns,
     createAdminBadgeCampaign,
     updateAdminBadgeCampaign,
+    endAdminBadgeCampaign,
     deleteAdminBadgeCampaign,
     listAdminVendors,
     createAdminVendor,
