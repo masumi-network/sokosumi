@@ -2895,7 +2895,17 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           `end-2` is the action pill's own edge, so the two share a vertical
           line and the faces land in the same corner on every row. */}
       {seenBy ? (
-        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+        <div
+          className={cn(
+            "absolute end-2 bottom-1 z-10",
+            // The usual 44px mobile target reaches up onto a wide picture.
+            // Keep its top inside the reserved corner; the compact target
+            // still clears 24px after the transcript's bottom padding clips it.
+            keepsSeenByCornerClear && "[&_button]:after:-top-0.5",
+          )}
+        >
+          {seenBy}
+        </div>
       ) : null}
       {showActions ? (
         <>
