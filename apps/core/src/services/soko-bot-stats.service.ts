@@ -1,4 +1,7 @@
-import { SOKO_BOT_SANDBOX_CAPABILITIES } from "@sokosumi/soko-bot";
+import {
+  isSokoBotEmailProvider,
+  SOKO_BOT_SANDBOX_CAPABILITIES,
+} from "@sokosumi/soko-bot";
 import { DAY_MS } from "@/config/constants";
 import prisma from "@/lib/db/prisma";
 import { proactiveGate } from "@/services/soko-bot-proactive.service";
@@ -123,7 +126,7 @@ export async function getSokoBotDailyStats(input: {
       limit: gate.limit,
       paused: paused.proactivePaused || gate.reason === "global-pause",
     },
-    checks: await automationChecks(bot.id),
+    checks: await sokoBotAutomationChecks(bot.id),
     totals,
     daily,
   };
@@ -136,7 +139,7 @@ export async function getSokoBotDailyStats(input: {
  */
 const CHECK_GRACE_MS = 10 * 60 * 1_000;
 
-async function automationChecks(
+export async function sokoBotAutomationChecks(
   sokoBotId: string,
 ): Promise<SokoBotDailyStats["checks"]> {
   const now = Date.now();
@@ -153,7 +156,7 @@ async function automationChecks(
     }),
     prisma.sokoBotIntegration.findMany({
       where: { sokoBotId, status: "ACTIVE" },
-      select: { provider: true, cursor: true },
+      select: { provider: true, cursor: true, lastIngestAt: true },
     }),
     prisma.sokoBotTurn.findFirst({
       where: { sokoBotId, source: { in: ["SCHEDULE", "EVENT", "INGEST"] } },
@@ -175,16 +178,20 @@ async function automationChecks(
       integration.cursor && typeof integration.cursor === "object"
         ? (integration.cursor as Record<string, unknown>)
         : {};
-    const lastIngestAt =
-      typeof cursor.lastIngestAt === "string" ? cursor.lastIngestAt : null;
+    const lastRunAt =
+      integration.lastIngestAt?.toISOString() ??
+      (typeof cursor.lastIngestAt === "string" ? cursor.lastIngestAt : null);
+    const isMail = isSokoBotEmailProvider(integration.provider);
     items.push({
-      key: "mail",
+      key: isMail ? "mail" : "calendar",
       name: integration.provider,
-      lastRunAt: lastIngestAt,
+      lastRunAt,
       nextRunAt: null,
-      // Mail is pulled hourly by the ingest cron; a longer gap means it stopped.
-      late: lastIngestAt
-        ? new Date(lastIngestAt).getTime() < now - 2 * 60 * 60 * 1_000
+      // Mail is pulled hourly by the ingest cron. A calendar is read by the
+      // stand-up and meeting prep, so only days without a read mean trouble.
+      late: lastRunAt
+        ? new Date(lastRunAt).getTime() <
+          now - (isMail ? 2 : 72) * 60 * 60 * 1_000
         : false,
     });
   }
