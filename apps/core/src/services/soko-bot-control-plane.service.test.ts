@@ -42,6 +42,8 @@ const {
   memoryFindUniqueMock,
   projectFindManyMock,
   recordUsageMock,
+  notifyOutOfCreditsMock,
+  requireFundingMock,
   scheduleRunFindFirstMock,
   scheduleRunFindUniqueMock,
   scheduleRunUpdateMock,
@@ -98,6 +100,8 @@ const {
   memoryFindUniqueMock: vi.fn(),
   projectFindManyMock: vi.fn(),
   recordUsageMock: vi.fn(),
+  notifyOutOfCreditsMock: vi.fn().mockResolvedValue(undefined),
+  requireFundingMock: vi.fn(),
   scheduleRunFindFirstMock: vi.fn(),
   scheduleRunFindUniqueMock: vi.fn(),
   scheduleRunUpdateMock: vi.fn(),
@@ -239,8 +243,11 @@ vi.mock("@/lib/soko-bot/factory", () => ({
     }),
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
+  SokoBotBillingAccessError: class extends Error {},
+  notifySokoBotOutOfCredits: notifyOutOfCreditsMock,
   recordSokoBotTurnUsage: recordUsageMock,
-  requireSokoBotTurnFunding: vi.fn(),
+  requireSokoBotTurnFunding: requireFundingMock,
+  sokoBotIdsOutOfCredits: vi.fn().mockResolvedValue(new Set(["bot_2"])),
 }));
 
 const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
@@ -1209,9 +1216,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("cursor-paginates admin fleet search", async () => {
     botFindManyMock.mockResolvedValue([
-      { id: "bot_3" },
-      { id: "bot_2" },
-      { id: "bot_1" },
+      { id: "bot_3", userId: "u", workspace: { organizationId: null } },
+      { id: "bot_2", userId: "u", workspace: { organizationId: "org_1" } },
+      { id: "bot_1", userId: "u", workspace: { organizationId: null } },
     ]);
     botCountMock.mockResolvedValue(5);
     transactionMock.mockImplementationOnce(async (queries) =>
@@ -1240,7 +1247,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       }),
     );
     expect(result).toEqual({
-      items: [{ id: "bot_3" }, { id: "bot_2" }],
+      items: [
+        { id: "bot_3", userId: "u", outOfCredits: false },
+        { id: "bot_2", userId: "u", outOfCredits: true },
+      ],
       total: 5,
       hasMore: true,
     });
@@ -1716,6 +1726,42 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(openOwnerRoomMock).toHaveBeenCalledTimes(1);
     expect(turnCreateMock).toHaveBeenCalled();
   });
+
+  it.each([
+    ["SCHEDULE", 1],
+    ["CHAT", 0],
+  ] as const)(
+    "tells the owner a %s turn stopped for credits only when nobody is watching",
+    async (source, notices) => {
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      const { SokoBotBillingAccessError } = await import(
+        "@/services/soko-bot-billing.service"
+      );
+      requireFundingMock.mockRejectedValueOnce(
+        new SokoBotBillingAccessError("Insufficient organization credits"),
+      );
+
+      await expect(
+        new SokoBotControlPlane(
+          runtimeWithReset(vi.fn()),
+          {
+            build: vi.fn().mockResolvedValue(builtContext()),
+          } as ContextPacketBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId: `client-turn-out-of-credits-${source}`,
+          message: "Daily stand-up.",
+          source,
+        }),
+      ).rejects.toThrow("Insufficient organization credits");
+      expect(notifyOutOfCreditsMock).toHaveBeenCalledTimes(notices);
+      expect(turnCreateMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("keeps an archived owner chat suppressed instead of opening another", async () => {
     botFindFirstMock.mockResolvedValue(adminBot());

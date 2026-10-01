@@ -102,6 +102,8 @@ export interface SokoBotConsoleProps {
   catalog: SokoBotIntegrationCatalogEntry[];
   /** Outcome of an OAuth round-trip we just returned from, if any. */
   integrationOutcome: string | null;
+  /** The bot lives in an organization workspace, so the organization pays. */
+  paidByOrganization: boolean;
 }
 
 /**
@@ -122,6 +124,7 @@ export function SokoBotConsole({
   adminHref,
   catalog,
   integrationOutcome,
+  paidByOrganization,
 }: SokoBotConsoleProps) {
   const t = useTranslations("App.SokoBot");
   // Status is the default view; everything an owner rarely touches sits behind
@@ -487,6 +490,7 @@ export function SokoBotConsole({
                         timezone: bot.ingestTimezone,
                       }}
                       usedToday={stats?.proactive.usedToday ?? null}
+                      paidByOrganization={paidByOrganization}
                     />
                     <FollowBoardToggle
                       initial={bot.followWholeBoard ?? false}

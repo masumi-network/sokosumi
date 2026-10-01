@@ -5,6 +5,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { userService } from "@/lib/services/user.service";
 import type { SokoBotChatState } from "@/lib/soko-bot/chat-state";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 
@@ -51,12 +52,14 @@ interface SokoBotPageProps {
 
 /** The assistant console; the conversation itself lives in chat. */
 export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
-  const [session, load, t, params] = await Promise.all([
+  const [session, load, t, params, activeOrganizationId] = await Promise.all([
     getSessionOrRedirect(),
     loadState(),
     getTranslations("App.SokoBot"),
     searchParams,
+    userService.getActiveOrganizationId(),
   ]);
+  const paidByOrganization = activeOrganizationId != null;
   const focusTurnId = typeof params.turn === "string" ? params.turn : null;
   const integrationOutcome =
     typeof params.integration === "string" ? params.integration : null;
@@ -86,7 +89,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
 
   const state = load.state;
   if (!state) {
-    return <CreateState />;
+    return <CreateState paidByOrganization={paidByOrganization} />;
   }
 
   // Skills, integrations, the catalog and the version chip are only rendered
@@ -125,6 +128,7 @@ export default async function SokoBotPage({ searchParams }: SokoBotPageProps) {
       userName={session.user.name ?? null}
       userImageUrl={session.user.image ?? null}
       focusTurnId={focusTurnId}
+      paidByOrganization={paidByOrganization}
       adminHref={
         isAdmin
           ? `${ADMIN_SOKO_BOTS_ROUTE}/${encodeURIComponent(state.bot.id)}`

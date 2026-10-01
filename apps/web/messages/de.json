@@ -3806,6 +3806,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Nach Bot, Besitzername oder E-Mail suchen…",
+          "outOfCredits": "Keine Credits mehr",
           "totalCount": "{count, plural, one {# Bot} other {# Bots}}",
           "loadError": "Soko Bots konnten nicht geladen werden.",
           "empty": "Keine Soko Bots gefunden.",
@@ -6704,7 +6705,8 @@
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -6803,7 +6805,8 @@
           "timezoneTitle": "Zeitzone",
           "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
           "error": "Einstellung konnte nicht gespeichert werden.",
-          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+          "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",

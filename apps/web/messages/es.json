@@ -3806,6 +3806,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Buscar por bot, nombre del propietario o correo…",
+          "outOfCredits": "Sin créditos",
           "totalCount": "{count, plural, one {# bot} other {# bots}}",
           "loadError": "No se pudieron cargar los Soko Bots.",
           "empty": "No se encontraron Soko Bots.",
@@ -6704,7 +6705,8 @@
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
-        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
+        "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
       },
       "Memory": {
         "title": "Memoria",
@@ -6803,7 +6805,8 @@
           "timezoneTitle": "Zona horaria",
           "timezoneDescription": "Para el stand-up, el resumen semanal y \"hoy\" en los informes.",
           "error": "No se pudo guardar el ajuste.",
-          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
+          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras.",
+          "spendNoticeOrganization": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa los créditos de tu organización. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
