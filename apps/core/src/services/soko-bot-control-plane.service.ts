@@ -506,6 +506,7 @@ function addTurnUsage(
 }
 
 const EVENT_TEXT_LIMIT = 800;
+const REASONING_TEXT_LIMIT = 4_000;
 const EVENT_INPUT_LIMIT = 1_200;
 /** A sandbox tool's output: enough to show every search result's source. */
 const EVENT_OUTPUT_LIMIT = 8_000;
@@ -560,7 +561,12 @@ export function summarizeContextPacket(packet: unknown) {
 
 function safeEventProjection(type: string, data: Record<string, unknown>) {
   if (type === "reasoning.completed") {
-    const text = safeEventText(data.text ?? data.reasoning ?? data.message);
+    // A provider reasoning summary; the chat shows it as the bot's Thought,
+    // so it keeps more than a one-line event summary.
+    const text = safeEventText(
+      data.text ?? data.reasoning ?? data.message,
+      REASONING_TEXT_LIMIT,
+    );
     return { summary: text ?? "Reasoning update", payload: undefined };
   }
   if (type.startsWith("reasoning.")) {

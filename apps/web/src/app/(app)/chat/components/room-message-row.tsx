@@ -150,6 +150,7 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
+  SokoBotFeedbackButtons,
   SokoBotMessageFooter,
   SokoBotSourceLabel,
 } from "./soko-bot-message-footer";
@@ -1373,6 +1374,10 @@ function MessageActions({
       }}
     >
       <SokoBotChainBadge metadata={message.metadata} />
+      <SokoBotFeedbackButtons
+        metadata={message.metadata}
+        buttonClassName="size-9 rounded-full sm:size-7"
+      />
       <MessageActionControls
         message={message}
         quickReactions={heldQuickReactions ?? liveQuickReactions}
@@ -1658,6 +1663,10 @@ function TouchMessageActionsSheet({
                 onToggleReaction(message, emoji);
               });
             }}
+          />
+          <SokoBotFeedbackButtons
+            metadata={message.metadata}
+            buttonClassName="size-11 rounded-full"
           />
         </div>
         {whoReactedRows.length > 0 ? (

@@ -1572,7 +1572,6 @@
         "connectProvider": "Conectar {name}",
         "connectDismiss": "Descartar",
         "connectError": "No se pudo iniciar la conexión.",
-        "feedbackAsk": "¿Útil?",
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
