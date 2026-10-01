@@ -17,6 +17,7 @@ import {
   ACTION_LABELS,
   type ActionNarrative,
   buildActionResponse,
+  HELD_BACK_REPLY,
   parseActionNarrativeText,
 } from "./action-response";
 import { claimsAction } from "./answer-claims";
@@ -434,10 +435,7 @@ async function ownerNarrative(
   // An unchecked reply is not shown either, but the owner is told why.
   return {
     ...narrative,
-    message:
-      claim === null
-        ? "I held back this reply because it could not be checked just now."
-        : null,
+    message: claim === null ? HELD_BACK_REPLY : null,
   };
 }
 
