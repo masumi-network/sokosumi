@@ -4876,6 +4876,7 @@
         "confirmTitle": "Bist du sicher?",
         "confirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Account wird dauerhaft gelöscht und deine Daten werden von unseren Servern entfernt.",
         "currentPassword": "Aktuelles Passwort",
+        "confirmEmail": "Gib {email} zur Bestätigung ein",
         "confirm": "Ja, meinen Account löschen",
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden",
@@ -7430,7 +7431,8 @@
       "Schema": {
         "Email": {
           "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
-          "required": "E-Mail ist erforderlich"
+          "required": "E-Mail ist erforderlich",
+          "confirmationMismatch": "Gib die oben angezeigte E-Mail-Adresse ein."
         },
         "Name": {
           "min": "Name muss mindestens 2 Zeichen lang sein.",

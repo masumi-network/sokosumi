@@ -116,11 +116,29 @@ export type NewPasswordFormType = z.infer<
   ReturnType<typeof newPasswordFormSchema>
 >;
 
+/**
+ * A viewer with a password confirms with it. One without (a social or
+ * email-code sign-up) types the account's email instead, and Core gates the
+ * delete on a fresh session.
+ */
 export const deleteAccountSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
+  t: IntlTranslation<"Library.Auth.Schema"> | undefined,
+  {
+    hasPassword,
+    accountEmail,
+  }: { hasPassword: boolean; accountEmail: string | undefined },
 ) =>
   z.object({
-    currentPassword: currentPasswordSchema(t),
+    currentPassword: hasPassword ? currentPasswordSchema(t) : z.string(),
+    confirmEmail: z
+      .string()
+      .trim()
+      .refine(
+        (value) =>
+          hasPassword ||
+          (value !== "" && value.toLowerCase() === accountEmail?.toLowerCase()),
+        { error: t?.("Email.confirmationMismatch") },
+      ),
   });
 
 export type DeleteAccountFormType = z.infer<
