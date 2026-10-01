@@ -91,7 +91,7 @@ vi.mock("./form", () => ({
 }));
 
 function emailField() {
-  return screen.getByLabelText("Fields.Email.label");
+  return screen.getByLabelText("label");
 }
 
 async function continueWith(
@@ -203,9 +203,9 @@ describe("SignUpFlow", () => {
       }),
     );
     // The confirmed address stands where the email field was, under its label.
-    expect(
-      screen.getByRole("group", { name: "Fields.Email.label" }),
-    ).toHaveTextContent("ada@example.com");
+    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+      "ada@example.com",
+    );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
   });
 
@@ -264,7 +264,7 @@ describe("SignUpFlow", () => {
   });
 
   function notice() {
-    return screen.getByTestId("sign-up-account-exists");
+    return screen.getByTestId("email-step-detour");
   }
 
   function logInLink() {
@@ -455,6 +455,16 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
+  it("starts from the email sign-in handed over, editable", async () => {
+    rememberAuthEmailHint("new@example.com");
+
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await waitFor(() => expect(emailField()).toHaveValue("new@example.com"));
+    expect(emailField()).toBeEnabled();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
   it("returns to the email step with the address kept and focused", async () => {
     const user = userEvent.setup();
     render(<SignUpFlow lastUsedMethod={null} />);
@@ -485,9 +495,9 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "invited@example.com" }),
     );
-    expect(
-      screen.getByRole("group", { name: "Fields.Email.label" }),
-    ).toHaveTextContent("invited@example.com");
+    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+      "invited@example.com",
+    );
     expect(
       screen.queryByRole("button", { name: "changeEmail" }),
     ).not.toBeInTheDocument();

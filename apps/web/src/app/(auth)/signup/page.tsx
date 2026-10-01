@@ -5,12 +5,14 @@ import { getTranslations } from "next-intl/server";
 
 import OAuthHandBack from "@/auth/components/oauth-hand-back";
 import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
-import type { SignInMethodId } from "@/auth/components/social-buttons";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
-import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
+import {
+  parseLastUsedAuthMethod,
+  toProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
 import SignUpFlow from "./components/sign-up-flow";
 
@@ -58,11 +60,11 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     },
     "last_used_login_method",
   );
-  const lastUsedAuthMethod = parseLastUsedAuthMethod(
-    cookieStore.get(lastUsedLoginMethodCookieName)?.value,
+  const lastUsedMethod = toProviderAuthMethod(
+    parseLastUsedAuthMethod(
+      cookieStore.get(lastUsedLoginMethodCookieName)?.value,
+    ),
   );
-  const lastUsedMethod: SignInMethodId | null =
-    lastUsedAuthMethod === "email" ? null : lastUsedAuthMethod;
 
   return (
     <SignUpFlow

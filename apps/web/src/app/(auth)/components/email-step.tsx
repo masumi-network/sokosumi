@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { signUpEmailFormData } from "@/auth/signup/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -20,29 +19,46 @@ import {
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
+import type { FormData } from "@/lib/form";
 import {
-  type SignUpEmailFormSchemaType,
-  signUpEmailFormSchema,
+  type EmailStepFormSchemaType,
+  emailStepFormSchema,
 } from "@/lib/schemas/auth";
 import { cn } from "@/lib/utils";
-
-import { useSignInHref } from "./sign-in-link";
 
 // 200ms ease-out is the project default. Under reduced motion the two states
 // swap at once; the notice itself is the cue that something changed.
 const MOTION = "duration-200 ease-out motion-reduce:transition-none";
 
-// "Log in" takes the exact place of the button that was just pressed. A second
-// click of a double-click must not follow it.
-const LOG_IN_GRACE_MS = 400;
+// The detour link takes the exact place of the button that was just pressed.
+// A second click of a double-click must not follow it.
+const DETOUR_GRACE_MS = 400;
 
-interface SignUpEmailStepProps {
+/** Where the step sends a person instead of continuing, and when. */
+export interface EmailStepDetour {
+  /** Sign-up stops at an address that has an account, sign-in at one without. */
+  when: "exists" | "missing";
+  title: string;
+  description: string;
+  label: string;
+  href: string;
+}
+
+interface EmailStepProps {
   defaultEmail: string;
-  /** An invitation fixes the address; the user can only confirm it. */
+  /** An invitation fixes the address; the person can only confirm it. */
   emailLocked: boolean;
-  /** Set when the user came back here from the next step. */
+  /** Set when the person came back here from the next step. */
   autoFocus: boolean;
+  /** `username webauthn` lets the browser offer a passkey in the field. */
+  autoComplete: "email" | "username webauthn";
+  captchaEntry: "signin" | "signup";
+  /** Shown on Continue when this browser last signed in with the email. */
+  lastUsedLabel?: string | undefined;
+  detour: EmailStepDetour;
   onFormStart: () => void;
+  /** The address as typed, for links outside the step that carry it. */
+  onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
   onContinue: (email: string) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
@@ -50,49 +66,65 @@ interface SignUpEmailStepProps {
 }
 
 /**
- * First sign-up step. It asks Core whether the address already has an
- * account, so that person is pointed at sign-in instead of being asked for a
- * name and a password first.
+ * The first step of sign-in and sign-up. It asks Core whether the address has
+ * an account, so a person on the wrong page is pointed at the right one
+ * before typing anything else.
  *
- * When it does, the button stays where it is and a notice grows around it:
+ * When they are, the button stays where it is and a notice grows around it:
  * title and description unfold above, a frame fades in, and the button
- * becomes "Log in". Editing the address plays it back.
+ * becomes the way to the other page. Editing the address plays it back.
  */
-export function SignUpEmailStep({
+export function EmailStep({
   defaultEmail,
   emailLocked,
   autoFocus,
+  autoComplete,
+  captchaEntry,
+  lastUsedLabel,
+  detour,
   onFormStart,
+  onEmailChange,
   onContinue,
   continueCaptcha,
-}: SignUpEmailStepProps) {
-  const t = useTranslations("Auth.Pages.SignUp.Form");
+}: EmailStepProps) {
+  const t = useTranslations("Auth.Email.Form");
   const oauthT = useTranslations("Auth.OAuthHandBack");
-  const signInHref = useSignInHref();
   const {
     widget: captcha,
     runWithCaptcha,
     getErrorMessage,
-  } = useAuthCaptcha("signup");
-  const [accountExists, setAccountExists] = useState(false);
-  const accountExistsSince = useRef(0);
-  const signInLinkRef = useRef<HTMLAnchorElement>(null);
+  } = useAuthCaptcha(captchaEntry);
+  const [isDetoured, setIsDetoured] = useState(false);
+  const detouredSince = useRef(0);
+  const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
-  const form = useForm<SignUpEmailFormSchemaType>({
+  const form = useForm<EmailStepFormSchemaType>({
     resolver: zodResolver(
-      signUpEmailFormSchema(useTranslations("Library.Auth.Schema")),
+      emailStepFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: { email: defaultEmail },
   });
+  const formData: FormData<EmailStepFormSchemaType, "Auth.Email.Form"> = [
+    {
+      name: "email",
+      labelKey: "label",
+      type: "email",
+      autoComplete,
+      disabled: emailLocked,
+    },
+  ];
 
   useMountEffect(() => {
-    // Sign-in sends a person here with the email they typed. It is a
+    // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
     const emailHint = takeAuthEmailHint();
-    if (emailHint && !emailLocked && !form.getValues("email").trim()) {
+    const useHint =
+      emailHint !== null && !emailLocked && !form.getValues("email").trim();
+    if (useHint) {
       form.setValue("email", emailHint);
+      onEmailChange?.(emailHint);
     }
-    if (autoFocus) {
+    if (autoFocus || useHint) {
       form.setFocus("email");
     }
   });
@@ -103,11 +135,11 @@ export function SignUpEmailStep({
   // place. A submitting fieldset cannot receive focus; wait until it is
   // enabled again.
   useEffect(() => {
-    if (!accountExists || isSubmitting) return;
-    signInLinkRef.current?.focus();
-  }, [accountExists, isSubmitting]);
+    if (!isDetoured || isSubmitting) return;
+    detourLinkRef.current?.focus();
+  }, [isDetoured, isSubmitting]);
 
-  async function handleSubmit({ email }: SignUpEmailFormSchemaType) {
+  async function handleSubmit({ email }: EmailStepFormSchemaType) {
     await runWithCaptcha(async (fetchOptions) => {
       const result = await authClient.$fetch<{ exists: boolean }>(
         "/sign-up/email-status",
@@ -129,9 +161,9 @@ export function SignUpEmailStep({
         return;
       }
 
-      if (result.data.exists) {
-        accountExistsSince.current = performance.now();
-        setAccountExists(true);
+      if (result.data.exists === (detour.when === "exists")) {
+        detouredSince.current = performance.now();
+        setIsDetoured(true);
         return;
       }
 
@@ -145,35 +177,26 @@ export function SignUpEmailStep({
       onSubmit={handleSubmit}
       onChange={() => {
         // The answer was about the address as it was.
-        setAccountExists(false);
+        setIsDetoured(false);
         onFormStart();
+        onEmailChange?.(form.getValues("email"));
       }}
     >
-      <FormFields
-        form={form}
-        formData={
-          emailLocked
-            ? signUpEmailFormData.map((item) => ({ ...item, disabled: true }))
-            : signUpEmailFormData
-        }
-        namespace="Auth.Pages.SignUp.Form"
-      />
+      <FormFields form={form} formData={formData} namespace="Auth.Email.Form" />
       {/* Announces the notice. The visible copy below is the same text, so
           it is hidden from assistive technology rather than read twice. */}
       <p id={noticeId} role="status" className="sr-only">
-        {accountExists
-          ? `${t("AccountExists.title")}. ${t("AccountExists.description")}`
-          : null}
+        {isDetoured ? `${detour.title}. ${detour.description}` : null}
       </p>
       <div
-        data-testid="sign-up-account-exists"
-        data-state={accountExists ? "open" : "closed"}
+        data-testid="email-step-detour"
+        data-state={isDetoured ? "open" : "closed"}
         className={cn(
           // A ring, not a border: it takes no space, so the button below is
           // as wide as the field above it while the notice is closed.
           "rounded-lg text-sm ring-1 ring-inset transition-[padding,box-shadow,background-color]",
           MOTION,
-          accountExists
+          isDetoured
             ? "bg-card px-4 pt-3 pb-4 ring-border"
             : "ring-transparent",
         )}
@@ -183,17 +206,13 @@ export function SignUpEmailStep({
           className={cn(
             "grid transition-[grid-template-rows,opacity]",
             MOTION,
-            accountExists ? "grid-rows-[1fr]" : "grid-rows-[0fr] opacity-0",
+            isDetoured ? "grid-rows-[1fr]" : "grid-rows-[0fr] opacity-0",
           )}
         >
           <div className="min-h-0 overflow-hidden">
             <div className="grid gap-0.5 pb-3">
-              <p className="font-medium tracking-tight">
-                {t("AccountExists.title")}
-              </p>
-              <p className="text-muted-foreground">
-                {t("AccountExists.description")}
-              </p>
+              <p className="font-medium tracking-tight">{detour.title}</p>
+              <p className="text-muted-foreground">{detour.description}</p>
             </div>
           </div>
         </div>
@@ -210,26 +229,33 @@ export function SignUpEmailStep({
               spinnerPosition="start"
               label={t("continueWithEmail")}
               className="col-start-1 row-start-1 w-full"
-              inert={accountExists}
+              inert={isDetoured}
             />
+            {lastUsedLabel && !isDetoured ? (
+              <span
+                aria-hidden="true"
+                className="bg-background text-foreground border-border pointer-events-none relative z-10 col-start-1 row-start-1 mr-2 self-center justify-self-end rounded-full border px-2 py-0.5 text-[0.625rem] font-medium"
+              >
+                {lastUsedLabel}
+              </span>
+            ) : null}
             <Button
               asChild
               variant="primary"
               className={cn(
                 "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
-                !accountExists && "opacity-0",
+                !isDetoured && "opacity-0",
               )}
             >
               <Link
-                ref={signInLinkRef}
-                href={signInHref}
-                inert={!accountExists}
-                aria-describedby={accountExists ? noticeId : undefined}
+                ref={detourLinkRef}
+                href={detour.href}
+                inert={!isDetoured}
+                aria-describedby={isDetoured ? noticeId : undefined}
                 onAuxClick={() => takeAuthEmailHint()}
                 onClick={(event) => {
-                  const shownFor =
-                    performance.now() - accountExistsSince.current;
-                  if (shownFor < LOG_IN_GRACE_MS) {
+                  const shownFor = performance.now() - detouredSince.current;
+                  if (shownFor < DETOUR_GRACE_MS) {
                     event.preventDefault();
                     return;
                   }
@@ -239,7 +265,7 @@ export function SignUpEmailStep({
                   );
                 }}
               >
-                {t("AccountExists.logIn")}
+                {detour.label}
               </Link>
             </Button>
           </div>

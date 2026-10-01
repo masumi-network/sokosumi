@@ -122,10 +122,7 @@ describe("stepped sign-up with an OAuth request", () => {
       />,
     );
 
-    await user.type(
-      screen.getByLabelText("Fields.Email.label"),
-      "ada@example.com",
-    );
+    await user.type(screen.getByLabelText("label"), "ada@example.com");
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
     await user.type(
       await screen.findByLabelText("Fields.FirstName.label"),

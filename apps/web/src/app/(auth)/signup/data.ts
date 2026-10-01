@@ -1,20 +1,5 @@
 import type { FormData } from "@/lib/form";
-import type {
-  SignUpEmailFormSchemaType,
-  SignUpFormSchemaType,
-} from "@/lib/schemas/auth";
-
-export const signUpEmailFormData: FormData<
-  SignUpEmailFormSchemaType,
-  "Auth.Pages.SignUp.Form"
-> = [
-  {
-    name: "email",
-    labelKey: "Fields.Email.label",
-    type: "email",
-    autoComplete: "email",
-  },
-];
+import type { SignUpFormSchemaType } from "@/lib/schemas/auth";
 
 type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
 

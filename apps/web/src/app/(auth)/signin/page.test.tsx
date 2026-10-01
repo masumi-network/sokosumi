@@ -1,12 +1,11 @@
 import { render, screen } from "@testing-library/react";
+import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const cookiesMock = vi.fn();
 const getMock = vi.fn();
-const socialButtonsMock = vi.fn();
-const signInFormMock = vi.fn();
+const signInFlowMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
-const headerMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
@@ -32,36 +31,20 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("@/auth/components/divider", () => ({
-  __esModule: true,
-  default: () => <div data-testid="divider" />,
-}));
-
-vi.mock("@/auth/components/social-buttons", () => ({
-  __esModule: true,
-  default: (props: unknown) => {
-    socialButtonsMock(props);
-    return <div data-testid="social-buttons" />;
-  },
-}));
-
 vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("./components/form", () => ({
+vi.mock("./components/sign-in-flow", () => ({
   __esModule: true,
-  default: (props: unknown) => {
-    signInFormMock(props);
-    return <div data-testid="sign-in-form" />;
-  },
-}));
-
-vi.mock("./components/header", () => ({
-  __esModule: true,
-  default: (props: unknown) => {
-    headerMock(props);
-    return <div data-testid="sign-in-header" />;
+  default: (props: { notice: ReactNode; children: ReactNode }) => {
+    signInFlowMock(props);
+    return (
+      <div data-testid="sign-in-form">
+        {props.notice}
+        {props.children}
+      </div>
+    );
   },
 }));
 
@@ -137,7 +120,7 @@ describe("SignIn page", () => {
       "cmo",
       OAUTH_QUERY,
     );
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         client: {
           name: "CMO",
@@ -155,7 +138,7 @@ describe("SignIn page", () => {
 
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ client: undefined }),
     );
   });
@@ -166,7 +149,7 @@ describe("SignIn page", () => {
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
-    expect(headerMock).toHaveBeenCalledWith(
+    expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ client: undefined }),
     );
     expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
@@ -254,27 +237,36 @@ describe("SignIn page", () => {
     expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
   });
 
-  it("offers the email code without an OAuth request", async () => {
+  it("opens the flow on the method this browser used last", async () => {
+    getMock.mockReturnValue({ value: "email" });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({ email: "invited@example.com" }),
+      }),
+    );
+
+    expect(signInFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastUsedMethod: "email",
+        prefilledEmail: "invited@example.com",
+      }),
+    );
+  });
+
+  it("ignores a last-login cookie it does not know", async () => {
+    getMock.mockReturnValue({ value: "magic-link" });
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve({}) }));
 
-    expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showEmailCode: true }),
+    expect(signInFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ lastUsedMethod: null }),
     );
   });
 
-  it("offers the email code while signing in for another app", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
-
-    expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showEmailCode: true }),
-    );
-  });
-
-  it("hands the invitation's email and id to the form", async () => {
+  it("hands the invitation's email and id to the flow", async () => {
     const { default: Page } = await import("./page");
 
     render(
@@ -287,7 +279,7 @@ describe("SignIn page", () => {
       }),
     );
 
-    expect(signInFormMock).toHaveBeenCalledWith(
+    expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({
         prefilledEmail: "invited@example.com",
         invitationId: "inv_1",
