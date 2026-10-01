@@ -1584,7 +1584,9 @@
         }
       },
       "SokoBot": {
-        "connectPrompt": "Verbinde Mail und Kalender, damit {bot} deine Meetings vorbereiten und Follow-ups nachhalten kann.",
+        "connectTitle": "Gib {bot} Zugriff auf Postfach und Kalender",
+        "connectBody": "Damit gibt es Meeting-Vorbereitung, Follow-up-Erinnerungen und dein tägliches Briefing.",
+        "connectConnected": "{name} verbunden",
         "connectProvider": "{name} verbinden",
         "connectDismiss": "Ausblenden",
         "connectError": "Die Verbindung konnte nicht gestartet werden.",

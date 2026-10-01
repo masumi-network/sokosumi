@@ -1584,7 +1584,9 @@
         }
       },
       "SokoBot": {
-        "connectPrompt": "Conecta tu correo y tu calendario para que {bot} prepare tus reuniones y haga seguimiento.",
+        "connectTitle": "Dale a {bot} tu bandeja de entrada y tu calendario",
+        "connectBody": "Así prepara tus reuniones, te recuerda los seguimientos y te envía el resumen diario.",
+        "connectConnected": "{name} conectado",
         "connectProvider": "Conectar {name}",
         "connectDismiss": "Descartar",
         "connectError": "No se pudo iniciar la conexión.",

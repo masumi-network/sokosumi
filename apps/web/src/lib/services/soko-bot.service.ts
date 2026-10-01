@@ -32,7 +32,7 @@ import {
   toSokoBotChatState,
 } from "@/lib/soko-bot/chat-state";
 import {
-  missingConnections,
+  connectOffers,
   type SokoBotConnectPromptState,
 } from "@/lib/soko-bot/connect-prompt";
 
@@ -168,9 +168,9 @@ export const sokoBotService = {
       this.listIntegrations(),
     ]);
     if (!bot || !configured) return null;
-    const missing = missingConnections(integrations);
-    return missing.length > 0
-      ? { botId: bot.id, botName: bot.name ?? "Soko Bot", missing }
+    const offers = connectOffers(integrations);
+    return offers.length > 0
+      ? { botId: bot.id, botName: bot.name ?? "Soko Bot", offers }
       : null;
   },
 
