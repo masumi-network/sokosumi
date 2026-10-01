@@ -1572,7 +1572,6 @@
         "connectProvider": "Conectar {name}",
         "connectDismiss": "Descartar",
         "connectError": "No se pudo iniciar la conexión.",
-        "feedbackAsk": "¿Útil?",
         "feedbackUseful": "Útil",
         "feedbackNotUseful": "No útil",
         "feedbackThanks": "Gracias, anotado.",
@@ -2020,37 +2019,6 @@
           "monthlyWithDayTime": "Mensualmente (día {day}, {time})",
           "monthlyEveryNWithDayTime": "Cada {n} meses (día {day}, {time})",
           "custom": "Cron personalizado"
-        },
-        "firstRun": "Primera ejecución",
-        "timeOfDay": "Hora del día",
-        "repeatEvery": "Repetir cada",
-        "repeatOn": "Repetir en",
-        "ends": "Termina",
-        "never": "Nunca",
-        "on": "En la fecha",
-        "after": "Tras",
-        "occurrences": "ejecuciones",
-        "pickDate": "Elegir una fecha",
-        "preview": "Vista previa",
-        "noPreview": "Sin próximas ejecuciones",
-        "timezone": "Zona horaria",
-        "customCron": "Expresión cron personalizada",
-        "customCronValid": "Expresión cron válida",
-        "unit": {
-          "day": "día(s)",
-          "week": "semana(s)",
-          "month": "mes(es)"
-        },
-        "save": "Guardar",
-        "cancel": "Cancelar",
-        "errors": {
-          "required": "Este campo es obligatorio.",
-          "futureDateTime": "Selecciona una fecha y hora futuras.",
-          "invalidTime": "Introduce una hora válida (HH:MM).",
-          "positiveInteger": "Introduce un número entero positivo.",
-          "selectAtLeastOneWeekday": "Selecciona al menos un día de la semana.",
-          "endDateInPast": "La fecha de fin no puede estar en el pasado.",
-          "invalidCron": "Introduce una expresión cron válida para la zona horaria seleccionada."
         }
       },
       "RunAt": {
@@ -2106,6 +2074,56 @@
           "errors": {
             "stale": "Esta programación cambió en otro lugar. Recarga la página e inténtalo de nuevo.",
             "saveFailed": "No se pudo guardar la programación."
+          },
+          "When": {
+            "title": "Cuándo",
+            "repeat": "Repetir",
+            "repeats": {
+              "daily": "Cada día",
+              "weekdays": "Días laborables",
+              "weekly": "Semanal",
+              "monthly": "Mensual",
+              "interval": "Cada pocos días",
+              "custom": "Personalizado"
+            },
+            "on": "El",
+            "pickADay": "Elige al menos un día",
+            "dayOfMonth": "Día del mes",
+            "dayN": "Día {day}",
+            "shortMonths": "Se saltan los meses sin este día",
+            "every": "Cada",
+            "days": "días",
+            "starting": "desde",
+            "startDate": "Fecha de inicio",
+            "pickDate": "Elige una fecha",
+            "cron": "Cron",
+            "cronHelp": "Cinco campos: minuto, hora, día, mes, día de la semana.",
+            "cronInvalid": "Esa expresión cron no es válida.",
+            "at": "A las",
+            "time": "Hora",
+            "timeSearch": "Escribe una hora, p. ej. 08:30",
+            "useTime": "Usar {time}",
+            "timezone": "Zona horaria",
+            "timezoneSearch": "Buscar zonas horarias",
+            "noTimezone": "No se encontró ninguna zona horaria",
+            "ends": "Termina",
+            "endsNever": "Nunca",
+            "endsOn": "En una fecha",
+            "endsAfter": "Tras varias ejecuciones",
+            "endDate": "Fecha de fin",
+            "runs": "ejecuciones",
+            "summary": {
+              "daily": "Cada día a las {time}",
+              "weekdays": "Cada día laborable a las {time}",
+              "weekly": "Cada {days} a las {time}",
+              "monthly": "Cada mes el día {day} a las {time}",
+              "interval": "Cada {n} días a las {time}",
+              "custom": "Programación personalizada",
+              "incomplete": "Elige cuándo se ejecuta"
+            },
+            "next": "Próxima: {date}",
+            "noNext": "No hay ejecuciones próximas",
+            "nextRuns": "Próximas ejecuciones"
           }
         },
         "Actions": {
@@ -6677,7 +6695,8 @@
         "submitting": "Creando…",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
-        "avatarLabel": "Imagen"
+        "avatarLabel": "Imagen",
+        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
       },
       "Memory": {
         "title": "Memoria",
@@ -6775,7 +6794,8 @@
           "limitUsage": "{used} de {limit} turnos propios usados hoy.",
           "timezoneTitle": "Zona horaria",
           "timezoneDescription": "Para el stand-up, el resumen semanal y \"hoy\" en los informes.",
-          "error": "No se pudo guardar el ajuste."
+          "error": "No se pudo guardar el ajuste.",
+          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
@@ -7053,7 +7073,7 @@
       "description": "Asistentes personales que delegan trabajo, hacen seguimiento y te mantienen al día en el chat.",
       "unavailable": "La vista del equipo no está disponible ahora mismo.",
       "createAssistant": "Crea tu asistente",
-      "createAssistantHint": "Lleva un minuto: elige un nombre y una cara.",
+      "createAssistantHint": "Consigue un asistente que se encarga de tareas, hace seguimiento y te mantiene al día. Configurarlo lleva un minuto.",
       "assistantFallback": "Asistente personal",
       "chatError": "No se pudo abrir el chat.",
       "manage": "Ajustes",
@@ -7070,7 +7090,13 @@
       "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en {days} días",
       "assistantOf": "Asistente de",
       "message": "Escribir",
-      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día."
+      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día.",
+      "heroCaption": "Soko Bots para todo tu equipo",
+      "heroTitle": "Los asistentes personales de tu equipo",
+      "chatWith": "Chatear con {name}",
+      "yourAssistantTitle": "Tu asistente",
+      "teamTitle": "Los asistentes de tu equipo",
+      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat."
     },
     "Calendar": {
       "Metadata": {
