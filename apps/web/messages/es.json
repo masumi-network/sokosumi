@@ -7430,6 +7430,14 @@
     "description": "Estamos realizando tareas de mantenimiento",
     "message": "Estamos trabajando para mejorar tu experiencia. Vuelve pronto."
   },
+  "EmailConfirmed": {
+    "title": "Email confirmado",
+    "message": "Tu dirección de email está confirmada. Puedes cerrar esta pestaña.",
+    "messageFor": "Tu dirección de email está confirmada. Ya puedes volver a {client}.",
+    "returnTo": "Volver a {client}",
+    "errorTitle": "Email no confirmado",
+    "errorMessage": "Este enlace ha caducado o ya no es válido."
+  },
   "AppleAppCallback": {
     "title": "Vuelve a la app de Sokosumi",
     "message": "El inicio de sesión no terminó en la app. Cierra esta ventana, abre la app de Sokosumi e inicia sesión de nuevo."
