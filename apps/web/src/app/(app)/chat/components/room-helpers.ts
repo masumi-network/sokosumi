@@ -508,14 +508,6 @@ export function messageDayKey(value: Date | string): string {
   return new Date(value).toDateString();
 }
 
-export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
-  return (
-    room.userMembers.find((member) => member.id !== currentUserId) ??
-    room.userMembers[0] ??
-    null
-  );
-}
-
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -673,9 +665,13 @@ export function getRoomDisplayName(
   if (room.groupName) {
     return room.groupName;
   }
+  // With nobody else left, name it after who it was with (Former members),
+  // never the viewer.
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),
-    getDirectRoomTarget(room, currentUserId)?.name || room.name,
+    formatParticipantNameList(
+      room.formerUserMembers.map((member) => member.name || member.email),
+    ) || room.name,
   );
 }
 

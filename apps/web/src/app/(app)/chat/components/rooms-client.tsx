@@ -196,6 +196,7 @@ import {
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
+import { ReadOnlyDirectNotice } from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -3274,7 +3275,7 @@ function RoomView({
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
-              enabled
+              enabled={!selectedRoom.isReadOnly}
               onFiles={(files) => {
                 roomComposerRef.current?.attachFiles(files);
               }}
@@ -3298,52 +3299,65 @@ function RoomView({
                   sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
                 />
               ) : null}
-              <RoomSessionComposer
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                sokoBotsById={sokoBotsById}
-                sokoBotsBySlug={sokoBotsBySlug}
-                channels={channelOptions}
-                channelLinks={channelLinks}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onSetPendingQuote={setPendingQuote}
-                onResolveMessageLink={handleResolveMessageLink}
-                requireBody={isCoworkerStreamRoom}
-                // Autofocus only after history settles. Send stays enabled so
-                // optimistic posts work during progressive open (merge into list).
-                focusOnMount={!messagesPending}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-                currentUserId={currentUserId}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectKey}
-              />
+              {selectedRoom.isReadOnly ? (
+                <ReadOnlyDirectNotice members={selectedRoomDisplayName} />
+              ) : (
+                <RoomSessionComposer
+                  ref={roomComposerRef}
+                  roomId={selectedRoom.id}
+                  draftKey={composeDraftKey.room(selectedRoom.id)}
+                  mentions={mentionRecords}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  sokoBotsById={sokoBotsById}
+                  sokoBotsBySlug={sokoBotsBySlug}
+                  channels={channelOptions}
+                  channelLinks={channelLinks}
+                  placeholder={
+                    isDirectRoom
+                      ? t("directComposerPlaceholder", {
+                          member: selectedRoomDisplayName,
+                        })
+                      : t("composerPlaceholderWithChannel", {
+                          channel: selectedRoomDisplayName,
+                        })
+                  }
+                  isSending={isCoworkerStreaming}
+                  showMentionShortcut={shouldShowRoomMentionShortcut(
+                    selectedRoom,
+                  )}
+                  pendingQuote={pendingQuote}
+                  onClearPendingQuote={() => setPendingQuote(null)}
+                  onSetPendingQuote={setPendingQuote}
+                  onResolveMessageLink={handleResolveMessageLink}
+                  requireBody={isCoworkerStreamRoom}
+                  // Autofocus only after history settles. Send stays enabled so
+                  // optimistic posts work during progressive open (merge into list).
+                  focusOnMount={!messagesPending}
+                  onBeforeSend={handleChannelBeforeSend}
+                  onSend={handleChannelSend}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={
+                    stableMessageHandlers.onOpenDirectMessage
+                  }
+                  openingDirectParticipantKey={openingDirectKey}
+                />
+              )}
             </RoomTypingProvider>
           }
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
+                composerDisabledMessage={
+                  selectedRoom.isReadOnly
+                    ? t("readOnlyDirectNotice", {
+                        members: selectedRoomDisplayName,
+                      })
+                    : undefined
+                }
                 parentMessage={
                   displayThreadParentMessage ?? threadParentMessage
                 }

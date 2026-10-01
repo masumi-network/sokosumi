@@ -68,6 +68,9 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findMany: memberFindManyMock,
     },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 

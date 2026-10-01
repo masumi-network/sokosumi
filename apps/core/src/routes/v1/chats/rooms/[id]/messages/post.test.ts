@@ -249,6 +249,7 @@ const sokoBotAuthContext: AuthVariables["authContext"] = {
 function roomWithMembers(
   overrides: {
     kind?: "channel" | "direct";
+    directKey?: string | null;
     name?: string;
     userMembers?: Array<{
       userId: string;
@@ -281,7 +282,7 @@ function roomWithMembers(
     name: overrides.name ?? "general",
     slug: "general",
     kind: overrides.kind ?? "channel",
-    directKey: null,
+    directKey: overrides.directKey ?? null,
     topic: null,
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -579,6 +580,29 @@ describe("POST /chats/rooms/{id}/messages", () => {
       roomId: ROOM_ID,
     });
     expect(publishChatRoomMessageRealtime).toHaveBeenCalled();
+  });
+
+  it("refuses a message to a Direct whose peer has left", async () => {
+    roomFindFirstMock.mockResolvedValue(
+      roomWithMembers({
+        kind: "direct",
+        directKey: `${USER_ID}:${ALICE_ID}`,
+        userMembers: [{ userId: USER_ID, user: { name: USER_ID } }],
+        coworkerMembers: [],
+        sokoBotMembers: [],
+      }),
+    );
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/messages`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: "Hello?" }),
+      },
+    );
+    expect(response.status).toBe(403);
+    expect(messageCreateMock).not.toHaveBeenCalled();
+    expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
   });
 
   it("publishes no invalidation when message creation rolls back", async () => {

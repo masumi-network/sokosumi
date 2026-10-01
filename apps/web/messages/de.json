@@ -6070,6 +6070,7 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "readOnlyDirectNotice": "{members} hat den Chat verlassen. Du kannst frühere Nachrichten weiterhin lesen, aber keine neuen senden.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Weitere Personen hinzufügen",

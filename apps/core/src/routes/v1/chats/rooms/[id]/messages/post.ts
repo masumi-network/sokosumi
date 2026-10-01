@@ -12,7 +12,7 @@ import {
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { conflict } from "@/helpers/error";
+import { conflict, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -36,6 +36,7 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 
 import {
   chatRoomMessageInclude,
+  isReadOnlyDirectRoom,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   quotedMessageNotFound,
@@ -251,6 +252,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           userContext.userId,
           tx,
         );
+        if (isReadOnlyDirectRoom(room)) {
+          throw forbidden(
+            "Everyone else has left this Direct, so it is read-only.",
+          );
+        }
 
         if (clientId) {
           const existing = await tx.chatRoomMessage.findUnique({
