@@ -165,12 +165,17 @@ function MarkSeenOnOpen() {
       void refetch();
     }
   }, [pathname, refetch]);
-  const { markSeen } = value;
+  const { markSeen, seenIds } = value;
   useEffect(() => {
     for (const campaign of resolved) {
-      if (isFeatureOpen(campaign.feature, pathname)) markSeen(campaign.id);
+      if (
+        isFeatureOpen(campaign.feature, pathname) ||
+        seenIds.has(campaign.id)
+      ) {
+        markSeen(campaign.id);
+      }
     }
-  }, [resolved, dataUpdatedAt, pathname, markSeen]);
+  }, [resolved, dataUpdatedAt, pathname, markSeen, seenIds]);
   return null;
 }
 

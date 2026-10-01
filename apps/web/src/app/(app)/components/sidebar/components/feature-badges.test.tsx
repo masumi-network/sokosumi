@@ -140,6 +140,47 @@ describe("New badges in the sidebar", () => {
     expect(markSeenMock).toHaveBeenCalledTimes(2);
   });
 
+  it("persists a visit after prolonged failure even when the reader navigates away", async () => {
+    markSeenMock.mockResolvedValue({
+      ok: false,
+      error: { message: "offline" },
+    });
+    pathnameRef.current = "/drive";
+    const view = await renderRows([DRIVE_CAMPAIGN]);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(7_010);
+    });
+    expect(markSeenMock).toHaveBeenCalledTimes(4);
+    pathnameRef.current = "/tasks";
+    markSeenMock.mockResolvedValue({ ok: true, value: undefined });
+    vi.mocked(fetch).mockImplementation(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: { badgeCampaigns: [DRIVE_CAMPAIGN] },
+            meta: { timestamp: "2026-10-01T12:00:00Z" },
+          }),
+        ),
+    );
+    view.rerender(
+      <FeatureBadgesProvider
+        userId="user_123"
+        campaigns={settled([DRIVE_CAMPAIGN])}
+      >
+        <SidebarFeatureLabel label="Drive" feature="DRIVE" />
+      </FeatureBadgesProvider>,
+    );
+    await act(async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["badge-campaigns", "user_123"],
+      });
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10);
+    });
+    expect(markSeenMock).toHaveBeenCalledTimes(5);
+  });
+
   it("stops queued seen retries when the account leaves the layout", async () => {
     markSeenMock.mockRejectedValueOnce(new Error("offline"));
     pathnameRef.current = "/drive";
