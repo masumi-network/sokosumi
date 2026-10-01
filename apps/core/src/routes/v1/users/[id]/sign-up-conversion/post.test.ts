@@ -17,15 +17,28 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { userFindUniqueMock, verificationFindFirstMock, deleteManyMock } =
-  vi.hoisted(() => ({
-    userFindUniqueMock: vi.fn(),
-    verificationFindFirstMock: vi.fn(),
-    deleteManyMock: vi.fn(),
-  }));
+const {
+  userFindUniqueMock,
+  verificationFindFirstMock,
+  deleteManyMock,
+  upsertMock,
+} = vi.hoisted(() => ({
+  userFindUniqueMock: vi.fn(),
+  verificationFindFirstMock: vi.fn(),
+  deleteManyMock: vi.fn(),
+  upsertMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: async (callback: (tx: unknown) => unknown) =>
+      callback({
+        uTMAttribution: { upsert: upsertMock },
+        verification: {
+          findFirst: verificationFindFirstMock,
+          deleteMany: deleteManyMock,
+        },
+      }),
     user: {
       findUnique: userFindUniqueMock,
     },
@@ -38,7 +51,15 @@ vi.mock("@/lib/db/prisma", () => ({
 
 const USER_ID = "user_123";
 
-function createApp(actor: "user" | "coworker" | "unauthenticated" = "user") {
+function createApp(
+  actor:
+    | "user"
+    | "admin"
+    | "oauth"
+    | "api_key"
+    | "coworker"
+    | "unauthenticated" = "user",
+) {
   const app = new OpenAPIHonoWithAuth();
 
   app.use("*", async (c, next) => {
@@ -58,7 +79,9 @@ function createApp(actor: "user" | "coworker" | "unauthenticated" = "user") {
         actor: "user",
         userId: USER_ID,
         organizationId: null,
-        role: "user",
+        role: actor === "admin" ? "admin" : "user",
+        authenticationMethod:
+          actor === "oauth" || actor === "api_key" ? actor : "session",
       });
     }
 
@@ -103,6 +126,66 @@ describe("POST /users/{id}/sign-up-conversion", () => {
         where: expect.objectContaining({
           identifier: `sign-up-conversion:${USER_ID}`,
         }),
+      }),
+    );
+  });
+
+  it("rejects an admin claiming another user's conversion", async () => {
+    const response = await createApp("admin").request(
+      "http://localhost/other-user/sign-up-conversion",
+      { method: "POST" },
+    );
+    expect(response.status).toBe(403);
+    expect(verificationFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["oauth", "api_key"] as const)(
+    "rejects %s credentials",
+    async (actor) => {
+      const response = await claim(createApp(actor));
+      expect(response.status).toBe(403);
+      expect(verificationFindFirstMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("validates the UTM request before consuming a conversion", async () => {
+    const response = await createApp().request(
+      "http://localhost/me/sign-up-conversion",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          utmAttribution: { utm_source: "ad", capturedAt: "not-a-date" },
+        }),
+      },
+    );
+    expect(response.status).toBe(422);
+    expect(verificationFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  it("records supplied UTM data for the authenticated session user", async () => {
+    verificationFindFirstMock.mockResolvedValue({
+      id: "row-1",
+      value: "google",
+    });
+    const response = await createApp().request(
+      "http://localhost/me/sign-up-conversion",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          utmAttribution: {
+            utm_source: "owned-ad",
+            capturedAt: "2026-10-01T12:00:00.000Z",
+          },
+        }),
+      },
+    );
+    expect(response.status).toBe(200);
+    expect(upsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: USER_ID },
+        create: expect.objectContaining({ utmSource: "owned-ad" }),
       }),
     );
   });

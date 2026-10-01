@@ -422,7 +422,6 @@ import {
   postUsersByIdFiles as corePostUsersByIdFiles,
   postUsersByIdNoticesByNoticeIdAcknowledge as corePostUsersByIdNoticesByNoticeIdAcknowledge,
   postUsersByIdPersonalWorkspace as corePostUsersByIdPersonalWorkspace,
-  postUsersByIdSignUpConversion as corePostUsersByIdSignUpConversion,
   postUsersByIdStripeCustomer as corePostUsersByIdStripeCustomer,
   postUsersByIdVendorGrants as corePostUsersByIdVendorGrants,
   postUsersByIdVendorGrantsByGrantIdApprove as corePostUsersByIdVendorGrantsByGrantIdApprove,
@@ -2947,23 +2946,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           cache: "no-store",
         }),
       "Failed to create user Stripe customer",
-    );
-  }
-
-  /**
-   * Claims the current user's uncounted social sign-up: the provider to the
-   * first caller only, `null` otherwise. See apps/web/TRACKING.md.
-   */
-  async function claimMySignUpConversion() {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        corePostUsersByIdSignUpConversion({
-          client,
-          path: { id: CURRENT_USER_PATH_ID },
-          cache: "no-store",
-        }),
-      "Failed to claim sign-up conversion",
     );
   }
 
@@ -5819,7 +5801,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyOrganizationCredits,
     getMyOrganizations,
     createMyStripeCustomer,
-    claimMySignUpConversion,
     createMyPersonalWorkspace,
     deleteMyPersonalWorkspace,
     createOrganizationStripeCustomer,

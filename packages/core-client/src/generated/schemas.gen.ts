@@ -15900,6 +15900,15 @@ export const SignUpConversionResponseSchema = {
     ]
 } as const;
 
+export const SignUpConversionRequestSchema = {
+    type: 'object',
+    properties: {
+        utmAttribution: {
+            $ref: '#/components/schemas/UtmAttributionRequest'
+        }
+    }
+} as const;
+
 export const CoworkerWorkspaceAccessSchema = {
     type: 'object',
     properties: {

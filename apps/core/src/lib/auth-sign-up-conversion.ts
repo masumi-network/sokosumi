@@ -1,6 +1,9 @@
 import type { OAuthOptions, Scope } from "@better-auth/oauth-provider";
+import type { z } from "zod";
 
+import { recordUtmAttribution } from "@/helpers/utm-attribution";
 import prisma from "@/lib/db/prisma";
+import type { utmAttributionRequestSchema } from "@/schemas/user.schema";
 
 /*
  * A social sign-up waits as a pending sign-up conversion until a Web page
@@ -22,7 +25,7 @@ export type SignUpConversionProvider =
 /** A sign-up no Web page counted within this window is not counted. */
 const SIGN_UP_CONVERSION_TTL_MS = 60 * 60 * 1000;
 
-const SOCIAL_CALLBACK_PATH = "/callback/:id";
+const SOCIAL_CALLBACK_PATHS = ["/callback/:id", "/callback/:id/oauth-proxy"];
 
 interface AuthRequestContext {
   path?: string;
@@ -55,7 +58,8 @@ export async function recordSignUpConversion(
 ): Promise<void> {
   const provider = ctx?.params?.id;
   if (
-    ctx?.path !== SOCIAL_CALLBACK_PATH ||
+    !ctx?.path ||
+    !SOCIAL_CALLBACK_PATHS.includes(ctx.path) ||
     !isSignUpConversionProvider(provider)
   ) {
     return;
@@ -75,13 +79,6 @@ export async function recordSignUpConversion(
   });
 }
 
-function findPendingSignUpConversion(userId: string) {
-  return prisma.verification.findFirst({
-    where: { identifier: identifierFor(userId), expiresAt: { gt: new Date() } },
-    select: { id: true, value: true },
-  });
-}
-
 /**
  * Whether to send this user's authorization through Web's sign-up page:
  * true once per pending conversion, false ever after.
@@ -93,6 +90,7 @@ export async function takeSignUpConversionRedirect(
     where: {
       identifier: redirectIdentifierFor(userId),
       expiresAt: { gt: new Date() },
+      value: { in: [...SIGN_UP_CONVERSION_PROVIDERS] },
     },
   });
   return count > 0;
@@ -121,21 +119,33 @@ export function oauthSignUpOptions(
  */
 export async function claimSignUpConversion(
   userId: string,
+  utmAttribution?: z.infer<typeof utmAttributionRequestSchema>,
 ): Promise<SignUpConversionProvider | null> {
-  const pending = await findPendingSignUpConversion(userId);
-  if (!pending || !isSignUpConversionProvider(pending.value)) {
-    return null;
-  }
-  const { count } = await prisma.verification.deleteMany({
-    where: { id: pending.id },
+  return prisma.$transaction(async (tx) => {
+    const pending = await tx.verification.findFirst({
+      where: {
+        identifier: identifierFor(userId),
+        expiresAt: { gt: new Date() },
+      },
+      select: { id: true, value: true },
+    });
+    if (!pending || !isSignUpConversionProvider(pending.value)) {
+      return null;
+    }
+    const { count } = await tx.verification.deleteMany({
+      where: { id: pending.id, expiresAt: { gt: new Date() } },
+    });
+    if (count !== 1) {
+      return null;
+    }
+    // Counted: a `prompt=create` request already passed through Web's sign-up
+    // page without taking the redirect, and must not pass through it again.
+    await tx.verification.deleteMany({
+      where: { identifier: redirectIdentifierFor(userId) },
+    });
+    if (utmAttribution) {
+      await recordUtmAttribution(userId, utmAttribution, tx);
+    }
+    return pending.value;
   });
-  if (count !== 1) {
-    return null;
-  }
-  // Counted: a `prompt=create` request already passed through Web's sign-up
-  // page without taking the redirect, and must not pass through it again.
-  await prisma.verification.deleteMany({
-    where: { identifier: redirectIdentifierFor(userId) },
-  });
-  return pending.value;
 }

@@ -7,13 +7,6 @@ const clearResetPasswordTokenMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
 const claimMySignUpConversionMock = vi.fn();
 
-vi.mock("@/lib/clients/core.client", () => ({
-  coreClientNoRedirect: {
-    claimMySignUpConversion: (...args: unknown[]) =>
-      claimMySignUpConversionMock(...args),
-  },
-}));
-
 vi.mock("@/lib/auth/core-auth-http.server", () => ({
   setPasswordViaCore: (...args: unknown[]) => setPasswordViaCoreMock(...args),
   resetPasswordViaCore: (...args: unknown[]) =>
@@ -27,6 +20,8 @@ vi.mock("@/lib/reset-password-token-cookie", () => ({
 
 vi.mock("@/lib/services/utm.service", () => ({
   utmService: {
+    claimSignUpConversion: (...args: unknown[]) =>
+      claimMySignUpConversionMock(...args),
     handleUTMConversion: (...args: unknown[]) =>
       handleUTMConversionMock(...args),
   },
@@ -184,20 +179,16 @@ describe("claimSignUpConversion", () => {
   });
 
   it("returns the provider and records UTM attribution for a new social account", async () => {
-    claimMySignUpConversionMock.mockResolvedValue({
-      data: { provider: "google" },
-    });
+    claimMySignUpConversionMock.mockResolvedValue("google");
 
     const { claimSignUpConversion } = await import("./action");
 
     await expect(claimSignUpConversion()).resolves.toBe("google");
-    expect(handleUTMConversionMock).toHaveBeenCalledTimes(1);
+    expect(handleUTMConversionMock).not.toHaveBeenCalled();
   });
 
   it("counts nothing for an account that is not a new social sign-up", async () => {
-    claimMySignUpConversionMock.mockResolvedValue({
-      data: { provider: null },
-    });
+    claimMySignUpConversionMock.mockResolvedValue(null);
 
     const { claimSignUpConversion } = await import("./action");
 

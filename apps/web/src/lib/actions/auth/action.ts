@@ -13,7 +13,6 @@ import {
   resetPasswordViaCore,
   setPasswordViaCore,
 } from "@/lib/auth/core-auth-http.server";
-import { coreClientNoRedirect } from "@/lib/clients/core.client";
 import {
   clearResetPasswordToken,
   getResetPasswordToken,
@@ -111,12 +110,7 @@ export async function claimSignUpConversion(): Promise<
   SignUpConversionResponse["provider"]
 > {
   try {
-    const { data } = await coreClientNoRedirect.claimMySignUpConversion();
-    if (!data.provider) {
-      return null;
-    }
-    await handleUtmConversion();
-    return data.provider;
+    return await utmService.claimSignUpConversion();
   } catch (error) {
     console.error("Failed to claim social sign-up", error);
     return null;

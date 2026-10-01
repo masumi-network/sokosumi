@@ -258,6 +258,12 @@ export const signUpConversionResponseSchema = z
   })
   .openapi("SignUpConversionResponse");
 
+export const signUpConversionRequestSchema = z
+  .object({
+    utmAttribution: utmAttributionRequestSchema.optional(),
+  })
+  .openapi("SignUpConversionRequest");
+
 const creditWalletScopeSchema = z.enum(["organization", "personal"]).openapi({
   description:
     "Which credit wallet this payload is for: the user's personal credits, or the organization credit pool",

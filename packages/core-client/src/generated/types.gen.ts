@@ -4733,6 +4733,10 @@ export type SignUpConversionResponse = {
     provider: 'google' | 'microsoft' | null;
 };
 
+export type SignUpConversionRequest = {
+    utmAttribution?: UtmAttributionRequest;
+};
+
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
@@ -31548,10 +31552,10 @@ export type PostUsersByIdUtmAttributionResponses = {
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
 
 export type PostUsersByIdSignUpConversionData = {
-    body?: never;
+    body?: SignUpConversionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         * Only the literal me is accepted, for the interactive session user.
          */
         id: string;
     };
@@ -31594,6 +31598,21 @@ export type PostUsersByIdSignUpConversionErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
         error: string;
         message: string;
         kind?: string;

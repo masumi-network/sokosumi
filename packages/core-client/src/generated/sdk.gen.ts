@@ -2288,12 +2288,16 @@ export const postUsersByIdUtmAttribution = <ThrowOnError extends boolean = false
 });
 
 /**
- * Claim the user's uncounted social sign-up so the page that claims it counts it once (GTM `sign_up`, UTM attribution). Path `me` for the session user.
+ * Claim the user's uncounted social sign-up so the page that claims it counts it once (GTM `sign_up`, UTM attribution). Only path `me` with an interactive session is accepted; UTM attribution is recorded atomically when supplied.
  */
 export const postUsersByIdSignUpConversion = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdSignUpConversionData, ThrowOnError>): RequestResult<PostUsersByIdSignUpConversionResponses, PostUsersByIdSignUpConversionErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdSignUpConversionResponses, PostUsersByIdSignUpConversionErrors, ThrowOnError>({
     responseTransformer: postUsersByIdSignUpConversionResponseTransformer,
     url: '/users/{id}/sign-up-conversion',
-    ...options
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
 });
 
 /**

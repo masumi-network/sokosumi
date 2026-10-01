@@ -20,6 +20,10 @@ const { createManyMock, findFirstMock, deleteManyMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    $transaction: async (callback: (tx: unknown) => unknown) =>
+      callback({
+        verification: { findFirst: findFirstMock, deleteMany: deleteManyMock },
+      }),
     verification: {
       createMany: createManyMock,
       findFirst: findFirstMock,
@@ -64,6 +68,14 @@ describe("social sign-up conversion", () => {
     });
   });
 
+  it("records a new account completed by the preview OAuth proxy", async () => {
+    await recordSignUpConversion(USER_ID, {
+      path: "/callback/:id/oauth-proxy",
+      params: { id: "microsoft" },
+    });
+    expect(createManyMock).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ["an email sign-up", { path: "/sign-up/email" }],
     ["an email code sign-in", { path: "/sign-in/email-otp" }],
@@ -90,6 +102,7 @@ describe("social sign-up conversion", () => {
       where: {
         identifier: `sign-up-conversion-redirect:${USER_ID}`,
         expiresAt: { gt: NOW },
+        value: { in: ["google", "microsoft"] },
       },
     });
   });
@@ -106,7 +119,9 @@ describe("social sign-up conversion", () => {
 
     await expect(claimSignUpConversion(USER_ID)).resolves.toBe("microsoft");
     await expect(claimSignUpConversion(USER_ID)).resolves.toBeNull();
-    expect(deleteManyMock).toHaveBeenCalledWith({ where: { id: "row-1" } });
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: { id: "row-1", expiresAt: { gt: NOW } },
+    });
   });
 
   it("drops the redirect through Web once a page has counted the sign-up", async () => {

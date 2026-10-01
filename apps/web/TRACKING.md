@@ -151,7 +151,8 @@ A Google or Microsoft sign-up leaves through the provider, so no page that
 started it can count it. Core is the one place that sees every new account:
 
 1. `databaseHooks.user.create.after` records a pending sign-up conversion
-   when the account comes from a provider callback (`/callback/:id`): two
+   when the account comes from a provider callback (`/callback/:id` or the
+   preview completion `/callback/:id/oauth-proxy`): two
    `verification` rows, `sign-up-conversion:<userId>` and
    `sign-up-conversion-redirect:<userId>`, valid one hour
    (`apps/core/src/lib/auth-sign-up-conversion.ts`).
@@ -162,15 +163,21 @@ started it can count it. Core is the one place that sees every new account:
    sign-up before `/oauth2/continue`. The redirect row is single-use, so a
    claim that keeps failing cannot loop the browser back to `/signup`.
 3. Either page calls `claimSignUpConversion`, which asks Core
-   (`POST /v1/users/me/sign-up-conversion`) and records UTM attribution.
-   Core deletes both rows on the first claim, so the second page, a reload,
+   (`POST /v1/users/me/sign-up-conversion`) with the existing UTM cookie data.
+   Only an interactive session may claim its own conversion through `me`.
+   Core deletes both rows and records UTM attribution in one transaction.
+   A failed write rolls back the claim and keeps the cookie for a later retry.
+   Core returns the provider to the first claim, so the second page, a reload,
    or a later hand-back gets `null` and fires nothing.
 
 A sign-up no page claims within the hour is not counted, and neither is one
-whose Core record or claim failed (reported to Sentry, tag
-`sign_up_conversion`). The count is the claim, not `sign_up`'s delivery: a
+whose Core record failed (reported to Sentry, tag `sign_up_conversion`).
+Claim errors are logged on the Web server and let sign-in continue; the Core
+request times out after five seconds. The count is the claim, not `sign_up`'s delivery: a
 refused consent or a blocked tag still claims it. The hand-back pushes
 `sign_up` and then waits for `/oauth2/continue` before the page leaves.
+This is at-most-once claiming, not exactly-once analytics delivery: a lost
+claim response, a closed page, or a blocked tag can lose the browser event.
 
 ### Vercel Analytics events
 
