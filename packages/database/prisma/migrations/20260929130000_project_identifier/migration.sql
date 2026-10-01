@@ -45,6 +45,13 @@ CREATE FUNCTION project_set_identifier() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
   IF NEW."identifier" IS NULL THEN
     NEW."identifier" := project_default_identifier(NEW."name", NEW."workspaceId");
+  ELSE
+    -- Explicit identifiers share the same per-workspace lock as automatic
+    -- allocation so a concurrent create for name "Foo" cannot pick FOO and
+    -- then lose the unique index to an explicit FOO insert.
+    PERFORM pg_advisory_xact_lock(
+      hashtextextended('project_identifier:' || NEW."workspaceId"::TEXT, 0)
+    );
   END IF;
   RETURN NEW;
 END;

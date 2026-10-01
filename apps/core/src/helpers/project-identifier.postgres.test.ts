@@ -149,6 +149,45 @@ describe.skipIf(!enabled)("project identifier against PostgreSQL", () => {
     }
   });
 
+  it("lets automatic allocation wait on an explicit identifier insert", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      // Explicit FOO and auto "Foo" must serialize on the same lock: every
+      // automatic create must succeed (FOO2…) instead of losing a unique-index
+      // race to an explicit FOO.
+      const results = await Promise.allSettled(
+        Array.from({ length: 20 }, (_, i) =>
+          i % 2 === 0
+            ? prisma.project.create({
+                data: { workspaceId: ws, name: "Foo", identifier: "FOO" },
+              })
+            : prisma.project.create({
+                data: { workspaceId: ws, name: "Foo" },
+              }),
+        ),
+      );
+      const explicit = results.filter((_, i) => i % 2 === 0);
+      const automatic = results.filter((_, i) => i % 2 === 1);
+      expect(automatic.every((r) => r.status === "fulfilled")).toBe(true);
+      const explicitOk = explicit.filter((r) => r.status === "fulfilled");
+      expect(explicitOk.length).toBeLessThanOrEqual(1);
+      for (const result of explicit) {
+        if (result.status === "rejected") {
+          expect(isProjectIdentifierUniqueConstraintError(result.reason)).toBe(
+            true,
+          );
+        }
+      }
+      const values = await identifiers(ws);
+      expect(values).toContain("FOO");
+      expect(new Set(values).size).toBe(values.length);
+      expect(values.length).toBe(automatic.length + explicitOk.length);
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
   it("rejects a duplicate explicit identifier with a recognisable error", async () => {
     const ws = randomUUID();
     await createWorkspace(ws);
