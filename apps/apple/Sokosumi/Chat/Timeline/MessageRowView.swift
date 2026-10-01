@@ -74,6 +74,8 @@ import SwiftUI
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
+    /// Who has read this far: set on the room transcript's newest message only (row 31b1).
+    var seenBy: SeenBy?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
     @Environment(\.timeFormat) private var timeFormat
@@ -295,6 +297,8 @@ import SwiftUI
             .font(.caption)
           }
         }
+        // The faces sit in the corner, out of the text flow; the column gives up their width so no line runs under them.
+        .padding(.trailing, seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(.vertical, 4)
@@ -305,6 +309,14 @@ import SwiftUI
           JumpMarkBackground(mark: jumpMark)
         } else if isHovered || isReplyHovered, showsActionChrome {
           Color.primary.opacity(0.04)
+        }
+      }
+      // Web's `absolute end-2 bottom-1`: the action pill's trailing edge, at the bottom of the row.
+      .overlay(alignment: .bottomTrailing) {
+        if let seenBy {
+          SeenByButton(seenBy: seenBy)
+            .padding(.trailing, horizontalInset)
+            .padding(.bottom, 4)
         }
       }
       .overlay(alignment: .topTrailing) {

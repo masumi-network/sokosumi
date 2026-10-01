@@ -12,7 +12,8 @@ vi.mock("next/navigation", () => ({
   redirect: (url: string) => redirectMock(url),
 }));
 
-vi.mock("../lib/auth", () => ({
+vi.mock("../lib/auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../lib/auth")>()),
   getAuth: () => ({
     api: { signInSocial, signOut: signOutApi },
   }),
@@ -27,7 +28,10 @@ function promptSent(): string | undefined {
 describe("CMO sign-in actions", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    signInSocial.mockResolvedValue({ url: "https://core.example/authorize" });
+    signInSocial.mockResolvedValue({
+      headers: new Headers(),
+      response: { url: "https://core.example/authorize" },
+    });
   });
 
   it("signs in without a prompt", async () => {
@@ -44,6 +48,13 @@ describe("CMO sign-in actions", () => {
     await signIn();
 
     expect(promptSent()).toBeUndefined();
+  });
+
+  it("does not redirect when Better Auth returns no authorize URL", async () => {
+    signInSocial.mockResolvedValue({ headers: new Headers(), response: {} });
+
+    await expect(signIn()).rejects.toThrow("returned no URL");
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("creates an account with the create prompt, even after signing out", async () => {

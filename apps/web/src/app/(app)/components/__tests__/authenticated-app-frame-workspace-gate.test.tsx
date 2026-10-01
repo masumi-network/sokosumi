@@ -6,6 +6,7 @@ const getWorkspaceAccessMock = vi.fn();
 const hasAssignedOrganizationSeatMock = vi.fn();
 const privateCachedAppSidebarMock = vi.fn();
 const hasSocialBetaAccessMock = vi.fn();
+const getRequestPathMock = vi.fn();
 const redirectMock = vi.fn((path: string) => {
   throw new Error(`REDIRECT:${path}`);
 });
@@ -16,6 +17,7 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/lib/auth/auth.server", () => ({
   signInRedirectPath: async () => "/signin?returnUrl=%2F",
+  getRequestPath: () => getRequestPathMock(),
 }));
 
 vi.mock("@/lib/auth/route-session", () => ({
@@ -130,6 +132,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
     });
     hasAssignedOrganizationSeatMock.mockResolvedValue(true);
     hasSocialBetaAccessMock.mockResolvedValue(false);
+    getRequestPathMock.mockResolvedValue("/");
   });
 
   it("redirects not-ready users to the workspace gate before chrome", async () => {
@@ -148,6 +151,22 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       AuthenticatedAppFrame({ children: <div>app</div> }),
     ).rejects.toThrow("REDIRECT:/setup");
     expect(redirectMock).toHaveBeenCalledWith("/setup");
+  });
+
+  it("carries the requested path and its query to the workspace gate", async () => {
+    getRequestPathMock.mockResolvedValue("/chat/join/abc?ref=mail&x=1");
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: AuthenticatedAppFrame } = await import(
+      "../authenticated-app-frame"
+    );
+
+    await expect(
+      AuthenticatedAppFrame({ children: <div>app</div> }),
+    ).rejects.toThrow("REDIRECT:");
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/setup?next=%2Fchat%2Fjoin%2Fabc%3Fref%3Dmail%26x%3D1",
+    );
   });
 
   it("redirects when workspace access is missing (fail closed)", async () => {

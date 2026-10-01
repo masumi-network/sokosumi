@@ -11,13 +11,13 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import { signInRedirectPath } from "@/lib/auth/auth.server";
+import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
-import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
+import { isWorkspaceReady, workspaceGatePath } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
@@ -63,7 +63,7 @@ export default async function AuthenticatedAppFrame({
     console.error("Failed to load workspace access for app frame", error);
   }
   if (!isWorkspaceReady(workspaceGate)) {
-    redirect(WORKSPACE_GATE_PATH);
+    redirect(workspaceGatePath(await getRequestPath()));
   }
 
   const adminMenuEnabled = hasAdminRole(

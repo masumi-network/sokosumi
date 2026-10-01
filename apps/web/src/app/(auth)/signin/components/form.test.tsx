@@ -1,5 +1,12 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { track } from "@vercel/analytics";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -11,7 +18,8 @@ import {
   vi,
 } from "vitest";
 
-import type { EmailCode } from "@/auth/components/use-email-code";
+import { type EmailCode, useEmailCode } from "@/auth/components/use-email-code";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
@@ -25,6 +33,8 @@ const EMAIL = "login-user@example.com";
 
 const mockLocationReplace = vi.fn();
 const mockSignInEmail = vi.fn();
+const mockSendEmailCode = vi.fn();
+const mockSignInEmailCode = vi.fn();
 const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
 
@@ -56,6 +66,12 @@ vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
+    emailOtp: {
+      sendVerificationOtp: (...args: unknown[]) => mockSendEmailCode(...args),
+    },
+    signIn: {
+      emailOtp: (...args: unknown[]) => mockSignInEmailCode(...args),
+    },
   },
   signIn: {
     email: (...args: unknown[]) => mockSignInEmail(...args),
@@ -84,7 +100,8 @@ function fakeEmailCode(overrides: Partial<EmailCode> = {}): EmailCode {
     isSending: false,
     sentTo: EMAIL,
     sentAt: Date.now(),
-    sendCode: vi.fn().mockResolvedValue(undefined),
+    sendCode: vi.fn().mockResolvedValue(Date.now()),
+    adoptSentCode: vi.fn(),
     signInWithCode: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
@@ -103,6 +120,23 @@ function renderForm(
   };
   render(<SignInForm {...all} />);
   return all;
+}
+
+/** Real code hook and finish path, with only external auth/session responses mocked. */
+function SignInCodeStep() {
+  const emailCode = useEmailCode({ eventType: "signIn", returnUrl: "/chat" });
+  useMountEffect(() => {
+    void emailCode.sendCode(EMAIL);
+  });
+  return (
+    <SignInForm
+      email={EMAIL}
+      initialMethod="code"
+      emailCode={emailCode}
+      onFormStart={vi.fn()}
+      onPendingChange={vi.fn()}
+    />
+  );
 }
 
 function passwordField() {
@@ -143,6 +177,11 @@ describe("SignInForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockWaitForAuthSession.mockResolvedValue(undefined);
+    mockSendEmailCode.mockResolvedValue({
+      data: { success: true },
+      error: null,
+    });
+    mockSignInEmailCode.mockResolvedValue({ data: {}, error: null });
     mockSearchParams = new URLSearchParams();
   });
 
@@ -173,6 +212,169 @@ describe("SignInForm", () => {
       expect(onPendingChange).toHaveBeenCalledWith(true);
       expect(screen.getByRole("button", { name: "submit" })).toBeDisabled();
     });
+
+    it("signs in as soon as the sixth digit is typed, without the button", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode();
+      const { onPendingChange } = renderForm({
+        initialMethod: "code",
+        emailCode,
+      });
+
+      await user.type(codeField(), "042917");
+
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledExactlyOnceWith(
+          EMAIL,
+          "042917",
+        ),
+      );
+      expect(track).toHaveBeenCalledWith("Sign In", { provider: "email-otp" });
+      expect(onPendingChange).toHaveBeenCalledWith(true);
+    });
+
+    it("signs in with a pasted code that carries a dash", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode();
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.click(codeField());
+      await user.paste("042-917");
+
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledExactlyOnceWith(
+          EMAIL,
+          "042917",
+        ),
+      );
+    });
+
+    it("shows the step as busy while the code is checked, and sends it once", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi.fn(() => new Promise<undefined>(() => {})),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.type(codeField(), "042917");
+
+      await waitFor(() =>
+        expect(screen.getByRole("button", { name: "submit" })).toBeDisabled(),
+      );
+      expect(codeField()).toBeDisabled();
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+    });
+
+    it("does not send a refused code again until it changes", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi
+          .fn()
+          .mockResolvedValue({ code: "INVALID_OTP", message: "Invalid OTP" }),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+
+      await user.type(codeField(), "000000");
+      await waitFor(() =>
+        expect(codeField()).toHaveAccessibleDescription(/invalid$/),
+      );
+      await waitFor(() => expect(codeField()).toHaveFocus());
+
+      // Taking a digit back and typing it again is still the refused code.
+      await user.type(codeField(), "{Backspace}0");
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+
+      await user.type(codeField(), "{Backspace}7");
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
+          EMAIL,
+          "000007",
+        ),
+      );
+      expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2);
+    });
+
+    it("shares a synchronous lock between completion and manual submit", async () => {
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi.fn(() => new Promise<undefined>(() => {})),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+      const code = codeField();
+      const formElement = code.closest("form");
+      if (!formElement) throw new Error("Missing sign-in form");
+
+      act(() => {
+        fireEvent.change(code, { target: { value: "042917" } });
+        fireEvent.submit(formElement);
+        fireEvent.submit(formElement);
+      });
+
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledOnce(),
+      );
+      expect(code).toBeDisabled();
+      fireEvent.submit(formElement);
+      await act(async () => {});
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+      expect(code).toBeDisabled();
+    });
+
+    it("remembers a refused code through a partial-value method switch", async () => {
+      const user = userEvent.setup();
+      const emailCode = fakeEmailCode({
+        signInWithCode: vi.fn().mockResolvedValue({ code: "INVALID_OTP" }),
+      });
+      renderForm({ initialMethod: "code", emailCode });
+      await user.type(codeField(), "000000");
+      await waitFor(() =>
+        expect(codeField()).toHaveAccessibleDescription(/invalid$/),
+      );
+      await user.type(codeField(), "{Backspace}");
+      await user.click(
+        screen.getByRole("button", { name: "usePasswordInstead" }),
+      );
+      await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+      await user.type(codeField(), "0");
+      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+      await user.type(codeField(), "{Backspace}7");
+      await waitFor(() =>
+        expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2),
+      );
+    });
+
+    it.each(["042 917", "042-917", "042917"])(
+      "finishes automatic sign-in through the real code hook for %s",
+      async (entered) => {
+        mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+        render(<SignInCodeStep />);
+        const code = await screen.findByRole("textbox", { name: "codeLabel" });
+        fireEvent.change(code, { target: { value: entered } });
+        await waitFor(() =>
+          expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
+        );
+        expect(mockSendEmailCode).toHaveBeenCalledExactlyOnceWith({
+          fetchOptions: captchaFetchOptions,
+          email: EMAIL,
+          type: "sign-in",
+        });
+        expect(mockSignInEmailCode).toHaveBeenCalledExactlyOnceWith({
+          email: EMAIL,
+          otp: "042917",
+        });
+        expect(track).toHaveBeenCalledWith("Sign In", {
+          provider: "email-otp",
+        });
+        expect(fireGTMEvent.signIn).toHaveBeenCalledExactlyOnceWith(
+          "email-otp",
+        );
+        expect(code).toBeDisabled();
+        const formElement = code.closest("form");
+        if (!formElement) throw new Error("Missing sign-in form");
+        fireEvent.submit(formElement);
+        await act(async () => {});
+        expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+      },
+    );
 
     it("asks for all six digits before sending anything", async () => {
       const user = userEvent.setup();

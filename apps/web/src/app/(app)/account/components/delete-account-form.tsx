@@ -2,12 +2,15 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UserDeletionEvaluation } from "@sokosumi/core-client";
+import type { Account } from "@sokosumi/utils";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { ReauthDialog } from "@/components/auth/reauth-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -34,6 +37,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { dropBrowserPushSubscriptionOnAccountDeletion } from "@/lib/ably/release-push-device.client";
 import {
   IN_FLIGHT_JOB_ERROR_CODE,
@@ -56,6 +60,11 @@ import {
 } from "@/lib/schemas/account";
 
 interface DeleteAccountFormProps {
+  /** The viewer's linked accounts, which decide how a stale session re-signs. */
+  accounts: Account[];
+  /** False for a social or email-code sign-up: the typed email confirms. */
+  hasPassword: boolean;
+  userEmail?: string;
   blockers?: UserDeletionEvaluation["blockers"];
   preflightFailed?: boolean;
   ownedOrganizationSlug?: string | null;
@@ -142,29 +151,44 @@ function userDeletionBlockerMessage(
 }
 
 export function DeleteAccountForm({
+  accounts,
+  hasPassword,
+  userEmail,
   blockers = [],
   preflightFailed = false,
   ownedOrganizationSlug = null,
 }: DeleteAccountFormProps) {
   const t = useTranslations("App.Account.Delete");
   const router = useRouter();
+  const [isOpen, setIsOpen] = useState(false);
+  const reauthGate = useReauthGate({ accounts });
   const confirmDisabled = blockers.length > 0 || preflightFailed;
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(
-      deleteAccountSchema(useTranslations("Library.Auth.Schema")),
+      deleteAccountSchema(useTranslations("Library.Auth.Schema"), {
+        hasPassword,
+        accountEmail: userEmail,
+      }),
     ),
     defaultValues: {
       currentPassword: "",
+      confirmEmail: "",
     },
   });
 
   const handleSubmit = async (values: DeleteAccountFormType) => {
-    const deleteUserResult = await deleteUser({
-      password: values.currentPassword,
-    });
+    // No password means Better Auth checks the session's age instead.
+    const deleteUserResult = await deleteUser(
+      hasPassword ? { password: values.currentPassword } : {},
+    );
 
     if (deleteUserResult.error) {
+      if (reauthGate.handleError(deleteUserResult.error)) {
+        // The confirmation dialog closes so the two never stack.
+        setIsOpen(false);
+        return;
+      }
       toast.error(
         userDeletionBlockerMessage(deleteUserResult.error.code ?? "", t),
       );
@@ -186,7 +210,7 @@ export function DeleteAccountForm({
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
-        <Dialog>
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
           <DialogTrigger asChild>
             <Button variant="destructive">{t("button")}</Button>
           </DialogTrigger>
@@ -239,19 +263,43 @@ export function DeleteAccountForm({
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)}>
                 <fieldset className="space-y-4" disabled={isSubmitting}>
-                  <FormField
-                    control={form.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("currentPassword")}</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {hasPassword ? (
+                    <FormField
+                      control={form.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("currentPassword")}</FormLabel>
+                          <FormControl>
+                            <Input type="password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ) : (
+                    <FormField
+                      control={form.control}
+                      name="confirmEmail"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {t("confirmEmail", { email: userEmail ?? "" })}
+                          </FormLabel>
+                          <FormControl>
+                            <Input
+                              type="text"
+                              inputMode="email"
+                              autoComplete="off"
+                              spellCheck={false}
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  )}
                   <DialogFooter>
                     <Button
                       type="submit"
@@ -269,6 +317,7 @@ export function DeleteAccountForm({
             </Form>
           </DialogContent>
         </Dialog>
+        <ReauthDialog {...reauthGate.dialogProps} />
       </CardContent>
     </Card>
   );

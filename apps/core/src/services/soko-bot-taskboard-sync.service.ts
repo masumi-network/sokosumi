@@ -459,12 +459,13 @@ export class SokoBotTaskboardSyncService {
       });
     const attention = await findAttentionItems({
       id: bot.id,
+      userId: bot.userId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
       cutoverAt: scan.createdAt,
     });
-    const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
+    const followUps = await followUpsBlock(bot, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
     // Every turn the bot starts counts, assigned work included. Exempting it
     // meant anyone who could put a Task on the bot could drive unlimited

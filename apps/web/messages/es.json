@@ -1263,32 +1263,13 @@
           },
           "error": "Error al registrarse",
           "Fields": {
-            "FirstName": {
-              "label": "Nombre"
-            },
-            "LastName": {
-              "label": "Apellido"
-            },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
             },
-            "Organization": {
-              "placeholder": "Seleccionar organización",
-              "search": "Buscar organizaciones",
-              "create": "Crear {organization}",
-              "new": "Nueva organización",
-              "createPlaceholder": "Nombre de la nueva organización",
-              "success": "Organización creada correctamente",
-              "error": "No se pudo crear la organización",
-              "invalidEmail": "Introduce un email válido para ver o crear organizaciones"
-            },
             "Password": {
-              "label": "Contraseña"
+              "label": "Contraseña",
+              "description": "Al menos 8 caracteres."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "Dominio de email no permitido",
-            "badInput": "Por favor, completa el formulario correctamente."
           },
           "Login": {
             "message": "¿Ya tienes cuenta?",
@@ -3148,6 +3129,16 @@
         },
         "Detail": {
           "noExpiry": "Sin caducidad"
+        },
+        "ChangeCredits": {
+          "title": "Cambiar créditos por mes",
+          "description": "Se aplica a cada mes aún no otorgado. Los meses ya otorgados conservan sus créditos.",
+          "label": "Créditos / mes",
+          "min": "Mín. {min, number}",
+          "cancel": "Cancelar",
+          "submit": "Guardar",
+          "success": "Créditos por mes actualizados",
+          "error": "No se pudieron actualizar los créditos por mes"
         }
       },
       "Overview": {
@@ -4887,6 +4878,7 @@
         "confirmTitle": "¿Confirmas esta acción?",
         "confirmDescription": "Esta acción no se puede deshacer. Tu cuenta se eliminará permanentemente y tus datos serán borrados de nuestros servidores.",
         "currentPassword": "Contraseña actual",
+        "confirmEmail": "Escribe {email} para confirmar",
         "confirm": "Sí, eliminar mi cuenta",
         "success": "Cuenta eliminada correctamente",
         "error": "No se pudo eliminar la cuenta",
@@ -7452,7 +7444,8 @@
       "Schema": {
         "Email": {
           "invalid": "Por favor, introduce una dirección de email válida.",
-          "required": "El email es obligatorio"
+          "required": "El email es obligatorio",
+          "confirmationMismatch": "Escribe el email que aparece arriba."
         },
         "Name": {
           "min": "El nombre debe tener al menos 2 caracteres.",

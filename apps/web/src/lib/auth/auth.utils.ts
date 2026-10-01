@@ -212,7 +212,9 @@ function sanitizeAuthRedirectPath(
   // origin during SSR. Either way, only same-origin relative paths survive —
   // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
   // a different origin and fall back, closing the open-redirect vector in both
-  // contexts.
+  // contexts. A survivor comes back as its path alone: a value naming the
+  // placeholder origin must not reach the browser with it, and a bare
+  // `#fragment` must leave the current page.
   const baseOrigin =
     typeof window !== "undefined"
       ? window.location.origin
@@ -220,7 +222,9 @@ function sanitizeAuthRedirectPath(
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
-    return parsedUrl.origin === baseOrigin ? returnUrl : fallback;
+    return parsedUrl.origin === baseOrigin
+      ? parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
+      : fallback;
   } catch {
     return fallback;
   }

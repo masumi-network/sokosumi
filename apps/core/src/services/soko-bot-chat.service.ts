@@ -168,6 +168,9 @@ async function loadChatLinkedTurn(
   };
 }
 
+/** The Thought of an answer with no reasoning summary and no tool calls. */
+export const ANSWERED_DIRECTLY = "Answered directly, without using any tools.";
+
 const lastProgressPublishAt = new Map<string, number>();
 
 /**
@@ -422,15 +425,13 @@ export async function persistSokoBotChatTurn(
           mention_id: mention.id,
           // Same shape `thoughtMetadataFields` writes for coworkers, inlined
           // so this module never drags the realtime/auth import chain in.
-          ...(turn.steps.length > 0
-            ? {
-                reasoning: turn.steps.map((text) => ({
-                  type: "reasoning",
-                  text,
-                })),
-                thought_timing_ms: { start: startedAtMs, end: endedAtMs },
-              }
-            : {}),
+          // Every answer gets a Thought, as a Coworker's does: the summary
+          // and tools when there are any, otherwise a plain note.
+          reasoning: (turn.steps.length > 0
+            ? turn.steps
+            : [ANSWERED_DIRECTLY]
+          ).map((text) => ({ type: "reasoning", text })),
+          thought_timing_ms: { start: startedAtMs, end: endedAtMs },
           soko_bot: {
             turn_id: turn.id,
             pending_decision_ids: turn.pendingDecisionIds,

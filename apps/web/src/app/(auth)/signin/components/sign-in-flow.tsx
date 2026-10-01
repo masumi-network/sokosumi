@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useRef, useState } from "react";
 
@@ -17,6 +17,7 @@ import {
   buildSignUpUrlFromSignIn,
 } from "@/lib/auth/auth.utils";
 import {
+  rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
@@ -62,6 +63,7 @@ export default function SignInFlow({
 }: SignInFlowProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const searchParams = useSearchParams();
+  const router = useRouter();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
@@ -159,17 +161,27 @@ export default function SignInFlow({
             description: t("NoAccount.description"),
             label: t("NoAccount.createAccount"),
             href: signUpHref,
+            // Sign-up's first step would only ask Core again and send this
+            // code, so it is sent here and sign-up opens on its second step.
+            follow: async (newEmail, signal) => {
+              const codeSentAt = await emailCode.sendCode(newEmail, {
+                signal,
+              });
+              if (signal.aborted) return;
+              rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
+              router.push(signUpHref);
+            },
           }}
           onFormStart={handleFormStart}
           onEmailChange={setTypedEmail}
           continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail) => {
+          onContinue={async (confirmedEmail, signal) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
             if (initialMethod === "code") {
-              await emailCode.sendCode(confirmedEmail);
+              await emailCode.sendCode(confirmedEmail, { signal });
             }
-            setStep("method");
+            if (!signal.aborted) setStep("method");
           }}
         />
         <Divider />
