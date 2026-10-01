@@ -44,16 +44,15 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
           ))}
         </ul>
         {error ? <p role="alert">{errorMessage(error)}</p> : null}
-        <div className="actions">
-          <form action={createAccount}>
-            <SubmitButton className="button">Create account</SubmitButton>
-          </form>
-          <form action={signIn}>
-            <SubmitButton className="button button-secondary">
-              Sign in
-            </SubmitButton>
-          </form>
-        </div>
+        {/* One form, so pressing either button disables both. */}
+        <form className="actions">
+          <SubmitButton className="button" formAction={createAccount}>
+            Create account
+          </SubmitButton>
+          <SubmitButton className="button button-secondary" formAction={signIn}>
+            Sign in
+          </SubmitButton>
+        </form>
         <p className="note">
           CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.
         </p>
