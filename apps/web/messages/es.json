@@ -2863,7 +2863,10 @@
         },
         "newCampaign": {
           "title": "Nueva campaña",
-          "note": "Las campañas se crean en pausa. Añade grupos de anuncios y anuncios en Google Ads / Meta Ads Manager y reanúdalas aquí.",
+          "note": {
+            "google_ads": "Las campañas se crean en pausa. Añade grupos de anuncios y anuncios en Google Ads y reanúdalas aquí.",
+            "meta_ads": "Las campañas se crean en pausa. Añade conjuntos de anuncios y anuncios en Meta Ads Manager y reanúdalas aquí."
+          },
           "name": "Nombre",
           "objective": "Objetivo",
           "objectivePlaceholder": "Selecciona un objetivo",

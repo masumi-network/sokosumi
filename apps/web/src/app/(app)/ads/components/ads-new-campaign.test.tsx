@@ -68,16 +68,24 @@ describe("AdsNewCampaign", () => {
     vi.clearAllMocks();
   });
 
-  it("opens a dialog that says campaigns are created paused", async () => {
-    await openDialog();
+  it.each([
+    [
+      "google_ads" as const,
+      "Campaigns are created paused. Add ad groups and ads in Google Ads, then resume here.",
+    ],
+    [
+      "meta_ads" as const,
+      "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here.",
+    ],
+  ])(
+    "opens a dialog that says %s campaigns are paused",
+    async (provider, note) => {
+      await openDialog(provider);
 
-    expect(screen.getByRole("dialog")).toBeVisible();
-    expect(
-      screen.getByText(
-        "Campaigns are created paused. Add ad groups and ads in Google Ads / Meta Ads Manager, then resume here.",
-      ),
-    ).toBeVisible();
-  });
+      expect(screen.getByRole("dialog")).toBeVisible();
+      expect(screen.getByText(note)).toBeVisible();
+    },
+  );
 
   it("has no objective field for Google", async () => {
     await openDialog("google_ads");

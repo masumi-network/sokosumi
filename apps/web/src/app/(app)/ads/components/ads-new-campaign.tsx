@@ -70,7 +70,7 @@ export function AdsNewCampaign(props: AdsNewCampaignProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>{t("title")}</DialogTitle>
-            <DialogDescription>{t("note")}</DialogDescription>
+            <DialogDescription>{t(`note.${props.provider}`)}</DialogDescription>
           </DialogHeader>
           <NewCampaignForm {...props} onClose={() => setOpen(false)} />
         </DialogContent>

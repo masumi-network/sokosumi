@@ -2863,7 +2863,10 @@
         },
         "newCampaign": {
           "title": "New campaign",
-          "note": "Campaigns are created paused. Add ad groups and ads in Google Ads / Meta Ads Manager, then resume here.",
+          "note": {
+            "google_ads": "Campaigns are created paused. Add ad groups and ads in Google Ads, then resume here.",
+            "meta_ads": "Campaigns are created paused. Add ad sets and ads in Meta Ads Manager, then resume here."
+          },
           "name": "Name",
           "objective": "Objective",
           "objectivePlaceholder": "Select an objective",

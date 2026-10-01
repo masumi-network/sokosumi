@@ -49,7 +49,7 @@ export function AdsCampaignsToolbar({
           value={account.id}
           onValueChange={(value) => void setQuery({ account: value })}
         >
-          <SelectTrigger aria-label={t("account")} className="w-64 max-w-full">
+          <SelectTrigger aria-label={t("account")} className="w-full sm:w-64">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -61,7 +61,7 @@ export function AdsCampaignsToolbar({
           </SelectContent>
         </Select>
       ) : null}
-      <div className="ml-auto flex items-center gap-3">
+      <div className="flex w-full items-center justify-between gap-3 sm:ml-auto sm:w-auto">
         <ToggleGroup
           aria-label={t("rangeLabel")}
           onValueChange={(value) => {

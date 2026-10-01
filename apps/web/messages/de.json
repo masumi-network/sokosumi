@@ -2863,7 +2863,10 @@
         },
         "newCampaign": {
           "title": "Neue Kampagne",
-          "note": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen in Google Ads / Meta Ads Manager hinzu und setze sie dann hier fort.",
+          "note": {
+            "google_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen in Google Ads hinzu und setze sie dann hier fort.",
+            "meta_ads": "Kampagnen werden pausiert erstellt. Füge Anzeigengruppen und Anzeigen im Meta Ads Manager hinzu und setze sie dann hier fort."
+          },
           "name": "Name",
           "objective": "Ziel",
           "objectivePlaceholder": "Ziel auswählen",
