@@ -4725,6 +4725,13 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type SignUpConversionResponse = {
+    /**
+     * The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.
+     */
+    provider: 'google' | 'microsoft' | null;
+};
+
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
@@ -31538,6 +31545,84 @@ export type PostUsersByIdUtmAttributionResponses = {
 };
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
+
+export type PostUsersByIdSignUpConversionData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up-conversion';
+};
+
+export type PostUsersByIdSignUpConversionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionError = PostUsersByIdSignUpConversionErrors[keyof PostUsersByIdSignUpConversionErrors];
+
+export type PostUsersByIdSignUpConversionResponses = {
+    /**
+     * The claimed sign-up's provider, or null
+     */
+    200: {
+        data: SignUpConversionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
 
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;

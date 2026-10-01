@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
+import { claimSignUpConversion } from "@/lib/actions/auth/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isRejectedOAuthRequestError,
@@ -21,6 +22,7 @@ import type {
   OAuthRequestClient,
 } from "@/lib/auth/oauth-request.server";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
+import { fireGTMEvent } from "@/lib/gtm-events";
 
 interface OAuthHandBackProps {
   /** The signed OAuth request the page carries. */
@@ -73,8 +75,19 @@ function useHandBack(oauthQuery: string) {
     }
     hasStarted.current = true;
 
-    authClient.oauth2
-      .continue({ created: true, oauth_query: oauthQuery })
+    // A social sign-up made during an OAuth request never reaches
+    // /auth/callback/signup: Core sends it here instead. Count it before the
+    // provider's answer navigates away (apps/web/TRACKING.md).
+    claimSignUpConversion()
+      .then((provider) => {
+        if (provider) {
+          fireGTMEvent.signUp(provider);
+        }
+      })
+      .catch(() => undefined)
+      .then(() =>
+        authClient.oauth2.continue({ created: true, oauth_query: oauthQuery }),
+      )
       .then((result) => {
         if (result.error || !(result.data?.redirect && result.data.url)) {
           setHasFailed(true);

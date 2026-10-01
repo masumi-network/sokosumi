@@ -15874,6 +15874,28 @@ export const UtmAttributionRequestSchema = {
     ]
 } as const;
 
+export const SignUpConversionResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'google',
+                'microsoft',
+                null
+            ],
+            description: 'The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.',
+            example: 'google'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
 export const CoworkerWorkspaceAccessSchema = {
     type: 'object',
     properties: {

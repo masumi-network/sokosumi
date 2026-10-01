@@ -22,6 +22,18 @@ const mockSignOut =
   >();
 const mockRefresh = vi.fn();
 const mockToastError = vi.fn();
+const mockClaimSignUpConversion = vi.fn();
+const mockSignUpEvent = vi.fn();
+
+vi.mock("@/lib/actions/auth/action", () => ({
+  claimSignUpConversion: () => mockClaimSignUpConversion(),
+}));
+
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    signUp: (...args: unknown[]) => mockSignUpEvent(...args),
+  },
+}));
 
 vi.mock("next-intl", () => ({
   useTranslations: () =>
@@ -77,6 +89,9 @@ describe("OAuthHandBack", () => {
     mockSignOut.mockReset();
     mockRefresh.mockReset();
     mockToastError.mockReset();
+    mockClaimSignUpConversion.mockReset();
+    mockClaimSignUpConversion.mockResolvedValue(null);
+    mockSignUpEvent.mockReset();
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(BEFORE_EXPIRY);
   });
@@ -110,6 +125,60 @@ describe("OAuthHandBack", () => {
     expect(mockContinue).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("status")).toHaveTextContent("continuingTo:CMO");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("counts a new social account once before handing the request back", async () => {
+    mockClaimSignUpConversion.mockResolvedValue("google");
+    mockContinue.mockResolvedValue({
+      data: { redirect: true, url: "https://app.cmo.xyz/callback?code=abc" },
+      error: null,
+    });
+
+    render(
+      <StrictMode>
+        <OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => {
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+    });
+    expect(mockClaimSignUpConversion).toHaveBeenCalledTimes(1);
+    expect(mockSignUpEvent).toHaveBeenCalledTimes(1);
+    expect(mockSignUpEvent).toHaveBeenCalledWith("google");
+    // The page leaves once the provider answers; the event must be out first.
+    expect(mockSignUpEvent.mock.invocationCallOrder[0]).toBeLessThan(
+      mockContinue.mock.invocationCallOrder[0] ?? 0,
+    );
+  });
+
+  it("counts nothing for an account that is not a new social sign-up", async () => {
+    mockContinue.mockResolvedValue({
+      data: { redirect: true, url: "https://app.cmo.xyz/callback?code=abc" },
+      error: null,
+    });
+
+    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />);
+
+    await waitFor(() => {
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSignUpEvent).not.toHaveBeenCalled();
+  });
+
+  it("hands the request back even when the sign-up cannot be claimed", async () => {
+    mockClaimSignUpConversion.mockRejectedValue(new Error("network"));
+    mockContinue.mockResolvedValue({
+      data: { redirect: true, url: "https://app.cmo.xyz/callback?code=abc" },
+      error: null,
+    });
+
+    render(<OAuthHandBack oauthQuery={OAUTH_QUERY} client={CMO} />);
+
+    await waitFor(() => {
+      expect(mockContinue).toHaveBeenCalledTimes(1);
+    });
+    expect(mockSignUpEvent).not.toHaveBeenCalled();
   });
 
   it("stays on the page with an error when the provider refuses the request", async () => {

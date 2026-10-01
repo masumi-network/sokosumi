@@ -162,7 +162,11 @@ export default function SignUpFlow({
           }}
         />
         <Divider />
-        <SocialButtons returnUrl={returnUrl} lastUsedMethod={lastUsedMethod} />
+        <SocialButtons
+          returnUrl={returnUrl}
+          lastUsedMethod={lastUsedMethod}
+          eventType="signUp"
+        />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}

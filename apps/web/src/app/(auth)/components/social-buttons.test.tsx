@@ -1,5 +1,6 @@
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { track } from "@vercel/analytics";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SocialButtons from "./social-buttons";
@@ -165,6 +166,7 @@ describe("SocialButtons", () => {
     mockWaitForAuthSession.mockReset();
     mockWaitForAuthSession.mockResolvedValue({ id: "session-id" });
     mockSignInEvent.mockReset();
+    vi.mocked(track).mockReset();
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
     mockSearchParams = new URLSearchParams();
@@ -225,6 +227,29 @@ describe("SocialButtons", () => {
     } finally {
       window.history.replaceState(null, "", startPage);
     }
+  });
+
+  it("tracks a social button on the sign-in page as a sign-in", async () => {
+    render(<SocialButtons />);
+
+    await clickGoogleButton();
+
+    expect(track).toHaveBeenCalledWith("Sign In", {
+      provider: "google",
+      direct_signup_link: false,
+    });
+  });
+
+  it("tracks a social button on the sign-up page as a sign-up", async () => {
+    render(<SocialButtons eventType="signUp" />);
+
+    await clickGoogleButton();
+
+    expect(track).toHaveBeenCalledWith("Sign Up", {
+      provider: "google",
+      direct_signup_link: false,
+    });
+    expect(track).not.toHaveBeenCalledWith("Sign In", expect.anything());
   });
 
   it("passes provided returnUrl to social sign-in callbacks", async () => {

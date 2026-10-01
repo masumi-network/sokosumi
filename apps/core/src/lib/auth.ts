@@ -78,6 +78,10 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import {
+  oauthSignUpOptions,
+  recordSignUpConversion,
+} from "./auth-sign-up-conversion";
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
@@ -285,7 +289,15 @@ export const auth = betterAuth({
             data: applyDesignMdMetadataGuardToUserCreate(withName),
           };
         },
-        after: async (user, _ctx) => {
+        after: async (user, ctx) => {
+          // Awaited: the OAuth provider's after hook in this same request
+          // takes the sign-up's redirect through Web.
+          await recordSignUpConversion(user.id, ctx).catch((error) => {
+            Sentry.captureException(error, {
+              tags: { context: "sign_up_conversion" },
+              extra: { userId: user.id },
+            });
+          });
           waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
@@ -634,9 +646,10 @@ export const auth = betterAuth({
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
-      // Where `prompt=create` lands, signed in or not. The page reports back
-      // through `/oauth2/continue`.
-      signup: { page: `${webAppBaseUrl}/signup` },
+      // Where `prompt=create` lands, signed in or not, and where a social
+      // sign-up no Web page has counted yet goes before the client. The page
+      // reports back through `/oauth2/continue`.
+      signup: oauthSignUpOptions(webAppBaseUrl),
       // The sign-in and sign-up pages name the requesting client before
       // anyone is signed in. Answered only for a request this provider signed.
       allowPublicClientPrelogin: true,
