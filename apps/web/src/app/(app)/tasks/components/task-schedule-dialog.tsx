@@ -358,7 +358,11 @@ export function TaskScheduleDialog({
                 {schedule ? t("futureOnlyNotice") : t("createDescription")}
               </p>
             </div>
-            <TaskScheduleWhen value={when} onChange={setWhen} />
+            <TaskScheduleWhen
+              value={when}
+              onChange={setWhen}
+              storedCron={schedule?.rule.expr}
+            />
           </section>
         </div>
 

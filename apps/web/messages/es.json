@@ -2083,6 +2083,7 @@
             "cron": "Cron",
             "cronHelp": "Cinco campos: minuto, hora, día, mes, día de la semana.",
             "cronInvalid": "Esa expresión cron no es válida.",
+            "cronLegacy": "Guardado antes de que se exigieran cinco campos. Sigue en marcha; un cron modificado necesita cinco campos.",
             "at": "A las",
             "time": "Hora",
             "timeSearch": "Escribe una hora, p. ej. 08:30",

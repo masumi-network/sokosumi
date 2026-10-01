@@ -329,10 +329,16 @@ function DateChip({
 interface TaskScheduleWhenProps {
   value: ScheduleWhen;
   onChange: (value: ScheduleWhen) => void;
+  /** The cron of the schedule being edited, as Core stored it. */
+  storedCron?: string;
 }
 
 /** The "When" part of the schedule dialog: how often, at what time, until when. */
-export function TaskScheduleWhen({ value, onChange }: TaskScheduleWhenProps) {
+export function TaskScheduleWhen({
+  value,
+  onChange,
+  storedCron,
+}: TaskScheduleWhenProps) {
   const t = useTranslations("App.Tasks.Schedules.Dialog.When");
   const formatter = useFormatter();
   const cronId = useId();
@@ -340,10 +346,15 @@ export function TaskScheduleWhen({ value, onChange }: TaskScheduleWhenProps) {
   const endAfterId = useId();
   const set = (patch: Partial<ScheduleWhen>) =>
     onChange({ ...value, ...patch });
-  const cronInvalid =
+  const customCron = value.customCron.trim();
+  const cronRejected =
     value.repeat === "custom" &&
-    value.customCron.trim() !== "" &&
-    !isValidCronExpression(value.customCron.trim(), value.timezone);
+    customCron !== "" &&
+    !isValidCronExpression(customCron, value.timezone);
+  // A stored rule from before the five-field cron keeps running and still
+  // saves untouched, so it is only noted; an edit to it must be valid.
+  const cronLegacy = cronRejected && customCron === storedCron?.trim();
+  const cronInvalid = cronRejected && !cronLegacy;
 
   return (
     <div className="space-y-3">
@@ -455,7 +466,11 @@ export function TaskScheduleWhen({ value, onChange }: TaskScheduleWhenProps) {
                 cronInvalid ? "text-destructive" : "text-muted-foreground",
               )}
             >
-              {cronInvalid ? t("cronInvalid") : t("cronHelp")}
+              {cronInvalid
+                ? t("cronInvalid")
+                : cronLegacy
+                  ? t("cronLegacy")
+                  : t("cronHelp")}
             </p>
           </div>
         </Row>

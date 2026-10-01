@@ -404,6 +404,28 @@ describe("TaskScheduleDialog", () => {
     );
   });
 
+  it("notes a stored six-field rule without calling it invalid until it is edited", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    const cron = screen.getByLabelText("cron");
+    expect(cron).toHaveValue("0 15 7 1,15 * *");
+    expect(cron).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByText("cronLegacy")).toBeInTheDocument();
+    expect(screen.queryByText("cronInvalid")).toBeNull();
+
+    // Still six fields: "0 15 7 1,15 * 2".
+    await user.type(cron, "{backspace}2");
+
+    expect(cron).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("cronInvalid")).toBeInTheDocument();
+  });
+
   it("blocks saving a custom cron that is not five fields", async () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
