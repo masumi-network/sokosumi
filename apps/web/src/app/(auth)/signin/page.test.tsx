@@ -254,13 +254,34 @@ describe("SignIn page", () => {
     expect(screen.getByTestId("sign-in-form")).toBeInTheDocument();
   });
 
-  it("keeps the magic link with an OAuth request", async () => {
+  it("offers the magic link without an OAuth request", async () => {
+    const { default: Page } = await import("./page");
+
+    render(await Page({ searchParams: Promise.resolve({}) }));
+
+    expect(socialButtonsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ showMagicLink: true }),
+    );
+  });
+
+  it("hides the magic link while signing in for another app", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
     expect(socialButtonsMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: true }),
+      expect.objectContaining({ showMagicLink: false }),
+    );
+  });
+
+  it("hides the magic link even when the product cannot be loaded", async () => {
+    getOAuthClientPublicPreloginMock.mockResolvedValue(null);
+    const { default: Page } = await import("./page");
+
+    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+
+    expect(socialButtonsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ showMagicLink: false }),
     );
   });
 

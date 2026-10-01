@@ -740,8 +740,9 @@ describe("SocialButtons", () => {
     expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
       "oauth-login-user@example.com",
     );
+    // Better Auth decodes the callback URL once more during verification.
     const magicLinkCallbackUrl = new URL(
-      mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL,
+      decodeURIComponent(mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL),
       "https://example.com",
     );
     expect(magicLinkCallbackUrl.pathname).toBe("/auth/callback/signin");

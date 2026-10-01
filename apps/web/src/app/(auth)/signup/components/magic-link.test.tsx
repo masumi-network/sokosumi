@@ -53,8 +53,10 @@ describe("SignUpMagicLink", () => {
     };
     expect(request.email).toBe("ada@example.com");
     expect(request.fetchOptions).toBe(captchaFetchOptions);
-    expect(request.callbackURL).toContain("/auth/callback/signin");
-    expect(request.callbackURL).toContain(encodeURIComponent("/agents"));
+    // Better Auth decodes the callback URL once more during verification.
+    const callbackURL = decodeURIComponent(request.callbackURL);
+    expect(callbackURL).toContain("/auth/callback/signin");
+    expect(callbackURL).toContain(encodeURIComponent("/agents"));
     expect(
       screen.getByRole("button", { name: "magicLinkResend" }),
     ).toBeEnabled();
@@ -149,6 +151,59 @@ describe("SignUpMagicLink", () => {
       }
     },
   );
+
+  it("returns a verified link to the callback page with the whole return URL", async () => {
+    let sentUrl = "";
+    const auth = betterAuth({
+      baseURL: "https://core.test",
+      secret: "offline-magic-link-fixture-secret-32-characters",
+      trustedOrigins: [window.location.origin],
+      advanced: { disableOriginCheck: false },
+      plugins: [
+        magicLink({
+          async sendMagicLink({ url }) {
+            sentUrl = url;
+          },
+        }),
+      ],
+    });
+    magicLinkMock.mockImplementation(async (body) => {
+      const response = await auth.handler(
+        new Request("https://core.test/api/auth/sign-in/magic-link", {
+          method: "POST",
+          headers: {
+            origin: window.location.origin,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+      expect(response.status).toBe(200);
+      return { data: await response.json(), error: null };
+    });
+    const user = userEvent.setup();
+    render(
+      <SignUpMagicLink
+        email="ada@example.com"
+        returnUrl="/chat?room=a&tab=files"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
+    await waitFor(() => expect(sentUrl).not.toBe(""));
+    // The fixture's in-memory adapter holds the account the link creates.
+    const response = await auth.handler(new Request(sentUrl));
+
+    expect(response.status).toBe(302);
+    const location = new URL(response.headers.get("location") ?? "");
+    expect(location.origin + location.pathname).toBe(
+      `${window.location.origin}/auth/callback/signin`,
+    );
+    expect(Object.fromEntries(location.searchParams)).toEqual({
+      provider: "magic-link",
+      returnUrl: "/chat?room=a&tab=files",
+    });
+  });
 
   it("reports a failed request and claims nothing was sent", async () => {
     const user = userEvent.setup();

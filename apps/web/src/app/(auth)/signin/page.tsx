@@ -77,7 +77,9 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
           returnUrl={returnUrl}
           lastUsedMethod={lastUsedMethod}
           prefilledEmail={email}
-          showMagicLink
+          // A magic link opened in another browser cannot return to the
+          // product that sent the person here.
+          showMagicLink={!oauthRequest}
           showPasskey
         />
         <Divider labelKey="passwordDivider" />

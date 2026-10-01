@@ -38,15 +38,15 @@ export function useMagicLinkRequest(returnUrl: string | undefined) {
         const result = await authClient.signIn.magicLink({
           fetchOptions,
           email,
+          // Better Auth decodes both callback URLs again during verification.
+          // Protect their existing escapes so nested queries, + and # survive.
           callbackURL: buildAuthCallbackUrl(
             "/auth/callback/signin",
             "magic-link",
             returnUrl,
-          ),
+          ).replaceAll("%", "%25"),
           // An expired or used link returns here with `error`, not to the
           // callback page, which has no session and no message to show.
-          // Better Auth decodes this URL again during verification. Protect
-          // its existing escapes so nested queries, + and # survive.
           errorCallbackURL: buildAuthErrorCallbackUrl()?.replaceAll("%", "%25"),
         });
 
