@@ -18932,6 +18932,118 @@ export const AdMarketKeywordSchema = {
     description: 'Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.'
 } as const;
 
+export const ListAdMarketAdsResponseSchema = {
+    type: 'object',
+    properties: {
+        ads: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdMarketAd'
+            },
+            description: 'At most 40 ads of the last 30 days from the biggest advertisers for the profile keywords, last shown first'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When DataForSEO was last asked; results are cached for 24h'
+        }
+    },
+    required: [
+        'ads',
+        'fetchedAt'
+    ]
+} as const;
+
+export const AdMarketAdSchema = {
+    type: 'object',
+    properties: {
+        creativeId: {
+            type: 'string'
+        },
+        advertiserId: {
+            type: 'string'
+        },
+        advertiserName: {
+            type: 'string'
+        },
+        format: {
+            type: 'string',
+            enum: [
+                'text',
+                'image',
+                'video',
+                'other'
+            ]
+        },
+        previewImage: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                url: {
+                    type: 'string'
+                },
+                width: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                },
+                height: {
+                    type: [
+                        'number',
+                        'null'
+                    ]
+                }
+            },
+            required: [
+                'url',
+                'width',
+                'height'
+            ]
+        },
+        previewUrl: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        firstShown: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        lastShown: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        verified: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'creativeId',
+        'advertiserId',
+        'advertiserName',
+        'format',
+        'previewImage',
+        'previewUrl',
+        'firstShown',
+        'lastShown',
+        'verified'
+    ],
+    description: 'A recent Google ad of a market advertiser. previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google\'s Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.'
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {

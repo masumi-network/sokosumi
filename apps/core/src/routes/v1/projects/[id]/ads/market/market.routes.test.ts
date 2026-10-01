@@ -10,6 +10,7 @@ import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
+import mountListAds from "./ads/get.js";
 import mountGetMarket from "./get.js";
 import mountListKeywords from "./keywords/get.js";
 import mountPutMarket from "./put.js";
@@ -19,6 +20,7 @@ const m = vi.hoisted(() => ({
   getProfile: vi.fn(),
   setProfile: vi.fn(),
   listKeywords: vi.fn(),
+  listAds: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -28,6 +30,7 @@ vi.mock("@/services/project-ad-market.service", () => ({
   getProjectAdMarketProfile: m.getProfile,
   setProjectAdMarketProfile: m.setProfile,
   listProjectAdMarketKeywords: m.listKeywords,
+  listProjectAdMarketAds: m.listAds,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -81,6 +84,39 @@ const keywordsResult = {
   fetchedAt: new Date("2026-10-01T11:00:00.000Z"),
 };
 
+const adsResult = {
+  ads: [
+    {
+      creativeId: "CR1",
+      advertiserId: "AR1",
+      advertiserName: "Acme Shoes",
+      format: "image",
+      previewImage: {
+        url: "https://tpc.googlesyndication.com/archive/simgad/1",
+        width: 300,
+        height: 250,
+      },
+      previewUrl:
+        "https://adstransparency.google.com/advertiser/AR1/creative/CR1",
+      firstShown: "2026-09-01T08:00:00.000Z",
+      lastShown: "2026-09-30T10:30:00.000Z",
+      verified: true,
+    },
+    {
+      creativeId: "CR2",
+      advertiserId: "AR2",
+      advertiserName: "Text Only",
+      format: "text",
+      previewImage: null,
+      previewUrl: null,
+      firstShown: null,
+      lastShown: null,
+      verified: false,
+    },
+  ],
+  fetchedAt: new Date("2026-10-01T11:00:00.000Z"),
+};
+
 function createApp(
   authContext: AuthenticationContext = SESSION_AUTH,
   workspaceContext: WorkspaceContext | null = WORKSPACE_CONTEXT,
@@ -97,6 +133,7 @@ function createApp(
   mountGetMarket(app);
   mountPutMarket(app);
   mountListKeywords(app);
+  mountListAds(app);
   return app;
 }
 
@@ -121,6 +158,7 @@ describe("Project ads market routes", () => {
     m.getProfile.mockResolvedValue(profile);
     m.setProfile.mockResolvedValue(profile);
     m.listKeywords.mockResolvedValue(keywordsResult);
+    m.listAds.mockResolvedValue(adsResult);
   });
 
   describe("profile", () => {
@@ -253,6 +291,70 @@ describe("Project ads market routes", () => {
     });
   });
 
+  describe("ads", () => {
+    const url = `${BASE}/ads`;
+
+    it("returns ads with preview images and nulls intact", async () => {
+      const response = await createApp().request(url);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({
+        data: {
+          fetchedAt: "2026-10-01T11:00:00.000Z",
+          ads: [
+            {
+              creativeId: "CR1",
+              advertiserName: "Acme Shoes",
+              format: "image",
+              previewImage: { width: 300, height: 250 },
+              lastShown: "2026-09-30T10:30:00.000Z",
+            },
+            {
+              creativeId: "CR2",
+              previewImage: null,
+              previewUrl: null,
+              lastShown: null,
+            },
+          ],
+        },
+      });
+      expect(m.listAds).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      });
+    });
+
+    it("returns an empty list", async () => {
+      m.listAds.mockResolvedValue({ ...adsResult, ads: [] });
+      const response = await createApp().request(url);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: { ads: [] } });
+    });
+
+    it("is 404 without a market profile or for a foreign Project", async () => {
+      m.listAds.mockRejectedValue(notFound("Market profile not set"));
+      expect((await createApp().request(url)).status).toBe(404);
+    });
+
+    it.each([
+      [
+        "Composio tool error",
+        new ComposioToolError({
+          message: "refused",
+          providerMessage: "secret detail",
+        }),
+        502,
+      ],
+      ["Composio API error", new ComposioApiError(500, undefined, "down"), 502],
+      ["missing configuration", new ComposioConfigError("not configured"), 503],
+      ["unexpected error", new Error("boom"), 500],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.listAds.mockRejectedValue(error);
+      const response = await createApp().request(url);
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+  });
+
   describe("access", () => {
     it("denies users outside the beta before any work", async () => {
       m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
@@ -261,9 +363,15 @@ describe("Project ads market routes", () => {
         app.request(BASE),
         put(app, validBody),
         app.request(`${BASE}/keywords`),
+        app.request(`${BASE}/ads`),
       ]);
-      expect(responses.map((r) => r.status)).toEqual([403, 403, 403]);
-      for (const mock of [m.getProfile, m.setProfile, m.listKeywords]) {
+      expect(responses.map((r) => r.status)).toEqual([403, 403, 403, 403]);
+      for (const mock of [
+        m.getProfile,
+        m.setProfile,
+        m.listKeywords,
+        m.listAds,
+      ]) {
         expect(mock).not.toHaveBeenCalled();
       }
     });
@@ -274,7 +382,9 @@ describe("Project ads market routes", () => {
         authenticationMethod: "api_key",
       });
       expect((await app.request(`${BASE}/keywords`)).status).toBe(403);
+      expect((await app.request(`${BASE}/ads`)).status).toBe(403);
       expect(m.listKeywords).not.toHaveBeenCalled();
+      expect(m.listAds).not.toHaveBeenCalled();
     });
 
     it("requires a Workspace context", async () => {

@@ -1,13 +1,16 @@
 import { createHash } from "node:crypto";
 
 import { z } from "@hono/zod-openapi";
-import type { ProjectAdMarketProfile } from "@sokosumi/database";
+import type { Prisma, ProjectAdMarketProfile } from "@sokosumi/database";
 
 import { internalServerError, notFound } from "@/helpers/error";
 import {
+  fetchMarketAds,
   fetchMarketKeywords,
+  type MarketAd,
   type MarketKeyword,
   type MarketKeywordQuery,
+  marketAdSchema,
   marketKeywordSchema,
 } from "@/lib/ads/dataforseo";
 import {
@@ -24,8 +27,9 @@ import {
   requireScopedProject,
 } from "@/services/project-social-connections.service";
 
-const KEYWORDS_SNAPSHOT = "keywords";
 const SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
+
+type SnapshotKind = "keywords" | "ads";
 
 interface ProjectScope {
   projectId: string;
@@ -41,6 +45,11 @@ export interface AdMarketProfile {
 
 export interface AdMarketKeywords {
   keywords: MarketKeyword[];
+  fetchedAt: Date;
+}
+
+export interface AdMarketAds {
+  ads: MarketAd[];
   fetchedAt: Date;
 }
 
@@ -105,73 +114,97 @@ export async function setProjectAdMarketProfile(
   return toProfile(profile);
 }
 
-/** The same profile, in any keyword order or case, maps to the same key. */
-function keywordsRequestKey(profile: MarketKeywordQuery): string {
+/**
+ * The same profile, in any keyword order or case, maps to the same key. Ads
+ * ignore the language, so changing it keeps the ads snapshot.
+ */
+function profileRequestKey(
+  kind: SnapshotKind,
+  profile: MarketKeywordQuery,
+): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
         keywords: profile.keywords.map((k) => k.toLowerCase()).sort(),
         locationCode: profile.locationCode,
-        languageCode: profile.languageCode,
+        ...(kind === "keywords" && { languageCode: profile.languageCode }),
       }),
     )
     .digest("hex");
 }
 
 /**
- * Trending keywords for the Project's market profile. DataForSEO costs per
- * call, so a snapshot younger than 24h for the same profile is served as is.
+ * DataForSEO costs per call, so a snapshot of `kind` younger than 24h for the
+ * same profile is served as is; otherwise `fetch` runs and its result replaces
+ * the Project's snapshots of that kind.
  */
-export async function listProjectAdMarketKeywords(
-  input: ProjectScope,
-): Promise<AdMarketKeywords> {
+async function cachedMarketSnapshot<T extends Prisma.InputJsonValue>(
+  input: ProjectScope & {
+    kind: SnapshotKind;
+    schema: z.ZodType<T[]>;
+    fetch: (profile: ProjectAdMarketProfile) => Promise<T[]>;
+  },
+): Promise<{ data: T[]; fetchedAt: Date }> {
   await requireScopedProject(input);
   const profile = await prisma.projectAdMarketProfile.findUnique({
     where: { projectId: input.projectId },
   });
   if (!profile) throw notFound("Market profile not set");
 
-  const requestKey = keywordsRequestKey(profile);
+  const { projectId, kind } = input;
+  const requestKey = profileRequestKey(kind, profile);
   const snapshotKey = {
-    projectId_kind_requestKey: {
-      projectId: input.projectId,
-      kind: KEYWORDS_SNAPSHOT,
-      requestKey,
-    },
+    projectId_kind_requestKey: { projectId, kind, requestKey },
   };
   const cached = await prisma.projectAdMarketSnapshot.findUnique({
     where: snapshotKey,
   });
   if (cached && Date.now() - cached.fetchedAt.getTime() < SNAPSHOT_TTL_MS) {
-    const parsed = z.array(marketKeywordSchema).safeParse(cached.payload);
+    const parsed = input.schema.safeParse(cached.payload);
     if (parsed.success) {
-      return { keywords: parsed.data, fetchedAt: cached.fetchedAt };
+      return { data: parsed.data, fetchedAt: cached.fetchedAt };
     }
   }
 
-  const keywords = await fetchMarketKeywords(profile);
+  const data = await input.fetch(profile);
   // fetchedAt only defaults on insert, so set it on update too.
   const fetchedAt = new Date();
   // The profile changed since any other snapshot was taken: drop those with it.
   await prisma.$transaction([
     prisma.projectAdMarketSnapshot.upsert({
       where: snapshotKey,
-      create: {
-        projectId: input.projectId,
-        kind: KEYWORDS_SNAPSHOT,
-        requestKey,
-        payload: keywords,
-        fetchedAt,
-      },
-      update: { payload: keywords, fetchedAt },
+      create: { projectId, kind, requestKey, payload: data, fetchedAt },
+      update: { payload: data, fetchedAt },
     }),
     prisma.projectAdMarketSnapshot.deleteMany({
-      where: {
-        projectId: input.projectId,
-        kind: KEYWORDS_SNAPSHOT,
-        NOT: { requestKey },
-      },
+      where: { projectId, kind, NOT: { requestKey } },
     }),
   ]);
-  return { keywords, fetchedAt };
+  return { data, fetchedAt };
+}
+
+/** Trending keywords for the Project's market profile. */
+export async function listProjectAdMarketKeywords(
+  input: ProjectScope,
+): Promise<AdMarketKeywords> {
+  const { data, fetchedAt } = await cachedMarketSnapshot({
+    ...input,
+    kind: "keywords",
+    schema: z.array(marketKeywordSchema),
+    fetch: fetchMarketKeywords,
+  });
+  return { keywords: data, fetchedAt };
+}
+
+/** Recent ads of the advertisers in the Project's market profile. */
+export async function listProjectAdMarketAds(
+  input: ProjectScope,
+): Promise<AdMarketAds> {
+  const { data, fetchedAt } = await cachedMarketSnapshot({
+    ...input,
+    kind: "ads",
+    schema: z.array(marketAdSchema),
+    fetch: fetchMarketAds,
+  });
+  return { ads: data, fetchedAt };
 }

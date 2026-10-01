@@ -5657,6 +5657,36 @@ export type AdMarketKeyword = {
     highTopOfPageBid: number | null;
 };
 
+export type ListAdMarketAdsResponse = {
+    /**
+     * At most 40 ads of the last 30 days from the biggest advertisers for the profile keywords, last shown first
+     */
+    ads: Array<AdMarketAd>;
+    /**
+     * When DataForSEO was last asked; results are cached for 24h
+     */
+    fetchedAt: Date;
+};
+
+/**
+ * A recent Google ad of a market advertiser. previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.
+ */
+export type AdMarketAd = {
+    creativeId: string;
+    advertiserId: string;
+    advertiserName: string;
+    format: 'text' | 'image' | 'video' | 'other';
+    previewImage: {
+        url: string;
+        width: number | null;
+        height: number | null;
+    } | null;
+    previewUrl: string | null;
+    firstShown: Date | null;
+    lastShown: Date | null;
+    verified: boolean;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
@@ -40301,6 +40331,147 @@ export type GetProjectsByIdAdsMarketKeywordsResponses = {
 };
 
 export type GetProjectsByIdAdsMarketKeywordsResponse = GetProjectsByIdAdsMarketKeywordsResponses[keyof GetProjectsByIdAdsMarketKeywordsResponses];
+
+export type GetProjectsByIdAdsMarketAdsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/ads';
+};
+
+export type GetProjectsByIdAdsMarketAdsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsError = GetProjectsByIdAdsMarketAdsErrors[keyof GetProjectsByIdAdsMarketAdsErrors];
+
+export type GetProjectsByIdAdsMarketAdsResponses = {
+    /**
+     * Market ads
+     */
+    200: {
+        data: ListAdMarketAdsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketAdsResponse = GetProjectsByIdAdsMarketAdsResponses[keyof GetProjectsByIdAdsMarketAdsResponses];
 
 export type GetProjectsByIdSocialPostsData = {
     body?: never;

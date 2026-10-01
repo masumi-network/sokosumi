@@ -66,6 +66,15 @@ export async function withAdsToolSession<T>(
   }
 }
 
+/** An unusable response from a tool. */
+export function invalidToolResponse(context: string): ComposioApiError {
+  return new ComposioApiError(
+    502,
+    undefined,
+    `${context} returned an invalid response`,
+  );
+}
+
 function findRows(
   payload: Record<string, unknown> | null,
   key: string,
@@ -90,11 +99,7 @@ export function requireToolRows(
 ): unknown[] {
   const rows = findRows(payload, key);
   if (!rows) {
-    throw new ComposioApiError(
-      502,
-      undefined,
-      `${context} returned an invalid response`,
-    );
+    throw invalidToolResponse(context);
   }
   return rows;
 }
@@ -107,11 +112,7 @@ export function parseToolRow<T extends z.ZodType>(
 ): z.infer<T> {
   const parsed = schema.safeParse(row);
   if (!parsed.success) {
-    throw new ComposioApiError(
-      502,
-      undefined,
-      `${context} returned an invalid response`,
-    );
+    throw invalidToolResponse(context);
   }
   return parsed.data;
 }

@@ -70,6 +70,7 @@ Errors map through the existing Composio error classes (`ComposioConfigError` â†
 - Accounts: connect via `useComposioOAuthPopup`, pick accounts, disconnect.
 - Campaigns: table on desktop, stacked rows on mobile; range switch; pause/resume and budget with confirm; "New campaign" sheet.
 - Market: profile form (keywords, country, language); trending keywords list; ads gallery of `preview_image` cards.
+- Ad preview images are Google-hosted URLs (https, from DataForSEO); render them with a plain `<img>` and `referrerPolicy="no-referrer"`, not `next/image`.
 - Calm UI per DESIGN.md: one accent, typography over boxes, empty/loading/error states, en/de/es messages.
 
 ## Out of scope / follow-ups
