@@ -145,9 +145,13 @@ export function BadgeCampaignForm({
     });
   }
 
+  // Date fields share the select's filled surface, and the native picker
+  // icon follows the theme.
+  const dateInputClass = "dark:bg-quinary dark:[color-scheme:dark]";
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="grid gap-4 sm:grid-cols-3">
+    <form onSubmit={handleSubmit} className="space-y-5">
+      <div className="grid items-start gap-x-4 gap-y-5 sm:grid-cols-3">
         <div className="space-y-2">
           <Label htmlFor={`${fieldId}-feature`}>{t("Form.feature")}</Label>
           <Select
@@ -169,27 +173,34 @@ export function BadgeCampaignForm({
           </Select>
         </div>
         <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <Label htmlFor={`${fieldId}-starts`}>{t("Form.startsAt")}</Label>
+          <Label htmlFor={`${fieldId}-starts`}>{t("Form.startsAt")}</Label>
+          <div className="flex gap-2">
+            <Input
+              id={`${fieldId}-starts`}
+              type="datetime-local"
+              required
+              value={startsAt}
+              onChange={(event) => handleStartsAtChange(event.target.value)}
+              aria-describedby={`${fieldId}-starts-help`}
+              className={dateInputClass}
+            />
             {campaign ? null : (
               <Button
                 type="button"
-                variant="link"
-                size="sm"
-                className="h-auto p-0"
+                variant="outline"
+                className="shrink-0"
                 onClick={handleStartNow}
               >
                 {t("Form.startNow")}
               </Button>
             )}
           </div>
-          <Input
-            id={`${fieldId}-starts`}
-            type="datetime-local"
-            required
-            value={startsAt}
-            onChange={(event) => handleStartsAtChange(event.target.value)}
-          />
+          <p
+            id={`${fieldId}-starts-help`}
+            className="text-muted-foreground min-h-4 text-xs"
+          >
+            {timeZone ? t("Form.timeZoneHelper", { timeZone }) : null}
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${fieldId}-ends`}>{t("Form.endsAt")}</Label>
@@ -204,6 +215,7 @@ export function BadgeCampaignForm({
               setEndsAt(event.target.value);
             }}
             aria-describedby={`${fieldId}-ends-help`}
+            className={dateInputClass}
           />
           <p
             id={`${fieldId}-ends-help`}
@@ -213,12 +225,11 @@ export function BadgeCampaignForm({
           </p>
         </div>
       </div>
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-muted-foreground text-sm">
           {t("Form.audienceHelper")}
-          {timeZone ? ` ${t("Form.timeZoneHelper", { timeZone })}` : null}
         </p>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" disabled={isPending} className="sm:shrink-0">
           {campaign ? t("Form.save") : t("Form.create")}
         </Button>
       </div>
