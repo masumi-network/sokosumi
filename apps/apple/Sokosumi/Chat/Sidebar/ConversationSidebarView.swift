@@ -32,12 +32,6 @@ struct ConversationSidebarView: View {
     let hasOrganization: Bool
   }
 
-  /// Reloads the Archived section and pending invitations per workspace and after each room list refresh settles, like web's collection refresh.
-  private struct SidebarCollectionsLoadKey: Equatable {
-    let context: UUID
-    let ready: Bool
-  }
-
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     // Web lists pending invitations above joined external rooms, in every workspace.
@@ -170,8 +164,9 @@ struct ConversationSidebarView: View {
       guard let pass else { return }
       Task { @MainActor in workspaces.sidebar.keepUnreadsFilterPass(pass) }
     }
-    .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
-      guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
+    // First load of Archived and the invitations per workspace; afterwards each recovers on its own (`sidebarRecovery`).
+    .task(id: workspaces.collectionsLoadContext) {
+      guard workspaces.collectionsLoadContext != nil else { return }
       async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
       async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
       _ = await (archived, invitations)
