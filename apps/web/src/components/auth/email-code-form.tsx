@@ -48,6 +48,7 @@ export function EmailCodeForm({
   const t = useTranslations("Components.EmailCodeForm");
   const describeError = useDescribeEmailCodeError();
   const fieldRef = useRef<HTMLInputElement>(null);
+  const submitting = useRef(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
@@ -67,13 +68,16 @@ export function EmailCodeForm({
   // way only. The field hands its code over before the state holding it has
   // rendered.
   const submitCode = async (submitted: string) => {
+    if (submitting.current) return;
     if (submitted.length !== EMAIL_CODE_LENGTH) {
       showError(t("incomplete"));
       return;
     }
 
+    submitting.current = true;
     setError(null);
     setIsVerifying(true);
+    let accepted = false;
     try {
       const answer = await onSubmitCode(submitted);
       if (answer === false) {
@@ -85,10 +89,12 @@ export function EmailCodeForm({
       }
       // The page is leaving or the dialog is closing; a second submit would
       // spend a code that already worked.
+      accepted = true;
       setIsAccepted(true);
     } catch {
       showError(t("generic"));
     } finally {
+      submitting.current = accepted;
       setIsVerifying(false);
     }
   };

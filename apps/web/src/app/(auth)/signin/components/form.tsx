@@ -74,6 +74,8 @@ export default function SignInForm({
   const oauthT = useTranslations("Auth.OAuthHandBack");
   const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const completedCodeRef = useRef("");
   const [prefersPassword, setPrefersPassword] = useState(
     initialMethod === "password",
   );
@@ -213,6 +215,8 @@ export default function SignInForm({
   return (
     <BaseForm
       form={form}
+      formRef={formRef}
+      disabled={isLeaving}
       onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
       onChange={onFormStart}
     >
@@ -237,9 +241,10 @@ export default function SignInForm({
             <EmailCodeField
               inputRef={field.ref}
               value={field.value}
+              completedCodeRef={completedCodeRef}
               onChange={field.onChange}
               onComplete={() => {
-                if (!isPending) void form.handleSubmit(handleCodeSubmit)();
+                if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
               error={fieldState.error?.message}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { type Ref, useId, useRef } from "react";
+import { type Ref, type RefObject, useId, useRef } from "react";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -57,6 +57,8 @@ interface EmailCodeFieldProps {
    * refused or declined, is the button's.
    */
   onComplete: (code: string) => void;
+  /** Preserve completion history when a method switch remounts this field. */
+  completedCodeRef?: RefObject<string>;
   onBlur?: () => void;
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
@@ -77,6 +79,7 @@ export function EmailCodeField({
   value,
   onChange,
   onComplete,
+  completedCodeRef,
   onBlur,
   email,
   error,
@@ -91,7 +94,10 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
-  const completedCode = useRef(value.length === EMAIL_CODE_LENGTH ? value : "");
+  const localCompletedCode = useRef(
+    value.length === EMAIL_CODE_LENGTH ? value : "",
+  );
+  const completedCode = completedCodeRef ?? localCompletedCode;
 
   return (
     <div className="grid gap-2">

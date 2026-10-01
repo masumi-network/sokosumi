@@ -1,5 +1,11 @@
 import type { Account } from "@sokosumi/utils";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -297,6 +303,29 @@ describe("ReauthDialog", () => {
     // Like the sign-in step: nothing changes the code while it is checked.
     expect(code).toBeDisabled();
     expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+  });
+
+  it("shares the pending code request with simultaneous manual confirmation", async () => {
+    mockSignInEmailCode.mockReturnValue(new Promise(() => {}));
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    const formElement = code.closest("form");
+    if (!formElement) throw new Error("Missing reauth code form");
+    act(() => {
+      fireEvent.change(code, { target: { value: "042917" } });
+      fireEvent.submit(formElement);
+      fireEvent.submit(formElement);
+    });
+    expect(mockSignInEmailCode).toHaveBeenCalledExactlyOnceWith({
+      email: "owner@example.com",
+      otp: "042917",
+    });
+    expect(code).toBeDisabled();
+    fireEvent.submit(formElement);
+    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+    await act(async () => {});
   });
 
   it("announces a refused code and sends it again only once it changes", async () => {

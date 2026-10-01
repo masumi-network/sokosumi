@@ -1,5 +1,11 @@
 import { betterAuthUserAdditionalFields } from "@sokosumi/utils";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
@@ -702,6 +708,51 @@ describe("SignUpForm email code", () => {
         expect.objectContaining({ email: EMAIL, otp: "042917" }),
       ),
     );
+  });
+
+  it("shares a synchronous lock between completion and Register", async () => {
+    mockEmailCodeSignIn.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    const formElement = code.closest("form");
+    if (!formElement) throw new Error("Missing sign-up form");
+
+    act(() => {
+      fireEvent.change(code, { target: { value: "042917" } });
+      fireEvent.submit(formElement);
+      fireEvent.submit(formElement);
+    });
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledOnce());
+    expect(code).toBeDisabled();
+    fireEvent.submit(formElement);
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    expect(code).toBeDisabled();
+  });
+
+  it("remembers a refused code through a partial-value method switch", async () => {
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", status: 400 },
+    });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    let code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "000000");
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    await user.type(code, "{Backspace}");
+    await user.click(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    );
+    await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+    code = screen.getByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "0");
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    await user.type(code, "{Backspace}7");
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
   });
 
   it("keeps the first email's code working after a resend", async () => {
