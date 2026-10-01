@@ -4921,6 +4921,7 @@
         "confirmTitle": "Are you sure?",
         "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
         "currentPassword": "Current password",
+        "confirmEmail": "Type {email} to confirm",
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
         "error": "Failed to delete account",
@@ -7439,7 +7440,8 @@
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
-          "required": "Email is required"
+          "required": "Email is required",
+          "confirmationMismatch": "Type the email address shown above."
         },
         "Name": {
           "min": "Name must be at least 2 characters.",

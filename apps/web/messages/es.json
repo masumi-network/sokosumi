@@ -4885,6 +4885,7 @@
         "confirmTitle": "¿Confirmas esta acción?",
         "confirmDescription": "Esta acción no se puede deshacer. Tu cuenta se eliminará permanentemente y tus datos serán borrados de nuestros servidores.",
         "currentPassword": "Contraseña actual",
+        "confirmEmail": "Escribe {email} para confirmar",
         "confirm": "Sí, eliminar mi cuenta",
         "success": "Cuenta eliminada correctamente",
         "error": "No se pudo eliminar la cuenta",
@@ -7439,7 +7440,8 @@
       "Schema": {
         "Email": {
           "invalid": "Por favor, introduce una dirección de email válida.",
-          "required": "El email es obligatorio"
+          "required": "El email es obligatorio",
+          "confirmationMismatch": "Escribe el email que aparece arriba."
         },
         "Name": {
           "min": "El nombre debe tener al menos 2 caracteres.",
