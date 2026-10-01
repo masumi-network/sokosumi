@@ -10,6 +10,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { signInRedirectPath } from "@/lib/auth/auth.server";
+import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
@@ -30,8 +31,19 @@ import { IdentityOnboardingForm } from "./components/identity-onboarding-form.cl
 import { PendingInvitesQueue } from "./components/pending-invites-queue.client";
 import { WorkspaceGateRetry } from "./components/workspace-gate-retry.client";
 import { WorkspaceGateSignOut } from "./components/workspace-gate-sign-out.client";
+import { loadWorkspaceGateSearchParams } from "./search-params";
 
-export default async function WorkspaceGatePage() {
+// Blocks on purpose: the gate reads the session and `next` before it can
+// render anything, and it has no app shell worth prefetching.
+export const instant = false;
+
+interface WorkspaceGatePageProps {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}
+
+export default async function WorkspaceGatePage({
+  searchParams,
+}: WorkspaceGatePageProps) {
   // Same shape as the app shell. `getSessionOrRedirect` throws on a Core
   // outage, and `(flows)` has no `error.tsx`, so that throw would land on the
   // bare "Application error" page instead of a themed notice.
@@ -89,6 +101,9 @@ export default async function WorkspaceGatePage() {
       });
 
   const t = await getTranslations("WorkspaceGate");
+  // Same-origin paths only: an absolute or protocol-relative `next` ends at `/`.
+  const { next } = await loadWorkspaceGateSearchParams(searchParams);
+  const returnUrl = normalizeAuthReturnUrl(next ?? undefined);
 
   const titleKey =
     surface === "unavailable"
@@ -139,6 +154,7 @@ export default async function WorkspaceGatePage() {
             initialLastName={initialLastName}
             askName={askName}
             workspaceReady={workspaceReady}
+            returnUrl={returnUrl}
           />
         ) : showPendingQueue ? (
           <PendingInvitesQueue
@@ -146,6 +162,7 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
             initialFirstName={session.user.firstName}
             initialLastName={session.user.lastName}
+            returnUrl={returnUrl}
           />
         ) : (
           <p className="text-muted-foreground text-sm">

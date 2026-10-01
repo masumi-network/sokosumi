@@ -31,6 +31,8 @@ interface IdentityOnboardingFormProps {
   /** False when sign-up already gave a valid first and last name. */
   askName: boolean;
   workspaceReady: boolean;
+  /** Where setup ends: a sanitized same-origin path. */
+  returnUrl: string;
 }
 
 export function IdentityOnboardingForm({
@@ -39,6 +41,7 @@ export function IdentityOnboardingForm({
   initialLastName,
   askName,
   workspaceReady,
+  returnUrl,
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
   const tSchema = useTranslations("Library.Auth.Schema");
@@ -60,8 +63,8 @@ export function IdentityOnboardingForm({
     // action, which refreshes the current URL. Soft router.replace +
     // refresh remounts /setup and cancels the leave. replace (not assign)
     // keeps /setup off the history stack so Back does not bounce-loop.
-    window.location.replace("/");
-  }, []);
+    window.location.replace(returnUrl);
+  }, [returnUrl]);
 
   useEffect(() => {
     if (!workspaceReady || wizardOpen || leavingGateRef.current) {
