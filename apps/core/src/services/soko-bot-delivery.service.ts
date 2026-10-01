@@ -176,7 +176,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       if (owned.count !== 1) return null;
       const delivery = await tx.sokoBotDelivery.findUniqueOrThrow({
         where: { id },
-        include: { turn: true },
+        include: {
+          turn: {
+            include: {
+              scheduleRun: {
+                select: {
+                  schedule: { select: { name: true, systemKey: true } },
+                },
+              },
+            },
+          },
+        },
       });
       const turn = delivery.turn;
       if (
@@ -260,7 +270,19 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
             content: turn.finalAnswer?.trim() ?? "",
-            metadata: { soko_bot: { turn_id: turn.id, source: turn.source } },
+            metadata: {
+              soko_bot: {
+                turn_id: turn.id,
+                source: turn.source,
+                // Lets the chat say where an unprompted message came from.
+                ...(turn.scheduleRun
+                  ? {
+                      schedule_name: turn.scheduleRun.schedule.name,
+                      schedule_key: turn.scheduleRun.schedule.systemKey,
+                    }
+                  : {}),
+              },
+            },
           },
           update: {},
           select: { id: true },

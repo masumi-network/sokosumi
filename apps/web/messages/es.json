@@ -1581,7 +1581,14 @@
         "task": "Task",
         "chainDepth": "Respuesta {depth} de {max} entre asistentes. Si escribe una persona, el recuento vuelve a empezar.",
         "chainRoomRate": "{count} de {max} mensajes de asistentes en esta sala en la última hora.",
-        "chainLastHop": "Este es el último paso: ya no despertará a nadie."
+        "chainLastHop": "Este es el último paso: ya no despertará a nadie.",
+        "source": {
+          "inbox": "De tu bandeja de entrada",
+          "standup": "Stand-up diario",
+          "weeklyWrap": "Resumen semanal",
+          "scheduled": "Programado: {name}",
+          "taskUpdate": "Actualización de tarea"
+        }
       }
     },
     "Tasks": {
