@@ -444,6 +444,8 @@ model Project {
   name                    String
   /// Short task-id prefix (e.g. SOK), unique per workspace. Filled by the
   /// project_set_identifier trigger when omitted. Format enforced by a DB CHECK.
+  /// Column is NOT NULL in Postgres after insert/backfill; optional here so
+  /// Prisma create can omit and let the trigger fill it.
   identifier              String?
   filesToken              String?
   briefing                String?

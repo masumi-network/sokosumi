@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
-import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
@@ -138,7 +138,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       })
       .catch((error: unknown) => {
         throw isProjectIdentifierUniqueConstraintError(error)
-          ? conflict("Project identifier already in use in this workspace")
+          ? conflict("Project identifier already in use in this workspace", {
+              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+            })
           : error;
       });
 

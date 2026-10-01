@@ -113,7 +113,7 @@ const sampleProject = {
   workspaceId: WORKSPACE_ID,
   name: "P",
   websiteUrl: null,
-  identifier: null,
+  identifier: "SOK",
   logo: null,
   designMdUrl: null,
   designMdExtractionId: null,

@@ -12,6 +12,7 @@ import type {
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
 import {
+  CORE_API_ERROR_KINDS,
   normalizeWebsiteUrl,
   projectIdentifierSchema,
   SOCIAL_POST_MEDIA_MAX,
@@ -201,7 +202,10 @@ interface ProjectIdentifierTakenError {
 type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierTakenError>;
 
 function isIdentifierTaken(error: unknown): boolean {
-  return error instanceof CoreApiRequestError && error.status === 409;
+  return (
+    error instanceof CoreApiRequestError &&
+    error.kind === CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN
+  );
 }
 
 function identifierTaken<T>(): ProjectMutationResult<T> {

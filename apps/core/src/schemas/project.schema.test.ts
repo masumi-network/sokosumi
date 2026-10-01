@@ -22,7 +22,7 @@ function createDatabaseProject(
     id: "22222222-2222-4222-8222-222222222222",
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     name: "Launch",
-    identifier: null,
+    identifier: "SOK",
     taskCounter: 0,
     filesToken: null,
     briefing: "# Briefing",

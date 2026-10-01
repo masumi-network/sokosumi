@@ -67,3 +67,6 @@ BEGIN
   END LOOP;
 END;
 $$;
+
+-- Every project has an identifier after backfill + trigger; keep that invariant.
+ALTER TABLE "project" ALTER COLUMN "identifier" SET NOT NULL;

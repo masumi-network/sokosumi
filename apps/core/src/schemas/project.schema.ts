@@ -132,8 +132,8 @@ export const projectSummarySchema = z
       example: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     }),
     name: z.string().openapi({ example: "Q1 research" }),
-    identifier: z.string().nullable().openapi({
-      description: "Task ID prefix; null only for projects without one.",
+    identifier: z.string().openapi({
+      description: "Task ID prefix unique within the workspace.",
       example: "SOK",
     }),
     logo: z.url().nullable().openapi({
@@ -152,8 +152,8 @@ export const projectSchema = z
       example: "550e8400-e29b-41d4-a716-446655440000",
     }),
     name: z.string().openapi({ example: "Q1 research" }),
-    identifier: z.string().nullable().openapi({
-      description: "Task ID prefix; null only for projects without one.",
+    identifier: z.string().openapi({
+      description: "Task ID prefix unique within the workspace.",
       example: "SOK",
     }),
     briefing: z.string().nullable().openapi({ example: "Campaign briefing" }),

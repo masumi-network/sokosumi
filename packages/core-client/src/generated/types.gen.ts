@@ -1210,9 +1210,9 @@ export type ProjectSummary = {
     id: string;
     name: string;
     /**
-     * Task ID prefix; null only for projects without one.
+     * Task ID prefix unique within the workspace.
      */
-    identifier: string | null;
+    identifier: string;
     logo: string | null;
 };
 
@@ -5065,9 +5065,9 @@ export type Project = {
     workspaceId: string;
     name: string;
     /**
-     * Task ID prefix; null only for projects without one.
+     * Task ID prefix unique within the workspace.
      */
-    identifier: string | null;
+    identifier: string;
     briefing: string | null;
     briefingUrl: string | null;
     /**

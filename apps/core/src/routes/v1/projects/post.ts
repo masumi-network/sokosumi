@@ -1,4 +1,5 @@
 import { createRoute } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { conflict } from "@/helpers/error";
@@ -68,7 +69,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       })
       .catch((error: unknown) => {
         throw isProjectIdentifierUniqueConstraintError(error)
-          ? conflict("Project identifier already in use in this workspace")
+          ? conflict("Project identifier already in use in this workspace", {
+              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+            })
           : error;
       });
     await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);

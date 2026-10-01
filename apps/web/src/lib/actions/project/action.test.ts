@@ -1,3 +1,4 @@
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
@@ -35,11 +36,13 @@ const resolveProjectSiteIconMock = vi.fn();
 
 class CoreApiRequestError extends Error {
   status?: number;
+  kind?: string;
 
-  constructor(message: string, options?: { status?: number }) {
+  constructor(message: string, options?: { status?: number; kind?: string }) {
     super(message);
     this.name = "CoreApiRequestError";
     this.status = options?.status;
+    this.kind = options?.kind;
   }
 }
 
@@ -172,16 +175,18 @@ describe("project actions", () => {
     expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
   });
 
-  it("returns identifier_taken when Core answers 409 on create and update", async () => {
+  it("returns identifier_taken when Core answers PROJECT_IDENTIFIER_TAKEN", async () => {
     const { CoreApiRequestError } = await import("@/lib/clients/core.client");
     projectServiceMock.createProject.mockRejectedValue(
       new CoreApiRequestError("Project identifier already in use", {
         status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
       }),
     );
     projectServiceMock.patchProject.mockRejectedValue(
       new CoreApiRequestError("Project identifier already in use", {
         status: 409,
+        kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
       }),
     );
 
@@ -193,6 +198,22 @@ describe("project actions", () => {
     await expect(
       updateProject({ projectId: "project-1", name: "N", identifier: "SOK" }),
     ).resolves.toEqual({ ok: false, error: { kind: "identifier_taken" } });
+  });
+
+  it("does not treat a bare 409 as identifier_taken", async () => {
+    const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+    toCoreApiActionErrorMock.mockReturnValue({
+      message: "Something else conflicted",
+    });
+    projectServiceMock.createProject.mockRejectedValue(
+      new CoreApiRequestError("Something else conflicted", { status: 409 }),
+    );
+
+    const { createProject } = await import("./action");
+
+    await expect(
+      createProject({ name: "Launch plan", identifier: "SOK" }),
+    ).rejects.toThrow("Something else conflicted");
   });
 
   it("omits briefing from the patch when the caller did not pass it", async () => {
