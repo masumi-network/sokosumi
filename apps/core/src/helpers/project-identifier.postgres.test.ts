@@ -10,7 +10,7 @@ const enabled =
 
 const migrationSql = readFileSync(
   new URL(
-    "../../../../packages/database/prisma/migrations/20260929130000_project_identifier/migration.sql",
+    "../../../../packages/database/prisma/migrations/20261001222529_project_identifier/migration.sql",
     import.meta.url,
   ),
   "utf8",
