@@ -66,6 +66,65 @@ extension SokoBotTurnMetadataTests {
   }
 }
 
+/// Row 38c: web `sokoBotSourceLabel` (#5536) and where `ChatMessageRow` draws `SokoBotSourceLabel`.
+struct SokoBotSourceLabelTests {
+  private func label(_ sokoBot: String) async throws -> SokoBotSourceLabel? {
+    try await SokoBotSourceLabel(message: decode(botRow(metadata: #"{"soko_bot":\#(sokoBot)}"#)))
+  }
+
+  /// Core's delivery writes `source` for turns the bot started itself, and the schedule's name and system key for schedule runs.
+  @Test func readsTheScheduleItCameFrom() async throws {
+    let turn = try await SokoBotTurnMetadata(message: decode(botRow(metadata: #"{"soko_bot":{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Daily stand-up","schedule_key":"standup"}}"#)))
+    #expect(turn == .init(turnId: "turn_1", source: "SCHEDULE", scheduleName: "Daily stand-up", scheduleKey: "standup"))
+    // A schedule the owner made has no system key; web reads anything but a string as none.
+    let custom = try await SokoBotTurnMetadata(message: decode(botRow(metadata: #"{"soko_bot":{"turn_id":"turn_2","source":"SCHEDULE","schedule_name":7,"schedule_key":null}}"#)))
+    #expect(custom == .init(turnId: "turn_2", source: "SCHEDULE"))
+  }
+
+  @Test func namesWhereAnUnpromptedMessageCameFrom() async throws {
+    #expect(try await label(#"{"turn_id":"turn_1","source":"INGEST"}"#) == .inbox)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"EVENT"}"#) == .taskUpdate)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Daily stand-up","schedule_key":"standup"}"#) == .standup)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Weekly wrap","schedule_key":"weekly-wrap"}"#) == .weeklyWrap)
+    // The system key wins over the name, and names the stand-up even without one.
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Morning","schedule_key":"standup"}"#) == .standup)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_key":"weekly-wrap"}"#) == .weeklyWrap)
+    // Any other schedule, the owner's own or another system one, goes by its name.
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Monday check-in","schedule_key":null}"#) == .scheduled(name: "Monday check-in"))
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"End of day","schedule_key":"end-of-day"}"#) == .scheduled(name: "End of day"))
+    #expect(SokoBotSourceLabel(turn: .init(turnId: "turn_1", source: "INGEST")) == .inbox)
+  }
+
+  /// Web returns null for a chat reply, an admin retry, an unknown or missing source, and a schedule with no system key and no name.
+  @Test(arguments: [
+    #"{"turn_id":"turn_1","source":"CHAT"}"#,
+    #"{"turn_id":"turn_1","source":"ADMIN_RETRY"}"#,
+    #"{"turn_id":"turn_1","source":"ingest"}"#,
+    #"{"turn_id":"turn_1","source":7}"#,
+    #"{"turn_id":"turn_1"}"#,
+    #"{"turn_id":"turn_1","pending_decision_ids":["dec_1"],"task_ids":["task_1"]}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE"}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"","schedule_key":null}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE","schedule_key":"meeting-prep"}"#,
+    #"{"source":"INGEST"}"#,
+    #"{"turn_id":7,"source":"INGEST"}"#
+  ])
+  func labelsNothingOnRepliesOrUnknownSources(sokoBot: String) async throws {
+    #expect(try await label(sokoBot) == nil)
+  }
+
+  /// Web draws the line in a settled row's body only: not on a deleted message, and not on a mention shell, thinking or failed.
+  /// It does not check the sender, so the metadata alone decides.
+  @Test func onlyASettledRowCarriesItsLabel() async throws {
+    let inbox = #"{"turn_id":"turn_1","source":"INGEST"}"#
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(sender: coworkerSender, metadata: #"{"soko_bot":\#(inbox)}"#))) == .inbox)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(metadata: #"{"soko_bot":\#(inbox)}"#, deletedAt: testTimestamp))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(content: "", metadata: #"{"streaming":true,"mention_id":"mention_1","soko_bot":\#(inbox)}"#))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","mention_failed":true,"soko_bot":\#(inbox)}"#))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(metadata: nil))) == nil)
+  }
+}
+
 struct SokoBotFeedbackTests {
   private let turn = #"{"soko_bot":{"turn_id":"turn_1"}}"#
 
