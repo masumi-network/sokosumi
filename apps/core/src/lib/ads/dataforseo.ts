@@ -1,13 +1,12 @@
 import { z } from "@hono/zod-openapi";
 
-import {
-  ComposioApiError,
-  ComposioConfigError,
-} from "@/clients/composio.client";
+import { ComposioConfigError } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { getEnv } from "@/config/env";
+import { dateTimeSchema } from "@/helpers/datetime";
 import {
   type ExecuteAdsTool,
+  invalidToolResponse,
   parseToolRow,
   parseToolRows,
   requireToolRows,
@@ -22,12 +21,12 @@ const DATAFORSEO = { toolkitSlug: "dataforseo", name: "DataForSEO" };
 /** Owner of the platform DataForSEO connection. */
 const PLATFORM_EXECUTOR_USER_ID = "sokosumi:platform";
 const DATAFORSEO_OK = 20000;
+/** "No Search Results": a task without items, not an error. */
+const NO_RESULTS = 40102;
 const MAX_KEYWORDS = 50;
 const TREND_MONTHS = 12;
-const MAX_ADVERTISER_KEYWORD_LENGTH = 70;
 const MAX_ADVERTISERS = 25;
 const ADS_DEPTH = 40;
-const MAX_ADS = 40;
 const ADS_WINDOW_DAYS = 30;
 const AD_FORMATS = ["text", "image", "video"] as const;
 const COMPETITION_LEVELS = ["LOW", "MEDIUM", "HIGH"] as const;
@@ -74,8 +73,8 @@ export const marketAdSchema = z.object({
     .nullable(),
   /** The ad on Google's Ads Transparency Center; always https. */
   previewUrl: z.string().nullable(),
-  firstShown: z.string().nullable(),
-  lastShown: z.string().nullable(),
+  firstShown: dateTimeSchema.nullable(),
+  lastShown: dateTimeSchema.nullable(),
   verified: z.boolean(),
 });
 export type MarketAd = z.infer<typeof marketAdSchema>;
@@ -183,15 +182,9 @@ function checkedTasks(
     taskSchema,
     context,
   );
-  if (tasks.length === 0) {
-    throw new ComposioApiError(
-      502,
-      undefined,
-      `${context} returned an invalid response`,
-    );
-  }
+  if (tasks.length === 0) throw invalidToolResponse(context);
   for (const task of tasks) {
-    if (task.status_code !== DATAFORSEO_OK) {
+    if (task.status_code !== DATAFORSEO_OK && task.status_code !== NO_RESULTS) {
       throw refused(task.status_code, task.status_message);
     }
   }
@@ -232,7 +225,7 @@ export async function fetchMarketKeywords(
       }),
   );
   const [task] = checkedTasks(payload, context);
-  return parseToolRows(task?.result ?? [], keywordSuggestionSchema, context)
+  return parseToolRows(task.result ?? [], keywordSuggestionSchema, context)
     .map(toMarketKeyword)
     .sort(
       (a, b) =>
@@ -330,13 +323,18 @@ function toMarketAd(row: z.infer<typeof adSearchItemSchema>): MarketAd {
   };
 }
 
+/** The advertisers tool wants `%` as `%25` and `+` as `%2B`. */
+function encodeKeyword(keyword: string): string {
+  return keyword.replace(/%/g, "%25").replace(/\+/g, "%2B");
+}
+
 function utcDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
 /**
  * Recent Google ads of the advertisers running ads for the query's keywords:
- * the 25 biggest advertisers' ads of the last 30 days, at most 40, newest
+ * the 25 biggest advertisers' ads of the last 30 days (up to the 40 DataForSEO returns), newest
  * last-shown first. No advertisers means no ads, without a second call. Runs
  * on the platform DataForSEO connection; without it configured, raises a
  * {@link ComposioConfigError}.
@@ -351,7 +349,7 @@ export async function fetchMarketAds(
     async (execute) => {
       const advertisers = await execute(ADS_ADVERTISERS, {
         tasks: query.keywords.map((keyword) => ({
-          keyword: keyword.slice(0, MAX_ADVERTISER_KEYWORD_LENGTH),
+          keyword: encodeKeyword(keyword),
           location_code: query.locationCode,
         })),
       });
@@ -370,11 +368,14 @@ export async function fetchMarketAds(
       return taskItems(checkedTasks(search, context), context);
     },
   );
+  const lastShown = (ad: MarketAd) => ad.lastShown ?? "";
   const ads = new Map<string, MarketAd>();
   for (const row of parseToolRows(rows, adSearchItemSchema, context)) {
-    if (!ads.has(row.creative_id)) ads.set(row.creative_id, toMarketAd(row));
+    const ad = toMarketAd(row);
+    const seen = ads.get(ad.creativeId);
+    if (!seen || lastShown(ad) > lastShown(seen)) ads.set(ad.creativeId, ad);
   }
-  return [...ads.values()]
-    .sort((a, b) => (b.lastShown ?? "").localeCompare(a.lastShown ?? ""))
-    .slice(0, MAX_ADS);
+  return [...ads.values()].sort((a, b) =>
+    lastShown(b).localeCompare(lastShown(a)),
+  );
 }

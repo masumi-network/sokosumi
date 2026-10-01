@@ -29,6 +29,8 @@ import {
 
 const SNAPSHOT_TTL_MS = 24 * 60 * 60 * 1000;
 
+type SnapshotKind = "keywords" | "ads";
+
 interface ProjectScope {
   projectId: string;
   workspaceId: string;
@@ -112,14 +114,20 @@ export async function setProjectAdMarketProfile(
   return toProfile(profile);
 }
 
-/** The same profile, in any keyword order or case, maps to the same key. */
-function profileRequestKey(profile: MarketKeywordQuery): string {
+/**
+ * The same profile, in any keyword order or case, maps to the same key. Ads
+ * ignore the language, so changing it keeps the ads snapshot.
+ */
+function profileRequestKey(
+  kind: SnapshotKind,
+  profile: MarketKeywordQuery,
+): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
         keywords: profile.keywords.map((k) => k.toLowerCase()).sort(),
         locationCode: profile.locationCode,
-        languageCode: profile.languageCode,
+        ...(kind === "keywords" && { languageCode: profile.languageCode }),
       }),
     )
     .digest("hex");
@@ -132,7 +140,7 @@ function profileRequestKey(profile: MarketKeywordQuery): string {
  */
 async function cachedMarketSnapshot<T extends Prisma.InputJsonValue>(
   input: ProjectScope & {
-    kind: "keywords" | "ads";
+    kind: SnapshotKind;
     schema: z.ZodType<T[]>;
     fetch: (profile: ProjectAdMarketProfile) => Promise<T[]>;
   },
@@ -144,7 +152,7 @@ async function cachedMarketSnapshot<T extends Prisma.InputJsonValue>(
   if (!profile) throw notFound("Market profile not set");
 
   const { projectId, kind } = input;
-  const requestKey = profileRequestKey(profile);
+  const requestKey = profileRequestKey(kind, profile);
   const snapshotKey = {
     projectId_kind_requestKey: { projectId, kind, requestKey },
   };

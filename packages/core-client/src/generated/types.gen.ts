@@ -5682,8 +5682,8 @@ export type AdMarketAd = {
         height: number | null;
     } | null;
     previewUrl: string | null;
-    firstShown: string | null;
-    lastShown: string | null;
+    firstShown: Date | null;
+    lastShown: Date | null;
     verified: boolean;
 };
 

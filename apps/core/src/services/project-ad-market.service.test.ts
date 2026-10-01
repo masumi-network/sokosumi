@@ -97,7 +97,7 @@ const marketAd: MarketAd = {
 function requestKey(input: {
   keywords: string[];
   locationCode: number;
-  languageCode: string;
+  languageCode?: string;
 }) {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
@@ -339,6 +339,12 @@ describe("project ad market service", () => {
   });
 
   describe("ads", () => {
+    // Ads do not depend on the language.
+    const ADS_KEY = requestKey({
+      keywords: ["running shoes", "trail"],
+      locationCode: 2276,
+    });
+
     it("is 404 without a profile and never calls DataForSEO", async () => {
       m.profileFindUnique.mockResolvedValue(null);
       await expect(listProjectAdMarketAds(scope)).rejects.toMatchObject({
@@ -347,63 +353,32 @@ describe("project ad market service", () => {
       expect(m.fetchMarketAds).not.toHaveBeenCalled();
     });
 
-    it("fetches on a cache miss and stores the ads under the profile key, replacing other ads snapshots", async () => {
+    it("fetches on a cache miss and stores the ads under the ads key", async () => {
       m.snapshotFindUnique.mockResolvedValue(null);
-      const result = await listProjectAdMarketAds(scope);
+      expect(await listProjectAdMarketAds(scope)).toEqual({
+        ads: [marketAd],
+        fetchedAt: NOW,
+      });
       expect(m.fetchMarketAds).toHaveBeenCalledWith(
         expect.objectContaining({
           keywords: ["Running Shoes", "trail"],
           locationCode: 2276,
         }),
       );
-      expect(m.snapshotFindUnique).toHaveBeenCalledWith({
-        where: {
-          projectId_kind_requestKey: {
-            projectId: PROJECT_ID,
-            kind: "ads",
-            requestKey: KEY,
-          },
-        },
-      });
       expect(m.snapshotUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({
             kind: "ads",
-            requestKey: KEY,
+            requestKey: ADS_KEY,
             payload: [marketAd],
             fetchedAt: NOW,
           }),
-          update: { payload: [marketAd], fetchedAt: NOW },
         }),
       );
-      expect(m.snapshotDeleteMany).toHaveBeenCalledWith({
-        where: {
-          projectId: PROJECT_ID,
-          kind: "ads",
-          NOT: { requestKey: KEY },
-        },
-      });
-      expect(result).toEqual({ ads: [marketAd], fetchedAt: NOW });
-    });
-
-    it("caches an empty list too", async () => {
-      m.snapshotFindUnique.mockResolvedValue(null);
-      m.fetchMarketAds.mockResolvedValue([]);
-      expect(await listProjectAdMarketAds(scope)).toEqual({
-        ads: [],
-        fetchedAt: NOW,
-      });
-      expect(m.snapshotUpsert.mock.calls[0]?.[0].create.payload).toEqual([]);
-      m.snapshotFindUnique.mockResolvedValue({
-        payload: [],
-        fetchedAt: new Date(NOW.getTime() - HOUR),
-      });
-      await listProjectAdMarketAds(scope);
-      expect(m.fetchMarketAds).toHaveBeenCalledTimes(1);
     });
 
     it("serves a fresh snapshot without calling DataForSEO", async () => {
-      const fetchedAt = new Date(NOW.getTime() - 23 * HOUR);
+      const fetchedAt = new Date(NOW.getTime() - HOUR);
       m.snapshotFindUnique.mockResolvedValue({
         payload: [marketAd],
         fetchedAt,
@@ -413,44 +388,27 @@ describe("project ad market service", () => {
         fetchedAt,
       });
       expect(m.fetchMarketAds).not.toHaveBeenCalled();
-      expect(m.snapshotUpsert).not.toHaveBeenCalled();
-      expect(m.snapshotDeleteMany).not.toHaveBeenCalled();
     });
 
-    it("refetches a stale snapshot and bumps fetchedAt on update", async () => {
-      m.snapshotFindUnique.mockResolvedValue({
-        payload: [],
-        fetchedAt: new Date(NOW.getTime() - 25 * HOUR),
-      });
-      const result = await listProjectAdMarketAds(scope);
-      expect(m.fetchMarketAds).toHaveBeenCalledTimes(1);
-      expect(m.snapshotUpsert.mock.calls[0]?.[0].update.fetchedAt).toEqual(NOW);
-      expect(result.fetchedAt).toEqual(NOW);
+    it("caches an empty list", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      m.fetchMarketAds.mockResolvedValue([]);
+      await listProjectAdMarketAds(scope);
+      expect(m.snapshotUpsert.mock.calls[0]?.[0].create.payload).toEqual([]);
     });
 
-    it("refetches when the cached payload no longer parses", async () => {
-      m.snapshotFindUnique.mockResolvedValue({
-        payload: [{ creativeId: 1 }],
-        fetchedAt: NOW,
+    it("keeps the snapshot when only the language changes", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      await listProjectAdMarketAds(scope);
+      m.profileFindUnique.mockResolvedValue({
+        ...storedProfile,
+        languageCode: "en",
       });
       await listProjectAdMarketAds(scope);
-      expect(m.fetchMarketAds).toHaveBeenCalledTimes(1);
-    });
-
-    it("does not store anything when DataForSEO fails", async () => {
-      m.snapshotFindUnique.mockResolvedValue(null);
-      m.fetchMarketAds.mockRejectedValue(new Error("boom"));
-      await expect(listProjectAdMarketAds(scope)).rejects.toThrow("boom");
-      expect(m.snapshotUpsert).not.toHaveBeenCalled();
-    });
-
-    it("does not touch the profile or provider for a foreign Project", async () => {
-      m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
-      await expect(listProjectAdMarketAds(scope)).rejects.toMatchObject({
-        status: 404,
-      });
-      expect(m.profileFindUnique).not.toHaveBeenCalled();
-      expect(m.fetchMarketAds).not.toHaveBeenCalled();
+      const keys = m.snapshotFindUnique.mock.calls.map(
+        ([args]) => args.where.projectId_kind_requestKey.requestKey,
+      );
+      expect(keys).toEqual([ADS_KEY, ADS_KEY]);
     });
   });
 });

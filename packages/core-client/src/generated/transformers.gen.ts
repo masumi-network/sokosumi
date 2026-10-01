@@ -2615,7 +2615,18 @@ export const getProjectsByIdAdsMarketKeywordsResponseTransformer = async (data: 
     return data;
 };
 
+const adMarketAdSchemaResponseTransformer = (data: any) => {
+    if (data.firstShown) {
+        data.firstShown = new Date(data.firstShown);
+    }
+    if (data.lastShown) {
+        data.lastShown = new Date(data.lastShown);
+    }
+    return data;
+};
+
 const listAdMarketAdsResponseSchemaResponseTransformer = (data: any) => {
+    data.ads = data.ads.map((item: any) => adMarketAdSchemaResponseTransformer(item));
     data.fetchedAt = new Date(data.fetchedAt);
     return data;
 };

@@ -324,12 +324,52 @@ describe("fetchMarketAds", () => {
     expect(m.deleteSession).toHaveBeenCalledTimes(1);
   });
 
-  it("truncates keywords to 70 characters", async () => {
+  it("encodes % and + in keywords, and nothing else", async () => {
     mockTools(advertiserTasks([]), undefined);
-    await fetchMarketAds({ keywords: ["a".repeat(80)], locationCode: 2840 });
-    expect(callsOf(ADVERTISERS)[0]?.[0].arguments.tasks[0].keyword).toBe(
-      "a".repeat(70),
+    await fetchMarketAds({
+      keywords: ["c++", "50% off", "a&b é"],
+      locationCode: 2840,
+    });
+    expect(
+      callsOf(ADVERTISERS)[0]?.[0].arguments.tasks.map(
+        (t: { keyword: string }) => t.keyword,
+      ),
+    ).toEqual(["c%2B%2B", "50%25 off", "a&b é"]);
+  });
+
+  it("takes advertisers from the tasks with results when another keyword has none", async () => {
+    mockTools(
+      {
+        tasks: [
+          { status_code: 40102, status_message: "No Search Results." },
+          ...advertiserTasks([advertiser("AR1", 5)]).tasks,
+        ],
+      },
+      searchTask([]),
     );
+    await fetchMarketAds(adsQuery);
+    expect(callsOf(ADS_SEARCH)[0]?.[0].arguments.advertiser_ids).toEqual([
+      "AR1",
+    ]);
+  });
+
+  it("returns no ads, without searching, when every keyword has no results", async () => {
+    mockTools({
+      tasks: [
+        { status_code: 40102, status_message: "No Search Results." },
+        { status_code: 40102, status_message: "No Search Results." },
+      ],
+    });
+    expect(await fetchMarketAds(adsQuery)).toEqual([]);
+    expect(callsOf(ADS_SEARCH)).toHaveLength(0);
+  });
+
+  it("treats an ads search without results as no ads (40102)", async () => {
+    mockTools(
+      advertiserTasks([advertiser("AR1", 5)]),
+      task(null, 40102, "No Search Results."),
+    );
+    expect(await fetchMarketAds(adsQuery)).toEqual([]);
   });
 
   it("flattens multi-account advertisers, ignores domains, dedupes and ranks by ad count", async () => {
@@ -462,19 +502,18 @@ describe("fetchMarketAds", () => {
     expect(ads[3]).toMatchObject({ format: "other", previewImage: null });
   });
 
-  it("keeps at most 40 ads", async () => {
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)]),
-      searchTask(
-        Array.from({ length: 50 }, (_, i) =>
-          ad({
-            creative_id: `C${i}`,
-            last_shown: `2026-09-${String(i < 30 ? i + 1 : 30).padStart(2, "0")} 00:00:00 +00:00`,
-          }),
-        ),
-      ),
-    );
-    expect(await fetchMarketAds(adsQuery)).toHaveLength(40);
+  it("keeps the latest sighting of a creative, whatever the order", async () => {
+    const early = ad({ last_shown: "2026-09-02 00:00:00 +00:00" });
+    const late = ad({ last_shown: "2026-09-20 00:00:00 +00:00" });
+    for (const items of [
+      [early, late],
+      [late, early],
+    ]) {
+      mockTools(advertiserTasks([advertiser("AR1", 5)]), searchTask(items));
+      const ads = await fetchMarketAds(adsQuery);
+      expect(ads).toHaveLength(1);
+      expect(ads[0]?.lastShown).toBe("2026-09-20T00:00:00.000Z");
+    }
   });
 
   it("treats an ads search without results as no ads", async () => {

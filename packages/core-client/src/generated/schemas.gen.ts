@@ -19014,13 +19014,17 @@ export const AdMarketAdSchema = {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         lastShown: {
             type: [
                 'string',
                 'null'
-            ]
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
         },
         verified: {
             type: 'boolean'
