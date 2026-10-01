@@ -27,7 +27,8 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     {
-      source: "/((?!api/|_next/|favicon.ico).*)",
+      // Files in public/ (icons, logo, mascot) are static; skip renewal.
+      source: "/((?!api/|_next/|.*\\.[a-z0-9]+$).*)",
       // Server actions sign in and out themselves. Prefetch must not rotate
       // the refresh token. Next strips these headers before proxy() runs, so
       // only the matcher can see them.
