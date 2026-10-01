@@ -691,6 +691,84 @@ describe("GET /tasks", () => {
     );
   });
 
+  it("pages priority sorts with a composite keyset cursor", async () => {
+    const pageEnd = {
+      ...createTask(),
+      id: "task_page_end",
+      priority: TaskPriority.HIGH,
+      updatedAt: new Date("2026-03-01T12:00:00.000Z"),
+    };
+    taskFindManyMock.mockResolvedValueOnce([pageEnd, createTask()]);
+    taskCountMock.mockResolvedValueOnce(3);
+
+    const first = await createApp().request(
+      "http://localhost/?sort=priority&limit=1",
+    );
+    expect(first.status).toBe(200);
+    const firstBody = (await first.json()) as {
+      meta: { pagination: { nextCursor: string | null } };
+    };
+    const nextCursor = firstBody.meta.pagination.nextCursor;
+    expect(nextCursor).toBeTruthy();
+    expect(nextCursor).not.toBe(pageEnd.id);
+
+    taskFindManyMock.mockResolvedValueOnce([]);
+    taskCountMock.mockResolvedValueOnce(3);
+    const second = await createApp().request(
+      `http://localhost/?sort=priority&limit=1&cursor=${nextCursor}`,
+    );
+    expect(second.status).toBe(200);
+    expect(taskFindManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        cursor: undefined,
+        skip: undefined,
+        where: expect.objectContaining({
+          AND: expect.arrayContaining([
+            expect.objectContaining({
+              OR: [
+                {
+                  priority: {
+                    in: [
+                      TaskPriority.MEDIUM,
+                      TaskPriority.LOW,
+                      TaskPriority.NONE,
+                    ],
+                  },
+                },
+                {
+                  AND: [
+                    { priority: TaskPriority.HIGH },
+                    {
+                      updatedAt: {
+                        lt: new Date("2026-03-01T12:00:00.000Z"),
+                      },
+                    },
+                  ],
+                },
+                {
+                  AND: [
+                    { priority: TaskPriority.HIGH },
+                    { updatedAt: new Date("2026-03-01T12:00:00.000Z") },
+                    { id: { lt: "task_page_end" } },
+                  ],
+                },
+              ],
+            }),
+          ]),
+        }),
+      }),
+    );
+  });
+
+  it("rejects a malformed priority cursor", async () => {
+    const response = await createApp().request(
+      "http://localhost/?sort=priority&cursor=not-a-cursor",
+    );
+
+    expect(response.status).toBe(400);
+    expect(taskFindManyMock).not.toHaveBeenCalled();
+  });
+
   it("returns the priority of each Task", async () => {
     taskFindManyMock.mockResolvedValue([
       { ...createTask(), priority: TaskPriority.HIGH },
