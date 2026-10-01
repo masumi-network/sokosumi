@@ -1,12 +1,11 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2, Mail } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ComponentProps,
-  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -18,28 +17,25 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAuthCaptcha } from "@/components/auth-captcha";
-
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildAuthErrorCallbackUrl,
+  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
-import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
+import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
+export type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
   returnUrl?: string;
-  lastUsedMethod?: SignInMethodId | null;
-  prefilledEmail?: string;
-  showMagicLink?: boolean;
+  lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
+  /** Which intent the provider buttons report to Vercel Analytics. */
+  eventType?: "signIn" | "signUp";
 }
 
 const socialButtons: Array<{
@@ -62,36 +58,24 @@ const socialButtons: Array<{
 export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
-  prefilledEmail,
-  showMagicLink = false,
   showPasskey = false,
+  eventType = "signIn",
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
-  const {
-    widget: captcha,
-    runWithCaptcha,
-    getErrorMessage,
-  } = useAuthCaptcha("magic-link");
   const searchParams = useSearchParams();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
+    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
-  const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
-  const [isRequestingMagicLink, setIsRequestingMagicLink] = useState(false);
   const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
-  const hasMagicLinkSuccess =
-    magicLinkEmail.trim().length > 0 &&
-    magicLinkEmail.trim() === magicLinkSentTo;
 
   const finishPasskeySignIn = useCallback(
-    () =>
+    (result: unknown) =>
       finishAuthInPlace({
         eventType: "signIn",
         provider: "passkey",
         returnUrl: effectiveReturnUrl,
+        result,
       }),
     [effectiveReturnUrl],
   );
@@ -122,7 +106,7 @@ export default function SocialButtons({
         return;
       }
 
-      await finishPasskeySignIn();
+      await finishPasskeySignIn(result.data);
     } catch (_error) {
       if (showErrors) {
         toast.error(t("passkeyError"));
@@ -164,7 +148,7 @@ export default function SocialButtons({
           return;
         }
 
-        await finishPasskeySignIn();
+        await finishPasskeySignIn(result.data);
       } catch {
         return undefined;
       }
@@ -177,57 +161,11 @@ export default function SocialButtons({
     };
   }, [finishPasskeySignIn, showPasskey]);
 
-  const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedEmail = magicLinkEmail.trim();
-    if (!emailSchema().safeParse(trimmedEmail).success) {
-      toast.error(t("magicLinkInvalidEmail"));
-      return;
-    }
-
-    track("Sign In", { provider: "magic-link", direct_signup_link: false });
-    setIsRequestingMagicLink(true);
-
-    try {
-      // The link lands on the callback page (full page load), which fires the
-      // `login` GTM event and then forwards to the return URL.
-      await runWithCaptcha(async (fetchOptions) => {
-        const result = await authClient.signIn.magicLink({
-          fetchOptions,
-          email: trimmedEmail,
-          callbackURL: buildAuthCallbackUrl(
-            "/auth/callback/signin",
-            "magic-link",
-            effectiveReturnUrl,
-          ),
-        });
-
-        if (result.error) {
-          toast.error(
-            getErrorMessage(
-              result.error,
-              result.error.message ?? t("magicLinkError"),
-            ),
-          );
-          return;
-        }
-
-        setMagicLinkSentTo(trimmedEmail);
-      });
-    } catch (_error) {
-      toast.error(t("magicLinkError"));
-    } finally {
-      setIsRequestingMagicLink(false);
-    }
-  };
-
-  const handleMagicLinkClick = () => {
-    setIsMagicLinkVisible((currentValue) => !currentValue);
-  };
-
   const handleClick = async (key: SocialButtonProviderId) => {
-    track("Sign In", { provider: key, direct_signup_link: false });
+    track(eventType === "signUp" ? "Sign Up" : "Sign In", {
+      provider: key,
+      direct_signup_link: false,
+    });
 
     const result = await authClient.signIn.social({
       provider: key,
@@ -241,6 +179,7 @@ export default function SocialButtons({
         key,
         effectiveReturnUrl,
       ),
+      errorCallbackURL: buildAuthErrorCallbackUrl(),
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");
@@ -309,66 +248,6 @@ export default function SocialButtons({
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
         </div>
-      )}
-      {showMagicLink && (
-        <div className="relative">
-          {lastUsedMethod === "magic-link" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            className={cn(
-              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
-              lastUsedMethod === "magic-link"
-                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-                : "bg-senary hover:bg-quinary border-transparent",
-            )}
-            onClick={handleMagicLinkClick}
-          >
-            <Mail className="size-4" />
-            {t("continueWith", { provider: t("magicLinkProvider") })}
-          </Button>
-        </div>
-      )}
-      {showMagicLink && isMagicLinkVisible && (
-        <form
-          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
-          onSubmit={handleMagicLinkSubmit}
-        >
-          {hasMagicLinkSuccess && (
-            <p className="text-muted-foreground text-center text-sm">
-              {t("magicLinkSuccess")}
-            </p>
-          )}
-          <Input
-            type="email"
-            className="text-center placeholder:text-center"
-            value={magicLinkEmail}
-            onChange={(event) => {
-              setMagicLinkEmail(event.target.value);
-            }}
-            placeholder={t("magicLinkPlaceholder")}
-            aria-label={t("magicLinkInputLabel")}
-          />
-          {captcha}
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={isRequestingMagicLink}
-          >
-            {isRequestingMagicLink
-              ? t("magicLinkSubmitting")
-              : hasMagicLinkSuccess
-                ? t("magicLinkResend")
-                : t("magicLinkSubmit")}
-          </Button>
-        </form>
       )}
     </div>
   );

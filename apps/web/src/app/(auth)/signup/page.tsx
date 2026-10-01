@@ -3,15 +3,20 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import Divider from "@/auth/components/divider";
-import SocialButtons, {
-  type SignInMethodId,
-} from "@/auth/components/social-buttons";
+import OAuthHandBack, {
+  OAuthRequestError,
+} from "@/auth/components/oauth-hand-back";
+import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
+import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
+import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
+import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
+import {
+  parseLastUsedAuthMethod,
+  toProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
-import SignUpForm from "./components/form";
-import SignUpHeader from "./components/header";
+import SignUpFlow from "./components/sign-up-flow";
 
 export const instant = false;
 
@@ -25,16 +30,32 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface SignUpPageProps {
-  searchParams: Promise<{
-    email?: string;
-    invitationId?: string;
-    returnUrl?: string;
-  }>;
+  searchParams: Promise<
+    AuthRedirectSearchParams & {
+      email?: string;
+      invitationId?: string;
+      returnUrl?: string;
+      error?: string;
+    }
+  >;
 }
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const env = getEnvSecrets();
-  const { email, invitationId, returnUrl } = await searchParams;
+  const { email, invitationId, returnUrl, error } = await searchParams;
+  const oauthRequest = await readOAuthRequest(searchParams);
+  if (oauthRequest?.hasExpired) {
+    return <OAuthRequestError client={oauthRequest.client} />;
+  }
+  if (oauthRequest?.canHandBack) {
+    return (
+      <OAuthHandBack
+        oauthQuery={oauthRequest.query}
+        client={oauthRequest.client}
+        accountToConfirm={oauthRequest.accountToConfirm}
+      />
+    );
+  }
   const cookieStore = await cookies();
   const lastUsedLoginMethodCookieName = resolveBetterAuthCookieName(
     {
@@ -44,25 +65,22 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     },
     "last_used_login_method",
   );
-  const lastUsedAuthMethod = parseLastUsedAuthMethod(
-    cookieStore.get(lastUsedLoginMethodCookieName)?.value,
+  const lastUsedMethod = toProviderAuthMethod(
+    parseLastUsedAuthMethod(
+      cookieStore.get(lastUsedLoginMethodCookieName)?.value,
+    ),
   );
-  const lastUsedMethod: SignInMethodId | null =
-    lastUsedAuthMethod === "email" ? null : lastUsedAuthMethod;
 
   return (
-    <div className="flex flex-1 flex-col">
-      <SignUpHeader invitationId={invitationId} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SocialButtons
-          returnUrl={returnUrl}
-          lastUsedMethod={lastUsedMethod}
-          prefilledEmail={email}
-          showMagicLink
-        />
-        <Divider labelKey="emailDivider" />
-        <SignUpForm prefilledEmail={email} returnUrl={returnUrl} />
-      </div>
-    </div>
+    <SignUpFlow
+      invitationId={invitationId}
+      client={oauthRequest?.client}
+      prefilledEmail={email}
+      returnUrl={returnUrl}
+      lastUsedMethod={lastUsedMethod}
+      notice={<SignInErrorNotice error={error} />}
+    >
+      <TermsNotice />
+    </SignUpFlow>
   );
 }

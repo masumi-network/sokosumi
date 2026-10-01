@@ -11,12 +11,18 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
   public let taskIds: [String]
   /// Set on messages the bot sent on its own (stand-up, ingest, events).
   public let source: String?
+  /// The schedule a `SCHEDULE` run belongs to, and its system key (`standup`, `weekly-wrap`, …; nil for one the owner made).
+  public let scheduleName: String?
+  public let scheduleKey: String?
 
-  public init(turnId: String, pendingDecisionIds: [String] = [], taskIds: [String] = [], source: String? = nil) {
+  public init(turnId: String, pendingDecisionIds: [String] = [], taskIds: [String] = [], source: String? = nil,
+              scheduleName: String? = nil, scheduleKey: String? = nil) {
     self.turnId = turnId
     self.pendingDecisionIds = pendingDecisionIds
     self.taskIds = taskIds
     self.source = source
+    self.scheduleName = scheduleName
+    self.scheduleKey = scheduleKey
   }
 
   public init?(metadata: [String: OpenAPIValueContainer]?) {
@@ -26,6 +32,8 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
     pendingDecisionIds = Self.ids(record["pending_decision_ids"])
     taskIds = Self.ids(record["task_ids"])
     source = record["source"] as? String
+    scheduleName = record["schedule_name"] as? String
+    scheduleKey = record["schedule_key"] as? String
   }
 
   public init?(message: Components.Schemas.ChatRoomMessage) {
@@ -34,6 +42,12 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
 
   public var pendingDecisionCount: Int {
     pendingDecisionIds.count
+  }
+
+  /// Web `hasSokoBotMessageFooter`: the footer holds approvals and Tasks only,
+  /// so a turn with neither leaves no line under the message (#5554).
+  public var hasFooter: Bool {
+    !pendingDecisionIds.isEmpty || !taskIds.isEmpty
   }
 
   /// The assistant page filtered to this turn (`/personal-assistant?turn=`),
@@ -64,6 +78,41 @@ public struct SokoBotTurnMetadata: Equatable, Sendable {
 
   private static func ids(_ value: Any?) -> [String] {
     (value as? [Any])?.compactMap { $0 as? String } ?? []
+  }
+}
+
+/// Where a message the bot sent on its own came from (web `sokoBotSourceLabel`, #5536): the quiet line
+/// above it. Replies in chat carry no `source` and get none.
+public enum SokoBotSourceLabel: Equatable, Sendable {
+  case inbox
+  case standup
+  case weeklyWrap
+  case scheduled(name: String)
+  case taskUpdate
+
+  public init?(turn: SokoBotTurnMetadata) {
+    switch turn.source {
+    case "INGEST": self = .inbox
+    case "EVENT": self = .taskUpdate
+    case "SCHEDULE":
+      switch turn.scheduleKey {
+      case "standup": self = .standup
+      case "weekly-wrap": self = .weeklyWrap
+      default:
+        // Web's `schedule_name ? … : null`: an empty name labels nothing.
+        guard let name = turn.scheduleName, !name.isEmpty else { return nil }
+        self = .scheduled(name: name)
+      }
+    default: return nil
+    }
+  }
+
+  /// The label a transcript row draws: web renders it in a settled row's body only, so a deleted message and a
+  /// mention shell (thinking or failed) carry none. Web does not check the sender.
+  public init?(message: Components.Schemas.ChatRoomMessage) {
+    guard message.deletedAt == nil, MentionThoughtShell(message: message) == nil,
+          let turn = SokoBotTurnMetadata(message: message) else { return nil }
+    self.init(turn: turn)
   }
 }
 

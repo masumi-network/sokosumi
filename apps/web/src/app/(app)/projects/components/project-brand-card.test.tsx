@@ -109,11 +109,7 @@ function renderBrandDashboard({
       initialDesignMd={designMd}
       websiteUrl={websiteUrl}
     >
-      <ProjectBrandCard
-        projectId="project-1"
-        projectName="Launch"
-        websiteUrl={websiteUrl}
-      />
+      <ProjectBrandCard projectId="project-1" websiteUrl={websiteUrl} />
     </ProjectBrandProvider>,
   );
 }
@@ -166,8 +162,7 @@ describe("ProjectBrandCard", () => {
     renderBrandDashboard({ designMd: null });
 
     expect(screen.getByText("Not set")).toBeInTheDocument();
-    await openBrandMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: /Upload/ }));
+    await user.click(screen.getByRole("button", { name: "Upload" }));
     await user.click(screen.getByRole("button", { name: "Upload existing" }));
 
     await openBrandMenu(user);
@@ -242,14 +237,37 @@ describe("ProjectBrandCard", () => {
     expect(generateMock).toHaveBeenCalledOnce();
   });
 
-  it("disables generation and explains when website is missing", async () => {
+  it("offers the ways to add a DESIGN.md as buttons, not a menu", async () => {
     const user = userEvent.setup();
+    renderBrandDashboard({ designMd: null });
+    await waitFor(() => expect(generateMock).toHaveBeenCalledOnce());
+
+    expect(screen.queryByRole("button", { name: "Brand actions" })).toBeNull();
+    await user.click(
+      screen.getByRole("button", { name: "Generate from website" }),
+    );
+    expect(generateMock).toHaveBeenLastCalledWith({
+      force: true,
+      url: "https://example.com",
+    });
+  });
+
+  it("drops generation and explains when website is missing", async () => {
     renderBrandDashboard({ designMd: null, websiteUrl: null });
 
-    await openBrandMenu(user);
     expect(
-      screen.getByRole("menuitem", { name: /Generate from website/ }),
-    ).toHaveAttribute("data-disabled");
+      screen.queryByRole("button", { name: "Generate from website" }),
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Upload" })).toBeInTheDocument();
+    // Choosing Upload leaves no empty button row above the upload form.
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "Upload" }));
+    expect(screen.queryByRole("button", { name: "Upload" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Start upload" })).toBeTruthy();
+    expect(
+      screen.getByTestId("project-brand-card").querySelector(".flex-wrap"),
+    ).toBeNull();
     expect(
       screen.getByText(
         "Add a project website before generating brand context.",
@@ -261,13 +279,15 @@ describe("ProjectBrandCard", () => {
     const user = userEvent.setup();
     renderBrandDashboard({ designMd: null });
 
-    await openBrandMenu(user);
-    await user.click(screen.getByRole("menuitem", { name: /Upload/ }));
+    await user.click(screen.getByRole("button", { name: "Upload" }));
+    // Generate stays reachable after choosing Upload, until a file is sent.
+    expect(
+      screen.getByRole("button", { name: "Generate from website" }),
+    ).toBeEnabled();
     await user.click(screen.getByRole("button", { name: "Start upload" }));
 
-    await openBrandMenu(user);
     expect(
-      screen.getByRole("menuitem", { name: /Generate from website/ }),
-    ).toHaveAttribute("data-disabled");
+      screen.getByRole("button", { name: "Generate from website" }),
+    ).toBeDisabled();
   });
 });

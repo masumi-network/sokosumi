@@ -19,7 +19,7 @@ export type AuthCaptchaEntry =
   | "signin"
   | "signup"
   | "forgot-password"
-  | "magic-link"
+  | "email-code"
   | "verify-email"
   | "change-email";
 
@@ -76,7 +76,7 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
   const interactive = useRef(false);
   const shownRef = useRef(false);
   const [alert, setAlert] = useState<"load" | "missing" | null>(null);
-  // Two checks can share a page (password form plus magic-link row).
+  // Two checks can share a page (password form plus email code row).
   const id = useId();
   // Turnstile keeps the widget on screen once it has asked for interaction
   // (including its solved state) until the next reset. Track that so the

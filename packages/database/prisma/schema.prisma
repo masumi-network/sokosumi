@@ -528,6 +528,10 @@ model ProjectSocialConnection {
   provider                   String
   externalAccountId          String
   externalHandle             String?
+  /// Profile display name read at connect/reconnect; previews fall back to the handle.
+  displayName                String?
+  /// Public Blob copy of the profile picture (provider CDN URLs expire).
+  avatarUrl                  String?
   composioConnectedAccountId String
   status                     String
   activeExternalAccountKey   String?
@@ -675,28 +679,27 @@ model SocialPostPublishAttempt {
   socialPostId String     @db.Uuid
   socialPost   SocialPost @relation(fields: [socialPostId], references: [id], onDelete: Cascade)
 
-  attempt     Int
+  attempt         Int
   /// "scheduler" | "publish_now"
-  trigger     String
+  trigger         String
   /// Set for publish_now.
-  actorUserId String?
-  startedAt   DateTime  @default(now())
-  finishedAt  DateTime?
+  actorUserId     String?
+  startedAt       DateTime  @default(now())
+  finishedAt      DateTime?
   /// "succeeded" | "failed_transient" | "failed_permanent" | "missed" | "connection_inactive" | "authorization_revoked"
-  outcome     String?
+  outcome         String?
   /// Short machine kind, e.g. "rate_limited", "provider_unavailable", "rejected", "unauthorized", "timeout".
-  errorKind   String?
+  errorKind       String?
   /// Non-secret summary (status code + short message + external id). Never tokens, links, or keys.
   providerOutcome String?
   /// "TWITTER_CREATION_OF_A_POST"
-  toolSlug   String?
-  externalId String?
+  toolSlug        String?
+  externalId      String?
 
   @@unique([socialPostId, attempt])
   @@index([socialPostId, startedAt])
   @@map("social_post_publish_attempt")
 }
-
 
 model Member {
   id             String         @id @default(uuid(7))
@@ -1994,21 +1997,21 @@ enum SokoBotToolCallStatus {
 /// Per-user first-party Soko Bot. Not a marketplace coworker: no vendor,
 /// owner, or whitelist. Runtime access uses short-lived signed turn grants.
 model SokoBot {
-  eventInbox SokoBotEventInbox[] @relation("EventInboxBot")
-  designatedEventInbox SokoBotEventInbox[] @relation("EventInboxHandler")
-  taskActionClaims SokoBotTaskActionClaim[]
-  id         String    @id @default(uuid(7)) @db.Uuid
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  eventInbox           SokoBotEventInbox[]      @relation("EventInboxBot")
+  designatedEventInbox SokoBotEventInbox[]      @relation("EventInboxHandler")
+  taskActionClaims     SokoBotTaskActionClaim[]
+  id                   String                   @id @default(uuid(7)) @db.Uuid
+  createdAt            DateTime                 @default(now())
+  updatedAt            DateTime                 @updatedAt
   /// Reversible owner deactivation. The row keeps its name, memory and history
   /// and the owner can reactivate it from the console.
-  archivedAt DateTime?
+  archivedAt           DateTime?
   /// Irreversible owner deletion. Set only when Tasks, task events, billing
   /// usage or chat messages still reference this bot, so the row must survive
   /// as a tombstone to keep that provenance resolvable; everything the bot
   /// owned is erased and the owner is free to create a brand-new bot. A bot
   /// nothing references is deleted outright instead of tombstoned.
-  deletedAt  DateTime?
+  deletedAt            DateTime?
 
   /// Owner of this Soko Bot. One row per user and workspace (active or archived).
   userId String
@@ -2169,15 +2172,15 @@ model SokoBotLegacyMessage {
 }
 
 model SokoBotTurn {
-  eventInbox SokoBotEventInbox[]
+  eventInbox       SokoBotEventInbox[]
   taskActionClaims SokoBotTaskActionClaim[]
-  intentId         String?        @db.Uuid
+  intentId         String?                  @db.Uuid
   intentRevision   Int?
-  intent           SokoBotIntent? @relation("TurnIntent", fields: [intentId], references: [id], onDelete: SetNull)
-  originatedIntent SokoBotIntent? @relation("IntentOrigin")
-  id               String         @id @default(uuid(7)) @db.Uuid
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
+  intent           SokoBotIntent?           @relation("TurnIntent", fields: [intentId], references: [id], onDelete: SetNull)
+  originatedIntent SokoBotIntent?           @relation("IntentOrigin")
+  id               String                   @id @default(uuid(7)) @db.Uuid
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
 
   sokoBotId String  @db.Uuid
   sokoBot   SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -2198,6 +2201,8 @@ model SokoBotTurn {
   /// Owner thumbs on a proactive message: 1 useful, -1 not.
   ownerFeedback   Int?
   ownerFeedbackAt DateTime?
+  /// Judge scores. Written for behaviour-lab turns only since 2026-09-30;
+  /// real turns are no longer judged.
   qualityScore    Int?
   qualityVerdict  Json?
   qualityModel    String?
@@ -2364,12 +2369,12 @@ model SokoBotEffectOutbox {
 }
 
 model SokoBotToolCall {
-  taskActionClaims SokoBotTaskActionClaim[]
-  replayedReceiptId String?               @db.Uuid
+  taskActionClaims  SokoBotTaskActionClaim[]
+  replayedReceiptId String?                  @db.Uuid
   effects           SokoBotEffectOutbox[]
-  id                String                @id @default(uuid(7)) @db.Uuid
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
+  id                String                   @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   turnId String      @db.Uuid
   turn   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
@@ -2679,6 +2684,9 @@ model SokoBotSchedule {
   enabled             Boolean   @default(true)
   timezone            String
   cronExpression      String
+  /// Fires once at `nextRunAt`, then disables itself. `cronExpression` then
+  /// only mirrors that wall-clock time for display.
+  runOnce             Boolean   @default(false)
   prompt              String
   /// External Hermes schedule id. Cutover imports use it for idempotency.
   legacyScheduleId    String?   @unique
@@ -2778,11 +2786,11 @@ model CoworkerApiKey {
 
 model Task {
   botActionClaims SokoBotTaskActionClaim[]
-  tableScope TableTaskScope?
-  id         String    @id @default(uuid(7))
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  archivedAt DateTime?
+  tableScope      TableTaskScope?
+  id              String                   @id @default(uuid(7))
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+  archivedAt      DateTime?
 
   /// Workspace/billing owner. Always a user.
   ownerId String
@@ -2795,16 +2803,16 @@ model Task {
   description String?
 
   /// Controlled vocabulary IDs. Manual additions and rejections survive content edits.
-  automaticTags String[] @default([])
-  manualTags String[] @default([])
-  rejectedTags String[] @default([])
+  automaticTags                String[] @default([])
+  manualTags                   String[] @default([])
+  rejectedTags                 String[] @default([])
   /// Maintained by task_tag_revision trigger for all writers, including schedules.
-  tagContentRevision Int @default(1)
-  tagClassificationState String @default("unclassified")
-  tagClassificationAttempts Int @default(0)
-  tagClassificationLease String?
+  tagContentRevision           Int      @default(1)
+  tagClassificationState       String   @default("unclassified")
+  tagClassificationAttempts    Int      @default(0)
+  tagClassificationLease       String?
   tagClassificationAvailableAt DateTime @default(now())
-  tagVocabularyVersion Int @default(1)
+  tagVocabularyVersion         Int      @default(1)
 
   status TaskStatus @default(DRAFT)
 
@@ -3117,7 +3125,7 @@ enum TaskScheduleRunState {
 
 /// SQL-only checks (Prisma cannot express them): a released Run has its Task
 /// and only a released one does; at most one actor; a PROJECT source has its
-/// project and no other source does.
+/// project and no other source does; a manual Run is released.
 model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -3136,6 +3144,9 @@ model TaskScheduleRun {
   effectiveScheduledAt DateTime
 
   state TaskScheduleRunState
+  /// Run now (ADR 0047): released by hand, outside the rule, and not counted
+  /// toward an end-after-N rule.
+  manual Boolean @default(false)
 
   sourceWorkspaceId String             @db.Uuid
   sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
@@ -3143,8 +3154,8 @@ model TaskScheduleRun {
   sourceProjectId   String?            @db.Uuid
   sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
-  /// Who last skipped, moved, or restored this Run: a person or a
-  /// Coworker vendor, at most one of them.
+  /// Who ran this Run now, or last skipped, moved, or restored it: a person
+  /// or a Coworker vendor, at most one of them.
   actorUserId     String?
   actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   actorCoworkerId String?
@@ -4280,6 +4291,30 @@ model EnterpriseContractPeriod {
 /// One behaviour-lab run: scenario × version × the turn it produced, with the
 /// deterministic checks and the judge verdict. Written by the console lab and
 /// the headless runner; read by the admin quality overview.
+/// One comparison of candidate models for a Soko Bot role — the lab judge or
+/// the route classifier — against hand-graded cases, shown in the admin
+/// console so a model change is decided on evidence rather than impressions.
+model SokoBotModelEvaluation {
+  id         String                     @id @default(uuid(7)) @db.Uuid
+  createdAt  DateTime                   @default(now())
+  kind       SokoBotModelEvaluationKind
+  label      String
+  /// The model the role ran on when this was recorded.
+  inUseModel String?
+  /// Per candidate: accuracy against the grades, consistency, latency, cost.
+  models     Json
+  /// Per case: the hand grade, its reason, and every candidate's answers.
+  cases      Json
+
+  @@index([kind, createdAt(sort: Desc)])
+  @@map("soko_bot_model_evaluation")
+}
+
+enum SokoBotModelEvaluationKind {
+  JUDGE
+  ROUTER
+}
+
 model SokoBotLabRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -4329,17 +4364,17 @@ model SokoBotInstalledSkill {
 }
 
 model SokoBotEventInbox {
-  bot SokoBot @relation("EventInboxBot", fields: [botId], references: [id], onDelete: Cascade)
-  turn SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
-  designatedHandler SokoBot? @relation("EventInboxHandler", fields: [designatedHandlerBotId], references: [id], onDelete: SetNull)
-  id                     String   @id @default(uuid(7)) @db.Uuid
-  createdAt              DateTime @default(now())
-  botId                  String   @db.Uuid
+  bot                    SokoBot     @relation("EventInboxBot", fields: [botId], references: [id], onDelete: Cascade)
+  turn                   SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  designatedHandler      SokoBot?    @relation("EventInboxHandler", fields: [designatedHandlerBotId], references: [id], onDelete: SetNull)
+  id                     String      @id @default(uuid(7)) @db.Uuid
+  createdAt              DateTime    @default(now())
+  botId                  String      @db.Uuid
   eventId                String
   entityId               String
   purpose                String
-  turnId                 String   @db.Uuid
-  designatedHandlerBotId String?  @db.Uuid
+  turnId                 String      @db.Uuid
+  designatedHandlerBotId String?     @db.Uuid
 
   @@unique([botId, eventId, purpose])
   @@index([turnId, entityId])
@@ -4347,19 +4382,19 @@ model SokoBotEventInbox {
 }
 
 model SokoBotTaskActionClaim {
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  handlerBot SokoBot @relation(fields: [handlerBotId], references: [id], onDelete: Cascade)
-  turn SokoBotTurn @relation(fields: [turnId], references: [id], onDelete: Cascade)
-  receipt SokoBotToolCall? @relation(fields: [receiptId], references: [id], onDelete: NoAction)
-  id                String    @id @default(uuid(7)) @db.Uuid
-  createdAt         DateTime  @default(now())
+  task              Task             @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  handlerBot        SokoBot          @relation(fields: [handlerBotId], references: [id], onDelete: Cascade)
+  turn              SokoBotTurn      @relation(fields: [turnId], references: [id], onDelete: Cascade)
+  receipt           SokoBotToolCall? @relation(fields: [receiptId], references: [id], onDelete: NoAction)
+  id                String           @id @default(uuid(7)) @db.Uuid
+  createdAt         DateTime         @default(now())
   taskId            String
   triggeringEventId String
   actionKind        String
-  handlerBotId      String    @db.Uuid
-  turnId            String    @db.Uuid
-  receiptId         String?   @db.Uuid
-  fencingToken      Int       @default(1)
+  handlerBotId      String           @db.Uuid
+  turnId            String           @db.Uuid
+  receiptId         String?          @db.Uuid
+  fencingToken      Int              @default(1)
   leaseExpiresAt    DateTime?
 
   @@unique([taskId, triggeringEventId, actionKind])
@@ -4408,15 +4443,15 @@ model TableColumn {
 }
 
 model TableRow {
-  id      String    @id @default(uuid(7)) @db.Uuid
-  tableId String    @db.Uuid
-  table   DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  values  Json      @default("{}")
-  evidence Json @default("{}")
-  version Int @default(1)
+  id         String    @id @default(uuid(7)) @db.Uuid
+  tableId    String    @db.Uuid
+  table      DataTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  values     Json      @default("{}")
+  evidence   Json      @default("{}")
+  version    Int       @default(1)
   archivedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
 
   @@index([tableId, archivedAt, id])
   @@map("table_row")
@@ -4702,12 +4737,12 @@ model ProjectImageJob {
   /// non-zero the row is never auto-submitted again, whatever its status.
   submitAttempts   Int       @default(0)
 
-  falRequestId String?
+  falRequestId  String?
   /// One sentence a person can read, written by the studio and never by the
   /// provider. A raw transport string — "Unexpected status code: 422" reached a
   /// person's screen once — is not a thing anybody can act on, so it goes to the
   /// server log instead and this column carries the studio's own words.
-  error        String?
+  error         String?
   /// The stable code a client localises, from `IMAGE_JOB_FAILURE_REASONS`.
   ///
   /// A string rather than a Prisma enum so a new reason is a deploy and not a
@@ -5068,7 +5103,7 @@ model FileResource {
   sourceTaskId    String?
   sourceProjectId String? @db.Uuid
 
-  displayName String
+  displayName    String
   /// NFC, case-folded, trimmed. Exact matches on this beat every model score.
   ///
   /// SQL-only: the migration also creates
@@ -5078,7 +5113,7 @@ model FileResource {
   /// every later diff want to recreate it.
   normalizedName String
 
-  mimeType String?
+  mimeType  String?
   sizeBytes Int?
 
   /// For a `NATIVE_TABLE` resource: the `TableChange.sequence` this index
@@ -5090,13 +5125,13 @@ model FileResource {
   sourceSequence BigInt?
 
   /// Bumped when the bytes change.
-  contentRevision Int @default(1)
+  contentRevision  Int @default(1)
   /// Bumped by a metadata edit that does not change audience.
   metadataRevision Int @default(1)
   /// Bumped only when the canonical gate changes. Rejects ranked sessions.
-  aclRevision Int @default(1)
+  aclRevision      Int @default(1)
 
-  lifecycle   FileResourceLifecycle @default(PENDING)
+  lifecycle    FileResourceLifecycle @default(PENDING)
   tombstonedAt DateTime?
 
   lineageId String?      @db.Uuid
@@ -5139,7 +5174,7 @@ model FileVersion {
   sizeBytes Int?
   mimeType  String?
 
-  extractionState FileExtractionState @default(PENDING)
+  extractionState    FileExtractionState @default(PENDING)
   /// 0..1 — how much of the document the extractor actually read. Partial
   /// coverage is shown as partial, never as full-text coverage.
   extractionCoverage Float?
@@ -5147,7 +5182,7 @@ model FileVersion {
   extractorVersion   String?
 
   /// Bumped when extracted text changes, independently of the bytes.
-  textRevision Int @default(0)
+  textRevision    Int @default(0)
   /// The index generation these chunks belong to. A rollback swaps this
   /// atomically and fences the old workers.
   indexGeneration Int @default(1)
@@ -5213,17 +5248,17 @@ model WorkspaceLabel {
 
   kind FileLabelKind
 
-  displayName String
+  displayName    String
   /// NFC, trimmed, case-folded. Uniqueness is on this, capitalization is kept.
   normalizedName String
   /// A category needs a description so suggestions have a stable rubric.
-  description String?
+  description    String?
 
   /// Retired names that still redirect after a merge.
-  aliases String[]
+  aliases      String[]
   /// The label this one was merged into, so old assignments still resolve.
-  mergedIntoId String?         @db.Uuid
-  mergedInto   WorkspaceLabel? @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  mergedIntoId String?          @db.Uuid
+  mergedInto   WorkspaceLabel?  @relation("WorkspaceLabelMerge", fields: [mergedIntoId], references: [id], onDelete: SetNull)
   mergedFrom   WorkspaceLabel[] @relation("WorkspaceLabelMerge")
 
   /// Archived labels keep historical assignments readable but take no new ones.
@@ -5262,11 +5297,11 @@ model FileLabel {
   evidenceScope   FileEvidenceScope @relation(fields: [evidenceScopeId], references: [id], onDelete: Cascade)
 
   /// The exact serialized evidence this decision was made against.
-  evidenceDigest String?
+  evidenceDigest  String?
   /// A short extracted span that answers "Why?". Extracted, never generated.
   evidenceSnippet String?
   /// Where that span came from, so the UI can deep link to it.
-  evidenceAnchor Json?
+  evidenceAnchor  Json?
 
   /// Versions the suggestion was computed against. A newer content or
   /// vocabulary version makes an unconfirmed suggestion stale.
@@ -5389,7 +5424,7 @@ model FileCollection {
 
   ownerUserId String
 
-  name String
+  name       String
   /// Serialized filter definition: query, categories, tags, projects, types,
   /// sources, modified range, status.
   definition Json
@@ -5423,9 +5458,9 @@ model FileIndexJob {
   /// shape: resource, content revision, pipeline, required scope, generation.
   dedupeKey String
 
-  contentRevision   Int
+  contentRevision      Int
   requiredScopeVersion Int
-  desiredGeneration Int
+  desiredGeneration    Int
 
   state   FileIndexJobState @default(QUEUED)
   attempt Int               @default(0)
@@ -5496,9 +5531,9 @@ model FileAuthorizationAdmission {
   /// Stable hash of actor identity, auth method, capabilities and context.
   actorFingerprint String
   /// Serialized epoch vector the admission was granted against.
-  epochVector String
+  epochVector      String
 
-  purpose String
+  purpose       String
   /// sha256 of the exact serialized request. No query or document text.
   payloadDigest String
   provider      String
@@ -5510,12 +5545,12 @@ model FileAuthorizationAdmission {
   /// null for a call that never reached the provider. The daily spend
   /// budget sums this, which is why a missing value must never read as
   /// "free" — see `PER_WORKSPACE_USD_PER_DAY`.
-  costUsd Decimal? @db.Decimal(12, 6)
+  costUsd     Decimal? @db.Decimal(12, 6)
 
-  admittedAt DateTime  @default(now())
-  expiresAt  DateTime
+  admittedAt   DateTime  @default(now())
+  expiresAt    DateTime
   dispatchedAt DateTime?
-  outcome    String?
+  outcome      String?
 
   @@index([workspaceId, admittedAt])
   /// The shared ceiling counts over `admittedAt` alone, across every
@@ -5548,9 +5583,9 @@ model FileResultWindow {
   actorFingerprint String
   /// Hash of query, filters, sort and index generation. A changed binding is
   /// a different search, so the cursor restarts instead of paging a stale order.
-  bindingDigest String
+  bindingDigest    String
   /// Authorization clocks the order was built under. Any change restarts it.
-  epochVector String
+  epochVector      String
 
   /// Ordered `[{ r: resourceId, c: contentRevision, m: metadataRevision }]`.
   /// Positions, not items: a page advances over every position it scans.

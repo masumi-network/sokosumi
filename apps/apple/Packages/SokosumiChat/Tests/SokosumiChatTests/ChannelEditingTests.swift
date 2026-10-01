@@ -91,12 +91,58 @@ struct ChannelEditingTests {
     #expect(model.errorMessage == nil)
   }
 
-  @Test func membersLoadFailureBlocksSave() async throws {
+  /// Web `participant-checkboxes.tsx` swaps only the Humans list for a notice when the member page fails; the AI
+  /// coworker and assistant lists still toggle and Save stays enabled.
+  @Test func membersLoadFailureKeepsAgentEditingAndSave() async throws {
     let model = try ChannelEditing(room: room())
-    await model.load { .init(recipients: .init(targets: [], membersLoadFailed: true), isOwnerOrAdmin: true) }
-    #expect(!model.canSave)
+    let agentsOnly = ChatRecipientRoster(targets: [.init(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")], membersLoadFailed: true)
+    await model.load { .init(recipients: agentsOnly, isOwnerOrAdmin: false) }
+    #expect(model.membersLoadFailed)
+    #expect(model.errorMessage == nil)
+    #expect(model.sections.map(\.id) == [.coworkers, .assistant])
+    #expect(model.canSave)
     await model.load { .init(recipients: roster, isOwnerOrAdmin: true) }
+    #expect(!model.membersLoadFailed)
     #expect(model.canSave)
     #expect(model.sections.map(\.id) == [.people, .coworkers, .assistant])
+  }
+
+  @Test func roomMetadataUpdatePreservesSelectionsAndGuestAccessStopsSave() async throws {
+    var currentRoom = try room()
+    let model = ChannelEditing(room: currentRoom)
+    await model.load { .init(recipients: roster, isOwnerOrAdmin: true) }
+    model.draft.recipients.remove(.human("peer"))
+    model.draft.recipients.remove(.coworker("agent"))
+    let selected = model.draft.recipients
+    currentRoom.unreadCount = 3
+    model.updateRoom(currentRoom)
+    #expect(model.draft.recipients == selected)
+    #expect(model.canSave)
+    currentRoom.myAccess = .guest
+    model.updateRoom(currentRoom)
+    #expect(!model.canSave)
+    #expect(model.permissions?.canManageSettings == false)
+  }
+
+  /// Web seeds the humans from the room (`hostRosterUserIds`), never from the organization list, so a save while
+  /// that list failed sends the room's host members unchanged; nothing can remove a human the notice hides.
+  @Test(arguments: [false, true])
+  func saveWhileMembersFailedKeepsTheRoomsHumans(isOwnerOrAdmin: Bool) async throws {
+    let model = try ChannelEditing(room: room())
+    let agentsOnly = ChatRecipientRoster(targets: [.init(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")], membersLoadFailed: true)
+    await model.load { .init(recipients: agentsOnly, isOwnerOrAdmin: isOwnerOrAdmin) }
+    model.draft.recipients.remove(.coworker("agent"))
+    var sent: Components.Schemas.UpdateChatRoomRequest?
+    let saved = await model.save { draft, permissions in
+      sent = draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: model.room)
+      return true
+    }
+    #expect(saved)
+    let body = try #require(sent)
+    #expect(body.memberUserIds == ["me", "peer"])
+    #expect(body.coworkerIds?.isEmpty == true)
+    #expect(body.sokoBotIds == ["bot"])
+    #expect(body.name == (isOwnerOrAdmin ? "Team" : nil))
+    #expect(body.discoverability == (isOwnerOrAdmin ? ._private : nil))
   }
 }

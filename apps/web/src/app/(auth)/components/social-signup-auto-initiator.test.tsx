@@ -1,7 +1,6 @@
 import { render, waitFor } from "@testing-library/react";
+import { track } from "@vercel/analytics";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import { buildOAuthConsentReturnUrlFromSearchParams } from "@/lib/auth/auth.utils";
 
 import SocialSignupAutoInitiator from "./social-signup-auto-initiator";
 
@@ -41,7 +40,26 @@ describe("SocialSignupAutoInitiator", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
     mockSocialSignIn.mockResolvedValue({});
+    vi.mocked(track).mockReset();
     mockSearchParams = new URLSearchParams();
+  });
+
+  it("tracks a direct sign-up link as a sign-up", async () => {
+    render(
+      <SocialSignupAutoInitiator
+        provider="microsoft"
+        providerName="Microsoft"
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+    });
+    expect(track).toHaveBeenCalledWith("Sign Up", {
+      provider: "microsoft",
+      direct_signup_link: true,
+    });
+    expect(track).not.toHaveBeenCalledWith("Sign In", expect.anything());
   });
 
   function getSubmittedReturnUrls(): {
@@ -84,7 +102,7 @@ describe("SocialSignupAutoInitiator", () => {
     });
   });
 
-  it("builds oauth consent returnUrl from signed query when returnUrl is missing", async () => {
+  it("returns an OAuth visitor to the sign-in page with the signed request", async () => {
     mockSearchParams = new URLSearchParams({
       client_id: "test-client",
       redirect_uri: "https://consumer.example.com/callback",
@@ -97,9 +115,8 @@ describe("SocialSignupAutoInitiator", () => {
       sig: "signed-value",
     });
 
-    const expectedReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
-      new URLSearchParams(mockSearchParams.toString()),
-    );
+    const expectedReturnUrl =
+      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
 
     render(
       <SocialSignupAutoInitiator provider="google" providerName="Google" />,
@@ -113,5 +130,24 @@ describe("SocialSignupAutoInitiator", () => {
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
     });
+  });
+
+  it("sends a failed sign-in to the sign-up page, not back into the auto start", async () => {
+    const startPage = window.location.href;
+    window.history.replaceState(null, "", "/auth/google?returnUrl=%2Fchat");
+    try {
+      render(
+        <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+      );
+
+      await waitFor(() => {
+        expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+      });
+      expect(mockSocialSignIn.mock.calls[0]?.[0]).toMatchObject({
+        errorCallbackURL: `${window.location.origin}/signup?returnUrl=%2Fchat`,
+      });
+    } finally {
+      window.history.replaceState(null, "", startPage);
+    }
   });
 });

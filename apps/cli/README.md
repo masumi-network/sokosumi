@@ -1,6 +1,9 @@
 # Sokosumi CLI
 
-Published npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi); package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.2`, with public access.
+It requires Node.js 24 and packages `dist` and `skills`. The binary is `sokosumi`.
+Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
 
 ## Product direction
 
@@ -16,7 +19,7 @@ Core still requires platform-admin authority to create a Coworker. CLI connectio
 Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
 [REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.
-[OPEN] Live runtime execution and seller receipt remain unverified. Payment submission and global publication remain separate work.
+[OPEN] Live runtime execution remains unverified. `runtime receipt` reads the seller receipt, but no live Task has proven it yet. Payment submission and global publication remain separate work.
 The [implementation plan](docs/developer-cli-implementation-plan.md) retains the milestone history.
 
 ### Private Workspace setup and platform-admin handoff
@@ -83,7 +86,7 @@ Provisioning does not grant Workspace access. Private profiles are still returne
 
 [CORRECTION, VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`, `src/coworker/runtime-task.ts`]
 The earlier README listed runtime execution as planned work. An existing agent can now start and complete an assigned Task.
-Runtime commands use a separate Coworker credential on Preprod. Live Task execution and seller receipt remain unverified.
+Runtime commands use a separate Coworker credential on Preprod. Live Task execution and a live seller receipt remain unverified.
 See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md),
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
@@ -98,7 +101,12 @@ Install the framework-neutral Skill from the repository:
 npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi
 ```
 
-This installs Skill files only. It does not install the CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`, or run without installing via `npx @masumi_network/sokosumi`).
+[REPORTED: existing distribution instructions] This command installs Skill files only. Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build this checkout below.
+
+[VERIFIED: `package.json`, `src/cli/commands/skills.ts`] The CLI package includes the Skills beside `dist`.
+Use `sokosumi skills --json` to list them, or `sokosumi skills path` to locate their directory.
+Load `sokosumi/SKILL.md` from that directory through the host's Skill loader. CLI installation does not configure that loader.
+See [distribution details](skills/sokosumi/references/distribution.md).
 
 ## Run
 
@@ -203,6 +211,7 @@ Set `OPERATOR_SECRET_READER` to that reader's executable path. Keep the key out 
 "$OPERATOR_SECRET_READER" | sokosumi runtime key-import --coworker-id COWORKER_ID --api-key-stdin --json
 sokosumi runtime start TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --json
 sokosumi runtime complete TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --result-file ./result.txt --json
+sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-task.ts`]
@@ -212,10 +221,32 @@ The agent performs the work and writes its finished answer to `result.txt` as UT
 Complete verifies the assignment and `RUNNING` state, then submits the result and requires a confirmed completion event.
 Run one executor per Task. Inspect the Task before retrying an uncertain result; these commands do not claim a worker lease.
 
+[VERIFIED: `src/cli/commands/runtime.ts`, `../core/src/helpers/coworker-task-receipt.ts`]
+Receipt reads the Task's payment claim through Core. `settled` is true only when the payment reached the seller on-chain.
+That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`, and even then it can be null.
+`settled: false` is a valid answer and exits 0. Core answers 502 when the payment node fails, so an outage never reads as unpaid.
+
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]
 Runtime calls use only a Coworker key on Preprod. They do not use developer authentication or configured API targets.
 On hosts without an OS vault, the operator supplies `--api-key-stdin` for each operation through the secret reader.
 The [pilot guide](docs/agent-runtime-pilot.md) covers host setup and verification. Live execution remains unproven.
+
+### MPS delivery status
+
+[VERIFIED: merged commit `c2271e441`, PR #5342; `src/cli/commands/runtime.ts`]
+`runtime receipt` reads Core's Task receipt with GET. This merged feature does not create a payment.
+[VERIFIED: `src/coworker/runtime-task.ts:180-237`]
+Start and completion submit Task status and result events. They do not send `masumiPayment` or run an automatic worker.
+
+[VERIFIED: planning briefs in `docs/mps-payment-stack/`]
+The planning drafts cover [seller setup and customer approval](docs/mps-payment-stack/01-seller-authorization.md),
+the [paid Task lifecycle](docs/mps-payment-stack/02-paid-runtime.md), and the [plugin payment flow](docs/mps-payment-stack/03-plugin-flow.md).
+They contain requirements and planned tests.
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller.
+Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote.
+Organization approval will require membership and applicable Seat eligibility in the original billing organization.
+Implementation and live seller proof remain pending.
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not verify the deployed receipt route or a live seller payout.
 
 ## Configuration
 
@@ -237,7 +268,8 @@ Configuration precedence is flags, process environment, home preferences, local 
 
 ## Build from source
 
-npm publication is disabled for this workspace package. Use the source commands above.
+[CORRECTION, VERIFIED: `package.json`] The earlier publication-disabled statement was stale.
+The manifest sets public npm access and version `1.0.2`. Use Node.js 24 for this source build.
 
 To run the built binary directly:
 

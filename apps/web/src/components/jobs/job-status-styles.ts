@@ -8,8 +8,6 @@ import {
  * The job scale on the same three rules as the task scale, so a job and a
  * task at the same stage look the same. Hue is the board column, weight is
  * the status inside it, a fault leaves its column. See `status-marker.tsx`.
- *
- * `jobs-list-view.tsx` owns the column grouping this follows.
  */
 const JOB_STATUS_MARKERS: Record<SokosumiJobStatus, StatusMarkerSpec> = {
   // todo: the payment settles, then the coworker holds the job. Neither is

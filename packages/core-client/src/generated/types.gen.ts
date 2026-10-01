@@ -179,6 +179,43 @@ export type PatchAdminAgentMetadataOverrideBody = {
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
 };
 
+export type AdminBadgeCampaignList = Array<BadgeCampaign>;
+
+export type BadgeCampaign = {
+    id: string;
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+    createdAt: Date;
+};
+
+export const AnnouncedFeature = {
+    SOKO_BOTS: 'SOKO_BOTS',
+    NEW_TASK: 'NEW_TASK',
+    SEARCH: 'SEARCH',
+    AGENTS: 'AGENTS',
+    TASKS: 'TASKS',
+    SCHEDULES: 'SCHEDULES',
+    CONTENT_STUDIO: 'CONTENT_STUDIO',
+    SOCIAL: 'SOCIAL',
+    DRIVE: 'DRIVE',
+    THREADS: 'THREADS',
+    UNREADS: 'UNREADS'
+} as const;
+
+export type AnnouncedFeature = typeof AnnouncedFeature[keyof typeof AnnouncedFeature];
+
+export type CreateBadgeCampaignRequest = {
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+};
+
+export type UpdateBadgeCampaignRequest = {
+    startsAt: Date;
+    endsAt: Date;
+};
+
 export type AdminOrganizationOption = {
     id: string;
     name: string;
@@ -202,6 +239,7 @@ export type AdminSokoBotListItem = {
     lastSucceededAt: Date | null;
     lastFailedAt: Date | null;
     consecutiveTurnFailures: number;
+    outOfCredits: boolean;
     turnCount: number;
     pendingDecisionCount: number;
     scheduleCount: number;
@@ -259,6 +297,82 @@ export type AdminSokoBotQuality = {
         turns: number;
         avgScore: number | null;
     }>;
+};
+
+export type AdminSokoBotModelEvaluations = {
+    currentJudgeModel: string;
+    currentRouteModel: string;
+    judge: Array<AdminSokoBotJudgeEvaluation>;
+    router: Array<AdminSokoBotRouterEvaluation>;
+};
+
+export type AdminSokoBotJudgeEvaluation = {
+    id: string;
+    createdAt: Date;
+    label: string;
+    inUseModel: string | null;
+    models: Array<SokoBotJudgeModelSummary>;
+    cases: Array<SokoBotJudgeCaseSummary>;
+};
+
+export type SokoBotJudgeModelSummary = {
+    model: string;
+    calls: number;
+    errors: number;
+    steady: number;
+    repeated: number;
+    matches: number;
+    graded: number;
+    falseFails: number;
+    badCaught: number;
+    bad: number;
+    costPerCallUsd: number;
+    medianMs: number;
+};
+
+export type SokoBotJudgeCaseSummary = {
+    caseId: string;
+    grade: 'pass' | 'weak' | 'fail' | 'uncertain';
+    why: string | null;
+    set: 'lab' | 'known-bad';
+    answers: {
+        [key: string]: Array<'pass' | 'weak' | 'fail' | null>;
+    };
+    contested: boolean;
+};
+
+export type AdminSokoBotRouterEvaluation = {
+    id: string;
+    createdAt: Date;
+    label: string;
+    inUseModel: string | null;
+    models: Array<SokoBotRouterModelSummary>;
+    cases: Array<SokoBotRouterCaseSummary>;
+};
+
+export type SokoBotRouterModelSummary = {
+    classifier: string;
+    calls: number;
+    errors: number;
+    correct: number;
+    alwaysRight: number;
+    steady: number;
+    cases: number;
+    overGrants: number;
+    underGrants: number;
+    medianMs: number;
+    p90Ms: number;
+    costPer1kUsd: number;
+};
+
+export type SokoBotRouterCaseSummary = {
+    message: string;
+    previousReply: string | null;
+    want: string;
+    answers: {
+        [key: string]: Array<string | null>;
+    };
+    contested: boolean;
 };
 
 export type SokoBotVersionList = {
@@ -342,6 +456,7 @@ export type AdminSokoBotVersionUsage = {
 export type AdminSokoBotVersionMigrationResult = {
     total: number;
     moved: number;
+    notified: number;
     alreadyOnVersion: number;
     failed: number;
     failures: Array<{
@@ -354,6 +469,205 @@ export type AdminSokoBotVersionMigrationRequest = {
     fromVersionId?: string;
     toVersionId: string;
     reason: string;
+    notifyOwners?: boolean;
+};
+
+export type AdminSokoBotChatRoom = {
+    id: string;
+    isOwnerRoom: boolean;
+    participants: Array<{
+        id: string;
+        name: string | null;
+    }>;
+    archived: boolean;
+    lastActivityAt: string;
+};
+
+export type ChatRoomMessage = {
+    id: string;
+    roomId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
+    threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
+    threadLastReplyAt: Date | null;
+    /**
+     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
+     */
+    threadRepliers?: Array<ChatRoomMessageSender>;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
+    groupNameChange: ChatRoomMessageGroupNameChange;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
+};
+
+export type ChatRoomMessageSender = {
+    type: 'user';
+    user: ChatRoomUserParticipant;
+} | {
+    type: 'coworker';
+    coworker: ChatRoomCoworkerParticipant;
+} | {
+    type: 'sokoBot';
+    sokoBot: ChatRoomSokoBotParticipant;
+} | {
+    type: 'unknown';
+};
+
+export type ChatRoomUserParticipant = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    presence: ChatRoomPresence;
+    access?: ChatRoomAccess;
+    /**
+     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
+     */
+    lastReadAt?: Date | null;
+};
+
+export const ChatRoomPresence = {
+    ONLINE: 'online',
+    AFK: 'afk',
+    OFFLINE: 'offline'
+} as const;
+
+export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
+
+export type ChatRoomCoworkerParticipant = {
+    id: string;
+    name: string;
+    slug: string;
+    caption: string | null;
+    image: string | null;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomSokoBotParticipant = {
+    id: string;
+    name: string;
+    caption: string | null;
+    image: string | null;
+    avatarSeed: string | null;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomMessageMention = {
+    id: string;
+    coworkerId: string | null;
+    sokoBotId: string | null;
+    status: ChatRoomMentionStatus;
+    responseMessageId: string | null;
+};
+
+export const ChatRoomMentionStatus = {
+    PENDING: 'pending',
+    SENT: 'sent',
+    RESPONDED: 'responded',
+    FAILED: 'failed'
+} as const;
+
+export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
+
+export type ChatRoomMessageReaction = {
+    emoji: string;
+    count: number;
+    reactedByCurrentUser: boolean;
+    /**
+     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
+     */
+    reactors: Array<ChatRoomMessageReactor>;
+};
+
+export type ChatRoomMessageReactor = {
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageQuote = {
+    messageId: string;
+    authorName: string;
+    snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
+     */
+    roomId?: string;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
+} | null;
+
+export type ChatRoomMessageMembership = {
+    action: 'joined' | 'left';
+    subject: ChatRoomMessageMembershipSubject;
+} | null;
+
+export type ChatRoomMessageMembershipSubject = {
+    type: 'user';
+    id: string;
+    name: string;
+} | {
+    type: 'coworker';
+    id: string;
+    name: string;
+} | {
+    type: 'sokoBot';
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageGroupNameChange = {
+    action: 'named' | 'cleared';
+    /**
+     * The new Group name; null when it was cleared.
+     */
+    name: string | null;
+    actor: {
+        id: string;
+        name: string;
+    };
+} | null;
+
+export type ChatRoomMessageUnfurl = {
+    url: string;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
 };
 
 export type AdminSokoBotDetail = SokoBot & {
@@ -429,6 +743,7 @@ export type SokoBotSchedule = {
     enabled: boolean;
     timezone: string;
     cronExpression: string;
+    runOnce?: boolean;
     prompt: string;
     systemKey?: string | null;
     nextRunAt: Date;
@@ -645,6 +960,8 @@ export type SokoBotUsage = {
     costUsd: number;
     billableCostUsd: number;
     credits: number;
+    delegatedCredits: number;
+    totalCredits: number;
 };
 
 export type SokoBot = {
@@ -685,6 +1002,10 @@ export type AdminSokoBotActionRequest = {
     targetId?: string;
     versionId?: string;
     reason: string;
+};
+
+export type ClaimSokoBotAvatarRequest = {
+    avatarId: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -2377,7 +2698,7 @@ export type ChatRoom = {
      * True when the current user marked this room unread. Cleared on mark-read.
      */
     markedUnread: boolean;
-    myAccess: ChatRoomAccess;
+    myAccess: ChatRoomAccess & unknown;
     /**
      * True when every other human on a Direct is a Member of the caller's active organization. False with no active organization.
      */
@@ -2385,55 +2706,6 @@ export type ChatRoom = {
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
     sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
-};
-
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
-
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
-
-export type ChatRoomUserParticipant = {
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-    presence: ChatRoomPresence;
-    access?: ChatRoomAccess & unknown;
-    /**
-     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
-     */
-    lastReadAt?: Date | null;
-};
-
-export const ChatRoomPresence = {
-    ONLINE: 'online',
-    AFK: 'afk',
-    OFFLINE: 'offline'
-} as const;
-
-export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
-
-export type ChatRoomCoworkerParticipant = {
-    id: string;
-    name: string;
-    slug: string;
-    caption: string | null;
-    image: string | null;
-    presence: ChatRoomPresence;
-};
-
-export type ChatRoomSokoBotParticipant = {
-    id: string;
-    name: string;
-    caption: string | null;
-    image: string | null;
-    avatarSeed: string | null;
-    presence: ChatRoomPresence;
 };
 
 /**
@@ -2639,107 +2911,6 @@ export type ChatRoomPinnedMessageListItem = {
     } | null;
 };
 
-export type ChatRoomMessageSender = {
-    type: 'user';
-    user: ChatRoomUserParticipant;
-} | {
-    type: 'coworker';
-    coworker: ChatRoomCoworkerParticipant;
-} | {
-    type: 'sokoBot';
-    sokoBot: ChatRoomSokoBotParticipant;
-} | {
-    type: 'unknown';
-};
-
-export type ChatRoomMessageMention = {
-    id: string;
-    coworkerId: string | null;
-    sokoBotId: string | null;
-    status: ChatRoomMentionStatus;
-    responseMessageId: string | null;
-};
-
-export const ChatRoomMentionStatus = {
-    PENDING: 'pending',
-    SENT: 'sent',
-    RESPONDED: 'responded',
-    FAILED: 'failed'
-} as const;
-
-export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
-
-export type ChatRoomMessageReaction = {
-    emoji: string;
-    count: number;
-    reactedByCurrentUser: boolean;
-    /**
-     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
-     */
-    reactors: Array<ChatRoomMessageReactor>;
-};
-
-export type ChatRoomMessageReactor = {
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageQuote = {
-    messageId: string;
-    authorName: string;
-    snippet: string;
-    attachment?: ChatRoomMessageQuoteAttachment;
-    /**
-     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
-     */
-    roomId?: string;
-} | null;
-
-export type ChatRoomMessageQuoteAttachment = {
-    fileName: string;
-    url: string;
-    mediaKind: 'image' | 'file';
-} | null;
-
-export type ChatRoomMessageMembership = {
-    action: 'joined' | 'left';
-    subject: ChatRoomMessageMembershipSubject;
-} | null;
-
-export type ChatRoomMessageMembershipSubject = {
-    type: 'user';
-    id: string;
-    name: string;
-} | {
-    type: 'coworker';
-    id: string;
-    name: string;
-} | {
-    type: 'sokoBot';
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageGroupNameChange = {
-    action: 'named' | 'cleared';
-    /**
-     * The new Group name; null when it was cleared.
-     */
-    name: string | null;
-    actor: {
-        id: string;
-        name: string;
-    };
-} | null;
-
-export type ChatRoomMessageUnfurl = {
-    url: string;
-    title: string;
-    description: string | null;
-    imageUrl: string | null;
-    siteName: string | null;
-};
-
 export type UpdateChatRoomRequest = {
     name?: string;
     /**
@@ -2840,43 +3011,6 @@ export type ChatRoomThread = {
      * When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.
      */
     mutedAt: Date | null;
-};
-
-export type ChatRoomMessage = {
-    id: string;
-    roomId: string;
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-    deletedAt: Date | null;
-    editedAt: Date | null;
-    /**
-     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
-     */
-    pinnedAt: Date | null;
-    sender: ChatRoomMessageSender;
-    mentions: Array<ChatRoomMessageMention>;
-    reactions: Array<ChatRoomMessageReaction>;
-    threadReplyCount: number;
-    /**
-     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
-     */
-    threadUnreadReplyCount?: number;
-    threadLastReplyAt: Date | null;
-    /**
-     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
-     */
-    threadRepliers?: Array<ChatRoomMessageSender>;
-    metadata: {
-        [key: string]: unknown;
-    } | null;
-    quote: ChatRoomMessageQuote;
-    membership: ChatRoomMessageMembership;
-    groupNameChange: ChatRoomMessageGroupNameChange;
-    /**
-     * Link preview cards scraped from message URLs (absent while pending).
-     */
-    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomThreadsUnreadCount = {
@@ -4528,6 +4662,14 @@ export const NoticeKind = { LEGAL_TERMS: 'LEGAL_TERMS', ANNOUNCEMENT: 'ANNOUNCEM
 
 export type NoticeKind = typeof NoticeKind[keyof typeof NoticeKind];
 
+export type UserBadgeCampaigns = {
+    badgeCampaigns: Array<{
+        id: string;
+        feature: AnnouncedFeature;
+        endsAt: Date;
+    }>;
+};
+
 export type BlobFile = {
     /**
      * Public URL of the uploaded file
@@ -4662,6 +4804,17 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type SignUpConversionResponse = {
+    /**
+     * The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.
+     */
+    provider: 'google' | 'microsoft' | null;
+};
+
+export type SignUpConversionRequest = {
+    utmAttribution?: UtmAttributionRequest;
+};
+
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
@@ -4767,6 +4920,14 @@ export type User = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    firstName: string | null;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    lastName: string | null;
     email: string;
     emailVerified: boolean;
     image?: string | null;
@@ -5332,6 +5493,11 @@ export type ProjectSocialConnection = {
     id: string;
     provider: ProjectSocialProvider;
     externalHandle: string | null;
+    displayName: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
     connectedAt: Date | null;
     disconnectedAt: Date | null;
@@ -5440,6 +5606,11 @@ export type SocialPostStatus = typeof SocialPostStatus[keyof typeof SocialPostSt
 export type SocialPostSocialConnection = {
     id: string;
     externalHandle: string | null;
+    displayName: string | null;
+    /**
+     * Profile picture copy in Sokosumi storage
+     */
+    avatarUrl: string | null;
     status: 'pending' | 'active' | 'reauthorization_required' | 'disconnected';
 } | null;
 
@@ -6199,10 +6370,6 @@ export type IntroduceSokoBotRequest = {
     roomId: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
-};
-
 export type SokoBotVersion = {
     id: string;
     name: string;
@@ -6277,6 +6444,7 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
+            lastActivityAt: Date | null;
         } | null;
     }>;
 };
@@ -6713,6 +6881,10 @@ export type TaskSchedule = {
     assigneeUserId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).
+     */
+    canWrite: boolean;
 };
 
 export const TaskScheduleState = {
@@ -6767,7 +6939,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -6821,7 +6993,7 @@ export type UpdateTaskScheduleRequest = {
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -6862,15 +7034,19 @@ export type TaskScheduleRun = {
      */
     effectiveScheduledAt: Date;
     /**
+     * Run now: released by hand outside the rule, and not counted toward an end-after-N rule
+     */
+    manual: boolean;
+    /**
      * Task this Run created
      */
     releasedTaskId: string | null;
     /**
-     * Person who last skipped, moved, or restored it
+     * Person who ran it now, or last skipped, moved, or restored it
      */
     actorUserId: string | null;
     /**
-     * Coworker that last skipped, moved, or restored it
+     * Coworker that ran it now, or last skipped, moved, or restored it
      */
     actorCoworkerId: string | null;
     updatedAt: Date;
@@ -6882,6 +7058,13 @@ export type TaskScheduleRunUpdate = {
      */
     revision: number;
     run: TaskScheduleRun;
+};
+
+export type CreateTaskScheduleRunRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -6951,6 +7134,18 @@ export type TaskLinkDeleted = {
 
 export type TaskParticipants = {
     participants: Array<TaskParticipant>;
+};
+
+export type TaskSellerReceipt = {
+    blockchainIdentifier: string | null;
+    claimStatus: string | null;
+    onChainState: string | null;
+    settled: boolean;
+    txHash: string | null;
+    withdrawnForSeller: Array<{
+        unit: string | null;
+        amount: string | null;
+    }>;
 };
 
 export type TaskWorkspace = {
@@ -8255,6 +8450,532 @@ export type PatchAdminAgentMetadataOverrideResponses = {
 
 export type PatchAdminAgentMetadataOverrideResponse = PatchAdminAgentMetadataOverrideResponses[keyof PatchAdminAgentMetadataOverrideResponses];
 
+export type ListAdminBadgeCampaignsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type ListAdminBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsError = ListAdminBadgeCampaignsErrors[keyof ListAdminBadgeCampaignsErrors];
+
+export type ListAdminBadgeCampaignsResponses = {
+    /**
+     * List of campaigns
+     */
+    200: {
+        data: AdminBadgeCampaignList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsResponse = ListAdminBadgeCampaignsResponses[keyof ListAdminBadgeCampaignsResponses];
+
+export type CreateAdminBadgeCampaignData = {
+    body?: CreateBadgeCampaignRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type CreateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignError = CreateAdminBadgeCampaignErrors[keyof CreateAdminBadgeCampaignErrors];
+
+export type CreateAdminBadgeCampaignResponses = {
+    /**
+     * The created campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignResponse = CreateAdminBadgeCampaignResponses[keyof CreateAdminBadgeCampaignResponses];
+
+export type DeleteAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type DeleteAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminBadgeCampaignError = DeleteAdminBadgeCampaignErrors[keyof DeleteAdminBadgeCampaignErrors];
+
+export type DeleteAdminBadgeCampaignResponses = {
+    /**
+     * Campaign deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminBadgeCampaignResponse = DeleteAdminBadgeCampaignResponses[keyof DeleteAdminBadgeCampaignResponses];
+
+export type UpdateAdminBadgeCampaignData = {
+    body?: UpdateBadgeCampaignRequest;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type UpdateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps, or a started campaign's start moves into the future
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignError = UpdateAdminBadgeCampaignErrors[keyof UpdateAdminBadgeCampaignErrors];
+
+export type UpdateAdminBadgeCampaignResponses = {
+    /**
+     * The updated campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignResponse = UpdateAdminBadgeCampaignResponses[keyof UpdateAdminBadgeCampaignResponses];
+
+export type EndAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/end';
+};
+
+export type EndAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign is not running
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignError = EndAdminBadgeCampaignErrors[keyof EndAdminBadgeCampaignErrors];
+
+export type EndAdminBadgeCampaignResponses = {
+    /**
+     * The ended campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignResponse = EndAdminBadgeCampaignResponses[keyof EndAdminBadgeCampaignResponses];
+
+export type StartAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/start';
+};
+
+export type StartAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started, or starting now overlaps another campaign for this feature
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignError = StartAdminBadgeCampaignErrors[keyof StartAdminBadgeCampaignErrors];
+
+export type StartAdminBadgeCampaignResponses = {
+    /**
+     * The started campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignResponse = StartAdminBadgeCampaignResponses[keyof StartAdminBadgeCampaignResponses];
+
 export type SearchAdminUsersData = {
     body?: never;
     path?: never;
@@ -8506,6 +9227,64 @@ export type GetAdminSokoBotQualityResponses = {
 };
 
 export type GetAdminSokoBotQualityResponse = GetAdminSokoBotQualityResponses[keyof GetAdminSokoBotQualityResponses];
+
+export type GetAdminSokoBotModelEvaluationsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/soko-bots/evaluations';
+};
+
+export type GetAdminSokoBotModelEvaluationsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetAdminSokoBotModelEvaluationsError = GetAdminSokoBotModelEvaluationsErrors[keyof GetAdminSokoBotModelEvaluationsErrors];
+
+export type GetAdminSokoBotModelEvaluationsResponses = {
+    /**
+     * Recent judge and routing model evaluations
+     */
+    200: {
+        data: AdminSokoBotModelEvaluations;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetAdminSokoBotModelEvaluationsResponse = GetAdminSokoBotModelEvaluationsResponses[keyof GetAdminSokoBotModelEvaluationsResponses];
 
 export type ListAdminSokoBotVersionsData = {
     body?: never;
@@ -9390,6 +10169,166 @@ export type MigrateAdminSokoBotVersionsResponses = {
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
+export type ListAdminSokoBotChatsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/chats';
+};
+
+export type ListAdminSokoBotChatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsError = ListAdminSokoBotChatsErrors[keyof ListAdminSokoBotChatsErrors];
+
+export type ListAdminSokoBotChatsResponses = {
+    /**
+     * Soko Bot direct chats
+     */
+    200: {
+        data: Array<AdminSokoBotChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsResponse = ListAdminSokoBotChatsResponses[keyof ListAdminSokoBotChatsResponses];
+
+export type ListAdminSokoBotChatMessagesData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+        roomId: string;
+    };
+    query?: {
+        /**
+         * Oldest message id of the previous page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/admin/soko-bots/{sokoBotId}/chats/{roomId}/messages';
+};
+
+export type ListAdminSokoBotChatMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesError = ListAdminSokoBotChatMessagesErrors[keyof ListAdminSokoBotChatMessagesErrors];
+
+export type ListAdminSokoBotChatMessagesResponses = {
+    /**
+     * Chat messages
+     */
+    200: {
+        data: Array<ChatRoomMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesResponse = ListAdminSokoBotChatMessagesResponses[keyof ListAdminSokoBotChatMessagesResponses];
+
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;
     path: {
@@ -9494,6 +10433,98 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
+
+export type SetAdminSokoBotAvatarData = {
+    body?: ClaimSokoBotAvatarRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar';
+};
+
+export type SetAdminSokoBotAvatarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+
+export type SetAdminSokoBotAvatarResponses = {
+    /**
+     * The bot's new mascot
+     */
+    200: {
+        data: {
+            avatarImageUrl: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -27801,7 +28832,7 @@ export type PatchEnterpriseContractsByIdError = PatchEnterpriseContractsByIdErro
 
 export type PatchEnterpriseContractsByIdResponses = {
     /**
-     * Update enterprise contract draft
+     * Update enterprise contract
      */
     200: {
         data: EnterpriseContract;
@@ -30801,6 +31832,159 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
 
 export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
 
+export type GetUserBadgeCampaignsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns';
+};
+
+export type GetUserBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsError = GetUserBadgeCampaignsErrors[keyof GetUserBadgeCampaignsErrors];
+
+export type GetUserBadgeCampaignsResponses = {
+    /**
+     * Campaigns to badge for the user
+     */
+    200: {
+        data: UserBadgeCampaigns;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsResponse = GetUserBadgeCampaignsResponses[keyof GetUserBadgeCampaignsResponses];
+
+export type MarkUserBadgeCampaignSeenData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Badge campaign ID
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns/{campaignId}/seen';
+};
+
+export type MarkUserBadgeCampaignSeenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkUserBadgeCampaignSeenError = MarkUserBadgeCampaignSeenErrors[keyof MarkUserBadgeCampaignSeenErrors];
+
+export type MarkUserBadgeCampaignSeenResponses = {
+    /**
+     * Campaign marked seen
+     */
+    204: void;
+};
+
+export type MarkUserBadgeCampaignSeenResponse = MarkUserBadgeCampaignSeenResponses[keyof MarkUserBadgeCampaignSeenResponses];
+
 export type GetUsersByIdFilesData = {
     body?: never;
     path: {
@@ -31144,6 +32328,99 @@ export type PostUsersByIdUtmAttributionResponses = {
 };
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
+
+export type PostUsersByIdSignUpConversionData = {
+    body?: SignUpConversionRequest;
+    path: {
+        /**
+         * Only the literal me is accepted, for the interactive session user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up-conversion';
+};
+
+export type PostUsersByIdSignUpConversionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionError = PostUsersByIdSignUpConversionErrors[keyof PostUsersByIdSignUpConversionErrors];
+
+export type PostUsersByIdSignUpConversionResponses = {
+    /**
+     * The claimed sign-up's provider, or null
+     */
+    200: {
+        data: SignUpConversionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
 
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;
@@ -48967,6 +50244,10 @@ export type GetTasksSchedulesByIdRunsData = {
          * Only Runs before this time
          */
         to?: Date;
+        /**
+         * Only Run now Runs (true) or only the rule's Runs (false)
+         */
+        manual?: 'true' | 'false';
     };
     url: '/tasks/schedules/{id}/runs';
 };
@@ -49036,6 +50317,125 @@ export type GetTasksSchedulesByIdRunsResponses = {
 };
 
 export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
+
+export type PostTasksSchedulesByIdRunsData = {
+    body?: CreateTaskScheduleRunRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/runs';
+};
+
+export type PostTasksSchedulesByIdRunsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsError = PostTasksSchedulesByIdRunsErrors[keyof PostTasksSchedulesByIdRunsErrors];
+
+export type PostTasksSchedulesByIdRunsResponses = {
+    /**
+     * Run created
+     */
+    201: {
+        data: TaskScheduleRunUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsResponse = PostTasksSchedulesByIdRunsResponses[keyof PostTasksSchedulesByIdRunsResponses];
 
 export type PatchTasksSchedulesByIdRunsByRunIdData = {
     body?: UpdateTaskScheduleRunRequest;
@@ -50108,6 +51508,111 @@ export type PatchTasksByIdResponses = {
 };
 
 export type PatchTasksByIdResponse = PatchTasksByIdResponses[keyof PatchTasksByIdResponses];
+
+export type GetTasksByIdReceiptData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/{id}/receipt';
+};
+
+export type GetTasksByIdReceiptErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - coworker lacks the tasks capability
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Stored task payment cannot be read
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway - payment node failed or mismatched
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptError = GetTasksByIdReceiptErrors[keyof GetTasksByIdReceiptErrors];
+
+export type GetTasksByIdReceiptResponses = {
+    /**
+     * Task seller receipt
+     */
+    200: {
+        data: TaskSellerReceipt;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetTasksByIdReceiptResponse = GetTasksByIdReceiptResponses[keyof GetTasksByIdReceiptResponses];
 
 export type DeleteTasksByIdShareData = {
     body?: never;

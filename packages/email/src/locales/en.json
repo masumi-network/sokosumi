@@ -16,7 +16,13 @@
       "message": "Use the button below to verify your email address. This keeps your account secure.",
       "button": "Verify email",
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "If you didn't create an account, you can safely ignore this email."
+      "footer": "If you didn't create an account, you can safely ignore this email.",
+      "client": {
+        "subject": "Confirm your email for {client}",
+        "title": "Confirm your email for {client}",
+        "message": "You signed up for {client} with a Sokosumi account. Use the button below to confirm your email address.",
+        "button": "Confirm email"
+      }
     },
     "invitation": {
       "subject": "Sokosumi - Organization Invitation",
@@ -27,15 +33,12 @@
       "linkInstructions": "Or copy and paste this URL into your browser:",
       "footer": "If you didn't request this invitation, you can safely ignore this email."
     },
-    "magicLink": {
-      "subject": "Sokosumi - Sign in to your account",
-      "title": "Sign in to Sokosumi",
-      "greeting": "Hello {name}",
-      "greetingAnonymous": "Hello",
-      "message": "Use the button below to sign in to your Sokosumi account.",
-      "button": "Sign in",
-      "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "If you didn't request this email, you can safely ignore this email."
+    "emailCode": {
+      "subject": "Your Sokosumi code: {code}",
+      "title": "Your Sokosumi code",
+      "greeting": "Hello",
+      "message": "Enter this code in Sokosumi to continue. It expires in {minutes} minutes.",
+      "footer": "If you didn't ask for this code, you can ignore this email. Never share the code with anyone."
     }
   },
   "chat": {

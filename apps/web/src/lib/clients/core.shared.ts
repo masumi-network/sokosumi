@@ -10,6 +10,7 @@ import type {
   AdminSokoBotVersionMigrationRequest,
   AgentStatus,
   AggregateAdminTaskX402PaymentsByAgentData,
+  CreateAdminBadgeCampaignData,
   CreateAdminVendorData,
   CreateChatRoomMessageRequest,
   CreateChatRoomRequest,
@@ -17,6 +18,7 @@ import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
@@ -115,6 +117,7 @@ import type {
   SokoBotLabIngestRequest,
   SokoBotVersionWrite,
   StartSokoBotTurnRequest,
+  UpdateAdminBadgeCampaignData,
   UpdateSokoBotScheduleRequest,
   UpdateTaskScheduleRequest,
   UpdateTaskScheduleRunRequest,
@@ -134,6 +137,7 @@ import {
   claimCoupon as coreClaimCoupon,
   completeMySokoBotIntegrationAuth as coreCompleteMySokoBotIntegrationAuth,
   connectMySokoBotIntegration as coreConnectMySokoBotIntegration,
+  createAdminBadgeCampaign as coreCreateAdminBadgeCampaign,
   createAdminFreeCreditGrant as coreCreateAdminFreeCreditGrant,
   createAdminInvoice as coreCreateAdminInvoice,
   createAdminMatchedChannel as coreCreateAdminMatchedChannel,
@@ -144,6 +148,7 @@ import {
   createMySokoBot as coreCreateMySokoBot,
   createMySokoBotSchedule as coreCreateMySokoBotSchedule,
   deleteAdminAgentMetadataOverride as coreDeleteAdminAgentMetadataOverride,
+  deleteAdminBadgeCampaign as coreDeleteAdminBadgeCampaign,
   deleteAdminInvoice as coreDeleteAdminInvoice,
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
   deleteAdminSokoBot as coreDeleteAdminSokoBot,
@@ -178,6 +183,7 @@ import {
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
   deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
+  endAdminBadgeCampaign as coreEndAdminBadgeCampaign,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
   getAdminAgent as coreGetAdminAgent,
   getAdminInvoice as coreGetAdminInvoice,
@@ -185,6 +191,7 @@ import {
   getAdminOrganizationBySlug as coreGetAdminOrganizationBySlug,
   getAdminSokoBot as coreGetAdminSokoBot,
   getAdminSokoBotAvailability as coreGetAdminSokoBotAvailability,
+  getAdminSokoBotModelEvaluations as coreGetAdminSokoBotModelEvaluations,
   getAdminSokoBotQuality as coreGetAdminSokoBotQuality,
   getAdminSokoBotVersionUsage as coreGetAdminSokoBotVersionUsage,
   getAdminTask as coreGetAdminTask,
@@ -279,6 +286,7 @@ import {
   getToolsSiteIcon as coreGetToolsSiteIcon,
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
+  getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -301,10 +309,13 @@ import {
   introduceMySokoBot as coreIntroduceMySokoBot,
   judgeMySokoBotLabTurn as coreJudgeMySokoBotLabTurn,
   listAdminAgents as coreListAdminAgents,
+  listAdminBadgeCampaigns as coreListAdminBadgeCampaigns,
   listAdminInvoices as coreListAdminInvoices,
   listAdminMatchedChannels as coreListAdminMatchedChannels,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
+  listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
+  listAdminSokoBotChats as coreListAdminSokoBotChats,
   listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
   listAdminSokoBots as coreListAdminSokoBots,
   listAdminSokoBotVersions as coreListAdminSokoBotVersions,
@@ -325,6 +336,7 @@ import {
   listVendorMembers as coreListVendorMembers,
   listVendors as coreListVendors,
   markAdminInvoicePaid as coreMarkAdminInvoicePaid,
+  markUserBadgeCampaignSeen as coreMarkUserBadgeCampaignSeen,
   migrateAdminSokoBotVersions as coreMigrateAdminSokoBotVersions,
   patchAdminAgentMetadataOverride as corePatchAdminAgentMetadataOverride,
   patchAdminVendor as corePatchAdminVendor,
@@ -411,6 +423,7 @@ import {
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
   postTasksSchedulesByIdResume as corePostTasksSchedulesByIdResume,
+  postTasksSchedulesByIdRuns as corePostTasksSchedulesByIdRuns,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -454,12 +467,15 @@ import {
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
+  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
+  startAdminBadgeCampaign as coreStartAdminBadgeCampaign,
   startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
   stopAdminImpersonation as coreStopAdminImpersonation,
   unassignAdminOrganizationMemberSeat as coreUnassignAdminOrganizationMemberSeat,
   unassignCoworkerDeveloper as coreUnassignCoworkerDeveloper,
+  updateAdminBadgeCampaign as coreUpdateAdminBadgeCampaign,
   updateAdminOrganizationMemberRole as coreUpdateAdminOrganizationMemberRole,
   updateAdminSokoBotVersion as coreUpdateAdminSokoBotVersion,
   updateMySokoBotBoardFollowing as coreUpdateMySokoBotBoardFollowing,
@@ -3691,6 +3707,99 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function listAdminBadgeCampaigns() {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminBadgeCampaigns({
+          client,
+          cache: "no-store",
+        }),
+      "Failed to fetch badge campaigns",
+    );
+
+    return response.data;
+  }
+
+  async function createAdminBadgeCampaign(
+    body: NonNullable<CreateAdminBadgeCampaignData["body"]>,
+  ) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreCreateAdminBadgeCampaign({
+          client,
+          body,
+          cache: "no-store",
+        }),
+      "Failed to create badge campaign",
+    );
+
+    return response.data;
+  }
+
+  async function updateAdminBadgeCampaign(
+    id: string,
+    body: NonNullable<UpdateAdminBadgeCampaignData["body"]>,
+  ) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreUpdateAdminBadgeCampaign({
+          client,
+          path: { id },
+          body,
+          cache: "no-store",
+        }),
+      "Failed to update badge campaign",
+    );
+
+    return response.data;
+  }
+
+  async function startAdminBadgeCampaign(id: string) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreStartAdminBadgeCampaign({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to start badge campaign",
+    );
+
+    return response.data;
+  }
+
+  async function endAdminBadgeCampaign(id: string) {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreEndAdminBadgeCampaign({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to end badge campaign",
+    );
+
+    return response.data;
+  }
+
+  async function deleteAdminBadgeCampaign(id: string) {
+    await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteAdminBadgeCampaign({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to delete badge campaign",
+    );
+  }
+
   async function listAdminVendors() {
     return executeCoreOperation(
       getClient,
@@ -4075,6 +4184,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function createTaskScheduleRun(
+    id: string,
+    body: CreateTaskScheduleRunRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksSchedulesByIdRuns({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to run Task Schedule now",
+    );
+  }
+
   async function changeTaskScheduleRun(
     id: string,
     runId: string,
@@ -4225,6 +4350,33 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id },
         }),
       "Failed to unarchive coworker",
+    );
+  }
+
+  async function getMyBadgeCampaigns() {
+    const response = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUserBadgeCampaigns({
+          client,
+          path: { id: CURRENT_USER_PATH_ID },
+          cache: "no-store",
+        }),
+      "Failed to fetch badge campaigns",
+    );
+
+    return response.data.badgeCampaigns;
+  }
+
+  async function markBadgeCampaignSeen(campaignId: string) {
+    await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreMarkUserBadgeCampaignSeen({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, campaignId },
+        }),
+      "Failed to mark badge campaign seen",
     );
   }
 
@@ -4719,6 +4871,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminSokoBotAvatar({
+          client,
+          path: { sokoBotId },
+          body: { avatarId },
+        }),
+      "Failed to set Soko Bot avatar",
+    );
+  }
+
   async function introduceMySokoBot(body: { roomId: string }) {
     return executeCoreOperation(
       getClient,
@@ -5054,12 +5219,52 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getAdminSokoBotModelEvaluations() {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetAdminSokoBotModelEvaluations({ client, cache: "no-store" }),
+      "Failed to fetch Soko Bot model evaluations",
+    );
+  }
+
   async function getAdminSokoBot(sokoBotId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
         coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
       "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function listAdminSokoBotChats(sokoBotId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminSokoBotChats({
+          client,
+          path: { sokoBotId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Soko Bot chats",
+    );
+  }
+
+  async function listAdminSokoBotChatMessages(
+    sokoBotId: string,
+    roomId: string,
+    query?: { cursor?: string; limit?: number },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminSokoBotChatMessages({
+          client,
+          path: { sokoBotId, roomId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Soko Bot chat messages",
     );
   }
 
@@ -5764,6 +5969,12 @@ export function createCoreClient(getClient: GetCoreClient) {
     createCoworkerWorkspaceAccess,
     revokeCoworkerWorkspaceAccessAsPlatformAdmin,
     listVendors,
+    listAdminBadgeCampaigns,
+    createAdminBadgeCampaign,
+    updateAdminBadgeCampaign,
+    startAdminBadgeCampaign,
+    endAdminBadgeCampaign,
+    deleteAdminBadgeCampaign,
     listAdminVendors,
     createAdminVendor,
     patchAdminVendor,
@@ -5789,6 +6000,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     acceptOrganizationInviteLink,
     resolveSiteIcon,
     resolveProjectSiteIcon,
+    getMyBadgeCampaigns,
+    markBadgeCampaignSeen,
     getPendingNotices,
     getPinnedProjects,
     getProjects,
@@ -5848,6 +6061,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     changeTaskScheduleState,
     deleteTaskScheduleById,
     listTaskScheduleRuns,
+    createTaskScheduleRun,
     changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
@@ -5856,6 +6070,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
+    setAdminSokoBotAvatar,
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,
@@ -5903,7 +6118,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     migrateAdminSokoBotVersions,
     promoteAdminSokoBotVersion,
     getAdminSokoBot,
+    listAdminSokoBotChats,
+    listAdminSokoBotChatMessages,
     getAdminSokoBotQuality,
+    getAdminSokoBotModelEvaluations,
     performAdminSokoBotAction,
   };
 }

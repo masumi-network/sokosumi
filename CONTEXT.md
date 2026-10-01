@@ -120,6 +120,10 @@ _Avoid_: Recurring task, series task, template Task, automation
 One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
 _Avoid_: Occurrence, instance
 
+**Run now**:
+A Run started by hand on an Active or Paused Task Schedule, in addition to the Runs its rule plans. It creates its Task at once and leaves the rule and the planned Runs unchanged.
+_Avoid_: Trigger, manual fire, pulling the next Run forward
+
 ### Social publishing
 
 **Social account**:
@@ -212,15 +216,33 @@ _Avoid_: Topbar, shell (unless meaning the loading frame)
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
 
+### Feature badges
+
+**Announced feature**:
+An item of the sidebar menu that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
+_Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
+
+**Badge campaign**:
+One time-boxed announcement of an Announced feature, with a start and an end set by a platform admin. At most one per Announced feature at a time. A later campaign for the same feature announces it again, even to users who opened it before.
+_Avoid_: Announcement, release, feature flag
+
+**New badge**:
+The "New" pill on an Announced feature's nav row while a Badge campaign runs. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
+_Avoid_: NEW tag, beta badge, unread badge
+
 ### Account access
 
 **Security check**:
-The human check on public account-email entry points (sign-up, sign-in, password reset, magic link, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
+The human check on public account-email entry points (sign-up, sign-in, password reset, email code, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
 **Sign in with Sokosumi**:
 Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
 _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
+
+**First-party client**:
+A product run by Sokosumi itself, such as CMO or the Sokosumi Apple app, that uses Sign in with Sokosumi. A person is never asked to authorize it.
+_Avoid_: Trusted client
 
 **Impersonation**:
 A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).

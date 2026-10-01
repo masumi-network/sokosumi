@@ -35,6 +35,12 @@ const {
   requireTaskAssignableCoworkerMock,
   agentFindFirstMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  taskCountMock,
+  taskGroupByMock,
+  files,
+  images,
+  marketplace,
   jobFindFirstMock,
   toolCallCreateMock,
   toolCallFindUniqueMock,
@@ -117,6 +123,33 @@ const {
   requireTaskAssignableCoworkerMock: vi.fn(),
   agentFindFirstMock: vi.fn(),
   taskFindFirstMock: vi.fn(),
+  taskFindManyMock: vi.fn(),
+  taskCountMock: vi.fn(),
+  taskGroupByMock: vi.fn().mockResolvedValue([]),
+  marketplace: { list: vi.fn(), rate: vi.fn() },
+  images: {
+    access: vi.fn(),
+    create: vi.fn(),
+    getJob: vi.fn(),
+    reconcile: vi.fn(),
+    credits: vi.fn(),
+    readBytes: vi.fn(),
+    assetFindFirst: vi.fn(),
+  },
+  files: {
+    resourceFindUnique: vi.fn(),
+    list: vi.fn(),
+    put: vi.fn(),
+    head: vi.fn(),
+    search: vi.fn(),
+    loadLive: vi.fn(),
+    adopt: vi.fn(),
+    reserve: vi.fn(),
+    activate: vi.fn(),
+    nudge: vi.fn(),
+    chunks: vi.fn(),
+    download: vi.fn(),
+  },
   jobFindFirstMock: vi.fn(),
   toolCallCreateMock: vi.fn(),
   toolCallFindUniqueMock: vi.fn(),
@@ -218,8 +251,71 @@ vi.mock("@/helpers/organization-assigned-seat", () => ({
   requireAssignedOrganizationSeat: social.seat,
 }));
 
+vi.mock("@vercel/blob", () => ({
+  head: files.head,
+  list: files.list,
+  put: files.put,
+}));
+vi.mock("@/lib/soko-bot/agent-search", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/soko-bot/agent-search")>()),
+  listHireableAgents: marketplace.list,
+  rateAgentFit: marketplace.rate,
+}));
+vi.mock("@/lib/image-studio/catalog", () => ({
+  imageModel: () => ({ id: "gemini-flash" }),
+  resolveImageSettings: (_id: string, settings: unknown) => settings,
+}));
+vi.mock("@/lib/image-studio/fal-catalog-refresh", () => ({
+  ensureImageCatalogFresh: vi.fn(),
+}));
+vi.mock("@/lib/image-studio/image-model", () => ({
+  creditsPerImage: images.credits,
+  IMAGE_ASPECT_RATIOS: ["1:1", "16:9"],
+}));
+vi.mock("@/lib/image-studio/access", () => ({
+  requireProjectAccess: images.access,
+}));
+vi.mock("@/services/image-studio-assets.service", () => ({
+  getJob: images.getJob,
+  readAssetBytes: images.readBytes,
+}));
+vi.mock("@/services/image-studio-jobs.service", () => ({
+  createImageJob: images.create,
+  reconcileProjectJobs: images.reconcile,
+  DEFAULT_SETTINGS: {
+    aspectRatio: "1:1",
+    resolution: "1K",
+    outputFormat: "png",
+    seed: null,
+  },
+}));
+vi.mock("@/services/file-search.service", () => ({
+  searchFiles: files.search,
+  loadLiveResources: files.loadLive,
+}));
+vi.mock("@/services/file-backfill.service", () => ({
+  adoptDriveStoreIfPending: files.adopt,
+}));
+vi.mock("@/services/file-catalog.service", () => ({
+  reserveDriveUploadResource: files.reserve,
+  activateDriveUploadResource: files.activate,
+}));
+vi.mock("@/lib/files/in-process-indexer", () => ({
+  nudgeFileIndexing: files.nudge,
+}));
+vi.mock("@/services/file-index.service", () => ({
+  downloadBlob: files.download,
+}));
+const { taskChargeEventsMock } = vi.hoisted(() => ({
+  taskChargeEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    taskEvent: { findMany: taskChargeEventsMock },
+    fileChunk: { findMany: files.chunks },
+    fileResource: { findUnique: files.resourceFindUnique },
+    projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     sokoBot: {
@@ -269,7 +365,12 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: toolCallUpdateManyMock,
     },
     agent: { findFirst: agentFindFirstMock },
-    task: { findFirst: taskFindFirstMock },
+    task: {
+      findFirst: taskFindFirstMock,
+      findMany: taskFindManyMock,
+      count: taskCountMock,
+      groupBy: taskGroupByMock,
+    },
     job: { findFirst: jobFindFirstMock },
     jobEvent: { findFirst: jobEventFindFirstMock },
     jobInput: {
@@ -355,8 +456,28 @@ vi.mock("@/routes/v1/chats/rooms/helpers", async (importOriginal) => ({
   ...(await importOriginal<object>()),
   createOrGetDirectRoom: createOrGetDirectRoomMock,
 }));
+const { unreadCountsMock } = vi.hoisted(() => ({
+  unreadCountsMock: vi.fn().mockResolvedValue(new Map()),
+}));
+vi.mock("@/routes/v1/chats/rooms/room-unread", () => ({
+  getChatRoomUnreadCounts: unreadCountsMock,
+}));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  buildTaskWriteAccessWhere: (userId: string) => ({
+    OR: [{ ownerId: userId }, { visibility: "PUBLIC" }],
+  }),
+  requireTaskWriteAccess: async (
+    _userContext: unknown,
+    id: string,
+    tx: {
+      task: { findFirst: (args: unknown) => Promise<{ id: string } | null> };
+    },
+  ) => {
+    const task = await tx.task.findFirst({ where: { id, archivedAt: null } });
+    if (!task) throw new Error("Task not found");
+    return task;
+  },
 }));
 vi.mock("@/helpers/vendor-grants", () => ({
   isGrantDeniedOrRevoked: vi.fn(() => false),
@@ -412,6 +533,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
   SokoBotRuntimeService,
@@ -1112,6 +1234,39 @@ describe("SokoBotRuntimeService authorization", () => {
 
     expect(result).toMatchObject({ id: "task_1", status: "READY" });
     expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(2);
+
+    // Another owner's assistant is named with its owner.
+    taskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: "READY",
+      events: [
+        {
+          id: "event-1",
+          status: null,
+          comment: "Hold until Albina confirms the spend.",
+          createdAt: new Date(0),
+          coworkerId: null,
+          userId: null,
+          sokoBotId: "other-bot",
+          sokoBot: { name: "Lili", user: { name: "Albina" } },
+        },
+      ],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+    });
+    const read = await service["readTask"](
+      {
+        turn: { ...SCOPE, id: SCOPE.turnId },
+        askedByKind: "OWNER",
+      } as never,
+      "task_1",
+    );
+    expect(read?.events[0]).toMatchObject({
+      by: "another_bot",
+      byName: "Lili, Albina's assistant",
+    });
     expect(toolCallUpdateManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ status: "COMPLETED" }),
@@ -1308,6 +1463,210 @@ describe("SokoBotRuntimeService authorization", () => {
       expect(JSON.stringify(result)).not.toContain("secret-1");
     },
   );
+
+  it("lists the owner's open, idle, unassigned Tasks by the words asked for", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "Which launch tasks are stuck?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    // Keys in canonical order: the reuse check hashes the sorted input.
+    const input = {
+      assignee: "unassigned",
+      idleDays: 3,
+      query: "launch copy",
+    };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    const updatedAt = new Date(Date.now() - 5 * 86_400_000);
+    taskFindManyMock.mockResolvedValue([
+      {
+        id: "task-1",
+        name: "Launch announcement copy",
+        status: "DRAFT",
+        updatedAt,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+        project: null,
+        events: [],
+      },
+    ]);
+    taskCountMock.mockResolvedValue(1);
+    // Two debits and a refund: only what was billed counts.
+    taskChargeEventsMock.mockResolvedValueOnce([
+      { taskId: "task-1", transaction: { amount: -4_000_000_000_000n } },
+      { taskId: "task-1", transaction: { amount: -213_100_000_000n } },
+    ]);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_tasks",
+      input,
+    });
+
+    expect(result).toEqual({
+      tasks: [
+        {
+          id: "task-1",
+          name: "Launch announcement copy",
+          status: "DRAFT",
+          assignee: null,
+          project: null,
+          idleDays: 5,
+          updatedAt: updatedAt.toISOString(),
+          creditsCharged: 421.31,
+          latest: null,
+        },
+      ],
+      total: 1,
+      byStatus: {},
+    });
+    const { where } = taskFindManyMock.mock.calls[0][0];
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        { workspaceId: SCOPE.workspaceId, archivedAt: null },
+        { status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] } },
+        { updatedAt: { lte: expect.any(Date) } },
+        {
+          OR: [
+            { name: { contains: "launch", mode: "insensitive" } },
+            { description: { contains: "launch", mode: "insensitive" } },
+          ],
+        },
+        {
+          OR: [
+            { name: { contains: "copy", mode: "insensitive" } },
+            { description: { contains: "copy", mode: "insensitive" } },
+          ],
+        },
+        { assigneeId: null, assigneeUserId: null, assigneeSokoBotId: null },
+      ]),
+    );
+    expect(taskCountMock).toHaveBeenCalledWith({ where });
+  });
+
+  it("filters by exact status and counts every match by status", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What is stuck?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    const input = { status: ["INPUT_REQUIRED", "FAILED"] };
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000011",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256")
+        .update(JSON.stringify(input))
+        .digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(8);
+    taskGroupByMock.mockResolvedValueOnce([
+      { status: "INPUT_REQUIRED", _count: { _all: 6 } },
+      { status: "FAILED", _count: { _all: 2 } },
+    ]);
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_list_stuck",
+      input,
+    });
+
+    expect(result).toMatchObject({
+      total: 8,
+      byStatus: { INPUT_REQUIRED: 6, FAILED: 2 },
+    });
+    const { where } = taskFindManyMock.mock.calls[0][0];
+    // FAILED is a finished status; the default "open" must not hide it.
+    expect(where.AND).toContainEqual({
+      status: { in: ["INPUT_REQUIRED", "FAILED"] },
+    });
+    expect(where.AND).not.toContainEqual({
+      status: { notIn: ["COMPLETED", "FAILED", "CANCELED"] },
+    });
+  });
+
+  it("lists only public Tasks for a teammate", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "What is open?",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["list_tasks"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: {
+          trigger: { askedBy: { kind: "TEAMMATE" } },
+          memory: { version: 1 },
+        },
+      },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue({
+      id: "01960001-0001-7001-8001-000000000010",
+      status: "PENDING",
+      capability: "list_tasks",
+      inputHash: createHash("sha256").update(JSON.stringify({})).digest("hex"),
+      updatedAt: new Date(0),
+    });
+    toolCallUpdateManyMock.mockResolvedValue({ count: 1 });
+    taskFindManyMock.mockResolvedValue([]);
+    taskCountMock.mockResolvedValue(0);
+
+    await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "list_tasks",
+      toolCallId: "call_teammate_tasks",
+      input: {},
+    });
+
+    expect(taskFindManyMock.mock.calls[0][0].where.AND).toContainEqual({
+      visibility: "PUBLIC",
+    });
+  });
 
   it("hides jobs on private parent Tasks from teammate Soko Bot reads", async () => {
     turnFindUniqueMock.mockResolvedValue({
@@ -1718,6 +2077,145 @@ describe("SokoBotRuntimeService authorization", () => {
       expect.anything(),
       { kind: "soko_bot", sokoBotId: SCOPE.sokoBotId },
     );
+  });
+
+  it("clears a Task's assignee when asked to unassign it", async () => {
+    turnFindUniqueMock.mockResolvedValue({
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["update_task"],
+      contextSnapshot: {
+        id: "01960001-0001-7001-8001-000000000004",
+        packet: { memory: { version: 1 } },
+      },
+      eveSessionId: SCOPE.sessionId,
+      userMessage: "Actually make it unassigned",
+      classification: { confidence: 1 },
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      description: null,
+      ownerId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      status: TaskStatus.DRAFT,
+      projectId: null,
+      archivedAt: null,
+      updatedAt: new Date("2026-09-30T10:00:00Z"),
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+      assigneeUserId: null,
+      visibility: "WORKSPACE",
+    });
+    transactionTaskUpdateMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.DRAFT,
+      assigneeId: null,
+      projectId: null,
+      archivedAt: null,
+      updatedAt: new Date("2026-09-30T10:01:00Z"),
+    });
+
+    const result = await new SokoBotRuntimeService().executeTool({
+      ...SCOPE,
+      capability: "update_task",
+      toolCallId: "call_unassign",
+      input: { taskId: "task_1", unassign: true },
+    });
+
+    expect(result).toMatchObject({ id: "task_1", assigneeId: null });
+    expect(transactionTaskUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          assigneeId: null,
+          assigneeSokoBotId: null,
+          assigneeUserId: null,
+        }),
+      }),
+    );
+  });
+
+  it("cancels one of the owner's Tasks with the comment as the reason", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.INPUT_REQUIRED,
+      ownerId: SCOPE.userId,
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    const result = await new SokoBotRuntimeService()["replyToTask"](
+      {
+        turn: {
+          id: SCOPE.turnId,
+          sokoBotId: SCOPE.sokoBotId,
+          userId: SCOPE.userId,
+          workspaceId: SCOPE.workspaceId,
+        },
+      } as never,
+      {
+        taskId: "task_1",
+        comment: "Owner no longer needs it",
+        status: "CANCELED",
+      },
+      "call_cancel",
+    );
+
+    expect(result).toMatchObject({
+      id: "task_1",
+      status: TaskStatus.CANCELED,
+      statusChanged: true,
+    });
+    expect(transactionTaskEventCreateMock).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        status: TaskStatus.CANCELED,
+        comment: "Owner no longer needs it",
+      }),
+      select: { id: true },
+    });
+    expect(applyGuardedTaskStatusUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        taskId: "task_1",
+        expectedStatus: TaskStatus.INPUT_REQUIRED,
+        eventStatus: TaskStatus.CANCELED,
+      }),
+    );
+  });
+
+  it("does not cancel a Task someone else owns", async () => {
+    transactionTaskFindFirstMock.mockResolvedValue({
+      id: "task_1",
+      name: "Launch",
+      status: TaskStatus.READY,
+      ownerId: "someone-else",
+      assigneeId: "coworker_1",
+      assigneeSokoBotId: null,
+    });
+
+    await expect(
+      new SokoBotRuntimeService()["replyToTask"](
+        {
+          turn: {
+            id: SCOPE.turnId,
+            sokoBotId: SCOPE.sokoBotId,
+            userId: SCOPE.userId,
+            workspaceId: SCOPE.workspaceId,
+          },
+        } as never,
+        { taskId: "task_1", comment: "Stop", status: "CANCELED" },
+        "call_cancel_other",
+      ),
+    ).rejects.toThrow(/owner's own Tasks/);
+    expect(applyGuardedTaskStatusUpdateMock).not.toHaveBeenCalled();
   });
 
   it("resumes its own assigned Task and fans out the soko bot event", async () => {
@@ -2911,6 +3409,92 @@ describe("SokoBotRuntimeService chat reading", () => {
     ]);
   });
 
+  it("lists the owner's unread chats on an owner turn, including rooms the bot is not in", async () => {
+    // First query: the bot's own rooms. Second: every room of the owner's.
+    chatRoomFindManyMock
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          updatedAt: new Date("2026-09-30T10:00:00.000Z"),
+          _count: { messages: 9 },
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "room_dm",
+          name: "Joseph",
+          groupName: null,
+          kind: "direct",
+          sokoBotMembers: [{ sokoBotId: SCOPE.sokoBotId }],
+          userMembers: [{ mutedAt: null }],
+        },
+        {
+          id: "room_marketing",
+          name: "Marketing",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: new Date("2026-09-01T00:00:00.000Z") }],
+        },
+        {
+          id: "room_read",
+          name: "Design",
+          groupName: null,
+          kind: "channel",
+          sokoBotMembers: [],
+          userMembers: [{ mutedAt: null }],
+        },
+      ]);
+    unreadCountsMock.mockResolvedValue(
+      new Map([
+        ["room_dm", { channel: 2, thread: 1, total: 3 }],
+        ["room_marketing", { channel: 5, thread: 0, total: 5 }],
+      ]),
+    );
+
+    const owner = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+      askedByKind: "OWNER",
+    } as never);
+    expect(chatRoomFindManyMock.mock.calls[1][0].where).toEqual({
+      archivedAt: null,
+      organizationId: "org_1",
+      userMembers: { some: { userId: SCOPE.userId } },
+    });
+    expect(unreadCountsMock).toHaveBeenCalledWith(
+      ["room_dm", "room_marketing", "room_read"],
+      SCOPE.userId,
+      expect.anything(),
+    );
+    expect(owner.ownerUnread).toEqual([
+      {
+        roomId: "room_dm",
+        name: "Joseph",
+        kind: "direct",
+        unread: 3,
+        youAreMember: true,
+      },
+      {
+        roomId: "room_marketing",
+        name: "Marketing",
+        kind: "channel",
+        unread: 5,
+        youAreMember: false,
+        muted: true,
+      },
+    ]);
+
+    chatRoomFindManyMock.mockResolvedValue([]);
+    const teammate = await new SokoBotRuntimeService()["listChats"]({
+      turn: SCOPE_TURN,
+      askedByKind: "TEAMMATE",
+    } as never);
+    expect("ownerUnread" in teammate).toBe(false);
+  });
+
   it("names a read group by its Group name", async () => {
     chatRoomFindFirstMock.mockResolvedValue({
       id: "room_1",
@@ -3691,6 +4275,36 @@ describe("open_direct_chat", () => {
     ).rejects.toThrow(/already have a direct chat with your owner/i);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
+
+  it("tells its owner something in their chat when a teammate asks", async () => {
+    const authorized = {
+      ...(arm() as object),
+      askedByKind: "TEAMMATE",
+    } as never;
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: SCOPE.userId, name: "Owner", email: "owner@x.io" } },
+    ]);
+    const prisma = (await import("@/lib/db/prisma")).default as unknown as {
+      chatRoom: { findFirst: ReturnType<typeof vi.fn> };
+    };
+    prisma.chatRoom.findFirst.mockResolvedValueOnce({ id: "owner-room" });
+    const service = new SokoBotRuntimeService();
+    const postChat = vi.fn().mockResolvedValue({ ok: true });
+    (service as unknown as { postChat: typeof postChat }).postChat = postChat;
+
+    await service["openDirectChat"](authorized, {
+      person: "Owner",
+      message: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+
+    expect(postChat).toHaveBeenCalledWith(authorized, {
+      roomId: "owner-room",
+      content: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("get_agent_input_schema", () => {
@@ -3828,8 +4442,9 @@ describe("external effect receipt finalization", () => {
       },
     });
     const dispatch = vi.fn().mockResolvedValue({
-      url: "https://blob.example/synthetic",
+      id: "01a0f400-0000-7000-8000-000000000001",
       filename: "synthetic.md",
+      link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
       size: 17,
     });
     service["executeAuthorizedTool"] = dispatch;
@@ -3855,7 +4470,7 @@ describe("external effect receipt finalization", () => {
       status: "COMPLETED",
       disposition: "APPLIED",
       verification: "PROVIDER_ACK",
-      targetId: "https://blob.example/synthetic",
+      targetId: "01a0f400-0000-7000-8000-000000000001",
     });
   });
 
@@ -4057,6 +4672,29 @@ describe("external effect receipt finalization", () => {
     ).rejects.toThrow("reconciliation");
     expect(dispatch).toHaveBeenCalledTimes(1);
   });
+
+  it("records a refusal before anything was sent as rejected, not unknown", async () => {
+    const { service, dispatch } = prepare();
+    dispatch.mockRejectedValueOnce(
+      new SokoBotRefusedUnsentError('A file named "notes.md" already exists.'),
+    );
+    await expect(
+      service.executeTool({
+        ...SCOPE,
+        capability: "upload_file",
+        toolCallId: "external-one",
+        input: proposal,
+      }),
+    ).rejects.toThrow("already exists");
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          status: "FAILED",
+          disposition: "REJECTED",
+        }),
+      }),
+    );
+  });
 });
 
 describe("Soko Bot project social tools", () => {
@@ -4085,6 +4723,8 @@ describe("Soko Bot project social tools", () => {
     socialConnection: {
       id: accountId,
       externalHandle: "launch",
+      displayName: null,
+      avatarUrl: null,
       status: "active",
     },
     creator: { kind: "sokoBot", id: SCOPE.sokoBotId, name: "Lili" },
@@ -4138,6 +4778,8 @@ describe("Soko Bot project social tools", () => {
         id: accountId,
         provider: "youtube",
         externalHandle: "Launch channel",
+        displayName: "Launch channel",
+        avatarUrl: null,
         status: "active",
         connectedAt: "2026-09-28T12:00:00Z",
         disconnectedAt: null,
@@ -4534,5 +5176,848 @@ describe("Soko Bot project social tools", () => {
       }),
     ).rejects.toThrow("reconciliation");
     expect(social.publish).not.toHaveBeenCalled();
+  });
+});
+
+describe("Drive file tools", () => {
+  const authorized = {
+    turn: { userId: SCOPE.userId, workspaceId: SCOPE.workspaceId },
+  };
+  const service = new SokoBotRuntimeService();
+  beforeEach(() => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: "personal-workspace",
+      organizationId: null,
+    });
+    files.adopt.mockResolvedValue({ ran: false });
+  });
+
+  it("searches the catalog as the owner's bot", async () => {
+    files.search.mockResolvedValue({
+      items: [
+        {
+          id: "file-1",
+          displayName: "launch-notes.md",
+          mimeType: "text/markdown",
+          sizeBytes: 42,
+          updatedAt: "2026-09-28T10:00:00.000Z",
+          category: { displayName: "Planning" },
+          tags: [{ displayName: "Launch" }],
+          folderPath: "Marketing",
+          snippet: { text: "Launch on the 15th" },
+          extractionState: "SUCCEEDED",
+        },
+      ],
+    });
+    const result = await service["listFiles"](authorized as never, {
+      query: "launch",
+    });
+    expect(files.search).toHaveBeenCalledWith(
+      expect.objectContaining({
+        workspaceId: "personal-workspace",
+        actor: { userId: SCOPE.userId, organizationId: null, kind: "soko_bot" },
+        query: "launch",
+        sortBy: "relevance",
+      }),
+    );
+    expect(result).toEqual({
+      files: [
+        {
+          id: "file-1",
+          name: "launch-notes.md",
+          type: "text/markdown",
+          size: 42,
+          updatedAt: "2026-09-28T10:00:00.000Z",
+          category: "Planning",
+          tags: ["Launch"],
+          folder: "Marketing",
+          passage: "Launch on the 15th",
+          extraction: "SUCCEEDED",
+        },
+      ],
+    });
+  });
+
+  it("reads a file's extracted text, and explains when there is none", async () => {
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-1",
+        displayName: "brief.md",
+        mimeType: "text/markdown",
+        contentRevision: 2,
+        extractionState: "SUCCEEDED",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([{ text: "One" }, { text: "Two" }]);
+    await expect(
+      service["readFile"](authorized as never, { fileId: "file-1" }),
+    ).resolves.toMatchObject({ text: "One\n\nTwo", truncated: false });
+    expect(files.chunks).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { version: { resourceId: "file-1", revision: 2 } },
+      }),
+    );
+
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-2",
+        displayName: "scan.png",
+        mimeType: "image/png",
+        contentRevision: 1,
+        extractionState: "PENDING",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    await expect(
+      service["readFile"](authorized as never, { fileId: "file-2" }),
+    ).resolves.toMatchObject({
+      text: "",
+      note: "The file is still being processed; its text is not ready yet.",
+    });
+
+    files.loadLive.mockResolvedValueOnce([]);
+    await expect(
+      service["readFile"](authorized as never, { fileId: "someone-elses" }),
+    ).rejects.toThrow("File not found");
+  });
+
+  it("waits out the 404 a just-rewritten file gives", async () => {
+    vi.useFakeTimers();
+    files.loadLive.mockResolvedValueOnce([
+      {
+        id: "file-4",
+        displayName: "notes.md",
+        mimeType: "text/markdown",
+        sizeBytes: 5,
+        sourceKind: "DRIVE_UPLOAD",
+        sourceId: "drive/users/u/notes.md",
+        contentRevision: 1,
+        extractionState: "RUNNING",
+        extractionReason: null,
+      },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download
+      .mockReset()
+      .mockRejectedValueOnce(new Error("Blob download failed with status 404"))
+      .mockResolvedValueOnce(new TextEncoder().encode("hello"));
+    const read = service["readFile"](authorized as never, { fileId: "file-4" });
+    await vi.runAllTimersAsync();
+    await expect(read).resolves.toMatchObject({ text: "hello" });
+    expect(files.download).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("reads a Drive text file itself while search has not indexed it", async () => {
+    const notes = {
+      id: "file-3",
+      displayName: "launch-notes.md",
+      mimeType: "text/markdown",
+      sizeBytes: 20,
+      sourceKind: "DRIVE_UPLOAD",
+      sourceId: "drive/users/u/launch-notes.md",
+      contentRevision: 1,
+      extractionState: "RUNNING",
+      extractionReason: null,
+    };
+    files.loadLive.mockResolvedValueOnce([notes]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download.mockResolvedValueOnce(new TextEncoder().encode("# Launch"));
+    await expect(
+      service["readFile"](authorized as never, { fileId: "file-3" }),
+    ).resolves.toMatchObject({
+      text: "# Launch",
+      note: "Read from the file itself; search has not indexed it yet.",
+    });
+    expect(files.download).toHaveBeenCalledWith(
+      "drive/users/u/launch-notes.md",
+    );
+
+    // Not a Drive text file: nothing is downloaded.
+    files.loadLive.mockResolvedValueOnce([
+      { ...notes, mimeType: "application/pdf" },
+    ]);
+    files.chunks.mockResolvedValueOnce([]);
+    files.download.mockClear();
+    await service["readFile"](authorized as never, { fileId: "file-3" });
+    expect(files.download).not.toHaveBeenCalled();
+  });
+
+  it("uploads through the catalog so the file is searchable", async () => {
+    files.list.mockResolvedValue({ blobs: [] });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello",
+    });
+    expect(files.reserve.mock.invocationCallOrder[0]).toBeLessThan(
+      files.put.mock.invocationCallOrder[0],
+    );
+    expect(files.activate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        key: expect.objectContaining({
+          workspaceId: "personal-workspace",
+          scope: "user",
+          ownerId: SCOPE.userId,
+        }),
+        sizeBytes: 5,
+      }),
+    );
+    expect(files.nudge).toHaveBeenCalled();
+    expect(result).toMatchObject({
+      id: "file-9",
+      link: "/drive/files/file-9",
+      savedTo: "Files in the owner's personal workspace",
+    });
+    // The public blob URL would let anyone read the file without signing in.
+    expect(JSON.stringify(result)).not.toContain("blob.example");
+  });
+
+  it("replaces an existing text file only when asked to", async () => {
+    const existing = {
+      pathname: "",
+      url: "https://blob.example/notes.md",
+    };
+    files.list.mockImplementation(async ({ prefix }: { prefix: string }) => ({
+      blobs: [{ ...existing, pathname: prefix }],
+    }));
+    files.head.mockResolvedValue({ contentType: "text/markdown" });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v2" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+
+    const refused = service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+    });
+    await expect(refused).rejects.toBeInstanceOf(SokoBotRefusedUnsentError);
+    await expect(refused).rejects.toThrow("overwrite: true");
+    expect(files.put).not.toHaveBeenCalled();
+
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello again",
+      overwrite: true,
+    });
+    expect(files.put).toHaveBeenCalledWith(
+      expect.any(String),
+      "Hello again",
+      expect.objectContaining({ allowOverwrite: true }),
+    );
+    expect(result).toMatchObject({
+      id: "file-9",
+      replaced: true,
+      link: "/drive/files/file-9",
+    });
+
+    // A file that is not text is never replaced by text.
+    files.put.mockClear();
+    files.head.mockResolvedValue({ contentType: "application/pdf" });
+    await expect(
+      service["uploadFile"](authorized as never, {
+        filename: "notes.md",
+        content: "Hello again",
+        overwrite: true,
+      }),
+    ).rejects.toThrow("not a text file");
+    expect(files.put).not.toHaveBeenCalled();
+    files.list.mockReset();
+  });
+
+  it("writes into the organization Drive the owner sees in an organization workspace", async () => {
+    workspaceFindUniqueMock.mockResolvedValue({
+      id: SCOPE.workspaceId,
+      organizationId: "org-1",
+    });
+    files.list.mockResolvedValue({ blobs: [] });
+    files.put.mockResolvedValue({ url: "https://blob.example/notes.md" });
+    files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v1" });
+    files.activate.mockResolvedValue({ resourceId: "file-9" });
+    const result = await service["uploadFile"](authorized as never, {
+      filename: "notes.md",
+      content: "Hello",
+    });
+    const pathname = files.put.mock.calls.at(-1)?.[0] as string;
+    expect(pathname).toContain("org-1");
+    expect(pathname).not.toContain(SCOPE.userId);
+    expect(files.activate).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        key: expect.objectContaining({
+          workspaceId: SCOPE.workspaceId,
+          scope: "organization",
+          ownerId: "org-1",
+          pathname,
+        }),
+      }),
+    );
+    expect(result).toMatchObject({
+      savedTo: "Files in this organization's workspace, visible to its members",
+    });
+  });
+});
+
+describe("Content Studio image tools", () => {
+  const ownerChat = {
+    askedByKind: "OWNER",
+    turn: {
+      id: SCOPE.turnId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      source: "CHAT",
+      chainDepth: 0,
+    },
+  };
+  const service = new SokoBotRuntimeService();
+  const generate = (authorized: unknown, input: unknown, callId: string) =>
+    service["generateImage"](authorized as never, input, callId);
+  const request = {
+    projectId: "project-1",
+    prompt: "A calm launch banner",
+    maxCredits: 10,
+  };
+  beforeEach(() => {
+    images.credits.mockReturnValue(4);
+    images.access.mockResolvedValue({ organizationId: null });
+    toolCallCountMock.mockResolvedValue(0);
+  });
+
+  it("stops a turn after four images, counting only ones not refused", async () => {
+    toolCallCountMock.mockResolvedValue(4);
+    await expect(generate(ownerChat, request, "call-9")).rejects.toThrow(
+      "at most 4 images",
+    );
+    expect(toolCallCountMock).toHaveBeenCalledWith({
+      where: expect.objectContaining({
+        turnId: SCOPE.turnId,
+        capability: "generate_image",
+        NOT: { toolCallId: "call-9" },
+      }),
+    });
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("starts an image within the price and links to the studio", async () => {
+    images.create.mockResolvedValue({ id: "job-1", status: "QUEUED" });
+    const result = await generate(ownerChat, request, "call-1");
+    expect(images.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        workspaceId: SCOPE.workspaceId,
+        userId: SCOPE.userId,
+        prompt: "A calm launch banner",
+        idempotencyKey: `soko-bot:${SCOPE.turnId}:call-1`,
+      }),
+    );
+    expect(result).toMatchObject({
+      jobId: "job-1",
+      status: "QUEUED",
+      credits: 4,
+      studioUrl: "/studio?projectId=project-1",
+    });
+  });
+
+  it("declines an image that costs more than it may spend", async () => {
+    images.credits.mockReturnValue(25);
+    await expect(generate(ownerChat, request, "call-2")).rejects.toThrow(
+      "costs 25 credits, more than the 10 allowed",
+    );
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("declines a Project the owner cannot open, and an unknown ratio", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.access.mockRejectedValueOnce(new HTTPException(404));
+    await expect(generate(ownerChat, request, "call-5")).rejects.toThrow(
+      "not one your owner can open",
+    );
+    await expect(
+      generate(ownerChat, { ...request, aspectRatio: "7:3" }, "call-6"),
+    ).rejects.toThrow("Use one of these aspect ratios: 1:1, 16:9");
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["a scheduled turn", { turn: { ...ownerChat.turn, source: "SCHEDULE" } }],
+    ["another assistant", { askedByKind: "ASSISTANT" }],
+    ["another bot", { turn: { ...ownerChat.turn, chainDepth: 1 } }],
+  ])("refuses to spend for %s", async (_label, override) => {
+    await expect(
+      generate({ ...ownerChat, ...override }, request, "call-3"),
+    ).rejects.toThrow("only when a person asks in chat");
+    expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("generates for a teammate who asks in chat, on the owner's credits", async () => {
+    await expect(
+      generate({ ...ownerChat, askedByKind: "TEAMMATE" }, request, "call-7"),
+    ).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalled();
+  });
+
+  it("passes the studio's refusal to the model in its own words", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.create.mockRejectedValue(
+      new HTTPException(422, { message: "Not enough credits for this image." }),
+    );
+    await expect(generate(ownerChat, request, "call-4")).rejects.toThrow(
+      "Not enough credits for this image.",
+    );
+  });
+
+  it("reports a finished image, checking access before the provider", async () => {
+    images.getJob.mockResolvedValue({
+      id: "job-1",
+      status: "SUCCEEDED",
+      assetId: "asset-7",
+      failureReason: null,
+    });
+    await expect(
+      service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "job-1",
+      }),
+    ).resolves.toMatchObject({
+      jobId: "job-1",
+      status: "SUCCEEDED",
+      failureReason: null,
+      studioUrl: "/studio?projectId=project-1&v=asset-7",
+    });
+    expect(images.access.mock.invocationCallOrder[0]).toBeLessThan(
+      images.reconcile.mock.invocationCallOrder[0],
+    );
+  });
+
+  describe("a ready image in the owner's Files", () => {
+    const ready = {
+      id: "01a0f430-aaaa-7000-8000-000000000001",
+      status: "SUCCEEDED",
+      assetId: "asset-7",
+      failureReason: null,
+      prompt: "A purple robot logo",
+    };
+    beforeEach(() => {
+      images.getJob.mockResolvedValue(ready);
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+      images.assetFindFirst.mockResolvedValue({
+        blobPathname: "studio/asset-7.png",
+        contentType: "image/png",
+      });
+      images.readBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
+      files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v" });
+      files.activate.mockResolvedValue({ resourceId: "file-9" });
+      files.put.mockResolvedValue({});
+    });
+
+    it("copies it once into a Content Studio folder and returns its file id", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      const result = await service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: ready.id,
+      });
+      expect(result).toMatchObject({
+        file: {
+          id: "file-9",
+          name: "a-purple-robot-logo-01a0f430.png",
+          link: "/drive/files/file-9",
+        },
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        expect.any(Buffer),
+        expect.objectContaining({ access: "public", addRandomSuffix: false }),
+      );
+    });
+
+    it("hands back the existing copy instead of writing another", async () => {
+      files.resourceFindUnique.mockResolvedValue({
+        id: "file-9",
+        lifecycle: "ACTIVE",
+        tombstonedAt: null,
+      });
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ file: { id: "file-9" } });
+      expect(files.put).not.toHaveBeenCalled();
+      expect(images.readBytes).not.toHaveBeenCalled();
+    });
+
+    it("still reports the image when the copy fails", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      images.readBytes.mockRejectedValue(new Error("store down"));
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+    });
+  });
+
+  describe("Social media by file id", () => {
+    beforeEach(() => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+
+    it("turns a Drive file id into the reference the Social service stores", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "logo.png",
+          mimeType: "image/png",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/Content Studio/logo.png",
+        },
+      ]);
+      files.head.mockResolvedValue({
+        url: "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+      });
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).resolves.toEqual([
+        {
+          pathname: "drive/organizations/org-1/Content Studio/logo.png",
+          fileUrl:
+            "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+          name: "logo.png",
+          size: 3,
+          mimeType: "image/png",
+          kind: "image",
+        },
+      ]);
+    });
+
+    it("refuses a file the owner's Files do not hold", async () => {
+      files.loadLive.mockResolvedValue([]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not in the owner's Files");
+    });
+
+    it("refuses a document that no network can carry", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "notes.md",
+          mimeType: "text/markdown",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/notes.md",
+        },
+      ]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not an image or video");
+    });
+  });
+
+  it("returns nothing for a job that is not in the Project", async () => {
+    images.getJob.mockResolvedValue(null);
+    await expect(
+      service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: "missing",
+      }),
+    ).resolves.toBeNull();
+  });
+
+  it("records a studio refusal after the reservation as rejected", async () => {
+    const { HTTPException } = await import("hono/http-exception");
+    images.create.mockRejectedValue(
+      new HTTPException(422, { message: "Not enough credits for this image." }),
+    );
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBotTurn: {
+          findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+        },
+        workspace: {
+          findFirst: vi
+            .fn()
+            .mockResolvedValue({ id: SCOPE.workspaceId, organizationId: null }),
+        },
+        sokoBotToolCall: {
+          findUnique: transactionToolCallFindUniqueMock,
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          updateMany: toolCallUpdateManyMock,
+        },
+      }),
+    );
+    const refusing = new SokoBotRuntimeService();
+    refusing.authorize = vi.fn().mockResolvedValue(ownerChat);
+    await expect(
+      refusing.executeTool({
+        ...SCOPE,
+        capability: "generate_image",
+        toolCallId: "call-image-2",
+        input: request,
+      }),
+    ).rejects.toThrow("Not enough credits for this image.");
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "FAILED",
+      disposition: "REJECTED",
+      operationKey: null,
+    });
+  });
+
+  it("records a refused image as rejected, before anything is reserved", async () => {
+    images.credits.mockReturnValue(25);
+    toolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallFindUniqueMock.mockResolvedValue(null);
+    transactionToolCallCountMock.mockResolvedValue(0);
+    toolCallUpdateManyMock.mockReset().mockResolvedValue({ count: 1 });
+    serializableTransactionMock.mockImplementation(async (operation) =>
+      operation({
+        $queryRaw: transactionTurnLockMock,
+        sokoBotTurn: {
+          findFirst: vi.fn().mockResolvedValue({ id: SCOPE.turnId }),
+        },
+        sokoBotToolCall: {
+          findUnique: transactionToolCallFindUniqueMock,
+          count: transactionToolCallCountMock,
+          create: transactionToolCallCreateMock,
+          updateMany: toolCallUpdateManyMock,
+        },
+      }),
+    );
+    const refusing = new SokoBotRuntimeService();
+    refusing.authorize = vi.fn().mockResolvedValue(ownerChat);
+    await expect(
+      refusing.executeTool({
+        ...SCOPE,
+        capability: "generate_image",
+        toolCallId: "call-image",
+        input: request,
+      }),
+    ).rejects.toThrow("costs 25 credits");
+    expect(toolCallUpdateManyMock).toHaveBeenCalledTimes(1);
+    expect(toolCallUpdateManyMock.mock.calls[0][0].data).toMatchObject({
+      status: "FAILED",
+      disposition: "REJECTED",
+      operationKey: null,
+    });
+    expect(images.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("create_task on an event turn", () => {
+  const inbox = vi.fn();
+  const eventTurn = {
+    turn: {
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      workspaceId: SCOPE.workspaceId,
+      userId: SCOPE.userId,
+      source: "EVENT",
+    },
+  };
+  function create(input: Record<string, unknown>) {
+    serializableTransactionMock.mockImplementationOnce(async (operation) =>
+      operation({
+        sokoBotEventInbox: { findMany: inbox },
+        task: { findFirst: vi.fn().mockResolvedValue(null) },
+      }),
+    );
+    const service = new SokoBotRuntimeService();
+    service["requireMutationAuthority"] = vi.fn().mockResolvedValue({});
+    return service["createTask"](
+      eventTurn as never,
+      { name: "Follow-up", ...input },
+      "call-follow-up",
+    );
+  }
+
+  it("follows up the batch's only Task when none is named", async () => {
+    inbox.mockReset().mockResolvedValue([{ entityId: "task-1" }]);
+    // The claim is then checked against that Task, as if it had been named.
+    await expect(create({})).rejects.toThrow("no current authority");
+    expect(inbox).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ entityId: "task-1" }),
+      }),
+    );
+  });
+
+  it("asks which Task when the batch has several", async () => {
+    inbox
+      .mockReset()
+      .mockResolvedValue([{ entityId: "task-1" }, { entityId: "task-2" }]);
+    await expect(create({})).rejects.toThrow("one of task-1, task-2");
+  });
+});
+
+describe("find_agents", () => {
+  const listing = (id: string, name: string) => ({
+    id,
+    name,
+    summary: null,
+    description: null,
+    capabilityName: null,
+    paymentType: "Web3CardanoV1",
+    riskClassification: null,
+    price: { pricingType: "FIXED", credits: 30 },
+  });
+  const search = (query: string) =>
+    new SokoBotRuntimeService()["executeAuthorizedTool"]({
+      ...SCOPE,
+      capability: "find_agents",
+      toolCallId: "call-agents",
+      input: { query },
+    } as never);
+
+  beforeEach(() => {
+    marketplace.list.mockResolvedValue({
+      count: 2,
+      agents: [listing("a", "Company Researcher"), listing("b", "SEO Auditor")],
+    });
+    turnFindUniqueMock.mockResolvedValue({
+      userMessage: "find an agent",
+      id: SCOPE.turnId,
+      sokoBotId: SCOPE.sokoBotId,
+      userId: SCOPE.userId,
+      workspaceId: SCOPE.workspaceId,
+      capabilityNames: ["find_agents"],
+      contextSnapshot: { id: "snapshot", packet: { memory: { version: 1 } } },
+      eveSessionId: SCOPE.sessionId,
+      status: "RUNNING",
+      deadlineAt: new Date(Date.now() + 60_000),
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+      sokoBot: { archivedAt: null, status: "RUNNING" },
+    });
+  });
+
+  it("returns unrated Agents, and no verdict, when Jev is unavailable", async () => {
+    marketplace.rate.mockResolvedValue(null);
+    const result = await search("write blog posts");
+    expect(result).toMatchObject({
+      agents: [
+        { id: "a", fit: null, price: { credits: 30 } },
+        { id: "b", fit: null },
+      ],
+    });
+    expect(result).not.toHaveProperty("note");
+  });
+
+  it("says plainly that none fits when Jev rated them all low", async () => {
+    marketplace.rate.mockResolvedValue(
+      new Map([
+        ["a", 0.1],
+        ["b", 0.2],
+      ]),
+    );
+    const result = await search("write blog posts");
+    // The nearest listings come back apart, best first, never as a fit.
+    expect(result).toMatchObject({
+      agents: [],
+      closest: [
+        { id: "b", fit: 0.2 },
+        { id: "a", fit: 0.1 },
+      ],
+    });
+    expect(result).toHaveProperty(
+      "note",
+      expect.stringContaining("No available Agent fits"),
+    );
+  });
+});
+
+describe("archive_task without approval cards", () => {
+  const TASK_ID = "01960001-0001-7001-8001-0000000000aa";
+
+  it("archives the Task the model names, whatever the owner's message said", async () => {
+    // "yes" and "archive all my test tasks" name no single Task. The route
+    // already granted archiving; the owner's words are the model's to read,
+    // not Core's to parse, and nothing waits on a card.
+    const service = new SokoBotRuntimeService();
+    const internals = service as unknown as {
+      applyTaskMutation: (...args: unknown[]) => Promise<unknown>;
+      createDecision: () => Promise<unknown>;
+    };
+    const apply = vi
+      .spyOn(internals, "applyTaskMutation")
+      .mockResolvedValue({ id: TASK_ID });
+    const createDecision = vi.spyOn(internals, "createDecision");
+    const input = {
+      taskId: TASK_ID,
+      expectedUpdatedAt: new Date().toISOString(),
+    };
+    await expect(
+      service["mutateTask"](
+        { turn: { id: "turn_1", userId: "u", workspaceId: "w" } } as never,
+        input,
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).resolves.toEqual({ id: TASK_ID });
+    expect(apply).toHaveBeenCalledWith(
+      expect.anything(),
+      input,
+      "call_1",
+      expect.objectContaining({ taskId: TASK_ID, archive: true }),
+      "archive_task",
+      false,
+    );
+    expect(createDecision).not.toHaveBeenCalled();
+  });
+
+  it("says why a Task the owner may not change can't be archived", async () => {
+    const service = new SokoBotRuntimeService();
+    vi.spyOn(
+      service as unknown as { requireMutationAuthority: () => Promise<void> },
+      "requireMutationAuthority",
+    ).mockResolvedValue(undefined);
+    // Hidden by the owner's write access, but there in the workspace.
+    const findFirst = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: TASK_ID });
+    serializableTransactionMock.mockImplementationOnce(async (operation) =>
+      operation({ task: { findFirst } }),
+    );
+    await expect(
+      service["mutateTask"](
+        {
+          turn: {
+            id: "turn_1",
+            userId: "u",
+            workspaceId: "w",
+            sokoBotId: "bot",
+            source: "CHAT",
+          },
+        } as never,
+        { taskId: TASK_ID, expectedUpdatedAt: new Date().toISOString() },
+        "call_1",
+        { capability: "archive_task" },
+      ),
+    ).rejects.toThrow("only its owner can change or archive it");
+    expect(findFirst).toHaveBeenLastCalledWith({
+      where: { id: TASK_ID, workspaceId: "w" },
+      select: { id: true },
+    });
   });
 });

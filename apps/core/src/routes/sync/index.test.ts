@@ -613,6 +613,9 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(syncEnterpriseContractRenewalMock).toHaveBeenCalledTimes(1);
+    expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {

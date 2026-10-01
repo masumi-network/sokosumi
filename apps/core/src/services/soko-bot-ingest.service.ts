@@ -3,7 +3,6 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
@@ -178,10 +177,10 @@ export class SokoBotIngestSyncService {
       failed: 0,
     };
     const bots = await prisma.sokoBot.findMany({
-      where: withBetaBotOwner({
+      where: {
         archivedAt: null,
         integrations: { some: { status: "ACTIVE" } },
-      }),
+      },
       select: {
         id: true,
         userId: true,
@@ -240,7 +239,7 @@ export class SokoBotIngestSyncService {
     if (!briefing && dueMail.length === 0) return "skipped";
 
     const mail: SokoBotInboxMessage[] = [];
-    const cursors = new Map<string, string>();
+    const cursors = new Map<string, { since: string; newest: string }>();
     for (const integration of dueMail) {
       const since =
         cursorDate(integration.cursor, "newestSeenAt") ??
@@ -271,7 +270,10 @@ export class SokoBotIngestSyncService {
         .filter(Boolean)
         .sort()
         .at(-1);
-      cursors.set(integration.id, newest ?? since.toISOString());
+      cursors.set(integration.id, {
+        since: since.toISOString(),
+        newest: newest ?? since.toISOString(),
+      });
     }
     mail.sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
 
@@ -294,17 +296,22 @@ export class SokoBotIngestSyncService {
       events = events.slice(0, MAX_EVENTS_PER_PACKET);
     }
 
-    const stamp = async () => {
-      for (const [id, newestSeenAt] of cursors) {
+    // `consumed` is false when the mail was fetched but not shown to the bot:
+    // the check is recorded, the mail stays unseen for the next open slot.
+    const stamp = async (consumed = true) => {
+      for (const [id, cursor] of cursors) {
         await prisma.sokoBotIntegration.update({
           where: { id },
           data: {
             lastIngestAt: now,
-            cursor: { newestSeenAt, lastIngestAt: now.toISOString() },
+            cursor: {
+              newestSeenAt: consumed ? cursor.newest : cursor.since,
+              lastIngestAt: now.toISOString(),
+            },
           },
         });
       }
-      if (briefing) {
+      if (briefing && consumed) {
         await prisma.sokoBot.update({
           where: { id: bot.id },
           data: { lastBriefingAt: now },
@@ -320,7 +327,16 @@ export class SokoBotIngestSyncService {
     const kind = briefing ? "briefing" : "delta";
     const gate = await proactiveGate(bot.id, now);
     if (!gate.ok) {
-      await stamp();
+      // Logged like the events sync's withheld wake: a capped bot and a quiet
+      // inbox look the same from the outside.
+      console.info("[soko-bot-ingest] Wake withheld", {
+        sokoBotId: bot.id,
+        reason: gate.reason,
+        usedToday: gate.usedToday,
+        limit: gate.limit,
+        mail: mail.length,
+      });
+      await stamp(false);
       return "skipped";
     }
     const started = await sokoBotControlPlane.startTurn({

@@ -2,12 +2,17 @@ import Foundation
 
 /// First-party public OAuth client against Core's Better Auth oauth provider.
 ///
-/// Redirect URI is the RFC 8252 private-use form `com.sokosumi.app:/auth`
-/// (one slash, no host): Better Auth rejects `com.sokosumi.app://auth`.
-/// The `ASWebAuthenticationSession` callback scheme is `com.sokosumi.app`.
+/// Redirect URI is a claimed HTTPS link (RFC 8252 section 7.2), not a custom
+/// scheme: any app can register a scheme, but only an app the host vouches
+/// for in its `apple-app-site-association` file receives this link. That is
+/// what lets the client skip the consent screen (ADR 0046).
+///
+/// The host is fixed, whichever Core the app talks to: the app's Associated
+/// Domains entitlement names it, and an entitlement cannot follow a setting.
 public struct OAuthConfiguration: Sendable {
-  static let redirectURI = "com.sokosumi.app:/auth"
-  public static let callbackScheme = "com.sokosumi.app"
+  public static let callbackHost = "app.sokosumi.com"
+  public static let callbackPath = "/auth/apple/callback"
+  static let redirectURI = "https://\(callbackHost)\(callbackPath)"
   static let defaultScopes = ["openid", "sokosumi:api", "offline_access"]
 
   /// e.g. `https://api.sokosumi.com/auth` (Core origin + `/auth`, no `/v1`).
@@ -23,12 +28,6 @@ public struct OAuthConfiguration: Sendable {
     self.issuerBaseURL = issuerBaseURL
     self.clientID = clientID
     self.scopes = scopes
-  }
-
-  /// Path of the fixed redirect URI (`/auth`). Callbacks must land here,
-  /// not just anywhere under the callback scheme.
-  static var redirectPath: String {
-    URLComponents(string: OAuthConfiguration.redirectURI)?.path ?? "/auth"
   }
 
   /// Core's auth base shares the Core API origin: strip `/v1`, append `/auth`.

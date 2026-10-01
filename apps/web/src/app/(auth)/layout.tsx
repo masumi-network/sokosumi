@@ -11,6 +11,7 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { AUTH_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { getSession } from "@/lib/auth/auth.server";
+import { buildSignedOAuthQueryFromSearchParams } from "@/lib/auth/auth.utils";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import { cn } from "@/lib/utils";
 import { DEFAULT_AUTHENTICATED_LANDING_PATH } from "@/lib/utils/landing-path";
@@ -39,12 +40,19 @@ export default async function AuthLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Pathname from proxy (`x-pathname`). OAuth consent pages never redirect
-  // away on an existing session, so skip the Core session read entirely.
+  // Pathname and query from proxy (`x-pathname`, `x-search-params`). OAuth
+  // consent pages never redirect away on an existing session, and a page that
+  // carries an OAuth request hands a signed-in person back to the provider
+  // itself, so both skip the Core session read here.
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
-  const shouldSkipSessionCheck = pathname.startsWith("/oauth");
+  const carriesOAuthRequest =
+    buildSignedOAuthQueryFromSearchParams(
+      new URLSearchParams(headersList.get("x-search-params") ?? ""),
+    ) !== undefined;
+  const shouldSkipSessionCheck =
+    pathname.startsWith("/oauth") || carriesOAuthRequest;
 
   if (!shouldSkipSessionCheck) {
     // Cookie-cache session is enough for "already signed in → leave auth UI".
@@ -57,20 +65,25 @@ export default async function AuthLayout({
     }
   }
 
+  const logo = (
+    <ThemedLogo LogoComponent={SokosumiLogo} priority width={100} height={13} />
+  );
+
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
         className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
-          <Link href="/" className="inline-flex min-h-6 items-center">
-            <ThemedLogo
-              LogoComponent={SokosumiLogo}
-              priority
-              width={100}
-              height={13}
-            />
-          </Link>
+          {carriesOAuthRequest ? (
+            // Leaving for Sokosumi's home would drop the OAuth request; the
+            // header links back to the product instead.
+            <div className="inline-flex min-h-6 items-center">{logo}</div>
+          ) : (
+            <Link href="/" className="inline-flex min-h-6 items-center">
+              {logo}
+            </Link>
+          )}
           <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
           </div>

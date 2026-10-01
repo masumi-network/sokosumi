@@ -267,6 +267,11 @@ export {
   extractHttpLinks,
 } from "./markdown-links-extract.js";
 export {
+  collectMarkdownUrlExcludedRanges,
+  findBareHttpUrlHits,
+  findHttpAutolinks,
+} from "./markdown-url-scan.js";
+export {
   NextJobAction,
   NextJobActionErrorType,
   OnChainTransactionStatus,
@@ -275,7 +280,6 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
-export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
@@ -368,6 +372,12 @@ export {
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export {
+  buildSocialAccountAvatarPathname,
+  isOwnedSocialAccountAvatarUrl,
+  isSocialAccountAvatarAllowedContentType,
+  SOCIAL_ACCOUNT_AVATAR_MAX_SIZE_BYTES,
+} from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
   SOCIAL_POST_MEDIA_MAX,
@@ -428,6 +438,7 @@ export {
   parseTaskRef,
   type TaskRef,
 } from "./task-identifier.js";
+export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
@@ -446,7 +457,10 @@ export {
 } from "./user-metadata.js";
 export {
   getFirstName,
+  isFirstAndLastNameWithinLimit,
+  joinFirstAndLastName,
   resolveAccountDisplayName,
+  USER_NAME_MAX_LENGTH,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
 export {

@@ -12,7 +12,9 @@ compatibility: "Portable repo skill. The required artifact is SKILL.md."
 
 ## Load the Skill and CLI
 
-[VERIFIED: `apps/cli/package.json`] The private package in `apps/cli` builds the `sokosumi` executable. Skill installation and CLI installation are separate. Build this checkout from the repository root with Node.js 24 and its dependencies:
+[CORRECTION, VERIFIED: `apps/cli/package.json`] The earlier private-package description was stale.
+The manifest defines `@masumi_network/sokosumi` version `1.0.2` with public npm access. It requires Node.js 24 and packages `dist` and `skills`.
+Skill installation and CLI installation are separate. Build this checkout from the repository root with its dependencies:
 
 ```bash
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
@@ -20,6 +22,10 @@ node apps/cli/dist/bin/sokosumi.js --help
 ```
 
 Configure the host's command tool with that executable's path. Examples below use `sokosumi` as its short name. Load this checkout's `apps/cli/skills/sokosumi/SKILL.md` through the host's existing Skill loader. Keep `references` beside it.
+
+[VERIFIED: `apps/cli/src/cli/commands/skills.ts`] For an installed CLI, run `sokosumi skills path` to locate its bundled Skills.
+Load `sokosumi/SKILL.md` from that directory. `sokosumi skills --json` lists each Skill and its path.
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not verify registry publication or host installation.
 
 [REPORTED: existing distribution instructions] The repository install command is:
 
@@ -115,8 +121,23 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
    ```
 
 5. Report completion only after `COMPLETED` and a confirmed event ID. On failure, stop for operator inspection before any retry.
+6. When the operator asks whether the seller was paid, read the receipt:
+
+   ```bash
+   sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
+   ```
+
+   Report payment only when `settled` is `true`, and quote its `txHash` when present. A settled receipt can still have a null `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
 
 [VERIFIED: `apps/cli/src/coworker/runtime-task.ts`, `apps/cli/src/api/http-client.ts`] Runtime calls use only the Coworker credential on Preprod. Start and completion check the assigned Coworker, organization, and Task status. Run one executor per Task. This flow does not create a worker lease, poll for automatic work, or install an agent host. An MCP-only host needs a separate transport adapter.
+
+[VERIFIED: merged commit `c2271e441`, PR #5342; `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/runtime-task.ts`]
+Receipt support is merged. It reads Core with GET. Start and completion do not submit `masumiPayment` or create an MPS claim.
+[VERIFIED: planning briefs in repository `apps/cli/docs/mps-payment-stack/`]
+Seller setup, customer approval, paid execution, and payment recovery remain planned.
+The planning drafts contain no payment implementation. Do not infer payment capability from the installed Skill or Task completion.
+
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live seller proof is pending.
 
 ## Create and inspect organization Tasks
 

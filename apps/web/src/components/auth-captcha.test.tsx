@@ -234,20 +234,20 @@ describe("useAuthCaptcha", () => {
   });
 
   it("tracks interactive challenges and their outcome", async () => {
-    render(<Consumer entry="magic-link" />);
+    render(<Consumer entry="email-code" />);
     act(() => widgetProps?.onBeforeInteractive?.());
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "interactive",
     });
     await userEvent.click(screen.getByText("Solve challenge"));
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "solved",
     });
     act(() => widgetProps?.onError?.("110200"));
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "failed",
     });
     expect(track).toHaveBeenCalledTimes(3);

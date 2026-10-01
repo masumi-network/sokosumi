@@ -10,6 +10,7 @@ import {
   type CoworkerWorkspaceAccess,
   parseCoworkerWorkspaceAccessResponse,
 } from "../models/coworker-workspace-access.js";
+import { listResponse, requireId } from "../models/parse-helpers.js";
 
 const COWORKERS_PATH = "/v1/coworkers";
 
@@ -45,21 +46,12 @@ function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   return query ? `${COWORKERS_PATH}?${query}` : COWORKERS_PATH;
 }
 
-function parseList(response: ApiResponse<unknown>): ApiResponse<unknown[]> {
-  const data = Array.isArray(response.data) ? response.data : [];
-  return { ...response, data };
-}
-
-function requireId(id: string, name: string): void {
-  if (!id) throw new Error(`${name} is required`);
-}
-
 export async function fetchCoworkers(
   client: CoreHttpClient,
   options: FetchCoworkersOptions = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown[]>; coworkers: Coworker[] }> {
-  const response = parseList(
+  const response = listResponse(
     parseApiResponse(await client.get<unknown>(pathWithQuery(options), signal)),
   );
   return { response, coworkers: response.data.map(parseCoworker) };

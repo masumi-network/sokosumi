@@ -146,6 +146,8 @@ function buildConnection(
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,

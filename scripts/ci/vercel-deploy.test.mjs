@@ -15,7 +15,6 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
-  pickPreviewUrl,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -216,7 +215,7 @@ describe("project ids", () => {
     }
   });
 
-  it("wires CMO to mainnet Core like web and core", async () => {
+  it("deploys CMO like web", async () => {
     const web = JSON.parse(
       await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),
     );
@@ -224,7 +223,6 @@ describe("project ids", () => {
       await readFile(path.join(repoRoot, "apps/cmo/vercel.json"), "utf8"),
     );
 
-    assert.deepEqual(cmo.relatedProjects, [VERCEL_PROJECTS.mainnet.core.id]);
     assert.equal(
       cmo.installCommand,
       "pnpm install --frozen-lockfile --filter cmo...",
@@ -278,26 +276,54 @@ describe("createGitDeployment", () => {
     assert.equal(body.gitSource.sha, "abc123");
     assert.equal(body.target, undefined);
   });
-});
 
-describe("pickPreviewUrl", () => {
-  it("prefers the git preview.sokosumi.com alias", () => {
-    assert.equal(
-      pickPreviewUrl({
-        url: "sokosumi-app-mainnet-abc.vercel.app",
-        alias: [
-          "sokosumi-app-mainnet-abc.vercel.app",
-          "sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
-        ],
+  it("puts Vercel's error code and message in the thrown error", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { code: "bad_request", message: "Invalid preview suffix" },
       }),
-      "https://sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
+    });
+    const target = deployTargets(["mainnet"], ["cmo"])[0];
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target,
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      {
+        message:
+          "Vercel deploy failed for sokosumi-cmo (400): bad_request: Invalid preview suffix",
+      },
     );
   });
 
-  it("falls back to the deployment url", () => {
-    assert.equal(
-      pickPreviewUrl({ url: "sokosumi-app-mainnet-abc.vercel.app" }),
-      "https://sokosumi-app-mainnet-abc.vercel.app",
+  it("keeps the status when the error body is not JSON", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 502,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target: deployTargets(["mainnet"], ["web"])[0],
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      { message: "Vercel deploy failed for sokosumi-app-mainnet (502)" },
     );
   });
 });

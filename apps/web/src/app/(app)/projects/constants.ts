@@ -9,41 +9,20 @@ export const PROJECTS_PAGE_LIMIT = 20;
 export const PROJECTS_PAGE_SHELL_CLASS = "w-full";
 
 /**
- * The tabbed project workspace: overview, design, memory, social.
+ * Full-width shell for the studio and Social pages. The project detail pages
+ * use the task detail shell (`TASK_DETAIL_SHELL_CLASS`) instead.
  *
  * Full available width, deliberately. The application shell's own `p-4`
- * remains the only horizontal padding; each tab caps its own reading column
+ * remains the only horizontal padding; each page caps its own reading column
  * where its content is prose, rather than the shell capping all of them.
  */
 export const PROJECTS_WORKSPACE_SHELL_CLASS = "w-full min-w-0";
 
 /**
- * The project workspace as one surface. Shared with the image studio, which is
- * its own destination now but draws the same card.
- *
- * Deliberately the same card the projects index and Drive already draw —
- * `bg-card-background`, hairline border, `rounded-xl` from `md`, full-bleed
- * and border-free below it. The project page used to be a stack of things
- * floating on the page background: a title, then a rule with tabs on it, then
- * content, then a panel of tiles nested inside. Putting the identity, the tab
- * strip and the active area inside one container is what makes it read as a
- * page of this product rather than as a pile of components.
- *
- * No `overflow-hidden`, unlike the browse card. The studio's assistant column
- * is `position: sticky`, and an ancestor with a clipped overflow silently
- * turns sticky into static. Nothing here needs clipping: the tab rule is
- * straight and the content is inset by its own padding.
- */
-export const PROJECTS_WORKSPACE_CARD_CLASS =
-  "bg-card-background border-border -mx-4 rounded-none border-0 md:mx-0 md:rounded-xl md:border";
-
-/** Horizontal inset shared by the card's header, tab strip and content. */
-export const PROJECTS_WORKSPACE_GUTTER_CLASS = "px-4 md:px-6";
-
-/**
- * Shared list card min-height for Instant skeleton, loaded list, and empty state
- * so route swaps do not thrash CLS. Keep as a full Tailwind class string so the
- * scanner can see it.
+ * List card min-height for the Instant skeleton, the empty state, and a browse
+ * card with no rows, so those swaps do not thrash CLS. A card with rows ends
+ * with them; nothing sits below it, so its shorter height shifts nothing.
+ * Keep as a full Tailwind class string so the scanner can see it.
  */
 export const PROJECTS_LIST_CARD_MIN_H_CLASS = "min-h-[320px]";
 
@@ -60,11 +39,17 @@ export const PROJECTS_BROWSE_HEADER_ROW_CLASS =
   "flex items-center justify-end gap-3";
 
 /**
- * Inner divide wrapper for browse rows. Shared by live list and Instant skeleton.
- * No horizontal padding: the rows carry their own `px-4`, so both the dividers
- * and the row hover run the full width of the card, as the tasks list does.
+ * Card around the browse rows. Shared by live list and Instant skeleton.
+ * Same `p-2` inset as the task list, Files and Transactions cards.
  */
-export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
+export const PROJECTS_BROWSE_CARD_CLASS =
+  "bg-card-background overflow-hidden rounded-xl p-2";
+
+/**
+ * Stack of browse rows inside the card: separate row cards with a `gap-2`,
+ * as the task list, Files and Transactions draw them.
+ */
+export const PROJECTS_BROWSE_LIST_CLASS = "flex flex-col gap-2";
 
 /**
  * Row geometry shared by live `ProjectListItem`, Instant skeleton, and Drive lists
@@ -72,6 +57,13 @@ export const PROJECTS_BROWSE_DIVIDE_CLASS = "divide-border divide-y";
  */
 export const PROJECTS_LIST_ROW_LAYOUT_CLASS =
   "[content-visibility:auto] [contain-intrinsic-size:auto_72px]";
+
+/**
+ * Bordered row card shared by live `ProjectListItem` and the Instant skeleton,
+ * as the task list draws its rows.
+ */
+export const PROJECTS_LIST_ROW_CARD_CLASS =
+  "bg-background border-border rounded-lg border";
 
 /**
  * Query param value for GET /jobs and GET /tasks when listing resources

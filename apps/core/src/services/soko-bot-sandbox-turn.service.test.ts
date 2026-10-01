@@ -6,7 +6,11 @@ const {
   executeToolMock,
   findFirstEventMock,
   fetchMock,
+  toolCallUpsertMock,
+  toolCallUpdateManyMock,
 } = vi.hoisted(() => ({
+  toolCallUpsertMock: vi.fn(),
+  toolCallUpdateManyMock: vi.fn(),
   authorizeMock: vi.fn(),
   createEventMock: vi.fn(),
   executeToolMock: vi.fn(),
@@ -17,15 +21,27 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
     },
     sokoBotTurn: { findUnique: vi.fn().mockResolvedValue(null) },
-  },
-}));
+    sokoBotToolCall: {
+      upsert: toolCallUpsertMock,
+      updateMany: toolCallUpdateManyMock,
+    },
+  };
+  return {
+    default: {
+      ...client,
+      // The event log's locked append: the same models, plus the lock.
+      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+        operation({ ...client, $executeRaw: vi.fn() }),
+    },
+  };
+});
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
@@ -45,6 +61,7 @@ vi.mock("@/lib/soko-bot/sandbox/sandbox-runtime", () => ({
 import {
   proxySandboxModelCall,
   recordSandboxAction,
+  recordSandboxActionResult,
   runSandboxTool,
 } from "./soko-bot-sandbox-turn.service";
 
@@ -100,7 +117,28 @@ describe("sandbox turn service", () => {
     createEventMock.mockResolvedValue({});
     authorizeMock.mockResolvedValue({
       turn: { id: claims.turnId, versionId: "v16" },
-      grant: { capabilities: ["web_fetch", "post_chat", "update_plan"] },
+      grant: {
+        capabilities: [
+          "web_fetch",
+          "post_chat",
+          "update_plan",
+          "workspace_write",
+        ],
+      },
+    });
+  });
+
+  it("marks the 409 of a turn that is no longer active, so the runner stops", async () => {
+    authorizeMock.mockRejectedValueOnce(new Error("Turn was cancelled"));
+    await expect(
+      recordSandboxAction(claims, {
+        name: "web_fetch",
+        toolCallId: "call_1",
+        toolInput: {},
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "soko_bot_turn_inactive" },
     });
   });
 
@@ -151,6 +189,32 @@ describe("sandbox turn service", () => {
     });
   });
 
+  it("passes the runner's reasoning-summary switches through, and nothing else", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, {
+      ...modelRequest(),
+      body: JSON.stringify({
+        prompt: [],
+        providerOptions: {
+          gateway: { only: ["openai"] },
+          openai: { reasoningSummary: "auto", store: true },
+          google: {
+            thinkingConfig: { includeThoughts: true, thinkingBudget: 99 },
+          },
+          anthropic: { thinking: { type: "enabled" } },
+        },
+      }),
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sent = JSON.parse(String(init.body));
+    expect(sent.providerOptions.openai).toEqual({ reasoningSummary: "auto" });
+    expect(sent.providerOptions.google).toEqual({
+      thinkingConfig: { includeThoughts: true },
+    });
+    expect(sent.providerOptions).not.toHaveProperty("anthropic");
+    expect(sent.providerOptions.gateway.only).not.toContain("openai");
+  });
+
   it("still meters a call whose region is rejected", async () => {
     fetchMock.mockResolvedValue(
       new Response(
@@ -183,6 +247,59 @@ describe("sandbox turn service", () => {
     expect(events().map((event) => event.type)).toContain("step.completed");
   });
 
+  it("drops zero retention only for the Gateway-run search call", async () => {
+    const { resolveRunnableSokoBotVersion } = await import(
+      "@/services/soko-bot-version.service"
+    );
+    const luna = { model: "openai/gpt-6-luna", inferenceRegion: undefined };
+    for (let call = 0; call < 3; call++)
+      vi.mocked(resolveRunnableSokoBotVersion).mockResolvedValueOnce(
+        luna as never,
+      );
+    fetchMock.mockImplementation(async () => gatewayAnswer());
+    const lunaHeaders = { "ai-language-model-id": "openai/gpt-6-luna" };
+    const search = modelRequest(lunaHeaders);
+    const searchCall = {
+      prompt: [
+        {
+          role: "user",
+          content: [{ type: "text", text: "Search the web for: TOKEN2049" }],
+        },
+      ],
+      tools: [
+        {
+          type: "provider",
+          name: "perplexity_search",
+          id: "gateway.perplexity_search",
+          args: { maxResults: 5 },
+        },
+      ],
+      toolChoice: { type: "tool", toolName: "perplexity_search" },
+    };
+    search.body = JSON.stringify(searchCall);
+    // The same tool with the conversation around it is not a search call.
+    const disguised = modelRequest(lunaHeaders);
+    disguised.body = JSON.stringify({
+      ...searchCall,
+      prompt: [
+        { role: "system", content: "Owner memory: …" },
+        ...searchCall.prompt,
+      ],
+    });
+    await proxySandboxModelCall(claims, search);
+    await proxySandboxModelCall(claims, modelRequest(lunaHeaders));
+    await proxySandboxModelCall(claims, disguised);
+    const [searchBody, turnBody, disguisedBody] = fetchMock.mock.calls.map(
+      ([, init]) => JSON.parse(String(init?.body)),
+    );
+    expect(searchBody.providerOptions.gateway).toEqual({
+      disallowPromptTraining: true,
+    });
+    const both = { zeroDataRetention: true, disallowPromptTraining: true };
+    expect(turnBody.providerOptions.gateway).toEqual(both);
+    expect(disguisedBody.providerOptions.gateway).toEqual(both);
+  });
+
   it("marks the turn once the Gateway ran a web search", async () => {
     fetchMock.mockResolvedValue(
       gatewayAnswer([{ type: "tool-result", toolName: "web_search" }]),
@@ -193,13 +310,25 @@ describe("sandbox turn service", () => {
     );
   });
 
-  it("marks the turn before a sandbox tool runs, but not for the plan", async () => {
+  it("marks the turn before a sandbox tool runs, but not for the plan or a file it writes", async () => {
     await recordSandboxAction(claims, {
       name: "update_plan",
       toolCallId: "c1",
       toolInput: { steps: [] },
     });
     expect(events().map((event) => event.type)).toEqual(["actions.requested"]);
+    // Writing down what the bot has brings in no input, so "write the notes
+    // and put them in my Files" is not refused halfway.
+    await recordSandboxAction(claims, {
+      name: "workspace_write",
+      toolCallId: "c0",
+      toolInput: { path: "notes.md", content: "- one" },
+    });
+    expect(events().map((event) => event.type)).toEqual([
+      "actions.requested",
+      "actions.requested",
+    ]);
+    createEventMock.mockClear();
 
     await recordSandboxAction(claims, {
       name: "web_fetch",
@@ -207,10 +336,90 @@ describe("sandbox turn service", () => {
       toolInput: { url: "https://example.com" },
     });
     expect(events().map((event) => event.type)).toEqual([
-      "actions.requested",
       "sandbox.untrusted_input",
       "actions.requested",
     ]);
+  });
+
+  it("records a sandbox tool as a tool call with what it could cite", async () => {
+    await recordSandboxAction(claims, {
+      name: "web_fetch",
+      toolCallId: "c9",
+      toolInput: { url: "https://example.com" },
+    });
+    expect(toolCallUpsertMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          toolCallId: "c9",
+          capability: "web_fetch",
+          input: { url: "https://example.com" },
+        }),
+        update: {},
+      }),
+    );
+    expect(toolCallUpsertMock.mock.calls[0][0].create).not.toHaveProperty(
+      "actorBotId",
+    );
+
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c9",
+      status: "completed",
+      output: '{"url":"https://example.com","status":200,"text":"Hi"}',
+      sources: ["https://example.com"],
+    });
+    expect(toolCallUpdateManyMock).toHaveBeenLastCalledWith({
+      where: expect.objectContaining({
+        toolCallId: "c9",
+        capability: "web_fetch",
+        status: "PENDING",
+      }),
+      data: {
+        status: "COMPLETED",
+        result: {
+          output: '{"url":"https://example.com","status":200,"text":"Hi"}',
+          sources: ["https://example.com"],
+        },
+      },
+    });
+
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c10",
+      status: "failed",
+      output: '{"error":"fetch failed"}',
+    });
+    expect(toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data).toMatchObject({
+      status: "FAILED",
+      errorDetail: '{"error":"fetch failed"}',
+    });
+
+    // A failure can echo a credential; it is redacted before it is stored.
+    await recordSandboxActionResult(claims, {
+      name: "web_fetch",
+      toolCallId: "c12",
+      status: "failed",
+      output:
+        "401 from https://api.example.com with Authorization: Bearer fake-test-credential-4f9a2c7e1b8d",
+    });
+    const redacted = toolCallUpdateManyMock.mock.calls.at(-1)?.[0].data;
+    expect(redacted.status).toBe("FAILED");
+    expect(redacted.errorDetail).not.toContain("fake-test-credential");
+  });
+
+  it("settles only sandbox tools from the runner", async () => {
+    await expect(
+      recordSandboxActionResult(claims, {
+        name: "hire_agent",
+        toolCallId: "c11",
+        status: "failed",
+      }),
+    ).rejects.toThrow("Not a sandbox tool");
+    expect(toolCallUpdateManyMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ toolCallId: "c11" }),
+      }),
+    );
   });
 
   it("refuses a sandbox tool the turn was not granted", async () => {
@@ -241,7 +450,7 @@ describe("sandbox turn service", () => {
         toolCallId: "c5",
         toolInput: {},
       }),
-    ).rejects.toThrow("request_user_decision");
+    ).rejects.toThrow("ask the owner in chat");
     expect(executeToolMock).not.toHaveBeenCalled();
   });
 });

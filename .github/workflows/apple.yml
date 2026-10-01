@@ -164,7 +164,7 @@ jobs:
   #
   # The app is sandboxed with the hardened runtime on, so it must be signed
   # with a Developer ID Application certificate and notarized by Apple, or
-  # Gatekeeper refuses it on every machine that did not build it. All five
+  # Gatekeeper refuses it on every machine that did not build it. All six
   # secrets below are set by `apps/apple/scripts/setup-release-signing.sh`.
   publish:
     name: Publish macOS DMG
@@ -211,26 +211,71 @@ jobs:
           security list-keychain -d user -s "$KEYCHAIN_PATH" login.keychain-db
           rm -f "$RUNNER_TEMP/cert.p12"
 
+      - name: Install the Developer ID provisioning profile
+        env:
+          PROFILE: ${{ secrets.APPLE_DEVELOPER_ID_PROFILE }}
+        # The app signs in through an HTTPS callback, which needs the
+        # Associated Domains entitlement. That entitlement is restricted: a
+        # Developer ID signature carries it only with a provisioning profile
+        # that grants it, and macOS kills the app at launch otherwise. The
+        # profile's own name is read out here, so renaming it in the developer
+        # portal needs no change in this file.
+        run: |
+          if [ -z "$PROFILE" ]; then
+            echo "::error::APPLE_DEVELOPER_ID_PROFILE is not set. Run apps/apple/scripts/setup-release-signing.sh."
+            exit 1
+          fi
+          PROFILE_PATH="$RUNNER_TEMP/sokosumi.provisionprofile"
+          echo "$PROFILE" | base64 --decode > "$PROFILE_PATH"
+          security cms -D -i "$PROFILE_PATH" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")"
+          # Xcode 16 moved the folder; older tools still read the first one.
+          for directory in "$HOME/Library/MobileDevice/Provisioning Profiles" "$HOME/Library/Developer/Xcode/UserData/Provisioning Profiles"; do
+            mkdir -p "$directory"
+            cp "$PROFILE_PATH" "$directory/$PROFILE_UUID.provisionprofile"
+          done
+          echo "PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+          rm -f "$PROFILE_PATH" "$RUNNER_TEMP/profile.plist"
+
       - name: Archive Sokosumi for Developer ID
         working-directory: apps/apple
         # CFBundleVersion must rise for every published build. The run number
         # is monotonic per workflow, which is exactly that guarantee.
+        #
+        # `SOKOSUMI_PROVISIONING_PROFILE`, not `PROVISIONING_PROFILE_SPECIFIER`:
+        # a setting on the command line reaches every target, and the Swift
+        # package targets reject a profile. The project hands this one to the
+        # app target only.
         run: |
           xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi \
             -configuration Release -destination 'platform=macOS,arch=arm64' \
             -skipPackagePluginValidation -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
             DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Manual \
             CODE_SIGN_IDENTITY="Developer ID Application" \
+            SOKOSUMI_PROVISIONING_PROFILE="$PROFILE_NAME" \
             CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             archive
 
       - name: Export a Developer ID app
         working-directory: apps/apple
         run: |
+          cp ExportOptions.plist "$RUNNER_TEMP/ExportOptions.plist"
+          /usr/libexec/PlistBuddy \
+            -c "Add :provisioningProfiles dict" \
+            -c "Add :provisioningProfiles:com.sokosumi.app string $PROFILE_NAME" \
+            "$RUNNER_TEMP/ExportOptions.plist"
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Sokosumi.xcarchive" \
-            -exportOptionsPlist ExportOptions.plist \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
             -exportPath "$RUNNER_TEMP/export"
+
+      - name: Check the exported app can take the sign-in callback
+        # Without this entitlement in the signature the app builds, notarizes
+        # and opens, and then cannot sign in.
+        run: |
+          codesign -d --entitlements - --xml "$RUNNER_TEMP/export/Sokosumi.app" \
+            | grep -q 'webcredentials:app.sokosumi.com'
 
       - name: Build the disk image
         working-directory: apps/apple

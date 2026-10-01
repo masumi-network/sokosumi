@@ -1,8 +1,5 @@
 export const TASKS_ROUTE_REFRESH_DEBOUNCE_MS = 500;
 
-/** Delay before auto-retrying a failed jobs-tab first fetch while the tab stays open. */
-export const JOBS_TAB_LOAD_RETRY_DELAY_MS = 2000;
-
 /**
  * Task detail outer shell (auth + share): centered max-w-[80rem] (Linear-like
  * ~790px text column + 56px gap + 400px sidebar). Keep task-specific

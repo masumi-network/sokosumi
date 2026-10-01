@@ -5,12 +5,15 @@
   .github/workflows/apple.yml). `developer-id` is distribution outside the Mac
   App Store, which is what a downloadable disk image is.
 
-  `signingStyle` is manual and no provisioningProfiles key is present on
-  purpose: the app's entitlements are sandbox, outgoing network and
-  user-selected files, none of which require a provisioning profile for
-  Developer ID. Automatic signing would make xcodebuild reach App Store
-  Connect for profiles mid-build, which needs an interactive account CI has
-  no way to supply.
+  `signingStyle` is manual: automatic signing would make xcodebuild reach App
+  Store Connect for profiles mid-build, which needs an interactive account CI
+  has no way to supply.
+
+  No provisioningProfiles key here on purpose. The app needs a Developer ID
+  profile, because Associated Domains is a restricted entitlement, but the
+  workflow adds the key to a copy of this file with the name it reads out of
+  the profile secret. A name written here would break the export whenever
+  the profile is renamed or replaced.
 -->
 <plist version="1.0">
 <dict>

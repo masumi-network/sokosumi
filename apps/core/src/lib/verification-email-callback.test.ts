@@ -57,6 +57,17 @@ describe("anchorVerificationCallbackToWebApp", () => {
     expect(result.searchParams.get("callbackURL")).toBe(`${WEB}/`);
   });
 
+  it("sends a sign-up from another app to the confirmation page that names it", () => {
+    const result = new URL(
+      anchorVerificationCallbackToWebApp(`${CORE}&callbackURL=%2F`, WEB, "cmo"),
+    );
+
+    expect(result.searchParams.get("callbackURL")).toBe(
+      `${WEB}/auth/email-confirmed?client_id=cmo`,
+    );
+    expect(result.searchParams.get("token")).toBe("abc");
+  });
+
   it("returns a malformed link unchanged", () => {
     expect(anchorVerificationCallbackToWebApp("not a url", WEB)).toBe(
       "not a url",

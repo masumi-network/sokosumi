@@ -77,6 +77,27 @@
         try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "create-channel-participants-\(dark ? "dark" : "light").png")
       }
 
+      /// Web's create dialog loads the caller's role with the roster and shows its member notice when that read fails
+      /// (`loadChatComposeRosterAction` → `membersLoadFailed`), so the sheet offers the notice and Retry, not the
+      /// details. Recorded light beside dark.
+      @Test func roleReadFailureShowsTheMemberNotice() async throws {
+        let failed = ChannelRoster(recipients: roster.recipients, isOwnerOrAdmin: false, roleLoadFailed: true)
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let model = ChannelCreation()
+          model.draft.setSlug("launch-planning")
+          let (host, window) = mount(model, dark: dark, roster: failed)
+          defer { window.orderOut(nil) }
+          try await waitForLoad(model, in: host)
+          #expect(model.participantsUnavailable && !model.canAdvance)
+          let bitmap = try await render(host, in: window, expecting: ["load organization members"], absent: ["Display name", "Visibility"])
+          try Self.expectWindowBackground(bitmap, dark: dark)
+          try columns.append([#require(bitmap.cgImage)])
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "create-channel-role-failed.png")
+      }
+
       /// Drives the sheet's own slug check (`.task(id:)` through `checkSlug`) into each state and reads the line it draws.
       @Test(arguments: CreateChannelHandleLine.allCases, [false, true])
       func handleLineReplacesItsHelp(line: CreateChannelHandleLine, dark: Bool) async throws {
@@ -144,9 +165,9 @@
         return model
       }
 
-      private func mount(_ model: ChannelCreation, dark: Bool,
+      private func mount(_ model: ChannelCreation, dark: Bool, roster: ChannelRoster? = nil,
                          checkSlug: @escaping (String) async throws -> Bool = { _ in true }) -> (NSHostingView<some View>, NSWindow) {
-        let roster = roster
+        let roster = roster ?? self.roster
         let content = CreateChannelView(currentUserId: "me", organizationName: "Acme", model: model,
                                         load: { roster }, checkSlug: checkSlug, create: { _, _ in
                                           Issue.record("Rendering must not create a channel")
@@ -184,7 +205,7 @@
 
       /// The sheet's backdrop is window chrome that `cacheDisplay` does not draw, so the content is drawn over the
       /// window background in the window's appearance (as `MessageImageGalleryViewerTests.sheetBitmap` does).
-      private static func overWindowBackground(_ drawn: NSBitmapImageRep, appearance: NSAppearance) throws -> NSBitmapImageRep {
+      static func overWindowBackground(_ drawn: NSBitmapImageRep, appearance: NSAppearance) throws -> NSBitmapImageRep {
         let opaque = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: drawn.pixelsWide, pixelsHigh: drawn.pixelsHigh,
                                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
@@ -200,7 +221,7 @@
         return opaque
       }
 
-      private static func expectWindowBackground(_ bitmap: NSBitmapImageRep, dark: Bool) throws {
+      static func expectWindowBackground(_ bitmap: NSBitmapImageRep, dark: Bool) throws {
         let corner = try #require(bitmap.colorAt(x: 2, y: 2)?.usingColorSpace(.deviceRGB))
         #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
         #expect(dark ? corner.brightnessComponent < 0.5 : corner.brightnessComponent > 0.5)
@@ -218,7 +239,7 @@
         return nil
       }
 
-      private static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+      static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
         let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate

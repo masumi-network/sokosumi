@@ -6,7 +6,7 @@ import { getEnv } from "@/config/env";
 import prisma from "@/lib/db/prisma";
 
 /**
- * Where a studio image shows up in Files: Tasks > project > "Image generation".
+ * Where a studio image shows up in Files: Tasks > project > "Content Studio Outputs".
  *
  * Files' Tasks view is Task -> TaskFile, so the folder is one Task per project
  * and each image is one of its output files. That Task is a bucket, not work:
@@ -16,7 +16,12 @@ import prisma from "@/lib/db/prisma";
  * publishes a copy next to the private original. The private store stays the
  * source of truth for the studio itself.
  */
-export const IMAGE_GENERATION_FOLDER_NAME = "Image generation";
+export const IMAGE_GENERATION_FOLDER_NAME = "Content Studio Outputs";
+/**
+ * The folder's old name. Existing projects already hold a Task with it, so the
+ * lookup still finds it (no second folder) and renames it on next use.
+ */
+export const LEGACY_IMAGE_GENERATION_FOLDER_NAME = "Image generation";
 
 const EXTENSIONS: Record<string, string> = {
   "image/png": "png",
@@ -39,8 +44,8 @@ export function imageFileName(
   return `${slug || "image"}-${jobId.slice(0, 8)}.${EXTENSIONS[contentType] ?? "png"}`;
 }
 
-/** The project's "Image generation" Task, created on first use. */
-async function folderTaskId(input: {
+/** The project's "Content Studio Outputs" Task, created on first use. */
+export async function folderTaskId(input: {
   projectId: string;
   workspaceId: string;
   organizationId: string | null;
@@ -53,13 +58,26 @@ async function folderTaskId(input: {
       where: {
         projectId: input.projectId,
         workspaceId: input.workspaceId,
-        name: IMAGE_GENERATION_FOLDER_NAME,
+        name: {
+          in: [
+            IMAGE_GENERATION_FOLDER_NAME,
+            LEGACY_IMAGE_GENERATION_FOLDER_NAME,
+          ],
+        },
         archivedAt: null,
       },
-      select: { id: true },
+      select: { id: true, name: true },
       orderBy: { createdAt: "asc" },
     });
-    if (existing) return existing.id;
+    if (existing) {
+      if (existing.name !== IMAGE_GENERATION_FOLDER_NAME) {
+        await tx.task.update({
+          where: { id: existing.id },
+          data: { name: IMAGE_GENERATION_FOLDER_NAME },
+        });
+      }
+      return existing.id;
+    }
     const created = await tx.task.create({
       data: {
         ownerId: input.userId,

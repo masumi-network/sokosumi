@@ -10,34 +10,138 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
-  buildSignedOAuthConsentQueryFromSearchParams,
+  buildAuthErrorCallbackUrl,
+  buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   buildSignInUrlFromSignUp,
   buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
   normalizeAuthReturnUrl,
+  oauthRequestAsksForNewAccount,
+  oauthRequestExpiresSoon,
+  oauthRequestHasExpired,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
-describe("buildSignedOAuthConsentQueryFromSearchParams", () => {
+describe("buildSignedOAuthQueryFromSearchParams", () => {
   it("repairs base64 plus characters and keeps only signed parameters", () => {
     const params = new URLSearchParams(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&debug=unsigned&sig=abc+def%2Fghi%3D",
     );
 
-    expect(buildSignedOAuthConsentQueryFromSearchParams(params)).toBe(
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
+  it("leaves out the error a failed sign-in brought back", () => {
+    const params = new URLSearchParams(
+      "client_id=client_1&exp=1772367377&sig=abc&error=access_denied&error_description=denied",
+    );
+
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
+      "client_id=client_1&exp=1772367377&sig=abc",
     );
   });
 
   it("returns undefined for an unsigned query", () => {
     expect(
-      buildSignedOAuthConsentQueryFromSearchParams(
+      buildSignedOAuthQueryFromSearchParams(
         new URLSearchParams("client_id=client_1"),
       ),
     ).toBeUndefined();
+  });
+});
+
+describe("oauthRequestAsksForNewAccount", () => {
+  it.each([
+    ["create", true],
+    ["consent create", true],
+    ["login", false],
+    ["created", false],
+  ])("reads prompt=%s as %s", (prompt, expected) => {
+    expect(
+      oauthRequestAsksForNewAccount(`client_id=cmo&prompt=${prompt}`),
+    ).toBe(expected);
+  });
+
+  it("finds no request for a new account without a prompt", () => {
+    expect(oauthRequestAsksForNewAccount("client_id=cmo")).toBe(false);
+  });
+});
+
+describe("oauthRequestExpiresSoon", () => {
+  // `exp` is in seconds: 2026-09-30T10:10:00Z.
+  const QUERY = `client_id=cmo&exp=${Date.parse("2026-09-30T10:10:00Z") / 1000}`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["with five minutes left", "2026-09-30T10:05:00Z", false],
+    ["with exactly two minutes left", "2026-09-30T10:08:00Z", true],
+    ["with one minute left", "2026-09-30T10:09:00Z", true],
+    ["after it expired", "2026-09-30T10:11:00Z", true],
+  ])("reads a request %s as %s", (_when, now, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(now));
+
+    expect(oauthRequestExpiresSoon(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    ["no", "client_id=cmo"],
+    ["an unreadable", "client_id=cmo&exp=soon"],
+  ])("treats a request with %s expiry as expiring", (_kind, query) => {
+    expect(oauthRequestExpiresSoon(query)).toBe(true);
+  });
+});
+
+describe("oauthRequestHasExpired", () => {
+  const EXPIRES_AT = Date.parse("2026-09-30T10:10:00Z");
+  const QUERY = `client_id=cmo&exp=${EXPIRES_AT / 1000}&sig=signed-value`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["before expiry", -1, false],
+    ["at expiry", 0, false],
+    ["inside the margin", 29_999, false],
+    ["at the margin", 30_000, false],
+    ["beyond the margin", 30_001, true],
+  ])("reads a request %s", (_when, elapsed, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + elapsed });
+    expect(oauthRequestHasExpired(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    "",
+    "exp=",
+    "exp=soon",
+    "exp=NaN",
+    "exp=Infinity",
+    "exp=-Infinity",
+    "exp=0",
+    "exp=-1",
+    "exp=1.5",
+    "exp=1e3",
+    "exp=0x10",
+    "exp=01",
+    "exp=+1",
+    "exp=9007199254740993",
+    "exp=8640000000001",
+    "exp=1&exp=9999999999",
+    "exp=9999999999&exp=1",
+  ])("leaves malformed expiry to Core (%s)", (expiry) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + 60_000 });
+    expect(
+      oauthRequestHasExpired(`client_id=cmo&${expiry}&sig=signed-value`),
+    ).toBe(false);
   });
 });
 
@@ -114,6 +218,54 @@ describe("buildAuthCallbackUrl", () => {
         "https://evil.example/attack",
       ),
     ).toBe("/auth/callback/signin?provider=google&returnUrl=%2F");
+  });
+});
+
+describe("buildAuthErrorCallbackUrl", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns a failed sign-in to the page it started on", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl()).toBe(
+      "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat",
+    );
+  });
+
+  it("drops the error of an earlier attempt", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/signup?error=access_denied&error_description=denied&client_id=cmo",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl()).toBe(
+      "https://preprod.sokosumi.com/signup?client_id=cmo",
+    );
+  });
+
+  it("returns to another page with the same query when asked", () => {
+    vi.stubGlobal("window", {
+      location: {
+        href: "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
+      },
+    });
+
+    expect(buildAuthErrorCallbackUrl("/signup")).toBe(
+      "https://preprod.sokosumi.com/signup?returnUrl=%2Fchat",
+    );
+  });
+
+  it("has no page to return to during SSR", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(buildAuthErrorCallbackUrl()).toBeUndefined();
   });
 });
 
@@ -231,10 +383,41 @@ describe("normalizeAuthReturnUrl", () => {
     expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
   });
 
-  it("returns / for external returnUrl during SSR", () => {
+  it.each([
+    ["https://localhost.invalid/phish", "/phish"],
+    ["//localhost.invalid/phish", "/phish"],
+  ])(
+    "drops the SSR placeholder origin from a returnUrl: %s",
+    (returnUrl, expected) => {
+      vi.stubGlobal("window", undefined);
+
+      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+    },
+  );
+
+  it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+  });
+
+  it("keeps an internal path with its query and fragment", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+      "/chat?filter=unread#details",
+    );
+  });
+
+  it.each([
+    "https://evil.example/attack",
+    "//evil.example/attack",
+    "/\\evil.example/attack",
+    "javascript:alert('x')",
+  ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
   });
 });
 
@@ -243,14 +426,35 @@ describe("buildSignUpUrlFromSignIn", () => {
     expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
   });
 
-  it("preserves returnUrl and email in signup link", () => {
+  it("preserves returnUrl in signup link", () => {
     expect(
       buildSignUpUrlFromSignIn({
         returnUrl: "/accept-invitation/invite_123?foo=bar",
-        email: "user@example.com",
+      }),
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
+  });
+
+  it("carries the OAuth request as the sign-up page's own query", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
+        returnUrl: "/agents",
       }),
     ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&returnUrl=%2Fagents",
+    );
+  });
+});
+
+describe("buildSignUpUrlFromSignIn with an invitation", () => {
+  it("keeps the invited address and its invitation, which sign-up locks", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        returnUrl: "/accept-invitation/inv_1",
+        invitation: { id: "inv_1", email: "invited@example.com" },
+      }),
+    ).toBe(
+      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
     );
   });
 });
@@ -260,78 +464,94 @@ describe("buildSignInUrlFromSignUp", () => {
     expect(buildSignInUrlFromSignUp({})).toBe("/signin");
   });
 
-  it("carries the signed OAuth consent query to signin intact", () => {
-    const consentReturnUrl = buildOAuthConsentReturnUrlFromSearchParams(
-      new URLSearchParams(
-        "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
-      ),
-    );
-
-    const signInUrl = buildSignInUrlFromSignUp({
-      returnUrl: consentReturnUrl,
-    });
-
-    expect(signInUrl).toBe(
-      "/signin?returnUrl=%2Foauth%2Fconsent%3Fclient_id%3Dclient_1%26redirect_uri%3Dhttps%253A%252F%252Fexample.com%252Fcallback%26code_challenge%3Dchallenge_1%26exp%3D1772367377%26sig%3DmVXxByc5E32WEKh8YvwTBB%252BvbGZAR42ECbHJf8K%252F24s%253D",
-    );
+  it("carries the OAuth request as the sign-in page's own query", () => {
     expect(
-      new URL(signInUrl, "https://sokosumi.test").searchParams.get("returnUrl"),
-    ).toBe(consentReturnUrl);
+      buildSignInUrlFromSignUp({
+        oauthQuery:
+          "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+      }),
+    ).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    );
   });
 });
 
-describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
-  it("builds a consent return URL from URLSearchParams", () => {
+describe("buildOAuthResumeUrlFromSearchParams", () => {
+  it.each<Record<string, string>>([
+    { prompt: "login" },
+    { prompt: "login consent" },
+    { max_age: "300" },
+    { max_age: "0" },
+  ])("resumes explicit reauthentication at consent (%o)", (extra) => {
     const params = new URLSearchParams({
       client_id: "client_1",
-      redirect_uri: "https://example.com/callback",
-      code_challenge: "challenge_1",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
+      exp: "1772367377",
+      ba_iat: "1772366777000",
+      sig: "signed-value",
+      ...extra,
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid&state=state_1&response_type=code",
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      `/oauth/consent?${params.toString()}`,
     );
   });
 
-  it("returns undefined when required params are missing", () => {
+  it("keeps create requests on the sign-in hand-back path", () => {
     const params = new URLSearchParams({
-      client_id: "client_1",
-      redirect_uri: "https://example.com/callback",
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+      prompt: "create",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBeUndefined();
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      `/signin?${params.toString()}`,
+    );
   });
 
-  it("preserves signed oauth query and filters app-only params", () => {
+  it("ignores unsigned reauthentication parameters", () => {
+    const params = new URLSearchParams(
+      "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
+    );
+
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
+    );
+  });
+
+  it("returns undefined without a signed OAuth request", () => {
     const params = new URLSearchParams({
       client_id: "client_1",
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
+    });
+
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBeUndefined();
+  });
+
+  it("points at the sign-in page with the signed request and no app-only params", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/oauth/consent?foo=bar",
+      returnUrl: "/chat",
       email: "user@example.com",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
 
   it("repairs a base64 signature whose encoded plus was decoded as a space", () => {
     const params = new URLSearchParams(
-      "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
+      "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
 });
@@ -476,4 +696,33 @@ describe("createAuthSessionGetter", () => {
 
     await expect(getSession()).resolves.toBeNull();
   });
+});
+
+describe("auth page URL round trips", () => {
+  it.each([buildSignUpUrlFromSignIn, buildSignInUrlFromSignUp])(
+    "preserves signed multi-value OAuth parameters and an escaped return URL",
+    (buildUrl) => {
+      const oauthQuery =
+        "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
+      const returnUrl =
+        "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
+      const url = new URL(
+        buildUrl({
+          oauthQuery,
+          returnUrl,
+          invitation: { id: "inv_1", email: "ada+invite@example.com" },
+        }),
+        "https://sokosumi.test",
+      );
+      expect(url.searchParams.get("returnUrl")).toBe(returnUrl);
+      expect(url.searchParams.get("sig")).toBe("abc+def/ghi=");
+      expect(url.searchParams.getAll("ba_param")).toEqual([
+        "scope",
+        "client_id",
+      ]);
+      expect(url.searchParams.get("scope")).toBe("openid email");
+      expect(url.searchParams.get("email")).toBe("ada+invite@example.com");
+      expect(url.searchParams.get("invitationId")).toBe("inv_1");
+    },
+  );
 });

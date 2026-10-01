@@ -10,7 +10,8 @@ import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildAuthErrorCallbackUrl,
+  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
@@ -27,14 +28,14 @@ export default function SocialSignupAutoInitiator({
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") ?? undefined;
   const effectiveReturnUrl =
-    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+    returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 
   useEffect(() => {
     const initiateOAuth = async () => {
       try {
-        track("Sign In", { provider, direct_signup_link: true });
+        track("Sign Up", { provider, direct_signup_link: true });
 
         const result = await authClient.signIn.social({
           provider,
@@ -48,6 +49,9 @@ export default function SocialSignupAutoInitiator({
             provider,
             effectiveReturnUrl,
           ),
+          // Back to this page would start the sign-in again; /signup
+          // explains the error and offers every method.
+          errorCallbackURL: buildAuthErrorCallbackUrl("/signup"),
         });
 
         if (result.error) {

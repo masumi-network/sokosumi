@@ -1,11 +1,38 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 public extension ChatService {
   func channelRoster(client: Client, organizationId: String, organizationSlug: String) async throws -> ChannelRoster {
     async let recipients = chatRecipients(client: client, organizationId: organizationId, organizationSlug: organizationSlug)
-    let isOwnerOrAdmin = try await isOrganizationOwnerOrAdmin(client: client, organizationId: organizationId)
-    return try await .init(recipients: recipients, isOwnerOrAdmin: isOwnerOrAdmin)
+    // Web `rooms/[roomId]/page.tsx` treats a failed membership read as not owner or admin.
+    let isOwnerOrAdmin = try await organizationOwnerOrAdminIfReadable(client: client, organizationId: organizationId)
+    return try await .init(recipients: recipients, isOwnerOrAdmin: isOwnerOrAdmin == true, roleLoadFailed: isOwnerOrAdmin == nil)
+  }
+
+  /// `isOrganizationOwnerOrAdmin`, or `nil` when the read failed: web's room page and sidebar both treat a failed
+  /// membership read as not owner or admin. A 401 is the session ending (the coordinator signs out) and
+  /// cancellation is the caller leaving, so both still throw.
+  func organizationOwnerOrAdminIfReadable(client: Client, organizationId: String) async throws -> Bool? {
+    do {
+      return try await isOrganizationOwnerOrAdmin(client: client, organizationId: organizationId)
+    } catch {
+      if case ChatServiceError.unauthorized = error {
+        throw error
+      }
+      try Task.checkCancellation()
+      // OpenAPI wraps transport/middleware cancellation and response decoding errors in ClientError.
+      let clientError = error as? ClientError
+      let cause = clientError?.underlyingError ?? error
+      let networkError = cause as NSError
+      if cause is CancellationError || (networkError.domain == NSURLErrorDomain && networkError.code == URLError.cancelled.rawValue) {
+        throw CancellationError()
+      }
+      if clientError?.response?.status.code == 401 {
+        throw unauthorized("Sign in required.")
+      }
+      return nil
+    }
   }
 
   /// The caller's organization role gates channel settings, archive, restore and delete; a missing membership is not elevated.

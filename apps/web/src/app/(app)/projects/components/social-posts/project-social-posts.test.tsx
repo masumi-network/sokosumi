@@ -14,7 +14,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProjectSocialPosts } from "@/app/projects/components/social-posts/project-social-posts";
 import {
   SocialComposeProvider,
@@ -27,6 +27,8 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
+
+import { createTestFormatter } from "@/test/intl-formatter";
 
 import { loadMoreSocialPosts } from "./actions";
 
@@ -80,14 +82,15 @@ const MESSAGES: Record<string, string> = {
   attempts: "{count} attempts",
   "actions.publishNow": "Publish now",
   "actions.retry": "Retry",
-  "sections.upcoming": "Upcoming",
+  "sections.calendar": "Calendar",
   "sections.drafts": "Drafts",
   "sections.attention": "Needs attention",
+  "sections.accounts": "Accounts",
+  "connectPrompt.title": "Connect an account to start posting",
+  "connectPrompt.body": "Posts go out from this project's accounts.",
+  "connectPrompt.action": "Connect X, YouTube, LinkedIn…",
   selectedPost: "Selected post",
-  "empty.upcoming": "No scheduled posts yet.",
   "empty.drafts": "No drafts yet.",
-  "emptyHint.upcoming":
-    "Schedule a post and it shows up here and on the calendar.",
   "emptyHint.drafts": "Save a post as a draft to finish it later.",
   "status.DRAFT": "Draft",
   "status.SCHEDULED": "Scheduled",
@@ -128,7 +131,16 @@ const MESSAGES: Record<string, string> = {
     "Use a JPG, PNG, WebP, GIF, or MP4 file.",
   "composer.media.errors.too_large": "A file is too large for X.",
   "composer.account": "Account",
-  "composer.noAccount": "Choose an account",
+  "composer.accounts": "Post to",
+  "composer.publishNow": "Post now",
+  "toasts.publishedMany": "Post published.",
+  "composer.platforms": "Limits per platform",
+  "composer.platformLimit": "{provider} {format} · {count} / {limit}",
+  "composer.formats.post": "post",
+  "composer.formats.mediaPost": "image or video post",
+  "composer.formats.video": "video",
+  "composer.accountOption": "{provider} {handle}",
+  "composer.noAccounts": "No accounts connected yet.",
   "composer.unknownHandle": "Unknown X account",
   "composer.scheduledAt": "Scheduled time",
   "composer.saveDraft": "Save draft",
@@ -138,6 +150,13 @@ const MESSAGES: Record<string, string> = {
   "composer.cancel": "Cancel post",
   "composer.edit": "Edit",
   "composer.close": "Close",
+  "composer.dismiss": "Cancel",
+  "composer.when": "When",
+  "composer.scheduleFor": "Schedule for {date}",
+  "composer.rescheduleFor": "Reschedule for {date}",
+  "composer.connectAccount": "Connect account",
+  "composer.previewEmpty": "Your post shows here as you write.",
+  now: "Now",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
@@ -156,8 +175,22 @@ const MESSAGES: Record<string, string> = {
     "This post was changed elsewhere. Reloading the latest version.",
   "toasts.failed": "Something went wrong. Try again.",
   "composer.scheduledAtTooSoon": "Choose a time at least one minute from now.",
+  "composer.timezone.yours": "Times are in your time zone, {zone}.",
+  "composer.timezone.goesOut": "Goes out {date}, your time ({zone}).",
+  "composer.timezone.postZone": "Scheduled as {date} in {zone}.",
+  quickPicks: "Quick picks",
+  "quick.inAnHour": "In an hour ({time})",
+  "quick.tomorrowMorning": "Tomorrow {time}",
+  "quick.nextMonday": "Monday {time}",
+  pickDate: "Pick a date",
+  pickTime: "Pick a time",
+  dateSelected: "Date: {date}",
+  timeSelected: "Time: {time}",
+  times: "Times",
   "toasts.unauthenticated": "Please sign in to continue.",
   "toasts.unauthenticatedAction": "Sign in",
+  "preview.open": "Preview",
+  "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
     "Coworker scheduling access was revoked. Reschedule this post to publish it.",
 };
@@ -236,6 +269,8 @@ function buildConnection(
     id: "connection-1",
     provider: "x",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
     connectedAt: new Date("2026-09-03T10:00:00.000Z"),
     disconnectedAt: null,
@@ -286,6 +321,8 @@ const SCHEDULED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   creator: { kind: "coworker", id: "coworker-1", name: "Scout" },
@@ -328,6 +365,8 @@ const FAILED_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   lastError: "X rejected the post (403 forbidden)",
@@ -357,6 +396,8 @@ const PUBLISHING_POST = buildPost({
   socialConnection: {
     id: "connection-1",
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   attemptCount: 1,
@@ -377,13 +418,20 @@ const IMAGE_REF: SocialPostMediaRef = {
   kind: "image",
 };
 
-function dateTimeLocal(date: Date): string {
-  const pad = (value: number) => String(value).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+/** A fixed local "now" for the schedule picker, and its "In an hour" slot. */
+const NOW = new Date(2026, 8, 20, 10, 3);
+const IN_AN_HOUR = new Date(2026, 8, 20, 11, 15);
+
+function freezeClock(now: Date = NOW) {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(now);
 }
 
-function futureDateTimeLocal(): string {
-  return dateTimeLocal(new Date(Date.now() + 60 * 60 * 1000));
+async function pickInAnHour(
+  user: ReturnType<typeof userEvent.setup>,
+  dialog: HTMLElement,
+) {
+  await user.click(within(dialog).getByRole("button", { name: /^In an hour/ }));
 }
 
 async function openRowMenu(
@@ -433,6 +481,10 @@ function render(ui: React.ReactElement) {
 }
 
 describe("ProjectSocialPosts", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(createProjectSocialPost).mockResolvedValue({
@@ -457,8 +509,7 @@ describe("ProjectSocialPosts", () => {
     });
   });
 
-  it("lists scheduled posts and drafts in tabs and leaves published posts to the calendar", async () => {
-    const user = userEvent.setup();
+  it("lists drafts in a tab and leaves scheduled and published posts to the calendar", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -468,36 +519,159 @@ describe("ProjectSocialPosts", () => {
     );
 
     expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
-      "Upcoming 1",
       "Drafts 1",
     ]);
-    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    const scheduledRow = within(upcoming).getByTestId(
-      "social-post-post-scheduled",
-    );
-    expect(within(scheduledRow).getByText("Scheduled text")).toBeVisible();
-    expect(within(scheduledRow).getByText("@sokosumi")).toBeVisible();
-    expect(within(scheduledRow).getByText("Coworker · Scout")).toBeVisible();
-    expect(within(scheduledRow).getByText("Oct 1, 10:00 AM")).toBeVisible();
-    // The tab already says these posts are scheduled.
-    expect(
-      within(scheduledRow).queryByText("Scheduled"),
-    ).not.toBeInTheDocument();
-
-    await openTab(user, "Drafts");
     const drafts = screen.getByTestId("social-posts-section-drafts");
     const draftRow = within(drafts).getByTestId("social-post-post-draft");
     expect(within(draftRow).getByText("Draft text")).toBeVisible();
     expect(within(draftRow).getByText("No account")).toBeVisible();
     expect(within(draftRow).getByText("User · Alice")).toBeVisible();
-    expect(within(draftRow).queryByText("Draft")).not.toBeInTheDocument();
+    // Every card leads with its status, the way a task card does.
+    expect(
+      within(draftRow).getByTestId("social-post-status-DRAFT"),
+    ).toHaveTextContent("Draft");
 
+    expect(
+      screen.queryByTestId("social-post-post-scheduled"),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByTestId("social-post-post-published"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("list")).toHaveLength(1);
+  });
+
+  it("opens Social on its calendar, with Accounts as the last tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        actions={<button type="button">Page action</button>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Calendar ",
+      "Drafts 1",
+      "Accounts 1",
+    ]);
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Page action" })).toBeVisible();
+
+    await openTab(user, "Accounts");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
+  });
+
+  it("still opens the calendar after a link opened a draft's tab", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[buildPost()]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-draft"
+      />,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    await openTab(user, "Calendar");
+
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Calendar panel")).toBeVisible();
+  });
+
+  it("leads with connecting an account while the project has none", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    const prompt = screen.getByTestId("social-connect-prompt");
+    expect(
+      within(prompt).getByText("Connect an account to start posting"),
+    ).toBeVisible();
+    await user.click(
+      within(prompt).getByRole("button", {
+        name: "Connect X, YouTube, LinkedIn…",
+      }),
+    );
+
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByText("Accounts panel")).toBeVisible();
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("counts connected accounts on the Accounts tab and drops the prompt", () => {
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    expect(getTab("Accounts")).toHaveTextContent("Accounts 1");
+    expect(
+      screen.queryByTestId("social-connect-prompt"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("opens the tab the URL names", () => {
+    renderUi(
+      <NuqsTestingAdapter searchParams="?tab=drafts">
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            accounts={<p>Accounts panel</p>}
+            calendar={<p>Calendar panel</p>}
+            connections={[buildConnection()]}
+            posts={[buildPost()]}
+            projectId={PROJECT_ID}
+          />
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>,
+    );
+
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
+  });
+
+  it("shows a scheduled post a calendar link names above the tabs", () => {
+    render(
+      <ProjectSocialPosts
+        calendar={<p>Calendar panel</p>}
+        connections={[buildConnection()]}
+        posts={[SCHEDULED_POST]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    const selected = screen.getByTestId("social-posts-selected");
+    const row = within(selected).getByTestId("social-post-post-scheduled");
+    expect(within(row).getByText("Scheduled text")).toBeVisible();
+    expect(within(row).getByText("@sokosumi")).toBeVisible();
+    expect(within(row).getByText("Coworker · Scout")).toBeVisible();
+    // The time names its zone, so nobody reads it as their own.
+    expect(within(row).getByText(/^Oct 1, 10:00 AM \S+/)).toBeVisible();
+    expect(within(row).getByText("Scheduled")).toBeVisible();
+    expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
   });
 
   it("tells an empty tab how it fills", () => {
@@ -509,12 +683,10 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    expect(within(upcoming).getByText("No scheduled posts yet.")).toBeVisible();
+    const drafts = screen.getByTestId("social-posts-section-drafts");
+    expect(within(drafts).getByText("No drafts yet.")).toBeVisible();
     expect(
-      within(upcoming).getByText(
-        "Schedule a post and it shows up here and on the calendar.",
-      ),
+      within(drafts).getByText("Save a post as a draft to finish it later."),
     ).toBeVisible();
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
@@ -572,7 +744,7 @@ describe("ProjectSocialPosts", () => {
     ).toContain("text-destructive");
     expect(saveDraft).toBeDisabled();
     expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
+      within(dialog).getByRole("button", { name: "Post now" }),
     ).toBeDisabled();
 
     await user.type(textarea, "{backspace}");
@@ -582,7 +754,395 @@ describe("ProjectSocialPosts", () => {
     expect(saveDraft).toBeEnabled();
   });
 
+  it("shows where the post goes at the top of the composer", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const accounts = within(dialog).getByRole("group", { name: "Post to" });
+    // Before the text: the reader picks where it goes first.
+    expect(
+      accounts.compareDocumentPosition(within(dialog).getByLabelText("Text")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      within(accounts).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(accounts).getByRole("button", {
+        name: "LinkedIn @sokosumi-co",
+      }),
+    ).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("counts the text against each picked platform's own limit", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Text"), {
+      target: { value: "a".repeat(300) },
+    });
+
+    const x = within(dialog).getByTestId("social-post-platform-x");
+    const linkedIn = within(dialog).getByTestId(
+      "social-post-platform-linkedin",
+    );
+    expect(x).toHaveTextContent("X post · 300 / 280");
+    expect(x).toHaveClass("text-destructive");
+    expect(linkedIn).toHaveTextContent("LinkedIn post · 300 / 3000");
+    expect(linkedIn).not.toHaveClass("text-destructive");
+    // One text goes to both, so the stricter limit blocks saving.
+    expect(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    ).toBeDisabled();
+  });
+
+  it("posts to X in one go: open, type, Post now", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({ id: "post-now", text: "Shipping today", revision: 0 }),
+    });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...PUBLISHED_POST, id: "post-now", text: "Shipping today" },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    // The account is picked already, so typing starts in the text.
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText("Text")).toHaveFocus(),
+    );
+    await user.keyboard("Shipping today");
+    const postNow = within(dialog).getByRole("button", { name: "Post now" });
+    await user.click(postNow);
+
+    await waitFor(() => {
+      expect(publishProjectSocialPost).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        postId: "post-now",
+        revision: 0,
+      });
+    });
+    expect(createProjectSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({
+        socialConnectionId: "connection-1",
+        text: "Shipping today",
+      }),
+    );
+    expect(createProjectSocialPost).not.toHaveBeenCalledWith(
+      expect.objectContaining({ scheduledAt: expect.anything() }),
+    );
+    expect(toastSuccessMock).toHaveBeenCalledWith("Post published.");
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps a post that fails to publish now, with the reason", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: buildPost({ id: "post-now", text: "Hi", revision: 0 }),
+    });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: {
+        ...FAILED_POST,
+        id: "post-now",
+        lastError: "X rejected the post",
+      },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hi");
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith(
+        "Publishing failed: X rejected the post",
+      );
+    });
+    expect(getTab("Needs attention")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("never saves a new draft with ⌘Enter in the schedule dialog", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[buildPost({ socialConnection: null })]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await openRowMenu(user, "post-draft");
+    await user.click(screen.getByRole("menuitem", { name: "Schedule" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.keyDown(
+      within(dialog).getByRole("heading", { name: "Schedule post" }),
+      { key: "Enter", metaKey: true },
+    );
+
+    // No time yet, so nothing happens; it never falls back to Save draft.
+    expect(createProjectSocialPost).not.toHaveBeenCalled();
+    expect(scheduleProjectSocialPost).not.toHaveBeenCalled();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
+
+  it("posts again only to the accounts a Post now missed", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hi", revision: 0 }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+      });
+    vi.mocked(publishProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: { ...PUBLISHED_POST, id: "post-x", text: "Hi" },
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hi");
+    await user.click(within(dialog).getByRole("button", { name: "Post now" }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+    });
+    // X is live already, so it leaves the selection.
+    expect(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("posts now with ⌘Enter, and schedules with it once a time is picked", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost).mockResolvedValue({
+      ok: true,
+      value: SCHEDULED_POST,
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Later");
+    await pickInAnHour(user, dialog);
+    fireEvent.keyDown(within(dialog).getByLabelText("Text"), {
+      key: "Enter",
+      metaKey: true,
+    });
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({ scheduledAt: IN_AN_HOUR.toISOString() }),
+      );
+    });
+    expect(publishProjectSocialPost).not.toHaveBeenCalled();
+  });
+
+  it("retries only the accounts that failed after a partial save", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hello" }),
+      })
+      .mockResolvedValueOnce({
+        ok: false,
+        error: { code: "BAD_INPUT", message: "LinkedIn refused it" },
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hello",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledWith("LinkedIn refused it");
+    });
+    // X is saved already, so it leaves the selection; LinkedIn stays.
+    expect(
+      within(dialog).getByRole("button", { name: "X @sokosumi" }),
+    ).toHaveAttribute("aria-pressed", "false");
+    expect(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(3);
+    });
+    expect(createProjectSocialPost).toHaveBeenLastCalledWith(
+      expect.objectContaining({ socialConnectionId: "connection-2" }),
+    );
+  });
+
+  it("saves one draft per account picked", async () => {
+    const user = userEvent.setup();
+    vi.mocked(createProjectSocialPost)
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({ id: "post-x", text: "Hello" }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        value: buildPost({
+          id: "post-li",
+          provider: "linkedin",
+          text: "Hello",
+        }),
+      });
+    render(
+      <ProjectSocialPosts
+        connections={[
+          buildConnection(),
+          buildConnection({
+            id: "connection-2",
+            provider: "linkedin",
+            externalHandle: "sokosumi-co",
+          }),
+        ]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.click(
+      within(dialog).getByRole("button", { name: "LinkedIn @sokosumi-co" }),
+    );
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Save draft" }),
+    );
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledTimes(2);
+    });
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ socialConnectionId: "connection-1" }),
+    );
+    expect(createProjectSocialPost).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ socialConnectionId: "connection-2" }),
+    );
+    expect(screen.getByTestId("social-post-post-x")).toBeVisible();
+    expect(screen.getByTestId("social-post-post-li")).toBeVisible();
+  });
+
   it("keeps Schedule disabled without an account or a future time", async () => {
+    freezeClock();
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts connections={[]} posts={[]} projectId={PROJECT_ID} />,
@@ -592,15 +1152,71 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Hello world");
 
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    // With nowhere to post, saving a draft is the main action.
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeEnabled();
-    expect(schedule).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "Now" }),
+    ).not.toBeInTheDocument();
 
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.type(timeInput, futureDateTimeLocal());
-    expect(schedule).toBeDisabled();
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeDisabled();
+  });
+
+  it("offers to connect an account when the project has none", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Connect account",
+      }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("names the scheduled time on the main button", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeEnabled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Now" }));
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
   });
 
   it("saves a draft through the create action and lists it", async () => {
@@ -645,6 +1261,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[{ ...SCHEDULED_POST, id: "post-media", media: [IMAGE_REF] }]}
         projectId={PROJECT_ID}
+        selectedPostId="post-media"
       />,
     );
 
@@ -796,6 +1413,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("schedules a new post with an ISO timestamp and the viewer timezone", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
@@ -812,12 +1430,8 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
-    const localValue = futureDateTimeLocal();
-    await user.type(
-      within(dialog).getByLabelText("Scheduled time"),
-      localValue,
-    );
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    await pickInAnHour(user, dialog);
+    const schedule = within(dialog).getByRole("button", { name: /^Schedule/ });
     await waitFor(() => expect(schedule).toBeEnabled());
     await user.click(schedule);
 
@@ -827,14 +1441,15 @@ describe("ProjectSocialPosts", () => {
         text: "Scheduled text",
         media: [],
         socialConnectionId: "connection-1",
-        scheduledAt: new Date(localValue).toISOString(),
+        scheduledAt: IN_AN_HOUR.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post scheduled.");
+    // A scheduled post lives on the calendar, not in the drafts list.
     expect(
-      screen.getByTestId("social-posts-section-upcoming"),
-    ).toHaveTextContent("Scheduled text");
+      screen.getByTestId("social-posts-section-drafts"),
+    ).not.toHaveTextContent("Scheduled text");
   });
 
   it("prefills the editor and sends the observed revision", async () => {
@@ -876,13 +1491,57 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
+  it("previews a post as it will look on X and reschedules from there", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[
+          {
+            ...SCHEDULED_POST,
+            socialConnection: {
+              id: "connection-1",
+              externalHandle: "sokosumi",
+              displayName: "Sokosumi HQ",
+              avatarUrl: null,
+              status: "active",
+            },
+          },
+        ]}
+        projectId={PROJECT_ID}
+        // A scheduled post lives on the calendar; a calendar link names it.
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    const dialog = screen.getByRole("dialog");
+    const preview = within(dialog).getByTestId("social-post-preview");
+    expect(preview).toHaveAttribute("data-provider", "x");
+    expect(within(preview).getByText("Sokosumi HQ")).toBeVisible();
+    expect(within(preview).getByText("Scheduled text")).toBeVisible();
+
+    await user.click(
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
+    );
+
+    expect(
+      within(screen.getByRole("dialog")).getByRole("heading", {
+        name: "Reschedule post",
+      }),
+    ).toBeVisible();
+  });
+
   it("reschedules a scheduled post from the row menu", async () => {
+    freezeClock();
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -894,19 +1553,16 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("heading", { name: "Reschedule post" }),
     ).toBeVisible();
     expect(within(dialog).queryByLabelText("Text")).not.toBeInTheDocument();
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.clear(timeInput);
-    const localValue = futureDateTimeLocal();
-    await user.type(timeInput, localValue);
+    await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
       expect(scheduleProjectSocialPost).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         postId: "post-scheduled",
-        scheduledAt: new Date(localValue).toISOString(),
+        scheduledAt: IN_AN_HOUR.toISOString(),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         socialConnectionId: "connection-1",
         revision: 2,
@@ -916,6 +1572,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("saves edited media before rescheduling a scheduled post", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(updateProjectSocialPost).mockResolvedValue({
       ok: true,
@@ -926,6 +1583,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -936,12 +1594,9 @@ describe("ProjectSocialPosts", () => {
       within(dialog).getByRole("button", { name: "Add from Drive" }),
     );
     await user.click(screen.getByRole("button", { name: "pick launch.png" }));
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    await user.clear(timeInput);
-    const localValue = futureDateTimeLocal();
-    await user.type(timeInput, localValue);
+    await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
@@ -999,6 +1654,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1019,13 +1675,11 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    // A canceled post has nothing left to do, so it leaves the list.
+    // A canceled post has nothing left to do, so it keeps no menu.
+    const selected = screen.getByTestId("social-posts-selected");
     await waitFor(() => {
-      expect(
-        screen.queryByTestId("social-post-post-scheduled"),
-      ).not.toBeInTheDocument();
+      expect(within(selected).getByText("Canceled")).toBeVisible();
     });
-    expect(screen.getByText("No scheduled posts yet.")).toBeVisible();
   });
 
   it("toasts and refreshes on a revision conflict", async () => {
@@ -1043,6 +1697,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1072,12 +1727,15 @@ describe("ProjectSocialPosts", () => {
             socialConnection: {
               id: "connection-1",
               externalHandle: "sokosumi",
+              displayName: null,
+              avatarUrl: null,
               status: "reauthorization_required",
             },
             connectionNeedsReconnect: true,
           },
         ]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1099,6 +1757,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1220,12 +1879,12 @@ describe("ProjectSocialPosts", () => {
     await waitFor(() => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
-    // Nothing needs attention any more, so the tab goes and the list falls
-    // back to Upcoming; the published post lives on the calendar.
+    // Nothing needs attention any more, so the tab goes and the page falls
+    // back to its first tab; the published post lives on the calendar.
     expect(
       screen.queryByRole("tab", { name: /^Needs attention/ }),
     ).not.toBeInTheDocument();
-    expect(getTab("Upcoming")).toHaveAttribute("aria-selected", "true");
+    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
     expect(
       screen.queryByTestId("social-post-post-failed"),
     ).not.toBeInTheDocument();
@@ -1350,17 +2009,18 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lists a PUBLISHING post under Upcoming without actions", () => {
+  it("shows a PUBLISHING post a link names without actions", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
         posts={[PUBLISHING_POST]}
         projectId={PROJECT_ID}
+        selectedPostId={PUBLISHING_POST.id}
       />,
     );
 
-    const upcoming = screen.getByTestId("social-posts-section-upcoming");
-    const row = within(upcoming).getByTestId("social-post-post-publishing");
+    const selected = screen.getByTestId("social-posts-selected");
+    const row = within(selected).getByTestId("social-post-post-publishing");
     expect(within(row).getByText("Publishing…")).toBeVisible();
     expect(
       within(row).queryByRole("button", { name: "Post actions" }),
@@ -1425,7 +2085,7 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("loads more drafts without replacing upcoming posts", async () => {
+  it("loads more drafts without replacing the listed ones", async () => {
     const user = userEvent.setup();
     vi.mocked(loadMoreSocialPosts).mockResolvedValue({
       posts: [buildPost({ id: "older", text: "Older draft" })],
@@ -1455,11 +2115,6 @@ describe("ProjectSocialPosts", () => {
     expect(
       screen.queryByRole("button", { name: "Load more" }),
     ).not.toBeInTheDocument();
-
-    await openTab(user, "Upcoming");
-    expect(
-      screen.getByTestId(`social-post-${SCHEDULED_POST.id}`),
-    ).toBeVisible();
   });
 
   it("closes a conflicted editor and uses the refreshed revision when reopened", async () => {
@@ -1514,15 +2169,16 @@ describe("ProjectSocialPosts", () => {
         connections={[]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
     expect(screen.getByText("Scheduled text")).not.toHaveClass("line-clamp-2");
   });
 
-  it("requires the shared schedule lead time and rounds the input minimum up", () => {
-    vi.useFakeTimers({ toFake: ["Date"] });
-    vi.setSystemTime(new Date("2026-09-24T10:00:15.000Z"));
+  it("offers only times after the shared schedule lead time", async () => {
+    freezeClock(new Date(2026, 8, 24, 10, 0, 15));
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -1531,29 +2187,106 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.change(within(dialog).getByLabelText("Text"), {
-      target: { value: "Hello world" },
-    });
-    const timeInput = within(dialog).getByLabelText("Scheduled time");
-    expect(timeInput).toHaveAttribute(
-      "min",
-      dateTimeLocal(new Date("2026-09-24T10:02:00.000Z")),
+    await user.click(
+      within(dialog).getByRole("button", { name: "Pick a time" }),
     );
-    fireEvent.change(timeInput, {
-      target: {
-        value: dateTimeLocal(new Date("2026-09-24T10:01:00.000Z")),
-      },
-    });
 
-    expect(timeInput).toHaveAttribute("aria-invalid", "true");
+    const times = screen.getByRole("listbox", { name: "Times" });
+    const option = (hour: number, minute: number) =>
+      within(times)
+        .getAllByRole("option")
+        .find(
+          (candidate) =>
+            candidate.textContent ===
+            createTestFormatter().dateTime(
+              new Date(2026, 8, 24, hour, minute),
+              "time",
+            ),
+        );
+    expect(option(10, 0)).toBeDisabled();
+    expect(option(10, 15)).toBeEnabled();
+  });
+
+  it("names the viewer's time zone and the time a post goes out", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    const zone = Intl.DateTimeFormat()
+      .resolvedOptions()
+      .timeZone.replaceAll("_", " ");
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    const line = within(dialog).getByTestId("social-post-timezone");
+    expect(line).toHaveTextContent(`Times are in your time zone, ${zone}.`);
+
+    await pickInAnHour(user, dialog);
+    expect(line).toHaveTextContent(
+      `Goes out ${createTestFormatter().dateTime(IN_AN_HOUR, "dateTimeWithYear")}, your time (${zone}).`,
+    );
+  });
+
+  it("shows a post's own time zone when it differs from the viewer's", async () => {
+    const user = userEvent.setup();
+    const otherZone =
+      Intl.DateTimeFormat().resolvedOptions().timeZone === "Asia/Tokyo"
+        ? "Europe/Berlin"
+        : "Asia/Tokyo";
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[{ ...SCHEDULED_POST, timezone: otherZone }]}
+        projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
+      />,
+    );
+
+    await openRowMenu(user, "post-scheduled");
+    await user.click(screen.getByRole("menuitem", { name: "Reschedule" }));
     expect(
-      within(dialog).getByText("Choose a time at least one minute from now."),
-    ).toBeVisible();
-    expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
-    ).toBeDisabled();
+      within(screen.getByRole("dialog")).getByTestId("social-post-timezone"),
+    ).toHaveTextContent(`in ${otherZone.replaceAll("_", " ")}.`);
+  });
+
+  it("schedules from the date and time pickers", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Picked");
+    await user.click(within(dialog).getByRole("button", { name: /^Tomorrow/ }));
+    await user.click(within(dialog).getByRole("button", { name: /^Time:/ }));
+    const times = screen.getByRole("listbox", { name: "Times" });
+    const twoThirty = createTestFormatter().dateTime(
+      new Date(2026, 8, 21, 14, 30),
+      "time",
+    );
+    await user.click(within(times).getByRole("option", { name: twoThirty }));
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
+
+    await waitFor(() => {
+      expect(createProjectSocialPost).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scheduledAt: new Date(2026, 8, 21, 14, 30).toISOString(),
+        }),
+      );
+    });
   });
 
   it("routes rejected authentication through the sign-in toast", async () => {
@@ -1602,6 +2335,7 @@ describe("ProjectSocialPosts", () => {
         connections={[buildConnection()]}
         posts={[SCHEDULED_POST]}
         projectId={PROJECT_ID}
+        selectedPostId="post-scheduled"
       />,
     );
 
@@ -1649,6 +2383,7 @@ describe("ProjectSocialPosts", () => {
   });
 
   it("shows the fallback error when scheduling rejects", async () => {
+    freezeClock();
     const user = userEvent.setup();
     vi.mocked(createProjectSocialPost).mockRejectedValue(
       new Error("network down"),
@@ -1664,11 +2399,8 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "New post" }));
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
-    await user.type(
-      within(dialog).getByLabelText("Scheduled time"),
-      futureDateTimeLocal(),
-    );
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+    await pickInAnHour(user, dialog);
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(

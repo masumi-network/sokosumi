@@ -354,7 +354,9 @@ struct ChatRealtimeTests {
         sender: testUserSender(name: ada, email: adaEmail)
       )
     ])
-    let untouched = applyRealtimeTombstone(messages: existing, messageId: "missing-id")
+    let untouched = applyRealtimeTombstone(
+      messages: existing, messageId: "missing-id", now: Date(timeIntervalSince1970: 1_700_000_000)
+    )
     #expect(untouched.map(\.id) == existing.map(\.id))
     #expect(untouched.map(\.content) == ["visible"])
   }
@@ -406,6 +408,8 @@ struct ChatRealtimeTests {
     #expect(userChatControlChannelName(userId: "user_1") == "chat_control:user_user_1")
     #expect(chatRoomMessageEventName == "chat_room_message")
     #expect(chatMembershipRevokedEventName == "chat_membership_revoked")
+    #expect(chatRoomsChangedEventName == "chat_rooms_changed")
+    #expect(ChatRoomCollection.allCases.map(\.rawValue) == ["active", "archived", "invitations"])
     #expect(parseChatRoomId(fromChannelName: "chat_rooms:room_abc") == "abc")
     #expect(parseChatRoomId(fromChannelName: "chat_control:user_user_1") == nil)
     #expect(parseChatRoomId(fromChannelName: "chat_rooms:room_") == nil)

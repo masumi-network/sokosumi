@@ -32,12 +32,6 @@ struct ConversationSidebarView: View {
     let hasOrganization: Bool
   }
 
-  /// Reloads the Archived section and pending invitations per workspace and after each room list refresh settles, like web's collection refresh.
-  private struct SidebarCollectionsLoadKey: Equatable {
-    let context: UUID
-    let ready: Bool
-  }
-
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     // Web lists pending invitations above joined external rooms, in every workspace.
@@ -170,8 +164,9 @@ struct ConversationSidebarView: View {
       guard let pass else { return }
       Task { @MainActor in workspaces.sidebar.keepUnreadsFilterPass(pass) }
     }
-    .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
-      guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
+    // First load of Archived and the invitations per workspace; afterwards each recovers on its own (`sidebarRecovery`).
+    .task(id: workspaces.collectionsLoadContext) {
+      guard workspaces.collectionsLoadContext != nil else { return }
       async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
       async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
       _ = await (archived, invitations)
@@ -219,7 +214,7 @@ struct ConversationSidebarView: View {
               .foregroundStyle(.secondary)
           }
           ForEach(sidebarRoomListItems(partitioned.channels)) { item in
-            sidebarItem(item) { roomRow($0, icon: $0.discoverability == ._private ? "lock" : "number") }
+            sidebarItem(item) { roomRow($0, icon: ChannelMark($0.discoverability).systemImage) }
           }
         }
       }
@@ -284,7 +279,7 @@ struct ConversationSidebarView: View {
           ) { respondToInvitation($0, invitation: invitation) }
         }
         ForEach(sidebarRoomListItems(rooms)) { item in
-          sidebarItem(item) { roomRow($0, icon: "globe") }
+          sidebarItem(item) { roomRow($0, icon: ChannelMark.globe.systemImage) }
         }
       }
     }
@@ -494,8 +489,8 @@ struct ConversationSidebarView: View {
     _ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil, dimmed: Bool = false
   ) -> some View {
     switch sidebarRoomKind(room) {
-    case .channel: roomRow(room, icon: room.discoverability == ._private ? "lock" : "number", reorderingIn: pinned, dimmed: dimmed)
-    case .external: roomRow(room, icon: "globe", reorderingIn: pinned, dimmed: dimmed)
+    case .channel: roomRow(room, icon: ChannelMark(room.discoverability).systemImage, reorderingIn: pinned, dimmed: dimmed)
+    case .external: roomRow(room, icon: ChannelMark.globe.systemImage, reorderingIn: pinned, dimmed: dimmed)
     case .direct: roomRow(room, icon: "person", showsDirectAvatars: true, reorderingIn: pinned, dimmed: dimmed)
     }
   }

@@ -4,6 +4,12 @@
 
 [REPORTED: Preprod pilot run by `/root`, 2026-09-27] Admin provisioning and developer Workspace connection reached `GRANTED`. Existing membership was reused. The paid pilot organization had no unused Seats, and the inspected member had no Seat assigned. See the [reported setup fields](agent-runtime-pilot.md#observed-setup-2026-09-27). No live Hermes or Task runtime was tested.
 
+[CORRECTION, OPEN: documentation review, 2026-09-30] The Seat result above is historical. Current capacity and eligibility have not been rechecked. Recheck the selected Workspace before running this pilot.
+
+[VERIFIED: merged source `c2271e441`, 2026-09-30] [#5342](https://github.com/masumi-network/sokosumi/pull/5342) adds `runtime receipt` and the Core receipt route. [VERIFIED: `apps/cli/src/coworker/runtime-task.ts:195-203`] Hermes completion still posts only status and result text. [OPEN] Paid execution and live end-to-end seller proof remain pending. The [three payment drafts](developer-cli-implementation-plan.md#payment-delivery-status-2026-09-30) contain plans only.
+
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation and live seller proof remain pending.
+
 [VERIFIED: `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/runtime-task.ts`] `runtime run` starts and completes one assigned Task through the existing Hermes profile. It uses a `coworker_*` key on Preprod. It does not read developer credentials. These are source checks, not live proof.
 
 [REPORTED: user clarification, 2026-09-27] Developers choose where their agent runs. Their cloud environment and their own hardware are both valid deployment locations. Host selection is not a product prerequisite.
@@ -29,7 +35,7 @@
 
 ## Build and inspect
 
-[VERIFIED: `apps/cli/package.json`, `apps/cli/src/cli/index.ts`] Run these commands from the repository root. They build local CLI output and show its help.
+[CORRECTION, VERIFIED: `apps/cli/package.json:2-18,30-31`, at `c2271e441`] The source manifest declares version `1.0.2`, public access, Node.js 24, and `dist` plus `skills`. [OPEN] This review did not check npm's current release or a fresh registry installation. Run these commands with Node.js 24 from the repository root. They build local CLI output and show its help.
 
 ```sh
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
@@ -109,6 +115,8 @@ node apps/cli/dist/bin/sokosumi.js --preprod tasks events "$PILOT_TASK_ID" \
 ## Verification limits
 
 [VERIFIED: `apps/cli/test/cli/runtime.test.ts`, `apps/cli/test/coworker/hermes-runtime.test.ts`] The tests include a real subprocess fixture through CLI dispatch. They exercise profile selection, environment filtering, cancellation, bounded output, and final-result parsing. They do not use a live Hermes installation, model provider, or Core account.
+
+[VERIFIED: `apps/cli/src/cli/commands/runtime.ts:258-276`, at `c2271e441`] `runtime receipt TASK_ID --coworker-id COWORKER_ID --json` reads an existing payment through Core. [VERIFIED: `apps/core/src/helpers/coworker-task-receipt.ts:113-122`] A settled response can have a null `txHash`. [OPEN] Task completion and receipt command availability do not establish a paid Hermes run. The [receipt plan](coworker-mps-receipt-plan.md) records the remaining live proof.
 
 ## Least confident decisions
 

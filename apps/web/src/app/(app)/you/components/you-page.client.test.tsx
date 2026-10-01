@@ -122,31 +122,65 @@ describe("YouPageClient", () => {
     expect(pushMock).toHaveBeenCalledWith("/billing?tab=credits");
   });
 
-  it("groups Calendar and Files in the first nav section", () => {
+  it("links Credit History right after the buy credits button", () => {
     renderYouPage();
 
-    const calendar = screen.getByTestId("you-calendar");
-    const files = screen.getByTestId("you-files");
+    const history = screen.getByTestId("you-history");
 
-    expect(calendar).toHaveAttribute("href", "/calendar");
-    expect(files).toHaveAttribute("href", "/drive");
+    expect(history).toHaveAttribute("href", "/history");
     expect(
-      calendar.compareDocumentPosition(files) &
+      screen.getByTestId("you-buy-credits").compareDocumentPosition(history) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
   });
 
-  it("puts Content Studio after Calendar and before Files", () => {
+  it("links Social next to Content Studio for people in the Social beta", () => {
+    renderYouPage({ socialMenuEnabled: true });
+
+    const social = screen.getByTestId("you-social");
+    expect(social).toHaveAttribute("href", "/social");
+    expect(
+      screen.getByTestId("you-studio").compareDocumentPosition(social) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Social out for everyone else", () => {
     renderYouPage();
 
-    const calendar = screen.getByTestId("you-calendar");
+    expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
+  });
+
+  it("groups Schedules, Studio and Files in the destinations section", () => {
+    renderYouPage();
+
+    const schedules = screen.getByTestId("you-schedules");
+    const studio = screen.getByTestId("you-studio");
+    const files = screen.getByTestId("you-files");
+
+    expect(schedules).toHaveAttribute("href", "/schedules");
+    expect(studio).toHaveAttribute("href", "/studio");
+    expect(files).toHaveAttribute("href", "/drive");
+    expect(
+      schedules.compareDocumentPosition(studio) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      studio.compareDocumentPosition(files) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("puts Content Studio after Schedules and before Files", () => {
+    renderYouPage();
+
+    const schedules = screen.getByTestId("you-schedules");
     const studio = screen.getByTestId("you-studio");
     const files = screen.getByTestId("you-files");
 
     expect(studio).toHaveAttribute("href", "/studio");
     expect(studio).toHaveTextContent("contentStudio");
     expect(
-      calendar.compareDocumentPosition(studio) &
+      schedules.compareDocumentPosition(studio) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
@@ -161,6 +195,12 @@ describe("YouPageClient", () => {
       "href",
       "/schedules",
     );
+  });
+
+  it("does not list Calendar on the You page", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-calendar")).not.toBeInTheDocument();
   });
 
   it("shows Admin alone before account links when admin is enabled", () => {

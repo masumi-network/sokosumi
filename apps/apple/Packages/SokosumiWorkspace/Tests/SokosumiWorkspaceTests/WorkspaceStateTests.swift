@@ -303,6 +303,57 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
   }
 
+  /// A second window or sidebar refresh can change the room while the People notice is visible.
+  @Test(arguments: [false, true])
+  func failedMemberSaveUsesCurrentRoomHumansAndRetryKeepsAgentEdits(managesSettings: Bool) async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 0)), (200, roomReadBody(id: edited, unread: 0))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    var room = try #require(state.rooms.first { $0.id == edited })
+    room.organizationId = "org_1"
+    room.userMembers = [.init(id: "user_1", name: "Me", email: "me@example.com", presence: .online),
+                        .init(id: "departed", name: "Departed", email: "departed@example.com", presence: .offline)]
+    let model = ChannelEditing(room: room)
+    let agents = [ChatRecipientTarget(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")]
+    await model.load { .init(recipients: .init(targets: agents, membersLoadFailed: true), isOwnerOrAdmin: managesSettings) }
+    model.draft.recipients.insert(.sokoBot("bot"))
+    room.userMembers.removeAll { $0.id == "departed" }
+    room.userMembers.append(.init(id: "newcomer", name: "Newcomer", email: "newcomer@example.com", presence: .online))
+    try room.userMembers.append(.init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
+                                      access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest"))))
+    let index = try #require(state.rooms.firstIndex { $0.id == edited })
+    state.rooms[index] = room
+    let context = state.compositionContext
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let failedData = try #require(transport.bodies.last)
+    let failedBody = try #require(JSONSerialization.jsonObject(with: failedData) as? [String: Any])
+    #expect(failedBody["memberUserIds"] as? [String] == ["newcomer", "user_1"])
+    #expect((failedBody["coworkerIds"] as? [String])?.isEmpty == true)
+    #expect(failedBody["sokoBotIds"] as? [String] == ["bot"])
+    #expect((failedBody["name"] != nil) == managesSettings)
+    // The sheet adopts room updates before Retry, without resetting the assistant edit.
+    model.updateRoom(room)
+    await model.load { .init(recipients: .init(targets: agents + [.init(id: .human("selected"), name: "Selected")]), isOwnerOrAdmin: managesSettings) }
+    #expect(model.draft.recipients == [.human("user_1"), .human("newcomer"), .sokoBot("bot")])
+    model.draft.recipients = [.human("selected"), .sokoBot("bot")]
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let recoveredData = try #require(transport.bodies.last)
+    let recoveredBody = try #require(JSONSerialization.jsonObject(with: recoveredData) as? [String: Any])
+    #expect(recoveredBody["memberUserIds"] as? [String] == ["selected", "user_1"])
+    #expect(recoveredBody["sokoBotIds"] as? [String] == ["bot"])
+  }
+
   @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let design = "550e8400-e29b-41d4-a716-446655440001"
@@ -360,6 +411,39 @@ struct WorkspaceStateTests {
     ])
     state.reset()
     #expect(!state.archivedChannels.canDelete)
+  }
+
+  /// Row 32b2: a failed role read still fills the Archived section, with Delete off until a read knows the role.
+  @Test func archivedSectionSurvivesARoleReadFailure() async throws {
+    func envelope(_ data: String) -> String {
+      #"{"data":\#(data),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#
+    }
+    let unavailable = #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/users/me/organizations/org_1/member","method":"GET"}}"#
+    let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (500, unavailable), (200, roomsBody(names: ["design"])),
+      (200, owner), (200, roomsBody(names: ["design"])),
+      (500, unavailable), (200, roomsBody(names: ["design", "launch"]))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.map(\.name) == ["design"])
+    #expect(!state.archivedChannels.canDelete)
+    #expect(state.phase == .ready)
+
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.canDelete)
+    // Web's later archived reads never touch the gate, so a failed role read leaves Delete in place.
+    await state.loadArchivedChannels(auth: auth)
+    #expect(state.archivedChannels.rooms.map(\.name) == ["design", "launch"])
+    #expect(state.archivedChannels.canDelete)
+    #expect(transport.remainingStubs == 0)
   }
 
   @Test func channelLifecycleWaitsForOtherChannelMutations() async throws {
@@ -1450,7 +1534,7 @@ struct WorkspaceStateTests {
     #expect(state.sendMessage("Hello", auth: auth))
     #expect(!state.sendMessage("Again", auth: auth))
     #expect(state.outboundShells.isEmpty)
-    let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", sender: sender))
+    let echo = chatRoomMessage(from: .init(clientTurnId: "echo", roomId: roomId, content: "Hello", createdAt: Date(), sender: sender))
     state.applyRealtimeMessage(roomId: roomId, eventType: .create, message: echo)
     #expect(state.transcriptMessages.isEmpty)
     var root = echo
@@ -1780,6 +1864,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
     let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: roomId, content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = messageId
     state.timeline.reset(roomId: roomId)
@@ -1814,6 +1899,7 @@ extension WorkspaceStateTests {
   func editingKeystrokesDoNotInvalidateConversation() throws {
     let (state, _, _, _) = try ephemeralState([], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "edit", roomId: "room", content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "persisted-message"
     var conversationUpdates = 0
@@ -1849,6 +1935,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: reply ? "\"parentMessageId\":\"parent\"" : "\"parentMessageId\":null")
     let (state, auth, _, _) = try ephemeralState([(200, response)], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: roomId, content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = messageId
     state.timeline.reset(roomId: roomId)
@@ -1888,6 +1975,7 @@ extension WorkspaceStateTests {
   @Test func failedDeletionLeavesMessageAndDraftIntact() async throws {
     let (state, auth, _, _) = try ephemeralState([(403, "{\"message\":\"Deletion denied\"}")], visible: false)
     var source = chatRoomMessage(from: .init(clientTurnId: "delete", roomId: "room", content: "Original",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
     state.timeline.reset(roomId: "room")
@@ -1910,6 +1998,7 @@ extension WorkspaceStateTests {
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let (state, auth, transport, _) = try ephemeralState([(200, response)], visible: false)
     var parent = chatRoomMessage(from: .init(clientTurnId: "parent", roomId: "room", content: "Parent",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     parent.id = "parent"
     parent.threadReplyCount = 2
@@ -1959,6 +2048,7 @@ extension WorkspaceStateTests {
 
   private func reactionSource() -> Components.Schemas.ChatRoomMessage {
     var source = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "New content",
+                                             createdAt: Date(),
                                              sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     source.id = "message"
     return source
@@ -2161,6 +2251,7 @@ extension WorkspaceStateTests {
     state.timeline.reset(roomId: room.id)
     state.pins.reset(roomId: room.id)
     var message = chatRoomMessage(from: .init(clientTurnId: "pin", roomId: room.id, content: "Pinned",
+                                              createdAt: Date(),
                                               sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)))
     message.id = "message"
     try await state.setPinned(true, messageId: "message", auth: auth)
@@ -2276,7 +2367,7 @@ extension WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     state.timeline.reset(roomId: "room")
-    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
+    var message = chatRoomMessage(from: .init(clientTurnId: "preview", roomId: "room", content: "New edit https://example.com", createdAt: Date(), sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .offline)))
     message.id = "message"
     message.unfurls = [.init(url: "https://example.com", title: "Example", description: "Preview")]
     state.timeline.messages = [message]
@@ -2456,6 +2547,7 @@ extension WorkspaceStateTests {
     let (state, _, _, _) = try ephemeralState([], visible: false)
     defer { state.reset() }
     var first = chatRoomMessage(from: .init(clientTurnId: "first", roomId: "room", content: "First",
+                                            createdAt: Date(),
                                             sender: .init(id: "user_2", name: "Ada", email: "ada@example.com", presence: .online)))
     first.id = "first"
     var target = first
@@ -2941,7 +3033,7 @@ extension WorkspaceStateTests {
     #expect(try !canQuoteMessage(#require(inFlight)))
     #expect(state.pendingMentionRetries.count == 1)
     // A second click while the POST is in flight must not send another request.
-    try await state.retryMention(shell, auth: auth)
+    try await state.retryMention(shell, auth: auth, now: Date())
     #expect(transport.operationIDs.filter { $0 == mentionRetryOperation }.count == 1)
     #expect(transport.operationIDs.last?.hasSuffix("/retry") == true)
 
@@ -2962,7 +3054,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(409, coreRejection(status: "Conflict", message: "Mention is not failed"))])
     let shell = try #require(state.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -2980,7 +3072,7 @@ extension WorkspaceStateTests {
     let (state, auth, transport) = try await mentionRetryFixture(retryResponses: [(403, coreRejection(status: "Forbidden", message: "You can only retry mentions you authored"))])
     let shell = try #require(state.timeline.messages.last)
     transport.pauseMentionRetry = true
-    let retry = Task { try await state.retryMention(shell, auth: auth) }
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: Date()) }
     while !transport.operationIDs.contains(mentionRetryOperation) {
       await Task.yield()
     }
@@ -3000,7 +3092,7 @@ extension WorkspaceStateTests {
     // The coordinator still refuses a source it cannot see, without a request.
     var orphan = shell
     orphan.metadata = try .init(additionalProperties: ["mention_id": .init(unvalidatedValue: "mention_1"), "mention_failed": .init(unvalidatedValue: true)])
-    try await state.retryMention(orphan, auth: auth)
+    try await state.retryMention(orphan, auth: auth, now: Date())
     #expect(!transport.operationIDs.contains(mentionRetryOperation))
   }
 }
@@ -3085,6 +3177,7 @@ private func durableRoomMessage(roomId: String) -> Components.Schemas.ChatRoomMe
     clientTurnId: "turn",
     roomId: roomId,
     content: "Keep this",
+    createdAt: Date(),
     sender: .init(id: "user_1", name: "Me", email: "me@example.com", presence: .online)
   ))
   message.id = "550e8400-e29b-41d4-a716-446655440123"
@@ -3111,13 +3204,13 @@ extension WorkspaceStateTests {
   @Test(arguments: [true, false])
   func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
     let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
     transport.pauseSokoBotFeedback = true
     let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful, auth: auth) }
     while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
       await Task.yield()
     }
-    #expect(state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // A second tap while the POST is in flight sends nothing.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
@@ -3125,15 +3218,15 @@ extension WorkspaceStateTests {
     try await send.value
     let bodyIndex = try #require(transport.operationIDs.firstIndex(of: sokoBotFeedbackOperation))
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["useful": useful])
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     // Rated turns stay rated: web hides the thumbs after one answer.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     #expect(transport.remainingStubs == 0)
     state.reset()
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
   }
 
   @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
@@ -3145,11 +3238,11 @@ extension WorkspaceStateTests {
       try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
     }
     #expect(error == .unprocessable(statusCode: 404, message: "Turn not found"))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // The thumbs come back, so the owner can try again.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == true)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == true)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 2)
     #expect(transport.remainingStubs == 0)
   }
@@ -3164,8 +3257,29 @@ extension WorkspaceStateTests {
     state.reset()
     transport.releasePausedRequest()
     try await send.value
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+  }
+
+  /// The toolbar's thumbs (row 38b): unrated, locked while the POST runs, then locked on the stored rating.
+  @Test func aMessagesThumbsFollowItsTurnThroughARating() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":false}"#))])
+    var reply = durableRoomMessage(roomId: "room_1")
+    reply.metadata = try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": sokoBotTurnId])])
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId))
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: false, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, isSending: true))
+    transport.releasePausedRequest()
+    try await send.value
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, rating: false))
+    // A message without a turn, or one deleted since, has no thumbs.
+    #expect(state.sokoBotFeedback(for: durableRoomMessage(roomId: "room_1")) == nil)
+    reply.deletedAt = Date()
+    #expect(state.sokoBotFeedback(for: reply) == nil)
   }
 }
 

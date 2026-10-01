@@ -170,6 +170,7 @@ function roomClientProps(room: ChatRoom) {
     rooms: [room],
     organizationMembers: [] as [],
     currentUserId: "user-1",
+    isOrgOwnerOrAdmin: false,
     coworkers: [] as [],
     selectedRoomId: room.id,
     messageLoadFailed: false,

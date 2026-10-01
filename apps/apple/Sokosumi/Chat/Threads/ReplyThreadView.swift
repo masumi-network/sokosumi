@@ -72,6 +72,12 @@ import SwiftUI
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
+    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
+    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
+      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -84,7 +90,7 @@ import SwiftUI
 
     private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth) }
+      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
     }
 
     private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
@@ -121,7 +127,7 @@ import SwiftUI
         ScrollViewReader { proxy in
           ScrollView {
             LazyVStack(alignment: .leading, spacing: 8) {
-              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.documents[parent.id], message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+              MessageRowView(channels: channels, room: currentRoom, preparedDocument: preparedTranscript?.document(for: parent), message: parent, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                              onQuote: quoteAction(for: parent),
                              onEdit: canModifyOwnMessage(parent, userId: workspaces.currentUserId) ? { workspaces.startEditing(parent) } : nil,
                              onDelete: deletionAction(for: parent),
@@ -129,7 +135,9 @@ import SwiftUI
                              onToggleReaction: reactionAction(for: parent),
                              editing: workspaces.messageEditing,
                              onQuoteJump: jumpToQuote,
-                             onSendToSelf: sendToSelfAction(for: parent))
+                             onSendToSelf: sendToSelfAction(for: parent),
+                             sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
+                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
                 .id(parent.id)
               Divider()
               HStack {
@@ -163,11 +171,19 @@ import SwiftUI
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
-          .task(id: jumpTarget) {
+          // Keyed by the request: a reader scroll changes the target's mark, and must not scroll back to it.
+          .task(id: jumpTarget?.requestId) {
             guard let target = jumpTarget else { return }
             scrollIntent.readOlder()
             pendingBottomAlignment = false
             proxy.scrollTo(target.messageId, anchor: .center)
+            workspaces.thread.landJump(target.requestId)
+          }
+          .task(id: workspaces.thread.jumpTarget?.mark) {
+            guard let mark = workspaces.thread.jumpTarget?.mark else { return }
+            try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+            guard !Task.isCancelled else { return }
+            workspaces.thread.endJumpIfMarkEnded()
           }
           .task(id: pendingBottomAlignment && !userIsScrolling && scrollIntent.followsLatest) {
             guard pendingBottomAlignment, !userIsScrolling, scrollIntent.followsLatest else { return }
@@ -176,8 +192,8 @@ import SwiftUI
           }
           .onScrollPhaseChange { _, phase in
             userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-            if phase == .interacting {
-              Task { @MainActor in workspaces.thread.clearJump() }
+            if phase.endsJumpMark {
+              Task { @MainActor in workspaces.thread.readerScrolled() }
             }
             loadOlderRepliesAutomatically()
           }
@@ -316,25 +332,27 @@ import SwiftUI
               workspaces.loadThreadPage(.boundary(message.id), auth: auth)
             }
           }
-          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+          if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
             DaySeparatorRow(label: label)
           }
           if let status = roomStatusText(message) {
             RoomStatusRow(text: status)
           } else {
-            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.documents[message.id], message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
+            MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
                            onRetry: shell.map { item in { outbox.retry(item.clientTurnId) } },
                            onRemove: shell.map { item in { outbox.remove(item.clientTurnId) } },
                            onRetryMention: mentionRetryAction(for: message),
                            onQuote: quoteAction(for: message),
                            onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                           isHighlighted: workspaces.thread.jumpTarget?.messageId == message.id,
+                           jumpMark: workspaces.thread.jumpTarget.flatMap { $0.messageId == message.id ? $0.mark : nil },
                            onDelete: deletionAction(for: message),
                            onRemoveUnfurl: unfurlAction(for: message),
                            onToggleReaction: reactionAction(for: message),
                            editing: workspaces.messageEditing,
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
+                           sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
+                           onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            streamThinking: thinking)
           }
         }

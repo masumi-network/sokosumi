@@ -11,8 +11,8 @@ import {
 } from "@/components/ui/card";
 import { getOAuthClientPublic, getSession } from "@/lib/auth/auth.server";
 import {
-  buildSignedOAuthConsentQueryFromSearchParams,
-  serializeOAuthConsentSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
+  serializeOAuthSearchParams,
 } from "@/lib/auth/auth.utils";
 
 import { ConsentActions } from "./consent-actions";
@@ -43,9 +43,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   }
 
   const client_id = oauthSearchParams.get("client_id");
-  const redirectQuery = serializeOAuthConsentSearchParams(oauthSearchParams);
+  const redirectQuery = serializeOAuthSearchParams(oauthSearchParams);
   const signedOAuthQuery =
-    buildSignedOAuthConsentQueryFromSearchParams(oauthSearchParams);
+    buildSignedOAuthQueryFromSearchParams(oauthSearchParams);
   const { requestsCoreApi, requestsOfflineAccess } = getOAuthConsentScopeFlags(
     oauthSearchParams.get("scope"),
   );

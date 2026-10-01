@@ -305,7 +305,7 @@ describe.skipIf(!databaseUrl)(
       ).rejects.toThrow("no longer writable");
       expect(await db.taskEvent.count({ where: { taskId: task.id } })).toBe(0);
       const rendered = await response(db, turnId, "I forwarded it.");
-      expect(rendered.answerText).toBe("I could not verify reply_to_task.");
+      expect(rendered.answerText).toMatch(/^Couldn't comment on .+\.$/);
     });
     it("moves the same running task with revision evidence and rejects stale moves", async () => {
       const task = await fixture();

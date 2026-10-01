@@ -295,7 +295,7 @@ describe("ContextPacketBuilder", () => {
     expect(result.packet.tasks.some((task) => task.id === "recent-0")).toBe(
       true,
     );
-    expect(taskFindManyMock).toHaveBeenCalledTimes(2);
+    expect(taskFindManyMock).toHaveBeenCalledTimes(3);
     for (const [query] of taskFindManyMock.mock.calls)
       expect(query.where).toEqual(
         expect.objectContaining({
@@ -305,6 +305,87 @@ describe("ContextPacketBuilder", () => {
         }),
       );
     expect(taskFindManyMock.mock.calls[1][0].where.id).toBeUndefined();
+  });
+
+  it("puts open work before this week's finished Tasks", async () => {
+    taskFindManyMock
+      .mockResolvedValueOnce([task("open")])
+      .mockResolvedValueOnce([{ ...task("done"), status: "COMPLETED" }]);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.packet.tasks.map((item) => item.id)).toEqual([
+      "open",
+      "done",
+    ]);
+    const [openQuery, finishedQuery] = taskFindManyMock.mock.calls.map(
+      ([query]) => query,
+    );
+    expect(openQuery.where.status).toEqual({
+      notIn: ["COMPLETED", "FAILED", "CANCELED"],
+    });
+    expect(finishedQuery.where.status).toEqual({
+      in: ["COMPLETED", "FAILED", "CANCELED"],
+    });
+    expect(finishedQuery.where.updatedAt.gte).toEqual(
+      new Date(NOW.getTime() - 7 * 24 * 60 * 60 * 1_000),
+    );
+    expect(openQuery.take + finishedQuery.take).toBe(24);
+  });
+
+  it("leaves the marketplace out of turns that cannot hire", async () => {
+    agentFindManyMock.mockResolvedValue([agent("agent-1")]);
+    agentCountMock.mockResolvedValue(1);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    expect(result.packet.agents).toEqual([]);
+    expect(result.packet.counts.agents).toBe(1);
+    expect(result.omissions.agents).toBe(1);
+  });
+
+  it("gives up the marketplace and old turns before the owner's Tasks", async () => {
+    const longText = "x".repeat(1_900);
+    taskFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => ({
+        ...task(`task-${index}`, longText),
+        events: [{ status: "RUNNING", comment: longText, createdAt: NOW }],
+      })),
+    );
+    agentFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) =>
+        agent(`agent-${index}`, longText),
+      ),
+    );
+    recentTurnFindManyMock.mockResolvedValue(
+      Array.from({ length: 12 }, (_, index) =>
+        recentTurn(`turn-${index}`, longText, longText),
+      ),
+    );
+    jobFindManyMock.mockResolvedValue(
+      Array.from({ length: 24 }, (_, index) => job(`job-${index}`, longText)),
+    );
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: { ...CLASSIFICATION, route: "HIRE_AGENT" },
+    });
+    expect(result.byteSize).toBeLessThanOrEqual(
+      SOKO_BOT_CONTEXT_PACKET_MAX_BYTES,
+    );
+    expect(result.packet.tasks).toHaveLength(24);
+    expect(result.packet.agents.length).toBeLessThan(24);
+    // Turns arrive newest first and are shown oldest first; the newest stays.
+    const turns = result.packet.recentTurns;
+    if (turns.length > 0) expect(turns.at(-1)?.id).toBe("turn-0");
+  });
+
+  it("keeps the newest reply long enough to hold the question it ended with", async () => {
+    const long = `${"Research. ".repeat(150)}Want me to replace the row?`;
+    // Newest first, as the query returns them.
+    recentTurnFindManyMock.mockResolvedValue([
+      recentTurn("turn-new", "Update the file", long),
+      recentTurn("turn-old", "Earlier", long),
+    ]);
+    const result = await new ContextPacketBuilder().build(buildInput());
+    const [older, newest] = result.packet.recentTurns;
+    expect(newest?.finalAnswer).toContain("Want me to replace the row?");
+    expect(String(older?.finalAnswer).length).toBeLessThanOrEqual(600);
   });
 
   it("adds bounded operational, availability, pricing, input, and billing context", async () => {
@@ -364,7 +445,10 @@ describe("ContextPacketBuilder", () => {
     pendingDecisionCountMock.mockResolvedValue(1);
     recentTurnCountMock.mockResolvedValue(2);
 
-    const result = await new ContextPacketBuilder().build(buildInput());
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: { ...CLASSIFICATION, route: "HIRE_AGENT" },
+    });
 
     expect(result.packet.actor).toMatchObject({
       locale: "de-CH",
@@ -651,9 +735,9 @@ describe("ContextPacketBuilder", () => {
     }
   });
 
-  it("withholds the owner's private surfaces from a teammate turn", async () => {
-    // A teammate mention runs as the owner and answers into the shared room,
-    // so the packet must not carry what only the owner should see.
+  it("gives a teammate turn the owner's full context", async () => {
+    // A teammate's turn runs as the owner, with the owner's memory, recent
+    // turns and credits, like any owner turn.
     pendingDecisionFindManyMock.mockResolvedValue([
       pendingDecision("decision-1"),
     ]);
@@ -673,13 +757,23 @@ describe("ContextPacketBuilder", () => {
     });
     const serialized = JSON.stringify(result.packet);
 
-    expect(result.packet.memory.markdown).toBe("# Soko Bot memory");
-    expect(result.packet.memory.version).toBe(0);
-    expect(result.packet.recentTurns).toEqual([]);
-    expect(result.packet.pendingDecisions).toEqual([]);
-    expect(result.packet.workspace.availableCredits).toBeNull();
-    expect(serialized).not.toContain("Ship the secret");
-    expect(serialized).not.toContain("Private answer");
+    expect(result.packet.memory.version).toBe(3);
+    expect(serialized).toContain("Ship the secret");
+    expect(serialized).toContain("Private answer");
+  });
+
+  it("tells the bot what the owner may want when the route was unsure", async () => {
+    const result = await new ContextPacketBuilder().build({
+      ...buildInput(),
+      classification: {
+        ...CLASSIFICATION,
+        route: "DIRECT_RESPONSE",
+        unsureRoute: "MANAGE_WORK",
+      },
+    });
+
+    expect(result.packet.trigger.route).toBe("DIRECT_RESPONSE");
+    expect(result.packet.trigger.unsureRoute).toBe("MANAGE_WORK");
   });
 
   it("names the colleague who asked, not the owner the turn runs as", async () => {

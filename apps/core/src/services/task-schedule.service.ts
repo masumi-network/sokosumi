@@ -15,6 +15,7 @@ import { HTTPException } from "hono/http-exception";
 import {
   requireCoworkerCapability,
   requireGrantedWorkspaceAccessOrRequest,
+  requireTaskAssignableSokoBot,
 } from "@/helpers/access-control";
 import {
   lockCalendarScope,
@@ -32,12 +33,16 @@ import {
   createPaginationMeta,
   parseCursorPagination,
 } from "@/helpers/pagination";
-import { isOperationIdUniqueConstraintError } from "@/helpers/prisma";
+import {
+  isOperationIdUniqueConstraintError,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
 import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import {
   buildCoworkerPrivateTaskVisibilityWhere,
   buildHumanTaskVisibilityWhere,
+  isPrivateTaskVisibleToCoworker,
 } from "@/helpers/task-visibility";
 import { getWorkspaceGrant } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
@@ -53,6 +58,7 @@ import {
 } from "@/middleware/workspace";
 import type {
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   TaskScheduleListQuery,
   TaskScheduleRule,
   TaskScheduleRunListQuery,
@@ -65,11 +71,13 @@ import {
   type TaskDomainActor,
 } from "@/services/task-domain.service";
 import {
+  announceReleasedTasks,
   cancelMissedTaskScheduleRuns,
   isRunException,
   moveTaskScheduleRunsToProject,
   projectTaskScheduleRuns,
   RUN_HORIZON_MS,
+  releaseManualTaskScheduleRun,
   stopPlannedTaskScheduleRuns,
   trimPlannedTaskScheduleRuns,
 } from "@/services/task-schedule-runs.service";
@@ -86,11 +94,10 @@ function requireScheduleAssignee(assigneeUserId: string | null | undefined) {
  *
  * Access: every caller passes the organization Seat gate for the member it
  * acts as. People read workspace schedules through the Task visibility rule
- * and change only the ones they own. Coworkers also need the tasks
+ * and change every one they read (ADR 0048). Coworkers also need the tasks
  * capability and a GRANTED vendor workspace grant; they act only on public
  * schedules and on the private ones of the member they act for, and change
- * that member's schedules they created or whose assignee is in their vendor
- * family.
+ * the ones they created or whose assignee is in their vendor family.
  */
 
 /**
@@ -232,7 +239,7 @@ export async function canCreateTaskSchedules(
 export async function createTaskSchedule(
   vars: RouteVars,
   input: CreateTaskScheduleRequest,
-): Promise<TaskSchedule> {
+): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
   const domainActor = toDomainActor(actor);
   const creator = { ownerId: actor.userId, ...creatorFields(domainActor) };
@@ -247,7 +254,7 @@ export async function createTaskSchedule(
   // would no longer be accepted for a new schedule.
   const replayed = await replay?.find();
   if (replayed) {
-    return replayed;
+    return toTaskScheduleView(actor, replayed);
   }
 
   requireScheduleAssignee(input.assigneeUserId);
@@ -264,7 +271,7 @@ export async function createTaskSchedule(
   };
 
   try {
-    return await prisma.$transaction(async (tx) => {
+    const schedule = await prisma.$transaction(async (tx) => {
       await requireTaskReferences(
         {
           ...blueprint,
@@ -294,8 +301,10 @@ export async function createTaskSchedule(
         data: {
           nextRunAt: await projectTaskScheduleRuns(tx, schedule, now),
         },
+        include: SCHEDULE_ASSIGNEE_VENDOR,
       });
     });
+    return toTaskScheduleView(actor, schedule);
   } catch (error) {
     // A concurrent retry with the same key committed first: answer as a
     // replay of it.
@@ -304,7 +313,7 @@ export async function createTaskSchedule(
         ? await replay.find()
         : null;
     if (winner) {
-      return winner;
+      return toTaskScheduleView(actor, winner);
     }
     throw error;
   }
@@ -323,10 +332,13 @@ function createOperationReplay(
     .update(JSON.stringify(request))
     .digest("hex");
   return {
-    async find(): Promise<TaskSchedule | null> {
+    async find(): Promise<ScheduleWithAssigneeVendor | null> {
       const operation = await prisma.taskScheduleCreateOperation.findUnique({
         where: { workspaceId_operationId: { workspaceId, operationId } },
-        select: { requestFingerprint: true, schedule: true },
+        select: {
+          requestFingerprint: true,
+          schedule: { include: SCHEDULE_ASSIGNEE_VENDOR },
+        },
       });
       if (operation && operation.requestFingerprint !== requestFingerprint) {
         throwOperationConflict();
@@ -365,6 +377,28 @@ function readableWhere(actor: ScheduleActor): Prisma.TaskScheduleWhereInput {
   };
 }
 
+/** What `canWriteTaskSchedule` reads beyond the schedule's own columns. */
+const SCHEDULE_ASSIGNEE_VENDOR = {
+  assignee: { select: { vendorId: true } },
+} as const;
+
+type ScheduleWithAssigneeVendor = Prisma.TaskScheduleGetPayload<{
+  include: typeof SCHEDULE_ASSIGNEE_VENDOR;
+}>;
+
+/** A schedule as its reader gets it: with whether they may change it. */
+export type TaskScheduleView = TaskSchedule & { canWrite: boolean };
+
+function toTaskScheduleView(
+  reader: TaskScheduleReader,
+  { assignee, ...schedule }: ScheduleWithAssigneeVendor,
+): TaskScheduleView {
+  return {
+    ...schedule,
+    canWrite: canWriteTaskSchedule(reader, { ...schedule, assignee }),
+  };
+}
+
 async function findReadableSchedule(
   actor: ScheduleActor,
   id: string,
@@ -372,7 +406,7 @@ async function findReadableSchedule(
 ) {
   const schedule = await tx.taskSchedule.findFirst({
     where: { id, ...readableWhere(actor) },
-    include: { assignee: { select: { vendorId: true } } },
+    include: SCHEDULE_ASSIGNEE_VENDOR,
   });
   if (!schedule) {
     throw notFound("Task Schedule not found");
@@ -383,13 +417,9 @@ async function findReadableSchedule(
 export async function getTaskSchedule(
   vars: RouteVars,
   id: string,
-): Promise<TaskSchedule> {
+): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
-  const { assignee: _assignee, ...schedule } = await findReadableSchedule(
-    actor,
-    id,
-  );
-  return schedule;
+  return toTaskScheduleView(actor, await findReadableSchedule(actor, id));
 }
 
 /** A schedule the caller may change, checked as an edit checks it. */
@@ -417,6 +447,7 @@ export async function listTaskSchedules(
   const [rows, total] = await Promise.all([
     prisma.taskSchedule.findMany({
       where,
+      include: SCHEDULE_ASSIGNEE_VENDOR,
       take: take + 1,
       skip,
       cursor: cursor ? { id: cursor } : undefined,
@@ -425,7 +456,9 @@ export async function listTaskSchedules(
     prisma.taskSchedule.count({ where }),
   ]);
   const hasMore = rows.length > take;
-  const schedules = rows.slice(0, take);
+  const schedules = rows
+    .slice(0, take)
+    .map((row) => toTaskScheduleView(actor, row));
   return {
     schedules,
     pagination: createPaginationMeta(schedules, total, take, hasMore, cursor),
@@ -446,6 +479,7 @@ export async function listTaskScheduleRuns(
       gte: query.from ? new Date(query.from) : undefined,
       lt: query.to ? new Date(query.to) : undefined,
     },
+    manual: query.manual === undefined ? undefined : query.manual === "true",
   };
   const [rows, total] = await Promise.all([
     prisma.taskScheduleRun.findMany({
@@ -467,21 +501,31 @@ export async function listTaskScheduleRuns(
 
 type WritableScheduleFields = Pick<
   TaskSchedule,
-  "ownerId" | "creatorCoworkerId" | "assigneeId"
+  "ownerId" | "visibility" | "creatorCoworkerId" | "assigneeId"
 > & {
   assignee: { vendorId: string } | null;
 };
 
 /**
- * People change only the schedules they own, as they do Tasks. A Coworker
- * changes the acting member's schedules it created or whose assignee is in
- * its vendor family.
+ * Members change the public schedules of their workspace and their own
+ * private ones, as they do Tasks (ADR 0048). A Coworker changes those of the
+ * member it acts for that it created or whose assignee is in its vendor
+ * family. The schedule must be one read in the writer's workspace.
  */
 export function canWriteTaskSchedule(
   writer: TaskScheduleReader,
   schedule: WritableScheduleFields,
 ): boolean {
-  if (schedule.ownerId !== writer.userId) {
+  if (
+    schedule.visibility !== TaskVisibility.PUBLIC &&
+    schedule.ownerId !== writer.userId
+  ) {
+    return false;
+  }
+  if (
+    writer.kind === "coworker" &&
+    !isPrivateTaskVisibleToCoworker(schedule, writer)
+  ) {
     return false;
   }
   return (
@@ -501,8 +545,8 @@ function requireScheduleWriteAccess(
   }
   throw forbidden(
     actor.kind === "user"
-      ? "Only the owner can change this Task Schedule"
-      : "Coworkers can only change the acting member's Task Schedules they created or whose assignee is in their vendor family",
+      ? "Only the owner can change a private Task Schedule"
+      : "Coworkers can only change the Task Schedules they created or whose assignee is in their vendor family",
   );
 }
 
@@ -532,7 +576,7 @@ export async function updateTaskSchedule(
   vars: RouteVars,
   id: string,
   input: UpdateTaskScheduleRequest,
-): Promise<TaskSchedule> {
+): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
   if (input.rule) validateTaskScheduleRule(input.rule);
 
@@ -556,10 +600,26 @@ export async function updateTaskSchedule(
 
     const assignees = nextAssigneeWrite(input);
     requireScheduleAssignee(assignees?.assigneeUserId);
+    if (
+      assignees?.assigneeSokoBotId &&
+      assignees.assigneeSokoBotId === current.assigneeSokoBotId
+    ) {
+      await requireTaskAssignableSokoBot(
+        assignees.assigneeSokoBotId,
+        current.workspaceId,
+        tx,
+      );
+    }
     await requireTaskReferences(
       {
         projectId: input.projectId,
         ...assignees,
+        // Keeping the stored bot is not a new assignment to its owner's PA.
+        // Shared editors send the full blueprint, including that existing bot.
+        assigneeSokoBotId:
+          assignees?.assigneeSokoBotId === current.assigneeSokoBotId
+            ? undefined
+            : assignees?.assigneeSokoBotId,
         workspaceId: current.workspaceId,
         actor: toDomainActor(actor),
       },
@@ -584,7 +644,10 @@ export async function updateTaskSchedule(
     if (count === 0) {
       throwRevisionConflict();
     }
-    const updated = await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
+    const updated = await tx.taskSchedule.findUniqueOrThrow({
+      where: { id },
+      include: SCHEDULE_ASSIGNEE_VENDOR,
+    });
 
     // The old rule's future Runs go, its skips and moves into the
     // history; ones already owed still release, and released ones and their
@@ -601,6 +664,7 @@ export async function updateTaskSchedule(
           data: {
             nextRunAt: await projectTaskScheduleRuns(tx, updated, now),
           },
+          include: SCHEDULE_ASSIGNEE_VENDOR,
         });
       }
     }
@@ -609,7 +673,7 @@ export async function updateTaskSchedule(
     if (input.projectId !== undefined) {
       await moveTaskScheduleRunsToProject(tx, schedule);
     }
-    return schedule;
+    return toTaskScheduleView(actor, schedule);
   });
 }
 
@@ -651,7 +715,7 @@ export async function changeTaskScheduleState(
   vars: RouteVars,
   id: string,
   action: TaskScheduleStateAction,
-): Promise<TaskSchedule> {
+): Promise<TaskScheduleView> {
   const actor = await resolveScheduleActor(vars);
 
   return await prisma.$transaction(async (tx) => {
@@ -696,7 +760,13 @@ export async function changeTaskScheduleState(
         kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
       });
     }
-    return await tx.taskSchedule.findUniqueOrThrow({ where: { id } });
+    return toTaskScheduleView(
+      actor,
+      await tx.taskSchedule.findUniqueOrThrow({
+        where: { id },
+        include: SCHEDULE_ASSIGNEE_VENDOR,
+      }),
+    );
   });
 }
 
@@ -852,6 +922,60 @@ export async function changeTaskScheduleRun(
 }
 
 /**
+ * Run now (ADR 0047) on an Active or Paused schedule: one extra Run, released
+ * at once. The rule, its planned Runs, and `nextRunAt` stay as they are.
+ * Revision-checked, so a repeated submit creates one Task.
+ */
+export async function runTaskScheduleNow(
+  vars: RouteVars,
+  id: string,
+  { expectedRevision }: CreateTaskScheduleRunRequest,
+): Promise<{ revision: number; run: TaskScheduleRun }> {
+  const actor = await resolveScheduleActor(vars);
+
+  const { run, task } = await prisma.$transaction(async (tx) => {
+    const current = await findReadableSchedule(actor, id, tx);
+    requireScheduleWriteAccess(actor, current);
+    if (current.state === TaskScheduleState.ENDED) {
+      throwStateConflict("An Ended Task Schedule cannot run");
+    }
+    await requireOpenScheduleProjects(tx, current.workspaceId, [
+      current.projectId,
+    ]);
+    if (current.revision !== expectedRevision) {
+      throwRevisionConflict();
+    }
+    // Claimed first, so a concurrent edit or a second submit fails before any
+    // Task. Every change bumps the revision, so a lost claim is a stale one.
+    const { count } = await tx.taskSchedule.updateMany({
+      where: { id, state: current.state, revision: expectedRevision },
+      data: { revision: { increment: 1 } },
+    });
+    if (count !== 1) {
+      throwRevisionConflict();
+    }
+    try {
+      return await releaseManualTaskScheduleRun(
+        tx,
+        current,
+        new Date(),
+        actorColumns(actor),
+      );
+    } catch (error) {
+      // The Run's time fell on a rule time to the millisecond.
+      if (isPrismaUniqueViolation(error)) {
+        throw conflict("Another Run holds this time; try again", {
+          kind: CORE_API_ERROR_KINDS.CONCURRENCY_CONFLICT,
+        });
+      }
+      throw error;
+    }
+  });
+  await announceReleasedTasks([task]);
+  return { revision: expectedRevision + 1, run };
+}
+
+/**
  * Tasks the schedule created stay; the database sets their `scheduleId` to
  * null (ADR 0041).
  */
@@ -870,7 +994,7 @@ export async function deleteTaskSchedule(
   });
 }
 
-export function mapTaskSchedule(schedule: TaskSchedule) {
+export function mapTaskSchedule(schedule: TaskScheduleView) {
   return {
     id: schedule.id,
     workspaceId: schedule.workspaceId,
@@ -902,6 +1026,7 @@ export function mapTaskSchedule(schedule: TaskSchedule) {
     assigneeUserId: schedule.assigneeUserId,
     createdAt: schedule.createdAt,
     updatedAt: schedule.updatedAt,
+    canWrite: schedule.canWrite,
   };
 }
 
@@ -911,6 +1036,7 @@ export function mapTaskScheduleRun(run: TaskScheduleRun) {
     state: run.state,
     originalScheduledAt: run.originalScheduledAt,
     effectiveScheduledAt: run.effectiveScheduledAt,
+    manual: run.manual,
     releasedTaskId: run.releasedTaskId,
     actorUserId: run.actorUserId,
     actorCoworkerId: run.actorCoworkerId,

@@ -251,6 +251,7 @@ function renderRoomsClient(room: ChatRoom) {
         rooms={[room]}
         organizationMembers={[]}
         currentUserId="user-1"
+        isOrgOwnerOrAdmin={false}
         coworkers={[]}
         selectedRoomId={room.id}
         messageLoadFailed={false}

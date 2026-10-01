@@ -10,7 +10,14 @@
  * consumes the opening tag and then shows the words the room throws away.
  *
  * A fence opens on its own line, carries an info string to the end of that
- * line, and closes on a run of exactly as many backticks.
+ * line, and closes on a run of exactly as many backticks. The info string
+ * holds no backtick: markdown reads `` ``` `x `` as the start of a paragraph,
+ * so what follows it is markup rather than code.
+ *
+ * The rule is narrower than markdown's on purpose, and it still reads a fence
+ * where markdown reads none: under an HTML block that no blank line has
+ * closed, the lines are raw HTML. So nothing may rely on this rule to decide
+ * what is safe to render. The room sanitizes the parsed tree for that.
  */
 export const MARKDOWN_FENCED_BLOCK_REGEX =
-  /(^|\n)(`{3,})([^\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g;
+  /(^|\n)(`{3,})([^`\n]*)\n([\s\S]*?)\n\2(?=\n|$)/g;

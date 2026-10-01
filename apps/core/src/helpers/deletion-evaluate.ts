@@ -14,8 +14,8 @@ import {
   finalizedOnChainJobStatuses,
 } from "@sokosumi/database/types/job";
 import { APIError } from "better-auth/api";
-
 import { SWEEPABLE_X402_STATUSES } from "@/helpers/task-deletion-payments";
+import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 import { isLastWorkspace } from "@/helpers/workspace-access";
 
 export const USER_DELETION_BLOCKER_CODES = [
@@ -112,9 +112,7 @@ const ORGANIZATION_DELETION_MESSAGES: Record<
 };
 
 const IN_FLIGHT_TASK_STATUSES_EXCLUDED: TaskStatus[] = [
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.CANCELED,
+  ...SETTLED_TASK_STATUSES,
 ];
 
 function inFlightJobWhere(

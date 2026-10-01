@@ -21,6 +21,7 @@ import {
   requireTaskAssignableCoworker,
   requireTaskAssignableSokoBot,
   requireTaskAssignableUser,
+  requireTaskWriteAccess,
   type TaskAssigner,
 } from "@/helpers/access-control";
 import {
@@ -381,6 +382,38 @@ function sokoBotEditableStatuses(
     : SOKO_BOT_UPDATE_STATUSES;
 }
 
+/**
+ * The live Task an actor may change. A user changes their own Tasks here; a
+ * Soko Bot changes what its owner could change in the app (their own Tasks,
+ * and public Tasks of an organization they hold a seat in), and only inside
+ * the bot's own workspace.
+ */
+async function findActorTask(
+  input: UpdateTaskDomainInput,
+  tx: Prisma.TransactionClient,
+): Promise<Task> {
+  if (input.actor.kind === "soko_bot") {
+    const task = await requireTaskWriteAccess(
+      { source: "context", userId: input.ownerId, organizationId: null },
+      input.taskId,
+      tx,
+    );
+    if (task.workspaceId !== input.workspaceId)
+      throw notFound("Task not found");
+    return task;
+  }
+  const task = await tx.task.findFirst({
+    where: {
+      id: input.taskId,
+      ownerId: input.ownerId,
+      archivedAt: null,
+      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
+    },
+  });
+  if (!task) throw notFound("Task not found");
+  return task;
+}
+
 async function requireMutableTask(
   input: UpdateTaskDomainInput,
   tx: Prisma.TransactionClient,
@@ -401,15 +434,7 @@ async function requireMutableTask(
   // exist: a bot that had just read the Task with `get_task_status` was told
   // by `assign_task` that the same id was not found, so it created a
   // duplicate rather than saying what was actually wrong.
-  const task = await tx.task.findFirst({
-    where: {
-      id: input.taskId,
-      ownerId: input.ownerId,
-      archivedAt: null,
-      ...(input.workspaceId ? { workspaceId: input.workspaceId } : {}),
-    },
-  });
-  if (!task) throw notFound("Task not found");
+  const task = await findActorTask(input, tx);
   if (allowedSokoBotStatuses && !allowedSokoBotStatuses.includes(task.status)) {
     throw forbidden(
       `This Task is ${task.status}. ${
@@ -510,15 +535,7 @@ export async function updateTaskForActor(
     throw unprocessableEntity("Archive must be a separate operation");
   }
   if (projectMoveOnly && !input.archive) {
-    const task = await tx.task.findFirst({
-      where: {
-        id: input.taskId,
-        ownerId: input.ownerId,
-        workspaceId: input.workspaceId,
-        archivedAt: null,
-      },
-    });
-    if (!task) throw notFound("Task not found");
+    const task = await findActorTask(input, tx);
     if (
       input.expectedUpdatedAt &&
       task.updatedAt.getTime() !== input.expectedUpdatedAt.getTime()
@@ -542,15 +559,7 @@ export async function updateTaskForActor(
     });
   }
   if (input.archive) {
-    const task = await tx.task.findFirst({
-      where: {
-        id: input.taskId,
-        ownerId: input.ownerId,
-        workspaceId: input.workspaceId,
-        archivedAt: null,
-      },
-    });
-    if (!task) throw notFound("Task not found");
+    const task = await findActorTask(input, tx);
     if (input.actor.kind === "coworker")
       throw forbidden("Coworkers cannot archive tasks");
     await archiveTaskRecord(tx, task, {

@@ -11,9 +11,7 @@ import {
 } from "./model-policy";
 
 export const SOKO_BOT_ARCHIVE_GUIDANCE =
-  "Owner-requested task archival: use archive_task only for an explicit request identifying one eligible owned task. An explicit owner request to archive now is authorization; do not demand redundant confirmation. Read it first and pass exact updatedAt as expectedUpdatedAt. Ask which task when names are ambiguous. Archival hides the task from the normal board and retains history; it does not cancel work or permanently delete data. Never change status or remove an active schedule to bypass an archive rejection. Cite a verified committed receipt before saying it was archived.";
-export const SOKO_BOT_ARCHIVE_APPROVAL_GUIDANCE =
-  "When the owner asks to propose archival and wait for approval, persist request_user_decision with toolName archive_task and the exact taskId/expectedUpdatedAt proposal. Do not archive before approval. An ordinary conversational offer is not a durable proposal or an approval.";
+  'Archiving: when the owner asks you to archive Tasks, archive them with archive_task; several in one turn is fine, and "all my X tasks" means finding them with list_tasks and archiving each. Ask in chat only when it is unclear which Tasks they mean. Read each Task first and pass its exact updatedAt. Archiving hides a Task from the board and keeps its history; it does not cancel work. A Task that is running or waiting for input cannot be archived as it is: when the owner wants it gone, cancel it with reply_to_task status CANCELED, the comment saying why, then archive it. Say a Task was archived only after archive_task succeeded.';
 
 /** Materialize inherited prompts and skill content before hashing. Never register
  * or promote these local candidates: review and paid comparison happen separately.
@@ -30,10 +28,6 @@ export function createSokoBotCandidate(base: SokoBotVersion, model: string) {
       composeSystemPrompt(base),
       ...(capabilities.includes("archive_task")
         ? [SOKO_BOT_ARCHIVE_GUIDANCE]
-        : []),
-      ...(capabilities.includes("archive_task") &&
-      capabilities.includes("request_user_decision")
-        ? [SOKO_BOT_ARCHIVE_APPROVAL_GUIDANCE]
         : []),
     ].join("\n\n"),
     capabilities,

@@ -1,8 +1,8 @@
 import type { GetJobsData, GetTasksData } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
   PROJECTS_BROWSE_LAYOUT_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -20,7 +20,7 @@ describe("projects list CLS layout constants", () => {
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toBe(
       "bg-card-background border-border -mx-4 overflow-hidden rounded-none border-0 md:mx-0 md:rounded-xl md:border",
     );
-    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y");
+    expect(PROJECTS_BROWSE_LIST_CLASS).toBe("flex flex-col gap-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).not.toContain("grid-cols-2");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("rounded-none");
     expect(PROJECTS_BROWSE_LAYOUT_CLASS).toContain("md:rounded-xl");

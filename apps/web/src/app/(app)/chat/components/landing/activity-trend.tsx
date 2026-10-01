@@ -9,8 +9,8 @@ export function ActivityTrend({ trend }: { trend: ActivityStat["trend"] }) {
   }
   const Arrow = trend.direction === "up" ? ArrowUp : ArrowDown;
   return (
-    <span className="text-muted-foreground ml-1.5 inline-flex items-center">
-      <Arrow aria-hidden className="size-3" />
+    <span className="text-muted-foreground ml-1.5 inline-flex items-center gap-0.5">
+      <Arrow aria-hidden className="size-3 shrink-0" />
       {trend.delta}
       <span className="sr-only">{trend.label}</span>
     </span>

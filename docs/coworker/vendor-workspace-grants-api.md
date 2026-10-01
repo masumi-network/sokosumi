@@ -152,14 +152,26 @@ visibility, one assignee of any kind). At every Run, Core creates a new `READY`
 Task that carries the schedule's id in `scheduleId`. A Task never repeats; a
 one-time start is `runAt` on `POST /v1/tasks`.
 
+`expr` has five fields: minute, hour, day of month, month, day of week, read
+in `timezone`. Ranges, lists, steps, month and weekday names, `L`, and `#` work
+(`0 9 * * MON-FRI`, `0 17 * * 5L`, `0 9 * * 1#1`). A seconds field, an `@`
+macro such as `@daily`, or `H` answers **400**, on create and on a `PATCH` that
+sends `rule`. Schedules stored before this rule keep running, and a `PATCH`
+without `rule` still works on them.
+
 A Coworker needs `X-Context-*` headers, the `tasks` capability, and a
 **GRANTED** workspace grant. A missing grant is requested and the call answers
 **403** `grant_required` until a human approves; nothing parks. The
 organization seat applies to the contextual user, and Task Schedules are not
 behind the Calendar beta. The Coworker reads the workspace's public schedules
-and the contextual user's private ones in its vendor family, as for Tasks. It
-changes only the contextual user's schedules that it created or whose assignee
-is in its vendor family. A schedule's workspace is fixed at creation.
+and the contextual user's private ones in its vendor family, as for Tasks.
+Every member changes the schedules they see: the workspace's public ones and
+their own private ones
+([ADR 0048](../adr/0048-members-change-workspace-visible-task-schedules.md)).
+The Coworker changes a schedule the contextual user may change when it created
+the schedule or the assignee is in its vendor family. Every schedule carries `canWrite`
+for the caller. The owner stays the owner, and each Run's Task belongs to them.
+A schedule's workspace is fixed at creation.
 
 `POST /v1/tasks/schedules` takes an optional `operationId` (a UUID, scoped to
 the workspace) so a timed-out create can be retried safely: a retry with the
@@ -172,6 +184,16 @@ and answers **409** `schedule_revision_conflict` when the schedule changed.
 Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
+
+`POST /v1/tasks/schedules/{id}/runs` is Run now
+([ADR 0047](../adr/0047-run-now-is-a-run-outside-the-rule-count.md)): with the
+`expectedRevision` the caller read, it creates one extra Run of an Active or
+Paused schedule and its Task at once, and answers **201** with the Run
+(`manual: true`, `releasedTaskId`) and the new revision. The rule and its
+planned Runs stay as they are, and the Run does not count toward an
+end-after-N rule. An Ended schedule answers **409** `schedule_state_conflict`;
+a stale revision answers **409** `schedule_revision_conflict`, so a retried
+request creates one Task.
 
 ### Legacy vendor schedules (temporary)
 
@@ -197,7 +219,9 @@ Draft, Ready, or Queued, not archived or parked, and the Coworker created it,
 is its assignee, or shares the assignee's vendor. The create is keyed on the
 Task, so a retry returns the first schedule. `occurrences` counts the Runs
 still to come, and an `M H */N * *` cron with no `intervalDays` means every N
-days, as before. A person assignee answers **422**. Every answer of the layer
+days, as before. The cron follows the five-field rule above, so a seconds field
+or `@daily` answers **400**, even when it re-sends the stored rule or resumes a
+paused schedule; nothing changes. A person assignee answers **422**. Every answer of the layer
 logs `legacyTaskScheduleShim`.
 
 ### Removed per-Task schedule routes

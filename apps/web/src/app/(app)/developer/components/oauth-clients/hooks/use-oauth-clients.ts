@@ -74,6 +74,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
             includeOfflineAccess,
           }),
           grant_types: buildOAuthClientGrantTypes(includeOfflineAccess),
+          ...clientLinks(data),
           ...(applicationType === "native"
             ? { application_type: "native" as const }
             : {}),
@@ -154,6 +155,7 @@ export function useOAuthClients(): UseOAuthClientsReturn {
           update: {
             client_name: data.name,
             redirect_uris: data.redirectUris,
+            ...clientLinks(data),
             ...(applicationType === "native"
               ? { application_type: "native" as const }
               : {}),
@@ -268,5 +270,17 @@ export function useOAuthClients(): UseOAuthClientsReturn {
     update,
     delete: deleteClient,
     rotateSecret,
+  };
+}
+
+/**
+ * The home page and logo, each only when filled in. An empty field is left
+ * out rather than sent as "": Better Auth's update cannot clear these to
+ * null, so an emptied field keeps the stored value.
+ */
+function clientLinks(data: { clientUri?: string; logoUri?: string }) {
+  return {
+    ...(data.clientUri ? { client_uri: data.clientUri } : {}),
+    ...(data.logoUri ? { logo_uri: data.logoUri } : {}),
   };
 }

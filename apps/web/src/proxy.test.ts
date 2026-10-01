@@ -121,6 +121,74 @@ describe("proxy", () => {
     expect(getSessionCookieMock).not.toHaveBeenCalled();
   });
 
+  it("serves .well-known documents without a session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    const { APPLE_APP_SITE_ASSOCIATION_PATH } = await import(
+      "@/config/apple-app-site-association"
+    );
+    const { CORE_OAUTH_AUTHORIZATION_SERVER_WELL_KNOWN_PATH } = await import(
+      "@/lib/auth/oauth-issuer-well-known.server"
+    );
+    getSessionCookieMock.mockReturnValue(null);
+    // Apple's CDN and OAuth clients fetch these with no cookie, and Apple
+    // rejects an association file that answers with a redirect.
+    for (const path of [
+      APPLE_APP_SITE_ASSOCIATION_PATH,
+      CORE_OAUTH_AUTHORIZATION_SERVER_WELL_KNOWN_PATH,
+    ]) {
+      const response = await proxy(
+        new NextRequest(`https://app.example.com${path}`),
+      );
+
+      expect(response?.status).toBe(200);
+      expect(response?.headers.get("location")).toBeNull();
+    }
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("serves the Apple app callback page without a session", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    getSessionCookieMock.mockReturnValue(null);
+
+    const response = await proxy(
+      new NextRequest(
+        "https://app.example.com/auth/apple/callback?code=c&state=s",
+      ),
+    );
+
+    expect(response?.status).toBe(200);
+    expect(getSessionCookieMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps serving the Apple app site association during maintenance", async () => {
+    const { NextRequest } = await import("next/server");
+    const { proxy } = await import("./proxy");
+    const { APPLE_APP_SITE_ASSOCIATION_PATH } = await import(
+      "@/config/apple-app-site-association"
+    );
+    getEnvSecretsMock.mockReturnValue({
+      MAINTENANCE_MODE: true,
+      NETWORK: "Mainnet",
+      VERCEL_GIT_COMMIT_REF: "main",
+      VERCEL_ENV: "production",
+      VERCEL_URL: "https://app.example.com",
+    });
+    getSessionCookieMock.mockReturnValue(null);
+
+    const response = await proxy(
+      new NextRequest(
+        `https://app.example.com${APPLE_APP_SITE_ASSOCIATION_PATH}`,
+      ),
+    );
+
+    // A redirect here would make Apple's CDN drop the association, and the
+    // app's sign-in would keep failing after maintenance ends.
+    expect(response?.status).toBe(200);
+    expect(response?.headers.get("location")).toBeNull();
+  });
+
   it("edge-redirects anonymous Welcome with leftover query to /signin preserving returnUrl", async () => {
     const { NextRequest } = await import("next/server");
     const { proxy } = await import("./proxy");

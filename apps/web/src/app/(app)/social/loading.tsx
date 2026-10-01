@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 import { SocialPageShell } from "./components/social-page-shell";
 
@@ -12,10 +13,9 @@ import { SocialPageShell } from "./components/social-page-shell";
 const PLACEHOLDER_POSTS_PER_DAY = [0, 2, 1, 0, 1, 0, 0];
 
 /**
- * Social's shape while its calendar and accounts load: the section header with
- * New post, the calendar toolbar, a week of placeholder post cards, and the
- * accounts section. Drawn to the same boxes as the page so nothing jumps when
- * the content arrives.
+ * Social's shape while its calendar loads: the tab row with New post, the
+ * calendar toolbar and a week of placeholder post cards. Drawn to the same
+ * boxes as the page so nothing jumps when the content arrives.
  */
 export default async function SocialLoading() {
   const t = await getTranslations("App.Social");
@@ -32,42 +32,50 @@ export default async function SocialLoading() {
         <span className="sr-only">{t("loading")}</span>
 
         <section aria-hidden className="space-y-2">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="space-y-2">
-              <Skeleton className="h-5 w-40" />
-              <Skeleton className="h-4 w-72 max-w-full" />
-            </div>
-            <Skeleton className="h-9 w-32 shrink-0" />
+          {/* The tab row and New post share one row, as on the page; on a
+              phone New post is only its icon. */}
+          <div className="flex items-center justify-between gap-2">
+            <Skeleton className="h-9 w-64 min-w-0 sm:w-72" />
+            <Skeleton className="h-9 w-14 shrink-0 sm:w-32" />
           </div>
 
-          <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3 pt-2">
+            <div className="flex items-center gap-2 max-sm:w-full">
+              <Skeleton className="size-9 max-sm:hidden" />
+              <Skeleton className="h-5 w-36 max-sm:me-auto" />
               <Skeleton className="size-9" />
-              <Skeleton className="h-5 w-36" />
-              <Skeleton className="size-9" />
+              <Skeleton className="size-9 sm:hidden" />
             </div>
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-9 w-56" />
+            <div className="flex items-center justify-between gap-2 max-sm:w-full">
+              <Skeleton className="h-9 w-32 sm:w-56" />
               <Skeleton className="h-9 w-24" />
             </div>
           </div>
 
           <div className="border-border overflow-hidden rounded-xl border">
-            <div className="grid grid-cols-7 border-b">
+            {/* A phone shows about three days of the week at once, so the
+                skeleton draws three rather than seven narrow columns. */}
+            <div className="grid grid-cols-3 border-b sm:grid-cols-7">
               {PLACEHOLDER_POSTS_PER_DAY.map((_, day) => (
                 <div
                   key={day}
-                  className="flex justify-center border-l py-2 first:border-l-0"
+                  className={cn(
+                    "flex justify-center border-l py-2 first:border-l-0",
+                    day >= 3 && "max-sm:hidden",
+                  )}
                 >
                   <Skeleton className="h-4 w-12" />
                 </div>
               ))}
             </div>
-            <div className="grid min-h-60 grid-cols-7">
+            <div className="grid min-h-60 grid-cols-3 sm:grid-cols-7">
               {PLACEHOLDER_POSTS_PER_DAY.map((posts, day) => (
                 <div
                   key={day}
-                  className="flex min-w-0 flex-col gap-1.5 border-l p-1.5 first:border-l-0"
+                  className={cn(
+                    "flex min-w-0 flex-col gap-1.5 border-l p-1.5 first:border-l-0",
+                    day >= 3 && "max-sm:hidden",
+                  )}
                 >
                   {Array.from({ length: posts }, (_, post) => (
                     <PlaceholderPostCard key={post} />
@@ -76,17 +84,6 @@ export default async function SocialLoading() {
               ))}
             </div>
           </div>
-        </section>
-
-        <section
-          aria-hidden
-          className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
-        >
-          <div className="space-y-2">
-            <Skeleton className="h-5 w-36" />
-            <Skeleton className="h-4 w-96 max-w-full" />
-          </div>
-          <Skeleton className="h-9 w-36 shrink-0" />
         </section>
       </div>
     </SocialPageShell>

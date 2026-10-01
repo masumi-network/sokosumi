@@ -22,7 +22,7 @@ struct BearerMiddlewareTests {
     ))
     let session = try OAuthSession(configuration: configuration(), store: store, transport: transport)
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
@@ -59,7 +59,7 @@ struct BearerMiddlewareTests {
       json: "{\"access_token\":\"access-1\",\"token_type\":\"Bearer\",\"expires_in\":100,\"refresh_token\":\"refresh-1\"}"
     )
     try await session.signIn(
-      callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+      callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
       expectedState: "s",
       codeVerifier: "v"
     )
