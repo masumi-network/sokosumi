@@ -6315,6 +6315,7 @@
         "title": "Mitglieder",
         "humansTitle": "Personen",
         "agentsTitle": "Coworker",
+        "add": "Mitglieder hinzufügen",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",

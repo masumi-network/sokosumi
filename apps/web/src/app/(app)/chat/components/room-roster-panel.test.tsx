@@ -32,6 +32,7 @@ const labels = {
   humansTitle: "People",
   agentsTitle: "Coworkers",
   close: "Close members",
+  add: "Add members",
   empty: "No members to show.",
   coworkerBadge: "AI coworker",
   message: (name: string) => `Message ${name}`,
@@ -112,6 +113,27 @@ describe("RoomRosterPanel", () => {
     expect(
       within(hannahRow).getByText("Online").closest('[aria-hidden="true"]'),
     ).toBeNull();
+  });
+
+  it("shows an add action only when the caller may edit the roster", async () => {
+    const user = userEvent.setup();
+    const onAddMembers = vi.fn();
+    const props = {
+      participants: [humanAda],
+      currentUserId: "user-self",
+      canOpenHumanDirect: true,
+      onOpenDirect: vi.fn(),
+      openingDirectKey: null,
+      onClose: vi.fn(),
+      readStateFor: noReadState,
+      labels,
+    };
+    const { rerender } = render(<RoomRosterPanel {...props} />);
+    expect(screen.queryByTestId("room-roster-add")).toBeNull();
+
+    rerender(<RoomRosterPanel {...props} onAddMembers={onAddMembers} />);
+    await user.click(screen.getByRole("button", { name: "Add members" }));
+    expect(onAddMembers).toHaveBeenCalledTimes(1);
   });
 
   it("lists members and closes", async () => {
