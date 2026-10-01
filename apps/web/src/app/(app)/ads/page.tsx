@@ -12,11 +12,10 @@ import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server"
 
 import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
-import { AdsCampaignsSkeleton } from "./components/ads-campaigns-skeleton";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
 import { AdsMarketSection } from "./components/ads-market-section";
-import { AdsMarketSkeleton } from "./components/ads-market-skeleton";
 import { AdsPageShell } from "./components/ads-page-shell";
+import { AdsRowsSkeleton } from "./components/ads-skeleton";
 import { AdsTabs } from "./components/ads-tabs";
 
 // Wait for the current session and project access before rendering.
@@ -81,7 +80,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
         />
         <Suspense
           key={`${account.id}:${query.range}`}
-          fallback={<AdsCampaignsSkeleton />}
+          fallback={<AdsRowsSkeleton />}
         >
           <AdsCampaignsSection
             account={account}
@@ -95,7 +94,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
   // The same for Market: its profile and the provider data load on its tab.
   const market =
     query.tab === "market" ? (
-      <Suspense fallback={<AdsMarketSkeleton />}>
+      <Suspense fallback={<AdsRowsSkeleton />}>
         <AdsMarketSection projectId={project.id} />
       </Suspense>
     ) : null;

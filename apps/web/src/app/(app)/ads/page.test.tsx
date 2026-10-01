@@ -90,8 +90,8 @@ vi.mock("./components/ads-market-section", () => ({
   ),
 }));
 
-vi.mock("./components/ads-market-skeleton", () => ({
-  AdsMarketSkeleton: () => <div>market skeleton</div>,
+vi.mock("./components/ads-skeleton", () => ({
+  AdsRowsSkeleton: () => <div>rows skeleton</div>,
 }));
 
 const PROJECT = { id: "project-1", name: "Launch plan" };

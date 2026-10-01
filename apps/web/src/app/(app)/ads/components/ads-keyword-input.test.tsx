@@ -87,15 +87,22 @@ describe("AdsKeywordInput", () => {
     expect(onChangeMock).not.toHaveBeenCalled();
   });
 
-  it("stops at ten keywords", async () => {
+  it("stops at ten keywords, staying focusable and saying so", async () => {
     const user = renderInput(Array.from({ length: 9 }, (_, i) => `k${i}`));
     const input = screen.getByLabelText("Keywords");
 
     await user.type(input, "tenth,");
     expect(chips()).toHaveLength(10);
 
-    expect(input).toBeDisabled();
-    expect(input).toHaveAttribute("placeholder", "Keyword limit reached");
+    expect(input).not.toBeDisabled();
+    expect(input).toHaveAttribute("readonly");
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Keyword limit reached",
+    );
+    input.focus();
+    expect(input).toHaveFocus();
+    await user.keyboard("eleventh,");
+    expect(chips()).toHaveLength(10);
   });
 
   it("cuts a pasted keyword to 80 characters", async () => {
@@ -115,5 +122,24 @@ describe("AdsKeywordInput", () => {
 
     expect(chips()).toEqual(["two"]);
     expect(onChangeMock).toHaveBeenLastCalledWith(["two"]);
+  });
+
+  it("moves focus back to the field after a chip is removed", async () => {
+    const user = renderInput(["one", "two"]);
+
+    await user.click(screen.getByRole("button", { name: "Remove one" }));
+
+    expect(screen.getByLabelText("Keywords")).toHaveFocus();
+  });
+
+  it("lets a new keyword in once a full list loses one", async () => {
+    const user = renderInput(Array.from({ length: 10 }, (_, i) => `k${i}`));
+
+    await user.click(screen.getByRole("button", { name: "Remove k0" }));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByLabelText("Keywords")).not.toHaveAttribute("readonly");
+
+    await user.type(screen.getByLabelText("Keywords"), "fresh,");
+    expect(chips()).toContain("fresh");
   });
 });

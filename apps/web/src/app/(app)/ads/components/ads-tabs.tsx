@@ -18,8 +18,7 @@ import { cn } from "@/lib/utils";
 
 import { ADS_TABS, adsSearchParams } from "../ads-query";
 import { AdsAccounts } from "./ads-accounts";
-import { AdsCampaignsSkeleton } from "./ads-campaigns-skeleton";
-import { AdsMarketSkeleton } from "./ads-market-skeleton";
+import { AdsRowsSkeleton } from "./ads-skeleton";
 
 interface AdsTabsProps {
   accounts: ProjectAdAccount[];
@@ -89,12 +88,10 @@ export function AdsTabs({
             title={t("campaigns.emptyTitle")}
           />
         ) : (
-          (campaigns ?? <AdsCampaignsSkeleton />)
+          (campaigns ?? <AdsRowsSkeleton />)
         )}
       </TabsContent>
-      <TabsContent value="market">
-        {market ?? <AdsMarketSkeleton />}
-      </TabsContent>
+      <TabsContent value="market">{market ?? <AdsRowsSkeleton />}</TabsContent>
       <TabsContent value="accounts">
         <AdsAccounts accounts={accounts} projectId={projectId} />
       </TabsContent>

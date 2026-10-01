@@ -1,14 +1,14 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
+import { marketOptions, marketSummary } from "@/lib/ads/market";
 import { adsService } from "@/lib/services/ads.service";
 
-import { toMarketLoadError } from "./ads-market";
-import { AdsMarketAds } from "./ads-market-ads";
-import { AdsMarketError } from "./ads-market-error";
-import { AdsMarketKeywords } from "./ads-market-keywords";
+import { AdsErrorState } from "./ads-error-state";
+import { settleAdsLoad } from "./ads-load-error";
 import { AdsMarketProfile } from "./ads-market-profile";
-import { AdsMarketSkeleton } from "./ads-market-skeleton";
+import { AdsMarketResults } from "./ads-market-results";
+import { AdsRowsSkeleton } from "./ads-skeleton";
 
 interface AdsMarketSectionProps {
   projectId: string;
@@ -16,51 +16,39 @@ interface AdsMarketSectionProps {
 
 /**
  * The Market tab: the project's profile and, once it has one, its trending
- * keywords and ads. Each section loads in its own Suspense and fails on its
- * own. Without a profile the form is all there is, so nothing is requested
- * from the data provider.
+ * keywords and ads. The names of countries and languages, and the summary line,
+ * are made here in the reader's language. Without a profile the form is all
+ * there is, so nothing is requested from the data provider.
  */
 export async function AdsMarketSection({ projectId }: AdsMarketSectionProps) {
-  let profile: Awaited<
-    ReturnType<typeof adsService.getMarketProfile>
-  >["profile"];
-  try {
-    ({ profile } = await adsService.getMarketProfile(projectId));
-  } catch (error) {
-    return <AdsMarketError kind={toMarketLoadError(error)} section="profile" />;
-  }
-
-  if (!profile) {
-    return <AdsMarketProfile profile={null} projectId={projectId} />;
-  }
-
   const t = await getTranslations("App.Ads.market");
+  const locale = await getLocale();
+  const loaded = await settleAdsLoad(adsService.getMarketProfile(projectId));
 
+  if (loaded.error) {
+    return (
+      <AdsErrorState
+        failedTitle={t("errors.failed.profile")}
+        kind={loaded.error}
+        unavailableTitle={t("errors.unavailable")}
+      />
+    );
+  }
+
+  const { profile } = loaded.data;
   return (
     <div className="flex flex-col gap-10">
-      <AdsMarketProfile profile={profile} projectId={projectId} />
-      <section
-        aria-labelledby="ads-market-keywords-title"
-        className="flex flex-col gap-4"
-      >
-        <h2 className="text-base font-semibold" id="ads-market-keywords-title">
-          {t("keywords.title")}
-        </h2>
-        <Suspense fallback={<AdsMarketSkeleton />}>
-          <AdsMarketKeywords projectId={projectId} />
+      <AdsMarketProfile
+        {...marketOptions(locale)}
+        profile={profile}
+        projectId={projectId}
+        summary={profile ? marketSummary(profile, locale) : null}
+      />
+      {profile ? (
+        <Suspense fallback={<AdsRowsSkeleton />}>
+          <AdsMarketResults projectId={projectId} />
         </Suspense>
-      </section>
-      <section
-        aria-labelledby="ads-market-ads-title"
-        className="flex flex-col gap-4"
-      >
-        <h2 className="text-base font-semibold" id="ads-market-ads-title">
-          {t("ads.title")}
-        </h2>
-        <Suspense fallback={<AdsMarketSkeleton variant="cards" />}>
-          <AdsMarketAds projectId={projectId} />
-        </Suspense>
-      </section>
+      ) : null}
     </div>
   );
 }

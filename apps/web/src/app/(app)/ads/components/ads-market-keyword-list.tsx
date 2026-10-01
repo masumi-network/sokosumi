@@ -1,7 +1,6 @@
 import type { AdMarketKeyword } from "@sokosumi/core-client";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { useFormatter, useTranslations } from "next-intl";
 
-import { EmptyState } from "@/components/common/empty-state";
 import {
   Table,
   TableBody,
@@ -10,41 +9,30 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { adsService } from "@/lib/services/ads.service";
 
-import { toMarketLoadError } from "./ads-market";
-import { AdsMarketError } from "./ads-market-error";
 import { AdsSparkline } from "./ads-sparkline";
+import { AdsUpdated } from "./ads-updated";
 
 /** What a figure shows when DataForSEO has no value for it. */
 const NO_VALUE = "—";
 
-interface AdsMarketKeywordsProps {
-  projectId: string;
+interface AdsMarketKeywordListProps {
+  keywords: AdMarketKeyword[];
+  fetchedAt: Date;
 }
 
 /**
- * The profile's trending keywords, loaded on the server inside the section's
- * Suspense. A table from `md` up; below it rows with the keyword, its searches
- * and its trend. Money is USD, as DataForSEO reports it.
+ * Trending keywords: a table from `md` up, and below it rows with the keyword,
+ * its searches, its competition and bid, and its trend. Money is USD, as
+ * DataForSEO reports it, so the amounts carry the dollar sign and the
+ * headers do not repeat it.
  */
-export async function AdsMarketKeywords({ projectId }: AdsMarketKeywordsProps) {
-  const t = await getTranslations("App.Ads.market.keywords");
-  const formatter = await getFormatter();
-
-  let result: Awaited<ReturnType<typeof adsService.listMarketKeywords>>;
-  try {
-    result = await adsService.listMarketKeywords(projectId);
-  } catch (error) {
-    return (
-      <AdsMarketError kind={toMarketLoadError(error)} section="keywords" />
-    );
-  }
-
-  const { keywords, fetchedAt } = result;
-  if (keywords.length === 0) {
-    return <EmptyState description={t("emptyBody")} title={t("emptyTitle")} />;
-  }
+export function AdsMarketKeywordList({
+  keywords,
+  fetchedAt,
+}: AdsMarketKeywordListProps) {
+  const t = useTranslations("App.Ads.market.keywords");
+  const formatter = useFormatter();
 
   const count = (value: number | null) =>
     value === null ? NO_VALUE : formatter.number(value);
@@ -72,11 +60,15 @@ export async function AdsMarketKeywords({ projectId }: AdsMarketKeywordsProps) {
     );
   };
 
+  /** "Medium · $0.40–$1.20", with whichever of the two there is. */
+  const priceLine = (keyword: AdMarketKeyword) =>
+    [competition(keyword), bidRange(keyword)]
+      .filter((part) => part !== NO_VALUE)
+      .join(" · ");
+
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-keywords">
-      <p className="text-muted-foreground text-xs">
-        {t("updated", { time: formatter.relativeTime(fetchedAt) })}
-      </p>
+      <AdsUpdated at={fetchedAt} />
 
       <div className="hidden md:block" data-testid="ads-market-keywords-table">
         <Table>
@@ -135,6 +127,11 @@ export async function AdsMarketKeywords({ projectId }: AdsMarketKeywordsProps) {
               <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
                 {t("searchesPerMonth", { count: count(keyword.searchVolume) })}
               </p>
+              {priceLine(keyword) ? (
+                <p className="text-muted-foreground text-xs tabular-nums">
+                  {priceLine(keyword)}
+                </p>
+              ) : null}
             </div>
             {trend(keyword)}
           </li>

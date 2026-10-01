@@ -2792,6 +2792,12 @@
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "tabsLabel": "Ads sections",
       "loading": "Loading ads…",
+      "updated": "Updated {time}",
+      "loadError": {
+        "unavailableDescription": "It is not set up for Sokosumi yet.",
+        "failedDescription": "Try again in a moment.",
+        "retry": "Try again"
+      },
       "tabs": {
         "campaigns": "Campaigns",
         "market": "Market",
@@ -2803,7 +2809,6 @@
         "emptyAction": "Go to accounts",
         "noCampaignsTitle": "No campaigns in this account yet",
         "noCampaignsBody": "Create one with New campaign. It starts paused.",
-        "loading": "Loading campaigns…",
         "account": "Ad account",
         "rangeLabel": "Date range",
         "range": {
@@ -2898,18 +2903,14 @@
             "action": "Go to accounts"
           },
           "unavailable": {
-            "title": "{provider} isn't available yet",
-            "description": "It is not set up for Sokosumi yet."
+            "title": "{provider} isn't available yet"
           },
           "failed": {
-            "title": "Failed to load campaigns",
-            "description": "Try again in a moment.",
-            "retry": "Try again"
+            "title": "Failed to load campaigns"
           }
         }
       },
       "market": {
-        "loading": "Loading market…",
         "setupTitle": "Set up your market",
         "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your market is running.",
         "edit": "Edit market",
@@ -2927,24 +2928,23 @@
           "submit": "Save market",
           "saving": "Saving…",
           "cancel": "Cancel",
-          "success": "Market saved",
+          "success": "Market saved successfully",
           "errors": {
             "keywordsRequired": "Add at least one keyword.",
             "keywordsTooMany": "Use up to {max} keywords.",
             "countryRequired": "Choose a country.",
             "languageRequired": "Choose a language.",
-            "failed": "Could not save the market. Try again."
+            "failed": "Failed to save market"
           }
         },
         "keywords": {
           "title": "Trending keywords",
-          "updated": "Updated {time}",
           "columns": {
             "keyword": "Keyword",
             "searches": "Monthly searches",
             "trend": "12 months",
             "competition": "Competition",
-            "bidRange": "Top-of-page bid (USD)"
+            "bidRange": "Top-of-page bid"
           },
           "competition": {
             "LOW": "Low",
@@ -2958,7 +2958,6 @@
         },
         "ads": {
           "title": "Ads in your market",
-          "updated": "Updated {time}",
           "previewAlt": "Ad by {advertiser}",
           "textAd": "Text ad",
           "noPreview": "No preview",
@@ -2974,17 +2973,12 @@
           "emptyBody": "Ads from your market's biggest advertisers appear here once they run."
         },
         "errors": {
-          "unavailable": {
-            "title": "Market data isn't available yet",
-            "description": "It isn't set up for Sokosumi yet."
-          },
+          "unavailable": "Market data isn't available yet",
           "failed": {
             "profile": "Failed to load your market",
             "keywords": "Failed to load keywords",
             "ads": "Failed to load ads"
-          },
-          "description": "Try again in a moment.",
-          "retry": "Try again"
+          }
         }
       },
       "accounts": {

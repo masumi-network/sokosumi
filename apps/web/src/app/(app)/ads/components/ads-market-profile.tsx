@@ -1,12 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  AdMarketCountryCode,
-  AdMarketLanguageCode,
-  type AdMarketProfile,
-} from "@sokosumi/core-client";
-import { useLocale, useTranslations } from "next-intl";
+import type { AdMarketProfile } from "@sokosumi/core-client";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -39,28 +35,27 @@ import {
 } from "@/components/ui/select";
 import { saveAdsMarketProfile } from "@/lib/actions/ads/action";
 import {
+  createMarketProfileSchema,
   MARKET_KEYWORD_LIMIT,
-  MARKET_KEYWORD_MAX_LENGTH,
+  type MarketOption,
 } from "@/lib/ads/market";
 
 import { AdsKeywordInput } from "./ads-keyword-input";
 
 type SavedProfile = NonNullable<AdMarketProfile>;
 
-interface AdsMarketProfileProps {
+interface MarketProfileFormProps {
   projectId: string;
-  /** Null until one is saved, which shows the form in place of the summary. */
+  /** Null until one is saved. */
   profile: SavedProfile | null;
+  /** Named and sorted by the server, in the reader's language. */
+  countries: MarketOption[];
+  languages: MarketOption[];
 }
 
-/** "Germany", "German": names in the reader's language, from the code. */
-function displayName(
-  locale: string,
-  type: "region" | "language",
-  code: string,
-): string {
-  const name = new Intl.DisplayNames(locale, { type }).of(code) ?? code;
-  return name.charAt(0).toLocaleUpperCase(locale) + name.slice(1);
+interface AdsMarketProfileProps extends MarketProfileFormProps {
+  /** "running shoes · Germany · German", made by the server. Null without a profile. */
+  summary: string | null;
 }
 
 /**
@@ -68,34 +63,27 @@ function displayName(
  * quiet summary line and an "Edit market" dialog around the same form.
  */
 export function AdsMarketProfile({
-  projectId,
-  profile,
+  summary,
+  ...formProps
 }: AdsMarketProfileProps) {
   const t = useTranslations("App.Ads.market");
-  const locale = useLocale();
   const [open, setOpen] = useState(false);
 
-  if (!profile) {
+  if (!formProps.profile) {
     return (
       <div className="flex max-w-lg flex-col gap-6">
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold">{t("setupTitle")}</h2>
           <p className="text-muted-foreground text-sm">{t("setupBody")}</p>
         </div>
-        <MarketProfileForm projectId={projectId} profile={null} />
+        <MarketProfileForm {...formProps} />
       </div>
     );
   }
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-      <p className="text-muted-foreground min-w-0 text-sm">
-        {[
-          profile.keywords.join(", "),
-          displayName(locale, "region", profile.countryCode),
-          displayName(locale, "language", profile.languageCode),
-        ].join(" · ")}
-      </p>
+      <p className="text-muted-foreground min-w-0 text-sm">{summary}</p>
       <Button
         size="sm"
         type="button"
@@ -110,11 +98,7 @@ export function AdsMarketProfile({
             <DialogTitle>{t("edit")}</DialogTitle>
             <DialogDescription>{t("editBody")}</DialogDescription>
           </DialogHeader>
-          <MarketProfileForm
-            profile={profile}
-            projectId={projectId}
-            onDone={() => setOpen(false)}
-          />
+          <MarketProfileForm {...formProps} onDone={() => setOpen(false)} />
         </DialogContent>
       </Dialog>
     </div>
@@ -126,28 +110,20 @@ export function AdsMarketProfile({
  * language. The form mounts with its dialog, so it starts from what is saved.
  */
 function MarketProfileForm({
+  countries,
+  languages,
   onDone,
   profile,
   projectId,
-}: AdsMarketProfileProps & { onDone?: () => void }) {
+}: MarketProfileFormProps & { onDone?: () => void }) {
   const t = useTranslations("App.Ads.market.form");
-  const locale = useLocale();
   const [failed, setFailed] = useState(false);
 
-  const schema = z.object({
-    keywords: z
-      .array(z.string().trim().min(1).max(MARKET_KEYWORD_MAX_LENGTH))
-      .min(1, t("errors.keywordsRequired"))
-      .max(
-        MARKET_KEYWORD_LIMIT,
-        t("errors.keywordsTooMany", { max: MARKET_KEYWORD_LIMIT }),
-      ),
-    countryCode: z.enum(AdMarketCountryCode, {
-      error: t("errors.countryRequired"),
-    }),
-    languageCode: z.enum(AdMarketLanguageCode, {
-      error: t("errors.languageRequired"),
-    }),
+  const schema = createMarketProfileSchema({
+    keywordsRequired: t("errors.keywordsRequired"),
+    keywordsTooMany: t("errors.keywordsTooMany", { max: MARKET_KEYWORD_LIMIT }),
+    countryRequired: t("errors.countryRequired"),
+    languageRequired: t("errors.languageRequired"),
   });
 
   const form = useForm<
@@ -162,14 +138,6 @@ function MarketProfileForm({
       languageCode: profile?.languageCode,
     },
   });
-
-  // Sorted by the name the reader sees, not by code.
-  const countries = Object.values(AdMarketCountryCode)
-    .map((code) => ({ code, name: displayName(locale, "region", code) }))
-    .sort((a, b) => a.name.localeCompare(b.name, locale));
-  const languages = Object.values(AdMarketLanguageCode)
-    .map((code) => ({ code, name: displayName(locale, "language", code) }))
-    .sort((a, b) => a.name.localeCompare(b.name, locale));
 
   async function handleSubmit(values: z.output<typeof schema>): Promise<void> {
     setFailed(false);

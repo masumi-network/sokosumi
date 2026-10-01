@@ -14,12 +14,8 @@ vi.mock("./ads-accounts", () => ({
   ),
 }));
 
-vi.mock("./ads-campaigns-skeleton", () => ({
-  AdsCampaignsSkeleton: () => <div>campaigns skeleton</div>,
-}));
-
-vi.mock("./ads-market-skeleton", () => ({
-  AdsMarketSkeleton: () => <div>market skeleton</div>,
+vi.mock("./ads-skeleton", () => ({
+  AdsRowsSkeleton: () => <div>rows skeleton</div>,
 }));
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
@@ -81,7 +77,7 @@ describe("AdsTabs", () => {
   it("holds a skeleton while the server sends the market after a tab switch", () => {
     renderTabs("?tab=market");
 
-    expect(screen.getByText("market skeleton")).toBeVisible();
+    expect(screen.getByText("rows skeleton")).toBeVisible();
   });
 
   it("falls back to Campaigns for a tab it does not have", () => {
@@ -100,7 +96,7 @@ describe("AdsTabs", () => {
 
     await user.click(screen.getByRole("tab", { name: "tabs.market" }));
 
-    expect(screen.getByText("market skeleton")).toBeVisible();
+    expect(screen.getByText("rows skeleton")).toBeVisible();
   });
 
   it("sends Campaigns' empty state on to Accounts", async () => {
@@ -127,6 +123,6 @@ describe("AdsTabs", () => {
   it("holds a skeleton while the server sends campaigns after a tab switch", () => {
     renderTabs("", { accounts: [{ id: "a1" } as ProjectAdAccount] });
 
-    expect(screen.getByText("campaigns skeleton")).toBeVisible();
+    expect(screen.getByText("rows skeleton")).toBeVisible();
   });
 });

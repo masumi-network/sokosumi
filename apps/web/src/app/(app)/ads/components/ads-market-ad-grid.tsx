@@ -1,37 +1,22 @@
 import type { AdMarketAd } from "@sokosumi/core-client";
-import { getFormatter, getTranslations } from "next-intl/server";
+import { useFormatter, useTranslations } from "next-intl";
 
-import { EmptyState } from "@/components/common/empty-state";
-import { adsService } from "@/lib/services/ads.service";
+import { AdsUpdated } from "./ads-updated";
 
-import { toMarketLoadError } from "./ads-market";
-import { AdsMarketError } from "./ads-market-error";
-
-interface AdsMarketAdsProps {
-  projectId: string;
+interface AdsMarketAdGridProps {
+  ads: AdMarketAd[];
+  fetchedAt: Date;
 }
 
 /**
- * Recent ads of the market's biggest advertisers, loaded on the server inside
- * the section's Suspense: one calm card each, in a grid of 1, 2 or 3 columns.
- * The preview is Google-hosted, so it is a plain `<img>` that sends no
- * referrer. Text ads have no image and show a quiet block instead.
+ * Recent ads of the market's biggest advertisers: one calm card each, in a
+ * grid of 1, 2 or 3 columns. The preview is Google-hosted, so it is a plain
+ * `<img>` that sends no referrer. A text ad has no image and shows a quiet
+ * block instead.
  */
-export async function AdsMarketAds({ projectId }: AdsMarketAdsProps) {
-  const t = await getTranslations("App.Ads.market.ads");
-  const formatter = await getFormatter();
-
-  let result: Awaited<ReturnType<typeof adsService.listMarketAds>>;
-  try {
-    result = await adsService.listMarketAds(projectId);
-  } catch (error) {
-    return <AdsMarketError kind={toMarketLoadError(error)} section="ads" />;
-  }
-
-  const { ads, fetchedAt } = result;
-  if (ads.length === 0) {
-    return <EmptyState description={t("emptyBody")} title={t("emptyTitle")} />;
-  }
+export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
+  const t = useTranslations("App.Ads.market.ads");
+  const formatter = useFormatter();
 
   const details = ({ format, lastShown }: AdMarketAd) =>
     [
@@ -45,9 +30,7 @@ export async function AdsMarketAds({ projectId }: AdsMarketAdsProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-ads">
-      <p className="text-muted-foreground text-xs">
-        {t("updated", { time: formatter.relativeTime(fetchedAt) })}
-      </p>
+      <AdsUpdated at={fetchedAt} />
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {ads.map((ad) => (
           <li

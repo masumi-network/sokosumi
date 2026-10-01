@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import {
@@ -13,17 +13,19 @@ import {
 interface AdsKeywordInputProps
   extends Omit<
     React.ComponentProps<"input">,
-    "defaultValue" | "onChange" | "value"
+    "defaultValue" | "onChange" | "ref" | "value"
   > {
   value: string[];
   onChange: (value: string[]) => void;
 }
 
 /**
- * Keywords as chips: type and press Enter or comma to add one, remove one with
- * its button. Duplicates (ignoring case) and anything past Core's limit are
- * dropped, and a keyword is cut to Core's length (so a pasted list is not). Typed text is kept when focus leaves, so Save never loses it. The
- * rest of the props (id, aria-*) go to the input, for the form field.
+ * Keywords as chips. Type and press Enter or comma to add one; remove one with
+ * its button, after which focus returns to the field. A keyword already there
+ * (ignoring case) or past Core's limit is dropped, and one is cut to Core's
+ * length. Text still in the field when focus leaves is added, so Save never
+ * loses it. At the limit the field stays focusable but read-only, and says so.
+ * Other props (id, aria-*) go to the field, for the form around it.
  */
 export function AdsKeywordInput({
   value,
@@ -31,6 +33,7 @@ export function AdsKeywordInput({
   ...inputProps
 }: AdsKeywordInputProps) {
   const t = useTranslations("App.Ads.market.form");
+  const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
   const full = value.length >= MARKET_KEYWORD_LIMIT;
 
@@ -49,13 +52,19 @@ export function AdsKeywordInput({
     setDraft("");
   }
 
+  function handleRemove(keyword: string): void {
+    onChange(value.filter((candidate) => candidate !== keyword));
+    inputRef.current?.focus();
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <Input
         {...inputProps}
+        ref={inputRef}
         autoComplete="off"
-        disabled={full}
-        placeholder={full ? t("keywordsFull") : t("keywordsPlaceholder")}
+        placeholder={t("keywordsPlaceholder")}
+        readOnly={full}
         value={draft}
         onBlur={() => handleAdd(draft)}
         onChange={(event) => {
@@ -69,21 +78,24 @@ export function AdsKeywordInput({
           handleAdd(draft);
         }}
       />
+      {full ? (
+        <p className="text-muted-foreground text-xs" role="status">
+          {t("keywordsFull")}
+        </p>
+      ) : null}
       {value.length > 0 ? (
         <ul className="flex flex-wrap gap-2">
           {value.map((keyword) => (
             <li
               key={keyword}
-              className="bg-muted text-foreground inline-flex items-center gap-1 rounded-full py-1 pr-1 pl-3 text-sm"
+              className="bg-muted text-foreground inline-flex items-center rounded-full pl-3 text-sm"
             >
               {keyword}
               <button
                 aria-label={t("removeKeyword", { keyword })}
-                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex size-5 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none"
+                className="text-muted-foreground hover:text-foreground focus-visible:ring-ring flex size-8 items-center justify-center rounded-full focus-visible:ring-2 focus-visible:outline-none sm:size-7"
                 type="button"
-                onClick={() =>
-                  onChange(value.filter((candidate) => candidate !== keyword))
-                }
+                onClick={() => handleRemove(keyword)}
               >
                 <X aria-hidden className="size-3" />
               </button>

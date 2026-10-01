@@ -2792,6 +2792,12 @@
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
       "tabsLabel": "Ads-Bereiche",
       "loading": "Ads werden geladen…",
+      "updated": "Aktualisiert {time}",
+      "loadError": {
+        "unavailableDescription": "Es ist für Sokosumi noch nicht eingerichtet.",
+        "failedDescription": "Versuche es gleich noch einmal.",
+        "retry": "Erneut versuchen"
+      },
       "tabs": {
         "campaigns": "Kampagnen",
         "market": "Markt",
@@ -2803,7 +2809,6 @@
         "emptyAction": "Zu den Konten",
         "noCampaignsTitle": "Noch keine Kampagnen in diesem Konto",
         "noCampaignsBody": "Erstelle eine mit „Neue Kampagne“. Sie startet pausiert.",
-        "loading": "Kampagnen werden geladen…",
         "account": "Werbekonto",
         "rangeLabel": "Zeitraum",
         "range": {
@@ -2898,18 +2903,14 @@
             "action": "Zu den Konten"
           },
           "unavailable": {
-            "title": "{provider} ist noch nicht verfügbar",
-            "description": "Es ist für Sokosumi noch nicht eingerichtet."
+            "title": "{provider} ist noch nicht verfügbar"
           },
           "failed": {
-            "title": "Kampagnen konnten nicht geladen werden",
-            "description": "Versuche es gleich noch einmal.",
-            "retry": "Erneut versuchen"
+            "title": "Kampagnen konnten nicht geladen werden"
           }
         }
       },
       "market": {
-        "loading": "Markt wird geladen…",
         "setupTitle": "Richte deinen Markt ein",
         "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen dein Markt schaltet.",
         "edit": "Markt bearbeiten",
@@ -2927,24 +2928,23 @@
           "submit": "Markt speichern",
           "saving": "Wird gespeichert…",
           "cancel": "Abbrechen",
-          "success": "Markt gespeichert",
+          "success": "Markt erfolgreich gespeichert",
           "errors": {
             "keywordsRequired": "Füge mindestens ein Keyword hinzu.",
             "keywordsTooMany": "Nutze bis zu {max} Keywords.",
             "countryRequired": "Wähle ein Land.",
             "languageRequired": "Wähle eine Sprache.",
-            "failed": "Der Markt konnte nicht gespeichert werden. Versuche es erneut."
+            "failed": "Markt konnte nicht gespeichert werden"
           }
         },
         "keywords": {
           "title": "Trend-Keywords",
-          "updated": "Aktualisiert {time}",
           "columns": {
             "keyword": "Keyword",
             "searches": "Suchen pro Monat",
             "trend": "12 Monate",
             "competition": "Wettbewerb",
-            "bidRange": "Gebot für Top-Platzierung (USD)"
+            "bidRange": "Gebot für Top-Platzierung"
           },
           "competition": {
             "LOW": "Niedrig",
@@ -2958,7 +2958,6 @@
         },
         "ads": {
           "title": "Anzeigen in deinem Markt",
-          "updated": "Aktualisiert {time}",
           "previewAlt": "Anzeige von {advertiser}",
           "textAd": "Textanzeige",
           "noPreview": "Keine Vorschau",
@@ -2974,17 +2973,12 @@
           "emptyBody": "Anzeigen der größten Werbetreibenden deines Markts erscheinen hier, sobald sie laufen."
         },
         "errors": {
-          "unavailable": {
-            "title": "Marktdaten sind noch nicht verfügbar",
-            "description": "Sie sind für Sokosumi noch nicht eingerichtet."
-          },
+          "unavailable": "Marktdaten sind noch nicht verfügbar",
           "failed": {
             "profile": "Dein Markt konnte nicht geladen werden",
             "keywords": "Keywords konnten nicht geladen werden",
             "ads": "Anzeigen konnten nicht geladen werden"
-          },
-          "description": "Versuche es gleich noch einmal.",
-          "retry": "Erneut versuchen"
+          }
         }
       },
       "accounts": {

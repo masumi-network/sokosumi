@@ -5,7 +5,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { saveAdsMarketProfile } from "@/lib/actions/ads/action";
-import deMessages from "../../../../../messages/de.json";
+import { marketOptions } from "@/lib/ads/market";
 import messages from "../../../../../messages/en.json";
 import { AdsMarketProfile } from "./ads-market-profile";
 
@@ -29,16 +29,17 @@ const SAVED: NonNullable<AdMarketProfile> = {
   updatedAt: new Date("2026-10-01T10:00:00.000Z"),
 };
 
-function renderProfile(
-  profile: AdMarketProfile = null,
-  locale: "en" | "de" = "en",
-) {
+const SUMMARY = "running shoes, trail shoes · Germany · German";
+
+function renderProfile(profile: AdMarketProfile = null) {
   render(
-    <NextIntlClientProvider
-      locale={locale}
-      messages={locale === "en" ? messages : deMessages}
-    >
-      <AdsMarketProfile profile={profile} projectId="project-1" />
+    <NextIntlClientProvider locale="en" messages={messages}>
+      <AdsMarketProfile
+        {...marketOptions("en")}
+        profile={profile}
+        projectId="project-1"
+        summary={profile ? SUMMARY : null}
+      />
     </NextIntlClientProvider>,
   );
   return userEvent.setup();
@@ -85,14 +86,6 @@ describe("AdsMarketProfile without a profile", () => {
     expect(countries).toContain("United Kingdom");
   });
 
-  it("names them in the reader's language", async () => {
-    const user = renderProfile(null, "de");
-
-    await user.click(screen.getByRole("combobox", { name: "Sprache" }));
-
-    expect(screen.getByRole("option", { name: "Französisch" })).toBeVisible();
-  });
-
   it("asks for keywords, a country and a language, saving nothing", async () => {
     const user = renderProfile();
 
@@ -121,7 +114,7 @@ describe("AdsMarketProfile without a profile", () => {
         languageCode: "de",
       }),
     );
-    expect(toastSuccessMock).toHaveBeenCalledWith("Market saved");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Market saved successfully");
   });
 
   it("keeps a keyword typed but not yet added when Save is pressed", async () => {
@@ -156,9 +149,7 @@ describe("AdsMarketProfile without a profile", () => {
     await choose(user, language(), "German");
     await user.click(save());
 
-    expect(
-      await screen.findByText("Could not save the market. Try again."),
-    ).toBeVisible();
+    expect(await screen.findByText("Failed to save market")).toBeVisible();
     expect(screen.queryByText("Core text")).toBeNull();
     expect(toastSuccessMock).not.toHaveBeenCalled();
   });
@@ -172,9 +163,7 @@ describe("AdsMarketProfile without a profile", () => {
     await choose(user, language(), "German");
     await user.click(save());
 
-    expect(
-      await screen.findByText("Could not save the market. Try again."),
-    ).toBeVisible();
+    expect(await screen.findByText("Failed to save market")).toBeVisible();
   });
 });
 
@@ -186,9 +175,7 @@ describe("AdsMarketProfile with a profile", () => {
   it("is one quiet summary line", () => {
     renderProfile(SAVED);
 
-    expect(
-      screen.getByText("running shoes, trail shoes · Germany · German"),
-    ).toBeVisible();
+    expect(screen.getByText(SUMMARY)).toBeVisible();
     expect(screen.queryByLabelText("Keywords")).toBeNull();
   });
 
@@ -226,7 +213,7 @@ describe("AdsMarketProfile with a profile", () => {
       }),
     );
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(toastSuccessMock).toHaveBeenCalledWith("Market saved");
+    expect(toastSuccessMock).toHaveBeenCalledWith("Market saved successfully");
   });
 
   it("keeps the dialog open on a failure", async () => {
@@ -241,9 +228,7 @@ describe("AdsMarketProfile with a profile", () => {
       await screen.findByRole("button", { name: "Save market" }),
     );
 
-    expect(
-      await screen.findByText("Could not save the market. Try again."),
-    ).toBeVisible();
+    expect(await screen.findByText("Failed to save market")).toBeVisible();
     expect(screen.getByRole("dialog")).toBeVisible();
   });
 

@@ -4,11 +4,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "../../../../../messages/en.json";
 
-const { getMarketProfileMock } = vi.hoisted(() => ({
+const { getMarketProfileMock, localeMock } = vi.hoisted(() => ({
   getMarketProfileMock: vi.fn(),
+  localeMock: vi.fn(),
 }));
 
 vi.mock("next-intl/server", () => ({
+  getLocale: async () => localeMock(),
   getTranslations: async (namespace: string) =>
     createTranslator({
       locale: "en",
@@ -29,27 +31,43 @@ vi.mock("@/lib/clients/core.client", async () => {
 });
 
 vi.mock("./ads-market-profile", () => ({
-  AdsMarketProfile: ({ profile }: { profile: unknown }) => (
-    <div data-testid="profile">{profile ? "summary" : "form"}</div>
+  AdsMarketProfile: ({
+    profile,
+    summary,
+    countries,
+    languages,
+  }: {
+    profile: unknown;
+    summary: string | null;
+    countries: { name: string }[];
+    languages: { name: string }[];
+  }) => (
+    <div data-testid="profile">
+      {profile ? "summary" : "form"}|{summary}|{countries[0].name}|
+      {languages.map(({ name }) => name).join(",")}
+    </div>
   ),
 }));
-vi.mock("./ads-market-keywords", () => ({
-  AdsMarketKeywords: () => <div data-testid="keywords" />,
-}));
-vi.mock("./ads-market-ads", () => ({
-  AdsMarketAds: () => <div data-testid="ads" />,
-}));
-vi.mock("./ads-market-error", () => ({
-  AdsMarketError: ({ kind, section }: { kind: string; section: string }) => (
-    <div data-testid="error">{`${section}:${kind}`}</div>
+vi.mock("./ads-market-results", () => ({
+  AdsMarketResults: ({ projectId }: { projectId: string }) => (
+    <div data-testid="results">{projectId}</div>
   ),
+}));
+vi.mock("./ads-error-state", () => ({
+  AdsErrorState: ({
+    kind,
+    failedTitle,
+  }: {
+    kind: string;
+    failedTitle: string;
+  }) => <div data-testid="error">{`${kind}:${failedTitle}`}</div>,
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { AdsMarketSection } from "./ads-market-section";
 
 const PROFILE = {
-  keywords: ["running shoes"],
+  keywords: ["running shoes", "trail shoes"],
   countryCode: "DE",
   languageCode: "de",
   updatedAt: new Date(),
@@ -62,6 +80,7 @@ async function renderSection() {
 describe("AdsMarketSection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    localeMock.mockReturnValue("en");
   });
 
   it("is only the form without a profile, requesting no market data", async () => {
@@ -70,25 +89,41 @@ describe("AdsMarketSection", () => {
     await renderSection();
 
     expect(getMarketProfileMock).toHaveBeenCalledWith("project-1");
-    expect(screen.getByTestId("profile")).toHaveTextContent("form");
-    expect(screen.queryByTestId("keywords")).toBeNull();
-    expect(screen.queryByTestId("ads")).toBeNull();
+    expect(screen.getByTestId("profile")).toHaveTextContent(
+      /^form\|\|Australia/,
+    );
+    expect(screen.queryByTestId("results")).toBeNull();
   });
 
-  it("shows the summary and both sections, each under its own heading", async () => {
+  it("names the summary, countries and languages in the reader's language", async () => {
     getMarketProfileMock.mockResolvedValue({ profile: PROFILE });
 
     await renderSection();
 
-    expect(screen.getByTestId("profile")).toHaveTextContent("summary");
-    expect(
-      screen.getByRole("heading", { name: "Trending keywords" }),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("heading", { name: "Ads in your market" }),
-    ).toBeVisible();
-    expect(screen.getByTestId("keywords")).toBeVisible();
-    expect(screen.getByTestId("ads")).toBeVisible();
+    const profile = screen.getByTestId("profile");
+    expect(profile).toHaveTextContent(
+      "summary|running shoes, trail shoes · Germany · German|Australia|",
+    );
+    expect(profile).toHaveTextContent("French");
+  });
+
+  it("uses the user's locale", async () => {
+    localeMock.mockReturnValue("de");
+    getMarketProfileMock.mockResolvedValue({ profile: PROFILE });
+
+    await renderSection();
+
+    expect(screen.getByTestId("profile")).toHaveTextContent(
+      "running shoes, trail shoes · Deutschland · Deutsch",
+    );
+  });
+
+  it("loads the market's keywords and ads beside a saved profile", async () => {
+    getMarketProfileMock.mockResolvedValue({ profile: PROFILE });
+
+    await renderSection();
+
+    expect(screen.getByTestId("results")).toHaveTextContent("project-1");
   });
 
   it("reports a profile that fails to load, in place of the market", async () => {
@@ -98,7 +133,9 @@ describe("AdsMarketSection", () => {
 
     await renderSection();
 
-    expect(screen.getByTestId("error")).toHaveTextContent("profile:failed");
-    expect(screen.queryByTestId("keywords")).toBeNull();
+    expect(screen.getByTestId("error")).toHaveTextContent(
+      "failed:Failed to load your market",
+    );
+    expect(screen.queryByTestId("results")).toBeNull();
   });
 });

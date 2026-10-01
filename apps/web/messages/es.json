@@ -2792,6 +2792,12 @@
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "tabsLabel": "Secciones de anuncios",
       "loading": "Cargando anuncios…",
+      "updated": "Actualizado {time}",
+      "loadError": {
+        "unavailableDescription": "Todavía no está configurado para Sokosumi.",
+        "failedDescription": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
       "tabs": {
         "campaigns": "Campañas",
         "market": "Mercado",
@@ -2803,7 +2809,6 @@
         "emptyAction": "Ir a cuentas",
         "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
         "noCampaignsBody": "Crea una con «Nueva campaña». Empieza en pausa.",
-        "loading": "Cargando campañas…",
         "account": "Cuenta publicitaria",
         "rangeLabel": "Período",
         "range": {
@@ -2898,18 +2903,14 @@
             "action": "Ir a cuentas"
           },
           "unavailable": {
-            "title": "{provider} aún no está disponible",
-            "description": "Todavía no está configurado para Sokosumi."
+            "title": "{provider} aún no está disponible"
           },
           "failed": {
-            "title": "No se pudieron cargar las campañas",
-            "description": "Inténtalo de nuevo en un momento.",
-            "retry": "Reintentar"
+            "title": "No se pudieron cargar las campañas"
           }
         }
       },
       "market": {
-        "loading": "Cargando mercado…",
         "setupTitle": "Configura tu mercado",
         "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publica tu mercado.",
         "edit": "Editar mercado",
@@ -2927,24 +2928,23 @@
           "submit": "Guardar mercado",
           "saving": "Guardando…",
           "cancel": "Cancelar",
-          "success": "Mercado guardado",
+          "success": "Mercado guardado correctamente",
           "errors": {
             "keywordsRequired": "Añade al menos una palabra clave.",
             "keywordsTooMany": "Usa hasta {max} palabras clave.",
             "countryRequired": "Elige un país.",
             "languageRequired": "Elige un idioma.",
-            "failed": "No se pudo guardar el mercado. Inténtalo de nuevo."
+            "failed": "No se pudo guardar el mercado"
           }
         },
         "keywords": {
           "title": "Palabras clave en tendencia",
-          "updated": "Actualizado {time}",
           "columns": {
             "keyword": "Palabra clave",
             "searches": "Búsquedas al mes",
             "trend": "12 meses",
             "competition": "Competencia",
-            "bidRange": "Puja de primera página (USD)"
+            "bidRange": "Puja de primera página"
           },
           "competition": {
             "LOW": "Baja",
@@ -2958,7 +2958,6 @@
         },
         "ads": {
           "title": "Anuncios en tu mercado",
-          "updated": "Actualizado {time}",
           "previewAlt": "Anuncio de {advertiser}",
           "textAd": "Anuncio de texto",
           "noPreview": "Sin vista previa",
@@ -2974,17 +2973,12 @@
           "emptyBody": "Los anuncios de los mayores anunciantes de tu mercado aparecen aquí cuando se publican."
         },
         "errors": {
-          "unavailable": {
-            "title": "Los datos de mercado aún no están disponibles",
-            "description": "Todavía no están configurados para Sokosumi."
-          },
+          "unavailable": "Los datos de mercado aún no están disponibles",
           "failed": {
             "profile": "No se pudo cargar tu mercado",
             "keywords": "No se pudieron cargar las palabras clave",
             "ads": "No se pudieron cargar los anuncios"
-          },
-          "description": "Inténtalo de nuevo en un momento.",
-          "retry": "Reintentar"
+          }
         }
       },
       "accounts": {
