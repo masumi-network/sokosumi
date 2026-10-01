@@ -1,6 +1,7 @@
 import type { AdMarketAd } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { AdsMarketAdPreview } from "./ads-market-ad-preview";
 import { AdsUpdated } from "./ads-updated";
 
 interface AdsMarketAdGridProps {
@@ -10,9 +11,8 @@ interface AdsMarketAdGridProps {
 
 /**
  * Recent ads of the market's biggest advertisers: one calm card each, in a
- * grid of 1, 2 or 3 columns. The preview is Google-hosted, so it is a plain
- * `<img>` that sends no referrer. A text ad has no image and shows a quiet
- * block instead.
+ * grid of 1, 2 or 3 columns. Only the preview is client code, to fall back
+ * when its image fails to load.
  */
 export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
   const t = useTranslations("App.Ads.market.ads");
@@ -37,25 +37,7 @@ export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
             key={`${ad.advertiserId}:${ad.creativeId}`}
             className="flex flex-col gap-3"
           >
-            <div className="bg-muted flex aspect-4/3 items-center justify-center overflow-hidden rounded-lg">
-              {ad.previewImage ? (
-                // Google-hosted: not `next/image`, and no referrer sent.
-                <img
-                  alt={t("previewAlt", { advertiser: ad.advertiserName })}
-                  className="size-full object-contain"
-                  decoding="async"
-                  height={ad.previewImage.height ?? undefined}
-                  loading="lazy"
-                  referrerPolicy="no-referrer"
-                  src={ad.previewImage.url}
-                  width={ad.previewImage.width ?? undefined}
-                />
-              ) : (
-                <span className="text-muted-foreground text-sm">
-                  {ad.format === "text" ? t("textAd") : t("noPreview")}
-                </span>
-              )}
-            </div>
+            <AdsMarketAdPreview ad={ad} />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">
                 {ad.advertiserName}

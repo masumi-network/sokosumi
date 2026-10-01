@@ -1,5 +1,5 @@
 import type { AdMarketAd } from "@sokosumi/core-client";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it } from "vitest";
 
@@ -85,6 +85,20 @@ describe("AdsMarketAdGrid", () => {
     expect(within(card).queryByRole("link")).toBeNull();
     // Never shown in the window: just the format.
     expect(card).toHaveTextContent(/^Text ad\s*Trail CoText$/);
+  });
+
+  it("falls back to the quiet block when the image fails to load", () => {
+    renderAds();
+
+    const [card] = screen.getAllByRole("listitem");
+    fireEvent.error(
+      within(card).getByRole("img", { name: "Ad by Acme Shoes" }),
+    );
+
+    expect(within(card).queryByRole("img")).toBeNull();
+    expect(within(card).getByText("No preview")).toBeVisible();
+    expect(card).toHaveTextContent("Acme Shoes");
+    expect(within(card).getByRole("link", { name: /View ad/ })).toBeVisible();
   });
 
   it("says there is no preview for a non-text ad without an image", () => {
