@@ -239,6 +239,10 @@ import SwiftUI
             }
           }
           let mentionShell = mentionShell
+          // Web draws it at the top of a settled body, above the Thought and the text; not while the row is edited (row 38c).
+          if let sourceLabel = SokoBotSourceLabel(message: message), editing?.source?.id != message.id {
+            SokoBotSourceLabelView(label: sourceLabel)
+          }
           if case .failed? = mentionShell {
             failedMentionView
           } else if hasThoughtView(message) {
