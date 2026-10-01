@@ -1631,8 +1631,7 @@
       "Errors": {
         "updateStatus": "No se pudo actualizar el estado del Task",
         "loadMore": "No se pudieron cargar más tareas",
-        "loadCreateTask": "No se pudo cargar el formulario de nueva tarea",
-        "loadJobs": "No se pudieron cargar los trabajos"
+        "loadCreateTask": "No se pudo cargar el formulario de nueva tarea"
       },
       "Card": {
         "comments": "Comentarios",
@@ -1679,25 +1678,6 @@
         },
         "visibilityLabel": "Visibilidad",
         "visibilityPrivate": "Privado"
-      },
-      "Jobs": {
-        "filterButton": "Filtros",
-        "agentLabel": "Agente",
-        "jobStatusLabel": "Estado del job",
-        "jobStatusOptions": {
-          "INITIATED": "Iniciado",
-          "AWAITING_PAYMENT": "Pago pendiente",
-          "AWAITING_INPUT": "Entrada pendiente",
-          "RUNNING": "En ejecución",
-          "COMPLETED": "Completado",
-          "FAILED": "Fallido"
-        },
-        "recentTitle": "Recientes",
-        "emptyRecent": "No hay jobs completados recientemente.",
-        "emptyList": "Aún sin jobs. Contrata a un coworker y tus jobs aparecerán aquí.",
-        "emptySection": "No hay jobs en este estado.",
-        "untitled": "Job sin título",
-        "unknownAgent": "Agent desconocido"
       },
       "Detail": {
         "back": "Volver a Tasks",
