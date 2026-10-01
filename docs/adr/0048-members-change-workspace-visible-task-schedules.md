@@ -20,5 +20,6 @@ Core returns `canWrite` on every schedule it sends, so clients show the actions 
 ## Consequences
 
 - Personal workspaces are unchanged: nobody else is a member there.
-- The organization Seat gate applies to every caller, as before.
+- The organization Seat gate applies to every caller, as before, and also to calendar reads.
+- An edit by another member may keep the schedule's Soko Bot assignee, even when it is the owner's personal assistant. Assigning a Soko Bot anew still follows the acting member's own rules for that bot.
 - The owner gets no notification when someone else changes the schedule. The schedule's revision and the Run rows' actor columns show what happened.
