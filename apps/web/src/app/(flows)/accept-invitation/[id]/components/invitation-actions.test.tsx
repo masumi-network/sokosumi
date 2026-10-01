@@ -254,6 +254,8 @@ describe("InvitationActions join-like layout", () => {
     );
     expect(signin.pathname).toBe("/signin");
     expect(signin.searchParams.get("email")).toBe("ada@example.com");
+    // So sign-in's Register link can keep the address fixed on sign-up.
+    expect(signin.searchParams.get("invitationId")).toBe("inv_1");
     expect(signin.searchParams.get("returnUrl")).toBe(
       "/accept-invitation/inv_1",
     );
