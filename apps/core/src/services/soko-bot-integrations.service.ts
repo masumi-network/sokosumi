@@ -1007,6 +1007,16 @@ export async function fetchCalendarEvents(
           top: options.limit,
         };
   const data = await execute(integration, slug, args);
+  // A calendar is read inside the stand-up, meeting prep and briefings, not
+  // by the hourly mail ingest, so the read itself records that it worked.
+  try {
+    await prisma.sokoBotIntegration.update({
+      where: { id: integration.id },
+      data: { lastIngestAt: new Date() },
+    });
+  } catch {
+    // A missed stamp only affects the console tile, never the read itself.
+  }
   const items = asList(pick(data, "event_data", "events", "items", "value"));
   const events = items
     .map((item) => normaliseEvent(integration.provider.id, item))
