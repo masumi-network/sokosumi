@@ -61,6 +61,10 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
       return (HTTPResponse(status: .internalServerError), HTTPBody("{}"))
     }
     let next = responses.removeFirst()
+    // Status 0 stands for no response at all, as in `ChatRecipientRosterTests`.
+    if next.0 == 0 {
+      throw URLError(.notConnectedToInternet)
+    }
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
 }
@@ -253,10 +257,34 @@ struct ChatServiceTests {
     let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
     #expect(list.rooms.map(\.id) == ["old"])
     #expect(list.canDelete == (role != "member"))
+    #expect(!list.roleLoadFailed)
     #expect(transport.requests[0].request.path == "/users/me/organizations/org/member")
     let query = requestQuery(transport.requests[1].request)
     #expect(query.contains("status=archived") && query.contains("kind=channel"))
     #expect(orgSlugHeader(transport.requests[1].request) == "team")
+  }
+
+  /// Row 32b2: web reads the archived list beside the caller's memberships and turns a failed membership read into
+  /// `[]` (`private-sidebar-cache.ts`), so the rows still list and Delete is off.
+  @Test(arguments: roleReadFailures)
+  func archivedChannelsListWhenTheRoleReadFails(status: Int, body: String) async throws {
+    let transport = ScriptedTransport([
+      (status, body),
+      (200, roomsPageBody(rooms: [roomJSON(id: "old", name: "Old", kind: "channel", unreadCount: 0, unreadMentionCount: 0)], nextCursor: nil))
+    ])
+    let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    #expect(list.rooms.map(\.id) == ["old"])
+    #expect(!list.canDelete && list.roleLoadFailed)
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/organizations/{organizationId}/member", "get/chats/rooms"])
+    #expect(requestQuery(transport.requests[1].request).contains("status=archived"))
+  }
+
+  /// A 401 is the session ending, not a missing role: the load still fails, so the coordinator signs out.
+  @Test func archivedChannelsRoleReadUnauthorizedStillThrows() async throws {
+    let transport = ScriptedTransport([(401, errorEnvelope("Unauthorized", message: "Session expired"))])
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      _ = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    }
   }
 
   @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
