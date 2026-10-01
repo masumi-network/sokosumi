@@ -6676,7 +6676,8 @@
         "submitting": "Creando…",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
-        "avatarLabel": "Imagen"
+        "avatarLabel": "Imagen",
+        "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
       },
       "Memory": {
         "title": "Memoria",
@@ -6774,7 +6775,8 @@
           "limitUsage": "{used} de {limit} turnos propios usados hoy.",
           "timezoneTitle": "Zona horaria",
           "timezoneDescription": "Para el stand-up, el resumen semanal y \"hoy\" en los informes.",
-          "error": "No se pudo guardar el ajuste."
+          "error": "No se pudo guardar el ajuste.",
+          "spendNotice": "Tu asistente trabaja por su cuenta. Revisa tu correo y tu calendario, envía resúmenes diarios y puede pasar trabajo a Coworkers y Agents. Cada acción usa tus créditos. En sus ajustes puedes fijar un límite diario o pausarlo cuando quieras."
         },
         "title": "Ajustes",
         "followBoardTitle": "Seguir todo el tablero",
