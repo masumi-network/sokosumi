@@ -10,7 +10,7 @@ import {
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden } from "@/helpers/error";
+import { forbidden, notFound } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -117,7 +117,9 @@ function createTaskApi(projectId: string | null = null) {
     organizationId: "org_123",
     projectId,
     project:
-      projectId == null ? null : { id: projectId, name: "Project", logo: null },
+      projectId == null
+        ? null
+        : { id: projectId, name: "Project", identifier: "SOK", logo: null },
     owner: {
       id: "user_123",
       name: "Ada Lovelace",
@@ -156,6 +158,8 @@ function createTaskApi(projectId: string | null = null) {
     status: TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
     priority: TaskPriority.NONE,
+    number: null,
+    identifier: null,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     credits: 0,
@@ -347,6 +351,31 @@ describe("PATCH /tasks/{id}", () => {
         },
       });
     });
+  });
+
+  it("keeps the path UUID-only: an identifier is looked up as a raw id", async () => {
+    const app = createApp();
+    requireTaskWriteAccessMock.mockImplementation(() => {
+      throw notFound("Task not found");
+    });
+
+    const response = await app.request("http://localhost/SOK-12", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Renamed",
+      }),
+    });
+
+    expect(response.status).toBe(404);
+    expect(requireTaskWriteAccessMock).toHaveBeenCalledWith(
+      expect.anything(),
+      "SOK-12",
+      expect.anything(),
+    );
+    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("assigns a task to a workspace project", async () => {

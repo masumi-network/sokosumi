@@ -2742,7 +2742,7 @@ export const getProjects = <ThrowOnError extends boolean = false>(options?: Opti
 });
 
 /**
- * Create a project with an optional website and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.
+ * Create a project with an optional identifier, website, and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.
  */
 export const postProjects = <ThrowOnError extends boolean = false>(options?: Options<PostProjectsData, ThrowOnError>): RequestResult<PostProjectsResponses, PostProjectsErrors, ThrowOnError> => (options?.client ?? client).post<PostProjectsResponses, PostProjectsErrors, ThrowOnError>({
     responseTransformer: postProjectsResponseTransformer,
@@ -3109,7 +3109,7 @@ export const getProjectsById = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Update a project's name, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.
+ * Update a project's name, identifier, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.
  */
 export const patchProjectsById = <ThrowOnError extends boolean = false>(options: Options<PatchProjectsByIdData, ThrowOnError>): RequestResult<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchProjectsByIdResponses, PatchProjectsByIdErrors, ThrowOnError>({
     responseTransformer: patchProjectsByIdResponseTransformer,
@@ -4216,7 +4216,7 @@ export const deleteTasksById = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Retrieve task details
+ * Retrieve task details by task id or by project identifier such as SOK-123. Tasks that moved projects still resolve by their former identifier.
  */
 export const getTasksById = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdData, ThrowOnError>): RequestResult<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError>({
     responseTransformer: getTasksByIdResponseTransformer,
