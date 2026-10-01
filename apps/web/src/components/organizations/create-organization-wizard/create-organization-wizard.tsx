@@ -135,7 +135,11 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
 interface CreateOrganizationWizardProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  /** After the organization exists, Finish or dismiss leaves via this hook. */
+  /**
+   * After the organization exists, Finish or dismiss hands off here. The
+   * wizard stays open on its ready step until the caller navigates away, so
+   * nothing behind it shows while the app loads.
+   */
   onOrganizationReady?: (organizationId: string) => void;
 }
 
@@ -156,6 +160,7 @@ export function CreateOrganizationWizard({
   const [organizationName, setOrganizationName] = useState("");
   const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null);
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState("");
   const logoUrlRef = useRef(logoUrl);
@@ -229,6 +234,7 @@ export function CreateOrganizationWizard({
     setOrganizationName("");
     setNormalizedUrl(null);
     setIsCreatingOrg(false);
+    setIsLeaving(false);
     setLogoUrl("");
     setIsResolvingLogo(false);
     setPendingLogoFiles([]);
@@ -560,35 +566,30 @@ export function CreateOrganizationWizard({
     }
   }, [organizationId, emails, t]);
 
+  /** Returns whether the wizard may close now. */
   const completeOrganization = useCallback(
-    (orgId: string) => {
+    (orgId: string): boolean => {
       if (onOrganizationReady) {
+        setIsLeaving(true);
+        setStep(SUCCESS_STEP);
         onOrganizationReady(orgId);
-        return;
+        return false;
       }
       void handleSelectWorkspace(orgId, {
         shouldRedirectAgentJobsBasePath: false,
       });
+      return true;
     },
     [handleSelectWorkspace, onOrganizationReady],
   );
 
-  const handleFinish = useCallback(() => {
-    if (!organizationId) {
-      onOpenChange(false);
-      return;
-    }
-    completeOrganization(organizationId);
-    onOpenChange(false);
-  }, [completeOrganization, onOpenChange, organizationId]);
-
-  const isBusy = isCreatingOrg || isUploadingLogo;
+  const isBusy = isCreatingOrg || isUploadingLogo || isLeaving;
   const brandDomain = normalizedUrl ? getDomainLabel(normalizedUrl) : "";
 
   const handleRequestClose = (nextOpen: boolean) => {
     if (isBusy) return;
-    if (!nextOpen && organizationId) {
-      completeOrganization(organizationId);
+    if (!nextOpen && organizationId && !completeOrganization(organizationId)) {
+      return;
     }
     onOpenChange(nextOpen);
   };
@@ -1088,8 +1089,12 @@ export function CreateOrganizationWizard({
               variant="primary"
               size="lg"
               className="h-11 w-full px-6"
-              onClick={handleFinish}
+              onClick={() => handleRequestClose(false)}
+              disabled={isBusy}
             >
+              {isLeaving && (
+                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+              )}
               {t("Nav.finish")}
             </Button>
           )}

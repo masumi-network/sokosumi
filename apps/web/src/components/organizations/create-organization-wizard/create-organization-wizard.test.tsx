@@ -191,6 +191,58 @@ describe("CreateOrganizationWizard", () => {
     expect(onOrganizationReadyMock).toHaveBeenCalledWith("org-1");
   });
 
+  it("stays open on Finish while onOrganizationReady leaves", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(organizationCreateMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(onOrganizationReadyMock).toHaveBeenCalledOnce();
+  });
+
+  it("shows the ready step while leaving when dismissed after create", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(organizationCreateMock).toHaveBeenCalledOnce();
+    });
+
+    await user.click(screen.getByRole("button", { name: /close/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
+  });
+
   it("lets logo and brand steps advance empty", async () => {
     const user = userEvent.setup();
     render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
