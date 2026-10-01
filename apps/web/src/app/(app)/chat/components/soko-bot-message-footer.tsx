@@ -1,6 +1,15 @@
 "use client";
 
-import { ArrowUpRight, ShieldCheck, ThumbsDown, ThumbsUp } from "lucide-react";
+import {
+  ArrowUpRight,
+  CalendarClock,
+  Clock,
+  ListChecks,
+  Mail,
+  ShieldCheck,
+  ThumbsDown,
+  ThumbsUp,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -15,6 +24,8 @@ interface SokoBotMessageMetadata {
   task_ids?: string[];
   /** Set on messages the bot sent on its own (stand-up, ingest, events). */
   source?: string;
+  schedule_name?: string;
+  schedule_key?: string | null;
 }
 
 function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
@@ -34,7 +45,63 @@ function readSokoBotMetadata(metadata: unknown): SokoBotMessageMetadata | null {
     pending_decision_ids: ids("pending_decision_ids"),
     task_ids: ids("task_ids"),
     source: typeof record.source === "string" ? record.source : undefined,
+    schedule_name:
+      typeof record.schedule_name === "string"
+        ? record.schedule_name
+        : undefined,
+    schedule_key:
+      typeof record.schedule_key === "string" ? record.schedule_key : null,
   };
+}
+
+type SourceLabel =
+  | { kind: "inbox" }
+  | { kind: "standup" }
+  | { kind: "weeklyWrap" }
+  | { kind: "scheduled"; name: string }
+  | { kind: "taskUpdate" };
+
+/** Where a message the bot sent on its own came from; null for replies. */
+export function sokoBotSourceLabel(metadata: unknown): SourceLabel | null {
+  const info = readSokoBotMetadata(metadata);
+  switch (info?.source) {
+    case "INGEST":
+      return { kind: "inbox" };
+    case "EVENT":
+      return { kind: "taskUpdate" };
+    case "SCHEDULE":
+      if (info.schedule_key === "standup") return { kind: "standup" };
+      if (info.schedule_key === "weekly-wrap") return { kind: "weeklyWrap" };
+      return info.schedule_name
+        ? { kind: "scheduled", name: info.schedule_name }
+        : null;
+    default:
+      return null;
+  }
+}
+
+const SOURCE_ICONS = {
+  inbox: Mail,
+  standup: CalendarClock,
+  weeklyWrap: CalendarClock,
+  scheduled: Clock,
+  taskUpdate: ListChecks,
+} as const;
+
+/** A quiet line above an unprompted bot message saying what triggered it. */
+export function SokoBotSourceLabel({ metadata }: { metadata: unknown }) {
+  const t = useTranslations("App.Chat.SokoBot.source");
+  const label = sokoBotSourceLabel(metadata);
+  if (!label) return null;
+  const Icon = SOURCE_ICONS[label.kind];
+  return (
+    <div className="text-muted-foreground mb-1 inline-flex items-center gap-1.5 text-xs">
+      <Icon aria-hidden className="size-3" />
+      {label.kind === "scheduled"
+        ? t("scheduled", { name: label.name })
+        : t(label.kind)}
+    </div>
+  );
 }
 
 /** Shown on hover (or focus) where hover exists; always shown on touch. */

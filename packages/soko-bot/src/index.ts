@@ -47,6 +47,7 @@ export {
   isSokoBotSilentAnswer,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  upcomingFollowUps,
 } from "./proactive.js";
 export type {
   IndexedRuntimeEvent,

@@ -1581,7 +1581,14 @@
         "task": "Task",
         "chainDepth": "Antwort {depth} von {max} zwischen Assistenten. Schreibt eine Person hier, beginnt die Zählung von vorn.",
         "chainRoomRate": "{count} von {max} Assistenten-Nachrichten in diesem Raum in dieser Stunde.",
-        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr."
+        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
+        "source": {
+          "inbox": "Aus deinem Posteingang",
+          "standup": "Tägliches Stand-up",
+          "weeklyWrap": "Wochenrückblick",
+          "scheduled": "Geplant: {name}",
+          "taskUpdate": "Task-Update"
+        }
       }
     },
     "Tasks": {
@@ -2013,37 +2020,6 @@
           "monthlyWithDayTime": "Monatlich (am {day}., {time})",
           "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
           "custom": "Benutzerdefinierter Cron"
-        },
-        "firstRun": "Erster Lauf",
-        "timeOfDay": "Uhrzeit",
-        "repeatEvery": "Wiederholen alle",
-        "repeatOn": "Wiederholen am",
-        "ends": "Endet",
-        "never": "Nie",
-        "on": "Am Datum",
-        "after": "Nach",
-        "occurrences": "Läufen",
-        "pickDate": "Datum auswählen",
-        "preview": "Vorschau",
-        "noPreview": "Keine anstehenden Läufe",
-        "timezone": "Zeitzone",
-        "customCron": "Benutzerdefinierter Cron-Ausdruck",
-        "customCronValid": "Gültiger Cron-Ausdruck",
-        "unit": {
-          "day": "Tag(e)",
-          "week": "Woche(n)",
-          "month": "Monat(e)"
-        },
-        "save": "Speichern",
-        "cancel": "Abbrechen",
-        "errors": {
-          "required": "Dieses Feld ist erforderlich.",
-          "futureDateTime": "Wähle ein Datum und eine Uhrzeit in der Zukunft.",
-          "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
-          "positiveInteger": "Gib eine positive ganze Zahl ein.",
-          "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag.",
-          "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen.",
-          "invalidCron": "Gib einen gültigen Cron-Ausdruck für die ausgewählte Zeitzone ein."
         }
       },
       "RunAt": {
@@ -2099,6 +2075,56 @@
           "errors": {
             "stale": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Seite neu und versuche es erneut.",
             "saveFailed": "Der Zeitplan ließ sich nicht speichern."
+          },
+          "When": {
+            "title": "Wann",
+            "repeat": "Wiederholen",
+            "repeats": {
+              "daily": "Täglich",
+              "weekdays": "Werktags",
+              "weekly": "Wöchentlich",
+              "monthly": "Monatlich",
+              "interval": "Alle paar Tage",
+              "custom": "Eigene"
+            },
+            "on": "Am",
+            "pickADay": "Wähle mindestens einen Tag",
+            "dayOfMonth": "Tag im Monat",
+            "dayN": "Tag {day}",
+            "shortMonths": "Monate ohne diesen Tag werden übersprungen",
+            "every": "Alle",
+            "days": "Tage",
+            "starting": "ab",
+            "startDate": "Startdatum",
+            "pickDate": "Datum wählen",
+            "cron": "Cron",
+            "cronHelp": "Fünf Felder: Minute, Stunde, Tag, Monat, Wochentag.",
+            "cronInvalid": "Dieser Cron-Ausdruck ist ungültig.",
+            "at": "Um",
+            "time": "Uhrzeit",
+            "timeSearch": "Uhrzeit eingeben, z. B. 08:30",
+            "useTime": "{time} verwenden",
+            "timezone": "Zeitzone",
+            "timezoneSearch": "Zeitzonen suchen",
+            "noTimezone": "Keine Zeitzone gefunden",
+            "ends": "Endet",
+            "endsNever": "Nie",
+            "endsOn": "An einem Datum",
+            "endsAfter": "Nach einer Anzahl Läufe",
+            "endDate": "Enddatum",
+            "runs": "Läufe",
+            "summary": {
+              "daily": "Jeden Tag um {time}",
+              "weekdays": "Jeden Werktag um {time}",
+              "weekly": "Jeden {days} um {time}",
+              "monthly": "Jeden Monat am {day}. um {time}",
+              "interval": "Alle {n} Tage um {time}",
+              "custom": "Eigener Zeitplan",
+              "incomplete": "Wähle, wann das läuft"
+            },
+            "next": "Nächster: {date}",
+            "noNext": "Keine anstehenden Läufe",
+            "nextRuns": "Nächste Läufe"
           }
         },
         "Actions": {
@@ -4341,6 +4367,13 @@
             "after": "Nach der Antwort: „{reply}“",
             "want": "Erwartet"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "apply": "Avatar setzen",
+          "done": "Avatar aktualisiert.",
+          "error": "Der Avatar konnte nicht gesetzt werden."
         }
       },
       "MatchedChannels": {
@@ -6663,7 +6696,8 @@
         "submitting": "Wird erstellt…",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
-        "avatarLabel": "Bild"
+        "avatarLabel": "Bild",
+        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -6761,7 +6795,8 @@
           "limitUsage": "{used} von {limit} eigenständigen Turns heute genutzt.",
           "timezoneTitle": "Zeitzone",
           "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
-          "error": "Einstellung konnte nicht gespeichert werden."
+          "error": "Einstellung konnte nicht gespeichert werden.",
+          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
@@ -7036,28 +7071,33 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Soko Bots sind die KI-Kollegen, die du selbst baust. Jeder bekommt einen persönlichen Assistenten, der Arbeit delegiert, nachhakt und auf dem Laufenden hält. Weitere Arten von Soko Bots folgen hier.",
+      "description": "Persönliche Assistenten, die Arbeit delegieren, nachhaken und dich im Chat auf dem Laufenden halten.",
       "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
-      "you": "du",
-      "noAssistant": "Noch kein Assistent",
-      "createAssistant": "Erstelle deinen persönlichen Assistenten",
-      "createAssistantHint": "Dauert eine Minute. Name und Bild wählen.",
+      "createAssistant": "Erstelle deinen Assistenten",
+      "createAssistantHint": "Hol dir einen Assistenten, der Tasks übernimmt, nachhakt und dich auf dem Laufenden hält. Die Einrichtung dauert eine Minute.",
       "assistantFallback": "Persönlicher Assistent",
-      "openChat": "Chat öffnen",
       "chatError": "Der Chat konnte nicht geöffnet werden.",
       "manage": "Einstellungen",
-      "teamTitle": "Team",
-      "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
       "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen.",
-      "heroTitle": "Da sind die Soko Bots!",
-      "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
-      "heroCta": "Soko Bot erstellen",
-      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
-      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
       "disabled": "Soko Bot ist vorübergehend nicht verfügbar",
+      "noAssistantYou": "Du hast noch keinen Assistenten",
+      "chat": "Chat",
+      "teamSummary": "{bots, plural, one {# Assistent} other {# Assistenten}} · {people, plural, one {# Person} other {# Personen}}",
+      "notSetUp": "Noch nicht eingerichtet",
+      "messageBot": "{name} schreiben",
+      "lastActive": "Zuletzt aktiv am {date}",
+      "notActiveYet": "Noch nicht aktiv",
+      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
+      "statsMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}} in {days} Tagen",
+      "assistantOf": "Assistent von",
       "message": "Schreiben",
-      "previous": "Vorherige Personen",
-      "next": "Nächste Personen"
+      "roleLine": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden.",
+      "heroCaption": "Soko Bots für alle in deinem Team",
+      "heroTitle": "Persönliche Assistenten für dein Team",
+      "chatWith": "Mit {name} chatten",
+      "yourAssistantTitle": "Dein Assistent",
+      "teamTitle": "Die Assistenten deines Teams",
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
     },
     "Calendar": {
       "Metadata": {

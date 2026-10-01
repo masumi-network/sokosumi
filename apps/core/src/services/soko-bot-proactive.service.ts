@@ -17,6 +17,11 @@ import {
   fetchCalendarEvents,
   fetchInboxMessages,
 } from "@/services/soko-bot-integrations.service";
+import {
+  buildRhythmPacket,
+  dueSoonBlock,
+  RHYTHM_KEYS,
+} from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 const NUDGE_COOLDOWN_MS = 24 * HOUR_MS;
@@ -438,11 +443,26 @@ export async function buildSystemBeatMessage(input: {
   key: string;
   prompt: string;
   now: Date;
-}): Promise<{ message: string; nudgeKeys: string[] }> {
+}): Promise<{ message: string; nudgeKeys: string[]; skip?: boolean }> {
   const { bot, now } = input;
   const lines: string[] = [input.prompt, ""];
   const nudgeKeys: string[] = [];
+  if (RHYTHM_KEYS.has(input.key)) {
+    const packet = await buildRhythmPacket({
+      key: input.key,
+      bot,
+      now,
+      dayStart: localDayStart(now, bot.ingestTimezone),
+    });
+    lines.push(...packet.lines);
+    return {
+      message: lines.join("\n").trim(),
+      nudgeKeys,
+      skip: packet.skip,
+    };
+  }
   if (input.key === "standup") {
+    lines.push(...(await dueSoonBlock(bot, now)));
     const events: SokoBotCalendarEvent[] = [];
     for (const integration of await activeIntegrationsForBot(
       bot.id,

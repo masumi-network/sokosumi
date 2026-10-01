@@ -1,12 +1,16 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 
-import { SokoBotsHero } from "./components/soko-bots-hero";
-import { TeamCarousel } from "./components/team-carousel";
+import {
+  SokoBotsHero,
+  TeamSection,
+  YourAssistantSection,
+} from "./components/roster";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -18,52 +22,37 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 /**
- * What a Soko Bot is and the one action that matters, then the workspace:
- * every person and the Soko Bot they built.
+ * Laid out like the Agents page: a hero that says what a Soko Bot is, then
+ * your own assistant, then everyone else's.
  */
 export default async function SokoBotsPage() {
   await getSessionOrRedirect();
-  const [t, team, avatars] = await Promise.all([
+  const [t, team] = await Promise.all([
     getTranslations("App.SokoBots"),
     sokoBotService.getTeam().catch((error) => {
       if (error instanceof CoreApiRequestError) return null;
       throw error;
     }),
-    sokoBotService.listAvatars(5, []).catch(() => []),
   ]);
   const me = team?.members.find((member) => member.isYou) ?? null;
+  const stats = me?.bot
+    ? await sokoBotService.getStats().catch(() => null)
+    : null;
 
   return (
-    <div className="w-full space-y-10 py-4">
-      <SokoBotsHero me={me} avatars={avatars} />
-      {team ? (
-        <section className="space-y-4">
-          <div className="space-y-3">
-            <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="text-foreground text-lg font-medium">
-                {t("teamTitle")}
-              </h2>
-              <p className="text-muted-foreground text-xs tabular-nums">
-                {t("teamCount", {
-                  humans: team.members.length,
-                  bots: team.members.filter((member) => member.bot).length,
-                })}
-              </p>
-            </div>
-            <p className="text-muted-foreground text-sm">
-              {team.workspace.kind === "organization"
-                ? t("teamDescription")
-                : t("teamDescriptionPersonal")}
-            </p>
-            {/* Breaks out of the page padding: the rule reads as a divider
-                across the view, not a line floating inside the content. */}
-            <hr className="border-border -mx-4" />
-          </div>
-          <TeamCarousel team={team} />
-        </section>
-      ) : (
-        <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
-      )}
+    <div className="w-full">
+      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
+        {/* One tier, spaced the way the Agents hero and its gallery are. */}
+        <div className="space-y-12 md:space-y-16">
+          <SokoBotsHero team={team} />
+          <YourAssistantSection me={me} stats={stats} />
+          {team ? (
+            <TeamSection team={team} />
+          ) : (
+            <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

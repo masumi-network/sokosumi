@@ -62,14 +62,6 @@ describe("getHistoryItemHref", () => {
       projectId: null,
       coworkerId: "cow-1",
     };
-    const sokoBot: TransactionHistoryItem = {
-      ...base,
-      kind: "sokoBot",
-      id: "tx-5",
-      title: "Soko Bot usage",
-      projectId: null,
-      sokoBotId: "01960001-0001-7001-8001-000000000099",
-    };
     const unattributed: TransactionHistoryItem = {
       ...base,
       kind: "unattributed",
@@ -80,8 +72,20 @@ describe("getHistoryItemHref", () => {
     };
 
     expect(getHistoryItemHref(coworker)).toBeNull();
-    expect(getHistoryItemHref(sokoBot)).toBeNull();
     expect(getHistoryItemHref(unattributed)).toBeNull();
+  });
+
+  it("opens the owner's assistant page for a Soko Bot row", () => {
+    const sokoBot: TransactionHistoryItem = {
+      ...base,
+      kind: "sokoBot",
+      id: "tx-7",
+      title: "Soko Bot · Joseph",
+      description: "Daily stand-up",
+      projectId: null,
+      sokoBotId: "01960001-0001-7001-8001-000000000099",
+    };
+    expect(getHistoryItemHref(sokoBot)).toBe("/personal-assistant");
   });
 
   it("lives in a server-safe module (SOK-990 / SOKOSUMI-RW)", () => {
