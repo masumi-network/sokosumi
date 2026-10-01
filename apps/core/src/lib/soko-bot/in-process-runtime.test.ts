@@ -36,8 +36,8 @@ vi.mock("ai", async (importOriginal) => ({
   stepCountIs: (count: number) => count,
   tool: (definition: unknown) => definition,
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstMock,
@@ -50,8 +50,15 @@ vi.mock("@/lib/db/prisma", () => ({
       update: vi.fn().mockResolvedValue({}),
     },
     sokoBotToolCall: { findMany: vi.fn().mockResolvedValue([]) },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+        operation({ ...client, $executeRaw: vi.fn() }),
+    },
+  };
+});
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));
