@@ -182,6 +182,42 @@ function actionTarget(
 /** Names are listed up to this many; past it a count says enough. */
 const MAX_NAMED_TARGETS = 5;
 
+/**
+ * What the owner asked for on a Task, said as not done ("Couldn't archive …")
+ * or, when it ran but left no proof, as unconfirmed ("Couldn't confirm I
+ * archived …").
+ */
+const UNDONE_TASK_VERBS: Record<string, [string, string]> = {
+  create_task: ["create", "created"],
+  update_task: ["update", "updated"],
+  archive_task: ["archive", "archived"],
+  assign_task: ["assign", "assigned"],
+  reply_to_task: ["comment on", "commented on"],
+  update_assigned_task: ["update", "updated"],
+};
+
+/** The target a call was aimed at, even one refused before it had a receipt. */
+function attemptedTarget(call: {
+  targetId: string | null;
+  input?: unknown;
+}): string | null {
+  return (
+    call.targetId ??
+    z.object({ taskId: z.string().min(1) }).safeParse(call.input).data
+      ?.taskId ??
+    null
+  );
+}
+
+/** "a Task", one linked Task, or a count that names a few. */
+function missedTasks(links: string[]): string {
+  if (links.length === 1) return links[0] || "a Task";
+  const label = `${links.length} Tasks`;
+  return links.every(Boolean) && links.length <= MAX_NAMED_TARGETS
+    ? `${label}: ${links.join(", ")}`
+    : label;
+}
+
 /** "Archived task" ×4 → "Archived 4 Tasks"; other labels keep a count. */
 function countedLabel(label: string, count: number): string {
   if (count === 1) return label;
@@ -510,14 +546,22 @@ export async function buildActionResponse(
       receiptId: call.id,
       reason: call.disposition === "UNKNOWN" ? "UNKNOWN" : "NOT_VERIFIED",
     }));
-  const tasks = await taskLabels(
-    tx,
-    unique.flatMap((call) =>
+  const unfulfilledTargets = new Map(
+    calls.map((call) => [call.id, attemptedTarget(call)]),
+  );
+  const tasks = await taskLabels(tx, [
+    ...unique.flatMap((call) =>
       TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
         ? [call.targetId]
         : [],
     ),
-  );
+    ...unfulfilledActions.flatMap((action) => {
+      const target = unfulfilledTargets.get(action.receiptId);
+      return TASK_TARGET_CAPABILITIES.has(action.action) && target
+        ? [target]
+        : [];
+    }),
+  ]);
   const hiredJobIds = unique.flatMap((call) =>
     call.capability === "hire_agent" && call.targetId ? [call.targetId] : [],
   );
@@ -578,22 +622,55 @@ export async function buildActionResponse(
   )
     ? await isOwnerStarted()
     : true;
-  const unfulfilledCounts = new Map<string, number>();
+  // One line per kind of miss, counting each target once: a model that
+  // retried an archive three times still missed one Task, not three.
+  const ranIds = new Set(
+    calls.filter((call) => call.status === "COMPLETED").map((call) => call.id),
+  );
+  const unfulfilledGroups = new Map<
+    string,
+    { reason: string; action: string; ran: boolean; targets: Set<string> }
+  >();
   for (const action of unfulfilledActions) {
     if (action.reason !== "UNKNOWN" && !ownerAsked) continue;
-    const key = `${action.reason}:${action.action}`;
-    unfulfilledCounts.set(key, (unfulfilledCounts.get(key) ?? 0) + 1);
+    const didRun = ranIds.has(action.receiptId);
+    const key = `${action.reason}:${didRun}:${action.action}`;
+    const group = unfulfilledGroups.get(key) ?? {
+      reason: action.reason,
+      action: action.action,
+      ran: didRun,
+      targets: new Set<string>(),
+    };
+    group.targets.add(
+      unfulfilledTargets.get(action.receiptId) ?? action.receiptId,
+    );
+    unfulfilledGroups.set(key, group);
   }
-  for (const [key, count] of unfulfilledCounts) {
-    const [reason, action] = key.split(/:(.*)/s);
+  for (const { reason, action, ran, targets } of unfulfilledGroups.values()) {
     const label = countedLabel(
       (ACTION_LABELS[action] ?? action).toLowerCase(),
-      count,
+      targets.size,
     );
+    const verbs = UNDONE_TASK_VERBS[action];
+    const what = () =>
+      missedTasks(
+        [...targets].map((id) =>
+          actionTarget(
+            { capability: action, targetId: id },
+            tasks,
+            jobAgents,
+            assignedTaskIds,
+          ),
+        ),
+      );
     actionText.push(
       reason === "UNKNOWN"
         ? `I couldn't confirm whether this went through: ${label}. Check before trying again.`
-        : `Not confirmed: ${label}.`,
+        : !verbs
+          ? `Not confirmed: ${label}.`
+          : ran
+            ? `Couldn't confirm I ${verbs[1]} ${what()}.`
+            : `Couldn't ${verbs[0]} ${what()}.`,
     );
   }
   const narrative =
