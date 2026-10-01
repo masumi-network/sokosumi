@@ -85,6 +85,12 @@ public final class WorkspaceState: ObservableObject {
     set { sidebar.isLoading = newValue }
   }
 
+  /// The workspace whose Archived section and pending invitations the sidebar loads once; nil while it loads or
+  /// switches. A list refresh leaves it alone: each collection is re-read by `sidebarRecovery` (web SOK-986).
+  public var collectionsLoadContext: UUID? {
+    phase == .ready && !workspaceSession.isSwitching ? compositionContext : nil
+  }
+
   /// Selected room. Launch and workspace switches restore the saved room,
   /// else the first room. Revoking the open room can leave this nil while
   /// others remain: the saved pick is left alone so relaunch does not
@@ -221,7 +227,7 @@ public final class WorkspaceState: ObservableObject {
   }
 
   let transcriptRecovery = ChatRefreshScheduler()
-  let sidebarRecovery = ChatRefreshScheduler()
+  let sidebarRecovery = SidebarCollectionsRecovery()
   private var connectionHealthy = false
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
@@ -857,6 +863,8 @@ public final class WorkspaceState: ObservableObject {
       applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
+    case let .roomsChanged(collections):
+      sidebarRecovery.requestRefresh(collections)
     case let other:
       handleLiveStateEvent(other)
     }
@@ -926,7 +934,7 @@ public final class WorkspaceState: ObservableObject {
       threadAttentionRevision += 1
     }
     if eventType == .create, roomId != transcriptRoomId {
-      sidebarRecovery.requestRefresh()
+      sidebarRecovery.requestRefresh([.active])
     }
     // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
     if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
@@ -961,7 +969,7 @@ public final class WorkspaceState: ObservableObject {
         transcriptRecovery.requestRefresh()
       }
       if envelope.eventType == .create {
-        sidebarRecovery.requestRefresh()
+        sidebarRecovery.requestRefresh([.active])
       }
       return
     case let .tombstone(messageId):
@@ -1355,18 +1363,25 @@ public final class WorkspaceState: ObservableObject {
     await task.value
   }
 
+  /// Web reads Archived in organization workspaces only; the live list and the invitations in every workspace.
   private func startSidebarRecovery(auth: AuthState) {
     let generation = UUID()
     sidebarRecoveryGeneration = generation
-    sidebarRecovery.start(foreground: readAttention.isVisible, healthy: connectionHealthy,
-                          fallbackInterval: .seconds(15), refreshOnRecovery: true) { [weak self, weak auth] in
+    let collections: Set<ChatRoomCollection> = selection?.workspace.organizationId == nil ? [.active, .invitations] : Set(ChatRoomCollection.allCases)
+    sidebarRecovery.start(collections, foreground: readAttention.isVisible, healthy: connectionHealthy) { [weak self, weak auth] collection in
       guard let self, let auth else { return }
-      await roomsRefreshTask?.value
+      if collection == .active {
+        await roomsRefreshTask?.value
+      }
       guard generation == sidebarRecoveryGeneration else { return }
-      guard readAttention.isVisible else { sidebarRecovery.requestRefresh()
+      guard readAttention.isVisible else { sidebarRecovery.requestRefresh([collection])
         return
       }
-      await refreshRooms(auth: auth)
+      switch collection {
+      case .active: await refreshRooms(auth: auth)
+      case .archived: await loadArchivedChannels(auth: auth)
+      case .invitations: await loadPendingInvitations(auth: auth)
+      }
     }
   }
 
