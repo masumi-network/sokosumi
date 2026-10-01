@@ -204,7 +204,8 @@ export function DeleteAccountForm({
   const { isSubmitting } = form.formState;
 
   return (
-    <Card className="border-destructive">
+    // Linked directly as /account#delete-account.
+    <Card id="delete-account" className="border-destructive scroll-mt-4">
       <CardHeader>
         <CardTitle className="text-destructive">{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
