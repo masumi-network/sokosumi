@@ -1166,7 +1166,7 @@
       "continueWith": "Continue with {provider}",
       "passwordDivider": "or sign in with password",
       "orDivider": "or",
-      "emailCodeProvider": "email code",
+      "emailCodeProvider": "Email",
       "emailCodeInputLabel": "Email for sign-in code",
       "emailCodePlaceholder": "Enter your email",
       "emailCodeSend": "Email me a code",

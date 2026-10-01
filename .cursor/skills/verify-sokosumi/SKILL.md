@@ -114,7 +114,7 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NA
 
 Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
 
-**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Email code. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, expect Welcome `/` (or `returnUrl`); open `/agents` to prove the session. Do not `wait --load networkidle` on Welcome `/` or `/chat`.
+**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Email. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, expect Welcome `/` (or `returnUrl`); open `/agents` to prove the session. Do not `wait --load networkidle` on Welcome `/` or `/chat`.
 
 If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` when fixtures work, or `--method vault` on a coworker machine (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
@@ -197,5 +197,5 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
 - Node **24.x** required
-- `/signin` shows Google / Microsoft / Passkey / Email code **above** the password form — automation must target `[data-testid="auth-field-*"]` only
+- `/signin` shows Google / Microsoft / Passkey / Email **above** the password form — automation must target `[data-testid="auth-field-*"]` only
 - New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`

@@ -1166,7 +1166,7 @@
       "continueWith": "Continuar con {provider}",
       "passwordDivider": "o iniciar sesión con contraseña",
       "orDivider": "o",
-      "emailCodeProvider": "código por correo",
+      "emailCodeProvider": "correo electrónico",
       "emailCodeInputLabel": "Correo electrónico para el código de acceso",
       "emailCodePlaceholder": "Introduce tu correo electrónico",
       "emailCodeSend": "Envíame un código",

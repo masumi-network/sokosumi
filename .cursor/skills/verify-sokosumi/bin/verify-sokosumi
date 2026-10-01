@@ -688,7 +688,7 @@ function sign_in_ui() {
   agent-browser open "$WEB_URL/signin" >/dev/null
   agent-browser wait --load networkidle >/dev/null || agent-browser wait 1500 >/dev/null || true
 
-  # Fill only password-form testids — never click Google/Microsoft/Passkey/Email code.
+  # Fill only password-form testids — never click Google/Microsoft/Passkey/Email.
   if ! agent-browser fill "$AUTH_EMAIL_SELECTOR" "$email"; then
     echo "error: could not fill auth-field-email (passkey/OAuth may have stolen focus — retry once)." >&2
     agent-browser wait 500 >/dev/null || true
