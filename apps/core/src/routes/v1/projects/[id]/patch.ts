@@ -112,6 +112,43 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       );
     }
 
+    // Commit the rename before any briefing blob write so a duplicate-identifier
+    // 409 cannot leave BRIEFING.md overwritten while Postgres keeps the old text.
+    if (identifierChanging) {
+      const identifierResult = await prisma.project
+        .updateMany({
+          where: {
+            id,
+            workspaceId: workspaceContext.workspaceId,
+            taskCounter: 0,
+          },
+          data: { identifier: body.identifier },
+        })
+        .catch((error: unknown) => {
+          throw isProjectIdentifierUniqueConstraintError(error)
+            ? conflict("Project identifier already in use in this workspace", {
+                kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+              })
+            : error;
+        });
+
+      if (identifierResult.count === 0) {
+        const racedProject = await prisma.project.findFirst({
+          where: { id, workspaceId: workspaceContext.workspaceId },
+          select: { taskCounter: true },
+        });
+        if (racedProject) {
+          throw conflict(
+            "Project identifier cannot change after task numbers have been issued",
+            { kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE },
+          );
+        }
+        throw notFound("Project not found");
+      }
+
+      delete updateData.identifier;
+    }
+
     let briefingUrlToDelete: string | null = null;
     if (body.briefing !== undefined) {
       const briefing = body.briefing?.trim() || null;
@@ -146,14 +183,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    // Gate identifier renames on taskCounter: 0 so a create that races between
-    // the read above and this write loses here instead of minting a stale prefix.
     const updateResult = await prisma.project
       .updateMany({
         where: {
           id,
           workspaceId: workspaceContext.workspaceId,
-          ...(identifierChanging ? { taskCounter: 0 } : {}),
         },
         data: updateData,
       })
@@ -166,18 +200,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       });
 
     if (updateResult.count === 0) {
-      if (identifierChanging) {
-        const racedProject = await prisma.project.findFirst({
-          where: { id, workspaceId: workspaceContext.workspaceId },
-          select: { taskCounter: true },
-        });
-        if (racedProject) {
-          throw conflict(
-            "Project identifier cannot change after task numbers have been issued",
-            { kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE },
-          );
-        }
-      }
       throw notFound("Project not found");
     }
     await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
