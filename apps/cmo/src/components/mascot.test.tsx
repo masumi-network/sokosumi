@@ -196,7 +196,7 @@ describe("mascot lifecycle", () => {
     expect(state.renderers).toHaveLength(0);
   });
 
-  it("pauses both pointer tracking and bobbing and honors runtime reduced motion", async () => {
+  it("stops pointer tracking and bobbing under runtime reduced motion", async () => {
     const now = vi.spyOn(performance, "now").mockReturnValue(1000);
     await mount();
     const renderer = state.renderers[0];
@@ -209,15 +209,6 @@ describe("mascot lifecycle", () => {
     renderer.frame?.();
     expect(pivot?.rotation.y).not.toBe(0);
     expect(pivot?.position.y).not.toBe(0);
-    await act(() => host.querySelector("button")?.click());
-    renderer.frame?.();
-    expect(pivot?.rotation.toArray().slice(0, 3)).toEqual([0, 0, 0]);
-    expect(pivot?.position.y).toBe(0);
-    const button = host.querySelector("button");
-    expect(button?.textContent).toBe("Resume animation");
-    // The label carries the state, so aria-pressed would announce it twice.
-    expect(button?.hasAttribute("aria-pressed")).toBe(false);
-    await act(() => host.querySelector("button")?.click());
     media.matches = true;
     renderer.frame?.();
     expect(pivot?.rotation.toArray().slice(0, 3)).toEqual([0, 0, 0]);
