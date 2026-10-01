@@ -28195,7 +28195,7 @@ export type PatchEnterpriseContractsByIdError = PatchEnterpriseContractsByIdErro
 
 export type PatchEnterpriseContractsByIdResponses = {
     /**
-     * Update enterprise contract draft
+     * Update enterprise contract
      */
     200: {
         data: EnterpriseContract;
