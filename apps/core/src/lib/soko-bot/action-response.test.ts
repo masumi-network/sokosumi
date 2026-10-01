@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
 import {
   buildActionResponse,
+  HELD_BACK_REPLY,
   parseActionNarrativeText,
 } from "./action-response";
 
@@ -1015,7 +1016,57 @@ describe("authoritative action responses", () => {
           ? "Nothing was changed in this turn."
           : "Synthetic response",
       });
-      expect(db.sokoBotTurn.findUnique).not.toHaveBeenCalled();
     },
   );
+
+  it.each(["EVENT", "SCHEDULE", "INGEST"])(
+    "stays silent on a %s turn where nothing was done or said",
+    async (source) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message: null,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe("Nothing to add.");
+    },
+  );
+
+  it("drops a held-back reply on a turn the bot started itself", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "EVENT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: HELD_BACK_REPLY,
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toBe("Nothing to add.");
+  });
+
+  it("keeps a held-back reply for the owner who asked", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "CHAT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I posted it.",
+      true,
+      {
+        kind: "REPORT",
+        message: HELD_BACK_REPLY,
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(result.answerText).toBe(HELD_BACK_REPLY);
+  });
 });
