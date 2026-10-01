@@ -49,11 +49,19 @@ body {
   padding: 24px 16px;
 }
 
-/* TEMPORARY wordmark: the logo is open, so the name is set in type. */
-.wordmark {
+/* TEMPORARY logo: the style guide's logo is open, so the mascot's pointer sits beside the name set in type. */
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 1.125rem;
   font-weight: 700;
   letter-spacing: -0.02em;
+}
+
+.logo-mark {
+  height: 1.5em;
+  width: auto;
 }
 
 .hero {

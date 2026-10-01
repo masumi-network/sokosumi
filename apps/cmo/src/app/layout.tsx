@@ -3,6 +3,8 @@ import "./globals.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { Logo } from "../components/logo";
+
 export const metadata: Metadata = {
   title: "CMO.XYZ",
   description:
@@ -18,7 +20,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
     <html lang="en">
       <body>
         <header className="site-header">
-          <span className="wordmark">CMO.XYZ</span>
+          <Logo />
         </header>
         {children}
       </body>
