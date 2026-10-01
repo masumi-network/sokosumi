@@ -11,6 +11,7 @@ import type {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -57,6 +58,11 @@ export function FormFields<T extends FieldValues>({
                   authT={authT}
                 />
               </FormControl>
+              {formDataItem.descriptionKey ? (
+                <FormDescription>
+                  {t(formDataItem.descriptionKey)}
+                </FormDescription>
+              ) : null}
               <FormMessage />
             </FormItem>
           )}
