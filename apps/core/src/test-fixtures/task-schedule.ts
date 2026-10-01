@@ -197,6 +197,7 @@ export function seedRun(
     originalScheduledAt: at,
     effectiveScheduledAt: at,
     state: TaskScheduleRunState.PLANNED,
+    manual: false,
     sourceWorkspaceId: schedule.workspaceId,
     sourceType: schedule.projectId
       ? CalendarSourceType.PROJECT
@@ -543,6 +544,7 @@ const taskScheduleRun = {
           createdAt: now,
           updatedAt: now,
           releasedTaskId: null,
+          manual: false,
           sourceProjectId: null,
           actorUserId: null,
           actorCoworkerId: null,
@@ -553,6 +555,10 @@ const taskScheduleRun = {
       return { count };
     },
   ),
+  create: vi.fn(async ({ data }: { data: Partial<TaskScheduleRun> }) => {
+    await taskScheduleRun.createMany({ data: [data] });
+    return taskScheduleTestDb.runs[taskScheduleTestDb.runs.length - 1];
+  }),
   updateMany: vi.fn(async ({ where, data }: { where: Where; data: Data }) => {
     let count = 0;
     taskScheduleTestDb.runs = taskScheduleTestDb.runs.map((row) => {
