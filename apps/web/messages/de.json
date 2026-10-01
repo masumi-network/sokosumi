@@ -2800,7 +2800,87 @@
       "campaigns": {
         "emptyTitle": "Verbinde ein Werbekonto, um Kampagnen zu sehen",
         "emptyBody": "Kampagnen aus Google Ads und Meta Ads erscheinen hier, sobald ein Konto verbunden ist.",
-        "emptyAction": "Zu den Konten"
+        "emptyAction": "Zu den Konten",
+        "noCampaignsTitle": "Noch keine Kampagnen in diesem Konto",
+        "noCampaignsBody": "Kampagnen erscheinen hier, sobald dieses Werbekonto welche hat.",
+        "loading": "Kampagnen werden geladen…",
+        "account": "Werbekonto",
+        "rangeLabel": "Zeitraum",
+        "range": {
+          "7d": "7 Tage",
+          "30d": "30 Tage"
+        },
+        "tableLabel": "Kampagnen",
+        "columns": {
+          "name": "Kampagne",
+          "status": "Status",
+          "dailyBudget": "Tagesbudget",
+          "spend": "Ausgaben",
+          "impressions": "Impressionen",
+          "clicks": "Klicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions"
+        },
+        "status": {
+          "ACTIVE": "Aktiv",
+          "PAUSED": "Pausiert",
+          "ENDED": "Beendet",
+          "OTHER": "Sonstige"
+        },
+        "spendAndClicks": "Ausgaben {spend} · Klicks {clicks}",
+        "actions": {
+          "label": "Aktionen für {name}",
+          "pause": "Pausieren",
+          "resume": "Fortsetzen",
+          "budget": "Tagesbudget ändern"
+        },
+        "cancel": "Abbrechen",
+        "pauseDialog": {
+          "title": "{name} pausieren?",
+          "description": "Die Kampagne gibt kein Geld mehr aus, bis du sie fortsetzt.",
+          "confirm": "Pausieren"
+        },
+        "resumeDialog": {
+          "title": "{name} fortsetzen?",
+          "description": "Die Kampagne gibt wieder Geld aus, bis zu ihrem Tagesbudget.",
+          "confirm": "Fortsetzen"
+        },
+        "budgetDialog": {
+          "title": "Tagesbudget ändern",
+          "description": "{name} gibt pro Tag höchstens diesen Betrag aus.",
+          "label": "Tagesbudget ({currency})",
+          "save": "Budget speichern",
+          "saving": "Wird gespeichert…",
+          "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
+          "notSet": "nicht festgelegt",
+          "errors": {
+            "shared": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort.",
+            "required": "Gib ein Tagesbudget über 0 ein.",
+            "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
+            "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}."
+          }
+        },
+        "success": {
+          "updated": "Kampagne erfolgreich aktualisiert"
+        },
+        "errors": {
+          "update": "Kampagne konnte nicht aktualisiert werden",
+          "notActive": {
+            "title": "Verbinde dieses Konto unter Konten neu",
+            "description": "Die Verbindung zu diesem Werbekonto ist nicht mehr aktiv.",
+            "action": "Zu den Konten"
+          },
+          "unavailable": {
+            "title": "{provider} ist noch nicht verfügbar",
+            "description": "Es ist für Sokosumi noch nicht eingerichtet."
+          },
+          "failed": {
+            "title": "Kampagnen konnten nicht geladen werden",
+            "description": "Versuche es gleich noch einmal.",
+            "retry": "Erneut versuchen"
+          }
+        }
       },
       "market": {
         "emptyTitle": "Richte deinen Markt ein, um Trend-Keywords und Anzeigen zu sehen",

@@ -19,6 +19,7 @@ const adsServiceMock = {
   finalizeConnection: vi.fn(),
   initiateConnection: vi.fn(),
   discardConnection: vi.fn(),
+  updateCampaign: vi.fn(),
 };
 
 // The real error mapper, so these tests see what the UI sees.
@@ -335,6 +336,79 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
       expect(adsServiceMock.discardConnection).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("updateAdCampaign", () => {
+    const base = {
+      projectId: "project-1",
+      accountId: "account-1",
+      campaignId: " 42 ",
+    };
+
+    it("pauses a campaign and revalidates Ads", async () => {
+      adsServiceMock.updateCampaign.mockResolvedValue(undefined);
+
+      const { updateAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await updateAdCampaign({ ...base, status: "PAUSED" });
+
+      expect(adsServiceMock.updateCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        "42",
+        { status: "PAUSED" },
+      );
+      expect(result).toEqual({ ok: true, value: undefined });
+      expect(revalidatePath).toHaveBeenCalledWith("/ads");
+    });
+
+    it("changes the daily budget", async () => {
+      adsServiceMock.updateCampaign.mockResolvedValue(undefined);
+
+      const { updateAdCampaign } = await import("./action");
+      await updateAdCampaign({ ...base, dailyBudget: 25.5 });
+
+      expect(adsServiceMock.updateCampaign).toHaveBeenCalledWith(
+        "project-1",
+        "account-1",
+        "42",
+        { dailyBudget: 25.5 },
+      );
+    });
+
+    it.each([
+      ["a zero budget", { dailyBudget: 0 }],
+      ["a negative budget", { dailyBudget: -5 }],
+      ["an unknown status", { status: "ENDED" }],
+      ["no change at all", {}],
+    ])("rejects %s, calling nothing", async (_name, changes) => {
+      const { updateAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await updateAdCampaign({
+        ...base,
+        ...changes,
+      } as Parameters<typeof updateAdCampaign>[0]);
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.updateCampaign).not.toHaveBeenCalled();
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("tells the UI which status Core refused with, so it can word it", async () => {
+      adsServiceMock.updateCampaign.mockRejectedValue(
+        await coreError("Budget is shared with 2 other campaigns", 409),
+      );
+
+      const { updateAdCampaign } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await updateAdCampaign({ ...base, dailyBudget: 10 });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT", status: 409 },
+      });
+      expect(revalidatePath).not.toHaveBeenCalled();
     });
   });
 });

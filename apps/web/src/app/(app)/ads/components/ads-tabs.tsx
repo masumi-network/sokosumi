@@ -2,7 +2,7 @@
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useQueryState } from "nuqs";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
@@ -16,26 +16,31 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
+import { ADS_TABS, adsSearchParams } from "../ads-query";
 import { AdsAccounts } from "./ads-accounts";
-
-const ADS_TABS = ["campaigns", "market", "accounts"] as const;
-
-/** An unknown `?tab=` parses to null, which falls back to Campaigns. */
-const tabParser = parseAsStringLiteral(ADS_TABS).withDefault("campaigns");
+import { AdsCampaignsSkeleton } from "./ads-campaigns-skeleton";
 
 interface AdsTabsProps {
   accounts: ProjectAdAccount[];
+  /**
+   * The server-rendered Campaigns tab. The page only renders it while the URL
+   * is on Campaigns, so it is absent for a moment after switching back.
+   */
+  campaigns: React.ReactNode;
   projectId: string;
 }
 
 /**
  * Ads' three tabs, driven by `?tab=`. Campaigns is the default and keeps the
- * URL clean. Campaigns and Market are empty states until their own tickets
- * fill them.
+ * URL clean. Market is an empty state until its own ticket fills it. Switching
+ * tabs asks the server for the page again so it only loads what is shown.
  */
-export function AdsTabs({ accounts, projectId }: AdsTabsProps) {
+export function AdsTabs({ accounts, campaigns, projectId }: AdsTabsProps) {
   const t = useTranslations("App.Ads");
-  const [tab, setTab] = useQueryState("tab", tabParser);
+  const [tab, setTab] = useQueryState(
+    "tab",
+    adsSearchParams.tab.withOptions({ shallow: false }),
+  );
 
   return (
     <Tabs
@@ -65,15 +70,19 @@ export function AdsTabs({ accounts, projectId }: AdsTabsProps) {
       </TabsList>
 
       <TabsContent value="campaigns">
-        <EmptyState
-          action={
-            <Button onClick={() => void setTab("accounts")} type="button">
-              {t("campaigns.emptyAction")}
-            </Button>
-          }
-          description={t("campaigns.emptyBody")}
-          title={t("campaigns.emptyTitle")}
-        />
+        {accounts.length === 0 ? (
+          <EmptyState
+            action={
+              <Button onClick={() => void setTab("accounts")} type="button">
+                {t("campaigns.emptyAction")}
+              </Button>
+            }
+            description={t("campaigns.emptyBody")}
+            title={t("campaigns.emptyTitle")}
+          />
+        ) : (
+          (campaigns ?? <AdsCampaignsSkeleton />)
+        )}
       </TabsContent>
       <TabsContent value="market">
         <EmptyState

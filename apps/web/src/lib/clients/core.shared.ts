@@ -43,6 +43,7 @@ import type {
   GetHistoryData,
   GetJobsData,
   GetNotificationsData,
+  GetProjectsByIdAdsAccountsByAccountIdCampaignsData,
   GetProjectsByIdCalendarData,
   GetProjectsByIdImageStudioData,
   GetProjectsByIdSocialPostsData,
@@ -69,6 +70,7 @@ import type {
   PatchEnterpriseContractRequest,
   PatchJobsByIdData,
   PatchNotificationsByIdReadData,
+  PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData,
   PatchProjectsByIdData,
   PatchProjectsByIdSocialPostsByPostIdData,
   PatchTasksByIdData,
@@ -262,6 +264,7 @@ import {
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
+  getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -346,6 +349,7 @@ import {
   patchNotificationsByIdRead as corePatchNotificationsByIdRead,
   patchNotificationsReadAll as corePatchNotificationsReadAll,
   patchProjectsById as corePatchProjectsById,
+  patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId as corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
   patchProjectsByIdSocialPostsByPostId as corePatchProjectsByIdSocialPostsByPostId,
   patchTasksById as corePatchTasksById,
   patchTasksSchedulesById as corePatchTasksSchedulesById,
@@ -3438,6 +3442,39 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    query: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["query"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch ad campaigns",
+    );
+  }
+
+  async function patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+    path: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["path"],
+    body: PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId({
+          client,
+          path,
+          body,
+        }),
+      "Failed to update ad campaign",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -5906,6 +5943,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdAdsAccounts,
+    getProjectsByIdAdsAccountsByAccountIdCampaigns,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getProjectsByIdImageStudio,
@@ -5913,6 +5951,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,

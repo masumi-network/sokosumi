@@ -47,15 +47,38 @@ vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
 vi.mock("./components/ads-tabs", () => ({
   AdsTabs: ({
     accounts,
+    campaigns,
     projectId,
   }: {
     accounts: { id: string }[];
+    campaigns: React.ReactNode;
     projectId: string;
   }) => (
     <div data-testid="ads-tabs">
       {projectId}:{accounts.map(({ id }) => id).join(",")}
+      {campaigns}
     </div>
   ),
+}));
+
+vi.mock("./components/ads-campaigns-toolbar", () => ({
+  AdsCampaignsToolbar: ({
+    accountId,
+    range,
+  }: {
+    accountId: string;
+    range: string;
+  }) => <div data-testid="ads-toolbar">{`${accountId}/${range}`}</div>,
+}));
+
+vi.mock("./components/ads-campaigns-section", () => ({
+  AdsCampaignsSection: ({
+    account,
+    range,
+  }: {
+    account: { id: string };
+    range: string;
+  }) => <div data-testid="ads-section">{`${account.id}/${range}`}</div>,
 }));
 
 const PROJECT = { id: "project-1", name: "Launch plan" };
@@ -135,6 +158,63 @@ describe("AdsPage", () => {
     expect(screen.getByTestId("ads-tabs")).toHaveTextContent(
       "project-1:account-1",
     );
+  });
+
+  describe("campaigns", () => {
+    const accounts = [{ id: "account-1" }, { id: "account-2" }];
+
+    beforeEach(() => {
+      projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+      adsServiceMock.listAccounts.mockResolvedValue(accounts);
+    });
+
+    it("loads the first account over 30 days by default", async () => {
+      await visit({ projectId: "project-1" });
+
+      expect(screen.getByTestId("ads-toolbar")).toHaveTextContent(
+        "account-1/30d",
+      );
+      expect(screen.getByTestId("ads-section")).toHaveTextContent(
+        "account-1/30d",
+      );
+    });
+
+    it("loads the account and range the URL names", async () => {
+      await visit({
+        projectId: "project-1",
+        account: "account-2",
+        range: "7d",
+      });
+
+      expect(screen.getByTestId("ads-section")).toHaveTextContent(
+        "account-2/7d",
+      );
+    });
+
+    it("falls back for an unknown account and range", async () => {
+      await visit({ projectId: "project-1", account: "gone", range: "1y" });
+
+      expect(screen.getByTestId("ads-section")).toHaveTextContent(
+        "account-1/30d",
+      );
+    });
+
+    it.each(["accounts", "market"])(
+      "does not load campaigns on the %s tab",
+      async (tab) => {
+        await visit({ projectId: "project-1", tab });
+
+        expect(screen.queryByTestId("ads-section")).not.toBeInTheDocument();
+      },
+    );
+
+    it("does not load campaigns without accounts", async () => {
+      adsServiceMock.listAccounts.mockResolvedValue([]);
+
+      await visit({ projectId: "project-1" });
+
+      expect(screen.queryByTestId("ads-section")).not.toBeInTheDocument();
+    });
   });
 
   it("names the page in the document title", async () => {
