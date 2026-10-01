@@ -42,7 +42,7 @@ import {
 
 import { AdsKeywordInput } from "./ads-keyword-input";
 
-type SavedProfile = NonNullable<AdMarketProfile>;
+type SavedProfile = AdMarketProfile;
 
 interface MarketProfileFormProps {
   projectId: string;

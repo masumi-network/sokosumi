@@ -22,7 +22,7 @@ const saveMock = vi.mocked(saveAdsMarketProfile);
 
 type SaveResult = Awaited<ReturnType<typeof saveAdsMarketProfile>>;
 
-const SAVED: NonNullable<AdMarketProfile> = {
+const SAVED: AdMarketProfile = {
   keywords: ["running shoes", "trail shoes"],
   countryCode: "DE",
   languageCode: "de",
@@ -31,7 +31,7 @@ const SAVED: NonNullable<AdMarketProfile> = {
 
 const SUMMARY = "running shoes, trail shoes · Germany · German";
 
-function renderProfile(profile: AdMarketProfile = null) {
+function renderProfile(profile: AdMarketProfile | null = null) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <AdsMarketProfile
