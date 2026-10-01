@@ -75,6 +75,7 @@ import {
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
+  endsWithAttachmentRow,
   type RoomMessageFilesSegment,
   type RoomMessageSegment,
   segmentRoomMessageContent,
@@ -2332,6 +2333,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
+  newestEndsInAttachment = false,
   seenBy,
 }: {
   message: ChatRoomMessage;
@@ -2379,6 +2381,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
+  /**
+   * This is the newest message in the transcript, the one the Seen by faces
+   * land on, and its body ends in attachments. Known before the read state
+   * loads, so the room kept for the faces is there from the first paint and
+   * nothing moves when they arrive. Text rows never get it, so a new message
+   * re-renders only the row that loses it.
+   */
+  newestEndsInAttachment?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2481,14 +2491,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
-  const bodyEndsTheRow =
-    seenBy != null &&
+  const contentEndsTheRow =
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
     !hasUnfurlRow &&
     !hasSokoBotFooter &&
     outboundStatus !== "failed";
+  // An attachment row is a block: the inline reserve after it has no line to
+  // share and opens one of its own, a line height the row gained only when
+  // the faces arrived. The newest row instead keeps the few pixels the faces
+  // overhang the attachment's own margin, from the first paint.
+  const attachmentEndsTheRow =
+    contentEndsTheRow && !isDeleted && endsWithAttachmentRow(message.content);
+  const bodyEndsTheRow =
+    seenBy != null && contentEndsTheRow && !attachmentEndsTheRow;
+  const keepsSeenByCornerClear = newestEndsInAttachment && attachmentEndsTheRow;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Neither overlay is mounted until first opened. A closed Radix dialog
@@ -2709,7 +2727,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             {showPinned ? <MessagePinnedLabel /> : null}
           </div>
         )}
-        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
+        <div
+          className={cn(
+            "text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
+            keepsSeenByCornerClear && "pb-3",
+          )}
+        >
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -2872,7 +2895,17 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           `end-2` is the action pill's own edge, so the two share a vertical
           line and the faces land in the same corner on every row. */}
       {seenBy ? (
-        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+        <div
+          className={cn(
+            "absolute end-2 bottom-1 z-10",
+            // The usual 44px mobile target reaches up onto a wide picture.
+            // Keep its top inside the reserved corner; the compact target
+            // still clears 24px after the transcript's bottom padding clips it.
+            keepsSeenByCornerClear && "[&_button]:after:-top-0.5",
+          )}
+        >
+          {seenBy}
+        </div>
       ) : null}
       {showActions ? (
         <>

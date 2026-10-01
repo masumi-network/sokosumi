@@ -3136,6 +3136,18 @@ export class SokoBotRuntimeService {
           assigneeUserId: true,
         },
       });
+      // A Task the bot can see but the owner may not change gets a reason the
+      // owner can act on, not a bare "Task not found".
+      if (
+        !before &&
+        (await tx.task.findFirst({
+          where: { id: input.taskId, workspaceId: authorized.turn.workspaceId },
+          select: { id: true },
+        }))
+      )
+        throw new SokoBotRuntimeAuthorizationError(
+          "This Task belongs to someone else and is private, so only its owner can change or archive it",
+        );
       const unassign =
         input.unassign === true &&
         Boolean(

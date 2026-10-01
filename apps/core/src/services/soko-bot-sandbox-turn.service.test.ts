@@ -21,8 +21,8 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
@@ -32,8 +32,16 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
     },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      // The event log's locked append: the same models, plus the lock.
+      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+        operation({ ...client, $executeRaw: vi.fn() }),
+    },
+  };
+});
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
@@ -117,6 +125,20 @@ describe("sandbox turn service", () => {
           "workspace_write",
         ],
       },
+    });
+  });
+
+  it("marks the 409 of a turn that is no longer active, so the runner stops", async () => {
+    authorizeMock.mockRejectedValueOnce(new Error("Turn was cancelled"));
+    await expect(
+      recordSandboxAction(claims, {
+        name: "web_fetch",
+        toolCallId: "call_1",
+        toolInput: {},
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "soko_bot_turn_inactive" },
     });
   });
 
