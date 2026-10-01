@@ -24,6 +24,13 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("sonner", () => ({ toast: toastMock }));
 
+// The dialog's pickers pull in the auth client, whose session timer fires
+// after the test environment is torn down.
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {},
+  useSession: () => ({ data: null }),
+}));
+
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   createTaskSchedule: createTaskScheduleMock,
   updateTaskSchedule: updateTaskScheduleMock,
