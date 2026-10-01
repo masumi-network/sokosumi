@@ -1584,7 +1584,9 @@
         }
       },
       "SokoBot": {
-        "connectPrompt": "Connect your mail and calendar so {bot} can prep your meetings and chase follow-ups.",
+        "connectTitle": "Give {bot} your inbox and calendar",
+        "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectConnected": "{name} connected",
         "connectProvider": "Connect {name}",
         "connectDismiss": "Dismiss",
         "connectError": "Could not start the connection.",
