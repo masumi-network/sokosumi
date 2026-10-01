@@ -3,7 +3,6 @@ import "server-only";
 import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
-  JobSummary,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -18,7 +17,6 @@ import type {
 } from "@sokosumi/core-client";
 import { TaskStatus } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
-import type { AgentJobStatus } from "@/lib/types/core-dto";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
@@ -34,15 +32,6 @@ interface ListTasksParams {
   sort?: "createdAt";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
-}
-
-interface ListJobsParams {
-  scope?: "workspace" | "owned";
-  agentId?: string;
-  projectId?: string;
-  status?: AgentJobStatus;
-  cursor?: string | null;
-  limit?: number;
 }
 
 interface CreateTaskInput {
@@ -182,30 +171,6 @@ export const taskService = (() => {
   > {
     const result = await coreClient.getWorkspaceCalendarSources();
     return result.data;
-  }
-
-  async function listJobs(params: ListJobsParams = {}): Promise<{
-    jobs: JobSummary[];
-    pagination: {
-      cursor: string | null;
-      limit: number;
-      total: number;
-      nextCursor: string | null;
-    } | null;
-  }> {
-    const result = await coreClient.getJobs({
-      scope: params.scope,
-      agentId: params.agentId,
-      projectId: params.projectId,
-      status: params.status,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
-
-    return {
-      jobs: result.data,
-      pagination: result.meta?.pagination ?? null,
-    };
   }
 
   async function getTaskById(taskId: string): Promise<Task | null> {
@@ -495,7 +460,6 @@ export const taskService = (() => {
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,
-    listJobs,
     listTasks,
     getTaskById,
     getTaskWorkspace,
