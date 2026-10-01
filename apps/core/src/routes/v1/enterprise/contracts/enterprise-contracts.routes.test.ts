@@ -1,4 +1,7 @@
-import { EnterpriseContractStatus } from "@sokosumi/database";
+import {
+  EnterpriseContractPeriodStatus,
+  EnterpriseContractStatus,
+} from "@sokosumi/database";
 import {
   EnterpriseContractActivationError,
   EnterpriseContractLifecycleError,
@@ -38,6 +41,7 @@ const {
   enterpriseContractFindUniqueMock,
   enterpriseContractCreateMock,
   enterpriseContractUpdateMock,
+  enterpriseContractPeriodUpdateManyMock,
   prismaTransactionMock,
   activateEnterpriseContractMock,
   cancelEnterpriseContractMock,
@@ -48,6 +52,7 @@ const {
   enterpriseContractFindUniqueMock: vi.fn(),
   enterpriseContractCreateMock: vi.fn(),
   enterpriseContractUpdateMock: vi.fn(),
+  enterpriseContractPeriodUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   activateEnterpriseContractMock: vi.fn(),
   cancelEnterpriseContractMock: vi.fn(),
@@ -171,7 +176,12 @@ describe("enterprise contract admin routes", () => {
     enterpriseContractFindManyMock.mockResolvedValue([]);
     enterpriseContractFindUniqueMock.mockResolvedValue(null);
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({});
+      return await callback({
+        enterpriseContract: { update: enterpriseContractUpdateMock },
+        enterpriseContractPeriod: {
+          updateMany: enterpriseContractPeriodUpdateManyMock,
+        },
+      });
     });
     activateEnterpriseContractMock.mockResolvedValue({
       contractId: CONTRACT_ID,
@@ -374,6 +384,78 @@ describe("enterprise contract admin routes", () => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seats: 20 }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("changes credits per month on an active contract and its ungranted periods", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      enterpriseContractUpdateMock.mockResolvedValue(
+        createContractRecord({
+          status: EnterpriseContractStatus.active,
+          centsPerMonth: convertCreditsToCents(100_000),
+        }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000 }),
+      });
+
+      const body = (await response.json()) as {
+        data: { creditsPerMonth: number };
+      };
+
+      expect(response.status).toBe(200);
+      expect(body.data.creditsPerMonth).toBe(100_000);
+      expect(enterpriseContractUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: CONTRACT_ID },
+          data: { centsPerMonth: convertCreditsToCents(100_000) },
+        }),
+      );
+      expect(enterpriseContractPeriodUpdateManyMock).toHaveBeenCalledWith({
+        where: {
+          contractId: CONTRACT_ID,
+          status: EnterpriseContractPeriodStatus.scheduled,
+        },
+        data: { centsToGrant: convertCreditsToCents(100_000) },
+      });
+    });
+
+    it("returns 409 when an active contract update changes more than credits per month", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000, seats: 20 }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+      expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when updating a canceled contract", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.canceled }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000 }),
       });
 
       expect(response.status).toBe(409);
