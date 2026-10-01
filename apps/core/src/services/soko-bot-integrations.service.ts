@@ -946,21 +946,33 @@ export async function fetchInboxMessages(
     args.query = parts.filter(Boolean).join(" ");
     args.include_payload = false;
     args.verbose = false;
+  } else if (options.query) {
+    // Graph refuses $search next to $filter or $orderby, and wants it quoted;
+    // results come newest first, and since/unread are applied below.
+    args.search = `"${options.query.replaceAll('"', "")}"`;
+    args.top = options.limit;
   } else {
     const filters: string[] = [];
     if (options.since)
       filters.push(`receivedDateTime ge ${options.since.toISOString()}`);
     if (options.unreadOnly) filters.push("isRead eq false");
     if (filters.length) args.filter = filters.join(" and ");
-    if (options.query) args.search = options.query;
     args.top = options.limit;
     args.orderby = "receivedDateTime desc";
   }
   const data = await execute(integration, slug, args);
   const items = asList(pick(data, "messages", "value", "items", "data"));
+  const searched = integration.provider.id !== "gmail" && !!options.query;
   return items
     .map((item) => normaliseMessage(integration.provider.id, item))
-    .filter((message) => message.id);
+    .filter(
+      (message) =>
+        message.id &&
+        (!searched ||
+          ((!options.since ||
+            message.receivedAt >= options.since.toISOString()) &&
+            (!options.unreadOnly || message.unread))),
+    );
 }
 
 export async function fetchInboxMessage(

@@ -942,6 +942,9 @@ export const AdminSokoBotListItemSchema = {
             type: 'integer',
             minimum: 0
         },
+        outOfCredits: {
+            type: 'boolean'
+        },
         turnCount: {
             type: 'integer',
             minimum: 0
@@ -980,6 +983,7 @@ export const AdminSokoBotListItemSchema = {
         'lastSucceededAt',
         'lastFailedAt',
         'consecutiveTurnFailures',
+        'outOfCredits',
         'turnCount',
         'pendingDecisionCount',
         'scheduleCount',

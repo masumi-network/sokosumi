@@ -232,6 +232,7 @@ export type AdminSokoBotListItem = {
     lastSucceededAt: Date | null;
     lastFailedAt: Date | null;
     consecutiveTurnFailures: number;
+    outOfCredits: boolean;
     turnCount: number;
     pendingDecisionCount: number;
     scheduleCount: number;

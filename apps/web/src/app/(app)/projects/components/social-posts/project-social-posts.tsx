@@ -727,6 +727,15 @@ export function ProjectSocialPosts({
         <SocialPostComposerDialog
           connections={connections}
           mode={composerMode}
+          onConnectAccount={
+            accounts !== undefined
+              ? () => {
+                  setComposer(null);
+                  compose?.setOpen(false);
+                  showTab("accounts");
+                }
+              : undefined
+          }
           onError={handleActionError}
           onOpenChange={(open) => {
             if (open) return;

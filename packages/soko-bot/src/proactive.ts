@@ -62,7 +62,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Before a meeting with people from outside: who is coming, your last mail with them, and related open Tasks.",
     prompt:
-      "Meeting prep. A meeting with people from outside starts within the hour. From the packet below, give the owner a short brief (under 10 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. Name the meeting and its time first. When the packet has nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
+      "Meeting prep. A meeting with people from outside starts within the hour. Give the owner a short brief (under 10 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. Name the meeting and its time first. The packet below is a starting point: when it has no real mail with someone, look them up yourself with search_inbox (their name, their company or domain) and read_email for the thread that matters. Say no mail was found only after you have searched. When there is nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
   },
   {
     key: "end-of-day",

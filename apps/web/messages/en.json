@@ -2404,7 +2404,6 @@
           "editTitle": "Edit post",
           "scheduleTitle": "Schedule post",
           "rescheduleTitle": "Reschedule post",
-          "description": "Pick where it goes, write it, and choose when it goes out.",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
@@ -2413,7 +2412,6 @@
             "upload": "Upload",
             "uploading": "Uploading…",
             "remove": "Remove {name}",
-            "hint": "Attach images or one video, within {provider}'s limits.",
             "unsupported": "Use a file type {provider} accepts.",
             "alreadyAttached": "That file is already attached.",
             "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
@@ -2436,9 +2434,8 @@
           "account": "Account",
           "accounts": "Post to",
           "accountOption": "{provider} {handle}",
-          "noAccounts": "No accounts connected yet. Connect one on the Accounts tab.",
+          "noAccounts": "Connect one to post or schedule. You can still save a draft.",
           "unknownHandle": "Unknown account",
-          "scheduledAt": "Scheduled time",
           "scheduledAtTooSoon": "Choose a time at least one minute from now.",
           "saveDraft": "Save draft",
           "save": "Save",
@@ -2458,7 +2455,8 @@
             "pickTime": "Pick a time",
             "dateSelected": "Date: {date}",
             "timeSelected": "Time: {time}",
-            "times": "Times"
+            "times": "Times",
+            "now": "Now"
           },
           "timezone": {
             "yours": "Times are in your time zone, {zone}.",
@@ -2472,7 +2470,16 @@
             "mediaPost": "image or video post",
             "video": "video (text is the title and description)"
           },
-          "publishNow": "Post now"
+          "publishNow": "Post now",
+          "when": "When",
+          "whenOptional": "Optional. Leave it empty to keep a draft.",
+          "scheduleFor": "Schedule for {date}",
+          "rescheduleFor": "Reschedule for {date}",
+          "noAccountsTitle": "No account connected yet",
+          "connectAccount": "Connect account",
+          "dismiss": "Cancel",
+          "previewEmpty": "Your post shows here as you write.",
+          "pickAccount": "Pick an account to post to."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -3846,6 +3853,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Search by bot, owner name, or email…",
+          "outOfCredits": "Out of credits",
           "totalCount": "{count, plural, one {# bot} other {# bots}}",
           "loadError": "Failed to load Soko Bots.",
           "empty": "No Soko Bots found.",
@@ -6758,7 +6766,8 @@
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
-        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
+        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
+        "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -6862,7 +6871,8 @@
           "timezoneTitle": "Timezone",
           "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
           "error": "Could not save the setting.",
-          "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
+          "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
+          "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
         },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",

@@ -2,7 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   balanceMock,
+  botFindUniqueMock,
   getEnvMock,
+  postNoticeMock,
   prepareConsumptionMock,
   usageCreateMock,
   usageFindManyMock,
@@ -12,6 +14,8 @@ const {
   transactionCreateMock,
 } = vi.hoisted(() => ({
   balanceMock: vi.fn(),
+  botFindUniqueMock: vi.fn(),
+  postNoticeMock: vi.fn(),
   getEnvMock: vi.fn(),
   prepareConsumptionMock: vi.fn(),
   usageCreateMock: vi.fn(),
@@ -25,6 +29,7 @@ const {
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    sokoBot: { findUnique: botFindUniqueMock },
     sokoBotUsage: {
       findMany: usageFindManyMock,
       findUnique: usageFindUniqueMock,
@@ -34,6 +39,9 @@ vi.mock("@/lib/db/prisma", () => ({
       findMany: turnFindManyMock,
     },
   },
+}));
+vi.mock("@/services/soko-bot-chat.service", () => ({
+  postSokoBotOwnerNotice: postNoticeMock,
 }));
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
@@ -45,6 +53,7 @@ vi.mock("@sokosumi/database/repositories", () => ({
 import { convertCreditsToCents } from "@sokosumi/utils";
 
 import {
+  notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
   SokoBotBillingAccessError,
@@ -55,6 +64,7 @@ const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
 
 function transactionClient() {
   return {
+    sokoBot: { findUnique: botFindUniqueMock },
     sokoBotUsage: {
       create: usageCreateMock,
       findUnique: usageFindUniqueMock,
@@ -73,6 +83,9 @@ describe("Soko Bot billing", () => {
     turnFindFirstMock.mockResolvedValue(null);
     turnFindManyMock.mockResolvedValue([]);
     usageFindManyMock.mockResolvedValue([]);
+    botFindUniqueMock.mockResolvedValue({
+      workspace: { organizationId: null },
+    });
   });
 
   it("maps runtime USD usage to configured credits with a minimum", () => {
@@ -210,5 +223,99 @@ describe("Soko Bot billing", () => {
       shortfall: true,
     });
     expect(transactionCreateMock).not.toHaveBeenCalled();
+  });
+
+  describe("in an organization workspace", () => {
+    beforeEach(() => {
+      botFindUniqueMock.mockResolvedValue({
+        workspace: { organizationId: "org_1" },
+      });
+    });
+
+    it("charges the organization's credits", async () => {
+      const expected = convertCreditsToCents(100);
+      usageFindUniqueMock.mockResolvedValue(null);
+      balanceMock.mockResolvedValue(expected);
+      prepareConsumptionMock.mockResolvedValue([
+        { bucketId: "bucket_org", amount: expected },
+      ]);
+      transactionCreateMock.mockResolvedValue({ id: "transaction_1" });
+
+      await recordSokoBotTurnUsage(
+        {
+          turnId: "turn_1",
+          sokoBotId: SOKO_BOT_ID,
+          userId: "user_1",
+          costUsdMicros: 1_000_000n,
+        },
+        transactionClient() as never,
+      );
+
+      expect(balanceMock).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        expect.anything(),
+      );
+      expect(prepareConsumptionMock).toHaveBeenCalledWith(
+        "user_1",
+        "org_1",
+        expected,
+        expect.anything(),
+      );
+      expect(transactionCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organizationId: "org_1" }),
+        }),
+      );
+      expect(usageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ organizationId: "org_1" }),
+        }),
+      );
+    });
+
+    it("lets the organization's balance cover a prior unpaid remainder", async () => {
+      turnFindFirstMock.mockResolvedValue({
+        id: "turn_shortfall",
+        costUsdMicros: 1_000_000n,
+      });
+      usageFindUniqueMock.mockResolvedValue({
+        cents: convertCreditsToCents(5),
+      });
+      balanceMock.mockImplementation(
+        async (_userId: string, organizationId: string | null) =>
+          organizationId === "org_1" ? convertCreditsToCents(500) : 0n,
+      );
+
+      await expect(
+        requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+      ).resolves.toBeUndefined();
+
+      balanceMock.mockResolvedValue(convertCreditsToCents(10));
+      await expect(
+        requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+      ).rejects.toThrow("Insufficient organization credits to cover");
+    });
+  });
+
+  it("names the payer in a pause notice keyed to the day", async () => {
+    const now = new Date("2026-10-01T09:00:00.000Z");
+    botFindUniqueMock.mockResolvedValue({
+      workspace: { organization: { name: "utxo AG" } },
+    });
+    await notifySokoBotOutOfCredits(SOKO_BOT_ID, now);
+    expect(postNoticeMock).toHaveBeenLastCalledWith({
+      sokoBotId: SOKO_BOT_ID,
+      content: "I'm paused: utxo AG is out of credits.",
+      key: `out-of-credits:${SOKO_BOT_ID}:2026-10-01`,
+    });
+
+    botFindUniqueMock.mockResolvedValue({ workspace: { organization: null } });
+    await notifySokoBotOutOfCredits(SOKO_BOT_ID, now);
+    expect(postNoticeMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        content: "I'm paused: you're out of credits.",
+      }),
+    );
   });
 });
