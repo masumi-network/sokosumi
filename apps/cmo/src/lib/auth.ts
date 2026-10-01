@@ -223,7 +223,8 @@ let auth: CmoAuth | undefined;
 /** CMO's auth, created on first use so builds need no auth env. */
 export function getAuth(): CmoAuth {
   if (auth) return auth;
-  const created = createCmoAuth(readCmoAuthConfig());
+  const config = readCmoAuthConfig();
+  const created = createCmoAuth(config);
   auth = created;
   // Better Auth reads Core's discovery document once, at start-up, and drops
   // the provider for good when Core does not answer: a preview's Core still
@@ -238,6 +239,16 @@ export function getAuth(): CmoAuth {
       )
     ) {
       forget();
+      // Better Auth does not say which URL failed or how.
+      const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+      fetch(discoveryUrl).then(
+        (response) =>
+          console.error(
+            `Core discovery failed: ${discoveryUrl} answered ${response.status}`,
+          ),
+        (error: unknown) =>
+          console.error(`Core discovery failed: ${discoveryUrl}`, error),
+      );
     }
   }, forget);
   return created;
