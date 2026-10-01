@@ -18,11 +18,10 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import baseConfig from "../../../../../vitest.config";
 import {
   PICTURE_URL,
   PicturePage,
-} from "./__tests__/room-message-seen-by-picture-page";
+} from "@/app/chat/components/__tests__/room-message-seen-by-picture-page";
 
 const WEB_ROOT = path.resolve(import.meta.dirname, "../../../../..");
 const PAGE_MODULE =
@@ -39,16 +38,15 @@ beforeAll(async () => {
     <script type="module">import "/src/app/globals.css";</script>
     </head><body><div id="fixture">${renderToString(<PicturePage />)}</div></body></html>`;
   server = await createServer({
-    configFile: false,
+    // The app's own resolution and React plugin, read from its Vitest config.
+    configFile: path.join(WEB_ROOT, "vitest.config.ts"),
     root: WEB_ROOT,
     // The viewport suite runs another Vite server concurrently with a different
     // dependency graph. Its optimization cache must not reload this page.
     cacheDir: path.join(WEB_ROOT, "node_modules/.vite-seen-by-picture"),
     logLevel: "error",
-    resolve: baseConfig.resolve,
     define: { "process.env": JSON.stringify({ NODE_ENV: "development" }) },
     plugins: [
-      baseConfig.plugins,
       {
         name: "room-message-seen-by-picture-page",
         enforce: "pre",
