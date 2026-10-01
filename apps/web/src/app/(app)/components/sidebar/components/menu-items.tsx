@@ -36,7 +36,10 @@ import {
 import { useHasAssignedOrganizationSeat } from "@/contexts/organization-seat-context";
 import { cn } from "@/lib/utils";
 
-import { SidebarNewBadge } from "./sidebar-new-badge";
+import {
+  SIDEBAR_NEW_LABEL_CLASS,
+  SidebarLabelWithNew,
+} from "./sidebar-new-badge";
 
 interface MenuItemConfig {
   key: string;
@@ -237,11 +240,11 @@ function ScopedMenuItems({
                       className={cn(
                         SIDEBAR_ROW_LABEL_CLASS,
                         SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                        isNew && SIDEBAR_NEW_LABEL_CLASS,
                       )}
                     >
-                      {label}
+                      {isNew ? <SidebarLabelWithNew label={label} /> : label}
                     </span>
-                    {isNew ? <SidebarNewBadge /> : null}
                   </>
                 );
 
