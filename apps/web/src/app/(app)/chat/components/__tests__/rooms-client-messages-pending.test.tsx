@@ -241,6 +241,7 @@ const baseProps = {
   rooms: [channelRoom()],
   organizationMembers: [] as [],
   currentUserId: "user-1",
+  isOrgOwnerOrAdmin: false,
   coworkers: [] as [],
   selectedRoomId: "room-channel",
   messageLoadFailed: false,

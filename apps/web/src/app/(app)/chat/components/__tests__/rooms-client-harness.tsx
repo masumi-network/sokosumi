@@ -38,6 +38,7 @@ const {
   sendRoomMessageAction,
   setMessageReactionAction,
   unpinRoomMessageAction,
+  updateRoomAction,
   markOrganizationChatRoomReadAction,
   toast,
 } = vi.hoisted(() => {
@@ -77,6 +78,7 @@ const {
     sendRoomMessageAction: vi.fn() as Mock,
     setMessageReactionAction: vi.fn() as Mock,
     unpinRoomMessageAction: vi.fn() as Mock,
+    updateRoomAction: vi.fn() as Mock,
     markOrganizationChatRoomReadAction: vi.fn(async (roomId: string) => ({
       ok: true as const,
       value: {
@@ -114,6 +116,7 @@ export {
   setMessageReactionAction,
   toast,
   unpinRoomMessageAction,
+  updateRoomAction,
   useChatRoomRealtimeMock,
 };
 
@@ -200,6 +203,9 @@ vi.mock("@/app/chat/hooks/use-coworker-direct-room-stream", () => ({
 }));
 
 vi.mock("@/app/chat/actions", () => ({
+  archiveRoomAction: vi.fn(),
+  leaveRoomAction: vi.fn(),
+  updateRoomAction,
   listUnreadThreadReplyCountsAction,
   deleteRoomMessageAction,
   editRoomMessageAction,
@@ -348,6 +354,7 @@ export function roomsClientBaseProps(
     rooms: [channelRoom()],
     organizationMembers: [],
     currentUserId: "user-1",
+    isOrgOwnerOrAdmin: false,
     coworkers: [],
     selectedRoomId: "room-channel",
     messageLoadFailed: false,

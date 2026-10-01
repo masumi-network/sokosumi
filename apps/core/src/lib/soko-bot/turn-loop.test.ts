@@ -26,7 +26,34 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { finishTurn, latestExchange } from "./turn-loop";
+import { contextBlock, finishTurn, latestExchange } from "./turn-loop";
+
+describe("contextBlock", () => {
+  it("states the reply language last, after the packet and the latest exchange", () => {
+    const now = Date.parse("2026-09-30T21:27:00Z");
+    const lines = contextBlock(
+      {
+        recentTurns: [
+          {
+            source: "CHAT",
+            userMessage: "Erinnere mich jeden Montag.",
+            finalAnswer: "Soll ich das so einrichten?",
+            completedAt: "2026-09-30T21:26:00Z",
+          },
+        ],
+      },
+      '{"memory":"Standup auf Deutsch"}',
+      now,
+    );
+    const language = lines.findIndex((line) =>
+      line.startsWith("Reply in the language of the owner's latest message"),
+    );
+    expect(language).toBe(lines.length - 1);
+    expect(lines.findIndex((line) => line.startsWith("You: Soll ich"))).toBe(
+      language - 2,
+    );
+  });
+});
 
 describe("latestExchange", () => {
   const now = Date.parse("2026-09-30T18:05:14Z");

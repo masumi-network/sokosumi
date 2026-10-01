@@ -205,3 +205,76 @@ describe("buildSystemBeatMessage private Task visibility", () => {
     expect(beat.message).not.toContain("secret-1");
   });
 });
+
+describe("buildSystemBeatMessage stand-up board", () => {
+  it("lists only the owner's open Tasks and adds a short team note", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    vi.mocked(integrations.activeIntegrationsForBot).mockResolvedValue([]);
+    taskFindManyMock.mockImplementation(
+      async (args: {
+        where?: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => {
+        // The attention query has its own shape; nothing is stuck here.
+        if (args.select?.events) return [];
+        if (args.where?.OR) {
+          return [
+            {
+              id: "mine-1",
+              name: "My launch",
+              status: "READY",
+              assignee: null,
+            },
+          ];
+        }
+        if (args.where?.NOT) {
+          return [
+            {
+              name: "Pricing research",
+              status: "RUNNING",
+              owner: { name: "Albina" },
+              assignee: { name: "Hannah" },
+            },
+          ];
+        }
+        return [];
+      },
+    );
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    const own = {
+      OR: [{ ownerId: ALICE_USER_ID }, { assigneeSokoBotId: ALICE_BOT_ID }],
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(own) }),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: own,
+          AND: expect.arrayContaining([
+            buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID),
+          ]),
+        }),
+      }),
+    );
+    expect(beat.message).toContain("## Your open Tasks");
+    expect(beat.message).toContain("My launch");
+    expect(beat.message).toContain("## Team activity (last 24h)");
+    expect(beat.message).toContain(
+      'Albina · RUNNING · "Pricing research" · with Hannah',
+    );
+  });
+});

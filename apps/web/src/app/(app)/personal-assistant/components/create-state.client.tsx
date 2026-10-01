@@ -115,6 +115,10 @@ export function CreateState() {
           <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
         </div>
 
+        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+          {t("spendNotice")}
+        </p>
+
         <Button
           type="submit"
           className="w-full"
