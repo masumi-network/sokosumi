@@ -28,6 +28,8 @@ interface IdentityOnboardingFormProps {
   initialName: string;
   initialFirstName: string;
   initialLastName: string;
+  /** False when sign-up already gave a valid first and last name. */
+  askName: boolean;
   workspaceReady: boolean;
 }
 
@@ -35,6 +37,7 @@ export function IdentityOnboardingForm({
   initialName,
   initialFirstName,
   initialLastName,
+  askName,
   workspaceReady,
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
@@ -178,15 +181,29 @@ export function IdentityOnboardingForm({
       {showIdentityFields ? (
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSetupSubmit)}
+            onSubmit={(event) => {
+              if (askName) {
+                void form.handleSubmit(handleSetupSubmit)(event);
+                return;
+              }
+              // The page validates this stored pair. A refresh can hide fields
+              // while the form still holds an earlier, possibly invalid draft.
+              event.preventDefault();
+              handleSetupSubmit({
+                firstName: initialFirstName,
+                lastName: initialLastName,
+              });
+            }}
             className="space-y-6"
             data-testid="workspace-gate-identity-form"
           >
             <fieldset className="space-y-6" disabled={busy}>
-              <FirstAndLastNameFields
-                control={form.control}
-                testIdPrefix="workspace-gate-identity"
-              />
+              {askName ? (
+                <FirstAndLastNameFields
+                  control={form.control}
+                  testIdPrefix="workspace-gate-identity"
+                />
+              ) : null}
 
               <div className="space-y-3">
                 <RadioGroup

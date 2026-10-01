@@ -65,20 +65,25 @@ export default async function AuthLayout({
     }
   }
 
+  const logo = (
+    <ThemedLogo LogoComponent={SokosumiLogo} priority width={100} height={13} />
+  );
+
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
         className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
-          <Link href="/" className="inline-flex min-h-6 items-center">
-            <ThemedLogo
-              LogoComponent={SokosumiLogo}
-              priority
-              width={100}
-              height={13}
-            />
-          </Link>
+          {carriesOAuthRequest ? (
+            // Leaving for Sokosumi's home would drop the OAuth request; the
+            // header links back to the product instead.
+            <div className="inline-flex min-h-6 items-center">{logo}</div>
+          ) : (
+            <Link href="/" className="inline-flex min-h-6 items-center">
+              {logo}
+            </Link>
+          )}
           <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
           </div>

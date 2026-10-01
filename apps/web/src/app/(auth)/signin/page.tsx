@@ -47,7 +47,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     return (
       <OAuthHandBack
         oauthQuery={oauthRequest.query}
-        clientName={oauthRequest.clientName}
+        client={oauthRequest.client}
         accountToConfirm={oauthRequest.accountToConfirm}
       />
     );
@@ -70,7 +70,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
 
   return (
     <div className="flex flex-1 flex-col">
-      <SignInHeader clientName={oauthRequest?.clientName} />
+      <SignInHeader client={oauthRequest?.client} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         <SignInErrorNotice error={error} />
         <SocialButtons
