@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -47,6 +53,37 @@ describe("EmailCodeForm", () => {
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
     expect(onSubmitCode).toHaveBeenCalledWith("042917");
+  });
+
+  it("submits as soon as the sixth digit is typed", async () => {
+    const user = userEvent.setup();
+    const { onSubmitCode } = renderForm();
+
+    await user.type(
+      screen.getByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
+
+    expect(onSubmitCode).toHaveBeenCalledExactlyOnceWith("042917");
+  });
+
+  it("locks automatic and manual submissions before React renders pending", async () => {
+    const { onSubmitCode } = renderForm({
+      onSubmitCode: vi.fn(() => new Promise<undefined>(() => {})),
+    });
+    const code = screen.getByRole("textbox", { name: "codeLabel" });
+    const formElement = code.closest("form");
+    if (!formElement) throw new Error("Missing code form");
+    act(() => {
+      fireEvent.change(code, { target: { value: "042917" } });
+      fireEvent.submit(formElement);
+      fireEvent.submit(formElement);
+    });
+    expect(onSubmitCode).toHaveBeenCalledExactlyOnceWith("042917");
+    expect(code).toBeDisabled();
+    fireEvent.submit(formElement);
+    expect(onSubmitCode).toHaveBeenCalledOnce();
+    await act(async () => {});
   });
 
   it("asks for all six digits before sending anything", async () => {
