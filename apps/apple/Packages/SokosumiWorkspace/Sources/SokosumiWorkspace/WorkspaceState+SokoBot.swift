@@ -1,15 +1,18 @@
+import CoreAPI
 import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
-  /// The rating already sent for a turn in this session, if any. Web keeps
-  /// this in the row; here it survives scrolling and room switches until sign-out.
-  func sokoBotFeedback(forTurn turnId: String) -> Bool? {
-    sokoBotFeedback[turnId]
+  /// A turn's thumbs: the rating Core stored in this session and whether one is
+  /// on its way. Web keeps this in the row; here it survives scrolling and room
+  /// switches until sign-out.
+  func sokoBotFeedback(forTurn turnId: String) -> SokoBotFeedback {
+    SokoBotFeedback(turnId: turnId, rating: sokoBotFeedback[turnId], isSending: pendingSokoBotFeedback.contains(turnId))
   }
 
-  func isSendingSokoBotFeedback(forTurn turnId: String) -> Bool {
-    pendingSokoBotFeedback.contains(turnId)
+  /// The thumbs a message's toolbar and right-click menu carry, or nil when it has none.
+  func sokoBotFeedback(for message: Components.Schemas.ChatRoomMessage) -> SokoBotFeedback? {
+    SokoBotFeedback.turnId(for: message).map(sokoBotFeedback(forTurn:))
   }
 
   /// `POST /soko-bots/me/turns/{id}/feedback`, once per turn: a second tap

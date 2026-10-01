@@ -72,6 +72,12 @@ import SwiftUI
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
+    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
+    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
+      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -129,7 +135,9 @@ import SwiftUI
                              onToggleReaction: reactionAction(for: parent),
                              editing: workspaces.messageEditing,
                              onQuoteJump: jumpToQuote,
-                             onSendToSelf: sendToSelfAction(for: parent))
+                             onSendToSelf: sendToSelfAction(for: parent),
+                             sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
+                             onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
                 .id(parent.id)
               Divider()
               HStack {
@@ -343,6 +351,8 @@ import SwiftUI
                            onToggleReaction: reactionAction(for: message),
                            editing: workspaces.messageEditing,
                            onQuoteJump: jumpToQuote, onSendToSelf: sendToSelfAction(for: message),
+                           sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
+                           onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            streamThinking: thinking)
           }
         }

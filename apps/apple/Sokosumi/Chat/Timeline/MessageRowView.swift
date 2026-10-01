@@ -72,6 +72,9 @@ import SwiftUI
     var onQuoteJump: ((String) -> Void)?
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
+    /// The Soko Bot turn's useful / not useful thumbs, on a row that carries them (row 38b).
+    var sokoBotFeedback: SokoBotFeedback?
+    var onSokoBotFeedback: ((Bool) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
     /// Who has read this far: set on the room transcript's newest message only (row 31b1).
@@ -97,6 +100,7 @@ import SwiftUI
     private enum MessageAction: Hashable {
       case quote, reply, more, react
       case quickReaction(Int)
+      case feedback(useful: Bool)
     }
 
     /// One OK-dismiss alert for pin, reaction, delete, mention retry, and send-to-self failures.
@@ -131,7 +135,8 @@ import SwiftUI
       message.deletedAt == nil
         && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil)
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil
+          || sokoBotFeedback != nil)
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -263,8 +268,8 @@ import SwiftUI
                 MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
                   .id(preview.url + (preview.imageUrl ?? ""))
               }
-              // Web renders the Soko Bot footer only once the turn's answer is in the row.
-              if let turn = SokoBotTurnMetadata(message: message) {
+              // Web renders the Soko Bot footer only once the turn's answer is in the row, and only with approvals or Tasks.
+              if let turn = SokoBotTurnMetadata(message: message), turn.hasFooter {
                 SokoBotMessageFooterView(turn: turn)
               }
             }
@@ -399,6 +404,11 @@ import SwiftUI
           SokoBotChainBadge(chain: sokoBotChain)
             .padding(.horizontal, 4)
         }
+        // Web puts a turn's thumbs after the hop badge and ahead of the reactions (row 38b).
+        if let sokoBotFeedback {
+          sokoBotFeedbackButton(sokoBotFeedback, useful: true)
+          sokoBotFeedbackButton(sokoBotFeedback, useful: false)
+        }
         if onToggleReaction != nil {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
             quickReactionButton(emoji, position: index)
@@ -492,6 +502,34 @@ import SwiftUI
       .accessibilityLabel(title)
     }
 
+    /// Web `SokoBotFeedbackButtons`: an icon-only control; the chosen one fills, and both lock at half strength
+    /// (web's `disabled:opacity-50`) while the rating is sent and once it stuck.
+    private func sokoBotFeedbackButton(_ feedback: SokoBotFeedback, useful: Bool) -> some View {
+      let focus = MessageAction.feedback(useful: useful)
+      let chosen = feedback.isChosen(useful: useful)
+      let symbol = (useful ? "hand.thumbsup" : "hand.thumbsdown") + (chosen ? ".fill" : "")
+      return Button { rateSokoBotTurn(useful: useful) } label: {
+        MessageActionLabel(title: SokoBotFeedback.title(useful: useful), symbol: symbol,
+                           hovered: hoveredAction == focus && !feedback.isLocked, compact: true,
+                           iconSize: actionIconSize, height: replyActionHeight)
+      }
+      .buttonStyle(.plain)
+      .disabled(feedback.isLocked || onSokoBotFeedback == nil)
+      // The label's resolved foreground does not dim with `.disabled`.
+      .opacity(feedback.isLocked ? 0.5 : 1)
+      .onHover { hoveredAction = $0 ? focus : nil }
+      .focused($focusedAction, equals: focus)
+      .help(feedback.help(useful: useful))
+      .accessibilityLabel(SokoBotFeedback.title(useful: useful))
+      .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+
+    /// Web drops a rejected rating without a word: the thumbs simply unlock.
+    private func rateSokoBotTurn(useful: Bool) {
+      guard let onSokoBotFeedback, sokoBotFeedback?.isLocked == false else { return }
+      Task { @MainActor in try? await onSokoBotFeedback(useful) }
+    }
+
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
     }
@@ -563,6 +601,7 @@ import SwiftUI
     var menuAvailability: MessageMenuAvailability {
       let live = message.deletedAt == nil
       return MessageMenuAvailability(
+        sokoBotFeedback: sokoBotFeedback,
         canReact: onToggleReaction != nil && live,
         canEdit: onEdit != nil,
         canQuote: onQuote != nil,
@@ -585,12 +624,16 @@ import SwiftUI
       if isUpdatingPin {
         busy.formUnion([.pin, .unpin])
       }
+      if sokoBotFeedback?.isLocked == true {
+        busy.formUnion([.useful, .notUseful])
+      }
       return busy
     }
 
     private func performMenuAction(_ action: MessageMenuAction) {
       switch action {
       case .copySelection: break // The menu item sends `copy:` to the text view itself.
+      case .useful, .notUseful: rateSokoBotTurn(useful: action == .useful)
       case .addReaction: showsReactionPicker = true
       case .edit: onEdit?()
       case .quote: onQuote?()
