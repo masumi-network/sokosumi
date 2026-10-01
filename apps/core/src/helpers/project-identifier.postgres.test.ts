@@ -174,4 +174,35 @@ describe.skipIf(!enabled)("project identifier against PostgreSQL", () => {
       ).rejects.toThrow();
     }
   });
+
+  it("keeps auto-alloc when a concurrent PATCH claims the same identifier", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      const holder = await prisma.project.create({
+        data: { workspaceId: ws, name: "Holder", identifier: "HOLD" },
+      });
+
+      const outcomes = await Promise.allSettled([
+        prisma.project.create({ data: { workspaceId: ws, name: "Foo" } }),
+        prisma.project.update({
+          where: { id: holder.id },
+          data: { identifier: "FOO" },
+        }),
+      ]);
+
+      const createResult = outcomes[0];
+      expect(createResult.status).toBe("fulfilled");
+      if (createResult.status !== "fulfilled") return;
+
+      const values = await identifiers(ws);
+      expect(new Set(values).size).toBe(values.length);
+      expect(values).toContain("FOO");
+      expect(values.some((value) => value === "FOO" || value === "FOO2")).toBe(
+        true,
+      );
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
 });

@@ -43,13 +43,24 @@ $$;
 
 CREATE FUNCTION project_set_identifier() RETURNS trigger LANGUAGE plpgsql AS $$
 BEGIN
+  IF TG_OP = 'UPDATE' AND NEW."identifier" IS NOT DISTINCT FROM OLD."identifier" THEN
+    RETURN NEW;
+  END IF;
+
   IF NEW."identifier" IS NULL THEN
     NEW."identifier" := project_default_identifier(NEW."name", NEW."workspaceId");
+  ELSE
+    -- Explicit inserts and identifier PATCHes share the same per-workspace lock
+    -- as automatic allocation so a concurrent create for name "Foo" cannot pick
+    -- FOO and then lose the unique index to an unlocked FOO update.
+    PERFORM pg_advisory_xact_lock(
+      hashtextextended('project_identifier:' || NEW."workspaceId"::TEXT, 0)
+    );
   END IF;
   RETURN NEW;
 END;
 $$;
-CREATE TRIGGER project_set_identifier BEFORE INSERT ON "project"
+CREATE TRIGGER project_set_identifier BEFORE INSERT OR UPDATE OF "identifier" ON "project"
 FOR EACH ROW EXECUTE FUNCTION project_set_identifier();
 
 -- Backfill in creation order so the oldest project keeps the plain prefix.
