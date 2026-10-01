@@ -224,34 +224,27 @@ let auth: CmoAuth | undefined;
 export function getAuth(): CmoAuth {
   if (auth) return auth;
   const config = readCmoAuthConfig();
-  const created = createCmoAuth(config);
-  auth = created;
-  // Better Auth reads Core's discovery document once, at start-up, and drops
-  // the provider for good when Core does not answer: a preview's Core still
-  // deploying, or an outage. Start over on the next request instead.
-  const forget = () => {
-    if (auth === created) auth = undefined;
-  };
-  created.$context.then((context) => {
+  auth = createCmoAuth(config);
+  auth.$context.then((context) => {
     if (
-      !context.socialProviders.some(
+      context.socialProviders.some(
         (provider) => provider.id === SOKOSUMI_OAUTH_PROVIDER_ID,
       )
     ) {
-      forget();
-      // Better Auth does not say which URL failed or how.
-      const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
-      fetch(discoveryUrl).then(
-        (response) =>
-          console.error(
-            `Core discovery failed: ${discoveryUrl} answered ${response.status}`,
-          ),
-        (error: unknown) =>
-          console.error(`Core discovery failed: ${discoveryUrl}`, error),
-      );
+      return;
     }
-  }, forget);
-  return created;
+    // Better Auth only says it skipped the provider, not which URL failed.
+    const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+    fetch(discoveryUrl).then(
+      (response) =>
+        console.error(
+          `Core discovery failed: ${discoveryUrl} answered ${response.status}`,
+        ),
+      (error: unknown) =>
+        console.error(`Core discovery failed: ${discoveryUrl}`, error),
+    );
+  });
+  return auth;
 }
 
 /**
