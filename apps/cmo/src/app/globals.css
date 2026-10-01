@@ -217,6 +217,15 @@ p {
     button-spin 700ms linear infinite;
 }
 
+/* High contrast would fill the gap, and a closed ring does not look like it turns. */
+@media (forced-colors: active) {
+  .button-spinner {
+    forced-color-adjust: none;
+    border-color: GrayText;
+    border-right-color: transparent;
+  }
+}
+
 @keyframes button-wait-hide {
   to {
     opacity: 0;
