@@ -10,6 +10,10 @@ export type OAuthClientRecord = NonNullable<
 export interface CreateOAuthClientFormData {
   name: string;
   redirectUris: string;
+  /** Home page; Sokosumi's sign-in page links back to it. Empty or https. */
+  clientUri: string;
+  /** Shown on Sokosumi's sign-in page. Empty or https. */
+  logoUri: string;
   /** When true, client may request `sokosumi:api` (Core `/v1` access). */
   includeCoreApi: boolean;
   /** When true, client may request `offline_access` and use refresh tokens. */
@@ -21,6 +25,8 @@ export interface CreateOAuthClientFormData {
 export interface EditOAuthClientFormData {
   name: string;
   redirectUris: string;
+  clientUri: string;
+  logoUri: string;
   includeCoreApi: boolean;
   includeOfflineAccess: boolean;
 }
@@ -28,6 +34,10 @@ export interface EditOAuthClientFormData {
 export interface CreateOAuthClientRequest {
   name: string;
   redirectUris: string[];
+  /** Omitted when empty. */
+  clientUri?: string;
+  /** Omitted when empty. */
+  logoUri?: string;
   /** When true, register with `sokosumi:api`; otherwise omit Core API scope. */
   includeCoreApi?: boolean;
   /** When true, register with `offline_access` + `refresh_token` grant. */
@@ -50,6 +60,12 @@ interface UpdateOAuthClientBase {
   clientId: string;
   name: string;
   redirectUris: string[];
+  /**
+   * Replaces the stored value; empty leaves it. Better Auth's update takes
+   * only strings, so these cannot be cleared back to null here.
+   */
+  clientUri?: string;
+  logoUri?: string;
 }
 
 /**

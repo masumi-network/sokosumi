@@ -7,6 +7,8 @@ export const DIALOG_CLEANUP_TIMEOUT = 300;
 export const DEFAULT_CREATE_FORM_VALUES = {
   name: "",
   redirectUris: "",
+  clientUri: "",
+  logoUri: "",
   includeCoreApi: false,
   includeOfflineAccess: false,
   isPublic: false,
@@ -15,6 +17,8 @@ export const DEFAULT_CREATE_FORM_VALUES = {
 export const DEFAULT_EDIT_FORM_VALUES = {
   name: "",
   redirectUris: "",
+  clientUri: "",
+  logoUri: "",
   includeCoreApi: false,
   includeOfflineAccess: false,
 };
@@ -186,7 +190,17 @@ function areRedirectUrisValid(value: string): boolean {
   return uris.every((uri) => isSafeRedirectUri(uri, applicationType));
 }
 
+/** Empty, or an absolute https URL: sign-in only links and loads those. */
+function isEmptyOrHttpsUrl(value: string): boolean {
+  return value === "" || URL.parse(value)?.protocol === "https:";
+}
+
 export function createOAuthClientSchema(t: TranslationFunction) {
+  const optionalHttpsUrl = z
+    .string()
+    .trim()
+    .refine(isEmptyOrHttpsUrl, { message: t("Validation.httpsUrlInvalid") });
+
   return z.object({
     name: z
       .string()
@@ -199,6 +213,8 @@ export function createOAuthClientSchema(t: TranslationFunction) {
       .refine(areRedirectUrisValid, {
         message: t("Validation.redirectUrisInvalid"),
       }),
+    clientUri: optionalHttpsUrl,
+    logoUri: optionalHttpsUrl,
     includeCoreApi: z.boolean(),
     includeOfflineAccess: z.boolean(),
     isPublic: z.boolean(),

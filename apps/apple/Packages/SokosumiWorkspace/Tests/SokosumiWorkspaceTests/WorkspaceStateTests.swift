@@ -303,6 +303,57 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
   }
 
+  /// A second window or sidebar refresh can change the room while the People notice is visible.
+  @Test(arguments: [false, true])
+  func failedMemberSaveUsesCurrentRoomHumansAndRetryKeepsAgentEdits(managesSettings: Bool) async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 0)), (200, roomReadBody(id: edited, unread: 0))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    var room = try #require(state.rooms.first { $0.id == edited })
+    room.organizationId = "org_1"
+    room.userMembers = [.init(id: "user_1", name: "Me", email: "me@example.com", presence: .online),
+                        .init(id: "departed", name: "Departed", email: "departed@example.com", presence: .offline)]
+    let model = ChannelEditing(room: room)
+    let agents = [ChatRecipientTarget(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")]
+    await model.load { .init(recipients: .init(targets: agents, membersLoadFailed: true), isOwnerOrAdmin: managesSettings) }
+    model.draft.recipients.insert(.sokoBot("bot"))
+    room.userMembers.removeAll { $0.id == "departed" }
+    room.userMembers.append(.init(id: "newcomer", name: "Newcomer", email: "newcomer@example.com", presence: .online))
+    try room.userMembers.append(.init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
+                                      access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest"))))
+    let index = try #require(state.rooms.firstIndex { $0.id == edited })
+    state.rooms[index] = room
+    let context = state.compositionContext
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let failedData = try #require(transport.bodies.last)
+    let failedBody = try #require(JSONSerialization.jsonObject(with: failedData) as? [String: Any])
+    #expect(failedBody["memberUserIds"] as? [String] == ["newcomer", "user_1"])
+    #expect((failedBody["coworkerIds"] as? [String])?.isEmpty == true)
+    #expect(failedBody["sokoBotIds"] as? [String] == ["bot"])
+    #expect((failedBody["name"] != nil) == managesSettings)
+    // The sheet adopts room updates before Retry, without resetting the assistant edit.
+    model.updateRoom(room)
+    await model.load { .init(recipients: .init(targets: agents + [.init(id: .human("selected"), name: "Selected")]), isOwnerOrAdmin: managesSettings) }
+    #expect(model.draft.recipients == [.human("user_1"), .human("newcomer"), .sokoBot("bot")])
+    model.draft.recipients = [.human("selected"), .sokoBot("bot")]
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let recoveredData = try #require(transport.bodies.last)
+    let recoveredBody = try #require(JSONSerialization.jsonObject(with: recoveredData) as? [String: Any])
+    #expect(recoveredBody["memberUserIds"] as? [String] == ["selected", "user_1"])
+    #expect(recoveredBody["sokoBotIds"] as? [String] == ["bot"])
+  }
+
   @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let design = "550e8400-e29b-41d4-a716-446655440001"

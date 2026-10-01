@@ -4261,6 +4261,36 @@ describe("open_direct_chat", () => {
     ).rejects.toThrow(/already have a direct chat with your owner/i);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
+
+  it("tells its owner something in their chat when a teammate asks", async () => {
+    const authorized = {
+      ...(arm() as object),
+      askedByKind: "TEAMMATE",
+    } as never;
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: SCOPE.userId, name: "Owner", email: "owner@x.io" } },
+    ]);
+    const prisma = (await import("@/lib/db/prisma")).default as unknown as {
+      chatRoom: { findFirst: ReturnType<typeof vi.fn> };
+    };
+    prisma.chatRoom.findFirst.mockResolvedValueOnce({ id: "owner-room" });
+    const service = new SokoBotRuntimeService();
+    const postChat = vi.fn().mockResolvedValue({ ok: true });
+    (service as unknown as { postChat: typeof postChat }).postChat = postChat;
+
+    await service["openDirectChat"](authorized, {
+      person: "Owner",
+      message: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+
+    expect(postChat).toHaveBeenCalledWith(authorized, {
+      roomId: "owner-room",
+      content: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("get_agent_input_schema", () => {
