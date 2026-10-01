@@ -1,12 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ComposioApiError } from "@/clients/composio.client";
+import {
+  ComposioApiError,
+  ComposioConfigError,
+} from "@/clients/composio.client";
 import {
   PROJECT_SOCIAL_PROVIDERS,
   type ProjectSocialProvider,
 } from "@/config/social-providers";
 import { conflict, forbidden, notFound } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -118,6 +123,7 @@ function createApp(
     defaultHook: defaultValidationHook,
   });
 
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
@@ -436,6 +442,24 @@ describe("Project social connection routes", () => {
       expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
     },
   );
+
+  it("tags a missing Composio configuration on initiate with a machine-readable kind", async () => {
+    initiateComposioConnectionMock.mockRejectedValue(
+      new ComposioConfigError("not configured"),
+    );
+    const response = await createApp().request(
+      `http://localhost/${PROJECT_ID}/social-connections/initiate`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "connect", provider: "x" }),
+      },
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+    });
+  });
 
   it("gates every social-connection operation behind Social beta access", async () => {
     requireSocialBetaAccessMock.mockRejectedValue(

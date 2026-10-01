@@ -1,4 +1,5 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -12,6 +13,7 @@ import {
   notFound,
   unprocessableEntity,
 } from "@/helpers/error";
+import { errorHandler } from "@/helpers/error-handler";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
@@ -21,6 +23,7 @@ import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
 import mountListAccounts from "./accounts/get.js";
 import mountAttachAccounts from "./accounts/post.js";
+import mountDiscardConnection from "./connections/[adConnectionId]/delete.js";
 import mountFinalize from "./connections/finalize/post.js";
 import mountInitiate from "./connections/initiate/post.js";
 
@@ -31,6 +34,7 @@ const m = vi.hoisted(() => ({
   attach: vi.fn(),
   list: vi.fn(),
   detach: vi.fn(),
+  discard: vi.fn(),
   campaigns: vi.fn(),
   updateCampaign: vi.fn(),
   createCampaign: vi.fn(),
@@ -45,6 +49,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   attachProjectAdAccounts: m.attach,
   listProjectAdAccounts: m.list,
   detachProjectAdAccount: m.detach,
+  discardProjectAdConnection: m.discard,
   listProjectAdCampaigns: m.campaigns,
   updateProjectAdCampaign: m.updateCampaign,
   createProjectAdCampaign: m.createCampaign,
@@ -111,6 +116,7 @@ function createApp(
   const app = new OpenAPIHono<EnvVariables>({
     defaultHook: defaultValidationHook,
   });
+  app.onError(errorHandler);
   app.use("*", async (c, next) => {
     c.set("isAuthenticated", true);
     c.set("authContext", authContext);
@@ -122,6 +128,7 @@ function createApp(
   mountFinalize(app);
   mountAttachAccounts(app);
   mountDeleteAccount(app);
+  mountDiscardConnection(app);
   mountListCampaigns(app);
   mountUpdateCampaign(app);
   mountCreateCampaign(app);
@@ -286,6 +293,50 @@ describe("Project ads routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       accountId: ACCOUNT_UUID,
+    });
+  });
+
+  describe("discard connection", () => {
+    const discard = (app = createApp(), id = CONNECTION_UUID) =>
+      app.request(`http://localhost/${PROJECT_ID}/ads/connections/${id}`, {
+        method: "DELETE",
+      });
+
+    it("discards a connection with 204", async () => {
+      const response = await discard();
+      expect(response.status).toBe(204);
+      expect(m.discard).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        adConnectionId: CONNECTION_UUID,
+      });
+    });
+
+    it("passes a connection with ad accounts through as 409", async () => {
+      m.discard.mockRejectedValue(conflict("Disconnect its ad accounts"));
+      expect((await discard()).status).toBe(409);
+    });
+
+    it("passes a connection of another Project through as 404", async () => {
+      m.discard.mockRejectedValue(notFound("Ad connection not found"));
+      expect((await discard()).status).toBe(404);
+    });
+
+    it("maps a failed revoke to 502", async () => {
+      m.discard.mockRejectedValue(new ComposioApiError(500, undefined, "boom"));
+      expect((await discard()).status).toBe(502);
+    });
+
+    it("rejects a malformed connection id", async () => {
+      const response = await discard(createApp(), "not-a-uuid");
+      expect(response.status).toBe(422);
+      expect(m.discard).not.toHaveBeenCalled();
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      expect((await discard()).status).toBe(403);
+      expect(m.discard).not.toHaveBeenCalled();
     });
   });
 
@@ -523,9 +574,13 @@ describe("Project ads routes", () => {
     const initiate = () =>
       post(createApp(), "connections/initiate", { provider: "google_ads" });
 
-    it("maps a missing Composio configuration to 503", async () => {
+    it("maps a missing Composio configuration to 503 with a machine-readable kind", async () => {
       m.initiate.mockRejectedValue(new ComposioConfigError("not configured"));
-      expect((await initiate()).status).toBe(503);
+      const response = await initiate();
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({
+        kind: CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED,
+      });
     });
 
     it.each([

@@ -28,6 +28,17 @@ export const projectAdAccountParamsSchema =
       }),
   });
 
+export const projectAdConnectionParamsSchema =
+  projectSocialConnectionProjectParamsSchema.extend({
+    adConnectionId: z
+      .string()
+      .uuid()
+      .openapi({
+        param: { name: "adConnectionId", in: "path" },
+        example: "cccccccc-cccc-4ccc-cccc-cccccccccccc",
+      }),
+  });
+
 export const projectAdConnectionStatusSchema = z.enum([
   "active",
   "reauthorization_required",

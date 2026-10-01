@@ -484,6 +484,39 @@ export async function createProjectAdCampaign(
   };
 }
 
+interface ClosingAdConnection extends PendingProjectAdRevocation {
+  previousStatus: string;
+}
+
+/**
+ * Revokes a connection already closed to new attaches, then deletes it. A
+ * failed revoke reopens it so the caller can retry. A connection that was
+ * already closed (a concurrent discard) reopens as active.
+ */
+async function revokeAndDeleteAdConnection(
+  closing: ClosingAdConnection,
+): Promise<void> {
+  try {
+    await revokeComposioConnectedAccount({
+      connectedAccountId: closing.connectedAccountId,
+    });
+  } catch (error) {
+    await prisma.projectAdConnection.updateMany({
+      where: { id: closing.adConnectionId, status: "disconnected" },
+      data: {
+        status:
+          closing.previousStatus === "disconnected"
+            ? "active"
+            : closing.previousStatus,
+      },
+    });
+    throw error;
+  }
+  await prisma.projectAdConnection.deleteMany({
+    where: { id: closing.adConnectionId },
+  });
+}
+
 /**
  * Detaches an ad account. The connection's last account also revokes the
  * Composio authorization: the connection is first closed to new attaches (in
@@ -518,21 +551,43 @@ export async function detachProjectAdAccount(
     };
   }, "Ad account changed. Please retry.");
   if (!closing) return;
+  await revokeAndDeleteAdConnection(closing);
+}
 
-  try {
-    await revokeComposioConnectedAccount({
-      connectedAccountId: closing.connectedAccountId,
+/**
+ * Discards a connection that has no ad accounts (an abandoned account picker),
+ * so no live grant is orphaned. Same order as the last detach: close to new
+ * attaches, revoke, then delete; a failed revoke reopens it for a retry.
+ */
+export async function discardProjectAdConnection(
+  input: ProjectScope & { adConnectionId: string },
+): Promise<void> {
+  await requireScopedProject(input);
+  const closing = await serializableTransaction(async (tx) => {
+    const connection = await tx.projectAdConnection.findFirst({
+      where: { id: input.adConnectionId, projectId: input.projectId },
     });
-  } catch (error) {
-    await prisma.projectAdConnection.updateMany({
-      where: { id: closing.adConnectionId },
-      data: { status: closing.previousStatus },
+    if (!connection) throw notFound("Ad connection not found");
+    const accounts = await tx.projectAdAccount.count({
+      where: { connectionId: connection.id },
     });
-    throw error;
-  }
-  await prisma.projectAdConnection.deleteMany({
-    where: { id: closing.adConnectionId },
-  });
+    if (accounts > 0) {
+      throw conflict(
+        "Ad connection has ad accounts. Detach its ad accounts instead.",
+      );
+    }
+    await tx.projectAdConnection.update({
+      where: { id: connection.id },
+      data: { status: "disconnected" },
+    });
+    return {
+      adConnectionId: connection.id,
+      connectedAccountId: connection.composioConnectedAccountId,
+      previousStatus: connection.status,
+    };
+  }, "Ad connection changed. Please retry.");
+
+  await revokeAndDeleteAdConnection(closing);
 }
 
 /** Called inside the close loop's transaction: the next ad grant still to revoke. */
