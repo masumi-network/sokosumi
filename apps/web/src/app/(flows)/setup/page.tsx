@@ -13,6 +13,7 @@ import { signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
 import { coreClient } from "@/lib/clients/core.client";
 import { getPendingOrganizationJoinToken } from "@/lib/pending-organization-join-cookie";
+import { firstAndLastNameFormSchema } from "@/lib/schemas/account";
 import { organizationService } from "@/lib/services/organization.service";
 import { userService } from "@/lib/services/user.service";
 import { cn } from "@/lib/utils";
@@ -97,15 +98,20 @@ export default async function WorkspaceGatePage() {
         : "identityTitle";
   const initialFirstName = session.user.firstName?.trim() ?? "";
   const initialLastName = session.user.lastName?.trim() ?? "";
-  const hasName = Boolean(initialFirstName && initialLastName);
+  // Sign-up asks for both parts. Ask again only for an account without a
+  // valid pair, so a hidden field can never fail validation on submit.
+  const askName = !firstAndLastNameFormSchema().safeParse({
+    firstName: initialFirstName,
+    lastName: initialLastName,
+  }).success;
   const descriptionKey =
     surface === "unavailable"
       ? "unavailableDescription"
       : surface === "pending-invites"
         ? pendingInvitesDescriptionKey({ invitationCount, hasJoinLink })
-        : hasName
-          ? "identityDescriptionConfirm"
-          : "identityDescriptionEnter";
+        : askName
+          ? "identityDescriptionEnter"
+          : "identityDescriptionChoose";
   const showIdentityForm = surface === "identity-onboarding";
   const showPendingQueue = surface === "pending-invites";
 
@@ -131,6 +137,7 @@ export default async function WorkspaceGatePage() {
             initialName={session.user.name?.trim() ?? ""}
             initialFirstName={initialFirstName}
             initialLastName={initialLastName}
+            askName={askName}
             workspaceReady={workspaceReady}
           />
         ) : showPendingQueue ? (
