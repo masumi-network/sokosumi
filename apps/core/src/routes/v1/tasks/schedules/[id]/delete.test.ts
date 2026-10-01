@@ -77,7 +77,7 @@ describe("DELETE /tasks/schedules/{id}", () => {
     expect(taskScheduleTestDb.schedules).toHaveLength(1);
   });
 
-  it("lets only the owner delete", async () => {
+  it("lets another member delete a workspace-visible schedule", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await remove(
@@ -85,8 +85,8 @@ describe("DELETE /tasks/schedules/{id}", () => {
       createTaskScheduleTestApp(mountDeleteTaskSchedule, userAuth(MEMBER_ID)),
     );
 
-    expect(response.status).toBe(403);
-    expect(taskScheduleTestDb.schedules).toHaveLength(1);
+    expect(response.status).toBe(204);
+    expect(taskScheduleTestDb.schedules).toHaveLength(0);
   });
 
   it("hides another member's private schedule", async () => {

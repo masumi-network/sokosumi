@@ -21,17 +21,19 @@
     "@sokosumi/core-client": "workspace:*",
     "@sokosumi/utils": "workspace:*",
     "@vercel/related-projects": "1.1.1",
-    "better-auth": "1.7.6",
+    "better-auth": "1.7.7",
     "next": "16.3.8",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
   },
   "devDependencies": {
     "@types/node": "24.19.0",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
     "jose": "6.2.12",
     "typescript": "7.0.2",
-    "vitest": "5.0.2"
+    "vitest": "5.0.3"
   }
 }

@@ -36,17 +36,11 @@ vi.mock("@/auth/components/social-buttons", () => ({ default: () => null }));
 
 async function submitDetails() {
   const user = userEvent.setup();
-  render(<SignUpFlow showMagicLink={false} lastUsedMethod={null} />);
-  await user.type(
-    screen.getByLabelText("Fields.Email.label"),
-    "ada@example.com",
-  );
+  render(<SignUpFlow lastUsedMethod={null} />);
+  await user.type(screen.getByLabelText("label"), "ada@example.com");
   await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-  await user.type(
-    await screen.findByLabelText("Fields.FirstName.label"),
-    "Ada",
-  );
-  await user.type(screen.getByLabelText("Fields.LastName.label"), "Lovelace");
+  await user.type(await screen.findByLabelText("firstNameLabel"), "Ada");
+  await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
   await user.type(
     screen.getByLabelText("Fields.Password.label"),
     "password123",
@@ -70,17 +64,15 @@ describe("SignUpFlow submission", () => {
 
     expect(changeEmail).toBeDisabled();
     await user.click(changeEmail);
-    expect(screen.getByLabelText("Fields.FirstName.label")).toBeVisible();
+    expect(screen.getByLabelText("firstNameLabel")).toBeVisible();
     expect(
-      screen.queryByRole("textbox", { name: "Fields.Email.label" }),
+      screen.queryByRole("textbox", { name: "label" }),
     ).not.toBeInTheDocument();
 
     pending.resolve({ data: null, error: { message: "Retry signup" } });
     await waitFor(() => expect(changeEmail).toBeEnabled());
     await user.click(changeEmail);
-    expect(screen.getByLabelText("Fields.Email.label")).toHaveValue(
-      "ada@example.com",
-    );
+    expect(screen.getByLabelText("label")).toHaveValue("ada@example.com");
     expect(finishAuthMock).not.toHaveBeenCalled();
   });
 

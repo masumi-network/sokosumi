@@ -8,7 +8,7 @@ function stripTrailingSlashes(value: string): string {
 
 /**
  * True when the absolute URL host is sokosumi.com or a subdomain.
- * Preview auth (magic links, session cookies with Domain=sokosumi.com) must
+ * Preview auth (session cookies with Domain=sokosumi.com) must
  * use these hosts — browsers reject Domain=sokosumi.com cookies set from
  * *.vercel.app.
  */
@@ -53,7 +53,7 @@ export interface ResolveBetterAuthProductionUrlParams {
  * On Vercel Preview, prefers `VERCEL_BRANCH_URL` (stable branch alias) over
  * `VERCEL_URL` (per-deployment hash). When only one of those is on a
  * `*.sokosumi.com` host (Preview Deployment Suffix), that one wins regardless
- * of order — needed for magic-link cookies with `BETTER_AUTH_COOKIE_DOMAIN`.
+ * of order — needed for session cookies with `BETTER_AUTH_COOKIE_DOMAIN`.
  *
  * On Vercel Production, prefers `vercelProductionUrl`, then the fallback.
  */

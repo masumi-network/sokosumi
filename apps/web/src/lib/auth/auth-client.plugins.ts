@@ -9,11 +9,11 @@ import {
 } from "@sokosumi/utils";
 import {
   adminClient,
+  emailOTPClient,
   inferAdditionalFields,
   inferOrgAdditionalFields,
   jwtClient,
   lastLoginMethodClient,
-  magicLinkClient,
   organizationClient,
 } from "better-auth/client/plugins";
 
@@ -48,7 +48,7 @@ export function getAuthClientPlugins() {
       }),
     }),
     passkeyClient(),
-    magicLinkClient(),
+    emailOTPClient(),
     lastLoginMethodClient({
       cookieName: getLastUsedLoginMethodCookieName(),
     }),

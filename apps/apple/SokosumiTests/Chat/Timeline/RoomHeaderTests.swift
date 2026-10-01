@@ -153,7 +153,7 @@
       }
 
       /// The columns side by side, top-aligned, 8 px apart over grey.
-      private static func stitched(_ columns: [[CGImage]]) throws -> NSBitmapImageRep {
+      static func stitched(_ columns: [[CGImage]]) throws -> NSBitmapImageRep {
         let gap = 8
         let columnWidth = try #require(columns[0].map(\.width).max())
         let height = columns[0].reduce(0) { $0 + $1.height + gap } - gap

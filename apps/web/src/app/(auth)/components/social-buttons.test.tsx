@@ -1,23 +1,11 @@
-import {
-  act,
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-} from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  captchaErrorMessageMock,
-  captchaFetchOptions,
-  requestCaptchaMock,
-} from "@/test/auth-captcha-mock";
 
 import SocialButtons from "./social-buttons";
 
 const mockSocialSignIn = vi.fn();
 const mockPasskeySignIn = vi.fn();
-const mockMagicLinkSignIn = vi.fn();
 const mockToastError = vi.fn();
 const mockRouterReplace = vi.fn();
 const mockLocationReplace = vi.fn();
@@ -55,17 +43,11 @@ vi.mock("next-intl", () => ({
       if (key === "continueWith") {
         return `continue-with-${values?.provider ?? "unknown"}`;
       }
-      if (key === "magicLinkProvider") {
-        return "Magic Link";
-      }
       if (key === "passkeyProvider") {
         return "Passkey";
       }
       if (key === "lastUsed") {
         return "last-used";
-      }
-      if (key === "magicLinkInputLabel") {
-        return "magic-link-email";
       }
       return key;
     };
@@ -92,7 +74,6 @@ vi.mock("@/lib/auth/auth.client", () => ({
     signIn: {
       passkey: (...args: unknown[]) => mockPasskeySignIn(...args),
       social: (...args: unknown[]) => mockSocialSignIn(...args),
-      magicLink: (...args: unknown[]) => mockMagicLinkSignIn(...args),
     },
   },
 }));
@@ -163,11 +144,6 @@ describe("SocialButtons", () => {
           id: "session-id",
         },
       },
-      error: null,
-    });
-    mockMagicLinkSignIn.mockReset();
-    mockMagicLinkSignIn.mockResolvedValue({
-      data: { status: true },
       error: null,
     });
     mockToastError.mockReset();
@@ -269,13 +245,10 @@ describe("SocialButtons", () => {
   it.each([
     ["google", "Google"],
     ["passkey", "Passkey"],
-    ["magic-link", "Magic Link"],
   ] as const)(
     "keeps a distinct hover fill for last-used %s",
     (method, label) => {
-      render(
-        <SocialButtons showPasskey showMagicLink lastUsedMethod={method} />,
-      );
+      render(<SocialButtons showPasskey lastUsedMethod={method} />);
 
       const button = screen.getByRole("button", {
         name: `continue-with-${label}`,
@@ -298,22 +271,6 @@ describe("SocialButtons", () => {
 
     expect(lastUsedLabel).toBeInTheDocument();
     expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(badgeContainer).toHaveClass("relative");
-    expect(badgeContainer).toContainElement(lastUsedLabel);
-  });
-
-  it("shows an inline marker on the magic-link button", () => {
-    render(<SocialButtons showMagicLink lastUsedMethod="magic-link" />);
-
-    const button = screen.getByRole("button", {
-      name: "continue-with-Magic Link",
-    });
-    const lastUsedLabel = screen.getByText("last-used");
-    const badgeContainer = button.parentElement;
-
-    expect(lastUsedLabel).toBeInTheDocument();
-    expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
@@ -363,21 +320,21 @@ describe("SocialButtons", () => {
     });
   });
 
-  it("renders the passkey button between Microsoft and Magic Link", () => {
-    render(<SocialButtons showMagicLink showPasskey />);
+  it("renders the passkey button after Microsoft", () => {
+    render(<SocialButtons showPasskey />);
 
     const buttons = screen.getAllByRole("button");
 
+    expect(buttons).toHaveLength(3);
     expect(buttons[0]).toHaveTextContent("continue-with-Google");
     expect(buttons[1]).toHaveTextContent("continue-with-Microsoft");
     expect(buttons[2]).toHaveTextContent("continue-with-Passkey");
-    expect(buttons[3]).toHaveTextContent("continue-with-Magic Link");
   });
 
   it("signs in with a passkey and redirects to the return url", async () => {
     const user = userEvent.setup();
 
-    render(<SocialButtons returnUrl="/jobs" showMagicLink showPasskey />);
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
 
     await user.click(
       screen.getByRole("button", { name: "continue-with-Passkey" }),
@@ -582,210 +539,4 @@ describe("SocialButtons", () => {
       expect(mockPasskeySignIn).not.toHaveBeenCalled();
     });
   });
-
-  it("reveals the magic-link panel and requests a Magic Link", async () => {
-    const user = userEvent.setup();
-
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "login-user@example.com",
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    await waitFor(() => {
-      expect(mockMagicLinkSignIn).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
-        email: "login-user@example.com",
-        callbackURL: `${window.location.origin}/auth/callback/signin?provider=magic-link`,
-        errorCallbackURL: window.location.href,
-      });
-    });
-
-    expect(screen.getByText("magicLinkSuccess")).toHaveClass("text-center");
-  });
-
-  it("asks for the magic-link address with an email keyboard and no autocorrect", async () => {
-    const user = userEvent.setup();
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-
-    const email = screen.getByRole("textbox", { name: "magic-link-email" });
-    expect(email).toHaveAttribute("type", "email");
-    expect(email).toHaveAttribute("autocomplete", "email");
-    expect(email).toHaveAttribute("autocapitalize", "none");
-    expect(email).toHaveAttribute("spellcheck", "false");
-  });
-
-  it("says in its own words when the magic-link address is invalid", async () => {
-    const user = userEvent.setup();
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "not-an-email",
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    expect(mockToastError).toHaveBeenCalledWith("magicLinkInvalidEmail");
-    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
-  });
-
-  it("releases magic-link submit without sending mail when the captcha is cancelled", async () => {
-    const user = userEvent.setup();
-    requestCaptchaMock.mockResolvedValueOnce(null);
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.type(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      "login-user@example.com",
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    expect(requestCaptchaMock).toHaveBeenCalledOnce();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "magicLinkSubmit" }),
-      ).toBeEnabled(),
-    );
-    expect(mockMagicLinkSignIn).not.toHaveBeenCalled();
-    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
-    expect(mockToastError).not.toHaveBeenCalled();
-  });
-
-  it("shows translated captcha errors for magic-link requests", async () => {
-    const error = {
-      code: "VERIFICATION_FAILED",
-      message: "Captcha verification failed",
-    };
-    mockMagicLinkSignIn.mockResolvedValueOnce({ data: null, error });
-    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
-    const user = userEvent.setup();
-    render(<SocialButtons showMagicLink prefilledEmail="person@example.com" />);
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, error.message);
-    expect(mockToastError).toHaveBeenLastCalledWith("Translated captcha error");
-    expect(screen.queryByText("magicLinkSuccess")).not.toBeInTheDocument();
-  });
-
-  it("hides the magic-link panel when the trigger is clicked again", async () => {
-    const user = userEvent.setup();
-
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    expect(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-    ).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-
-    expect(
-      screen.queryByRole("textbox", { name: "magic-link-email" }),
-    ).not.toBeInTheDocument();
-  });
-
-  it("passes signed OAuth returnUrl when requesting a magic link", async () => {
-    const user = userEvent.setup();
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "test-state",
-      response_type: "code",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
-
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      {
-        target: { value: "oauth-login-user@example.com" },
-      },
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    await waitFor(() => {
-      expect(mockMagicLinkSignIn).toHaveBeenCalledTimes(1);
-    });
-
-    expect(mockMagicLinkSignIn.mock.calls[0]?.[0]?.email).toBe(
-      "oauth-login-user@example.com",
-    );
-    const magicLinkCallbackUrl = new URL(
-      mockMagicLinkSignIn.mock.calls[0]?.[0]?.callbackURL,
-      "https://example.com",
-    );
-    expect(magicLinkCallbackUrl.pathname).toBe("/auth/callback/signin");
-    expect(magicLinkCallbackUrl.searchParams.get("provider")).toBe(
-      "magic-link",
-    );
-    const magicLinkReturnUrl =
-      magicLinkCallbackUrl.searchParams.get("returnUrl") ?? "";
-    expect(magicLinkReturnUrl).toContain("/signin?");
-    expect(magicLinkReturnUrl).toContain("client_id=test-client");
-    expect(magicLinkReturnUrl).toContain(
-      "redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback",
-    );
-  });
-
-  it("re-enables magic-link submit when the request returns an error", async () => {
-    const user = userEvent.setup();
-
-    mockMagicLinkSignIn.mockResolvedValueOnce({
-      data: null,
-      error: { message: "Network failure", status: 500, statusText: "Error" },
-    });
-
-    render(<SocialButtons showMagicLink />);
-
-    await user.click(
-      screen.getByRole("button", { name: "continue-with-Magic Link" }),
-    );
-    fireEvent.change(
-      screen.getByRole("textbox", { name: "magic-link-email" }),
-      {
-        target: { value: "login-user@example.com" },
-      },
-    );
-    await user.click(screen.getByRole("button", { name: "magicLinkSubmit" }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByRole("button", { name: "magicLinkSubmit" }),
-      ).toBeEnabled();
-    });
-
-    expect(mockToastError).toHaveBeenCalledWith("Network failure");
-  });
 });
-
-vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));

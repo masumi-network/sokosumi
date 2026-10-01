@@ -71,6 +71,12 @@ import SwiftUI
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
+    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
+    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
+      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
+    }
+
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
       guard workspaces.canSendToSelf(message) else { return nil }
       return { try await workspaces.sendMessageToSelf(message, auth: auth) }
@@ -167,6 +173,9 @@ import SwiftUI
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
       let channels = workspaces.composerChannels
+      // Seen by rides the newest row only; asked once per pass.
+      let readReceipts = workspaces.roomReadReceipts
+      let newestMessageId = messages.last?.id
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
@@ -248,8 +257,11 @@ import SwiftUI
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
                                  onSendToSelf: sendToSelfAction(for: message),
+                                 sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
+                                 onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  horizontalInset: 12,
-                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
+                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                 }
               }
               .background {

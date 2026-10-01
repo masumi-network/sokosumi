@@ -6,6 +6,20 @@
       "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
       "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut."
     },
+    "EmailCodeForm": {
+      "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
+      "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
+      "codeLabel": "Code aus der E-Mail",
+      "incomplete": "Gib den 6-stelligen Code aus der E-Mail ein.",
+      "invalid": "Dieser Code stimmt nicht. Prüfe die E-Mail und versuche es erneut.",
+      "expired": "Dieser Code ist abgelaufen. Sende einen neuen Code.",
+      "tooManyAttempts": "Zu viele falsche Versuche. Sende einen neuen Code.",
+      "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
+      "resend": "Neuen Code senden",
+      "resendIn": "Neuer Code in {seconds} s",
+      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
+      "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
+    },
     "EmergencyDialog": {
       "title": "Notfallwartung",
       "description": "Wir haben derzeit Probleme mit der Ausführung von Jobs, die durch technische Störungen bei einem unserer Drittanbieter verursacht werden. Keine Sorge – alles wird in Kürze wieder normal funktionieren.",
@@ -29,19 +43,18 @@
     },
     "ReauthDialog": {
       "confirm": "Bestätigen",
-      "continueWithEmail": "Anmeldelink per E-Mail senden",
+      "confirmCode": "Mit Code bestätigen",
+      "continueWithEmail": "Code per E-Mail senden",
       "continueWithGoogle": "Mit Google fortfahren",
       "continueWithMicrosoft": "Mit Microsoft fortfahren",
       "description": "Deine Sitzung ist für diese Änderung zu alt. Melde dich erneut an, um fortzufahren.",
-      "magicLinkError": "Der Link konnte nicht gesendet werden. Versuche es erneut.",
-      "magicLinkSent": "Link an {email} gesendet. Öffne ihn auf diesem Gerät, um dich erneut anzumelden.",
+      "emailCodeError": "Wir konnten den Code nicht senden. Versuche es erneut.",
       "noMethod": "Bestätige zuerst deine E-Mail-Adresse und versuche es dann erneut.",
       "orEmail": "Oder per E-Mail anmelden:",
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
       "rememberMe": "Angemeldet bleiben",
-      "resendEmail": "Link erneut senden",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1151,23 +1164,13 @@
     },
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
-      "passwordDivider": "oder mit Passwort anmelden",
       "orDivider": "oder",
-      "magicLinkDivider": "oder ohne Passwort",
+      "emailCodeError": "Wir konnten keinen Code senden. Bitte versuche es erneut.",
       "success": "Anmeldung erfolgreich",
       "error": "Anmeldung fehlgeschlagen",
       "lastUsed": "Zuletzt verwendet",
       "passkeyProvider": "Passkey",
-      "passkeyError": "Anmeldung mit Passkey ist fehlgeschlagen. Bitte versuche es erneut.",
-      "magicLinkProvider": "Magic Link",
-      "magicLinkInputLabel": "E-Mail für den Magic Link",
-      "magicLinkPlaceholder": "E-Mail eingeben",
-      "magicLinkSubmit": "Sende mir einen Magic Link",
-      "magicLinkSubmitting": "Magic Link wird gesendet...",
-      "magicLinkResend": "Magic Link erneut senden",
-      "magicLinkSuccess": "Prüfe deinen Posteingang auf deinen Magic Link.",
-      "magicLinkError": "Wir konnten keinen Magic Link senden. Bitte versuche es erneut.",
-      "magicLinkInvalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein."
+      "passkeyError": "Anmeldung mit Passkey ist fehlgeschlagen. Bitte versuche es erneut."
     },
     "Words": {
       "signUp": "Registrieren"
@@ -1175,6 +1178,20 @@
     "PasswordToggle": {
       "show": "Passwort anzeigen",
       "hide": "Passwort ausblenden"
+    },
+    "Email": {
+      "Form": {
+        "label": "E-Mail",
+        "continueWithEmail": "Weiter mit E-Mail",
+        "change": "Ändern",
+        "changeEmail": "E-Mail ändern",
+        "usePasswordInstead": "Stattdessen ein Passwort verwenden",
+        "emailCodeInstead": "Stattdessen Code per E-Mail senden",
+        "emailCodeSending": "Code wird gesendet...",
+        "codeStillWorks": "Der gesendete Code gilt weiterhin.",
+        "useCodeInstead": "Stattdessen den Code verwenden",
+        "error": "Wir konnten diese E-Mail nicht prüfen. Bitte versuche es erneut."
+      }
     },
     "Pages": {
       "SignIn": {
@@ -1192,11 +1209,8 @@
           "lastUsed": "Zuletzt verwendet",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {
-            "Email": {
-              "placeholder": "E-Mail"
-            },
             "Password": {
-              "placeholder": "Passwort"
+              "label": "Passwort"
             },
             "RememberMe": {
               "label": "Angemeldet bleiben"
@@ -1209,6 +1223,11 @@
           },
           "Errors": {
             "termsNotAccepted": "Du musst den Nutzungsbedingungen zustimmen, um dich anzumelden"
+          },
+          "NoAccount": {
+            "title": "Kein Konto für diese Adresse",
+            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "createAccount": "Konto erstellen"
           }
         }
       },
@@ -1237,45 +1256,20 @@
         },
         "Form": {
           "submit": "Registrieren",
-          "continueWithEmail": "Weiter mit E-Mail",
           "AccountExists": {
             "title": "Du hast bereits ein Konto",
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "change": "Ändern",
-          "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
-            "Email": {
-              "label": "E-Mail"
-            },
-            "FirstName": {
-              "label": "Vorname"
-            },
-            "LastName": {
-              "label": "Nachname"
-            },
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
             },
-            "Organization": {
-              "placeholder": "Organisation auswählen",
-              "search": "Organisationen suchen",
-              "create": "{organization} erstellen",
-              "new": "Neue Organisation",
-              "createPlaceholder": "Name der neuen Organisation",
-              "success": "Organisation erfolgreich erstellt",
-              "error": "Organisation konnte nicht erstellt werden",
-              "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
-            },
             "Password": {
-              "label": "Passwort"
+              "label": "Passwort",
+              "description": "Mindestens 8 Zeichen."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "E-Mail-Domain nicht erlaubt",
-            "badInput": "Bitte fülle das Formular korrekt aus."
           },
           "Login": {
             "message": "Bereits ein Konto?",
@@ -1328,6 +1322,7 @@
       "text": "Mit dem Erstellen eines Kontos stimmst du den <terms>Nutzungsbedingungen</terms> und der <privacy>Datenschutzrichtlinie</privacy> zu."
     },
     "OAuthHandBack": {
+      "backToSokosumi": "Zurück zu Sokosumi",
       "continuing": "Weiterleitung…",
       "continuingTo": "Weiter zu {client}…",
       "errorTitle": "Fortfahren nicht möglich",
@@ -1342,10 +1337,12 @@
       "accountCheckError": "Dein Konto konnte nicht überprüft werden. Versuche es erneut.",
       "signOutError": "Abmelden fehlgeschlagen. Versuche es erneut."
     },
+    "OAuthClient": {
+      "backTo": "Zurück zu {client}"
+    },
     "SignInError": {
-      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem Magic Link an und verbinde Google oder Microsoft danach unter Verbindungen.",
+      "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
-      "linkExpired": "Dieser Magic Link ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
       "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut."
     }
   },
@@ -1568,11 +1565,12 @@
         }
       },
       "SokoBot": {
-        "connectPrompt": "Verbinde Mail und Kalender, damit {bot} deine Meetings vorbereiten und Follow-ups nachhalten kann.",
+        "connectTitle": "Gib {bot} Zugriff auf Postfach und Kalender",
+        "connectBody": "Damit gibt es Meeting-Vorbereitung, Follow-up-Erinnerungen und dein tägliches Briefing.",
+        "connectConnected": "{name} verbunden",
         "connectProvider": "{name} verbinden",
         "connectDismiss": "Ausblenden",
         "connectError": "Die Verbindung konnte nicht gestartet werden.",
-        "feedbackAsk": "Nützlich?",
         "feedbackUseful": "Nützlich",
         "feedbackNotUseful": "Nicht nützlich",
         "feedbackThanks": "Danke, notiert.",
@@ -1581,7 +1579,14 @@
         "task": "Task",
         "chainDepth": "Antwort {depth} von {max} zwischen Assistenten. Schreibt eine Person hier, beginnt die Zählung von vorn.",
         "chainRoomRate": "{count} von {max} Assistenten-Nachrichten in diesem Raum in dieser Stunde.",
-        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr."
+        "chainLastHop": "Das ist der letzte Schritt – er weckt niemanden mehr.",
+        "source": {
+          "inbox": "Aus deinem Posteingang",
+          "standup": "Tägliches Stand-up",
+          "weeklyWrap": "Wochenrückblick",
+          "scheduled": "Geplant: {name}",
+          "taskUpdate": "Task-Update"
+        }
       }
     },
     "Tasks": {
@@ -1624,8 +1629,7 @@
       "Errors": {
         "updateStatus": "Task-Status konnte nicht aktualisiert werden",
         "loadMore": "Weitere Aufgaben konnten nicht geladen werden",
-        "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden",
-        "loadJobs": "Jobs konnten nicht geladen werden"
+        "loadCreateTask": "Formular zum Erstellen einer Aufgabe konnte nicht geladen werden"
       },
       "Card": {
         "comments": "Kommentare",
@@ -1672,25 +1676,6 @@
         },
         "visibilityLabel": "Sichtbarkeit",
         "visibilityPrivate": "Privat"
-      },
-      "Jobs": {
-        "filterButton": "Filter",
-        "agentLabel": "Agent",
-        "jobStatusLabel": "Job-Status",
-        "jobStatusOptions": {
-          "INITIATED": "Initiiert",
-          "AWAITING_PAYMENT": "Zahlung ausstehend",
-          "AWAITING_INPUT": "Input erforderlich",
-          "RUNNING": "In Bearbeitung",
-          "COMPLETED": "Abgeschlossen",
-          "FAILED": "Fehlgeschlagen"
-        },
-        "recentTitle": "Zuletzt",
-        "emptyRecent": "Keine kürzlich abgeschlossenen Jobs.",
-        "emptyList": "Noch keine Jobs. Beauftrage einen Coworker, dann erscheinen sie hier.",
-        "emptySection": "Keine Jobs in diesem Status.",
-        "untitled": "Unbenannter Job",
-        "unknownAgent": "Unbekannter Agent"
       },
       "Detail": {
         "back": "Zurück zu Tasks",
@@ -2013,37 +1998,6 @@
           "monthlyWithDayTime": "Monatlich (am {day}., {time})",
           "monthlyEveryNWithDayTime": "Alle {n} Monate (am {day}., {time})",
           "custom": "Benutzerdefinierter Cron"
-        },
-        "firstRun": "Erster Lauf",
-        "timeOfDay": "Uhrzeit",
-        "repeatEvery": "Wiederholen alle",
-        "repeatOn": "Wiederholen am",
-        "ends": "Endet",
-        "never": "Nie",
-        "on": "Am Datum",
-        "after": "Nach",
-        "occurrences": "Läufen",
-        "pickDate": "Datum auswählen",
-        "preview": "Vorschau",
-        "noPreview": "Keine anstehenden Läufe",
-        "timezone": "Zeitzone",
-        "customCron": "Benutzerdefinierter Cron-Ausdruck",
-        "customCronValid": "Gültiger Cron-Ausdruck",
-        "unit": {
-          "day": "Tag(e)",
-          "week": "Woche(n)",
-          "month": "Monat(e)"
-        },
-        "save": "Speichern",
-        "cancel": "Abbrechen",
-        "errors": {
-          "required": "Dieses Feld ist erforderlich.",
-          "futureDateTime": "Wähle ein Datum und eine Uhrzeit in der Zukunft.",
-          "invalidTime": "Gib eine gültige Uhrzeit ein (HH:MM).",
-          "positiveInteger": "Gib eine positive ganze Zahl ein.",
-          "selectAtLeastOneWeekday": "Wähle mindestens einen Wochentag.",
-          "endDateInPast": "Das Enddatum darf nicht in der Vergangenheit liegen.",
-          "invalidCron": "Gib einen gültigen Cron-Ausdruck für die ausgewählte Zeitzone ein."
         }
       },
       "RunAt": {
@@ -2099,10 +2053,62 @@
           "errors": {
             "stale": "Dieser Zeitplan wurde an anderer Stelle geändert. Lade die Seite neu und versuche es erneut.",
             "saveFailed": "Der Zeitplan ließ sich nicht speichern."
+          },
+          "When": {
+            "title": "Wann",
+            "repeat": "Wiederholen",
+            "repeats": {
+              "daily": "Täglich",
+              "weekdays": "Werktags",
+              "weekly": "Wöchentlich",
+              "monthly": "Monatlich",
+              "interval": "Alle paar Tage",
+              "custom": "Eigene"
+            },
+            "on": "Am",
+            "pickADay": "Wähle mindestens einen Tag",
+            "dayOfMonth": "Tag im Monat",
+            "dayN": "Tag {day}",
+            "shortMonths": "Monate ohne diesen Tag werden übersprungen",
+            "every": "Alle",
+            "days": "Tage",
+            "starting": "ab",
+            "startDate": "Startdatum",
+            "pickDate": "Datum wählen",
+            "cron": "Cron",
+            "cronHelp": "Fünf Felder: Minute, Stunde, Tag, Monat, Wochentag.",
+            "cronInvalid": "Dieser Cron-Ausdruck ist ungültig.",
+            "cronLegacy": "Gespeichert, bevor fünf Felder Pflicht waren. Der Zeitplan läuft weiter; ein geänderter Cron braucht fünf Felder.",
+            "at": "Um",
+            "time": "Uhrzeit",
+            "timeSearch": "Uhrzeit eingeben, z. B. 08:30",
+            "useTime": "{time} verwenden",
+            "timezone": "Zeitzone",
+            "timezoneSearch": "Zeitzonen suchen",
+            "noTimezone": "Keine Zeitzone gefunden",
+            "ends": "Endet",
+            "endsNever": "Nie",
+            "endsOn": "An einem Datum",
+            "endsAfter": "Nach einer Anzahl Läufe",
+            "endDate": "Enddatum",
+            "runs": "Läufe",
+            "summary": {
+              "daily": "Jeden Tag um {time}",
+              "weekdays": "Jeden Werktag um {time}",
+              "weekly": "Jeden {days} um {time}",
+              "monthly": "Jeden Monat am {day}. um {time}",
+              "interval": "Alle {n} Tage um {time}",
+              "custom": "Eigener Zeitplan",
+              "incomplete": "Wähle, wann das läuft"
+            },
+            "next": "Nächster: {date}",
+            "noNext": "Keine anstehenden Läufe",
+            "nextRuns": "Nächste Läufe"
           }
         },
         "Actions": {
           "edit": "Bearbeiten",
+          "runNow": "Jetzt ausführen",
           "pause": "Pausieren",
           "resume": "Fortsetzen",
           "end": "Beenden",
@@ -2111,6 +2117,8 @@
           "resumed": "Zeitplan fortgesetzt",
           "ended": "Zeitplan beendet",
           "deleted": "Zeitplan gelöscht",
+          "ranNow": "Task erstellt",
+          "openTask": "Task öffnen",
           "failed": "Der Zeitplan ließ sich nicht ändern. Versuche es erneut.",
           "confirmEndTitle": "Diesen Zeitplan beenden?",
           "confirmEndDescription": "Er erstellt endgültig keine Tasks mehr, und seine übersprungenen oder verschobenen Läufe entfallen. Bereits erstellte Tasks bleiben.",
@@ -2126,6 +2134,7 @@
           "noUpcomingRuns": "Noch keine Läufe geplant.",
           "noUpcomingRunsInactive": "Solange der Zeitplan pausiert oder beendet ist, sind keine Läufe geplant.",
           "runSkipped": "Übersprungen",
+          "taskRunNow": "Jetzt ausführen",
           "runMoved": "Verschoben",
           "createdTasks": "Erstellte Tasks",
           "noCreatedTasks": "Noch keine Tasks erstellt.",
@@ -3120,6 +3129,16 @@
         },
         "Detail": {
           "noExpiry": "Kein Ablauf"
+        },
+        "ChangeCredits": {
+          "title": "Credits pro Monat ändern",
+          "description": "Gilt für jeden noch nicht gutgeschriebenen Monat. Bereits gutgeschriebene Monate behalten ihre Credits.",
+          "label": "Credits / Monat",
+          "min": "Min. {min, number}",
+          "cancel": "Abbrechen",
+          "submit": "Speichern",
+          "success": "Credits pro Monat aktualisiert",
+          "error": "Credits pro Monat konnten nicht aktualisiert werden"
         }
       },
       "Overview": {
@@ -4341,6 +4360,13 @@
             "after": "Nach der Antwort: „{reply}“",
             "want": "Erwartet"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Gib diesem Bot ein Maskottchen aus dem gemeinsamen Pool, wie es sein Besitzer tun würde.",
+          "apply": "Avatar setzen",
+          "done": "Avatar aktualisiert.",
+          "error": "Der Avatar konnte nicht gesetzt werden."
         }
       },
       "MatchedChannels": {
@@ -4852,6 +4878,7 @@
         "confirmTitle": "Bist du sicher?",
         "confirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Account wird dauerhaft gelöscht und deine Daten werden von unseren Servern entfernt.",
         "currentPassword": "Aktuelles Passwort",
+        "confirmEmail": "Gib {email} zur Bestätigung ein",
         "confirm": "Ja, meinen Account löschen",
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden",
@@ -5021,6 +5048,12 @@
           "redirectUrisLabel": "Redirect-URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
+          "clientUriLabel": "Startseite",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "Optional. HTTPS. Die Anmeldeseite von Sokosumi verlinkt hierher zurück.",
+          "logoUriLabel": "Logo-URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "Optional. HTTPS. Ein quadratisches Bild für die Anmeldeseite von Sokosumi.",
           "cancelButton": "Abbrechen",
           "createButton": "OAuth-Client erstellen",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -5068,6 +5101,12 @@
           "redirectUrisLabel": "Redirect-URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "Eine URI pro Zeile. HTTPS für Web-Apps. Native Apps: http://127.0.0.1, http://localhost, http://[::1] oder ein Reverse-Domain-Schema ohne Host (com.example.app:/callback). Keine Fragmente.",
+          "clientUriLabel": "Startseite",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "HTTPS. Die Anmeldeseite von Sokosumi verlinkt hierher zurück. Ein geleertes Feld behält den aktuellen Wert.",
+          "logoUriLabel": "Logo-URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "HTTPS. Ein quadratisches Bild für die Anmeldeseite von Sokosumi. Ein geleertes Feld behält den aktuellen Wert.",
           "cancelButton": "Abbrechen",
           "saveButton": "Änderungen speichern",
           "includeCoreApiLabel": "Sokosumi-API-Zugriff erlauben",
@@ -5101,7 +5140,8 @@
           "nameRequired": "Name ist erforderlich",
           "nameMaxLength": "Name darf maximal 100 Zeichen lang sein",
           "redirectUrisRequired": "Mindestens eine Redirect-URI ist erforderlich",
-          "redirectUrisInvalid": "Jede Redirect-URI muss HTTPS, HTTP auf Loopback (localhost / 127.0.0.1 / [::1]) oder ein Reverse-Domain-App-Schema wie com.example.app:/callback sein, ohne Fragment."
+          "redirectUrisInvalid": "Jede Redirect-URI muss HTTPS, HTTP auf Loopback (localhost / 127.0.0.1 / [::1]) oder ein Reverse-Domain-App-Schema wie com.example.app:/callback sein, ohne Fragment.",
+          "httpsUrlInvalid": "Gib eine vollständige HTTPS-URL ein, z. B. https://example.com"
         },
         "RotateDialog": {
           "title": "Client-Secret rotieren",
@@ -6663,7 +6703,8 @@
         "submitting": "Wird erstellt…",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
-        "avatarLabel": "Bild"
+        "avatarLabel": "Bild",
+        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -6761,7 +6802,8 @@
           "limitUsage": "{used} von {limit} eigenständigen Turns heute genutzt.",
           "timezoneTitle": "Zeitzone",
           "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
-          "error": "Einstellung konnte nicht gespeichert werden."
+          "error": "Einstellung konnte nicht gespeichert werden.",
+          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
@@ -7036,28 +7078,33 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Soko Bots sind die KI-Kollegen, die du selbst baust. Jeder bekommt einen persönlichen Assistenten, der Arbeit delegiert, nachhakt und auf dem Laufenden hält. Weitere Arten von Soko Bots folgen hier.",
+      "description": "Persönliche Assistenten, die Arbeit delegieren, nachhaken und dich im Chat auf dem Laufenden halten.",
       "unavailable": "Die Teamübersicht ist gerade nicht verfügbar.",
-      "you": "du",
-      "noAssistant": "Noch kein Assistent",
-      "createAssistant": "Erstelle deinen persönlichen Assistenten",
-      "createAssistantHint": "Dauert eine Minute. Name und Bild wählen.",
+      "createAssistant": "Erstelle deinen Assistenten",
+      "createAssistantHint": "Hol dir einen Assistenten, der Tasks übernimmt, nachhakt und dich auf dem Laufenden hält. Die Einrichtung dauert eine Minute.",
       "assistantFallback": "Persönlicher Assistent",
-      "openChat": "Chat öffnen",
       "chatError": "Der Chat konnte nicht geöffnet werden.",
       "manage": "Einstellungen",
-      "teamTitle": "Team",
-      "teamDescription": "Alle in diesem Workspace und ihre Soko Bots.",
       "teamDescriptionPersonal": "Das ist dein persönlicher Workspace. Tritt einer Organisation bei oder erstelle eine, um Teammitglieder zu sehen.",
-      "heroTitle": "Da sind die Soko Bots!",
-      "heroBody": "Ein Soko Bot ist dein eigener Assistent in Sokosumi. Er arbeitet mit deinen Coworkern am Taskboard, liest die Mails und Kalender, die du verbindest, startet die Arbeit, die sich lohnt, und erzählt dir im Chat davon. Jede Person im Workspace baut sich einen eigenen.",
-      "heroCta": "Soko Bot erstellen",
-      "heroCtaHint": "Dauert eine Minute: Name und Gesicht aussuchen.",
-      "teamCount": "{humans, plural, one {# Mensch} other {# Menschen}}, {bots, plural, =0 {noch keine Soko Bots} one {# Soko Bot} other {# Soko Bots}}",
       "disabled": "Soko Bot ist vorübergehend nicht verfügbar",
+      "noAssistantYou": "Du hast noch keinen Assistenten",
+      "chat": "Chat",
+      "teamSummary": "{bots, plural, one {# Assistent} other {# Assistenten}} · {people, plural, one {# Person} other {# Personen}}",
+      "notSetUp": "Noch nicht eingerichtet",
+      "messageBot": "{name} schreiben",
+      "lastActive": "Zuletzt aktiv am {date}",
+      "notActiveYet": "Noch nicht aktiv",
+      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
+      "statsMessages": "{count, plural, one {# Nachricht} other {# Nachrichten}} in {days} Tagen",
+      "assistantOf": "Assistent von",
       "message": "Schreiben",
-      "previous": "Vorherige Personen",
-      "next": "Nächste Personen"
+      "roleLine": "Delegiert Arbeit, hakt nach und hält dich auf dem Laufenden.",
+      "heroCaption": "Soko Bots für alle in deinem Team",
+      "heroTitle": "Persönliche Assistenten für dein Team",
+      "chatWith": "Mit {name} chatten",
+      "yourAssistantTitle": "Dein Assistent",
+      "teamTitle": "Die Assistenten deines Teams",
+      "heroBody": "Jede Person bekommt einen Assistenten, der mit Coworkern am Taskboard arbeitet, die verbundenen Mails und Kalender liest und im Chat auf dem Laufenden hält."
     },
     "Calendar": {
       "Metadata": {
@@ -7386,7 +7433,8 @@
       "Schema": {
         "Email": {
           "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
-          "required": "E-Mail ist erforderlich"
+          "required": "E-Mail ist erforderlich",
+          "confirmationMismatch": "Gib die oben angezeigte E-Mail-Adresse ein."
         },
         "Name": {
           "min": "Name muss mindestens 2 Zeichen lang sein.",
@@ -7575,7 +7623,7 @@
   "WorkspaceGate": {
     "title": "Workspace einrichten",
     "identityTitle": "Wie möchtest du arbeiten?",
-    "identityDescriptionConfirm": "Bestätige deinen Namen und wähle eine Option.",
+    "identityDescriptionChoose": "Wähle eine Option.",
     "identityDescriptionEnter": "Gib deinen Namen ein.",
     "pendingInvitesTitle": "Du hast ausstehende Einladungen",
     "pendingInvitesDescriptionInvitations": "Nimm eine Organisationseinladung an, um Sokosumi in dieser Organisation zu öffnen.",

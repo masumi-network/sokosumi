@@ -117,6 +117,18 @@ const ADA = {
   initialName: "Ada Lovelace",
   initialFirstName: "Ada",
   initialLastName: "Lovelace",
+  askName: false,
+  returnUrl: "/",
+};
+
+// The page the app frame sent a new user here from, query included.
+const CHAT_INVITE = "/chat/join/abc?ref=mail";
+
+// An older account: a display name, but only one of the two parts.
+const ADA_WITHOUT_LAST_NAME = {
+  initialFirstName: "Ada",
+  initialLastName: "",
+  askName: true,
 };
 
 function renderForm(
@@ -157,15 +169,131 @@ describe("IdentityOnboardingForm", () => {
     vi.unstubAllGlobals();
   });
 
-  it("prefills first and last name and requires both", async () => {
+  it.each(["personal", "organization"])(
+    "uses refreshed valid names when cached fields were incomplete: %s",
+    async (choice) => {
+      const user = userEvent.setup();
+      const view = renderForm(ADA_WITHOUT_LAST_NAME);
+      view.rerender(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <IdentityOnboardingForm {...ADA} workspaceReady={false} />
+        </NextIntlClientProvider>,
+      );
+
+      expect(
+        screen.queryByTestId("workspace-gate-identity-last-name"),
+      ).toBeNull();
+      if (choice === "organization") {
+        await user.click(screen.getByRole("radio", { name: /Organization/i }));
+      }
+      await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+      if (choice === "organization") {
+        expect(await screen.findByTestId("create-org-wizard")).toBeTruthy();
+        expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
+      } else {
+        await waitFor(() => {
+          expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+          expect(locationReplaceMock).toHaveBeenCalledWith("/");
+        });
+      }
+      expect(updateUserMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("uses stored names after returning to the same hidden pair", async () => {
+    const user = userEvent.setup();
+    const view = renderForm();
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm
+          {...ADA}
+          initialLastName=""
+          askName
+          workspaceReady={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await user.clear(screen.getByTestId("workspace-gate-identity-last-name"));
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm {...ADA} workspaceReady={false} />
+      </NextIntlClientProvider>,
+    );
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() =>
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce(),
+    );
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite a refreshed stored pair with hidden cached names", async () => {
+    const user = userEvent.setup();
+    const view = renderForm();
+    view.rerender(
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <IdentityOnboardingForm
+          {...ADA}
+          initialFirstName="Grace"
+          initialLastName="Hopper"
+          workspaceReady={false}
+        />
+      </NextIntlClientProvider>,
+    );
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await waitFor(() => {
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("does not ask for a name sign-up already gave", async () => {
     const user = userEvent.setup();
     renderForm();
 
-    const firstName = screen.getByTestId("workspace-gate-identity-first-name");
-    expect(firstName).toHaveValue("Ada");
+    expect(
+      screen.queryByTestId("workspace-gate-identity-first-name"),
+    ).toBeNull();
+    expect(
+      screen.queryByTestId("workspace-gate-identity-last-name"),
+    ).toBeNull();
+    expect(screen.queryByText("Ada Lovelace")).toBeNull();
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(createPersonalWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("opens the organization wizard without a name question", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    expect(await screen.findByTestId("create-org-wizard")).toBeTruthy();
+    expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("asks for the name when a name part is missing", () => {
+    renderForm(ADA_WITHOUT_LAST_NAME);
+
+    expect(
+      screen.getByTestId("workspace-gate-identity-first-name"),
+    ).toHaveValue("Ada");
     expect(screen.getByTestId("workspace-gate-identity-last-name")).toHaveValue(
-      "Lovelace",
+      "",
     );
+  });
+
+  it("requires both name parts", async () => {
+    const user = userEvent.setup();
+    renderForm(ADA_WITHOUT_LAST_NAME);
+
+    const firstName = screen.getByTestId("workspace-gate-identity-first-name");
 
     await user.clear(firstName);
     await user.type(firstName, "  ");
@@ -177,7 +305,12 @@ describe("IdentityOnboardingForm", () => {
 
   it("derives the display name for a user who has none", async () => {
     const user = userEvent.setup();
-    renderForm({ initialName: "", initialFirstName: "", initialLastName: "" });
+    renderForm({
+      initialName: "",
+      initialFirstName: "",
+      initialLastName: "",
+      askName: true,
+    });
 
     await user.type(
       screen.getByTestId("workspace-gate-identity-first-name"),
@@ -219,6 +352,7 @@ describe("IdentityOnboardingForm", () => {
       initialName: "Countess of Lovelace",
       initialFirstName: "",
       initialLastName: "",
+      askName: true,
     });
 
     await user.click(screen.getByTestId("workspace-gate-identity-submit"));
@@ -245,7 +379,12 @@ describe("IdentityOnboardingForm", () => {
 
   it("keeps the first display name when onboarding is retried", async () => {
     const user = userEvent.setup();
-    renderForm({ initialName: "", initialFirstName: "", initialLastName: "" });
+    renderForm({
+      initialName: "",
+      initialFirstName: "",
+      initialLastName: "",
+      askName: true,
+    });
     createPersonalWorkspaceActionMock.mockResolvedValue({
       ok: false,
       error: { code: "CREATE_FAILED" },
@@ -275,7 +414,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("persists an edited last name and leaves the display name alone", async () => {
     const user = userEvent.setup();
-    renderForm();
+    renderForm(ADA_WITHOUT_LAST_NAME);
 
     const nameInput = screen.getByTestId("workspace-gate-identity-last-name");
     await user.clear(nameInput);
@@ -326,7 +465,7 @@ describe("IdentityOnboardingForm", () => {
 
   it("keeps an edited name after Back from the organization wizard", async () => {
     const user = userEvent.setup();
-    renderForm();
+    renderForm(ADA_WITHOUT_LAST_NAME);
 
     const nameInput = screen.getByTestId("workspace-gate-identity-last-name");
     await user.clear(nameInput);
@@ -345,7 +484,7 @@ describe("IdentityOnboardingForm", () => {
     updateUserMock.mockResolvedValue({
       error: { message: "Name service down" },
     });
-    renderForm();
+    renderForm(ADA_WITHOUT_LAST_NAME);
 
     const nameInput = screen.getByTestId("workspace-gate-identity-last-name");
     await user.clear(nameInput);
@@ -383,6 +522,38 @@ describe("IdentityOnboardingForm", () => {
     expect(activateOrganizationWorkspaceMock).not.toHaveBeenCalled();
     expect(screen.queryByTestId("workspace-gate-identity-form")).toBeNull();
     expect(screen.getByTestId("workspace-gate-leaving")).toBeTruthy();
+  });
+
+  it("ends personal setup where the user was going", async () => {
+    const user = userEvent.setup();
+    renderForm({ returnUrl: CHAT_INVITE });
+
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
+  });
+
+  it("ends organization setup where the user was going", async () => {
+    const user = userEvent.setup();
+    renderForm({ returnUrl: CHAT_INVITE });
+
+    await user.click(screen.getByRole("radio", { name: /Organization/i }));
+    await user.click(screen.getByTestId("workspace-gate-identity-submit"));
+    await user.click(await screen.findByTestId("wizard-complete"));
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
+  });
+
+  it("leaves an already-ready gate for where the user was going", async () => {
+    renderForm({ workspaceReady: true, returnUrl: CHAT_INVITE });
+
+    await waitFor(() => {
+      expect(locationReplaceMock).toHaveBeenCalledWith(CHAT_INVITE);
+    });
   });
 
   it("keeps the organization wizard mounted when workspace becomes ready", async () => {
@@ -502,7 +673,7 @@ describe("IdentityOnboardingForm", () => {
     updateUserMock.mockResolvedValue({
       error: { message: "Name service down" },
     });
-    renderForm();
+    renderForm(ADA_WITHOUT_LAST_NAME);
 
     const nameInput = screen.getByTestId("workspace-gate-identity-last-name");
     await user.clear(nameInput);

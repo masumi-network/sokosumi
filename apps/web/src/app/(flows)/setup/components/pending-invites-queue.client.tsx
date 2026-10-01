@@ -27,6 +27,8 @@ interface PendingInvitesQueueProps {
   initialName: string;
   initialFirstName?: string | null;
   initialLastName?: string | null;
+  /** Where setup ends: a sanitized same-origin path. */
+  returnUrl: string;
 }
 
 interface AcceptedQueueOrganization {
@@ -47,6 +49,7 @@ export function PendingInvitesQueue({
   initialName,
   initialFirstName,
   initialLastName,
+  returnUrl,
 }: PendingInvitesQueueProps) {
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
@@ -81,7 +84,7 @@ export function PendingInvitesQueue({
       organizationSlug: input.organizationSlug,
       acceptedJoinToken: input.acceptedJoinToken,
     });
-    router.replace("/");
+    router.replace(returnUrl);
     router.refresh();
   }
 

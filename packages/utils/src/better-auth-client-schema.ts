@@ -8,7 +8,7 @@ const namePartInputSchema = z.string().trim().min(1).nullable();
  * and web Better Auth client field inference.
  */
 export const betterAuthUserAdditionalFields = {
-  // Null means "not given": magic-link and social sign-ups create the user
+  // Null means "not given": social and sign-in-page email-code sign-ups create the user
   // before anyone is asked, and users from before these fields never were.
   // An empty string is never stored. Email sign-up requires both and derives
   // the initial display `name` from them.

@@ -119,10 +119,10 @@ private let realtimeUserBody = """
 {"data":{"id":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
 """
 
-private func realtimeRoomsBody(ids: [String], groupDirect: Bool = false) -> String {
+private func realtimeRoomsBody(ids: [String], groupDirect: Bool = false, userMembers: String = "[]") -> String {
   let rooms = ids.map { id in
     """
-    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(id)","slug":null,"kind":"\(groupDirect ? "direct" : "channel")","isSelfDirect":false,"directKey":null,"isGroupDirect":\(groupDirect),"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(userMembers),"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -670,6 +670,113 @@ struct WorkspaceRealtimeTests {
     #expect(state.transcriptRoomId == nil)
     #expect(state.transcriptMessages.isEmpty)
     #expect(fake.membershipRooms.last == [roomB])
+  }
+
+  /// `chat_rooms_changed` re-reads exactly the collections Core names (web `use-organization-chat-rooms.ts`, SOK-986):
+  /// archive and restore name the list and Archived, an invitation names the invitations, a message the list.
+  @Test func roomsChangedRereadsOnlyTheNamedCollections() async throws {
+    let roomC = "550e8400-e29b-41d4-a716-446655440702"
+    let fake = FakeRealtimeConnection()
+    let envelope = { (data: String) in #"{"data":\#(data),"meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1"}}"# }
+    let invitation = #"{"id":"inv-1","roomId":"\#(roomC)","roomName":"Partners","organizationId":"org_2","organizationName":"Acme Partners","email":"me@example.com","status":"pending","inviter":{"id":"host","name":"Hannah"},"expiresAt":"\#(realtimeTimestamp)","createdAt":"\#(realtimeTimestamp)"}"#
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"\#(realtimeTimestamp)"}"#)),
+      (200, realtimeRoomsBody(ids: [roomB])),
+      (200, envelope("[\(invitation)]")),
+      (200, realtimeRoomsBody(ids: [roomA, roomC]))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let loaded = transport.operationIDs.count
+
+    fake.deliver(.roomsChanged([.archived]))
+    for _ in 0 ..< 1000 where state.archivedChannels.rooms.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.archivedChannels.rooms.map(\.id) == [roomB] && state.archivedChannels.canDelete)
+    #expect(transport.operationIDs[loaded...] == ["get/users/{id}/organizations/{organizationId}/member", "get/chats/rooms"])
+    #expect(transport.requests.last?.path?.contains("status=archived") == true)
+
+    fake.deliver(.roomsChanged([.invitations]))
+    for _ in 0 ..< 1000 where state.pendingInvitations.invitations.isEmpty {
+      await Task.yield()
+    }
+    #expect(state.pendingInvitations.invitations.map(\.id) == ["inv-1"])
+    #expect(transport.operationIDs.last == "get/chats/invitations")
+
+    fake.deliver(.roomsChanged([.active]))
+    for _ in 0 ..< 1000 where state.rooms.count == 1 {
+      await Task.yield()
+    }
+    await waitForRealtimeIdle(state)
+    #expect(state.rooms.map(\.id) == [roomA, roomC])
+    #expect(state.archivedChannels.rooms.map(\.id) == [roomB] && state.pendingInvitations.invitations.map(\.id) == ["inv-1"])
+    #expect(transport.operationIDs.count == loaded + 4)
+    state.reset()
+  }
+
+  /// The sidebar loads Archived and the invitations once per workspace. A list refresh used to restart that load, so
+  /// every message re-read both; now each collection recovers on its own and only a workspace change reloads them.
+  @Test func collectionsLoadContextSurvivesAListRefresh() async throws {
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA, roomB])),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomB])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let personal = try #require(state.collectionsLoadContext)
+
+    transport.pauseNextRoomsGET = true
+    let refresh = Task { await state.refreshRooms(auth: auth) }
+    await transport.waitForRoomsGET()
+    #expect(state.roomsLoading)
+    #expect(state.collectionsLoadContext == personal)
+    transport.releaseRoomsGET()
+    await refresh.value
+    #expect(state.rooms.map(\.id) == [roomA, roomB])
+    #expect(state.collectionsLoadContext == personal)
+
+    let org = try #require(state.options.first { $0.id == "org_1" })
+    await state.switchRooms(auth: auth, option: org)
+    await waitForRealtimeIdle(state)
+    let organization = try #require(state.collectionsLoadContext)
+    #expect(organization != personal && organization == state.compositionContext)
+    state.reset()
+  }
+
+  /// A personal workspace has no Archived section: web runs no reader for it, so its invalidation reads nothing.
+  @Test func personalWorkspaceIgnoresArchivedInvalidation() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, transport) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, #"{"data":[],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let loaded = transport.operationIDs.count
+
+    fake.deliver(.roomsChanged([.archived, .invitations]))
+    for _ in 0 ..< 1000 where transport.operationIDs.count == loaded {
+      await Task.yield()
+    }
+    await waitForRealtimeIdle(state)
+    #expect(transport.operationIDs[loaded...] == ["get/chats/invitations"])
+    state.reset()
   }
 
   @Test func windowVisibilityDrivesNotificationPresence() async throws {
@@ -1273,9 +1380,57 @@ struct WorkspaceRealtimeTests {
     await waitForRealtimeIdle(state)
     state.reset()
   }
+
+  /// Row 31b1: the open room's Seen by reads the room payload's marks, takes live `chat_room_read` events
+  /// through the ordered stream, never rewinds, ignores other rooms and starts over in the next room.
+  @Test func seenByFollowsTheOpenRoomsReadEvents() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+
+    // The payload is the floor; the viewer is never a reader of their own room.
+    #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
+    #expect(state.roomReadReceipts.nonReaders.map(\.id) == ["kim"])
+
+    fake.deliver(.roomRead(.init(roomId: roomB, userId: "kim", lastReadAt: readAt(minutes: 20))))
+    fake.deliver(.roomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 10))))
+    for _ in 0 ..< 1000 where state.roomReadReceipts.nonReaders.count == 1 {
+      await Task.yield()
+    }
+    #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["kim", "pat"])
+    #expect(state.roomReadReceipts.readers.first?.lastReadAt == readAt(minutes: 10))
+    // An older event cannot un-read the room.
+    state.applyRoomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 1)))
+    #expect(state.roomReadReceipts.readers.first?.lastReadAt == readAt(minutes: 10))
+
+    state.selectRoom(roomB, auth: auth)
+    #expect(state.roomReads.roomId == roomB && state.roomReads.marks.isEmpty)
+    await waitForRealtimeIdle(state)
+    #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
+    state.reset()
+  }
 }
 
 private let typingOrigin = Date(timeIntervalSince1970: 1_800_000_000)
+
+/// The viewer, a reader at 00:05 and a member who never opened the room; every room in the list carries them.
+private let seenByMembers = """
+[{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online","lastReadAt":"2026-01-01T00:09:00.000Z"},\
+{"id":"pat","name":"Pat","email":"pat@example.com","image":null,"presence":"offline","lastReadAt":"2026-01-01T00:05:00.000Z"},\
+{"id":"kim","name":"Kim","email":"kim@example.com","image":null,"presence":"offline","lastReadAt":null}]
+"""
+
+private func readAt(minutes: Double) -> Date {
+  Date(timeIntervalSince1970: 1_767_225_600 + minutes * 60)
+}
 
 private let notificationLoadScript: [(Int, String)] = [
   (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),

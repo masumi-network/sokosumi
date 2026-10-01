@@ -129,9 +129,10 @@ export async function waitForAuthSession<TSession = unknown>({
 
 interface BuildAuthPageUrlParams {
   returnUrl?: string;
-  email?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;
+  /** An invitation's fixed address, which the next page locks. */
+  invitation?: { id: string; email: string } | undefined;
 }
 
 export interface AuthRedirectSearchParams {
@@ -162,35 +163,35 @@ export async function getRedirectQueryString(
 
 function buildAuthPageUrl(
   path: "/signin" | "/signup",
-  { returnUrl, email, oauthQuery }: BuildAuthPageUrlParams,
+  { returnUrl, oauthQuery, invitation }: BuildAuthPageUrlParams,
 ): string {
   const searchParams = new URLSearchParams(oauthQuery);
 
   if (returnUrl) {
     searchParams.set("returnUrl", returnUrl);
   }
-  if (email) {
-    searchParams.set("email", email);
+  if (invitation) {
+    searchParams.set("email", invitation.email);
+    searchParams.set("invitationId", invitation.id);
   }
 
   const query = searchParams.toString();
   return query ? `${path}?${query}` : path;
 }
 
+// Typed emails travel as editable session hints. Only an invitation's
+// address travels in the query with its id, keeping both auth links bound
+// to the same invitation.
 export function buildSignUpUrlFromSignIn(
   params: BuildAuthPageUrlParams,
 ): string {
   return buildAuthPageUrl("/signup", params);
 }
 
-// No email: sign-in locks a prefilled email field, so a typed sign-up email
-// would trap a person who meant to use another account. A typed email goes
-// over as an editable starting value instead: see `sign-in-email-hint.ts`.
-export function buildSignInUrlFromSignUp({
-  returnUrl,
-  oauthQuery,
-}: Pick<BuildAuthPageUrlParams, "returnUrl" | "oauthQuery">): string {
-  return buildAuthPageUrl("/signin", { returnUrl, oauthQuery });
+export function buildSignInUrlFromSignUp(
+  params: BuildAuthPageUrlParams,
+): string {
+  return buildAuthPageUrl("/signin", params);
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable
@@ -211,7 +212,9 @@ function sanitizeAuthRedirectPath(
   // origin during SSR. Either way, only same-origin relative paths survive —
   // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
   // a different origin and fall back, closing the open-redirect vector in both
-  // contexts.
+  // contexts. A survivor comes back as its path alone: a value naming the
+  // placeholder origin must not reach the browser with it, and a bare
+  // `#fragment` must leave the current page.
   const baseOrigin =
     typeof window !== "undefined"
       ? window.location.origin
@@ -219,7 +222,9 @@ function sanitizeAuthRedirectPath(
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
-    return parsedUrl.origin === baseOrigin ? returnUrl : fallback;
+    return parsedUrl.origin === baseOrigin
+      ? parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
+      : fallback;
   } catch {
     return fallback;
   }
@@ -279,7 +284,7 @@ export function getAbsoluteAuthRedirectUrl(
 
 /**
  * Builds an absolute auth callback URL for Better Auth `callbackURL` /
- * `newUserCallbackURL` (social, credential, magic-link).
+ * `newUserCallbackURL` (social, credential).
  *
  * The result is an **absolute** URL anchored to the current web origin. This
  * matters when the browser `authClient` targets the Core Better Auth instance
@@ -305,10 +310,9 @@ export function buildAuthCallbackUrl(
 }
 
 /**
- * Better Auth `errorCallbackURL` for social and magic-link sign-in: the page
- * the person started on, which explains the `error` Better Auth appends.
- * Without it a failure lands on Core's bare error page (social) or bounces
- * through the callback page with no message (magic link). `pathname` sends
+ * Better Auth `errorCallbackURL` for social sign-in: the page the person
+ * started on, which explains the `error` Better Auth appends. Without it a
+ * failure lands on Core's bare error page. `pathname` sends
  * the failure to another auth page with the same query instead, for a page
  * that would only start the sign-in again.
  */
@@ -339,10 +343,9 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
 }
 
 function normalizeOAuthQueryValue(key: string, value: string): string {
-  // Better Auth signs with standard base64. Its magic-link verifier decodes an
-  // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
-  // query parsing turns that `+` into a space. Restore the signature before
-  // serializing it back to `%2B`.
+  // Better Auth signs with standard base64. A `+` that reaches the query
+  // unescaped parses as a space under form-style parsing. Restore the
+  // signature before serializing it back to `%2B`.
   return key === "sig" ? value.replaceAll(" ", "+") : value;
 }
 
@@ -408,8 +411,39 @@ export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
 const OAUTH_REQUEST_MIN_REMAINING_MS = 2 * 60_000;
 
 export function oauthRequestExpiresSoon(oauthQuery: string): boolean {
-  const expiresAt = Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
-  return !(expiresAt - Date.now() > OAUTH_REQUEST_MIN_REMAINING_MS);
+  return !(
+    oauthRequestExpiresAt(oauthQuery) - Date.now() >
+    OAUTH_REQUEST_MIN_REMAINING_MS
+  );
+}
+
+/**
+ * How long past `exp` a request still goes to Core, whose clock may lag this
+ * one. Calling it expired early would turn away a request Core still accepts.
+ */
+const OAUTH_REQUEST_CLOCK_SKEW_MS = 30_000;
+
+/**
+ * The signed request is past its `exp`, beyond the clock-skew margin, so Core
+ * refuses it.
+ */
+export function oauthRequestHasExpired(oauthQuery: string): boolean {
+  const expirations = new URLSearchParams(oauthQuery).getAll("exp");
+  // This shortcut only recognizes the integer seconds Core issues. Missing,
+  // ambiguous or malformed expiry still needs Core's request validation.
+  if (expirations.length !== 1 || !/^[1-9]\d*$/.test(expirations[0] ?? "")) {
+    return false;
+  }
+  const expiresAt = oauthRequestExpiresAt(oauthQuery);
+  return (
+    Number.isSafeInteger(expiresAt) &&
+    Number.isFinite(new Date(expiresAt).getTime()) &&
+    Date.now() > expiresAt + OAUTH_REQUEST_CLOCK_SKEW_MS
+  );
+}
+
+function oauthRequestExpiresAt(oauthQuery: string): number {
+  return Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
 }
 
 function hasOAuthPrompt(oauthQuery: string, prompt: string): boolean {
@@ -431,7 +465,7 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
 
 /**
  * Where a person with an OAuth request goes when a sign-in leaves the page
- * (magic link, or a social sign-in the OAuth provider did not answer): the
+ * (a social sign-in the OAuth provider did not answer): the
  * sign-in page with the signed request as its own query. Arriving there signed
  * in hands the request back to the provider. Explicit reauthentication resumes
  * at consent, whose provider endpoint checks that the new session satisfies

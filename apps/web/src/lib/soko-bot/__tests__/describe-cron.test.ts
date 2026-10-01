@@ -3,6 +3,12 @@ import { describe, expect, it } from "vitest";
 import { describeCron, describeSchedule } from "../describe-cron";
 
 describe("describeCron", () => {
+  it("names a stepped weekday window", () => {
+    expect(describeCron("*/30 7-19 * * 1-5")).toBe(
+      "Every 30 minutes between 07:00 and 19:59 on weekdays",
+    );
+  });
+
   it("names the shapes the assistant creates", () => {
     expect(describeCron("0 9 * * 1-5")).toBe("Weekdays at 09:00");
     expect(describeCron("0 10 * * 1")).toBe("Every Monday at 10:00");

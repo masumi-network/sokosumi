@@ -19,9 +19,8 @@ import {
 import {
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
-  parseArgv,
-  runCli,
-} from "../../src/cli/index.js";
+} from "../../src/cli/help.js";
+import { parseArgv, runCli } from "../../src/cli/index.js";
 
 function createTestAuthManager(): AuthManager {
   return new AuthManager({

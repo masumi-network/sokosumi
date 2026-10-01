@@ -36,9 +36,12 @@ export function getHistoryItemHref(
       return item.projectId
         ? `/studio?projectId=${encodeURIComponent(item.projectId)}`
         : "/studio";
-    // Coworker seats, Soko Bot usage, top ups and unattributed spends are
-    // ledger entries with no page behind them. A link to nowhere is worse than
-    // no link.
+    // History lists the owner's own spend, so a Soko Bot row is always their
+    // own assistant, whose page shows what it did.
+    case "sokoBot":
+      return "/personal-assistant";
+    // Coworker seats, top ups and unattributed spends are ledger entries with
+    // no page behind them. A link to nowhere is worse than no link.
     default:
       return null;
   }

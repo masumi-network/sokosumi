@@ -14,30 +14,30 @@ export type SocialProviderId = z.infer<typeof socialProviderIdSchema>;
 /** Every way to sign in, for analytics (`provider` on `sign_up` / `login`). */
 export const authMethodIdSchema = z.enum([
   ...socialProviderIdSchema.options,
-  "magic-link",
+  "email-otp",
   "passkey",
 ]);
 export type AuthMethodId = z.infer<typeof authMethodIdSchema>;
 
+// The email is confirmed on the step before; this is the password half.
 export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
-    email: emailSchema(t),
     currentPassword: inputPasswordSchema(t),
     rememberMe: z.boolean(),
   });
 
 export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
-// Sign-up is two steps: the email first, then everything else.
-export const signUpEmailFormSchema = (
+// Sign-in and sign-up both ask for the email first, then everything else.
+export const emailStepFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z.object({
     email: emailSchema(t),
   });
 
-export type SignUpEmailFormSchemaType = z.infer<
-  ReturnType<typeof signUpEmailFormSchema>
+export type EmailStepFormSchemaType = z.infer<
+  ReturnType<typeof emailStepFormSchema>
 >;
 
 export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>

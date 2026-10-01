@@ -1,7 +1,7 @@
 import type { SokoBotIntegrations } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { missingConnections } from "./connect-prompt";
+import { connectOffers } from "./connect-prompt";
 
 function integration(
   provider: string,
@@ -19,36 +19,36 @@ function integration(
   } as SokoBotIntegrations["integrations"][number];
 }
 
-describe("missingConnections", () => {
-  it("offers the first provider of each kind with nothing active", () => {
+describe("connectOffers", () => {
+  it("offers Gmail, Google Calendar and Outlook while nothing is connected", () => {
     expect(
-      missingConnections([
+      connectOffers([
         integration("gmail", ["email"], "DISCONNECTED"),
         integration("googlecalendar", ["calendar"], "DISCONNECTED"),
-        integration("outlook", ["email", "calendar"], "DISCONNECTED"),
       ]),
     ).toEqual([
-      { kind: "email", provider: "gmail", name: "gmail" },
-      { kind: "calendar", provider: "googlecalendar", name: "googlecalendar" },
+      { provider: "gmail", name: "Gmail", connected: false },
+      { provider: "googlecalendar", name: "Google Calendar", connected: false },
+      { provider: "outlook", name: "Outlook", connected: false },
     ]);
   });
 
-  it("drops a kind once any provider for it is active", () => {
+  it("marks what is connected and stays while calendar is missing", () => {
     expect(
-      missingConnections([
+      connectOffers([
         integration("gmail", ["email"], "ACTIVE"),
         integration("googlecalendar", ["calendar"], "FAILED"),
       ]),
     ).toEqual([
-      { kind: "calendar", provider: "googlecalendar", name: "googlecalendar" },
+      { provider: "gmail", name: "Gmail", connected: true },
+      { provider: "googlecalendar", name: "Google Calendar", connected: false },
+      { provider: "outlook", name: "Outlook", connected: false },
     ]);
   });
 
-  it("offers nothing when both are covered", () => {
+  it("hides once Outlook covers mail and calendar", () => {
     expect(
-      missingConnections([
-        integration("outlook", ["email", "calendar"], "ACTIVE"),
-      ]),
+      connectOffers([integration("outlook", ["email", "calendar"], "ACTIVE")]),
     ).toEqual([]);
   });
 });

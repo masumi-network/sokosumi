@@ -3964,6 +3964,14 @@ export const SokoBotUsageSchema = {
         credits: {
             type: 'number',
             minimum: 0
+        },
+        delegatedCredits: {
+            type: 'number',
+            minimum: 0
+        },
+        totalCredits: {
+            type: 'number',
+            minimum: 0
         }
     },
     required: [
@@ -3975,7 +3983,9 @@ export const SokoBotUsageSchema = {
         'totalTokens',
         'costUsd',
         'billableCostUsd',
-        'credits'
+        'credits',
+        'delegatedCredits',
+        'totalCredits'
     ]
 } as const;
 
@@ -4202,6 +4212,19 @@ export const AdminSokoBotActionRequestSchema = {
         'reason'
     ],
     additionalProperties: false
+} as const;
+
+export const ClaimSokoBotAvatarRequestSchema = {
+    type: 'object',
+    properties: {
+        avatarId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'avatarId'
+    ]
 } as const;
 
 export const AdminUserOverviewItemSchema = {
@@ -16283,6 +16306,22 @@ export const UserSchema = {
             type: 'string',
             example: 'John Doe'
         },
+        firstName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'John'
+        },
+        lastName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'Doe'
+        },
         email: {
             type: 'string',
             format: 'email',
@@ -16309,6 +16348,8 @@ export const UserSchema = {
         'createdAt',
         'updatedAt',
         'name',
+        'firstName',
+        'lastName',
         'email',
         'emailVerified',
         'role'
@@ -22471,19 +22512,6 @@ export const IntroduceSokoBotRequestSchema = {
     ]
 } as const;
 
-export const ClaimSokoBotAvatarRequestSchema = {
-    type: 'object',
-    properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'avatarId'
-    ]
-} as const;
-
 export const SokoBotVersionSchema = {
     type: 'object',
     properties: {
@@ -22795,6 +22823,14 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
+                            },
+                            lastActivityAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
                             }
                         },
                         required: [
@@ -22802,7 +22838,8 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status'
+                            'status',
+                            'lastActivityAt'
                         ]
                     }
                 },
@@ -24385,6 +24422,10 @@ export const TaskScheduleSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        canWrite: {
+            type: 'boolean',
+            description: 'Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).'
         }
     },
     required: [
@@ -24409,7 +24450,8 @@ export const TaskScheduleSchema = {
         'assigneeSokoBotId',
         'assigneeUserId',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'canWrite'
     ]
 } as const;
 
@@ -24564,7 +24606,7 @@ export const TaskScheduleRuleSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Runs, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -24689,7 +24731,7 @@ export const TaskScheduleRuleReplacementSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Runs, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -24779,6 +24821,11 @@ export const TaskScheduleRunSchema = {
             example: '2021-01-01T00:00:00.000Z',
             description: 'Time the Run holds; differs from the rule when moved'
         },
+        manual: {
+            type: 'boolean',
+            description: 'Run now: released by hand outside the rule, and not counted toward an end-after-N rule',
+            example: false
+        },
         releasedTaskId: {
             type: [
                 'string',
@@ -24791,14 +24838,14 @@ export const TaskScheduleRunSchema = {
                 'string',
                 'null'
             ],
-            description: 'Person who last skipped, moved, or restored it'
+            description: 'Person who ran it now, or last skipped, moved, or restored it'
         },
         actorCoworkerId: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Coworker that last skipped, moved, or restored it'
+            description: 'Coworker that ran it now, or last skipped, moved, or restored it'
         },
         updatedAt: {
             type: 'string',
@@ -24811,6 +24858,7 @@ export const TaskScheduleRunSchema = {
         'state',
         'originalScheduledAt',
         'effectiveScheduledAt',
+        'manual',
         'releasedTaskId',
         'actorUserId',
         'actorCoworkerId',
@@ -24834,6 +24882,21 @@ export const TaskScheduleRunUpdateSchema = {
     required: [
         'revision',
         'run'
+    ]
+} as const;
+
+export const CreateTaskScheduleRunRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision observed by the caller',
+            example: 3
+        }
+    },
+    required: [
+        'expectedRevision'
     ]
 } as const;
 

@@ -922,6 +922,8 @@ export type SokoBotUsage = {
     costUsd: number;
     billableCostUsd: number;
     credits: number;
+    delegatedCredits: number;
+    totalCredits: number;
 };
 
 export type SokoBot = {
@@ -962,6 +964,10 @@ export type AdminSokoBotActionRequest = {
     targetId?: string;
     versionId?: string;
     reason: string;
+};
+
+export type ClaimSokoBotAvatarRequest = {
+    avatarId: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -4824,6 +4830,14 @@ export type User = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    firstName: string | null;
+    /**
+     * Null when never given, as for magic-link sign-up
+     */
+    lastName: string | null;
     email: string;
     emailVerified: boolean;
     image?: string | null;
@@ -6368,10 +6382,6 @@ export type IntroduceSokoBotRequest = {
     roomId: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
-};
-
 export type SokoBotVersion = {
     id: string;
     name: string;
@@ -6446,6 +6456,7 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
+            lastActivityAt: Date | null;
         } | null;
     }>;
 };
@@ -6873,6 +6884,10 @@ export type TaskSchedule = {
     assigneeUserId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).
+     */
+    canWrite: boolean;
 };
 
 export const TaskScheduleState = {
@@ -6927,7 +6942,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -6981,7 +6996,7 @@ export type UpdateTaskScheduleRequest = {
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -7022,15 +7037,19 @@ export type TaskScheduleRun = {
      */
     effectiveScheduledAt: Date;
     /**
+     * Run now: released by hand outside the rule, and not counted toward an end-after-N rule
+     */
+    manual: boolean;
+    /**
      * Task this Run created
      */
     releasedTaskId: string | null;
     /**
-     * Person who last skipped, moved, or restored it
+     * Person who ran it now, or last skipped, moved, or restored it
      */
     actorUserId: string | null;
     /**
-     * Coworker that last skipped, moved, or restored it
+     * Coworker that ran it now, or last skipped, moved, or restored it
      */
     actorCoworkerId: string | null;
     updatedAt: Date;
@@ -7042,6 +7061,13 @@ export type TaskScheduleRunUpdate = {
      */
     revision: number;
     run: TaskScheduleRun;
+};
+
+export type CreateTaskScheduleRunRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -9884,6 +9910,98 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
+
+export type SetAdminSokoBotAvatarData = {
+    body?: ClaimSokoBotAvatarRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar';
+};
+
+export type SetAdminSokoBotAvatarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+
+export type SetAdminSokoBotAvatarResponses = {
+    /**
+     * The bot's new mascot
+     */
+    200: {
+        data: {
+            avatarImageUrl: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -28191,7 +28309,7 @@ export type PatchEnterpriseContractsByIdError = PatchEnterpriseContractsByIdErro
 
 export type PatchEnterpriseContractsByIdResponses = {
     /**
-     * Update enterprise contract draft
+     * Update enterprise contract
      */
     200: {
         data: EnterpriseContract;
@@ -49721,6 +49839,10 @@ export type GetTasksSchedulesByIdRunsData = {
          * Only Runs before this time
          */
         to?: Date;
+        /**
+         * Only Run now Runs (true) or only the rule's Runs (false)
+         */
+        manual?: 'true' | 'false';
     };
     url: '/tasks/schedules/{id}/runs';
 };
@@ -49790,6 +49912,125 @@ export type GetTasksSchedulesByIdRunsResponses = {
 };
 
 export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
+
+export type PostTasksSchedulesByIdRunsData = {
+    body?: CreateTaskScheduleRunRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/runs';
+};
+
+export type PostTasksSchedulesByIdRunsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsError = PostTasksSchedulesByIdRunsErrors[keyof PostTasksSchedulesByIdRunsErrors];
+
+export type PostTasksSchedulesByIdRunsResponses = {
+    /**
+     * Run created
+     */
+    201: {
+        data: TaskScheduleRunUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsResponse = PostTasksSchedulesByIdRunsResponses[keyof PostTasksSchedulesByIdRunsResponses];
 
 export type PatchTasksSchedulesByIdRunsByRunIdData = {
     body?: UpdateTaskScheduleRunRequest;

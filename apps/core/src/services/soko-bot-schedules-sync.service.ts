@@ -332,7 +332,7 @@ export class SokoBotSchedulesSyncService {
 
   private async settleTerminalOccurrence(
     claimed: ClaimedOccurrence,
-    turnId: string,
+    turnId: string | null,
     turnStatus: "COMPLETED" | "FAILED" | "CANCELLED",
   ): Promise<boolean> {
     const completed = turnStatus === "COMPLETED";
@@ -346,7 +346,7 @@ export class SokoBotSchedulesSyncService {
         },
         data: {
           status: completed ? "COMPLETED" : "FAILED",
-          turnId,
+          turnId: turnId ?? undefined,
           completedAt: new Date(),
           leaseToken: null,
           leaseExpiresAt: null,
@@ -434,6 +434,7 @@ export class SokoBotSchedulesSyncService {
               ingestTimezone: true,
               followWholeBoard: true,
               userId: true,
+              name: true,
             },
           });
           if (bot) {
@@ -444,6 +445,7 @@ export class SokoBotSchedulesSyncService {
             const beat = await buildSystemBeatMessage({
               bot: {
                 id: bot.id,
+                name: bot.name,
                 userId: bot.userId,
                 workspaceId: bot.workspaceId,
                 ingestTimezone: bot.ingestTimezone,
@@ -452,8 +454,23 @@ export class SokoBotSchedulesSyncService {
               key: schedule.systemKey,
               // Registry prompt wins so wording changes ship without a migration.
               prompt: rhythm?.prompt ?? schedule.prompt,
-              now: new Date(),
+              // Meeting prep reads the window after its own half-hour slot,
+              // so a late or retried run briefs the same meetings, once.
+              now:
+                schedule.systemKey === "meeting-prep"
+                  ? new Date(scheduledFor)
+                  : new Date(),
             });
+            // Nothing to brief on (no external meeting, no mail waiting):
+            // the occurrence is done without a turn or a cent spent.
+            if (beat.skip) {
+              const settled = await this.settleTerminalOccurrence(
+                claimed,
+                null,
+                "COMPLETED",
+              );
+              return settled ? "completed" : "deferred";
+            }
             message = beat.message;
             nudgeKeys = beat.nudgeKeys;
             // The reservation binds on the run's prompt; keep them equal.

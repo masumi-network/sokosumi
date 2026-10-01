@@ -74,6 +74,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import {
   batchTableRows,
@@ -1291,11 +1292,29 @@ export class SokoBotRuntimeService {
     }
     const member = members[0]!;
     // The owner is reachable in their own direct room; opening a second one
-    // would split the conversation in two.
+    // would split the conversation in two. A teammate asking the bot to tell
+    // its owner something posts there instead.
     if (member.user.id === authorized.turn.userId) {
-      throw new SokoBotRuntimeValidationError(
-        "You already have a direct chat with your owner",
-      );
+      const ownerRoom = await prisma.chatRoom.findFirst({
+        where: {
+          kind: "direct",
+          archivedAt: null,
+          sokoBotMembers: { some: { sokoBotId } },
+          userMembers: { some: { userId: authorized.turn.userId } },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      if (!ownerRoom || authorized.askedByKind !== "TEAMMATE") {
+        throw new SokoBotRuntimeValidationError(
+          "You already have a direct chat with your owner",
+        );
+      }
+      return this.postChat(authorized, {
+        roomId: ownerRoom.id,
+        content: input.message,
+        toolCallId: input.toolCallId,
+      });
     }
     const { createOrGetDirectRoom } = await import(
       "@/routes/v1/chats/rooms/helpers"
@@ -3108,7 +3127,8 @@ export class SokoBotRuntimeService {
         where: {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
-          ownerId: authorized.turn.userId,
+          // What the owner may change in the app, not only what they created.
+          ...buildTaskWriteAccessWhere(authorized.turn.userId),
         },
         select: {
           id: true,

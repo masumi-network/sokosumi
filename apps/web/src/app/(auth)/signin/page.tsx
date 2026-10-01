@@ -3,20 +3,17 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import Divider from "@/auth/components/divider";
-import OAuthHandBack from "@/auth/components/oauth-hand-back";
+import OAuthHandBack, {
+  OAuthRequestError,
+} from "@/auth/components/oauth-hand-back";
 import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
-import SocialButtons, {
-  type SignInMethodId,
-} from "@/auth/components/social-buttons";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
 import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-import SignInForm from "./components/form";
-import SignInHeader from "./components/header";
+import SignInFlow from "./components/sign-in-flow";
 
 export const instant = false;
 
@@ -34,6 +31,7 @@ interface SignInPageProps {
     AuthRedirectSearchParams & {
       returnUrl?: string;
       email?: string;
+      invitationId?: string;
       error?: string;
     }
   >;
@@ -41,13 +39,16 @@ interface SignInPageProps {
 
 export default async function SignIn({ searchParams }: SignInPageProps) {
   const env = getEnvSecrets();
-  const { returnUrl, email, error } = await searchParams;
+  const { returnUrl, email, invitationId, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
+  if (oauthRequest?.hasExpired) {
+    return <OAuthRequestError client={oauthRequest.client} />;
+  }
   if (oauthRequest?.canHandBack) {
     return (
       <OAuthHandBack
         oauthQuery={oauthRequest.query}
-        clientName={oauthRequest.clientName}
+        client={oauthRequest.client}
         accountToConfirm={oauthRequest.accountToConfirm}
       />
     );
@@ -61,33 +62,20 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     },
     "last_used_login_method",
   );
-  const lastUsedLoginMethod = parseLastUsedAuthMethod(
+  const lastUsedMethod = parseLastUsedAuthMethod(
     cookieStore.get(lastUsedLoginMethodCookieName)?.value,
   );
-  const lastUsedMethod: SignInMethodId | null =
-    lastUsedLoginMethod === "email" ? null : lastUsedLoginMethod;
-  const isLastUsedEmailLogin = lastUsedLoginMethod === "email";
 
   return (
-    <div className="flex flex-1 flex-col">
-      <SignInHeader clientName={oauthRequest?.clientName} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SignInErrorNotice error={error} />
-        <SocialButtons
-          returnUrl={returnUrl}
-          lastUsedMethod={lastUsedMethod}
-          prefilledEmail={email}
-          showMagicLink
-          showPasskey
-        />
-        <Divider labelKey="passwordDivider" />
-        <SignInForm
-          returnUrl={returnUrl}
-          prefilledEmail={email}
-          isLastUsedEmailLogin={isLastUsedEmailLogin}
-        />
-        <TermsNotice />
-      </div>
-    </div>
+    <SignInFlow
+      client={oauthRequest?.client}
+      prefilledEmail={email}
+      invitationId={invitationId}
+      returnUrl={returnUrl}
+      lastUsedMethod={lastUsedMethod}
+      notice={<SignInErrorNotice error={error} />}
+    >
+      <TermsNotice />
+    </SignInFlow>
   );
 }

@@ -84,6 +84,7 @@ import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 
 import {
+  ANSWERED_DIRECTLY,
   introduceSokoBot,
   persistSokoBotChatTurn,
   postSokoBotOwnerNotice,
@@ -102,6 +103,8 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
     chatMentionId: "mention-a",
     chatResponseMessageId: "response-a",
     chainDepth: 0,
+    userId: "owner-a",
+    requestedByUserId: null,
     chatMention: {
       id: "mention-a",
       messageId: "source-a",
@@ -152,6 +155,53 @@ describe("persistSokoBotChatTurn", () => {
       data: { content: "The answer is ready.", metadata: expect.any(Object) },
     });
     expect(messageUpdate.mock.calls[0][0].data).not.toHaveProperty("createdAt");
+  });
+
+  it("keeps the reasoning summary and tool steps as the reply's Thought", async () => {
+    const events = [
+      { type: "actions.requested", toolName: "list_tasks", summary: null },
+      {
+        type: "reasoning.completed",
+        toolName: null,
+        summary: "Checked the board for stuck work.",
+      },
+    ];
+    turnFindUnique.mockResolvedValue(completedTurn({ events }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    const reasoning = messageUpdate.mock.calls[0][0].data.metadata.reasoning;
+    expect(reasoning[0]).toEqual({
+      type: "reasoning",
+      text: "Checked the board for stuck work.",
+    });
+    expect(reasoning).toHaveLength(2);
+    expect(
+      messageUpdate.mock.calls[0][0].data.metadata.thought_timing_ms,
+    ).toEqual(expect.objectContaining({ start: expect.any(Number) }));
+
+    // A teammate asking sees the tools used, never the owner-side summary.
+    messageUpdate.mockClear();
+    turnFindUnique.mockResolvedValue(
+      completedTurn({ events, requestedByUserId: "teammate-a" }),
+    );
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    const teammateReasoning =
+      messageUpdate.mock.calls[0][0].data.metadata.reasoning;
+    expect(teammateReasoning).toHaveLength(1);
+    expect(JSON.stringify(teammateReasoning)).not.toContain(
+      "Checked the board for stuck work.",
+    );
+  });
+
+  it("gives an answer with no summary and no tools a Thought too", async () => {
+    turnFindUnique.mockResolvedValue(completedTurn({ events: [] }));
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    const metadata = messageUpdate.mock.calls[0][0].data.metadata;
+    expect(metadata.reasoning).toEqual([
+      { type: "reasoning", text: ANSWERED_DIRECTLY },
+    ]);
+    expect(metadata.thought_timing_ms).toEqual(
+      expect.objectContaining({ start: expect.any(Number) }),
+    );
   });
 
   it("leaves human mention activation and notification to audience-checked delivery", async () => {

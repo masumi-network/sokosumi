@@ -29,6 +29,7 @@ interface AccountSettingsProps {
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
   userName?: string;
+  userEmail?: string;
   userFirstName?: null | string;
   userLastName?: null | string;
   userImage?: null | string;
@@ -52,6 +53,7 @@ export function AccountSettings({
   designMdValue,
   credentialAccountsLoadError,
   userName = "",
+  userEmail,
   userFirstName,
   userLastName,
   userImage,
@@ -148,6 +150,13 @@ export function AccountSettings({
         <div className="mx-auto w-full space-y-4">
           {deletionPreflightLoadError}
           <DeleteAccountForm
+            accounts={accounts}
+            // A failed accounts read keeps the password field: falling back
+            // to the email path would let a password user delete without it.
+            hasPassword={
+              hasCredentialAccount || Boolean(credentialAccountsLoadError)
+            }
+            userEmail={userEmail}
             blockers={deletionBlockers}
             preflightFailed={deletionPreflightFailed}
             ownedOrganizationSlug={ownedOrganizationSlug}

@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
 import {
   buildActionResponse,
+  HELD_BACK_REPLY,
   parseActionNarrativeText,
 } from "./action-response";
 
@@ -79,6 +80,78 @@ describe("action lines the owner reads", () => {
       "Hired agent ([Open job](/agents/agent-one/jobs/job-one)).",
     );
     expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
+  });
+
+  it("collapses repeated Task changes into one line naming up to five", async () => {
+    const ids = ["a", "b", "c"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Updated 3 Tasks: [Task a](/tasks/a), [Task b](/tasks/b), [Task c](/tasks/c).",
+    );
+  });
+
+  it("counts more than five Task changes without naming them", async () => {
+    const ids = ["a", "b", "c", "d", "e", "f"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Updated 6 Tasks.");
+  });
+
+  it("says repeated refused archives once, with a count", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      Array.from({ length: 9 }, (_, index) =>
+        receipt({
+          id: `receipt-${index}`,
+          toolCallId: `call-${index}`,
+          capability: "archive_task",
+          status: "FAILED",
+          disposition: "REJECTED",
+          verification: "NONE",
+          committedAt: null,
+          targetId: null,
+          input: { taskId: `task-${index}` },
+        }),
+      ),
+    );
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Not confirmed: archived 9 Tasks.");
+    expect(result.unfulfilledActions).toHaveLength(9);
   });
 
   it("links a scheduled social post to where the owner finds it", async () => {
@@ -1015,7 +1088,57 @@ describe("authoritative action responses", () => {
           ? "Nothing was changed in this turn."
           : "Synthetic response",
       });
-      expect(db.sokoBotTurn.findUnique).not.toHaveBeenCalled();
     },
   );
+
+  it.each(["EVENT", "SCHEDULE", "INGEST"])(
+    "stays silent on a %s turn where nothing was done or said",
+    async (source) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message: null,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe("Nothing to add.");
+    },
+  );
+
+  it("drops a held-back reply on a turn the bot started itself", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "EVENT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: HELD_BACK_REPLY,
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toBe("Nothing to add.");
+  });
+
+  it("keeps a held-back reply for the owner who asked", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "CHAT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I posted it.",
+      true,
+      {
+        kind: "REPORT",
+        message: HELD_BACK_REPLY,
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(result.answerText).toBe(HELD_BACK_REPLY);
+  });
 });

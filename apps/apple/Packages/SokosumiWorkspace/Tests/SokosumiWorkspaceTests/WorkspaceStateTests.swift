@@ -303,6 +303,57 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
   }
 
+  /// A second window or sidebar refresh can change the room while the People notice is visible.
+  @Test(arguments: [false, true])
+  func failedMemberSaveUsesCurrentRoomHumansAndRetryKeepsAgentEdits(managesSettings: Bool) async throws {
+    let edited = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general", "design"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: edited, unread: 0)), (200, roomReadBody(id: edited, unread: 0))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    var room = try #require(state.rooms.first { $0.id == edited })
+    room.organizationId = "org_1"
+    room.userMembers = [.init(id: "user_1", name: "Me", email: "me@example.com", presence: .online),
+                        .init(id: "departed", name: "Departed", email: "departed@example.com", presence: .offline)]
+    let model = ChannelEditing(room: room)
+    let agents = [ChatRecipientTarget(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")]
+    await model.load { .init(recipients: .init(targets: agents, membersLoadFailed: true), isOwnerOrAdmin: managesSettings) }
+    model.draft.recipients.insert(.sokoBot("bot"))
+    room.userMembers.removeAll { $0.id == "departed" }
+    room.userMembers.append(.init(id: "newcomer", name: "Newcomer", email: "newcomer@example.com", presence: .online))
+    try room.userMembers.append(.init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
+                                      access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest"))))
+    let index = try #require(state.rooms.firstIndex { $0.id == edited })
+    state.rooms[index] = room
+    let context = state.compositionContext
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let failedData = try #require(transport.bodies.last)
+    let failedBody = try #require(JSONSerialization.jsonObject(with: failedData) as? [String: Any])
+    #expect(failedBody["memberUserIds"] as? [String] == ["newcomer", "user_1"])
+    #expect((failedBody["coworkerIds"] as? [String])?.isEmpty == true)
+    #expect(failedBody["sokoBotIds"] as? [String] == ["bot"])
+    #expect((failedBody["name"] != nil) == managesSettings)
+    // The sheet adopts room updates before Retry, without resetting the assistant edit.
+    model.updateRoom(room)
+    await model.load { .init(recipients: .init(targets: agents + [.init(id: .human("selected"), name: "Selected")]), isOwnerOrAdmin: managesSettings) }
+    #expect(model.draft.recipients == [.human("user_1"), .human("newcomer"), .sokoBot("bot")])
+    model.draft.recipients = [.human("selected"), .sokoBot("bot")]
+    #expect(await model.save { draft, permissions in
+      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
+    })
+    let recoveredData = try #require(transport.bodies.last)
+    let recoveredBody = try #require(JSONSerialization.jsonObject(with: recoveredData) as? [String: Any])
+    #expect(recoveredBody["memberUserIds"] as? [String] == ["selected", "user_1"])
+    #expect(recoveredBody["sokoBotIds"] as? [String] == ["bot"])
+  }
+
   @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let design = "550e8400-e29b-41d4-a716-446655440001"
@@ -3120,13 +3171,13 @@ extension WorkspaceStateTests {
   @Test(arguments: [true, false])
   func sokoBotFeedbackIsSentOncePerTurn(useful: Bool) async throws {
     let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":\#(useful)}"#))])
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
     transport.pauseSokoBotFeedback = true
     let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: useful, auth: auth) }
     while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
       await Task.yield()
     }
-    #expect(state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // A second tap while the POST is in flight sends nothing.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
@@ -3134,15 +3185,15 @@ extension WorkspaceStateTests {
     try await send.value
     let bodyIndex = try #require(transport.operationIDs.firstIndex(of: sokoBotFeedbackOperation))
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["useful": useful])
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     // Rated turns stay rated: web hides the thumbs after one answer.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: !useful, auth: auth)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 1)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == useful)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == useful)
     #expect(transport.remainingStubs == 0)
     state.reset()
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
   }
 
   @Test func rejectedSokoBotFeedbackLeavesTheTurnUnrated() async throws {
@@ -3154,11 +3205,11 @@ extension WorkspaceStateTests {
       try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
     }
     #expect(error == .unprocessable(statusCode: 404, message: "Turn not found"))
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
     // The thumbs come back, so the owner can try again.
     try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: true, auth: auth)
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == true)
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == true)
     #expect(transport.operationIDs.filter { $0 == sokoBotFeedbackOperation }.count == 2)
     #expect(transport.remainingStubs == 0)
   }
@@ -3173,8 +3224,29 @@ extension WorkspaceStateTests {
     state.reset()
     transport.releasePausedRequest()
     try await send.value
-    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId) == nil)
-    #expect(!state.isSendingSokoBotFeedback(forTurn: sokoBotTurnId))
+    #expect(state.sokoBotFeedback(forTurn: sokoBotTurnId).rating == nil)
+    #expect(!state.sokoBotFeedback(forTurn: sokoBotTurnId).isSending)
+  }
+
+  /// The toolbar's thumbs (row 38b): unrated, locked while the POST runs, then locked on the stored rating.
+  @Test func aMessagesThumbsFollowItsTurnThroughARating() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([(200, envelope(#"{"useful":false}"#))])
+    var reply = durableRoomMessage(roomId: "room_1")
+    reply.metadata = try .init(additionalProperties: ["soko_bot": OpenAPIValueContainer(unvalidatedValue: ["turn_id": sokoBotTurnId])])
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId))
+    transport.pauseSokoBotFeedback = true
+    let send = Task { try await state.sendSokoBotFeedback(turnId: sokoBotTurnId, useful: false, auth: auth) }
+    while !transport.operationIDs.contains(sokoBotFeedbackOperation) {
+      await Task.yield()
+    }
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, isSending: true))
+    transport.releasePausedRequest()
+    try await send.value
+    #expect(state.sokoBotFeedback(for: reply) == SokoBotFeedback(turnId: sokoBotTurnId, rating: false))
+    // A message without a turn, or one deleted since, has no thumbs.
+    #expect(state.sokoBotFeedback(for: durableRoomMessage(roomId: "room_1")) == nil)
+    reply.deletedAt = Date()
+    #expect(state.sokoBotFeedback(for: reply) == nil)
   }
 }
 

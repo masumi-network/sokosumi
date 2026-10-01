@@ -17,6 +17,7 @@ import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
   CreateTaskScheduleRequest,
+  CreateTaskScheduleRunRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
@@ -414,6 +415,7 @@ import {
   postTasksSchedulesByIdEnd as corePostTasksSchedulesByIdEnd,
   postTasksSchedulesByIdPause as corePostTasksSchedulesByIdPause,
   postTasksSchedulesByIdResume as corePostTasksSchedulesByIdResume,
+  postTasksSchedulesByIdRuns as corePostTasksSchedulesByIdRuns,
   postUsersByIdCoworkerAccessByAccessIdApprove as corePostUsersByIdCoworkerAccessByAccessIdApprove,
   postUsersByIdCoworkerAccessByAccessIdDeny as corePostUsersByIdCoworkerAccessByAccessIdDeny,
   postUsersByIdCoworkerAccessByAccessIdRevoke as corePostUsersByIdCoworkerAccessByAccessIdRevoke,
@@ -457,6 +459,7 @@ import {
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
+  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
@@ -4078,6 +4081,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function createTaskScheduleRun(
+    id: string,
+    body: CreateTaskScheduleRunRequest,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostTasksSchedulesByIdRuns({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to run Task Schedule now",
+    );
+  }
+
   async function changeTaskScheduleRun(
     id: string,
     runId: string,
@@ -4719,6 +4738,19 @@ export function createCoreClient(getClient: GetCoreClient) {
       getClient,
       (client) => coreDeleteAdminSokoBot({ client, path: { sokoBotId } }),
       "Failed to delete Soko Bot",
+    );
+  }
+
+  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminSokoBotAvatar({
+          client,
+          path: { sokoBotId },
+          body: { avatarId },
+        }),
+      "Failed to set Soko Bot avatar",
     );
   }
 
@@ -5891,6 +5923,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     changeTaskScheduleState,
     deleteTaskScheduleById,
     listTaskScheduleRuns,
+    createTaskScheduleRun,
     changeTaskScheduleRun,
     unassignOrganizationSeat,
     updateOrganizationSubscriptionSeats,
@@ -5899,6 +5932,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
+    setAdminSokoBotAvatar,
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,

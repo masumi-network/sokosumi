@@ -1,12 +1,11 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2, Mail } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ComponentProps,
-  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -19,27 +18,21 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
   buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
-import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
+import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-import { useMagicLinkRequest } from "./use-magic-link-request";
-
-export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
+export type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
   returnUrl?: string;
-  lastUsedMethod?: SignInMethodId | null;
-  prefilledEmail?: string;
-  showMagicLink?: boolean;
+  lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
 }
 
@@ -63,8 +56,6 @@ const socialButtons: Array<{
 export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
-  prefilledEmail,
-  showMagicLink = false,
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
@@ -73,18 +64,7 @@ export default function SocialButtons({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const {
-    captcha,
-    isRequesting: isRequestingMagicLink,
-    sentTo: magicLinkSentTo,
-    requestMagicLink,
-  } = useMagicLinkRequest(effectiveReturnUrl);
-  const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
-  const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
   const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  const hasMagicLinkSuccess =
-    magicLinkEmail.trim().length > 0 &&
-    magicLinkEmail.trim() === magicLinkSentTo;
 
   const finishPasskeySignIn = useCallback(
     (result: unknown) =>
@@ -178,22 +158,6 @@ export default function SocialButtons({
     };
   }, [finishPasskeySignIn, showPasskey]);
 
-  const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedEmail = magicLinkEmail.trim();
-    if (!emailSchema().safeParse(trimmedEmail).success) {
-      toast.error(t("magicLinkInvalidEmail"));
-      return;
-    }
-
-    await requestMagicLink(trimmedEmail);
-  };
-
-  const handleMagicLinkClick = () => {
-    setIsMagicLinkVisible((currentValue) => !currentValue);
-  };
-
   const handleClick = async (key: SocialButtonProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
 
@@ -278,71 +242,6 @@ export default function SocialButtons({
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
         </div>
-      )}
-      {showMagicLink && (
-        <div className="relative">
-          {lastUsedMethod === "magic-link" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            className={cn(
-              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
-              lastUsedMethod === "magic-link"
-                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-                : "bg-senary hover:bg-quinary border-transparent",
-            )}
-            onClick={handleMagicLinkClick}
-          >
-            <Mail className="size-4" />
-            {t("continueWith", { provider: t("magicLinkProvider") })}
-          </Button>
-        </div>
-      )}
-      {showMagicLink && isMagicLinkVisible && (
-        // The submit handler validates and toasts in the page's language.
-        <form
-          noValidate
-          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
-          onSubmit={handleMagicLinkSubmit}
-        >
-          {hasMagicLinkSuccess && (
-            <p className="text-muted-foreground text-center text-sm">
-              {t("magicLinkSuccess")}
-            </p>
-          )}
-          <Input
-            type="email"
-            autoComplete="email"
-            autoCapitalize="none"
-            spellCheck={false}
-            className="text-center placeholder:text-center"
-            value={magicLinkEmail}
-            onChange={(event) => {
-              setMagicLinkEmail(event.target.value);
-            }}
-            placeholder={t("magicLinkPlaceholder")}
-            aria-label={t("magicLinkInputLabel")}
-          />
-          {captcha}
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={isRequestingMagicLink}
-          >
-            {isRequestingMagicLink
-              ? t("magicLinkSubmitting")
-              : hasMagicLinkSuccess
-                ? t("magicLinkResend")
-                : t("magicLinkSubmit")}
-          </Button>
-        </form>
       )}
     </div>
   );

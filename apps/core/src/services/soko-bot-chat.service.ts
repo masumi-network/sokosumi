@@ -69,6 +69,33 @@ async function publishRealtime(
   await publishChatRoomMessageRealtimeById(messageId, eventType);
 }
 
+/**
+ * What the chat shows as the bot's Thought: the provider's reasoning summary
+ * first, then the tools it used. The summary can mention the owner's mail or
+ * memory, so a teammate asking sees only the tool steps.
+ */
+function thoughtSteps(turn: {
+  userId: string;
+  requestedByUserId: string | null;
+  events: { type: string; toolName: string | null; summary: string | null }[];
+}): string[] {
+  const ownerAsked =
+    turn.requestedByUserId === null || turn.requestedByUserId === turn.userId;
+  const summaries = ownerAsked
+    ? turn.events.flatMap((event) =>
+        event.type === "reasoning.completed" && event.summary
+          ? [event.summary]
+          : [],
+      )
+    : [];
+  const tools = turn.events.flatMap((event) =>
+    event.type === "actions.requested"
+      ? [sokoBotCapabilityLabel(event.toolName)]
+      : [],
+  );
+  return [...summaries, ...tools];
+}
+
 async function loadChatLinkedTurn(
   turnId: string,
   client: Prisma.TransactionClient = prisma,
@@ -101,10 +128,12 @@ async function loadChatLinkedTurn(
           message: { select: { roomId: true } },
         },
       },
+      userId: true,
+      requestedByUserId: true,
       events: {
-        where: { type: "actions.requested" },
+        where: { type: { in: ["actions.requested", "reasoning.completed"] } },
         orderBy: { sequence: "asc" },
-        select: { toolName: true },
+        select: { type: true, toolName: true, summary: true },
       },
       pendingDecisions: {
         where: { status: "PENDING" },
@@ -126,7 +155,7 @@ async function loadChatLinkedTurn(
           roomId: turn.chatMention.message.roomId,
         }
       : null,
-    steps: turn.events.map((event) => sokoBotCapabilityLabel(event.toolName)),
+    steps: thoughtSteps(turn),
     pendingDecisionIds: turn.pendingDecisions.map((decision) => decision.id),
     // Creating and assigning one Task are two delegations, not two Tasks.
     taskIds: [
@@ -138,6 +167,9 @@ async function loadChatLinkedTurn(
     ],
   };
 }
+
+/** The Thought of an answer with no reasoning summary and no tool calls. */
+export const ANSWERED_DIRECTLY = "Answered directly, without using any tools.";
 
 const lastProgressPublishAt = new Map<string, number>();
 
@@ -393,15 +425,13 @@ export async function persistSokoBotChatTurn(
           mention_id: mention.id,
           // Same shape `thoughtMetadataFields` writes for coworkers, inlined
           // so this module never drags the realtime/auth import chain in.
-          ...(turn.steps.length > 0
-            ? {
-                reasoning: turn.steps.map((text) => ({
-                  type: "reasoning",
-                  text,
-                })),
-                thought_timing_ms: { start: startedAtMs, end: endedAtMs },
-              }
-            : {}),
+          // Every answer gets a Thought, as a Coworker's does: the summary
+          // and tools when there are any, otherwise a plain note.
+          reasoning: (turn.steps.length > 0
+            ? turn.steps
+            : [ANSWERED_DIRECTLY]
+          ).map((text) => ({ type: "reasoning", text })),
+          thought_timing_ms: { start: startedAtMs, end: endedAtMs },
           soko_bot: {
             turn_id: turn.id,
             pending_decision_ids: turn.pendingDecisionIds,

@@ -1,5 +1,15 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { betterAuthUserAdditionalFields } from "@sokosumi/utils";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { memoryAdapter } from "better-auth/adapters/memory";
+import { betterAuth } from "better-auth/minimal";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { toast } from "sonner";
 import {
   afterAll,
@@ -10,6 +20,8 @@ import {
   it,
   vi,
 } from "vitest";
+import { useEmailCode } from "@/auth/components/use-email-code";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaErrorMessageMock,
@@ -18,9 +30,39 @@ import {
 
 import SignUpForm from "./form";
 
+const EMAIL = "new-user@example.com";
+
+/** Step 2 as the flow mounts it: after Continue, with or without a code out. */
+function SignUpStep({
+  codeSent,
+  onFormStart = () => {},
+}: {
+  codeSent: boolean;
+  onFormStart?: () => void;
+}) {
+  const emailCode = useEmailCode({
+    eventType: "signUp",
+    returnUrl: undefined,
+    beforeLeaving: () => mockHandleUtmConversion(),
+  });
+  useMountEffect(() => {
+    if (codeSent) void emailCode.sendCode(EMAIL);
+  });
+  return (
+    <SignUpForm
+      email={EMAIL}
+      emailCode={emailCode}
+      onFormStart={onFormStart}
+      onPendingChange={vi.fn()}
+    />
+  );
+}
+
 const mockReplace = vi.fn();
 const mockLocationReplace = vi.fn();
 const mockSignUpEmail = vi.fn();
+const mockSendEmailCode = vi.fn();
+const mockEmailCodeSignIn = vi.fn();
 const mockHandleUtmConversion = vi.fn();
 const mockGetSession = vi.fn();
 const mockWaitForAuthSession = vi.fn().mockResolvedValue(undefined);
@@ -46,6 +88,14 @@ vi.mock("@vercel/analytics", () => ({
   track: vi.fn(),
 }));
 
+vi.mock("@/lib/gtm-events", () => ({
+  fireGTMEvent: {
+    viewRegisterArea: vi.fn(),
+    registerFormStart: vi.fn(),
+    signUp: vi.fn(),
+  },
+}));
+
 vi.mock("@sentry/nextjs", () => ({
   captureMessage: vi.fn(),
 }));
@@ -59,8 +109,9 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
-    EMAIL_DOMAIN_NOT_ALLOWED: "EMAIL_DOMAIN_NOT_ALLOWED",
     TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
+    USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
+      "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
   },
 }));
 
@@ -71,17 +122,15 @@ vi.mock("@/lib/actions/auth/action", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     getSession: (...args: unknown[]) => mockGetSession(...args),
+    emailOtp: {
+      sendVerificationOtp: (...args: unknown[]) => mockSendEmailCode(...args),
+    },
+    signIn: {
+      emailOtp: (...args: unknown[]) => mockEmailCodeSignIn(...args),
+    },
   },
   signUp: {
     email: (...args: unknown[]) => mockSignUpEmail(...args),
-  },
-}));
-
-vi.mock("@/lib/gtm-events", () => ({
-  fireGTMEvent: {
-    viewRegisterArea: vi.fn(),
-    registerFormStart: vi.fn(),
-    signUp: vi.fn(),
   },
 }));
 
@@ -119,13 +168,7 @@ describe("SignUpForm OAuth workflow", () => {
   const onFormStart = vi.fn();
 
   function renderForm() {
-    return render(
-      <SignUpForm
-        email="new-user@example.com"
-        onFormStart={onFormStart}
-        onPendingChange={vi.fn()}
-      />,
-    );
+    return render(<SignUpStep codeSent={false} onFormStart={onFormStart} />);
   }
 
   beforeEach(() => {
@@ -144,8 +187,8 @@ describe("SignUpForm OAuth workflow", () => {
   async function submitSignUpForm(password: string) {
     const user = userEvent.setup();
 
-    await user.type(screen.getByLabelText("Fields.FirstName.label"), "New");
-    await user.type(screen.getByLabelText("Fields.LastName.label"), "User");
+    await user.type(screen.getByLabelText("firstNameLabel"), "New");
+    await user.type(screen.getByLabelText("lastNameLabel"), "User");
     await user.type(screen.getByLabelText("Fields.Password.label"), password);
     await user.click(screen.getByRole("button", { name: "submit" }));
   }
@@ -167,11 +210,11 @@ describe("SignUpForm OAuth workflow", () => {
   it("lets a password manager recognise names, email and new password", () => {
     const { container } = renderForm();
 
-    expect(screen.getByLabelText("Fields.FirstName.label")).toHaveAttribute(
+    expect(screen.getByLabelText("firstNameLabel")).toHaveAttribute(
       "autocomplete",
       "given-name",
     );
-    expect(screen.getByLabelText("Fields.LastName.label")).toHaveAttribute(
+    expect(screen.getByLabelText("lastNameLabel")).toHaveAttribute(
       "autocomplete",
       "family-name",
     );
@@ -191,12 +234,22 @@ describe("SignUpForm OAuth workflow", () => {
     expect(username).toHaveAttribute("spellcheck", "false");
   });
 
+  it("stacks the name fields on a phone and pairs them from the sm breakpoint", () => {
+    renderForm();
+
+    const lastName = screen.getByLabelText("lastNameLabel");
+    let row = screen.getByLabelText("firstNameLabel").parentElement;
+    while (row && !row.contains(lastName)) row = row.parentElement;
+    expect(row).toHaveClass("grid", "sm:grid-cols-2");
+    expect(row).not.toHaveClass("grid-cols-2");
+  });
+
   it("moves focus to the first name when the step opens", async () => {
     renderForm();
 
     // react-hook-form defers the focus by a tick.
     await waitFor(() => {
-      expect(screen.getByLabelText("Fields.FirstName.label")).toHaveFocus();
+      expect(screen.getByLabelText("firstNameLabel")).toHaveFocus();
     });
   });
 
@@ -205,7 +258,7 @@ describe("SignUpForm OAuth workflow", () => {
     renderForm();
     expect(onFormStart).not.toHaveBeenCalled();
 
-    await user.type(screen.getByLabelText("Fields.FirstName.label"), "N");
+    await user.type(screen.getByLabelText("firstNameLabel"), "N");
 
     expect(onFormStart).toHaveBeenCalled();
   });
@@ -231,6 +284,15 @@ describe("SignUpForm OAuth workflow", () => {
     );
   });
 
+  it("states the password rule before the first submit", () => {
+    renderForm();
+
+    expect(screen.getByText("Fields.Password.description")).toBeInTheDocument();
+    expect(
+      screen.getByLabelText("Fields.Password.label"),
+    ).toHaveAccessibleDescription("Fields.Password.description");
+  });
+
   it("rejects a password of seven characters with the stated rule", async () => {
     renderForm();
 
@@ -240,8 +302,107 @@ describe("SignUpForm OAuth workflow", () => {
     // The rule reaches a screen reader through the field's description.
     expect(
       screen.getByLabelText("Fields.Password.label"),
-    ).toHaveAccessibleDescription("Password.min");
+    ).toHaveAccessibleDescription("Fields.Password.description Password.min");
     expect(mockSignUpEmail).not.toHaveBeenCalled();
+  });
+
+  it("offers Log in, keeping the query and the email, when the account exists by now", async () => {
+    // e.g. the person signed up with Google in another tab meanwhile.
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+        message: "User already exists. Use another email.",
+        status: 422,
+      },
+    });
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    vi.mocked(toast.error).mockClear();
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const notice = await screen.findByRole("alert");
+    expect(notice).toHaveTextContent("AccountExists.title");
+    expect(notice).toHaveTextContent("AccountExists.description");
+    expect(toast.error).not.toHaveBeenCalled();
+    const logIn = screen.getByRole("link", { name: "AccountExists.logIn" });
+    expect(logIn).toHaveAttribute("href", "/signin?returnUrl=%2Fagents");
+
+    window.sessionStorage.clear();
+    fireEvent.click(logIn);
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
+  });
+
+  const existingAccountError = {
+    data: null,
+    error: {
+      code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+      message: "User already exists. Use another email.",
+      status: 422,
+    },
+  };
+
+  it("keeps the signed OAuth request on the Log in link", async () => {
+    mockSignUpEmail.mockResolvedValueOnce(existingAccountError);
+    mockSearchParams = new URLSearchParams({
+      client_id: "test-client",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const logIn = await screen.findByRole("link", {
+      name: "AccountExists.logIn",
+    });
+    const href = new URL(logIn.getAttribute("href") ?? "", "http://localhost");
+    expect(href.pathname).toBe("/signin");
+    expect(href.searchParams.get("client_id")).toBe("test-client");
+    expect(href.searchParams.get("sig")).toBe("signed-value");
+  });
+
+  it("leaves an invitation's address in the link, not in the hint", async () => {
+    mockSignUpEmail.mockResolvedValueOnce(existingAccountError);
+    mockSearchParams = new URLSearchParams({
+      invitationId: "invitation-1",
+      email: EMAIL,
+    });
+    renderForm();
+
+    await submitValidSignUpForm();
+
+    const logIn = await screen.findByRole("link", {
+      name: "AccountExists.logIn",
+    });
+    expect(logIn.getAttribute("href")).toContain("invitationId=invitation-1");
+    window.sessionStorage.setItem("auth-email-hint", "stale@example.com");
+    fireEvent.click(logIn);
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBeNull();
+  });
+
+  it("drops the notice when a later submit fails for another reason", async () => {
+    mockSignUpEmail
+      .mockResolvedValueOnce(existingAccountError)
+      .mockResolvedValueOnce({
+        data: null,
+        error: { code: "INTERNAL", message: "Server error" },
+      });
+    renderForm();
+
+    await submitValidSignUpForm();
+    await screen.findByRole("alert");
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => {
+      expect(mockSignUpEmail).toHaveBeenCalledTimes(2);
+    });
+    await waitFor(() => {
+      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    });
   });
 
   it("shows translated captcha errors from Core", async () => {
@@ -473,6 +634,366 @@ describe("SignUpForm OAuth workflow", () => {
     });
 
     expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+  });
+});
+
+describe("SignUpForm email code", () => {
+  const originalLocation = window.location;
+
+  beforeAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: {
+        href: "http://localhost/signup",
+        origin: "http://localhost",
+        search: "",
+        replace: (...args: unknown[]) => mockLocationReplace(...args),
+      } as unknown as Location,
+    });
+  });
+
+  afterAll(() => {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: originalLocation,
+    });
+  });
+
+  // Core's emailOTP plugin, offline and set up as Core sets it: proves the
+  // requests this page sends are the ones the plugin accepts. Core's own hook
+  // derives the display name.
+  function connectToEmailCodeHandler() {
+    const db: Record<string, Array<Record<string, unknown>>> = {
+      user: [],
+      session: [],
+      account: [],
+      verification: [],
+    };
+    const emailedCodes: string[] = [];
+    const auth = betterAuth({
+      baseURL: "https://core.test",
+      secret: "offline-email-code-fixture-secret-32-characters",
+      trustedOrigins: [window.location.origin],
+      database: memoryAdapter(db),
+      user: { additionalFields: betterAuthUserAdditionalFields },
+      plugins: [
+        emailOTP({
+          storeOTP: "encrypted",
+          resendStrategy: "reuse",
+          async sendVerificationOTP({ otp }) {
+            emailedCodes.push(otp);
+          },
+        }),
+      ],
+      rateLimit: { enabled: false },
+    });
+    function post(path: string, body: Record<string, unknown>) {
+      return auth.handler(
+        new Request(`https://core.test/api/auth${path}`, {
+          method: "POST",
+          headers: {
+            origin: window.location.origin,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify(body),
+        }),
+      );
+    }
+    mockSendEmailCode.mockImplementation(
+      async ({ fetchOptions: _, ...body }: Record<string, unknown>) => {
+        const response = await post("/email-otp/send-verification-otp", body);
+        expect(response.status).toBe(200);
+        return { data: await response.json(), error: null };
+      },
+    );
+    mockEmailCodeSignIn.mockImplementation(
+      async (body: Record<string, unknown>) => {
+        const response = await post("/sign-in/email-otp", body);
+        const json = await response.json();
+        return response.ok
+          ? { data: json, error: null }
+          : { data: null, error: { ...json, status: response.status } };
+      },
+    );
+    return { db, emailedCodes };
+  }
+
+  beforeEach(() => {
+    mockLocationReplace.mockReset();
+    mockSendEmailCode.mockReset();
+    mockSendEmailCode.mockResolvedValue({
+      data: { success: true },
+      error: null,
+    });
+    mockEmailCodeSignIn.mockReset();
+    mockHandleUtmConversion.mockReset();
+    mockWaitForAuthSession.mockReset();
+    mockWaitForAuthSession.mockResolvedValue(undefined);
+    mockSearchParams = new URLSearchParams();
+  });
+
+  async function typeNames(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("firstNameLabel"), "Ada");
+    await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
+  }
+
+  it("opens on the code that step 1 sent, without repeating the address", async () => {
+    render(<SignUpStep codeSent />);
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    expect(code).toHaveAccessibleDescription("sentNoAddress");
+    expect(
+      screen.queryByLabelText("Fields.Password.label"),
+    ).not.toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "submit" })).toHaveLength(1);
+    expect(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    ).toBeInTheDocument();
+  });
+
+  it("creates the named account with the emailed code", async () => {
+    const { db, emailedCodes } = connectToEmailCodeHandler();
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    // Left unticked: Better Auth would store its default (true) if the page
+    // dropped the choice.
+    await typeNames(user);
+
+    await user.type(code, emailedCodes[0] ?? "");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalled();
+    });
+    expect(db.user).toEqual([
+      expect.objectContaining({
+        email: EMAIL,
+        emailVerified: true,
+        firstName: "Ada",
+        lastName: "Lovelace",
+        marketingOptIn: false,
+        termsAccepted: true,
+      }),
+    ]);
+    expect(mockHandleUtmConversion).toHaveBeenCalledOnce();
+  });
+
+  it("creates the account as soon as the sixth digit follows the names", async () => {
+    const { db, emailedCodes } = connectToEmailCodeHandler();
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+
+    await user.type(code, emailedCodes[0] ?? "");
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalled();
+    });
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    expect(db.user).toEqual([
+      expect.objectContaining({ firstName: "Ada", lastName: "Lovelace" }),
+    ]);
+  });
+
+  it("waits for the button when the code comes before the names", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+    await user.click(code);
+    await user.paste("042 917");
+
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+    // Nothing new is marked: the names were never submitted.
+    expect(screen.getByLabelText("firstNameLabel")).not.toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(code).not.toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveFocus();
+
+    // Register still sends it once the names are in.
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+    });
+    await typeNames(user);
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() =>
+      expect(mockEmailCodeSignIn).toHaveBeenCalledExactlyOnceWith(
+        expect.objectContaining({ email: EMAIL, otp: "042917" }),
+      ),
+    );
+  });
+
+  it("shares a synchronous lock between completion and Register", async () => {
+    mockEmailCodeSignIn.mockReturnValue(new Promise(() => {}));
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    const formElement = code.closest("form");
+    if (!formElement) throw new Error("Missing sign-up form");
+
+    act(() => {
+      fireEvent.change(code, { target: { value: "042917" } });
+      fireEvent.submit(formElement);
+      fireEvent.submit(formElement);
+    });
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledOnce());
+    expect(code).toBeDisabled();
+    fireEvent.submit(formElement);
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    expect(code).toBeDisabled();
+  });
+
+  it("remembers a refused code through a partial-value method switch", async () => {
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", status: 400 },
+    });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    let code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "000000");
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    await user.type(code, "{Backspace}");
+    await user.click(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    );
+    await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+    code = screen.getByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "0");
+    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
+    await user.type(code, "{Backspace}7");
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
+  });
+
+  it("keeps the first email's code working after a resend", async () => {
+    const { emailedCodes } = connectToEmailCodeHandler();
+    const sendCode = (body: Record<string, unknown>) =>
+      mockSendEmailCode({ ...body, type: "sign-in" });
+
+    await sendCode({ email: EMAIL });
+    await sendCode({ email: EMAIL });
+
+    expect(emailedCodes).toHaveLength(2);
+    expect(emailedCodes[1]).toBe(emailedCodes[0]);
+  });
+
+  it("asks for the names and the whole code before spending it", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "0429");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("firstNameLabel")).toHaveAttribute(
+        "aria-invalid",
+        "true",
+      );
+    });
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).toHaveAccessibleDescription(/incomplete$/);
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+  });
+
+  it("explains a wrong code beside the field and returns focus to it", async () => {
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+    });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "000000");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    expect(code).toHaveFocus();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
+
+  it("drops the existing-account notice when a code is tried next", async () => {
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+        message: "User already exists. Use another email.",
+        status: 422,
+      },
+    });
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+    });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.click(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    );
+    await user.type(
+      screen.getByLabelText("Fields.Password.label"),
+      "Passw0rd!",
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+    const code = screen.getByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("swaps the code for a password and back, without a new code", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    await screen.findByRole("textbox", { name: "codeLabel" });
+
+    await user.click(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    );
+
+    expect(screen.getByLabelText("Fields.Password.label")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("textbox", { name: "codeLabel" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("codeStillWorks")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+
+    expect(
+      screen.getByRole("textbox", { name: "codeLabel" }),
+    ).toBeInTheDocument();
+    expect(mockSendEmailCode).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens on the password when no code went out, and sends one on request", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+    expect(screen.getByLabelText("Fields.Password.label")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "emailCodeInstead" }));
+
+    expect(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+    ).toBeInTheDocument();
+    expect(mockSendEmailCode).toHaveBeenCalledWith(
+      expect.objectContaining({ email: EMAIL, type: "sign-in" }),
+    );
   });
 });
 

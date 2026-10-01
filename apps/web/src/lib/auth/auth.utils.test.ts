@@ -21,6 +21,7 @@ import {
   normalizeAuthReturnUrl,
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
+  oauthRequestHasExpired,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -96,6 +97,51 @@ describe("oauthRequestExpiresSoon", () => {
     ["an unreadable", "client_id=cmo&exp=soon"],
   ])("treats a request with %s expiry as expiring", (_kind, query) => {
     expect(oauthRequestExpiresSoon(query)).toBe(true);
+  });
+});
+
+describe("oauthRequestHasExpired", () => {
+  const EXPIRES_AT = Date.parse("2026-09-30T10:10:00Z");
+  const QUERY = `client_id=cmo&exp=${EXPIRES_AT / 1000}&sig=signed-value`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["before expiry", -1, false],
+    ["at expiry", 0, false],
+    ["inside the margin", 29_999, false],
+    ["at the margin", 30_000, false],
+    ["beyond the margin", 30_001, true],
+  ])("reads a request %s", (_when, elapsed, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + elapsed });
+    expect(oauthRequestHasExpired(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    "",
+    "exp=",
+    "exp=soon",
+    "exp=NaN",
+    "exp=Infinity",
+    "exp=-Infinity",
+    "exp=0",
+    "exp=-1",
+    "exp=1.5",
+    "exp=1e3",
+    "exp=0x10",
+    "exp=01",
+    "exp=+1",
+    "exp=9007199254740993",
+    "exp=8640000000001",
+    "exp=1&exp=9999999999",
+    "exp=9999999999&exp=1",
+  ])("leaves malformed expiry to Core (%s)", (expiry) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + 60_000 });
+    expect(
+      oauthRequestHasExpired(`client_id=cmo&${expiry}&sig=signed-value`),
+    ).toBe(false);
   });
 });
 
@@ -337,10 +383,41 @@ describe("normalizeAuthReturnUrl", () => {
     expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
   });
 
-  it("returns / for external returnUrl during SSR", () => {
+  it.each([
+    ["https://localhost.invalid/phish", "/phish"],
+    ["//localhost.invalid/phish", "/phish"],
+  ])(
+    "drops the SSR placeholder origin from a returnUrl: %s",
+    (returnUrl, expected) => {
+      vi.stubGlobal("window", undefined);
+
+      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+    },
+  );
+
+  it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+  });
+
+  it("keeps an internal path with its query and fragment", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+      "/chat?filter=unread#details",
+    );
+  });
+
+  it.each([
+    "https://evil.example/attack",
+    "//evil.example/attack",
+    "/\\evil.example/attack",
+    "javascript:alert('x')",
+  ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
   });
 });
 
@@ -349,25 +426,35 @@ describe("buildSignUpUrlFromSignIn", () => {
     expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
   });
 
-  it("preserves returnUrl and email in signup link", () => {
+  it("preserves returnUrl in signup link", () => {
     expect(
       buildSignUpUrlFromSignIn({
         returnUrl: "/accept-invitation/invite_123?foo=bar",
-        email: "user@example.com",
       }),
-    ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
-    );
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
   });
 
   it("carries the OAuth request as the sign-up page's own query", () => {
     expect(
       buildSignUpUrlFromSignIn({
         oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
-        email: "user@example.com",
+        returnUrl: "/agents",
       }),
     ).toBe(
-      "/signup?client_id=client_1&exp=1772367377&sig=signed&email=user%40example.com",
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&returnUrl=%2Fagents",
+    );
+  });
+});
+
+describe("buildSignUpUrlFromSignIn with an invitation", () => {
+  it("keeps the invited address and its invitation, which sign-up locks", () => {
+    expect(
+      buildSignUpUrlFromSignIn({
+        returnUrl: "/accept-invitation/inv_1",
+        invitation: { id: "inv_1", email: "invited@example.com" },
+      }),
+    ).toBe(
+      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
     );
   });
 });
@@ -609,4 +696,33 @@ describe("createAuthSessionGetter", () => {
 
     await expect(getSession()).resolves.toBeNull();
   });
+});
+
+describe("auth page URL round trips", () => {
+  it.each([buildSignUpUrlFromSignIn, buildSignInUrlFromSignUp])(
+    "preserves signed multi-value OAuth parameters and an escaped return URL",
+    (buildUrl) => {
+      const oauthQuery =
+        "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
+      const returnUrl =
+        "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
+      const url = new URL(
+        buildUrl({
+          oauthQuery,
+          returnUrl,
+          invitation: { id: "inv_1", email: "ada+invite@example.com" },
+        }),
+        "https://sokosumi.test",
+      );
+      expect(url.searchParams.get("returnUrl")).toBe(returnUrl);
+      expect(url.searchParams.get("sig")).toBe("abc+def/ghi=");
+      expect(url.searchParams.getAll("ba_param")).toEqual([
+        "scope",
+        "client_id",
+      ]);
+      expect(url.searchParams.get("scope")).toBe("openid email");
+      expect(url.searchParams.get("email")).toBe("ada+invite@example.com");
+      expect(url.searchParams.get("invitationId")).toBe("inv_1");
+    },
+  );
 });

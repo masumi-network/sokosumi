@@ -1,12 +1,14 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
@@ -14,14 +16,17 @@ import {
   isRejectedOAuthRequestError,
   oauthRequestExpiresSoon,
 } from "@/lib/auth/auth.utils";
-import type { OAuthRequestAccount } from "@/lib/auth/oauth-request.server";
+import type {
+  OAuthRequestAccount,
+  OAuthRequestClient,
+} from "@/lib/auth/oauth-request.server";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 
 interface OAuthHandBackProps {
   /** The signed OAuth request the page carries. */
   oauthQuery: string;
   /** The product the person is continuing to, when Core could name it. */
-  clientName?: string | undefined;
+  client?: OAuthRequestClient | undefined;
   /**
    * Ask whether to continue as this account, or use another one, before the
    * request goes back. Without it the request goes back at once.
@@ -83,14 +88,15 @@ function useHandBack(oauthQuery: string) {
   return { hasFailed, handBack, fail: () => setHasFailed(true) };
 }
 
-function AutomaticHandBack({ oauthQuery, clientName }: HandBackRequest) {
+function AutomaticHandBack({ oauthQuery, client }: HandBackRequest) {
   const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
   const { hasFailed, handBack } = useHandBack(oauthQuery);
 
   useMountEffect(handBack);
 
   if (hasFailed) {
-    return <HandBackError clientName={clientName} />;
+    return <OAuthRequestError client={client} />;
   }
 
   return (
@@ -106,10 +112,11 @@ function AutomaticHandBack({ oauthQuery, clientName }: HandBackRequest) {
 
 function AccountChoice({
   oauthQuery,
-  clientName,
+  client,
   account,
 }: HandBackRequest & { account: OAuthRequestAccount }) {
   const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
   const router = useRouter();
   const { hasFailed, handBack, fail } = useHandBack(oauthQuery);
   const [pendingChoice, setPendingChoice] = useState<
@@ -183,12 +190,13 @@ function AccountChoice({
   }
 
   if (hasFailed) {
-    return <HandBackError clientName={clientName} />;
+    return <OAuthRequestError client={client} />;
   }
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
       <div className="flex flex-col gap-2">
+        {client ? <OAuthClientBackLink client={client} /> : null}
         <h1 className="text-2xl font-light text-balance tracking-tight">
           {clientName
             ? t("chooseAccountTitleFor", { client: clientName })
@@ -229,11 +237,22 @@ function AccountChoice({
   );
 }
 
-function HandBackError({ clientName }: { clientName?: string | undefined }) {
+interface OAuthRequestErrorProps {
+  /** The product to go back to, when Core could name it. */
+  client?: OAuthRequestClient | undefined;
+}
+
+/**
+ * The signed request is no longer accepted: it expired, or Core refused it.
+ * The person starts again from the product.
+ */
+export function OAuthRequestError({ client }: OAuthRequestErrorProps) {
   const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
 
   return (
     <div role="alert" className="flex flex-1 flex-col gap-2 p-6">
+      {client ? <OAuthClientBackLink client={client} /> : null}
       <h1 className="text-2xl font-light text-balance tracking-tight">
         {clientName
           ? t("errorTitleFor", { client: clientName })
@@ -244,6 +263,14 @@ function HandBackError({ clientName }: { clientName?: string | undefined }) {
           ? t("errorDescriptionFor", { client: clientName })
           : t("errorDescription")}
       </p>
+      {!client?.uri ? (
+        <Link
+          href="/"
+          className="self-start rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          {t("backToSokosumi")}
+        </Link>
+      ) : null}
     </div>
   );
 }

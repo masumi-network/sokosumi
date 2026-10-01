@@ -5,6 +5,7 @@ import { HTTPException } from "hono/http-exception";
 
 import { formatZodErrorMessage } from "@/helpers/error";
 import { ok } from "@/helpers/response";
+import { validateTaskScheduleRule } from "@/helpers/task-schedule";
 import { requireWorkspaceContext } from "@/middleware/workspace";
 import {
   changeTaskScheduleState,
@@ -24,6 +25,7 @@ import {
   legacyRuleMatches,
   legacyScheduleSchema,
   mapLegacyRuleToUpdate,
+  mapRecurringRule,
   NEW_CREATE,
   NEW_PATCH,
   NEW_TASK_CREATE,
@@ -97,6 +99,7 @@ export async function putLegacySchedule(c: LegacyContext, next: Next) {
 
   if (series) {
     let schedule = await getWritableTaskSchedule(c.var, series.id);
+    validateTaskScheduleRule(mapRecurringRule(body, schedule.releasedCount));
     if (!legacyRuleMatches(schedule, body)) {
       schedule = await updateTaskSchedule(
         c.var,

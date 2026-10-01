@@ -1,27 +1,30 @@
-import {
-  getUsersById,
-  getUsersByIdWorkspaceAccess,
-  postUsersByIdPersonalWorkspace,
-} from "@sokosumi/core-client";
+import { getUsersById, type User } from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
-import { OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
+import {
+  APIError,
+  createAuthMiddleware,
+  getSessionFromCtx,
+} from "better-auth/api";
 import {
   applySetCookies,
   getAccountCookie,
   getCookies,
   parseCookies,
+  setSessionCookie,
 } from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import { decryptOAuthToken } from "better-auth/oauth2";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
+import { unstable_rethrow } from "next/navigation";
 
 import { readCmoAuthConfig } from "./auth-config";
 import {
-  SIGNED_OUT_COOKIE,
   SOKOSUMI_OAUTH_PROVIDER_ID,
+  type SokosumiSignInOptions,
+  sokosumiSignInBody,
 } from "./sokosumi-oauth";
 
 export interface CmoAuthConfig {
@@ -47,6 +50,14 @@ const CLIENT_IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"];
 /** Core's refresh tokens last 90 days; the session never outlives them. */
 const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 
+/** The person's full name, or their display name when Sokosumi has no parts. */
+function personName(user: User): string {
+  return (
+    joinFirstAndLastName(user.firstName ?? "", user.lastName ?? "") ||
+    user.name.trim()
+  );
+}
+
 /**
  * Sign in with Sokosumi. Better Auth runs stateless: no database, the session
  * and the Sokosumi tokens live in encrypted httpOnly cookies (ADR 0045).
@@ -56,35 +67,12 @@ export function createCmoAuth(config: CmoAuthConfig) {
   const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
   let revocationEndpoint: Promise<string> | undefined;
 
-  function currentUserRequest(accessToken: string) {
-    return {
+  function getCoreUser(accessToken: string) {
+    return getUsersById({
       client: coreClient,
       path: { id: "me" },
       headers: { authorization: `Bearer ${accessToken}` },
-    };
-  }
-
-  function getCoreUser(accessToken: string) {
-    return getUsersById(currentUserRequest(accessToken));
-  }
-
-  /**
-   * A new Sokosumi account has no Workspace, and CMO skips the consent screen
-   * that used to create one (ADR 0046). False when Core could not say or do it.
-   */
-  async function ensurePersonalWorkspace(accessToken: string) {
-    const access = await getUsersByIdWorkspaceAccess(
-      currentUserRequest(accessToken),
-    );
-    if (!access.data) return false;
-    const { hasPersonalWorkspace, hasOrganizationMembership } =
-      access.data.data;
-    if (hasPersonalWorkspace || hasOrganizationMembership) return true;
-    const created = await postUsersByIdPersonalWorkspace(
-      currentUserRequest(accessToken),
-    );
-    // 409: another request created it a moment earlier.
-    return created.data !== undefined || created.response?.status === 409;
+    });
   }
 
   /** Throws on any failure; the sign-out hook logs it and still signs out. */
@@ -173,15 +161,6 @@ export function createCmoAuth(config: CmoAuthConfig) {
         }
       }),
       after: createAuthMiddleware(async (ctx) => {
-        if (ctx.context.newSession && ctx.getCookie(SIGNED_OUT_COOKIE)) {
-          // The sign-in after a CMO sign-out has completed.
-          ctx.setCookie(SIGNED_OUT_COOKIE, "", {
-            httpOnly: true,
-            maxAge: 0,
-            path: "/",
-          });
-          return;
-        }
         if (ctx.path !== "/get-access-token") return;
         const tokens = ctx.context.returned;
         if (
@@ -199,7 +178,18 @@ export function createCmoAuth(config: CmoAuthConfig) {
           ?.includes(ctx.context.authCookies.accountData.name);
         if (!refreshed) return;
         const result = await getCoreUser(tokens.accessToken).catch(() => null);
-        if (result?.data) return;
+        if (result?.data) {
+          // The session cookie keeps the sign-in name for up to 90 days.
+          const name = personName(result.data.data);
+          const session = await getSessionFromCtx(ctx);
+          if (session && session.user.name !== name) {
+            await setSessionCookie(ctx, {
+              session: session.session,
+              user: { ...session.user, name },
+            });
+          }
+          return;
+        }
         const status = result?.response?.status;
         throw new APIError(
           status === 401 || status === 403
@@ -226,14 +216,11 @@ export function createCmoAuth(config: CmoAuthConfig) {
               if (!tokens.accessToken) return null;
               const { data } = await getCoreUser(tokens.accessToken);
               if (!data) return null;
-              if (!(await ensurePersonalWorkspace(tokens.accessToken))) {
-                return null;
-              }
               const user = data.data;
               return {
                 id: user.id,
                 sub: user.id,
-                name: user.name,
+                name: personName(user),
                 email: user.email,
                 emailVerified: user.emailVerified,
                 image: user.image ?? undefined,
@@ -265,6 +252,70 @@ let auth: CmoAuth | undefined;
 export function getAuth(): CmoAuth {
   auth ??= createCmoAuth(readCmoAuthConfig());
   return auth;
+}
+
+/**
+ * Starts Sign in with Sokosumi: Core's authorize URL, and the `Set-Cookie`
+ * headers that carry CMO's OAuth state. A server action gets those cookies
+ * through `nextCookies`; a route handler sends them on its own response.
+ */
+export async function startSokosumiSignIn(
+  auth: CmoAuth,
+  headers: Headers,
+  options: SokosumiSignInOptions,
+): Promise<{ url: string; setCookies: string[] }> {
+  const { headers: responseHeaders, response } = await auth.api.signInSocial({
+    body: sokosumiSignInBody(options),
+    headers,
+    returnHeaders: true,
+  });
+  if (!response.url) throw new Error("Sign in with Sokosumi returned no URL");
+  return { url: response.url, setCookies: responseHeaders.getSetCookie() };
+}
+
+/**
+ * A link's way into Sign in with Sokosumi, for `/signup` and `/signin`.
+ * A person already signed in to CMO goes home instead.
+ */
+export async function sokosumiSignInRedirect(
+  auth: CmoAuth,
+  request: Request,
+  options: SokosumiSignInOptions,
+): Promise<Response> {
+  const headers = new Headers({ location: "/", "cache-control": "no-store" });
+  // The proxy skips renewal for prefetch, but the route still runs. A new
+  // state cookie here would invalidate a sign-in already in progress. Not a
+  // 2xx: Chrome serves a 2xx prefetch for the click, and a 204 swallows it.
+  if (
+    request.headers.has("next-router-prefetch") ||
+    request.headers.has("next-router-segment-prefetch") ||
+    request.headers.get("purpose") === "prefetch" ||
+    request.headers.get("sec-purpose")?.includes("prefetch")
+  ) {
+    headers.delete("location");
+    return new Response(null, { status: 403, headers });
+  }
+  try {
+    if (!(await auth.api.getSession({ headers: request.headers }))) {
+      const { url, setCookies } = await startSokosumiSignIn(
+        auth,
+        request.headers,
+        options,
+      );
+      headers.set("location", url);
+      for (const cookie of setCookies) headers.append("set-cookie", cookie);
+    }
+    return new Response(null, { status: 302, headers });
+  } catch (error) {
+    // Preserve Next's request-time rendering signals from headers/cookies.
+    unstable_rethrow(error);
+    console.error("Starting Sign in with Sokosumi failed", error);
+    headers.delete("location");
+    return new Response("CMO is temporarily unavailable. Try again.", {
+      status: 503,
+      headers,
+    });
+  }
 }
 
 function withSetCookies(from: Response): Response {

@@ -1,44 +1,21 @@
 import type { FormData } from "@/lib/form";
-import type {
-  SignUpEmailFormSchemaType,
-  SignUpFormSchemaType,
-} from "@/lib/schemas/auth";
-
-export const signUpEmailFormData: FormData<
-  SignUpEmailFormSchemaType,
-  "Auth.Pages.SignUp.Form"
-> = [
-  {
-    name: "email",
-    labelKey: "Fields.Email.label",
-    type: "email",
-    autoComplete: "email",
-  },
-];
+import type { SignUpFormSchemaType } from "@/lib/schemas/auth";
 
 type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
 
-// Rendered side by side on one row, above the rest of the form.
-export const signUpNameFormData: SignUpFormData = [
-  {
-    name: "firstName",
-    labelKey: "Fields.FirstName.label",
-    autoComplete: "given-name",
-  },
-  {
-    name: "lastName",
-    labelKey: "Fields.LastName.label",
-    autoComplete: "family-name",
-  },
-];
-
-export const signUpFormData: SignUpFormData = [
+// An email code replaces the password, so the two are rendered apart.
+export const signUpPasswordFormData: SignUpFormData = [
   {
     name: "password",
     labelKey: "Fields.Password.label",
+    // Shown up front, so the rule is known before a submit fails on it.
+    descriptionKey: "Fields.Password.description",
     type: "password",
     autoComplete: "new-password",
   },
+];
+
+export const signUpMarketingFormData: SignUpFormData = [
   {
     name: "marketingOptIn",
     type: "checkbox",

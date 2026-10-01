@@ -51,6 +51,36 @@ export const SYSTEM_TURN_ROUTES = {
     writeScope: "MEMORY",
     reason: "Weekly wrap: summarise and update memory.",
   },
+  /** Brief before an external meeting: read and report, change nothing. */
+  "meeting-prep": {
+    route: "DIRECT_RESPONSE",
+    reason: "Meeting prep: brief the owner, change nothing.",
+  },
+  "end-of-day": {
+    route: "MANAGE_WORK",
+    writeScope: "MEMORY",
+    reason: "End of day: summarise and note priorities.",
+  },
+  /** Offers drafts in chat; sending stays the owner's. */
+  "follow-ups": {
+    route: "DIRECT_RESPONSE",
+    reason: "Follow-up chaser: report what waits, change nothing.",
+  },
+  "monday-plan": {
+    route: "MANAGE_WORK",
+    writeScope: "MEMORY",
+    reason: "Monday plan: plan the week and note it in memory.",
+  },
+  "monthly-review": {
+    route: "MANAGE_WORK",
+    writeScope: "MEMORY",
+    reason: "Monthly review: summarise and update memory.",
+  },
+  "memory-cleanup": {
+    route: "MANAGE_WORK",
+    writeScope: "MEMORY",
+    reason: "Memory cleanup: drop stale goals and follow-ups.",
+  },
   /**
    * CMO daily run: draft, design and schedule the calendar's next entries.
    * Publishing is still gated per channel by the CMO autonomy and the

@@ -96,6 +96,7 @@ export function ProactiveSettings({
               ? t("limitDescription")
               : t("limitUsage", { used: usedToday, limit })}
           </p>
+          <p className="text-muted-foreground text-xs">{t("spendNotice")}</p>
         </div>
         <Input
           id={limitId}

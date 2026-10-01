@@ -42,109 +42,16 @@ import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { buildJsonError, CliError } from "./errors.js";
 import {
+  type CliOptions,
   formatHelpText,
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
+  type ValueOptionName,
 } from "./help.js";
 import { CLI_VERSION } from "./metadata.js";
 import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
-export { GLOBAL_BOOLEAN_FLAG_BY_TOKEN, GLOBAL_VALUE_OPTIONS };
-
-export type ValueOptionName =
-  | "auth-url"
-  | "api-url"
-  | "client-id"
-  | "oauth-port"
-  | "oauth-timeout-ms"
-  | "search"
-  | "limit"
-  | "scope"
-  | "capability"
-  | "channel"
-  | "id"
-  | "metadata-json"
-  | "metadata-file"
-  | "name"
-  | "caption"
-  | "company"
-  | "company-logo"
-  | "url"
-  | "base-url"
-  | "description"
-  | "image"
-  | "priority"
-  | "api-key-name"
-  | "api-key-expires-at"
-  | "coworker-id"
-  | "event-id"
-  | "status"
-  | "comment"
-  | "agent"
-  | "input-json"
-  | "input-file"
-  | "max-credits"
-  | "vendor-id"
-  | "workspace-id"
-  | "organization-id"
-  | "organization-slug"
-  | "provider"
-  | "model"
-  | "hermes-path"
-  | "hermes-home"
-  | "runtime-directory"
-  | "timeout-ms"
-  | "result-file"
-  | "email"
-  | "slug";
-
 type CliOptionValue = string | string[];
-
-export interface CliOptions {
-  [key: string]: string | string[] | boolean | undefined;
-  json?: boolean;
-  preprod?: boolean;
-  help?: boolean;
-  version?: boolean;
-  "auth-url"?: string;
-  "api-url"?: string;
-  "client-id"?: string;
-  "oauth-port"?: string;
-  "oauth-timeout-ms"?: string;
-  search?: string;
-  limit?: string;
-  scope?: string;
-  capability?: CliOptionValue;
-  channel?: CliOptionValue;
-  id?: string;
-  "metadata-json"?: string;
-  "metadata-file"?: string;
-  name?: string;
-  caption?: string;
-  company?: string;
-  "company-logo"?: string;
-  url?: string;
-  "base-url"?: string;
-  description?: string;
-  image?: string;
-  priority?: string;
-  "api-key-name"?: string;
-  "api-key-expires-at"?: string;
-  "coworker-id"?: string;
-  "event-id"?: string;
-  status?: string;
-  comment?: string;
-  agent?: string;
-  "input-json"?: string;
-  "input-file"?: string;
-  "max-credits"?: string;
-  "vendor-id"?: string;
-  "organization-slug"?: string;
-  slug?: string;
-  "api-key-stdin"?: boolean;
-  "create-api-key"?: boolean;
-  details?: boolean;
-}
 
 export interface CliDependencies {
   env?: AuthEnvironment;

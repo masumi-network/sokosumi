@@ -56,6 +56,58 @@ struct SokoBotTurnMetadataTests {
   }
 }
 
+extension SokoBotTurnMetadataTests {
+  /// Web `hasSokoBotMessageFooter`: approvals or Tasks, never an empty line for the turn alone.
+  @Test func theFooterNeedsApprovalsOrTasks() {
+    #expect(!SokoBotTurnMetadata(turnId: "turn_1").hasFooter)
+    #expect(!SokoBotTurnMetadata(turnId: "turn_1", source: "SCHEDULE").hasFooter)
+    #expect(SokoBotTurnMetadata(turnId: "turn_1", pendingDecisionIds: ["dec_1"]).hasFooter)
+    #expect(SokoBotTurnMetadata(turnId: "turn_1", taskIds: ["task_1"]).hasFooter)
+  }
+}
+
+struct SokoBotFeedbackTests {
+  private let turn = #"{"soko_bot":{"turn_id":"turn_1"}}"#
+
+  /// Web renders the thumbs in the pill of every row whose actions show (`showActions`: not deleted,
+  /// not thinking, not a local send) when `soko_bot.turn_id` is a string, whoever sent the row.
+  @Test func theThumbsFollowTheTurnOnARowWithActions() async throws {
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(metadata: turn))) == "turn_1")
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(content: "Here is the plan.", metadata: #"{"mention_id":"mention_1","reasoning":[],"soko_bot":{"turn_id":"turn_2","task_ids":["task_1"]}}"#))) == "turn_2")
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(sender: coworkerSender, metadata: turn))) == "turn_1")
+    // A failed shell keeps its actions on web's row; the transcript drops it anyway (row 38a).
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","mention_failed":true,"soko_bot":{"turn_id":"turn_3"}}"#))) == "turn_3")
+  }
+
+  @Test func rowsWithoutActionsOrATurnCarryNoThumbs() async throws {
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(metadata: turn, deletedAt: testTimestamp))) == nil)
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(content: "", metadata: #"{"streaming":true,"mention_id":"mention_1","soko_bot":{"turn_id":"turn_1"}}"#))) == nil)
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(id: "pending:client_1", metadata: turn))) == nil)
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(metadata: #"{"soko_bot":{"turn_id":7}}"#))) == nil)
+    #expect(try await SokoBotFeedback.turnId(for: decode(botRow(metadata: nil))) == nil)
+  }
+
+  /// Web `disabled={isPending || sent !== null}`, `aria-pressed` and the filled icon, and the
+  /// chosen thumb's `title` "Thanks, noted.".
+  @Test func aRatingLocksBothThumbsAndFillsTheChosenOne() {
+    let idle = SokoBotFeedback(turnId: "turn_1")
+    #expect(!idle.isLocked)
+    #expect(!idle.isChosen(useful: true) && !idle.isChosen(useful: false))
+    #expect(idle.help(useful: true) == "Useful" && idle.help(useful: false) == "Not useful")
+    #expect(SokoBotFeedback.title(useful: true) == "Useful" && SokoBotFeedback.title(useful: false) == "Not useful")
+
+    let sending = SokoBotFeedback(turnId: "turn_1", isSending: true)
+    #expect(sending.isLocked)
+    #expect(!sending.isChosen(useful: true) && !sending.isChosen(useful: false))
+
+    let rated = SokoBotFeedback(turnId: "turn_1", rating: false)
+    #expect(rated.isLocked)
+    #expect(rated.isChosen(useful: false) && !rated.isChosen(useful: true))
+    #expect(rated.help(useful: false) == "Thanks, noted.")
+    #expect(rated.help(useful: true) == "Useful")
+  }
+}
+
 struct SokoBotChainMetadataTests {
   @Test func readsAllFourCountersAndFlagsTheLastHop() async throws {
     let chain = try await SokoBotChainMetadata(message: decode(botRow(metadata: #"{"soko_bot_chain":{"depth":2,"max_depth":3,"room_messages_this_hour":5,"room_messages_per_hour":20}}"#)))
