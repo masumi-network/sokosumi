@@ -124,6 +124,7 @@ const sampleProject = {
   calendarRevision: 0,
   closingAt: null,
   closedAt: null,
+  taskCounter: 0,
   createdAt: new Date("2026-04-03T08:00:00.000Z"),
   updatedAt: new Date("2026-04-03T08:00:00.000Z"),
 };
@@ -320,6 +321,42 @@ describe("PATCH /projects/{id}", () => {
     const body = (await res.json()) as { kind?: string };
     expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN);
     expect(deliverCalendarInvalidationsNowMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when changing the identifier after task numbers exist", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      taskCounter: 1,
+    });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "NEW" }),
+    });
+    expect(res.status).toBe(409);
+    const body = (await res.json()) as { kind?: string; message?: string };
+    expect(body.kind).toBe(CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_IMMUTABLE);
+    expect(body.message).toContain("task numbers");
+    expect(projectUpdateManyMock).not.toHaveBeenCalled();
+  });
+
+  it("allows a no-op identifier patch after task numbers exist", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      ...sampleProject,
+      taskCounter: 3,
+    });
+    projectUpdateManyMock.mockResolvedValue({ count: 1 });
+    const app = createApp();
+    mountPatchProject(app);
+    const res = await app.request(`http://localhost/${PROJECT_ID}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ identifier: "sok" }),
+    });
+    expect(res.status).toBe(200);
+    expect(projectUpdateManyMock).toHaveBeenCalled();
   });
 
   it("uploads a briefing before one scoped project update", async () => {
