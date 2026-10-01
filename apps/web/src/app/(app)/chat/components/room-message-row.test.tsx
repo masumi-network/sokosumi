@@ -3053,6 +3053,43 @@ describe("ChatMessageRow coworker Thought", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows a Soko Bot's live Thinking with its latest step and elapsed clock", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          streaming: true,
+          mention_id: "mention_1",
+          reasoning: [{ type: "reasoning", text: "Reading the calendar" }],
+          thought_timing_ms: { start: Date.now() - 3000 },
+        },
+      }),
+    });
+
+    const trace = screen.getByTestId("coworker-thought-trace");
+    expect(trace).toHaveAttribute("data-working", "true");
+    expect(trace).toHaveTextContent("Reading the calendar");
+    expect(screen.getByTestId("live-stream-elapsed")).toBeInTheDocument();
+  });
+
+  it("shows Failed to reply on a failed Soko Bot shell", () => {
+    renderRow({
+      message: sokoBotMessage({
+        content: "",
+        metadata: {
+          mention_id: "mention_1",
+          mention_failed: true,
+          in_reply_to_message_id: "source-1",
+          soko_bot: { turn_id: "turn-1" },
+        },
+      }),
+    });
+
+    expect(screen.getByTestId("coworker-thought-sparkle")).toHaveTextContent(
+      "MentionStatus.failed",
+    );
+  });
+
   it("shows Retry on a failed mention shell for the mentioner", async () => {
     const user = userEvent.setup();
     const onRetryMention = vi.fn();

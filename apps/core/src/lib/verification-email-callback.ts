@@ -14,10 +14,15 @@
  * `trustedOrigins`. Protocol-relative (`//host`) and other inputs that
  * resolve off the web origin are rewritten to the web app root — a leading
  * slash is not enough (`new URL("//evil", web)` is `https://evil/`).
+ *
+ * A sign-up that came through Core's OAuth provider for another app
+ * (`oauthClientId`) lands on Web's confirmation page instead, which sends the
+ * person back to that app rather than into Sokosumi.
  */
 export function anchorVerificationCallbackToWebApp(
   verificationUrl: string,
   webAppBaseUrl: string,
+  oauthClientId?: string,
 ): string {
   let parsed: URL;
   try {
@@ -29,6 +34,13 @@ export function anchorVerificationCallbackToWebApp(
   const callbackUrl = parsed.searchParams.get("callbackURL");
   if (callbackUrl && !callbackUrl.startsWith("/")) {
     return verificationUrl;
+  }
+
+  if (oauthClientId) {
+    const confirmation = new URL("/auth/email-confirmed", webAppBaseUrl);
+    confirmation.searchParams.set("client_id", oauthClientId);
+    parsed.searchParams.set("callbackURL", confirmation.toString());
+    return parsed.toString();
   }
 
   const webOrigin = new URL(webAppBaseUrl).origin;
