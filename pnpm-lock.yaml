@@ -275,7 +275,7 @@ importers:
         version: 1.7.7(@better-auth/core@1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.2)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2))(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))
       '@better-auth/stripe':
         specifier: 1.7.7
-        version: 1.7.7(7940bd8b0b06612c00788c6e65cfd084)
+        version: 1.7.7(f9db2f20584761d85732b97bc5e0a986)
       '@better-auth/utils':
         specifier: 0.4.2
         version: 0.4.2
@@ -388,8 +388,8 @@ importers:
         specifier: 1.6.9
         version: 1.6.9
       stripe:
-        specifier: 22.6.2
-        version: 22.6.2(@types/node@24.19.0)
+        specifier: 23.0.0
+        version: 23.0.0(@types/node@24.19.0)
       uuid:
         specifier: 14.0.2
         version: 14.0.2
@@ -503,8 +503,8 @@ importers:
         specifier: 153.0.0
         version: 153.0.0
       '@tanstack/highlight':
-        specifier: 0.1.0
-        version: 0.1.0
+        specifier: 1.0.0
+        version: 1.0.0
       '@tanstack/react-query':
         specifier: 5.104.0
         version: 5.104.0(react@19.3.0)
@@ -560,8 +560,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       eve:
-        specifier: 0.68.0
-        version: 0.68.0(@opentelemetry/api@1.9.1)(ai@7.0.126(zod@4.6.5))
+        specifier: 0.69.0
+        version: 0.69.0(@opentelemetry/api@1.9.1)(ai@7.0.126(zod@4.6.5))
       fake-indexeddb:
         specifier: 6.2.5
         version: 6.2.5
@@ -4977,8 +4977,8 @@ packages:
     peerDependencies:
       tailwindcss: '>=3.0.0 || >=4.0.0 || insiders'
 
-  '@tanstack/highlight@0.1.0':
-    resolution: {integrity: sha512-B/NdJETsgoQ7ludUbflIiYQk74bE6VSgP3kLR99P1OsRX1Gepr3EVg6oVLRZ+duKWs+P4lrhWC4vVJsrRSnV2g==}
+  '@tanstack/highlight@1.0.0':
+    resolution: {integrity: sha512-nrg2iZSQUZlDZGTPKh/CNlg6Orm3vFHIaIi/9DqPC1rUpfe/M6rD2iokrckWTc2Z5jYDz185BK76GUh9VIjQRw==}
     engines: {node: '>=18'}
 
   '@tanstack/query-core@5.104.0':
@@ -6842,8 +6842,8 @@ packages:
       microsandbox:
         optional: true
 
-  eve@0.68.0:
-    resolution: {integrity: sha512-1cvxOdbfESdhZjAdhjUwFJSx0B6uWkbaEvwmau6vNhHNX9A+SZaathd79acDzQNYbOa+5WjsypOx4wa8KjKtgQ==}
+  eve@0.69.0:
+    resolution: {integrity: sha512-UxWzU4C1+MlTvHQsQ2wi75k+lrxX8sNN4Dz0xVtITmDj/+mR47RUyHHXl8ojAkFv7DCG/dmNSXLCKfTcqCj0cQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -8542,14 +8542,8 @@ packages:
   perfect-debounce@2.1.0:
     resolution: {integrity: sha512-LjgdTytVFXeUgtHZr9WYViYSM/g8MkcTPYDlPa3cDqMirHjKiSZPYd6DoL7pK8AJQr+uWkQvCjHNdiMqsrJs+g==}
 
-  pg-cloudflare@1.4.0:
-    resolution: {integrity: sha512-Vo7z/6rrQYxpNRylp4Tlob2elzbh+N/MOQbxFVWCxS7oEx6jF53GTJFxK2WWpKuBRkmiin4Mt+xofFDjx09R0A==}
-
   pg-cloudflare@1.4.1:
     resolution: {integrity: sha512-6PQbsFWZcp9EmJEwy5cGQ2La+AMWpP46lgbb8X+U/XsHIUweYDNCpeuKck5RxL2MdVFi7krbbEi5nX4Zh7JhrQ==}
-
-  pg-connection-string@2.14.0:
-    resolution: {integrity: sha512-XwWDGcLRGCXAR8F/AM5bG7Q+A3Wm2s6QeEjlOKZLlH3UYcguiqCWKyWXVag5TLTIjR7oOJUY8kcADaZgWPyLeg==}
 
   pg-connection-string@2.14.1:
     resolution: {integrity: sha512-qR3kGNPBLpCNtz0evbKA0Y/MRFXwSSdT+pTJvYp/bXTcReZbvX1kzF0IyTc1QnxqF7AZbOeBhNL8R5mYQZV/MA==}
@@ -9535,6 +9529,15 @@ packages:
     engines: {node: '>=18'}
     peerDependencies:
       '@types/node': '>=18'
+    peerDependenciesMeta:
+      '@types/node':
+        optional: true
+
+  stripe@23.0.0:
+    resolution: {integrity: sha512-MDE2A5ZVVluYURORaZEVghSmnLJc3w6aHAlZSxDQMsOjOb3V0O6ro/CiaeFlJS4N7uIVmsg98ocRsPmUK6YfyA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@types/node': '>=20'
     peerDependenciesMeta:
       '@types/node':
         optional: true
@@ -10674,13 +10677,13 @@ snapshots:
       stripe: 22.6.2(@types/node@24.19.0)
       zod: 4.6.5
 
-  '@better-auth/stripe@1.7.7(7940bd8b0b06612c00788c6e65cfd084)':
+  '@better-auth/stripe@1.7.7(f9db2f20584761d85732b97bc5e0a986)':
     dependencies:
       '@better-auth/core': 1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.3.0)
       better-auth: 1.7.7(@opentelemetry/api@1.9.1)(@prisma/client@7.10.0(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(typescript@7.0.2))(mysql2@3.15.3)(next@16.3.5(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(pg@8.23.1)(prisma@7.10.0(@types/react-dom@19.2.5(@types/react@19.3.0))(@types/react@19.3.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(typescript@7.0.2))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(vitest@5.0.3(patch_hash=44a492272cbc9f451c6825ad7b8ef773bfdfdcd89a9db524294bf4c17f2a7361)(@opentelemetry/api@1.9.1)(@types/node@24.19.0)(happy-dom@20.12.0)(vite@8.3.1(@types/node@24.19.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))(vue@3.5.41(typescript@7.0.2))
       better-call: 1.4.0(zod@4.6.5)
       defu: 6.1.7
-      stripe: 22.6.2(@types/node@24.19.0)
+      stripe: 23.0.0(@types/node@24.19.0)
       zod: 4.6.5
 
   '@better-auth/telemetry@1.7.7(@better-auth/core@1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.3.0))(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)':
@@ -11408,7 +11411,7 @@ snapshots:
       chroma-js: 3.2.0
       class-variance-authority: 0.7.1
       clsx: 2.1.1
-      dayjs: 1.11.21
+      dayjs: 1.11.23
       emoji-mart: 5.6.0
       es-toolkit: 1.52.0
       fast-deep-equal: 3.1.3
@@ -13361,7 +13364,7 @@ snapshots:
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
 
-  '@rc-component/picker@1.10.0(date-fns@4.4.0)(dayjs@1.11.21)(luxon@3.7.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
+  '@rc-component/picker@1.10.0(date-fns@4.4.0)(dayjs@1.11.23)(luxon@3.7.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
     dependencies:
       '@rc-component/overflow': 1.0.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/resize-observer': 1.1.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -13372,7 +13375,7 @@ snapshots:
       react-dom: 19.3.0(react@19.3.0)
     optionalDependencies:
       date-fns: 4.4.0
-      dayjs: 1.11.21
+      dayjs: 1.11.23
       luxon: 3.7.2
 
   '@rc-component/portal@1.1.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)':
@@ -14322,7 +14325,7 @@ snapshots:
       postcss-selector-parser: 6.0.10
       tailwindcss: 4.3.3
 
-  '@tanstack/highlight@0.1.0': {}
+  '@tanstack/highlight@1.0.0': {}
 
   '@tanstack/query-core@5.104.0': {}
 
@@ -15183,7 +15186,7 @@ snapshots:
     dependencies:
       '@babel/runtime': 7.29.7
       '@types/js-cookie': 3.0.6
-      dayjs: 1.11.21
+      dayjs: 1.11.23
       intersection-observer: 0.12.2
       js-cookie: 3.0.8
       lodash: 4.18.1
@@ -15288,7 +15291,7 @@ snapshots:
       '@rc-component/mutate-observer': 2.0.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/notification': 2.0.7(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/pagination': 1.2.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      '@rc-component/picker': 1.10.0(date-fns@4.4.0)(dayjs@1.11.21)(luxon@3.7.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+      '@rc-component/picker': 1.10.0(date-fns@4.4.0)(dayjs@1.11.23)(luxon@3.7.2)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/progress': 1.0.2(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/qrcode': 1.1.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/rate': 1.0.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -15308,7 +15311,7 @@ snapshots:
       '@rc-component/upload': 1.1.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       '@rc-component/util': 1.11.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       clsx: 2.1.1
-      dayjs: 1.11.21
+      dayjs: 1.11.23
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
       scroll-into-view-if-needed: 3.1.0
@@ -16308,7 +16311,7 @@ snapshots:
       '@opentelemetry/api': 1.9.1
     optional: true
 
-  eve@0.68.0(@opentelemetry/api@1.9.1)(ai@7.0.126(zod@4.6.5)):
+  eve@0.69.0(@opentelemetry/api@1.9.1)(ai@7.0.126(zod@4.6.5)):
     dependencies:
       ai: 7.0.126(zod@4.6.5)
       nitro: 3.0.260903-beta
@@ -18358,13 +18361,7 @@ snapshots:
 
   perfect-debounce@2.1.0: {}
 
-  pg-cloudflare@1.4.0:
-    optional: true
-
   pg-cloudflare@1.4.1:
-    optional: true
-
-  pg-connection-string@2.14.0:
     optional: true
 
   pg-connection-string@2.14.1: {}
@@ -18394,13 +18391,13 @@ snapshots:
 
   pg@8.23.0:
     dependencies:
-      pg-connection-string: 2.14.0
+      pg-connection-string: 2.14.1
       pg-pool: 3.14.0(pg@8.23.0)
-      pg-protocol: 1.16.0
+      pg-protocol: 1.16.1
       pg-types: 2.2.0
       pgpass: 1.0.5
     optionalDependencies:
-      pg-cloudflare: 1.4.0
+      pg-cloudflare: 1.4.1
     optional: true
 
   pg@8.23.1:
@@ -19664,6 +19661,10 @@ snapshots:
       min-indent: 1.0.1
 
   stripe@22.6.2(@types/node@24.19.0):
+    optionalDependencies:
+      '@types/node': 24.19.0
+
+  stripe@23.0.0(@types/node@24.19.0):
     optionalDependencies:
       '@types/node': 24.19.0
 
