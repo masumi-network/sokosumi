@@ -14,23 +14,36 @@ private func rosterEnvelope(_ data: String) -> String {
 
 private actor RosterTransport: ClientTransport {
   var replies: [String: (Int, String)]
+  let roleFailure: (any Error)?
   private(set) var requests: [HTTPRequest] = []
   private(set) var patchBodies: [Data] = []
 
-  init(_ replies: [String: (Int, String)]) {
+  init(_ replies: [String: (Int, String)], roleFailure: (any Error)? = nil) {
     self.replies = replies
+    self.roleFailure = roleFailure
   }
 
   func recoverMembers(_ body: String) {
     replies["get/organizations/{id}/members"] = (200, body)
   }
 
+  func recoverRole(_ body: String) {
+    replies["get/users/{id}/organizations/{organizationId}/member"] = (200, body)
+  }
+
   func send(_ request: HTTPRequest, body: HTTPBody?, baseURL _: URL, operationID: String) async throws -> (HTTPResponse, HTTPBody?) {
     requests.append(request)
+    if operationID == "get/users/{id}/organizations/{organizationId}/member", let roleFailure {
+      throw roleFailure
+    }
     if request.method == .patch, let body {
       try await patchBodies.append(Data(Array(collecting: body, upTo: 1_000_000)))
     }
     let reply = replies[operationID] ?? (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#)
+    // Status 0 stands for no response at all.
+    if reply.0 == 0 {
+      throw URLError(.notConnectedToInternet)
+    }
     return (.init(status: .init(code: reply.0)), HTTPBody(reply.1))
   }
 }
@@ -64,6 +77,29 @@ private func editableRoomFixture() throws -> Components.Schemas.ChatRoom {
   )
 }
 
+private func roomEnvelope(_ room: Components.Schemas.ChatRoom) throws -> String {
+  let encoder = JSONEncoder()
+  encoder.dateEncodingStrategy = .custom { date, encoder in
+    let formatter = ISO8601DateFormatter()
+    formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+    var container = encoder.singleValueContainer()
+    try container.encode(formatter.string(from: date))
+  }
+  return try rosterEnvelope(#require(String(data: encoder.encode(room), encoding: .utf8)))
+}
+
+private func errorEnvelope(_ error: String, message: String) -> String {
+  #"{"error":"\#(error)","message":"\#(message)","meta":{"timestamp":"\#(rosterTimestamp)","requestId":"test","path":"/users/me/organizations/org/member","method":"GET"}}"#
+}
+
+/// Every way the caller's own membership read can fail short of a 401 (web catches all of them).
+private let roleReadFailures: [(Int, String)] = [
+  (403, errorEnvelope("Forbidden", message: "Forbidden")),
+  (500, errorEnvelope("Internal Server Error", message: "Unavailable")),
+  (503, #"{"message":"Try again"}"#),
+  (0, "")
+]
+
 struct ChatRecipientRosterTests {
   @Test(arguments: ["member", "admin", "owner"])
   func channelRosterIncludesCreatorAndRole(role: String) async throws {
@@ -84,15 +120,7 @@ struct ChatRecipientRosterTests {
   @Test(arguments: ["member", "owner"])
   func failedMemberPageSaveAndRecoveredSelectionUseEncodedPatch(role: String) async throws {
     let room = try editableRoomFixture()
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .custom { date, encoder in
-      let formatter = ISO8601DateFormatter()
-      formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-      var container = encoder.singleValueContainer()
-      try container.encode(formatter.string(from: date))
-    }
-    let encodedRoom = try #require(String(data: encoder.encode(room), encoding: .utf8))
-    let response = rosterEnvelope(encodedRoom)
+    let response = try roomEnvelope(room)
     let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"\#(role)","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
     let transport = RosterTransport([
       "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
@@ -136,17 +164,14 @@ struct ChatRecipientRosterTests {
   }
 
   @MainActor
-  @Test(arguments: ["get/coworkers", "get/users/{id}/organizations/{organizationId}/member"])
-  func channelRosterDependencyFailureStillBlocksSave(operation: String) async throws {
+  @Test func coworkerFailureStillBlocksSave() async throws {
     let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"owner","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
-    var replies: [String: (Int, String)] = [
-      "get/coworkers": (200, rosterEnvelope("[]")),
+    let transport = RosterTransport([
+      "get/coworkers": (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/coworkers","method":"GET"}}"#),
       "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
       "getMySokoBot": (503, "{}"),
       "get/users/{id}/organizations/{organizationId}/member": (200, rosterEnvelope(membership))
-    ]
-    replies[operation] = (500, #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/organizations/org/members","method":"GET"}}"#)
-    let transport = RosterTransport(replies)
+    ])
     let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
     let room = Components.Schemas.ChatRoom(id: "channel", organizationId: "org", name: "Team", kind: .channel,
                                            isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
@@ -157,6 +182,142 @@ struct ChatRecipientRosterTests {
     #expect(model.roster == nil)
     #expect(model.errorMessage != nil)
     #expect(!model.canSave)
+  }
+
+  /// Web `rooms/[roomId]/page.tsx`: a failed membership read is treated as not owner or admin, so an owner whose role
+  /// cannot be read edits the roster like a member: no name, topic, visibility or Archive, and a roster-only PATCH.
+  @MainActor
+  @Test(arguments: roleReadFailures)
+  func roleReadFailureEditsAtMemberLevel(status: Int, body: String) async throws {
+    let room = try editableRoomFixture()
+    let transport = try RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[" + [memberFixture(id: "me", name: "Me"), memberFixture(id: "peer", name: "Peer")].joined(separator: ",") + "]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (status, body),
+      "patch/chats/rooms/{id}": (200, roomEnvelope(room))
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let model = ChannelEditing(room: room)
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(model.errorMessage == nil)
+    #expect(model.roster?.roleLoadFailed == true)
+    #expect(model.roster?.isOwnerOrAdmin == false)
+    #expect(model.permissions == ChannelEditPermissions(canEditMembers: true, canManageSettings: false))
+    #expect(model.permissions?.canArchive == false)
+    #expect(model.sections.map(\.id) == [.people, .coworkers])
+    #expect(model.canSave)
+    model.draft.recipients.remove(.coworker("ai"))
+    #expect(await model.save { draft, permissions in
+      _ = try await ChatService().updateRoom(client: client, roomId: room.id,
+                                             request: draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: room), organizationSlug: "team")
+      return true
+    })
+    let data = try #require(await transport.patchBodies.first)
+    let patch = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(patch["memberUserIds"] as? [String] == ["me", "peer"])
+    #expect((patch["coworkerIds"] as? [String])?.isEmpty == true)
+    #expect(patch["name"] == nil && patch["topic"] == nil && patch["discoverability"] == nil)
+    #expect(Set(patch.keys) == ["memberUserIds", "coworkerIds", "sokoBotIds"])
+    let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"owner","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
+    await transport.recoverRole(rosterEnvelope(membership))
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(model.roster?.roleLoadFailed == false)
+    #expect(model.permissions?.canManageSettings == true)
+  }
+
+  /// Web's create dialog loads the role inside the same `Promise.all` as the roster and shows its member notice when
+  /// either fails, so creating stays blocked; only the edit sheet falls back.
+  @MainActor
+  @Test(arguments: roleReadFailures)
+  func roleReadFailureBlocksCreate(status: Int, body: String) async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[\(memberFixture(id: "me", name: "Me"))]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (status, body)
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let model = ChannelCreation()
+    model.draft.setSlug("team")
+    await model.checkSlug { _ in true }
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(model.participantsUnavailable)
+    #expect(model.errorMessage == nil)
+    #expect(!model.canAdvance)
+    model.advance()
+    #expect(model.step == .details)
+    let membership = #"{"id":"member-me","userId":"me","organizationId":"org","role":"admin","seatAssignedAt":null,"createdAt":"\#(rosterTimestamp)"}"#
+    await transport.recoverRole(rosterEnvelope(membership))
+    await model.load { try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team") }
+    #expect(!model.participantsUnavailable && model.canAdvance)
+    model.advance()
+    #expect(model.step == .participants)
+    await model.load { .init(recipients: .init(targets: []), isOwnerOrAdmin: true, roleLoadFailed: true) }
+    #expect(model.roster?.isOwnerOrAdmin == false)
+    #expect(await model.create { _, _ in
+      Issue.record("A failed role reload must block direct creation")
+      return true
+    } == false)
+  }
+
+  /// A 401 is the session ending, not a missing role: it still fails the roster so the coordinator signs out.
+  @Test func roleReadUnauthorizedStillThrows() async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (401, errorEnvelope("Unauthorized", message: "Session expired"))
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
+    }
+  }
+
+  @Test(arguments: ["{}", "", "not JSON"])
+  func roleReadMalformedUnauthorizedStillThrows(body: String) async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (401, body)
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    await #expect(throws: ChatServiceError.unauthorized("Sign in required.")) {
+      _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
+    }
+  }
+
+  /// The generated client wraps transport errors even when the caller's task was not cancelled.
+  @Test(arguments: [false, true])
+  func roleReadTransportCancellationStillThrows(urlCancellation: Bool) async throws {
+    let failure: any Error = urlCancellation ? URLError(.cancelled) : CancellationError()
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
+      "getMySokoBot": (503, "{}")
+    ], roleFailure: failure)
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    #expect(!Task.isCancelled)
+    await #expect(throws: CancellationError.self) {
+      _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
+    }
+  }
+
+  @Test func roleReadCancelledTaskStillThrows() async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[]")),
+      "getMySokoBot": (503, "{}"),
+      "get/users/{id}/organizations/{organizationId}/member": (0, "")
+    ])
+    let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
+    let task = Task {
+      withUnsafeCurrentTask { $0?.cancel() }
+      return try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
+    }
+    await #expect(throws: CancellationError.self) { try await task.value }
   }
 
   @Test func rosterMatchesWebFilteringAndWorkspace() async throws {
