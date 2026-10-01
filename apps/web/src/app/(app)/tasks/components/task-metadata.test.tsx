@@ -86,6 +86,7 @@ const baseLabels = {
   schedule: "Schedule",
   assignee: "Assignee",
   noAssignee: "No assignee",
+  memberFallback: "Member",
   personalAssistantFallback: "Personal assistant",
 };
 
@@ -370,7 +371,8 @@ describe("TaskMetadata", () => {
     expect(screen.getByText("Member")).toBeInTheDocument();
   });
 
-  it("renders an inline status select when editable", () => {
+  it("renders an inline status select when editable", async () => {
+    const user = userEvent.setup();
     const statusLabels = {
       ...baseStatusLabels,
       [TaskStatus.DRAFT]: "Draft",
@@ -397,6 +399,11 @@ describe("TaskMetadata", () => {
     expect(trigger.querySelector("span.inline-flex")).toBeNull();
     expect(trigger.firstElementChild).toHaveClass("size-5", "justify-center");
     expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
+
+    await user.hover(trigger);
+    expect(
+      await screen.findByRole("tooltip", { name: "Status: Running" }),
+    ).toBeInTheDocument();
   });
 
   it("offers only the statuses Core marked selectable, in display order", async () => {

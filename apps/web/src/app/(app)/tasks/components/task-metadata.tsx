@@ -38,6 +38,7 @@ interface TaskMetadataLabels {
   schedule: string;
   assignee: string;
   noAssignee: string;
+  memberFallback: string;
   personalAssistantFallback: string;
 }
 
@@ -60,6 +61,7 @@ interface PersonDisplay {
 function resolveTaskAssigneeDisplay(
   assignee: NonNullable<Task["assignee"]>,
   personalAssistantFallback: string,
+  memberFallback: string,
 ): PersonDisplay {
   if (assignee.type === "sokoBot") {
     const sokoBot = assignee.sokoBot;
@@ -77,7 +79,7 @@ function resolveTaskAssigneeDisplay(
 
   if (assignee.type === "user") {
     return {
-      name: assignee.user.name.trim() || "Member",
+      name: assignee.user.name.trim() || memberFallback,
       image: assignee.user.image
         ? resolveIpfsOrHttpUrl(assignee.user.image)
         : null,
@@ -126,6 +128,7 @@ export function TaskMetadata({
     ? resolveTaskAssigneeDisplay(
         task.assignee,
         labels.personalAssistantFallback,
+        labels.memberFallback,
       )
     : null;
   const statusMarker = getTaskStatusMarker(task.status);

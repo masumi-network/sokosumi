@@ -142,51 +142,51 @@ export function TaskStatusPicker({
   );
 
   const trigger = (
-    <PopoverTrigger asChild>
-      <button
-        type="button"
-        role="combobox"
-        aria-expanded={open}
-        aria-label={labels.ariaLabel}
-        disabled={disabled || isPending}
-        className={cn(
-          "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
-          variant === "row" && ROW_TRIGGER_CLASS,
-        )}
-      >
-        {variant === "row" ? (
-          <>
-            <span className="flex size-5 shrink-0 items-center justify-center">
-              {statusMarker}
-            </span>
-            <span className="truncate">{labels.statusLabels[value]}</span>
-          </>
-        ) : (
-          <span
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
-              style.box,
-              style.label,
-            )}
-          >
+    <button
+      type="button"
+      role="combobox"
+      aria-expanded={open}
+      aria-label={labels.ariaLabel}
+      disabled={disabled || isPending}
+      className={cn(
+        "focus-visible:ring-ring-halo focus-visible:inset-ring-1 focus-visible:inset-ring-ring rounded-sm outline-none focus-visible:ring-2 disabled:cursor-not-allowed",
+        variant === "row" && ROW_TRIGGER_CLASS,
+      )}
+    >
+      {variant === "row" ? (
+        <>
+          <span className="flex size-5 shrink-0 items-center justify-center">
             {statusMarker}
-            <span>{labels.statusLabels[value]}</span>
-            <ChevronDown className="size-3 opacity-70" aria-hidden />
           </span>
-        )}
-      </button>
-    </PopoverTrigger>
+          <span className="truncate">{labels.statusLabels[value]}</span>
+        </>
+      ) : (
+        <span
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-sm border px-2.5 py-1 text-xs font-medium",
+            style.box,
+            style.label,
+          )}
+        >
+          {statusMarker}
+          <span>{labels.statusLabels[value]}</span>
+          <ChevronDown className="size-3 opacity-70" aria-hidden />
+        </span>
+      )}
+    </button>
   );
 
   return (
     <Popover open={open} onOpenChange={handleOpenChange}>
       {variant === "row" ? (
         <Tooltip>
-          <TooltipTrigger asChild>{trigger}</TooltipTrigger>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+          </TooltipTrigger>
           <TooltipContent side="left">{labels.ariaLabel}</TooltipContent>
         </Tooltip>
       ) : (
-        trigger
+        <PopoverTrigger asChild>{trigger}</PopoverTrigger>
       )}
       <PopoverContent align={align} className="w-64 p-0">
         <Command onKeyDown={handleListKeyDown}>
