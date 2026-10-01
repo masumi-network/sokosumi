@@ -3127,6 +3127,16 @@
         },
         "Detail": {
           "noExpiry": "Kein Ablauf"
+        },
+        "ChangeCredits": {
+          "title": "Credits pro Monat ändern",
+          "description": "Gilt für jeden noch nicht gutgeschriebenen Monat. Bereits gutgeschriebene Monate behalten ihre Credits.",
+          "label": "Credits / Monat",
+          "min": "Min. {min, number}",
+          "cancel": "Abbrechen",
+          "submit": "Speichern",
+          "success": "Credits pro Monat aktualisiert",
+          "error": "Credits pro Monat konnten nicht aktualisiert werden"
         }
       },
       "Overview": {
