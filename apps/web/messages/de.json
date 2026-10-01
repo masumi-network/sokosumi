@@ -2095,6 +2095,7 @@
             "cron": "Cron",
             "cronHelp": "Fünf Felder: Minute, Stunde, Tag, Monat, Wochentag.",
             "cronInvalid": "Dieser Cron-Ausdruck ist ungültig.",
+            "cronLegacy": "Gespeichert, bevor fünf Felder Pflicht waren. Der Zeitplan läuft weiter; ein geänderter Cron braucht fünf Felder.",
             "at": "Um",
             "time": "Uhrzeit",
             "timeSearch": "Uhrzeit eingeben, z. B. 08:30",

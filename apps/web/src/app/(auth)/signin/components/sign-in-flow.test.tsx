@@ -1,5 +1,6 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { StrictMode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -348,6 +349,106 @@ describe("SignInFlow", () => {
     );
 
     expect(emailField()).toHaveValue("invited@example.com");
+  });
+
+  it("retains the one-time hint in Strict Mode", async () => {
+    rememberAuthEmailHint("ada@example.com");
+
+    render(
+      <StrictMode>
+        <SignInFlow lastUsedMethod={null} />
+      </StrictMode>,
+    );
+
+    await waitFor(() => expect(emailField()).toHaveValue("ada@example.com"));
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  describe("Register link", () => {
+    function register() {
+      return screen.getByRole("link", { name: "Register.link" });
+    }
+
+    it("hands the typed email to sign-up instead of putting it in the link", async () => {
+      const user = userEvent.setup();
+      mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+      render(<SignInFlow lastUsedMethod={null} returnUrl="/agents" />);
+
+      await user.type(emailField(), "ada@exmaple.com");
+      // A query email is an invitation's fixed address.
+      expect(register()).toHaveAttribute("href", "/signup?returnUrl=%2Fagents");
+
+      fireEvent.click(register());
+
+      expect(takeAuthEmailHint()).toBe("ada@exmaple.com");
+    });
+
+    it("leaves no email behind when sign-up opens in another tab", async () => {
+      const user = userEvent.setup();
+      render(<SignInFlow lastUsedMethod={null} />);
+      await user.type(emailField(), "ada@example.com");
+
+      // The other tab cannot read this tab's hint, so this tab would show it
+      // on its next sign-in or sign-up instead.
+      fireEvent.click(register(), { metaKey: true });
+
+      expect(takeAuthEmailHint()).toBeNull();
+    });
+
+    it("clears an old hint on a middle click", () => {
+      render(<SignInFlow lastUsedMethod={null} />);
+      rememberAuthEmailHint("stale@example.com");
+
+      fireEvent(
+        register(),
+        new MouseEvent("auxclick", { bubbles: true, button: 1 }),
+      );
+
+      expect(takeAuthEmailHint()).toBeNull();
+    });
+
+    it("keeps an invitation's address and id on the links to sign-up", async () => {
+      const user = userEvent.setup();
+      emailStatusMock.mockResolvedValue({
+        data: { exists: false },
+        error: null,
+      });
+      render(
+        <SignInFlow
+          lastUsedMethod={null}
+          returnUrl="/accept-invitation/inv_1"
+          prefilledEmail="invited@example.com"
+          invitationId="inv_1"
+        />,
+      );
+      const href =
+        "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1";
+
+      expect(register()).toHaveAttribute("href", href);
+      fireEvent.click(register());
+      expect(takeAuthEmailHint()).toBeNull();
+
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+      expect(
+        await screen.findByRole("link", { name: "NoAccount.createAccount" }),
+      ).toHaveAttribute("href", href);
+    });
+
+    it("hands a locked email without an invitation to sign-up as a starting value", () => {
+      render(
+        <SignInFlow
+          lastUsedMethod={null}
+          prefilledEmail="invited@example.com"
+        />,
+      );
+
+      expect(register()).toHaveAttribute("href", "/signup");
+      fireEvent.click(register());
+
+      expect(takeAuthEmailHint()).toBe("invited@example.com");
+    });
   });
 
   it("counts the login view once and the form start once", async () => {

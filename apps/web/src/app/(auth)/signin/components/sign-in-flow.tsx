@@ -16,6 +16,10 @@ import {
   buildSignedOAuthQueryFromSearchParams,
   buildSignUpUrlFromSignIn,
 } from "@/lib/auth/auth.utils";
+import {
+  rememberAuthEmailHintOnClick,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
@@ -29,8 +33,10 @@ import SignInHeader from "./header";
 interface SignInFlowProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
-  /** An invitation's address, which the person cannot change. */
+  /** An address from the link, which the person cannot change. */
   prefilledEmail?: string | undefined;
+  /** The invitation `prefilledEmail` belongs to; it stays fixed on sign-up. */
+  invitationId?: string | undefined;
   returnUrl?: string | undefined;
   /** How this browser signed in or signed up last, from Better Auth's cookie. */
   lastUsedMethod: LastUsedAuthMethod | null;
@@ -48,6 +54,7 @@ interface SignInFlowProps {
 export default function SignInFlow({
   client,
   prefilledEmail,
+  invitationId,
   returnUrl,
   lastUsedMethod,
   notice,
@@ -59,12 +66,16 @@ export default function SignInFlow({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
+  const invitation =
+    invitationId && prefilledEmail
+      ? { id: invitationId, email: prefilledEmail }
+      : undefined;
   const signUpHref = buildSignUpUrlFromSignIn({
     returnUrl,
     oauthQuery: returnUrl
       ? undefined
       : buildSignedOAuthQueryFromSearchParams(searchParams),
-    email: prefilledEmail,
+    invitation,
   });
   // Lives here, not in step 2: Continue sends the code before step 2 opens.
   const emailCode = useEmailCode({
@@ -77,6 +88,8 @@ export default function SignInFlow({
   const isEmailLastUsed =
     lastUsedMethod === "email" || lastUsedMethod === "email-otp";
   const [email, setEmail] = useState(prefilledEmail ?? "");
+  // What step 1's field holds now, for the Register link beside it.
+  const [typedEmail, setTypedEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "method">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isMethodPending, setIsMethodPending] = useState(false);
@@ -148,6 +161,7 @@ export default function SignInFlow({
             href: signUpHref,
           }}
           onFormStart={handleFormStart}
+          onEmailChange={setTypedEmail}
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail) => {
             setEmail(confirmedEmail);
@@ -171,6 +185,12 @@ export default function SignInFlow({
           <Link
             href={signUpHref}
             className="text-primary text-sm font-medium hover:underline"
+            onAuxClick={() => takeAuthEmailHint()}
+            // A typed email stays out of the link, which would lock it on
+            // sign-up. Only an invitation's address belongs there.
+            onClick={(event) => {
+              rememberAuthEmailHintOnClick(event, invitation ? "" : typedEmail);
+            }}
           >
             {t("Register.link")}
           </Link>

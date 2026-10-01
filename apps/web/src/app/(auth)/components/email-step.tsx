@@ -16,7 +16,7 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
-  rememberAuthEmailHint,
+  rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
@@ -57,6 +57,8 @@ interface EmailStepProps {
   lastUsedLabel?: string | undefined;
   detour: EmailStepDetour;
   onFormStart: () => void;
+  /** The address as typed, for links outside the step that carry it. */
+  onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
   onContinue: (email: string) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
@@ -81,6 +83,7 @@ export function EmailStep({
   lastUsedLabel,
   detour,
   onFormStart,
+  onEmailChange,
   onContinue,
   continueCaptcha,
 }: EmailStepProps) {
@@ -112,12 +115,16 @@ export function EmailStep({
   ];
 
   useMountEffect(() => {
-    // The other page hands over the address the person typed there.
-    const emailHint = emailLocked ? null : takeAuthEmailHint();
-    if (emailHint) {
+    // The other page hands over the address the person typed there. It is a
+    // starting value, not a locked one like an invitation's address.
+    const emailHint = takeAuthEmailHint();
+    const useHint =
+      emailHint !== null && !emailLocked && !form.getValues("email").trim();
+    if (useHint) {
       form.setValue("email", emailHint);
+      onEmailChange?.(emailHint);
     }
-    if (autoFocus || emailHint) {
+    if (autoFocus || useHint) {
       form.setFocus("email");
     }
   });
@@ -172,6 +179,7 @@ export function EmailStep({
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
+        onEmailChange?.(form.getValues("email"));
       }}
     >
       <FormFields form={form} formData={formData} namespace="Auth.Email.Form" />
@@ -244,13 +252,17 @@ export function EmailStep({
                 href={detour.href}
                 inert={!isDetoured}
                 aria-describedby={isDetoured ? noticeId : undefined}
+                onAuxClick={() => takeAuthEmailHint()}
                 onClick={(event) => {
                   const shownFor = performance.now() - detouredSince.current;
                   if (shownFor < DETOUR_GRACE_MS) {
                     event.preventDefault();
                     return;
                   }
-                  rememberAuthEmailHint(form.getValues("email"));
+                  rememberAuthEmailHintOnClick(
+                    event,
+                    emailLocked ? "" : form.getValues("email"),
+                  );
                 }}
               >
                 {detour.label}

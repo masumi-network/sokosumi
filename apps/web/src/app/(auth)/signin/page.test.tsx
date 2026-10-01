@@ -266,6 +266,28 @@ describe("SignIn page", () => {
     );
   });
 
+  it("hands the invitation's email and id to the flow", async () => {
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({
+          email: "invited@example.com",
+          invitationId: "inv_1",
+          returnUrl: "/accept-invitation/inv_1",
+        }),
+      }),
+    );
+
+    expect(signInFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prefilledEmail: "invited@example.com",
+        invitationId: "inv_1",
+        returnUrl: "/accept-invitation/inv_1",
+      }),
+    );
+  });
+
   it("explains why a sign-in brought the person back", async () => {
     const { default: Page } = await import("./page");
 

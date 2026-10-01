@@ -29,6 +29,7 @@ interface SignInPageProps {
     AuthRedirectSearchParams & {
       returnUrl?: string;
       email?: string;
+      invitationId?: string;
       error?: string;
     }
   >;
@@ -36,7 +37,7 @@ interface SignInPageProps {
 
 export default async function SignIn({ searchParams }: SignInPageProps) {
   const env = getEnvSecrets();
-  const { returnUrl, email, error } = await searchParams;
+  const { returnUrl, email, invitationId, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.canHandBack) {
     return (
@@ -64,6 +65,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     <SignInFlow
       client={oauthRequest?.client}
       prefilledEmail={email}
+      invitationId={invitationId}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
       notice={<SignInErrorNotice error={error} />}
