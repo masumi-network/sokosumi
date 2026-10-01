@@ -7020,7 +7020,6 @@
       "title": "Soko Bots",
       "description": "Personal assistants that delegate work, follow up and keep you posted in chat.",
       "unavailable": "The team overview is not available right now.",
-      "you": "you",
       "createAssistant": "Create your assistant",
       "createAssistantHint": "Takes a minute: pick a name and a face.",
       "assistantFallback": "Personal Assistant",
@@ -7035,8 +7034,11 @@
       "messageBot": "Message {name}",
       "lastActive": "Last active {date}",
       "notActiveYet": "Not active yet",
-      "statsTasks": "{count, plural, one {# Task} other {# Tasks}} in the last {days} days",
-      "statsMessages": "{count, plural, one {# message} other {# messages}} in the last {days} days"
+      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
+      "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
+      "assistantOf": "Assistant of",
+      "message": "Message",
+      "roleLine": "Delegates work, follows up and keeps you posted."
     },
     "Calendar": {
       "Metadata": {
