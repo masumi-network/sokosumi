@@ -240,6 +240,12 @@ export interface StartSokoBotTurnInput {
      * work, because no person decided this turn should happen.
      */
     askedByBot?: boolean;
+    /**
+     * The person's own words, without the "(a teammate, not your owner)"
+     * attribution the model sees. The route is decided on these, so who asks
+     * never tilts a plain "yes" towards a clarifying question.
+     */
+    classifyMessage?: string;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };
@@ -2167,7 +2173,10 @@ export class SokoBotControlPlane {
       roomId: conversationMention?.message.roomId ?? null,
       requesterId: input.chat?.requestedByUserId ?? input.userId,
     };
-    const pendingIntents = requestedByTeammate
+    // A person asking, owner or teammate, has their own offers in this
+    // room: intents are scoped to (room, requester), so a teammate's "yes"
+    // reaches only what the bot offered them. Another assistant never does.
+    const pendingIntents = input.chat?.askedByBot
       ? []
       : await prisma.sokoBotIntent.findMany({
           where: {
@@ -2195,13 +2204,14 @@ export class SokoBotControlPlane {
             },
           },
         });
-    // The bot's last word to the owner in this conversation: a bare "yes,
-    // post it" is only classifiable against the question it answers. Owner
-    // chat turns only — a briefing's text comes from mail, and a "yes" must
-    // not confirm what a stranger wrote into it — and only the newest one, so
-    // a failed turn never lets "yes" reach back to an older offer.
+    // The bot's last word to this person in this conversation: a bare "yes,
+    // post it" is only classifiable against the question it answers. Chat
+    // turns a person asked for only — a briefing's text comes from mail, and
+    // a "yes" must not confirm what a stranger wrote into it — scoped to the
+    // same requester, owner or teammate, and only the newest one, so a failed
+    // turn never lets "yes" reach back to an older offer.
     const previousTurn =
-      source === "CHAT" && !requestedByTeammate
+      source === "CHAT" && !input.chat?.askedByBot
         ? await prisma.sokoBotTurn.findFirst({
             where: {
               sokoBotId: bot.id,
@@ -2211,7 +2221,9 @@ export class SokoBotControlPlane {
               createdAt: {
                 gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
               },
-              requestedByUserId: null,
+              requestedByUserId: requestedByTeammate
+                ? input.chat?.requestedByUserId
+                : null,
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2229,7 +2241,7 @@ export class SokoBotControlPlane {
       input.workspaceId,
       requestedByTeammate ? "TEAMMATE" : "OWNER",
       [
-        message,
+        input.chat?.classifyMessage ?? message,
         ...pendingIntents.flatMap((intent) =>
           Array.isArray(intent.targetIds)
             ? intent.targetIds.filter(
@@ -2244,7 +2256,7 @@ export class SokoBotControlPlane {
       : await withEvaluationActor(
           { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
           () =>
-            this.classifier.classify(message, {
+            this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
               previousReply:
                 previousTurn?.status === "COMPLETED"
@@ -2644,7 +2656,7 @@ export class SokoBotControlPlane {
           // message, affects an existing offer.
           const withdrawsUniqueOffer =
             source === "CHAT" &&
-            !requestedByTeammate &&
+            !input.chat?.askedByBot &&
             (input.chat?.chainDepth ?? 0) === 0 &&
             pendingIntents.length === 1 &&
             classification.classification.continuation === "CANCEL";
