@@ -184,7 +184,7 @@
 
       /// The sheet's backdrop is window chrome that `cacheDisplay` does not draw, so the content is drawn over the
       /// window background in the window's appearance (as `MessageImageGalleryViewerTests.sheetBitmap` does).
-      private static func overWindowBackground(_ drawn: NSBitmapImageRep, appearance: NSAppearance) throws -> NSBitmapImageRep {
+      static func overWindowBackground(_ drawn: NSBitmapImageRep, appearance: NSAppearance) throws -> NSBitmapImageRep {
         let opaque = try #require(NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: drawn.pixelsWide, pixelsHigh: drawn.pixelsHigh,
                                                    bitsPerSample: 8, samplesPerPixel: 4, hasAlpha: true, isPlanar: false,
                                                    colorSpaceName: .deviceRGB, bytesPerRow: 0, bitsPerPixel: 0))
@@ -200,7 +200,7 @@
         return opaque
       }
 
-      private static func expectWindowBackground(_ bitmap: NSBitmapImageRep, dark: Bool) throws {
+      static func expectWindowBackground(_ bitmap: NSBitmapImageRep, dark: Bool) throws {
         let corner = try #require(bitmap.colorAt(x: 2, y: 2)?.usingColorSpace(.deviceRGB))
         #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
         #expect(dark ? corner.brightnessComponent < 0.5 : corner.brightnessComponent > 0.5)
@@ -218,7 +218,7 @@
         return nil
       }
 
-      private static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
+      static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
         let image = try #require(bitmap.cgImage)
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate
