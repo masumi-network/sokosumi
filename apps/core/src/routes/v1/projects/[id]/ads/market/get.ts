@@ -9,39 +9,30 @@ import {
 } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import {
-  listAdCampaignsQuerySchema,
-  listAdCampaignsResponseSchema,
-  projectAdAccountParamsSchema,
-} from "@/schemas/project-ad-account.schema";
-import { listProjectAdCampaigns } from "@/services/project-ad-accounts.service";
+import { getAdMarketProfileResponseSchema } from "@/schemas/project-ad-market.schema";
+import { projectSocialConnectionProjectParamsSchema } from "@/schemas/project-social-connection.schema";
+import { getProjectAdMarketProfile } from "@/services/project-ad-market.service";
 
-import { mapAdsServiceError } from "../../../route-helpers.js";
+import { mapAdsServiceError } from "../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
     method: "get",
-    path: "/{id}/ads/accounts/{accountId}/campaigns",
+    path: "/{id}/ads/market",
     description:
-      "List the campaigns of an ad account attached to a Project, with spend, impressions, clicks, CTR, CPC and conversions over the range. Money is a decimal in the account currency. Lists at most 1000 Google campaigns and 1000 Meta campaigns. Requires an interactive user session in the Project's Workspace.",
+      "Get a Project's ads market profile (keywords, country, language); `profile` is null until one is saved. Requires an interactive user session in the Project's Workspace.",
     tags: ["Projects"],
-    request: {
-      params: projectAdAccountParamsSchema,
-      query: listAdCampaignsQuerySchema,
-    },
+    request: { params: projectSocialConnectionProjectParamsSchema },
     responses: {
       200: jsonSuccessResponse(
-        listAdCampaignsResponseSchema,
-        "Ad account campaigns",
+        getAdMarketProfileResponseSchema,
+        "Project ads market profile",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
-      409: jsonErrorResponse("Conflict"),
       422: jsonErrorResponse("Unprocessable Entity"),
       500: jsonErrorResponse("Internal Server Error"),
-      502: jsonErrorResponse("Bad Gateway"),
-      503: jsonErrorResponse("Service Unavailable"),
     },
   }),
 );
@@ -52,17 +43,14 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
     // Ads share the social beta gate.
     await requireSocialBetaAccess(userContext.userId, prisma);
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
-    const { id: projectId, accountId } = c.req.valid("param");
-    const { range } = c.req.valid("query");
+    const { id: projectId } = c.req.valid("param");
 
     try {
-      const result = await listProjectAdCampaigns({
+      const profile = await getProjectAdMarketProfile({
         projectId,
         workspaceId: workspaceContext.workspaceId,
-        accountId,
-        range,
       });
-      return ok(c, listAdCampaignsResponseSchema.parse(result));
+      return ok(c, getAdMarketProfileResponseSchema.parse({ profile }));
     } catch (error) {
       return mapAdsServiceError(error);
     }

@@ -15,7 +15,7 @@ import {
 } from "@/schemas/project-ad-account.schema";
 import { updateProjectAdCampaign } from "@/services/project-ad-accounts.service";
 
-import { mapProjectAdServiceError } from "../../../../route-helpers.js";
+import { mapAdsServiceError } from "../../../../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -67,7 +67,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
       });
       return empty(c);
     } catch (error) {
-      return mapProjectAdServiceError(error);
+      return mapAdsServiceError(error);
     }
   });
 }

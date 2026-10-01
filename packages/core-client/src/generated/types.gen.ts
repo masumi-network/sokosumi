@@ -5560,6 +5560,103 @@ export type CreateAdCampaignRequest = {
     objective?: 'OUTCOME_TRAFFIC' | 'OUTCOME_AWARENESS' | 'OUTCOME_ENGAGEMENT' | 'OUTCOME_LEADS' | 'OUTCOME_SALES';
 };
 
+export type GetAdMarketProfileResponse = {
+    /**
+     * Null until a market profile is saved
+     */
+    profile: AdMarketProfile | null;
+};
+
+export type AdMarketProfile = {
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    languageCode: AdMarketLanguageCode;
+    updatedAt: Date;
+};
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export const AdMarketCountryCode = {
+    US: 'US',
+    GB: 'GB',
+    DE: 'DE',
+    FR: 'FR',
+    ES: 'ES',
+    IT: 'IT',
+    NL: 'NL',
+    CH: 'CH',
+    AT: 'AT',
+    BE: 'BE',
+    IE: 'IE',
+    CA: 'CA',
+    AU: 'AU',
+    BR: 'BR',
+    MX: 'MX',
+    IN: 'IN',
+    JP: 'JP'
+} as const;
+
+/**
+ * ISO 3166-1 alpha-2 code of a supported market
+ */
+export type AdMarketCountryCode = typeof AdMarketCountryCode[keyof typeof AdMarketCountryCode];
+
+export const AdMarketLanguageCode = {
+    EN: 'en',
+    DE: 'de',
+    FR: 'fr',
+    ES: 'es',
+    IT: 'it',
+    NL: 'nl',
+    PT: 'pt',
+    JA: 'ja'
+} as const;
+
+export type AdMarketLanguageCode = typeof AdMarketLanguageCode[keyof typeof AdMarketLanguageCode];
+
+export type PutAdMarketProfileResponse = {
+    profile: AdMarketProfile;
+};
+
+export type PutAdMarketProfileRequest = {
+    /**
+     * 1 to 10 keywords of at most 80 characters; duplicates (ignoring case) are dropped
+     */
+    keywords: Array<string>;
+    countryCode: AdMarketCountryCode;
+    languageCode: AdMarketLanguageCode;
+};
+
+export type ListAdMarketKeywordsResponse = {
+    /**
+     * At most 50, by search volume descending, nulls last
+     */
+    keywords: Array<AdMarketKeyword>;
+    /**
+     * When DataForSEO was last asked; results are cached for 24h
+     */
+    fetchedAt: Date;
+};
+
+/**
+ * Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.
+ */
+export type AdMarketKeyword = {
+    keyword: string;
+    searchVolume: number | null;
+    trend: Array<{
+        year: number;
+        month: number;
+        searchVolume: number | null;
+    }>;
+    competition: 'LOW' | 'MEDIUM' | 'HIGH' | null;
+    competitionIndex: number | null;
+    cpc: number | null;
+    lowTopOfPageBid: number | null;
+    highTopOfPageBid: number | null;
+};
+
 export type SocialPost = {
     id: string;
     projectId: string;
@@ -39826,6 +39923,384 @@ export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse
 };
 
 export type PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponse = PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses[keyof PatchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignIdResponses];
+
+export type GetProjectsByIdAdsMarketData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type GetProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketError = GetProjectsByIdAdsMarketErrors[keyof GetProjectsByIdAdsMarketErrors];
+
+export type GetProjectsByIdAdsMarketResponses = {
+    /**
+     * Project ads market profile
+     */
+    200: {
+        data: GetAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketResponse = GetProjectsByIdAdsMarketResponses[keyof GetProjectsByIdAdsMarketResponses];
+
+export type PutProjectsByIdAdsMarketData = {
+    body: PutAdMarketProfileRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market';
+};
+
+export type PutProjectsByIdAdsMarketErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketError = PutProjectsByIdAdsMarketErrors[keyof PutProjectsByIdAdsMarketErrors];
+
+export type PutProjectsByIdAdsMarketResponses = {
+    /**
+     * Saved Project ads market profile
+     */
+    200: {
+        data: PutAdMarketProfileResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutProjectsByIdAdsMarketResponse = PutProjectsByIdAdsMarketResponses[keyof PutProjectsByIdAdsMarketResponses];
+
+export type GetProjectsByIdAdsMarketKeywordsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/market/keywords';
+};
+
+export type GetProjectsByIdAdsMarketKeywordsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsError = GetProjectsByIdAdsMarketKeywordsErrors[keyof GetProjectsByIdAdsMarketKeywordsErrors];
+
+export type GetProjectsByIdAdsMarketKeywordsResponses = {
+    /**
+     * Market keywords
+     */
+    200: {
+        data: ListAdMarketKeywordsResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetProjectsByIdAdsMarketKeywordsResponse = GetProjectsByIdAdsMarketKeywordsResponses[keyof GetProjectsByIdAdsMarketKeywordsResponses];
 
 export type GetProjectsByIdSocialPostsData = {
     body?: never;

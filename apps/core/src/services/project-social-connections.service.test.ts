@@ -582,6 +582,26 @@ describe("project social connections service", () => {
     },
   );
 
+  it("raises the caller's message for a closed Project, defaulting to the connect wording", async () => {
+    projectFindFirstMock.mockResolvedValue({
+      id: PROJECT_ID,
+      closedAt: new Date(),
+    });
+    const { requireScopedProject } = await import(
+      "./project-social-connections.service"
+    );
+    const input = { projectId: PROJECT_ID, workspaceId: WORKSPACE_ID };
+    await expect(
+      requireScopedProject(input, { requireOpen: true }),
+    ).rejects.toThrow("Cannot connect accounts to a closing or closed Project");
+    await expect(
+      requireScopedProject(input, {
+        requireOpen: true,
+        closedMessage: "Cannot change a closing or closed Project",
+      }),
+    ).rejects.toThrow("Cannot change a closing or closed Project");
+  });
+
   it("revokes an unreturned link when close wins during provider initiation", async () => {
     initiateComposioConnectionMock.mockImplementation(async () => {
       projectFindFirstMock.mockResolvedValue({
