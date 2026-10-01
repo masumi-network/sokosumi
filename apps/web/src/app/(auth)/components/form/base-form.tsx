@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEventHandler, ReactNode } from "react";
+import { type FormEventHandler, type ReactNode, type Ref, useRef } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
@@ -12,6 +12,8 @@ interface BaseFormProps<T extends FieldValues> {
   children: ReactNode;
   className?: string;
   onChange?: FormEventHandler<HTMLFormElement>;
+  formRef?: Ref<HTMLFormElement>;
+  disabled?: boolean;
 }
 
 export function BaseForm<T extends FieldValues>({
@@ -20,8 +22,11 @@ export function BaseForm<T extends FieldValues>({
   children,
   className,
   onChange,
+  formRef,
+  disabled = false,
 }: BaseFormProps<T>) {
   const { isSubmitting } = form.formState;
+  const submitting = useRef(false);
 
   return (
     <Form {...form}>
@@ -29,11 +34,26 @@ export function BaseForm<T extends FieldValues>({
           untranslated tooltip instead of the form's message. */}
       <form
         noValidate
-        onSubmit={form.handleSubmit(onSubmit)}
+        ref={formRef}
+        onSubmit={async (event) => {
+          event.preventDefault();
+          // Lock before the async resolver; automatic and manual submits
+          // can arrive before React renders isSubmitting.
+          if (submitting.current || disabled) return;
+          submitting.current = true;
+          try {
+            await form.handleSubmit(onSubmit)(event);
+          } finally {
+            submitting.current = false;
+          }
+        }}
         onChange={onChange}
         className={cn(className)}
       >
-        <fieldset disabled={isSubmitting} className="flex flex-col gap-3">
+        <fieldset
+          disabled={isSubmitting || disabled}
+          className="flex flex-col gap-3"
+        >
           {children}
         </fieldset>
       </form>
