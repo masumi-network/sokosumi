@@ -25,6 +25,7 @@ const statusLabels = {
 
 function renderRelated(
   tasks: React.ComponentProps<typeof TaskRelatedTasks>["tasks"],
+  hrefBasePath?: string,
 ) {
   return render(
     <TaskRelatedTasks
@@ -32,6 +33,7 @@ function renderRelated(
       tasks={tasks}
       relationLabels={relationLabels}
       statusLabels={statusLabels}
+      hrefBasePath={hrefBasePath}
     />,
   );
 }
@@ -48,31 +50,42 @@ describe("TaskRelatedTasks", () => {
       {
         id: "t-dup",
         name: "Dup",
+        identifier: null,
         status: TaskStatus.DRAFT,
         relation: "duplicate",
       },
       {
         id: "t-rel",
         name: "Rel",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "related",
       },
       {
         id: "t-sub",
         name: "Sub",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "parent",
       },
-      { id: "t-par", name: "Par", status: TaskStatus.READY, relation: "child" },
+      {
+        id: "t-par",
+        name: "Par",
+        identifier: null,
+        status: TaskStatus.READY,
+        relation: "child",
+      },
       {
         id: "t-blk",
         name: "Blk",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "blocks",
       },
       {
         id: "t-by",
         name: "By",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "blocked_by",
       },
@@ -100,18 +113,21 @@ describe("TaskRelatedTasks", () => {
       {
         id: "task-2",
         name: "Design follow-up",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "related",
       },
       {
         id: "task-3",
         name: "API migration",
+        identifier: null,
         status: TaskStatus.DRAFT,
         relation: "blocks",
       },
       {
         id: "task-4",
         name: "Schema update",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "blocks",
       },
@@ -131,11 +147,31 @@ describe("TaskRelatedTasks", () => {
     }
   });
 
+  it("passes hrefBasePath through so related rows stay on the surface path", () => {
+    renderRelated(
+      [
+        {
+          id: "task-2",
+          name: "Design follow-up",
+          identifier: "SOK-12",
+          status: TaskStatus.READY,
+          relation: "related",
+        },
+      ],
+      "/admin/tasks",
+    );
+
+    expect(
+      screen.getByRole("link", { name: /Design follow-up/ }),
+    ).toHaveAttribute("href", "/admin/tasks/task-2");
+  });
+
   it("omits groups that have no tasks", () => {
     renderRelated([
       {
         id: "task-2",
         name: "Only one",
+        identifier: null,
         status: TaskStatus.READY,
         relation: "related",
       },

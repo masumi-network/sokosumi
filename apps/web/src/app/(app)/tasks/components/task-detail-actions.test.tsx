@@ -438,7 +438,11 @@ vi.mock("@/app/tasks/components/task-form", () => ({
         contextMdEnabled: boolean;
       };
     }) => Promise<CreateTaskResult>;
-    onSuccess?: (taskId: string) => void;
+    onSuccess?: (task: {
+      id: string;
+      identifier: string | null;
+      name: string;
+    }) => void;
   }) => (
     <div>
       <span>{initialValues?.assigneeId ?? "no-coworker"}</span>
@@ -468,7 +472,11 @@ vi.mock("@/app/tasks/components/task-form", () => ({
             },
           });
           if (result.ok) {
-            onSuccess?.(result.value.taskId);
+            onSuccess?.({
+              id: result.value.taskId,
+              identifier: result.value.identifier,
+              name: result.value.name,
+            });
           }
         }}
       >
@@ -497,8 +505,12 @@ function createTaskAndLinkSuccess(input: {
   createdTaskId: string;
   linkId: string;
   name: string;
+  identifier?: string | null;
 }) {
-  return { ok: true as const, value: input };
+  return {
+    ok: true as const,
+    value: { identifier: null, ...input },
+  };
 }
 
 function buildTaskListItem(
@@ -570,6 +582,7 @@ const defaultTaskLinks = [
       name: "Parent task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
 ] as const;
@@ -586,6 +599,7 @@ const removableTaskLinks = [
       name: "Related task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -599,6 +613,7 @@ const removableTaskLinks = [
       name: "Blocked task",
       status: TaskStatus.DRAFT,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -612,6 +627,7 @@ const removableTaskLinks = [
       name: "Sub-task",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
   },
   {
@@ -625,6 +641,7 @@ const removableTaskLinks = [
       name: "Archived duplicate",
       status: TaskStatus.CANCELED,
       archivedAt: new Date("2024-01-02T00:00:00.000Z"),
+      identifier: null,
     },
   },
 ] as const;
@@ -1717,6 +1734,7 @@ describe("TaskDetailActions", () => {
         name: "Other parent",
         status: TaskStatus.READY,
         archivedAt: null,
+        identifier: null,
       },
     } as const;
 

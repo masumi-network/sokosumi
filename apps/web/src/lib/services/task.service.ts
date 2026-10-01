@@ -11,6 +11,7 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
+  TaskPriority,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
@@ -70,6 +71,7 @@ interface PatchTaskInput {
   context?: CreateTaskContext;
   /** A future time queues the Task; null clears a saved Run at. */
   runAt?: Date | null;
+  priority?: TaskPriority;
 }
 
 interface CreateTaskEventInput {
