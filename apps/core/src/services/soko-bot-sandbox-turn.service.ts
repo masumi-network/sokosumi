@@ -66,6 +66,32 @@ const FORWARDED_MODEL_HEADERS = [
   "ai-gateway-protocol-version",
 ] as const;
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/**
+ * The reasoning-summary switches a runner request may carry, and nothing
+ * else: a summary is what the provider chooses to show, never raw thoughts.
+ * Replacing the whole `providerOptions` dropped these, so no bot reply ever
+ * had a summary to show.
+ */
+export function reasoningSummaryOptions(
+  value: unknown,
+): Record<string, Record<string, unknown>> {
+  const options = asRecord(value) ?? {};
+  const out: Record<string, Record<string, unknown>> = {};
+  const summary = asRecord(options.openai)?.reasoningSummary;
+  if (summary === "auto" || summary === "detailed")
+    out.openai = { reasoningSummary: summary };
+  const thinking = asRecord(asRecord(options.google)?.thinkingConfig);
+  if (thinking?.includeThoughts === true)
+    out.google = { thinkingConfig: { includeThoughts: true } };
+  return out;
+}
+
 function logFor(claims: TurnTokenClaims): RuntimeEventLog {
   return new RuntimeEventLog(claims.turnId, claims.sessionId);
 }
@@ -358,6 +384,9 @@ export async function proxySandboxModelCall(
     inferenceRegion: version.inferenceRegion,
   });
   payload.providerOptions = {
+    // The runner may only ask for a reasoning summary; routing, region and
+    // retention stay Core's.
+    ...reasoningSummaryOptions(payload.providerOptions),
     gateway: isGatewaySearchCall(payload)
       ? withoutZeroRetention(policy.providerOptions.gateway)
       : policy.providerOptions.gateway,
