@@ -736,6 +736,64 @@ describe("authMiddleware", () => {
     expect(verifyApiKeyMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401 for an expired prefixed OAuth access token without trying it as an API key", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() - 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+        skipConsent: true,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_rejected",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for a prefixed OAuth access token whose refresh grant was revoked", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: "refresh_123",
+      refreshToken: { revoked: new Date() },
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+        skipConsent: true,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_rejected",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
   it("returns 401 for an OAuth token whose user is banned", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
