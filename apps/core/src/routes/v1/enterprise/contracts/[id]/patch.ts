@@ -86,11 +86,8 @@ async function updateActiveContractCreditsPerMonth(
       );
     }
 
-    const updated = await tx.enterpriseContract.update({
-      where: { id },
-      data: { centsPerMonth },
-      include: enterpriseContractOrganizationSelect,
-    });
+    // Periods before the contract: cancellation and the scheduler lock in
+    // that order, so a concurrent cancel cannot deadlock against this write.
     await tx.enterpriseContractPeriod.updateMany({
       where: {
         contractId: id,
@@ -99,7 +96,11 @@ async function updateActiveContractCreditsPerMonth(
       data: { centsToGrant: centsPerMonth },
     });
 
-    return updated;
+    return await tx.enterpriseContract.update({
+      where: { id },
+      data: { centsPerMonth },
+      include: enterpriseContractOrganizationSelect,
+    });
   }, "Enterprise contract changed concurrently; retry the credit update");
 }
 

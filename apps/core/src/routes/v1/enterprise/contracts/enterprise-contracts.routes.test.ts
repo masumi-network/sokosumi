@@ -604,6 +604,11 @@ describe("enterprise contract admin routes", () => {
         },
         data: { centsToGrant: convertCreditsToCents(100_000) },
       });
+      // Cancellation and the scheduler lock periods before the contract; the
+      // same order here keeps a concurrent cancel from deadlocking.
+      expect(
+        enterpriseContractPeriodUpdateManyMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(enterpriseContractUpdateMock.mock.invocationCallOrder[0]);
     });
 
     it("returns 409 when an active contract update changes more than credits per month", async () => {
