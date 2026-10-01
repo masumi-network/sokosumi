@@ -4,17 +4,17 @@
  */
 export const SOKOSUMI_OAUTH_PROVIDER_ID = "sokosumi";
 
+export interface SokosumiSignInOptions {
+  createAccount: boolean;
+}
+
 /**
  * What CMO sends to start Sign in with Sokosumi. "Create account" adds the
  * OpenID Connect `prompt=create`, which makes Core open Sokosumi's sign-up
  * page instead of its sign-in page. Sign in sends no prompt, so a person
  * still signed in to Sokosumi goes straight back to CMO.
  */
-export function sokosumiSignInBody({
-  createAccount,
-}: {
-  createAccount: boolean;
-}) {
+export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
