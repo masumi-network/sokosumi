@@ -1,14 +1,18 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { CalendarDays, Mail, X } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
+import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
-import type { SokoBotConnectPromptState } from "@/lib/soko-bot/connect-prompt";
+import type {
+  SokoBotConnectOffer,
+  SokoBotConnectPromptState,
+} from "@/lib/soko-bot/connect-prompt";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
 const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
@@ -37,15 +41,12 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
  * not connected: most of what the bot does on its own needs them.
  */
 export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
-  const t = useTranslations("App.Chat.SokoBot");
   const { data } = useQuery({
     queryKey: ["soko-bot-connect-prompt"],
     queryFn: fetchPrompt,
     staleTime: 5 * 60_000,
   });
   const [dismissed, setDismissed] = useState(false);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
 
   if (
     !data ||
@@ -54,6 +55,36 @@ export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
     readDismissed(sokoBotId)
   )
     return null;
+
+  function dismiss() {
+    try {
+      window.localStorage.setItem(`${DISMISSED_KEY}:${sokoBotId}`, "1");
+    } catch {}
+    setDismissed(true);
+  }
+
+  return (
+    <SokoBotConnectCard
+      botName={data.botName}
+      offers={data.offers}
+      onDismiss={dismiss}
+    />
+  );
+}
+
+/** The card itself, without the fetch, so it renders in tests and previews. */
+export function SokoBotConnectCard({
+  botName,
+  offers,
+  onDismiss,
+}: {
+  botName: string;
+  offers: SokoBotConnectOffer[];
+  onDismiss: () => void;
+}) {
+  const t = useTranslations("App.Chat.SokoBot");
+  const [busy, setBusy] = useState<string | null>(null);
+  const [, startTransition] = useTransition();
 
   function connect(provider: string) {
     setBusy(provider);
@@ -72,47 +103,55 @@ export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
     });
   }
 
-  function dismiss() {
-    try {
-      window.localStorage.setItem(`${DISMISSED_KEY}:${sokoBotId}`, "1");
-    } catch {}
-    setDismissed(true);
-  }
-
   return (
-    <div
+    <section
       data-testid="soko-bot-connect-prompt"
-      className="border-border bg-card-background mb-2 flex flex-wrap items-center gap-3 rounded-md border px-3 py-2 text-sm"
+      aria-label={t("connectTitle", { bot: botName })}
+      className="border-border bg-card-background relative mb-2 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:gap-4"
     >
-      <p className="text-muted-foreground min-w-0 flex-1">
-        {t("connectPrompt", { bot: data.botName })}
-      </p>
-      <div className="flex items-center gap-2">
-        {data.missing.map((offer) => {
-          const Icon = offer.kind === "email" ? Mail : CalendarDays;
+      <div className="min-w-0 flex-1 pr-6 sm:pr-0">
+        <p className="text-sm font-medium">
+          {t("connectTitle", { bot: botName })}
+        </p>
+        <p className="text-muted-foreground mt-0.5 text-xs">
+          {t("connectBody")}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {offers.map((offer) => {
+          const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
           return (
             <Button
               key={offer.provider}
               type="button"
               size="sm"
               variant="outline"
-              disabled={busy !== null}
+              disabled={offer.connected || busy !== null}
+              aria-label={
+                offer.connected
+                  ? t("connectConnected", { name: offer.name })
+                  : t("connectProvider", { name: offer.name })
+              }
               onClick={() => connect(offer.provider)}
+              className="gap-2"
             >
-              <Icon aria-hidden className="size-4" />
-              {t("connectProvider", { name: offer.name })}
+              {Logo ? <Logo className="size-4 shrink-0" /> : null}
+              <span>{offer.name}</span>
+              {offer.connected ? (
+                <Check aria-hidden className="text-semantic-success size-3.5" />
+              ) : null}
             </Button>
           );
         })}
-        <button
-          type="button"
-          aria-label={t("connectDismiss")}
-          onClick={dismiss}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground rounded p-1 transition-colors"
-        >
-          <X aria-hidden className="size-4" />
-        </button>
       </div>
-    </div>
+      <button
+        type="button"
+        aria-label={t("connectDismiss")}
+        onClick={onDismiss}
+        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-2 right-2 rounded p-1 transition-colors sm:static"
+      >
+        <X aria-hidden className="size-4" />
+      </button>
+    </section>
   );
 }
