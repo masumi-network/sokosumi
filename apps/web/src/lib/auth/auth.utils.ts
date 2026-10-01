@@ -279,7 +279,7 @@ export function getAbsoluteAuthRedirectUrl(
 
 /**
  * Builds an absolute auth callback URL for Better Auth `callbackURL` /
- * `newUserCallbackURL` (social, credential, magic-link).
+ * `newUserCallbackURL` (social, credential).
  *
  * The result is an **absolute** URL anchored to the current web origin. This
  * matters when the browser `authClient` targets the Core Better Auth instance
@@ -305,10 +305,9 @@ export function buildAuthCallbackUrl(
 }
 
 /**
- * Better Auth `errorCallbackURL` for social and magic-link sign-in: the page
- * the person started on, which explains the `error` Better Auth appends.
- * Without it a failure lands on Core's bare error page (social) or bounces
- * through the callback page with no message (magic link). `pathname` sends
+ * Better Auth `errorCallbackURL` for social sign-in: the page the person
+ * started on, which explains the `error` Better Auth appends. Without it a
+ * failure lands on Core's bare error page. `pathname` sends
  * the failure to another auth page with the same query instead, for a page
  * that would only start the sign-in again.
  */
@@ -339,10 +338,9 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
 }
 
 function normalizeOAuthQueryValue(key: string, value: string): string {
-  // Better Auth signs with standard base64. Its magic-link verifier decodes an
-  // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
-  // query parsing turns that `+` into a space. Restore the signature before
-  // serializing it back to `%2B`.
+  // Better Auth signs with standard base64. A `+` that reaches the query
+  // unescaped parses as a space under form-style parsing. Restore the
+  // signature before serializing it back to `%2B`.
   return key === "sig" ? value.replaceAll(" ", "+") : value;
 }
 
@@ -431,7 +429,7 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
 
 /**
  * Where a person with an OAuth request goes when a sign-in leaves the page
- * (magic link, or a social sign-in the OAuth provider did not answer): the
+ * (a social sign-in the OAuth provider did not answer): the
  * sign-in page with the signed request as its own query. Arriving there signed
  * in hands the request back to the provider. Explicit reauthentication resumes
  * at consent, whose provider endpoint checks that the new session satisfies

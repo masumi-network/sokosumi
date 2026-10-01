@@ -118,7 +118,6 @@ describe("stepped sign-up with an OAuth request", () => {
     render(
       <SignUpFlow
         lastUsedMethod={null}
-        showMagicLink={false}
         client={{ name: "CMO", uri: undefined, logoUri: undefined }}
       />,
     );

@@ -17,7 +17,6 @@ describe("SignInErrorNotice", () => {
   it.each([
     ["account_not_linked", "accountNotLinked"],
     ["access_denied", "cancelled"],
-    ["INVALID_TOKEN", "linkExpired"],
   ])("explains %s", (error, message) => {
     render(<SignInErrorNotice error={error} />);
 

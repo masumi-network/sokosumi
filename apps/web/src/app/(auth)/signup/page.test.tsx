@@ -79,7 +79,7 @@ vi.mock("@/lib/auth/auth.server", () => ({
 describe("SignUp page", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getMock.mockReturnValue({ value: "magic-link" });
+    getMock.mockReturnValue({ value: "email-otp" });
     cookiesMock.mockResolvedValue({
       get: getMock,
     });
@@ -131,7 +131,6 @@ describe("SignUp page", () => {
       prefilledEmail: "ada@example.com",
       returnUrl: "/agents",
       lastUsedMethod: "google",
-      showMagicLink: true,
     });
   });
 
@@ -287,26 +286,6 @@ describe("SignUp page", () => {
 
     expect(handBackMock).not.toHaveBeenCalled();
     expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
-  });
-
-  it("offers a magic link without an OAuth request", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve({}) }));
-
-    expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: true }),
-    );
-  });
-
-  it("offers no magic link with an OAuth request", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
-
-    expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({ showMagicLink: false }),
-    );
   });
 
   it("explains why a sign-in brought the person back", async () => {
