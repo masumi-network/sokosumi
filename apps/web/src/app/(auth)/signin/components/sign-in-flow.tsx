@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useMemo, useRef, useState } from "react";
@@ -10,23 +11,29 @@ import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { handleUtmConversion } from "@/lib/actions/auth/action";
-import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import {
+  buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
+  buildSignUpUrlFromSignIn,
+} from "@/lib/auth/auth.utils";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
+import {
+  type LastUsedAuthMethod,
+  toProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
-import SignUpForm from "./form";
-import SignUpHeader from "./header";
-import SignInLink, { useSignInHref } from "./sign-in-link";
+import SignInForm, { type SignInMethod } from "./form";
+import SignInHeader from "./header";
 
-interface SignUpFlowProps {
-  invitationId?: string | undefined;
+interface SignInFlowProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
+  /** An invitation's address, which the person cannot change. */
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
-  lastUsedMethod: ProviderAuthMethod | null;
+  /** How this browser signed in or signed up last, from Better Auth's cookie. */
+  lastUsedMethod: LastUsedAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -34,42 +41,50 @@ interface SignUpFlowProps {
 }
 
 /**
- * Sign-up in two steps. The first asks for the email beside the providers
- * and, for a new address, emails a code right away. The second asks for the
- * name and that code, or the name and a password instead.
+ * Sign-in in two steps. The first asks for the email beside the providers
+ * and checks that it has an account. The second asks for the emailed code or
+ * the password, opening on the one this browser used last.
  */
-export default function SignUpFlow({
-  invitationId,
+export default function SignInFlow({
   client,
   prefilledEmail,
   returnUrl,
   lastUsedMethod,
   notice,
   children,
-}: SignUpFlowProps) {
-  const t = useTranslations("Auth.Pages.SignUp.Form");
+}: SignInFlowProps) {
+  const t = useTranslations("Auth.Pages.SignIn.Form");
   const searchParams = useSearchParams();
-  const signInHref = useSignInHref();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
+  const signUpHref = buildSignUpUrlFromSignIn({
+    returnUrl,
+    oauthQuery: returnUrl
+      ? undefined
+      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    email: prefilledEmail,
+  });
   // Lives here, not in step 2: Continue sends the code before step 2 opens.
   const emailCode = useEmailCode({
-    eventType: "signUp",
+    eventType: "signIn",
     returnUrl: effectiveReturnUrl,
-    // Record UTM attribution for every successful signup.
-    beforeLeaving: handleUtmConversion,
   });
+  // A password person is not emailed a code they will not use.
+  const initialMethod: SignInMethod =
+    lastUsedMethod === "email" ? "password" : "code";
+  const isEmailLastUsed =
+    lastUsedMethod === "email" || lastUsedMethod === "email-otp";
   const [email, setEmail] = useState(prefilledEmail ?? "");
-  const [step, setStep] = useState<"email" | "details">("email");
+  const [step, setStep] = useState<"email" | "method">("email");
   const [cameBack, setCameBack] = useState(false);
-  const [isDetailsPending, setIsDetailsPending] = useState(false);
+  const [isMethodPending, setIsMethodPending] = useState(false);
   const formStarted = useRef(false);
 
-  // when user first sees the register page
+  // when user first sees the login area
   useMountEffect(() => {
-    fireGTMEvent.viewRegisterArea();
+    fireGTMEvent.viewLoginArea();
   });
 
   // when user starts typing, on whichever step that happens
@@ -78,13 +93,13 @@ export default function SignUpFlow({
       return;
     }
     formStarted.current = true;
-    fireGTMEvent.registerFormStart();
+    fireGTMEvent.loginAreaFormStart();
   }
 
-  if (step === "details") {
+  if (step === "method") {
     return (
       <div className="flex flex-1 flex-col">
-        <SignUpHeader invitationId={invitationId} client={client} />
+        <SignInHeader client={client} />
         <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
           <ConfirmedEmail
             email={email}
@@ -97,14 +112,15 @@ export default function SignUpFlow({
                     setStep("email");
                   }
             }
-            changeDisabled={isDetailsPending}
+            changeDisabled={isMethodPending}
           />
-          <SignUpForm
+          <SignInForm
             email={email}
             returnUrl={returnUrl}
+            initialMethod={initialMethod}
             emailCode={emailCode}
             onFormStart={handleFormStart}
-            onPendingChange={setIsDetailsPending}
+            onPendingChange={setIsMethodPending}
           />
           {children}
         </div>
@@ -114,38 +130,50 @@ export default function SignUpFlow({
 
   return (
     <div className="flex flex-1 flex-col">
-      <SignUpHeader invitationId={invitationId} client={client} />
+      <SignInHeader client={client} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {notice}
         <EmailStep
           defaultEmail={email}
           emailLocked={Boolean(prefilledEmail)}
           autoFocus={cameBack}
-          autoComplete="email"
-          captchaEntry="signup"
+          autoComplete="username webauthn"
+          captchaEntry="signin"
+          lastUsedLabel={isEmailLastUsed ? t("lastUsed") : undefined}
           detour={{
-            when: "exists",
-            title: t("AccountExists.title"),
-            description: t("AccountExists.description"),
-            label: t("AccountExists.logIn"),
-            href: signInHref,
+            when: "missing",
+            title: t("NoAccount.title"),
+            description: t("NoAccount.description"),
+            label: t("NoAccount.createAccount"),
+            href: signUpHref,
           }}
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
-            await emailCode.sendCode(confirmedEmail);
-            setStep("details");
+            if (initialMethod === "code") {
+              await emailCode.sendCode(confirmedEmail);
+            }
+            setStep("method");
           }}
         />
         <Divider />
-        <SocialButtons returnUrl={returnUrl} lastUsedMethod={lastUsedMethod} />
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
+        <SocialButtons
+          returnUrl={returnUrl}
+          lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
+          showPasskey
+        />
+        <div className="flex flex-row items-center gap-2">
           <span className="text-muted-foreground text-sm">
-            {t("Login.message")}
+            {t("Register.message")}
           </span>
-          <SignInLink />
+          <Link
+            href={signUpHref}
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            {t("Register.link")}
+          </Link>
         </div>
         {children}
       </div>

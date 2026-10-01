@@ -1164,16 +1164,8 @@
     },
     "SocialButtons": {
       "continueWith": "Continuar con {provider}",
-      "passwordDivider": "o iniciar sesión con contraseña",
       "orDivider": "o",
-      "emailCodeProvider": "correo electrónico",
-      "emailCodeInputLabel": "Correo electrónico para el código de acceso",
-      "emailCodePlaceholder": "Introduce tu correo electrónico",
-      "emailCodeSend": "Envíame un código",
-      "emailCodeSending": "Enviando código...",
-      "emailCodeSubmit": "Iniciar sesión",
       "emailCodeError": "No pudimos enviar un código. Inténtalo de nuevo.",
-      "emailCodeInvalidEmail": "Introduce una dirección de correo electrónico válida.",
       "success": "Sesión iniciada correctamente",
       "error": "Error al iniciar sesión",
       "lastUsed": "Usado por última vez",
@@ -1186,6 +1178,20 @@
     "PasswordToggle": {
       "show": "Mostrar contraseña",
       "hide": "Ocultar contraseña"
+    },
+    "Email": {
+      "Form": {
+        "label": "Email",
+        "continueWithEmail": "Continuar con email",
+        "change": "Cambiar",
+        "changeEmail": "Cambiar email",
+        "usePasswordInstead": "Usar una contraseña en su lugar",
+        "emailCodeInstead": "Envíame un código en su lugar",
+        "emailCodeSending": "Enviando código...",
+        "codeStillWorks": "El código que enviamos sigue siendo válido.",
+        "useCodeInstead": "Usar el código en su lugar",
+        "error": "No pudimos comprobar este email. Inténtalo de nuevo."
+      }
     },
     "Pages": {
       "SignIn": {
@@ -1203,11 +1209,8 @@
           "lastUsed": "Usado por última vez",
           "error": "Email o contraseña incorrectos",
           "Fields": {
-            "Email": {
-              "placeholder": "Email"
-            },
             "Password": {
-              "placeholder": "Contraseña"
+              "label": "Contraseña"
             },
             "RememberMe": {
               "label": "Mantenerme conectado"
@@ -1220,6 +1223,11 @@
           },
           "Errors": {
             "termsNotAccepted": "Debes aceptar los términos de uso para iniciar sesión"
+          },
+          "NoAccount": {
+            "title": "No hay ninguna cuenta con este email",
+            "description": "Crea una con este email o introduce otro para iniciar sesión.",
+            "createAccount": "Crear cuenta"
           }
         }
       },
@@ -1248,19 +1256,13 @@
         },
         "Form": {
           "submit": "Registrarse",
-          "continueWithEmail": "Continuar con email",
           "AccountExists": {
             "title": "Ya tienes una cuenta",
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "change": "Cambiar",
-          "changeEmail": "Cambiar email",
           "error": "Error al registrarse",
           "Fields": {
-            "Email": {
-              "label": "Email"
-            },
             "FirstName": {
               "label": "Nombre"
             },
@@ -1291,12 +1293,7 @@
           "Login": {
             "message": "¿Ya tienes cuenta?",
             "link": "Iniciar sesión"
-          },
-          "emailCodeInstead": "Envíame un código en su lugar",
-          "emailCodeSending": "Enviando código...",
-          "usePasswordInstead": "Usar una contraseña en su lugar",
-          "codeStillWorks": "El código que enviamos sigue siendo válido.",
-          "useCodeInstead": "Usar el código en su lugar"
+          }
         }
       },
       "ForgotPassword": {

@@ -3,7 +3,10 @@ import userEvent from "@testing-library/user-event";
 import { toast } from "sonner";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { takeSignInEmailHint } from "@/lib/auth/sign-in-email-hint";
+import {
+  rememberAuthEmailHint,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   captchaFetchOptions,
@@ -79,7 +82,7 @@ vi.mock("./form", () => ({
 }));
 
 function emailField() {
-  return screen.getByLabelText("Fields.Email.label");
+  return screen.getByLabelText("label");
 }
 
 async function continueWith(
@@ -190,9 +193,9 @@ describe("SignUpFlow", () => {
       }),
     );
     // The confirmed address stands where the email field was, under its label.
-    expect(
-      screen.getByRole("group", { name: "Fields.Email.label" }),
-    ).toHaveTextContent("ada@example.com");
+    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+      "ada@example.com",
+    );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
   });
 
@@ -216,7 +219,7 @@ describe("SignUpFlow", () => {
   });
 
   function notice() {
-    return screen.getByTestId("sign-up-account-exists");
+    return screen.getByTestId("email-step-detour");
   }
 
   function logInLink() {
@@ -312,7 +315,7 @@ describe("SignUpFlow", () => {
       now += 401;
       fireEvent.click(logInLink());
 
-      expect(takeSignInEmailHint()).toBe("ada@example.com");
+      expect(takeAuthEmailHint()).toBe("ada@example.com");
     });
 
     it("ignores the second click of a double-click on the button it replaced", async () => {
@@ -322,7 +325,7 @@ describe("SignUpFlow", () => {
       const followed = fireEvent.click(logInLink());
 
       expect(followed).toBe(false);
-      expect(takeSignInEmailHint()).toBeNull();
+      expect(takeAuthEmailHint()).toBeNull();
     });
   });
 
@@ -398,6 +401,16 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
+  it("starts from the email sign-in handed over, editable", async () => {
+    rememberAuthEmailHint("new@example.com");
+
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await waitFor(() => expect(emailField()).toHaveValue("new@example.com"));
+    expect(emailField()).toBeEnabled();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
   it("returns to the email step with the address kept and focused", async () => {
     const user = userEvent.setup();
     render(<SignUpFlow lastUsedMethod={null} />);
@@ -428,9 +441,9 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "invited@example.com" }),
     );
-    expect(
-      screen.getByRole("group", { name: "Fields.Email.label" }),
-    ).toHaveTextContent("invited@example.com");
+    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+      "invited@example.com",
+    );
     expect(
       screen.queryByRole("button", { name: "changeEmail" }),
     ).not.toBeInTheDocument();

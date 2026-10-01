@@ -1,11 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  rememberSignInEmailHint,
-  takeSignInEmailHint,
-} from "./sign-in-email-hint";
+import { rememberAuthEmailHint, takeAuthEmailHint } from "./auth-email-hint";
 
-describe("sign-in email hint", () => {
+describe("auth email hint", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
   });
@@ -15,16 +12,16 @@ describe("sign-in email hint", () => {
   });
 
   it("hands the remembered email over once", () => {
-    rememberSignInEmailHint("  ada@example.com ");
+    rememberAuthEmailHint("  ada@example.com ");
 
-    expect(takeSignInEmailHint()).toBe("ada@example.com");
-    expect(takeSignInEmailHint()).toBeNull();
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+    expect(takeAuthEmailHint()).toBeNull();
   });
 
   it("remembers nothing for a blank email", () => {
-    rememberSignInEmailHint("   ");
+    rememberAuthEmailHint("   ");
 
-    expect(takeSignInEmailHint()).toBeNull();
+    expect(takeAuthEmailHint()).toBeNull();
   });
 
   it("stays quiet when session storage is unavailable", () => {
@@ -33,7 +30,7 @@ describe("sign-in email hint", () => {
       throw new Error("blocked");
     });
 
-    expect(() => rememberSignInEmailHint("ada@example.com")).not.toThrow();
-    expect(takeSignInEmailHint()).toBeNull();
+    expect(() => rememberAuthEmailHint("ada@example.com")).not.toThrow();
+    expect(takeAuthEmailHint()).toBeNull();
   });
 });

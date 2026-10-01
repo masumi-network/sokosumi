@@ -3,20 +3,15 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import Divider from "@/auth/components/divider";
 import OAuthHandBack from "@/auth/components/oauth-hand-back";
 import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
-import SocialButtons, {
-  type SignInMethodId,
-} from "@/auth/components/social-buttons";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
 import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-import SignInForm from "./components/form";
-import SignInHeader from "./components/header";
+import SignInFlow from "./components/sign-in-flow";
 
 export const instant = false;
 
@@ -61,35 +56,19 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     },
     "last_used_login_method",
   );
-  const lastUsedLoginMethod = parseLastUsedAuthMethod(
+  const lastUsedMethod = parseLastUsedAuthMethod(
     cookieStore.get(lastUsedLoginMethodCookieName)?.value,
   );
-  const lastUsedMethod: SignInMethodId | null =
-    lastUsedLoginMethod === "email" ? null : lastUsedLoginMethod;
-  const isLastUsedEmailLogin = lastUsedLoginMethod === "email";
 
   return (
-    <div className="flex flex-1 flex-col">
-      <SignInHeader client={oauthRequest?.client} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <SignInErrorNotice error={error} />
-        <SocialButtons
-          returnUrl={returnUrl}
-          lastUsedMethod={lastUsedMethod}
-          prefilledEmail={email}
-          // The code returns to this tab, so a sign-in for another app
-          // keeps that app's request.
-          showEmailCode
-          showPasskey
-        />
-        <Divider labelKey="passwordDivider" />
-        <SignInForm
-          returnUrl={returnUrl}
-          prefilledEmail={email}
-          isLastUsedEmailLogin={isLastUsedEmailLogin}
-        />
-        <TermsNotice />
-      </div>
-    </div>
+    <SignInFlow
+      client={oauthRequest?.client}
+      prefilledEmail={email}
+      returnUrl={returnUrl}
+      lastUsedMethod={lastUsedMethod}
+      notice={<SignInErrorNotice error={error} />}
+    >
+      <TermsNotice />
+    </SignInFlow>
   );
 }

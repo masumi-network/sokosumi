@@ -1,21 +1,10 @@
 import type { FormData } from "@/lib/form";
 import type { SignInFormSchemaType } from "@/lib/schemas/auth";
 
-export const signInFormData: FormData<
+export const signInRememberMeFormData: FormData<
   SignInFormSchemaType,
   "Auth.Pages.SignIn.Form"
 > = [
-  {
-    name: "email",
-    placeholderKey: "Fields.Email.placeholder",
-    type: "email",
-    autoComplete: "username webauthn",
-  },
-  {
-    name: "currentPassword",
-    placeholderKey: "Fields.Password.placeholder",
-    type: "password",
-  },
   {
     name: "rememberMe",
     labelKey: "Fields.RememberMe.label",

@@ -1,12 +1,11 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2, Mail } from "lucide-react";
+import { KeyRound, Loader2 } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ComponentProps,
-  type FormEvent,
   useCallback,
   useEffect,
   useMemo,
@@ -18,29 +17,22 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
   buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
-import { emailSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
+import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-import { useEmailCode } from "./use-email-code";
-
-export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "passkey" | "email-otp";
+export type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
   returnUrl?: string;
-  lastUsedMethod?: SignInMethodId | null;
-  prefilledEmail?: string;
-  showEmailCode?: boolean;
+  lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
 }
 
@@ -64,8 +56,6 @@ const socialButtons: Array<{
 export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
-  prefilledEmail,
-  showEmailCode = false,
   showPasskey = false,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
@@ -74,22 +64,7 @@ export default function SocialButtons({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const {
-    captcha,
-    isSending: isSendingEmailCode,
-    sentTo: emailCodeSentTo,
-    sentAt: emailCodeSentAt,
-    sendCode,
-    signInWithCode,
-  } = useEmailCode({ eventType: "signIn", returnUrl: effectiveReturnUrl });
-  const [emailCodeEmail, setEmailCodeEmail] = useState(prefilledEmail ?? "");
-  const [isEmailCodeVisible, setIsEmailCodeVisible] = useState(false);
   const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  // Editing the address after sending asks for a new code.
-  const trimmedEmailCodeEmail = emailCodeEmail.trim();
-  const wasEmailCodeSent =
-    trimmedEmailCodeEmail.length > 0 &&
-    trimmedEmailCodeEmail === emailCodeSentTo;
 
   const finishPasskeySignIn = useCallback(
     (result: unknown) =>
@@ -183,22 +158,6 @@ export default function SocialButtons({
     };
   }, [finishPasskeySignIn, showPasskey]);
 
-  const handleEmailCodeSend = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!emailSchema().safeParse(trimmedEmailCodeEmail).success) {
-      toast.error(t("emailCodeInvalidEmail"));
-      return;
-    }
-
-    track("Sign In", { provider: "email-otp", direct_signup_link: false });
-    await sendCode(trimmedEmailCodeEmail);
-  };
-
-  const handleEmailCodeClick = () => {
-    setIsEmailCodeVisible((currentValue) => !currentValue);
-  };
-
   const handleClick = async (key: SocialButtonProviderId) => {
     track("Sign In", { provider: key, direct_signup_link: false });
 
@@ -282,82 +241,6 @@ export default function SocialButtons({
             )}
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
-        </div>
-      )}
-      {showEmailCode && (
-        <div className="relative">
-          {lastUsedMethod === "email-otp" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            className={cn(
-              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
-              lastUsedMethod === "email-otp"
-                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-                : "bg-senary hover:bg-quinary border-transparent",
-            )}
-            onClick={handleEmailCodeClick}
-          >
-            <Mail className="size-4" />
-            {t("continueWith", { provider: t("emailCodeProvider") })}
-          </Button>
-        </div>
-      )}
-      {showEmailCode && isEmailCodeVisible && (
-        <div className="bg-card-background flex flex-col gap-4 rounded-md border p-4">
-          {/* The submit handler validates and toasts in the page's language. */}
-          <form
-            noValidate
-            className="flex flex-col gap-2"
-            onSubmit={handleEmailCodeSend}
-          >
-            <Input
-              type="email"
-              autoComplete="email"
-              autoCapitalize="none"
-              spellCheck={false}
-              className="text-center placeholder:text-center"
-              value={emailCodeEmail}
-              onChange={(event) => {
-                setEmailCodeEmail(event.target.value);
-              }}
-              placeholder={t("emailCodePlaceholder")}
-              aria-label={t("emailCodeInputLabel")}
-            />
-            {captcha}
-            {wasEmailCodeSent ? null : (
-              <Button
-                type="submit"
-                variant="outline"
-                disabled={isSendingEmailCode}
-              >
-                {isSendingEmailCode
-                  ? t("emailCodeSending")
-                  : t("emailCodeSend")}
-              </Button>
-            )}
-          </form>
-          {wasEmailCodeSent ? (
-            <EmailCodeForm
-              email={trimmedEmailCodeEmail}
-              submitLabel={t("emailCodeSubmit")}
-              onSubmitCode={(code) =>
-                signInWithCode(trimmedEmailCodeEmail, code)
-              }
-              onResend={() => {
-                void sendCode(trimmedEmailCodeEmail);
-              }}
-              sentAt={emailCodeSentAt}
-              isResending={isSendingEmailCode}
-            />
-          ) : null}
         </div>
       )}
     </div>

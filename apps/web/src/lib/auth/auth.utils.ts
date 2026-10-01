@@ -185,7 +185,7 @@ export function buildSignUpUrlFromSignIn(
 
 // No email: sign-in locks a prefilled email field, so a typed sign-up email
 // would trap a person who meant to use another account. A typed email goes
-// over as an editable starting value instead: see `sign-in-email-hint.ts`.
+// over as an editable starting value instead: see `auth-email-hint.ts`.
 export function buildSignInUrlFromSignUp({
   returnUrl,
   oauthQuery,
