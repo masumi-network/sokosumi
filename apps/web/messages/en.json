@@ -1263,32 +1263,13 @@
           },
           "error": "Register failed",
           "Fields": {
-            "FirstName": {
-              "label": "First name"
-            },
-            "LastName": {
-              "label": "Last name"
-            },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
             },
-            "Organization": {
-              "placeholder": "Select an organization",
-              "search": "Search organizations",
-              "create": "Create {organization}",
-              "new": "New Organization",
-              "createPlaceholder": "New organization name",
-              "success": "Organization created successfully",
-              "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see or create organizations"
-            },
             "Password": {
-              "label": "Password"
+              "label": "Password",
+              "description": "At least 8 characters."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "Email domain not allowed",
-            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",

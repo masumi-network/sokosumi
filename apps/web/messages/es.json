@@ -1263,32 +1263,13 @@
           },
           "error": "Error al registrarse",
           "Fields": {
-            "FirstName": {
-              "label": "Nombre"
-            },
-            "LastName": {
-              "label": "Apellido"
-            },
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
             },
-            "Organization": {
-              "placeholder": "Seleccionar organización",
-              "search": "Buscar organizaciones",
-              "create": "Crear {organization}",
-              "new": "Nueva organización",
-              "createPlaceholder": "Nombre de la nueva organización",
-              "success": "Organización creada correctamente",
-              "error": "No se pudo crear la organización",
-              "invalidEmail": "Introduce un email válido para ver o crear organizaciones"
-            },
             "Password": {
-              "label": "Contraseña"
+              "label": "Contraseña",
+              "description": "Al menos 8 caracteres."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "Dominio de email no permitido",
-            "badInput": "Por favor, completa el formulario correctamente."
           },
           "Login": {
             "message": "¿Ya tienes cuenta?",
