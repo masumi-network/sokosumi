@@ -39,14 +39,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import {
   disconnectProjectSocialConnection,
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
-import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
+import {
+  type ComposioConnectionStage,
+  useComposioConnection,
+} from "@/lib/composio/use-composio-connection";
 import { cn } from "@/lib/utils";
 
 interface ProjectSocialAccountsProps {
@@ -113,7 +115,7 @@ export function ProjectSocialAccounts({
 }: ProjectSocialAccountsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.ProjectSocialAccounts");
-  const { runPopupOAuth } = useComposioOAuthPopup();
+  const { connect } = useComposioConnection();
   const disconnectInFlightRef = useRef(false);
   const isMountedRef = useRef(false);
   // Replace and Disconnect open from a row menu that is gone by the time the
@@ -160,7 +162,11 @@ export function ProjectSocialAccounts({
     }
   }
 
-  function showActionError(error: ActionError, fallback: string): void {
+  function showActionError(error: ActionError | null, fallback: string): void {
+    if (!error) {
+      showFeedback({ kind: "error", message: fallback });
+      return;
+    }
     const message = error.message?.toLowerCase();
     showFeedback({
       kind: "error",
@@ -184,100 +190,66 @@ export function ProjectSocialAccounts({
     socialConnectionId?: string,
     provider?: ProjectSocialConnection["provider"],
   ): Promise<void> {
-    try {
-      const popupRun = await runPopupOAuth(async (flow) => {
+    const outcome = await connect({
+      onStart: () => {
         setFeedback(null);
         setPendingAction(action);
         setPendingTarget(provider ?? socialConnectionId ?? null);
-        const refreshAfterReplace = action === "replace";
-        let refreshed = false;
+      },
+      initiate: () =>
+        initiateProjectSocialConnection({
+          projectId,
+          action,
+          ...(provider ? { provider } : {}),
+          ...(socialConnectionId ? { socialConnectionId } : {}),
+        }),
+      finalize: (connectionId) =>
+        finalizeProjectSocialConnection({ projectId, connectionId }),
+    });
 
-        try {
-          const initiation = await initiateProjectSocialConnection({
-            projectId,
-            action,
-            ...(provider ? { provider } : {}),
-            ...(socialConnectionId ? { socialConnectionId } : {}),
-          });
-          if (!initiation.ok) {
-            showActionError(initiation.error, t("errors.intent"));
-            return;
-          }
+    if (outcome.kind === "in_flight") {
+      showFeedback({ kind: "error", message: t("errors.inFlight") });
+      return;
+    }
+    if (outcome.kind === "popup_blocked") {
+      showFeedback({ kind: "error", message: t("errors.popupBlocked") });
+      return;
+    }
 
-          if (!isMountedRef.current) return;
+    if (outcome.kind === "connected") {
+      showFeedback({ kind: "success", message: t("success.connected") });
+    } else if (outcome.kind === "timeout") {
+      showFeedback({ kind: "error", message: t("errors.timeout") });
+    } else if (outcome.kind === "failed") {
+      showFailure(outcome.stage, outcome.error);
+    }
+    // Replacing disconnects the old account when it starts, so the list is
+    // stale however the flow ended.
+    if (action === "replace" || outcome.kind === "connected") {
+      router.refresh();
+    }
+    finishAction();
+  }
 
-          const { connectionId, redirectUrl } = initiation.value;
-          flow.navigate(redirectUrl);
-          const callback = await flow.waitForCallback();
-
-          if (callback.kind === "cancelled") return;
-          if (callback.kind === "timeout") {
-            showFeedback({ kind: "error", message: t("errors.timeout") });
-            return;
-          }
-
-          const { payload } = callback;
-          if (payload.status === "error") {
-            showFeedback({
-              kind: "error",
-              message: t("errors.providerCallback"),
-            });
-            return;
-          }
-          if (payload.connectionId && payload.connectionId !== connectionId) {
-            showFeedback({
-              kind: "error",
-              message: t("errors.legacyCallback"),
-            });
-            return;
-          }
-          if (!payload.sessionUri) {
-            showFeedback({
-              kind: "error",
-              message: t("errors.legacyCallback"),
-            });
-            return;
-          }
-
-          const completion = await completeComposioAuthCallbackAction({
-            connectionId,
-            sessionUri: payload.sessionUri,
-          });
-          if (!completion.ok) {
-            showActionError(completion.error, t("errors.verifier"));
-            return;
-          }
-
-          const finalization = await finalizeProjectSocialConnection({
-            projectId,
-            connectionId,
-          });
-          if (!finalization.ok) {
-            showActionError(finalization.error, t("errors.finalize"));
-            return;
-          }
-
-          showFeedback({ kind: "success", message: t("success.connected") });
-          router.refresh();
-          refreshed = true;
-        } catch {
-          showFeedback({ kind: "error", message: t("errors.finalize") });
-        } finally {
-          if (refreshAfterReplace && !refreshed) {
-            router.refresh();
-          }
-          finishAction();
-        }
-      });
-
-      if (popupRun.kind === "in_flight") {
-        showFeedback({ kind: "error", message: t("errors.inFlight") });
-      }
-      if (popupRun.kind === "popup_blocked") {
-        showFeedback({ kind: "error", message: t("errors.popupBlocked") });
-      }
-    } catch {
-      showFeedback({ kind: "error", message: t("errors.finalize") });
+  function showFailure(
+    stage: ComposioConnectionStage,
+    error: ActionError | null,
+  ): void {
+    switch (stage) {
+      case "provider_callback":
+        showFeedback({ kind: "error", message: t("errors.providerCallback") });
+        return;
+      case "legacy_callback":
+        showFeedback({ kind: "error", message: t("errors.legacyCallback") });
+        return;
+      case "initiate":
+        showActionError(error, t("errors.intent"));
+        return;
+      case "verify":
+        showActionError(error, t("errors.verifier"));
+        return;
+      default:
+        showActionError(error, t("errors.finalize"));
     }
   }
 

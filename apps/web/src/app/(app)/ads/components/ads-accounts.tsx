@@ -2,6 +2,7 @@
 
 import type {
   AvailableAdAccount,
+  FinalizeProjectAdConnectionResponse,
   ProjectAdAccount,
   ProjectAdProvider,
 } from "@sokosumi/core-client";
@@ -27,9 +28,8 @@ import {
   finalizeAdConnection,
   initiateAdConnection,
 } from "@/lib/actions/ads/action";
-import { completeComposioAuthCallbackAction } from "@/lib/actions/composio/action";
 import { AdsErrorCode } from "@/lib/actions/errors/error-codes/ads";
-import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
+import { useComposioConnection } from "@/lib/composio/use-composio-connection";
 
 import { AdAccountPickerDialog } from "./ad-account-picker-dialog";
 
@@ -57,7 +57,7 @@ interface AdsAccountsProps {
  */
 export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
   const t = useTranslations("App.Ads.accounts");
-  const { runPopupOAuth } = useComposioOAuthPopup();
+  const { connect: connectComposio } = useComposioConnection();
   const [connecting, setConnecting] = useState<ProjectAdProvider | null>(null);
   // Providers Core said it has no auth config for, until the page reloads.
   const [unavailable, setUnavailable] = useState<readonly ProjectAdProvider[]>(
@@ -76,7 +76,7 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
 
   function failConnect(
     provider: ProjectAdProvider,
-    error?: { code: string },
+    error: { code: string } | null,
   ): void {
     if (error?.code === AdsErrorCode.NOT_CONFIGURED) {
       setUnavailable((current) =>
@@ -88,79 +88,52 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
   }
 
   async function connect(provider: ProjectAdProvider): Promise<void> {
-    const popupRun = await runPopupOAuth(async (flow) => {
-      setNoAccountsFound(false);
-      setConnecting(provider);
-
-      try {
-        const initiation = await initiateAdConnection({ projectId, provider });
-        if (!initiation.ok) {
-          failConnect(provider, initiation.error);
-          return;
-        }
-
-        const { connectionId, redirectUrl } = initiation.value;
-        flow.navigate(redirectUrl);
-        const callback = await flow.waitForCallback();
-
-        if (callback.kind === "cancelled") return;
-        if (callback.kind === "timeout") {
-          toast.error(t("errors.timeout"));
-          return;
-        }
-
-        const { payload } = callback;
-        if (
-          payload.status === "error" ||
-          !payload.sessionUri ||
-          (payload.connectionId && payload.connectionId !== connectionId)
-        ) {
-          failConnect(provider);
-          return;
-        }
-
-        const completion = await completeComposioAuthCallbackAction({
-          connectionId,
-          sessionUri: payload.sessionUri,
-        });
-        if (!completion.ok) {
-          failConnect(provider, completion.error);
-          return;
-        }
-
-        const finalization = await finalizeAdConnection({
-          projectId,
-          connectionId,
-        });
-        if (!finalization.ok) {
-          failConnect(provider, finalization.error);
-          return;
-        }
-
-        const { availableAccounts, connection } = finalization.value;
-        if (availableAccounts.length === 0) {
-          setNoAccountsFound(true);
-          return;
-        }
-        if (!connection) {
-          failConnect(provider);
-          return;
-        }
-        setPicker({
-          accounts: availableAccounts,
-          connectionId: connection.id,
-          provider,
-        });
-      } catch {
-        failConnect(provider);
-      } finally {
-        setConnecting(null);
-      }
+    const outcome = await connectComposio({
+      onStart: () => {
+        setNoAccountsFound(false);
+        setConnecting(provider);
+      },
+      initiate: () => initiateAdConnection({ projectId, provider }),
+      finalize: (connectionId) =>
+        finalizeAdConnection({ projectId, connectionId }),
     });
 
-    if (popupRun.kind === "in_flight") toast.error(t("errors.inFlight"));
-    if (popupRun.kind === "popup_blocked") {
-      toast.error(t("errors.popupBlocked"));
+    switch (outcome.kind) {
+      case "in_flight":
+        toast.error(t("errors.inFlight"));
+        return;
+      case "popup_blocked":
+        toast.error(t("errors.popupBlocked"));
+        return;
+      case "connected":
+        showFinalization(provider, outcome.value);
+        break;
+      case "timeout":
+        toast.error(t("errors.timeout"));
+        break;
+      case "failed":
+        failConnect(provider, outcome.error);
+        break;
+      case "cancelled":
+        break;
+    }
+    setConnecting(null);
+  }
+
+  function showFinalization(
+    provider: ProjectAdProvider,
+    { availableAccounts, connection }: FinalizeProjectAdConnectionResponse,
+  ): void {
+    if (availableAccounts.length === 0) {
+      setNoAccountsFound(true);
+    } else if (connection) {
+      setPicker({
+        accounts: availableAccounts,
+        connectionId: connection.id,
+        provider,
+      });
+    } else {
+      failConnect(provider, null);
     }
   }
 
