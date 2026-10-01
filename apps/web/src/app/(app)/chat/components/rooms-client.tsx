@@ -244,6 +244,7 @@ import {
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
+import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
 
@@ -3286,6 +3287,12 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
+              {/* The prompt checks the bot is the viewer's own before it shows. */}
+              {isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                <SokoBotConnectPrompt
+                  sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                />
+              ) : null}
               <RoomSessionComposer
                 ref={roomComposerRef}
                 roomId={selectedRoom.id}
