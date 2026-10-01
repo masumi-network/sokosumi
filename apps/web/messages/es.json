@@ -2404,7 +2404,6 @@
           "editTitle": "Editar publicación",
           "scheduleTitle": "Programar publicación",
           "rescheduleTitle": "Reprogramar publicación",
-          "description": "Elige dónde va, escríbela y decide cuándo sale.",
           "text": "Texto",
           "textPlaceholder": "¿Qué quieres publicar?",
           "characters": "{count} / {limit}",
@@ -2413,7 +2412,6 @@
             "upload": "Subir",
             "uploading": "Subiendo…",
             "remove": "Quitar {name}",
-            "hint": "Adjunta imágenes o un vídeo, dentro de los límites de {provider}.",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
             "uploadDuplicate": "Ya existe un archivo con este nombre en el Drive. Cámbialo de nombre e inténtalo de nuevo.",
@@ -2436,9 +2434,8 @@
           "account": "Cuenta",
           "accounts": "Publicar en",
           "accountOption": "{provider} {handle}",
-          "noAccounts": "Aún no hay cuentas conectadas. Conecta una en la pestaña Cuentas.",
+          "noAccounts": "Conecta una para publicar o programar. Aun así puedes guardar un borrador.",
           "unknownHandle": "Cuenta desconocida",
-          "scheduledAt": "Hora programada",
           "scheduledAtTooSoon": "Elige una hora que sea al menos un minuto en el futuro.",
           "saveDraft": "Guardar borrador",
           "save": "Guardar",
@@ -2458,7 +2455,8 @@
             "pickTime": "Elegir hora",
             "dateSelected": "Fecha: {date}",
             "timeSelected": "Hora: {time}",
-            "times": "Horas"
+            "times": "Horas",
+            "now": "Ahora"
           },
           "timezone": {
             "yours": "Las horas están en tu zona horaria, {zone}.",
@@ -2472,7 +2470,16 @@
             "mediaPost": "publicación con imagen o video",
             "video": "video (el texto es el título y la descripción)"
           },
-          "publishNow": "Publicar ahora"
+          "publishNow": "Publicar ahora",
+          "when": "Cuándo",
+          "whenOptional": "Opcional. Déjalo vacío para mantener un borrador.",
+          "scheduleFor": "Programar para {date}",
+          "rescheduleFor": "Reprogramar para {date}",
+          "noAccountsTitle": "Aún no hay ninguna cuenta conectada",
+          "connectAccount": "Conectar cuenta",
+          "dismiss": "Cancelar",
+          "previewEmpty": "Tu publicación aparece aquí mientras escribes.",
+          "pickAccount": "Elige una cuenta en la que publicar."
         },
         "cancelDialog": {
           "title": "¿Cancelar esta publicación?",
