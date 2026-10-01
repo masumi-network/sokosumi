@@ -1,6 +1,7 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { cn } from "@/lib/utils";
+import { BOARD_COLUMN_CLASS } from "./board-classes";
 
 import { ColumnHeader } from "./column-header";
 import { TaskCard } from "./task-card";
@@ -25,12 +26,7 @@ export function KanbanColumn({
   const isEmpty = tasks.length === 0 && !footer;
 
   return (
-    <section
-      className={cn(
-        "flex h-full min-h-0 min-w-[260px] shrink-0 flex-1 flex-col rounded-xl transition-colors sm:min-w-[280px] lg:min-w-[350px]",
-        "bg-card-background",
-      )}
-    >
+    <section className={cn("h-full", BOARD_COLUMN_CLASS)}>
       <div className="sticky top-0 z-10 px-3 pt-3 pb-2">
         <ColumnHeader
           title={title}

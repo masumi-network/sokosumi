@@ -7026,19 +7026,17 @@
       "assistantFallback": "Asistente personal",
       "chatError": "No se pudo abrir el chat.",
       "manage": "Ajustes",
-      "teamTitle": "Equipo",
       "teamDescriptionPersonal": "Este es tu espacio personal. Únete a una organización o crea una para ver compañeros aquí.",
       "disabled": "Soko Bot no está disponible temporalmente",
-      "previous": "Personas anteriores",
-      "next": "Siguientes personas",
       "noAssistantYou": "Aún no tienes asistente",
-      "yourAssistant": "Tu asistente",
-      "yourAssistantHint": "Delega trabajo, hace seguimiento y te mantiene al día.",
       "chat": "Chat",
       "teamSummary": "{bots, plural, one {# asistente} other {# asistentes}} · {people, plural, one {# persona} other {# personas}}",
-      "noTeamBots": "Nadie más aquí ha configurado un asistente todavía.",
       "notSetUp": "Aún sin configurar",
-      "messageBot": "Escribir a {name}"
+      "messageBot": "Escribir a {name}",
+      "lastActive": "Activo por última vez el {date}",
+      "notActiveYet": "Aún sin actividad",
+      "statsTasks": "{count, plural, one {# tarea} other {# tareas}} en los últimos {days} días",
+      "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en los últimos {days} días"
     },
     "Calendar": {
       "Metadata": {

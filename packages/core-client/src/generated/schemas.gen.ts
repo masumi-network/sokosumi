@@ -22102,6 +22102,14 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
+                            },
+                            lastActivityAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
                             }
                         },
                         required: [
@@ -22109,7 +22117,8 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status'
+                            'status',
+                            'lastActivityAt'
                         ]
                     }
                 },

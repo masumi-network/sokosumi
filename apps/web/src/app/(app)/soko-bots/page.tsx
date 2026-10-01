@@ -1,14 +1,17 @@
+import { Settings } from "lucide-react";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { Button } from "@/components/ui/button";
 import { getSessionOrRedirect } from "@/lib/auth/auth.server";
 import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
+import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
-import { TeamCarousel } from "./components/team-carousel";
-import { YourAssistant } from "./components/your-assistant";
+import { SokoBotBoard } from "./components/soko-bot-board";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.SokoBots");
@@ -19,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-/** Your own assistant first, then everyone else's. */
+/** The workspace's assistants, laid out like the Task board. */
 export default async function SokoBotsPage() {
   const session = await getSessionOrRedirect();
   // Same beta gate as the assistant route.
@@ -33,19 +36,35 @@ export default async function SokoBotsPage() {
       throw error;
     }),
   ]);
-  const me = team?.members.find((member) => member.isYou) ?? null;
+  const myBot = team?.members.find((member) => member.isYou)?.bot ?? null;
+  const stats = myBot
+    ? await sokoBotService.getStats().catch(() => null)
+    : null;
+  const others = team?.members.filter((member) => !member.isYou) ?? [];
 
   return (
-    <div className="mx-auto w-full max-w-6xl space-y-10 py-4">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground max-w-2xl text-sm">
-          {t("description")}
+    <div className="flex w-full flex-col gap-5 py-2">
+      <h1 className="sr-only">{t("title")}</h1>
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-muted-foreground text-xs tabular-nums">
+          {team?.workspace.kind === "personal"
+            ? t("teamDescriptionPersonal")
+            : t("teamSummary", {
+                bots: others.filter((member) => member.bot).length,
+                people: others.length,
+              })}
         </p>
-      </header>
-      <YourAssistant me={me} />
+        {myBot ? (
+          <Button asChild size="sm" variant="outline">
+            <Link href={SOKO_BOT_ROUTE}>
+              <Settings aria-hidden className="size-3.5" />
+              {t("manage")}
+            </Link>
+          </Button>
+        ) : null}
+      </div>
       {team ? (
-        <TeamCarousel team={team} />
+        <SokoBotBoard team={team} stats={stats} />
       ) : (
         <p className="text-muted-foreground text-sm">{t("unavailable")}</p>
       )}

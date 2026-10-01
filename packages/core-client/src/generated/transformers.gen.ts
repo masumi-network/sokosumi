@@ -3157,7 +3157,20 @@ export const simulateMySokoBotTaskEventResponseTransformer = async (data: any): 
     return data;
 };
 
+const sokoBotTeamSchemaResponseTransformer = (data: any) => {
+    data.members = data.members.map((item: any) => {
+        if (item.bot) {
+            if (item.bot.lastActivityAt) {
+                item.bot.lastActivityAt = new Date(item.bot.lastActivityAt);
+            }
+        }
+        return item;
+    });
+    return data;
+};
+
 export const getSokoBotTeamResponseTransformer = async (data: any): Promise<GetSokoBotTeamResponse> => {
+    data.data = sokoBotTeamSchemaResponseTransformer(data.data);
     data.meta.timestamp = new Date(data.meta.timestamp);
     return data;
 };

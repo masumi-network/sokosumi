@@ -69,31 +69,15 @@ export function StatusBadge({
         className,
       )}
     >
-      <StatusDot tone={tone} live={live} />
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          DOT_CLASSES[tone],
+          live && "motion-safe:animate-pulse",
+        )}
+      />
       {children}
     </span>
-  );
-}
-
-/** The badge's dot on its own, for rows where a pill would be noise. */
-export function StatusDot({
-  tone,
-  live = false,
-  className,
-}: {
-  tone: StatusTone;
-  live?: boolean;
-  className?: string;
-}) {
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        "size-1.5 shrink-0 rounded-full",
-        DOT_CLASSES[tone],
-        live && "motion-safe:animate-pulse",
-        className,
-      )}
-    />
   );
 }

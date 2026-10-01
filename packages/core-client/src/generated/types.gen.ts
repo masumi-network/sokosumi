@@ -6321,6 +6321,7 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
+            lastActivityAt: Date | null;
         } | null;
     }>;
 };

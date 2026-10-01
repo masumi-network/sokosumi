@@ -6,6 +6,7 @@ import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import type { TaskStatus as TaskStatusType } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
+import { BOARD_CARD_CLASS } from "./board-classes";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
@@ -42,7 +43,7 @@ export function TaskCard({
     >
       <article
         className={cn(
-          "bg-background border-border relative isolate rounded-lg border transition-[border-color,box-shadow,transform] hover:border-primary hover:shadow-sm press content-in",
+          BOARD_CARD_CLASS,
           compact ? "space-y-1 p-2" : "space-y-2.5 p-3",
           dragHandleProps?.isDragging &&
             "border-primary-tertiary ring-ring-halo shadow-lg ring-2",
