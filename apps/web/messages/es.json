@@ -3800,7 +3800,8 @@
           "unnamed": "Sin nombre",
           "archived": "Archivado",
           "version": "Versión",
-          "showDormant": "Mostrar sin uso y archivados ({count})"
+          "showDormant": "Mostrar sin uso y archivados ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Volver a Soko Bots",
@@ -3819,7 +3820,8 @@
           "viewsNav": "Vistas del bot",
           "views": {
             "status": "Estado",
-            "advanced": "Avanzado"
+            "advanced": "Avanzado",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Eliminar este Soko Bot",
@@ -3831,6 +3833,17 @@
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
             "error": "No se pudo eliminar este Soko Bot."
+          },
+          "chat": {
+            "readOnly": "Solo lectura",
+            "roomsNav": "Chats",
+            "ownerRoom": "Propietario",
+            "loadOlder": "Cargar anteriores",
+            "loading": "Cargando…",
+            "noMessages": "Aún no hay mensajes.",
+            "empty": "Nadie ha chateado con este bot todavía.",
+            "deleted": "Mensaje eliminado",
+            "loadError": "No se pudieron cargar los mensajes anteriores."
           }
         },
         "Actions": {

@@ -434,6 +434,204 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
+export type AdminSokoBotChatRoom = {
+    id: string;
+    isOwnerRoom: boolean;
+    participants: Array<{
+        id: string;
+        name: string | null;
+    }>;
+    archived: boolean;
+    lastActivityAt: string;
+};
+
+export type ChatRoomMessage = {
+    id: string;
+    roomId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
+    threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
+    threadLastReplyAt: Date | null;
+    /**
+     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
+     */
+    threadRepliers?: Array<ChatRoomMessageSender>;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
+    groupNameChange: ChatRoomMessageGroupNameChange;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
+};
+
+export type ChatRoomMessageSender = {
+    type: 'user';
+    user: ChatRoomUserParticipant;
+} | {
+    type: 'coworker';
+    coworker: ChatRoomCoworkerParticipant;
+} | {
+    type: 'sokoBot';
+    sokoBot: ChatRoomSokoBotParticipant;
+} | {
+    type: 'unknown';
+};
+
+export type ChatRoomUserParticipant = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    presence: ChatRoomPresence;
+    access?: ChatRoomAccess;
+    /**
+     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
+     */
+    lastReadAt?: Date | null;
+};
+
+export const ChatRoomPresence = {
+    ONLINE: 'online',
+    AFK: 'afk',
+    OFFLINE: 'offline'
+} as const;
+
+export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
+
+export type ChatRoomCoworkerParticipant = {
+    id: string;
+    name: string;
+    slug: string;
+    caption: string | null;
+    image: string | null;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomSokoBotParticipant = {
+    id: string;
+    name: string;
+    caption: string | null;
+    image: string | null;
+    avatarSeed: string | null;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomMessageMention = {
+    id: string;
+    coworkerId: string | null;
+    sokoBotId: string | null;
+    status: ChatRoomMentionStatus;
+    responseMessageId: string | null;
+};
+
+export const ChatRoomMentionStatus = {
+    PENDING: 'pending',
+    SENT: 'sent',
+    RESPONDED: 'responded',
+    FAILED: 'failed'
+} as const;
+
+export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
+
+export type ChatRoomMessageReaction = {
+    emoji: string;
+    count: number;
+    reactedByCurrentUser: boolean;
+    /**
+     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
+     */
+    reactors: Array<ChatRoomMessageReactor>;
+};
+
+export type ChatRoomMessageReactor = {
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageQuote = {
+    messageId: string;
+    authorName: string;
+    snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
+     */
+    roomId?: string;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
+} | null;
+
+export type ChatRoomMessageMembership = {
+    action: 'joined' | 'left';
+    subject: ChatRoomMessageMembershipSubject;
+} | null;
+
+export type ChatRoomMessageMembershipSubject = {
+    type: 'user';
+    id: string;
+    name: string;
+} | {
+    type: 'coworker';
+    id: string;
+    name: string;
+} | {
+    type: 'sokoBot';
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageGroupNameChange = {
+    action: 'named' | 'cleared';
+    /**
+     * The new Group name; null when it was cleared.
+     */
+    name: string | null;
+    actor: {
+        id: string;
+        name: string;
+    };
+} | null;
+
+export type ChatRoomMessageUnfurl = {
+    url: string;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -2423,7 +2621,7 @@ export type ChatRoom = {
      * True when the current user marked this room unread. Cleared on mark-read.
      */
     markedUnread: boolean;
-    myAccess: ChatRoomAccess;
+    myAccess: ChatRoomAccess & unknown;
     /**
      * True when every other human on a Direct is a Member of the caller's active organization. False with no active organization.
      */
@@ -2431,55 +2629,6 @@ export type ChatRoom = {
     userMembers: Array<ChatRoomUserParticipant>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
     sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
-};
-
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
-
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
-
-export type ChatRoomUserParticipant = {
-    id: string;
-    name: string;
-    email: string;
-    image: string | null;
-    presence: ChatRoomPresence;
-    access?: ChatRoomAccess & unknown;
-    /**
-     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
-     */
-    lastReadAt?: Date | null;
-};
-
-export const ChatRoomPresence = {
-    ONLINE: 'online',
-    AFK: 'afk',
-    OFFLINE: 'offline'
-} as const;
-
-export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
-
-export type ChatRoomCoworkerParticipant = {
-    id: string;
-    name: string;
-    slug: string;
-    caption: string | null;
-    image: string | null;
-    presence: ChatRoomPresence;
-};
-
-export type ChatRoomSokoBotParticipant = {
-    id: string;
-    name: string;
-    caption: string | null;
-    image: string | null;
-    avatarSeed: string | null;
-    presence: ChatRoomPresence;
 };
 
 /**
@@ -2685,107 +2834,6 @@ export type ChatRoomPinnedMessageListItem = {
     } | null;
 };
 
-export type ChatRoomMessageSender = {
-    type: 'user';
-    user: ChatRoomUserParticipant;
-} | {
-    type: 'coworker';
-    coworker: ChatRoomCoworkerParticipant;
-} | {
-    type: 'sokoBot';
-    sokoBot: ChatRoomSokoBotParticipant;
-} | {
-    type: 'unknown';
-};
-
-export type ChatRoomMessageMention = {
-    id: string;
-    coworkerId: string | null;
-    sokoBotId: string | null;
-    status: ChatRoomMentionStatus;
-    responseMessageId: string | null;
-};
-
-export const ChatRoomMentionStatus = {
-    PENDING: 'pending',
-    SENT: 'sent',
-    RESPONDED: 'responded',
-    FAILED: 'failed'
-} as const;
-
-export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
-
-export type ChatRoomMessageReaction = {
-    emoji: string;
-    count: number;
-    reactedByCurrentUser: boolean;
-    /**
-     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
-     */
-    reactors: Array<ChatRoomMessageReactor>;
-};
-
-export type ChatRoomMessageReactor = {
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageQuote = {
-    messageId: string;
-    authorName: string;
-    snippet: string;
-    attachment?: ChatRoomMessageQuoteAttachment;
-    /**
-     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
-     */
-    roomId?: string;
-} | null;
-
-export type ChatRoomMessageQuoteAttachment = {
-    fileName: string;
-    url: string;
-    mediaKind: 'image' | 'file';
-} | null;
-
-export type ChatRoomMessageMembership = {
-    action: 'joined' | 'left';
-    subject: ChatRoomMessageMembershipSubject;
-} | null;
-
-export type ChatRoomMessageMembershipSubject = {
-    type: 'user';
-    id: string;
-    name: string;
-} | {
-    type: 'coworker';
-    id: string;
-    name: string;
-} | {
-    type: 'sokoBot';
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageGroupNameChange = {
-    action: 'named' | 'cleared';
-    /**
-     * The new Group name; null when it was cleared.
-     */
-    name: string | null;
-    actor: {
-        id: string;
-        name: string;
-    };
-} | null;
-
-export type ChatRoomMessageUnfurl = {
-    url: string;
-    title: string;
-    description: string | null;
-    imageUrl: string | null;
-    siteName: string | null;
-};
-
 export type UpdateChatRoomRequest = {
     name?: string;
     /**
@@ -2886,43 +2934,6 @@ export type ChatRoomThread = {
      * When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.
      */
     mutedAt: Date | null;
-};
-
-export type ChatRoomMessage = {
-    id: string;
-    roomId: string;
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-    deletedAt: Date | null;
-    editedAt: Date | null;
-    /**
-     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
-     */
-    pinnedAt: Date | null;
-    sender: ChatRoomMessageSender;
-    mentions: Array<ChatRoomMessageMention>;
-    reactions: Array<ChatRoomMessageReaction>;
-    threadReplyCount: number;
-    /**
-     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
-     */
-    threadUnreadReplyCount?: number;
-    threadLastReplyAt: Date | null;
-    /**
-     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
-     */
-    threadRepliers?: Array<ChatRoomMessageSender>;
-    metadata: {
-        [key: string]: unknown;
-    } | null;
-    quote: ChatRoomMessageQuote;
-    membership: ChatRoomMessageMembership;
-    groupNameChange: ChatRoomMessageGroupNameChange;
-    /**
-     * Link preview cards scraped from message URLs (absent while pending).
-     */
-    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomThreadsUnreadCount = {
@@ -9494,6 +9505,166 @@ export type MigrateAdminSokoBotVersionsResponses = {
 };
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
+
+export type ListAdminSokoBotChatsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/chats';
+};
+
+export type ListAdminSokoBotChatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsError = ListAdminSokoBotChatsErrors[keyof ListAdminSokoBotChatsErrors];
+
+export type ListAdminSokoBotChatsResponses = {
+    /**
+     * Soko Bot direct chats
+     */
+    200: {
+        data: Array<AdminSokoBotChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsResponse = ListAdminSokoBotChatsResponses[keyof ListAdminSokoBotChatsResponses];
+
+export type ListAdminSokoBotChatMessagesData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+        roomId: string;
+    };
+    query?: {
+        /**
+         * Oldest message id of the previous page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/admin/soko-bots/{sokoBotId}/chats/{roomId}/messages';
+};
+
+export type ListAdminSokoBotChatMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesError = ListAdminSokoBotChatMessagesErrors[keyof ListAdminSokoBotChatMessagesErrors];
+
+export type ListAdminSokoBotChatMessagesResponses = {
+    /**
+     * Chat messages
+     */
+    200: {
+        data: Array<ChatRoomMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesResponse = ListAdminSokoBotChatMessagesResponses[keyof ListAdminSokoBotChatMessagesResponses];
 
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;

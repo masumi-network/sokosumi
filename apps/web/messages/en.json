@@ -3836,7 +3836,8 @@
           "unnamed": "Unnamed",
           "archived": "Archived",
           "version": "Version",
-          "showDormant": "Show unused and archived ({count})"
+          "showDormant": "Show unused and archived ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
@@ -3855,7 +3856,8 @@
           "viewsNav": "Bot views",
           "views": {
             "status": "Status",
-            "advanced": "Advanced"
+            "advanced": "Advanced",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Delete this Soko Bot",
@@ -3867,6 +3869,17 @@
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
             "error": "Could not delete this Soko Bot."
+          },
+          "chat": {
+            "readOnly": "Read-only",
+            "roomsNav": "Chats",
+            "ownerRoom": "Owner",
+            "loadOlder": "Load older",
+            "loading": "Loading…",
+            "noMessages": "No messages yet.",
+            "empty": "Nobody has chatted with this bot yet.",
+            "deleted": "Message deleted",
+            "loadError": "Could not load older messages."
           }
         },
         "Actions": {
