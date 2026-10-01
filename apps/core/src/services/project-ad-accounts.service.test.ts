@@ -14,6 +14,8 @@ const m = vi.hoisted(() => {
     revoke: vi.fn(),
     listGoogle: vi.fn(),
     listMeta: vi.fn(),
+    googleCampaigns: vi.fn(),
+    metaCampaigns: vi.fn(),
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     intentFindUnique: vi.fn(),
@@ -71,8 +73,14 @@ vi.mock("@/config/env", () => ({
   getEnv: m.getEnv,
   getWebAppBaseUrl: () => "https://app.sokosumi.com",
 }));
-vi.mock("@/lib/ads/google-ads", () => ({ listGoogleAdAccounts: m.listGoogle }));
-vi.mock("@/lib/ads/meta-ads", () => ({ listMetaAdAccounts: m.listMeta }));
+vi.mock("@/lib/ads/google-ads", () => ({
+  listGoogleAdAccounts: m.listGoogle,
+  listGoogleCampaigns: m.googleCampaigns,
+}));
+vi.mock("@/lib/ads/meta-ads", () => ({
+  listMetaAdAccounts: m.listMeta,
+  listMetaCampaigns: m.metaCampaigns,
+}));
 vi.mock("@/services/project-social-connections.service", () => ({
   projectConnectorUserId: (userId: string) => `sokosumi:user:${userId}`,
   projectExecutorUserId: (projectId: string) =>
@@ -92,6 +100,7 @@ import {
   finalizeProjectAdConnection,
   getPendingProjectAdRevocation,
   initiateProjectAdConnection,
+  listProjectAdCampaigns,
   revokeProjectAdConnectionForClose,
 } from "./project-ad-accounts.service";
 
@@ -444,6 +453,95 @@ describe("project ad accounts service", () => {
         status: 409,
       });
       expect(m.accountUpsert).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("list campaigns", () => {
+    const campaign = {
+      id: "1",
+      name: "Brand",
+      status: "ACTIVE",
+      objective: null,
+      dailyBudget: null,
+      spend: 1,
+      impressions: 10,
+      clicks: 1,
+      ctr: 0.1,
+      cpc: 1,
+      conversions: null,
+    };
+    const accountRow = (
+      provider: string,
+      externalAccountId: string,
+      status = "active",
+    ) => ({
+      id: ACCOUNT_UUID,
+      provider,
+      externalAccountId,
+      currency: "EUR",
+      connection: { ...storedConnection, provider, status },
+    });
+    const list = () =>
+      listProjectAdCampaigns({
+        ...scope,
+        accountId: ACCOUNT_UUID,
+        range: "LAST_7_DAYS",
+      });
+
+    it("lists Google campaigns of the customer with the account currency", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("google_ads", "111"));
+      m.googleCampaigns.mockResolvedValue([campaign]);
+      await expect(list()).resolves.toEqual({
+        campaigns: [campaign],
+        range: "LAST_7_DAYS",
+        currency: "EUR",
+      });
+      expect(m.googleCampaigns).toHaveBeenCalledWith({
+        connectedAccountId: "ca_1",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+        customerId: "111",
+        range: "LAST_7_DAYS",
+      });
+      expect(m.accountFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: ACCOUNT_UUID, projectId: PROJECT_ID },
+        }),
+      );
+      expect(m.metaCampaigns).not.toHaveBeenCalled();
+    });
+
+    it("lists Meta campaigns of the ad account", async () => {
+      m.accountFindFirst.mockResolvedValue(accountRow("meta_ads", "act_9"));
+      m.metaCampaigns.mockResolvedValue([]);
+      await expect(list()).resolves.toMatchObject({ campaigns: [] });
+      expect(m.metaCampaigns).toHaveBeenCalledWith(
+        expect.objectContaining({
+          adAccountId: "act_9",
+          currency: "EUR",
+          range: "LAST_7_DAYS",
+        }),
+      );
+      expect(m.googleCampaigns).not.toHaveBeenCalled();
+    });
+
+    it("returns 404 for an account of another Project", async () => {
+      m.accountFindFirst.mockResolvedValue(null);
+      await expect(list()).rejects.toMatchObject({ status: 404 });
+      expect(m.googleCampaigns).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when the connection is not active", async () => {
+      m.accountFindFirst.mockResolvedValue(
+        accountRow("google_ads", "111", "disconnected"),
+      );
+      await expect(list()).rejects.toMatchObject({ status: 409 });
+      expect(m.googleCampaigns).not.toHaveBeenCalled();
+    });
+
+    it("does not touch the provider when the Project is not in the Workspace", async () => {
+      m.requireScopedProject.mockRejectedValue(notFound("Project not found"));
+      await expect(list()).rejects.toMatchObject({ status: 404 });
+      expect(m.accountFindFirst).not.toHaveBeenCalled();
     });
   });
 

@@ -51,6 +51,11 @@ const AD_OPERATIONS = [
   ["get", "/ads/accounts", ["200", "401", "403", "404"]],
   ["post", "/ads/accounts", ["200", "400", "403", "404", "502", "503"]],
   ["delete", "/ads/accounts/{accountId}", ["204", "403", "404", "502"]],
+  [
+    "get",
+    "/ads/accounts/{accountId}/campaigns",
+    ["200", "403", "404", "409", "502"],
+  ],
   ["post", "/ads/connections/initiate", ["201", "403", "404", "502", "503"]],
   ["post", "/ads/connections/finalize", ["200", "403", "404", "502", "503"]],
 ] as const;
