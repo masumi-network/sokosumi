@@ -65,6 +65,27 @@ function coworkerMessage(
   };
 }
 
+function sokoBotMessage(
+  id: string,
+  createdAt: string,
+  content: string,
+): ChatRoomMessage {
+  return {
+    ...message(id, createdAt, content),
+    sender: {
+      type: "sokoBot",
+      sokoBot: {
+        id: "bot-1",
+        name: "Joseph",
+        caption: null,
+        image: null,
+        avatarSeed: "seed-1",
+        presence: "online",
+      },
+    },
+  };
+}
+
 describe("applyFullChatRoomMessageEvent", () => {
   it("removes a hard-deleted streaming shell (deletedAt null)", () => {
     const chat = message("m1", "2026-07-01T10:00:00.000Z", "@hannah hi");
@@ -591,6 +612,51 @@ describe("mergeMessagesWithStreamOverlay", () => {
       "reply_failed",
       "stream:reply",
     ]);
+  });
+
+  it("keeps a Soko Bot's thinking and failed shells and fills the same row with the answer", () => {
+    const chat = message(
+      "m1",
+      "2026-07-01T10:00:00.000Z",
+      "what's on tomorrow?",
+    );
+    const thinking = {
+      ...sokoBotMessage("reply_1", "2026-07-01T10:00:01.000Z", ""),
+      metadata: {
+        streaming: true,
+        mention_id: "mention_1",
+        reasoning: [{ type: "reasoning", text: "Reading the calendar" }],
+        thought_timing_ms: { start: 1 },
+      },
+    };
+    const failed = {
+      ...sokoBotMessage("reply_2", "2026-07-01T10:00:02.000Z", ""),
+      metadata: {
+        in_reply_to_message_id: "m1",
+        mention_id: "mention_2",
+        mention_failed: true,
+        soko_bot: { turn_id: "turn_2" },
+      },
+    };
+
+    const live = mergeMessagesWithStreamOverlay([chat, thinking, failed], []);
+    expect(live.map((row) => row.id)).toEqual(["m1", "reply_1", "reply_2"]);
+
+    const answered = mergeRoomMessages(live, [
+      {
+        ...thinking,
+        content: "Two meetings tomorrow.",
+        metadata: { mention_id: "mention_1", soko_bot: { turn_id: "turn_1" } },
+      },
+    ]);
+    const settled = mergeMessagesWithStreamOverlay(answered, []);
+    expect(settled.map((row) => row.id)).toEqual(["m1", "reply_1", "reply_2"]);
+    expect(settled[1]?.content).toBe("Two meetings tomorrow.");
+  });
+
+  it("still drops an empty Soko Bot row that is not a mention shell", () => {
+    const empty = sokoBotMessage("reply_x", "2026-07-01T10:00:01.000Z", "");
+    expect(mergeMessagesWithStreamOverlay([empty], [])).toEqual([]);
   });
 
   it("drops an empty failed coworker row that has no mention_id", () => {
