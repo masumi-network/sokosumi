@@ -337,10 +337,41 @@ describe("normalizeAuthReturnUrl", () => {
     expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
   });
 
-  it("returns / for external returnUrl during SSR", () => {
+  it.each([
+    ["https://localhost.invalid/phish", "/phish"],
+    ["//localhost.invalid/phish", "/phish"],
+  ])(
+    "drops the SSR placeholder origin from a returnUrl: %s",
+    (returnUrl, expected) => {
+      vi.stubGlobal("window", undefined);
+
+      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+    },
+  );
+
+  it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+  });
+
+  it("keeps an internal path with its query and fragment", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+      "/chat?filter=unread#details",
+    );
+  });
+
+  it.each([
+    "https://evil.example/attack",
+    "//evil.example/attack",
+    "/\\evil.example/attack",
+    "javascript:alert('x')",
+  ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
   });
 });
 
