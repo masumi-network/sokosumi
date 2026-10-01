@@ -5,6 +5,7 @@ import {
   HardDrive,
   ImagePlus,
   ListTodo,
+  Megaphone,
   Plus,
   Repeat,
   Search,
@@ -48,27 +49,27 @@ interface MenuItemConfig {
 }
 
 /**
- * `socialMenuEnabled` is off by default so the Instant Nav shell, which has
- * not resolved the reader's beta membership yet, leaves the row out rather
- * than guessing it: a row that appears once is cheaper than one that appears
- * and then goes away.
+ * `socialBetaEnabled` (the Social beta, which Ads shares) is off by default so
+ * the Instant Nav shell, which has not resolved the reader's beta membership
+ * yet, leaves the rows out rather than guessing them: a row that appears once
+ * is cheaper than one that appears and then goes away.
  */
 export default function MenuItems({
-  socialMenuEnabled = false,
+  socialBetaEnabled = false,
 }: {
-  socialMenuEnabled?: boolean;
+  socialBetaEnabled?: boolean;
 } = {}) {
   return (
     <Suspense fallback={null}>
-      <ScopedMenuItems socialMenuEnabled={socialMenuEnabled} />
+      <ScopedMenuItems socialBetaEnabled={socialBetaEnabled} />
     </Suspense>
   );
 }
 
 function ScopedMenuItems({
-  socialMenuEnabled,
+  socialBetaEnabled,
 }: {
-  socialMenuEnabled: boolean;
+  socialBetaEnabled: boolean;
 }) {
   const { hrefFor, projectId } = useProjectScope();
   const t = useTranslations("App.Sidebar.Content.MenuItems");
@@ -154,13 +155,20 @@ function ScopedMenuItems({
     // Social used to be a tab inside a project. It is a destination of its
     // own now, scoped the same way the studio is, and it is still behind the
     // beta so the row only exists where the surface does.
-    ...(socialMenuEnabled
+    ...(socialBetaEnabled
       ? [
           {
             key: "social",
             href: "/social",
             label: t("social"),
             Icon: Share2,
+          },
+          // Ads rides the same beta and the same project scope.
+          {
+            key: "ads",
+            href: "/ads",
+            label: t("ads"),
+            Icon: Megaphone,
           },
         ]
       : []),

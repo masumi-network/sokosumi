@@ -303,6 +303,7 @@
       "design-md": "Diseño",
       "memory": "Memoria",
       "social": "Social",
+      "ads": "Anuncios",
       "evaluations": "Evaluaciones de modelos"
     },
     "Jobs": {
@@ -2783,6 +2784,38 @@
       },
       "creditsCheckedOn": "Precio comprobado el {date}"
     },
+    "Ads": {
+      "title": "Anuncios",
+      "pickTitle": "Elige un proyecto",
+      "pickBody": "Los anuncios pertenecen a un proyecto: sus cuentas publicitarias y campañas se gestionan allí. Elige un proyecto para abrir sus anuncios.",
+      "pickAction": "Elegir proyecto",
+      "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "tabsLabel": "Secciones de anuncios",
+      "loading": "Cargando anuncios…",
+      "tabs": {
+        "campaigns": "Campañas",
+        "market": "Mercado",
+        "accounts": "Cuentas"
+      },
+      "campaigns": {
+        "emptyTitle": "Conecta una cuenta publicitaria para ver las campañas",
+        "emptyBody": "Las campañas de Google Ads y Meta Ads aparecerán aquí cuando conectes una cuenta.",
+        "emptyAction": "Ir a cuentas"
+      },
+      "market": {
+        "emptyTitle": "Configura tu mercado para ver palabras clave y anuncios en tendencia",
+        "emptyBody": "Añade tus palabras clave y tu país para ver qué está en tendencia y qué anuncios publica tu mercado."
+      },
+      "accounts": {
+        "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
+        "emptyBody": "Conecta Google Ads o Meta Ads para gestionar las campañas de este proyecto."
+      },
+      "error": {
+        "title": "No se pudieron cargar los anuncios",
+        "description": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      }
+    },
     "Social": {
       "title": "Social",
       "pickAction": "Elegir un proyecto",
@@ -2852,7 +2885,8 @@
           "calendar": "Calendario",
           "contentStudio": "Content Studio",
           "schedules": "Programaciones",
-          "social": "Social"
+          "social": "Social",
+          "ads": "Anuncios"
         },
         "ChatLists": {
           "title": "Chats Recientes",

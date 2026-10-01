@@ -38,9 +38,9 @@ vi.mock("@/app/projects/components/image-studio/image-studio", () => ({
 
 // The picker reaches for the sidebar switcher's list, which reads the session
 // through react-query. This file is about which state the page chooses.
-vi.mock("./components/studio-project-picker", () => ({
-  StudioProjectPicker: ({ notice }: { notice?: string }) => (
-    <div data-testid="studio-no-project">{notice ?? "pick a project"}</div>
+vi.mock("@/app/components/project-scope/project-scope-picker", () => ({
+  ProjectScopePicker: ({ body, testId }: { body: string; testId: string }) => (
+    <div data-testid={testId}>{body}</div>
   ),
 }));
 
