@@ -6,23 +6,21 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
-  eventFindFirst,
-  eventCreate,
+  eventTransaction,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
-  eventFindFirst: vi.fn(),
-  eventCreate: vi.fn(),
+  eventTransaction: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
-    sokoBotRuntimeEvent: { findFirst: eventFindFirst, create: eventCreate },
+    $transaction: eventTransaction,
   },
 }));
 vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
@@ -40,32 +38,56 @@ import {
 } from "./turn-loop";
 
 describe("RuntimeEventLog", () => {
-  it("lands every event when a batch of parallel requests appends at once", async () => {
+  it("gives a large batch of parallel requests one slot each, under the turn's lock", async () => {
     const taken = new Set<number>();
-    eventFindFirst.mockImplementation(async () =>
-      taken.size ? { startIndex: Math.max(...taken) } : null,
-    );
-    eventCreate.mockImplementation(
-      async ({ data }: { data: { startIndex: number } }) => {
-        // Every request reads the tail before any of them writes.
-        await new Promise((resolve) => setTimeout(resolve, 1));
-        if (taken.has(data.startIndex))
-          throw Object.assign(new Error("Unique constraint"), {
-            code: "P2002",
-          });
-        taken.add(data.startIndex);
+    const locks = new Map<string, Promise<void>>();
+    // A transaction-scoped advisory lock: held from the SELECT to the end.
+    eventTransaction.mockImplementation(
+      async (operation: (tx: unknown) => Promise<unknown>) => {
+        let release = () => {};
+        const tx = {
+          $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
+            const previous = locks.get(key) ?? Promise.resolve();
+            const held = new Promise<void>((resolve) => {
+              release = resolve;
+            });
+            locks.set(
+              key,
+              previous.then(() => held),
+            );
+            await previous;
+          },
+          sokoBotRuntimeEvent: {
+            findFirst: async () =>
+              taken.size ? { startIndex: Math.max(...taken) } : null,
+            create: async ({ data }: { data: { startIndex: number } }) => {
+              // Without the lock every request would read the same tail.
+              await new Promise((resolve) => setTimeout(resolve, 1));
+              if (taken.has(data.startIndex))
+                throw Object.assign(new Error("Unique constraint"), {
+                  code: "P2002",
+                });
+              taken.add(data.startIndex);
+            },
+          },
+        };
+        try {
+          return await operation(tx);
+        } finally {
+          release();
+        }
       },
     );
     // Each tool call is its own request with its own log, as in production.
     await Promise.all(
-      Array.from({ length: 13 }, () =>
+      Array.from({ length: 40 }, () =>
         new RuntimeEventLog("turn-one", "session-one").append(
           runtimeEvent("actions.requested", { actions: [] }),
         ),
       ),
     );
     expect([...taken].sort((a, b) => a - b)).toEqual(
-      Array.from({ length: 13 }, (_, index) => index),
+      Array.from({ length: 40 }, (_, index) => index),
     );
   });
 });

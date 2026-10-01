@@ -8,7 +8,6 @@ import {
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
 import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
@@ -70,45 +69,24 @@ export function runtimeEvent(
   };
 }
 
-/**
- * How many times an append re-reads the tail after losing `(turnId, startIndex)`
- * to another writer. Each round has one winner, so a model's batch of parallel
- * tool calls, each its own request, needs about as many rounds as calls; with
- * five, three of thirteen parallel archives failed before they ran.
- */
-const MAX_APPEND_ATTEMPTS = 25;
-/** Spreads the retries so the losers of one round don't collide again. */
-const APPEND_RETRY_JITTER_MS = 40;
+/** Long enough for a whole batch of parallel appends to queue on the lock. */
+const APPEND_TRANSACTION_OPTIONS = { maxWait: 10_000, timeout: 30_000 };
 
 /**
  * Serverless invocations share no memory: every runtime appends here and the
  * `/sync/soko-bot-turns` drain reads it back through `streamEvents`. Separate
- * requests for one turn each build their own log; a lost index race re-reads
- * the tail rather than dropping the event.
+ * requests for one turn each build their own log, so the next slot is read
+ * and taken under a per-turn lock: a model's batch of parallel tool calls,
+ * each its own request, appends one at a time however large it is.
  */
 export class RuntimeEventLog {
-  private index: number | null = null;
-  /** Appends run one at a time so parallel tool calls never share a slot. */
+  /** Appends from this instance run in order. */
   private tail: Promise<unknown> = Promise.resolve();
 
   constructor(
     readonly turnId: string,
     readonly sessionId: string,
   ) {}
-
-  private async nextIndex(): Promise<number> {
-    if (this.index === null) {
-      const latest = await prisma.sokoBotRuntimeEvent.findFirst({
-        where: { turnId: this.turnId },
-        orderBy: { startIndex: "desc" },
-        select: { startIndex: true },
-      });
-      this.index = latest ? latest.startIndex + 1 : 0;
-    }
-    const startIndex: number = this.index;
-    this.index = startIndex + 1;
-    return startIndex;
-  }
 
   async append(event: RuntimeEvent): Promise<void> {
     const queued = this.tail.then(
@@ -121,34 +99,28 @@ export class RuntimeEventLog {
   }
 
   private async write(event: RuntimeEvent): Promise<void> {
-    for (let attempt = 1; attempt <= MAX_APPEND_ATTEMPTS; attempt += 1) {
-      const startIndex = await this.nextIndex();
-      try {
-        await prisma.sokoBotRuntimeEvent.create({
-          data: {
-            turnId: this.turnId,
-            sessionId: this.sessionId,
-            startIndex,
-            eventId: event.meta.id,
-            type: event.type,
-            data: { ...event.data },
-            occurredAt: new Date(event.meta.at),
-          },
-        });
-        return;
-      } catch (error) {
-        if (
-          !isPrismaUniqueViolation(error) ||
-          attempt === MAX_APPEND_ATTEMPTS
-        ) {
-          throw error;
-        }
-        this.index = null;
-        await new Promise((resolve) =>
-          setTimeout(resolve, Math.random() * APPEND_RETRY_JITTER_MS),
-        );
-      }
-    }
+    await prisma.$transaction(async (tx) => {
+      const key = `soko-bot-runtime-event:${this.turnId}`;
+      await tx.$executeRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${key}::TEXT, 0))
+      `;
+      const latest = await tx.sokoBotRuntimeEvent.findFirst({
+        where: { turnId: this.turnId },
+        orderBy: { startIndex: "desc" },
+        select: { startIndex: true },
+      });
+      await tx.sokoBotRuntimeEvent.create({
+        data: {
+          turnId: this.turnId,
+          sessionId: this.sessionId,
+          startIndex: latest ? latest.startIndex + 1 : 0,
+          eventId: event.meta.id,
+          type: event.type,
+          data: { ...event.data },
+          occurredAt: new Date(event.meta.at),
+        },
+      });
+    }, APPEND_TRANSACTION_OPTIONS);
   }
 }
 
