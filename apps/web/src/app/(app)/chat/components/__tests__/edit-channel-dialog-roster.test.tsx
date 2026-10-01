@@ -1,7 +1,9 @@
 import type { ChatRoom, Coworker, Member } from "@sokosumi/core-client";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { EditChannelDialog } from "../edit-channel-dialog";
 import { ShellOwnedEditChannelDialog } from "./edit-channel-dialog-harness";
 
 const { updateRoomActionMock } = vi.hoisted(() => ({
@@ -202,6 +204,62 @@ describe("EditChannelDialog host roster payload", () => {
           memberUserIds: [HOST_USER_ID],
           coworkerIds: [COWORKER_ID],
         }),
+      );
+    });
+  });
+});
+
+describe("EditChannelDialog focus return", () => {
+  function Shell() {
+    const [open, setOpen] = useState(false);
+    const returnFocusRef = useRef<HTMLElement | null>(null);
+    return (
+      <>
+        <button
+          type="button"
+          onClick={(event) => {
+            returnFocusRef.current = event.currentTarget;
+            setOpen(true);
+          }}
+        >
+          add
+        </button>
+        <EditChannelDialog
+          channel={externalChannel()}
+          members={[hostMember()]}
+          coworkers={[]}
+          currentUserId={HOST_USER_ID}
+          canEditMembers
+          canManageSettings={false}
+          canArchive={false}
+          canLeave={false}
+          returnFocusRef={returnFocusRef}
+          open={open}
+          onOpenChange={setOpen}
+        >
+          <button type="button">title</button>
+        </EditChannelDialog>
+      </>
+    );
+  }
+
+  it("returns focus to the external opener, and to the title when opened from it", async () => {
+    const user = userEvent.setup();
+    render(<Shell />);
+
+    await user.click(screen.getByRole("button", { name: "add" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "add" }),
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: "title" }));
+    await user.keyboard("{Escape}");
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "title" }),
       );
     });
   });

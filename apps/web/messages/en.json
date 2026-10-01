@@ -6315,6 +6315,7 @@
         "title": "Members",
         "humansTitle": "People",
         "agentsTitle": "Coworkers",
+        "add": "Add members",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",

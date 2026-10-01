@@ -8,6 +8,7 @@ import type {
 } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
+import type { RefObject } from "react";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
@@ -140,6 +141,8 @@ export interface RoomHeaderChromeProps {
   canLeave: boolean;
   canInviteGuests: boolean;
   membersLoadFailed: boolean;
+  /** Element to refocus when the edit dialog closes; see EditChannelDialog. */
+  editReturnFocusRef?: RefObject<HTMLElement | null>;
   /** The dialog's open flag. The shell owns it: the title is one way in. */
   editOpen: boolean;
   onEditOpenChange: (open: boolean) => void;
@@ -171,6 +174,7 @@ export function RoomHeaderChrome({
   canLeave,
   canInviteGuests,
   membersLoadFailed,
+  editReturnFocusRef,
   editOpen,
   onEditOpenChange,
   showParticipants,
@@ -232,6 +236,7 @@ export function RoomHeaderChrome({
               canLeave={canLeave}
               canInviteGuests={canInviteGuests}
               membersLoadFailed={membersLoadFailed}
+              returnFocusRef={editReturnFocusRef}
               open={editOpen}
               onOpenChange={onEditOpenChange}
             >

@@ -639,6 +639,7 @@ function RoomView({
   const [syncedHistoryRoomId, setSyncedHistoryRoomId] =
     useState(selectedRoomId);
   const [editChannelOpen, setEditChannelOpen] = useState(false);
+  const editReturnFocusRef = useRef<HTMLElement | null>(null);
   const historicalThreadRef = useRef(false);
   // Held in a ref as well as in state: the row's tap and its visibility
   // observer can fire in the same tick, before the loading state renders.
@@ -3015,6 +3016,7 @@ function RoomView({
         canLeave={canLeaveSelectedRoom}
         canInviteGuests={canInviteGuestsToSelectedRoom}
         membersLoadFailed={membersLoadFailed}
+        editReturnFocusRef={editReturnFocusRef}
         editOpen={editChannelOpen}
         onEditOpenChange={setEditChannelOpen}
         showParticipants={showHeaderParticipants}
@@ -3506,10 +3508,19 @@ function RoomView({
                 onClose={() => {
                   setRosterOpen(false);
                 }}
+                onAddMembers={
+                  canEditSelectedRoomMembers
+                    ? (opener) => {
+                        editReturnFocusRef.current = opener;
+                        handleOpenEditChannel();
+                      }
+                    : undefined
+                }
                 labels={{
                   title: t("RoomRoster.title"),
                   humansTitle: t("RoomRoster.humansTitle"),
                   agentsTitle: t("RoomRoster.agentsTitle"),
+                  add: t("RoomRoster.add"),
                   close: t("RoomRoster.close"),
                   readAt: (time) => t("SeenBy.readAt", { time }),
                   notRead: t("SeenBy.notRead"),

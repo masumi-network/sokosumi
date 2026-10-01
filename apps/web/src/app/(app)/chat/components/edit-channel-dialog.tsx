@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import {
   type FormEvent,
   type ReactElement,
+  type RefObject,
   useEffect,
   useState,
   useTransition,
@@ -79,6 +80,7 @@ export function EditChannelDialog({
   canLeave,
   canInviteGuests = false,
   membersLoadFailed = false,
+  returnFocusRef,
   open,
   onOpenChange: setOpen,
   children,
@@ -102,6 +104,11 @@ export function EditChannelDialog({
    */
   canInviteGuests?: boolean;
   membersLoadFailed?: boolean;
+  /**
+   * Set by an entry point other than the title trigger. Closing hands focus
+   * back to that element while it is still mounted, and clears the ref.
+   */
+  returnFocusRef?: RefObject<HTMLElement | null>;
   /**
    * The room shell owns the flag, because the dialog has two ways in: the
    * title beside the room name, and a channel row's overflow menu, which
@@ -239,7 +246,17 @@ export function EditChannelDialog({
             than the padded dialog box, whose children do not reflow around their
             own scrollbar. */}
         {/* Settings form stays separate from guest invite (nested forms invalid). */}
-        <DialogContent className="app-scrollbar max-h-[calc(100dvh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl">
+        <DialogContent
+          className="app-scrollbar max-h-[calc(100dvh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl"
+          onCloseAutoFocus={(event) => {
+            const opener = returnFocusRef?.current;
+            if (returnFocusRef) returnFocusRef.current = null;
+            if (opener?.isConnected) {
+              event.preventDefault();
+              opener.focus();
+            }
+          }}
+        >
           <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
             <DialogHeader className="pr-6">
               <DialogTitle>

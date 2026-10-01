@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, MessageCircle, X } from "lucide-react";
+import { Loader2, MessageCircle, UserPlus, X } from "lucide-react";
 import { useFormatter } from "next-intl";
 import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -34,6 +34,8 @@ export interface RoomRosterPanelLabels {
   /** For a member on the roster who has never opened the room. */
   notRead: string;
   close: string;
+  /** Label of the add-members action, shown when `onAddMembers` is set. */
+  add: string;
   empty: string;
   coworkerBadge: string;
   personalAssistantBadge?: string;
@@ -295,6 +297,8 @@ interface RoomRosterPanelProps {
   onOpenDirect: (profile: ChatParticipantHoverProfile) => void;
   openingDirectKey: string | null;
   onClose: () => void;
+  /** Opens the edit dialog. Set only for callers who may change the roster. */
+  onAddMembers?: (opener: HTMLElement) => void;
   /** Seen by: what a row should say about a member, or null for silence. */
   readStateFor: (userId: string) => RoomMemberReadState | null;
   labels: RoomRosterPanelLabels;
@@ -307,6 +311,7 @@ export function RoomRosterPanel({
   onOpenDirect,
   openingDirectKey,
   onClose,
+  onAddMembers,
   readStateFor,
   labels,
 }: RoomRosterPanelProps) {
@@ -351,17 +356,32 @@ export function RoomRosterPanel({
     >
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
         <h2 className="truncate text-sm font-semibold">{labels.title}</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8 rounded-full"
-          aria-label={labels.close}
-          title={labels.close}
-          onClick={onClose}
-        >
-          <X className="size-4" aria-hidden />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {onAddMembers ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="gap-1.5"
+              data-testid="room-roster-add"
+              onClick={(event) => onAddMembers(event.currentTarget)}
+            >
+              <UserPlus className="size-4" aria-hidden />
+              {labels.add}
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full"
+            aria-label={labels.close}
+            title={labels.close}
+            onClick={onClose}
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        </div>
       </header>
       <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-1">
         {participants.length === 0 ? (
