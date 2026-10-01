@@ -53,6 +53,11 @@ vi.mock("@/app/chat/components/authenticated-room-cache", () => ({
 }));
 
 // Heavy chrome deps — not exercised by gate redirect tests.
+vi.mock("../sidebar/components/feature-badges", () => ({
+  FeatureBadgesProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+}));
 vi.mock("@/contexts/notification-provider", () => ({
   NotificationProvider: ({ children }: { children: React.ReactNode }) => (
     <>{children}</>

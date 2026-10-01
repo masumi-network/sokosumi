@@ -3388,6 +3388,10 @@
           "matchedChannels": {
             "title": "Matched channels",
             "description": "Create org-less matched channels and manage their roster."
+          },
+          "badgeCampaigns": {
+            "title": "Feature badges",
+            "description": "Show a New badge on a sidebar feature for existing users, for a set time."
           }
         }
       },
@@ -4512,6 +4516,50 @@
             "success": "Matched channel permanently deleted",
             "error": "Failed to delete matched channel"
           }
+        }
+      },
+      "BadgeCampaigns": {
+        "title": "Feature badges",
+        "description": "A campaign puts a New badge on one sidebar feature. Users who signed up before it starts see the badge until it ends or until they open the feature.",
+        "loadFailed": "Couldn't load the campaigns. Reload to try again.",
+        "Status": {
+          "scheduled": "Scheduled",
+          "live": "Live",
+          "ended": "Ended"
+        },
+        "Table": {
+          "feature": "Feature",
+          "startsAt": "Starts (UTC)",
+          "endsAt": "Ends (UTC)",
+          "status": "Status",
+          "actions": "Actions",
+          "empty": "No campaigns yet."
+        },
+        "Actions": {
+          "edit": "Edit dates",
+          "endNow": "End now",
+          "delete": "Delete"
+        },
+        "Form": {
+          "createTitle": "New campaign",
+          "editTitle": "Edit dates",
+          "feature": "Feature",
+          "featurePlaceholder": "Choose a feature",
+          "featureRequired": "Choose a feature first.",
+          "startsAt": "Starts (UTC)",
+          "endsAt": "Ends (UTC)",
+          "endsAtHelper": "Set to {days} days after the start unless you change it.",
+          "audienceHelper": "Only users who signed up before the start see the badge.",
+          "create": "Create campaign",
+          "save": "Save dates"
+        },
+        "Toasts": {
+          "created": "Campaign created",
+          "updated": "Dates saved",
+          "ended": "Campaign ended",
+          "deleted": "Campaign deleted",
+          "saveFailed": "Couldn't save the campaign",
+          "deleteFailed": "Couldn't delete the campaign"
         }
       }
     },

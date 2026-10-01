@@ -3205,6 +3205,10 @@
           "matchedChannels": {
             "title": "Canales emparejados",
             "description": "Crea canales emparejados sin organización y gestiona su lista de participantes."
+          },
+          "badgeCampaigns": {
+            "title": "Insignias de funciones",
+            "description": "Muestra una insignia Nuevo en una función de la barra lateral a los usuarios existentes durante un tiempo fijo."
           }
         }
       },
@@ -4476,6 +4480,50 @@
             "success": "Canal emparejado eliminado permanentemente",
             "error": "No se pudo eliminar el canal emparejado"
           }
+        }
+      },
+      "BadgeCampaigns": {
+        "title": "Insignias de funciones",
+        "description": "Una campaña pone una insignia Nuevo en una función de la barra lateral. Los usuarios que se registraron antes del inicio la ven hasta que termina o hasta que abren la función.",
+        "loadFailed": "No se pudieron cargar las campañas. Recarga la página para intentarlo de nuevo.",
+        "Status": {
+          "scheduled": "Programada",
+          "live": "Activa",
+          "ended": "Finalizada"
+        },
+        "Table": {
+          "feature": "Función",
+          "startsAt": "Inicio (UTC)",
+          "endsAt": "Fin (UTC)",
+          "status": "Estado",
+          "actions": "Acciones",
+          "empty": "Aún no hay campañas."
+        },
+        "Actions": {
+          "edit": "Editar fechas",
+          "endNow": "Finalizar ahora",
+          "delete": "Eliminar"
+        },
+        "Form": {
+          "createTitle": "Nueva campaña",
+          "editTitle": "Editar fechas",
+          "feature": "Función",
+          "featurePlaceholder": "Elige una función",
+          "featureRequired": "Elige primero una función.",
+          "startsAt": "Inicio (UTC)",
+          "endsAt": "Fin (UTC)",
+          "endsAtHelper": "Se fija en {days} días después del inicio, salvo que lo cambies.",
+          "audienceHelper": "Solo los usuarios que se registraron antes del inicio ven la insignia.",
+          "create": "Crear campaña",
+          "save": "Guardar fechas"
+        },
+        "Toasts": {
+          "created": "Campaña creada",
+          "updated": "Fechas guardadas",
+          "ended": "Campaña finalizada",
+          "deleted": "Campaña eliminada",
+          "saveFailed": "No se pudo guardar la campaña",
+          "deleteFailed": "No se pudo eliminar la campaña"
         }
       }
     },
