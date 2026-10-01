@@ -411,8 +411,31 @@ export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
 const OAUTH_REQUEST_MIN_REMAINING_MS = 2 * 60_000;
 
 export function oauthRequestExpiresSoon(oauthQuery: string): boolean {
-  const expiresAt = Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
-  return !(expiresAt - Date.now() > OAUTH_REQUEST_MIN_REMAINING_MS);
+  return !(
+    oauthRequestExpiresAt(oauthQuery) - Date.now() >
+    OAUTH_REQUEST_MIN_REMAINING_MS
+  );
+}
+
+/**
+ * How long past `exp` a request still goes to Core, whose clock may lag this
+ * one. Calling it expired early would turn away a request Core still accepts.
+ */
+const OAUTH_REQUEST_CLOCK_SKEW_MS = 30_000;
+
+/**
+ * The signed request is past its `exp`, beyond the clock-skew margin, so Core
+ * refuses it.
+ */
+export function oauthRequestHasExpired(oauthQuery: string): boolean {
+  return !(
+    oauthRequestExpiresAt(oauthQuery) + OAUTH_REQUEST_CLOCK_SKEW_MS >
+    Date.now()
+  );
+}
+
+function oauthRequestExpiresAt(oauthQuery: string): number {
+  return Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
 }
 
 function hasOAuthPrompt(oauthQuery: string, prompt: string): boolean {

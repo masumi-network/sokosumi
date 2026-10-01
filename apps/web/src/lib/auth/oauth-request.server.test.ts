@@ -1,22 +1,28 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { err, ok } from "neverthrow";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { readOAuthRequest } from "./oauth-request.server";
 
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
+const getOAuthClientPublicMock = vi.fn();
 
 vi.mock("./auth.server", () => ({
   getSession: () => getSessionMock(),
+  getOAuthClientPublic: (clientId: string) =>
+    getOAuthClientPublicMock(clientId),
   getOAuthClientPublicPrelogin: (clientId: string, oauthQuery: string) =>
     getOAuthClientPublicPreloginMock(clientId, oauthQuery),
 }));
 
+// Core signs a request for ten minutes; the clock reads 10:00:00.
+const NOW = Date.parse("2026-09-30T10:00:00Z");
 const SIGNED = {
   client_id: "cmo",
-  exp: "1772367377",
+  exp: String(NOW / 1000 + 600),
   sig: "signed-value",
 };
-const SIGNED_QUERY = "client_id=cmo&exp=1772367377&sig=signed-value";
+const SIGNED_QUERY = `client_id=cmo&exp=${NOW / 1000 + 600}&sig=signed-value`;
 
 const ACCOUNT = {
   id: "user-1",
@@ -37,6 +43,7 @@ function read(searchParams: Record<string, string>) {
 
 describe("readOAuthRequest", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
     vi.resetAllMocks();
     getSessionMock.mockResolvedValue(null);
     getOAuthClientPublicPreloginMock.mockResolvedValue({
@@ -44,6 +51,10 @@ describe("readOAuthRequest", () => {
       client_uri: "https://cmo.xyz",
       logo_uri: "https://cmo.xyz/logo.png",
     });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it("finds no request on a page without a signed OAuth query", async () => {
@@ -63,6 +74,7 @@ describe("readOAuthRequest", () => {
         logoUri: "https://cmo.xyz/logo.png",
       },
       canHandBack: false,
+      hasExpired: false,
     });
     expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledWith(
       "cmo",
@@ -82,6 +94,70 @@ describe("readOAuthRequest", () => {
       },
       canHandBack: true,
       accountToConfirm: undefined,
+      hasExpired: false,
+    });
+  });
+
+  describe("when the request has expired", () => {
+    const EXPIRED = { ...SIGNED, exp: String(NOW / 1000 - 60) };
+    const EXPIRED_QUERY = `client_id=cmo&exp=${NOW / 1000 - 60}&sig=signed-value`;
+
+    it("says so without the client to a person who is not signed in", async () => {
+      expect(await read(EXPIRED)).toEqual({
+        query: EXPIRED_QUERY,
+        client: undefined,
+        canHandBack: false,
+        hasExpired: true,
+      });
+      // Core names a client only for a valid request or a session.
+      expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+      expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
+    });
+
+    it("names the client to a signed-in person instead of handing it back", async () => {
+      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:00:00Z"));
+      getOAuthClientPublicMock.mockResolvedValue(
+        ok({
+          client_name: "CMO",
+          client_uri: "http://cmo.xyz",
+          logo_uri: "https://cmo.xyz/logo.png",
+        }),
+      );
+
+      expect(await read(EXPIRED)).toEqual({
+        query: EXPIRED_QUERY,
+        client: {
+          name: "CMO",
+          uri: undefined,
+          logoUri: "https://cmo.xyz/logo.png",
+        },
+        canHandBack: false,
+        hasExpired: true,
+      });
+      expect(getOAuthClientPublicMock).toHaveBeenCalledWith("cmo");
+      expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["cannot find it", ok(null)],
+      ["is unavailable", err({ reason: "http", status: 503 })],
+    ])(
+      "leaves the client unnamed for a signed-in person when Core %s",
+      async (_when, result) => {
+        getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:00:00Z"));
+        getOAuthClientPublicMock.mockResolvedValue(result);
+
+        expect(await read(EXPIRED)).toMatchObject({
+          client: undefined,
+          hasExpired: true,
+        });
+      },
+    );
+
+    it("leaves a request that expired a moment ago to Core, whose clock may lag", async () => {
+      expect(
+        await read({ ...SIGNED, exp: String(NOW / 1000 - 5) }),
+      ).toMatchObject({ hasExpired: false, client: { name: "CMO" } });
     });
   });
 

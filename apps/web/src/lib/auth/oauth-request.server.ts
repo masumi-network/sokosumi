@@ -2,12 +2,18 @@ import "server-only";
 
 import type { SessionUser } from "@sokosumi/utils";
 
-import { getOAuthClientPublicPrelogin, getSession } from "./auth.server";
+import {
+  getOAuthClientPublic,
+  getOAuthClientPublicPrelogin,
+  getSession,
+  type OAuthClientPublic,
+} from "./auth.server";
 import {
   type AuthRedirectSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   getRedirectQueryString,
   oauthRequestAsksForNewAccount,
+  oauthRequestHasExpired,
   oauthRequestRequiresSignIn,
 } from "./auth.utils";
 
@@ -61,6 +67,11 @@ export interface OAuthRequest {
    * for this request: they already chose.
    */
   accountToConfirm: OAuthRequestAccount | undefined;
+  /**
+   * Core no longer accepts the request, so the page says so instead of a form
+   * whose submission it would refuse.
+   */
+  hasExpired: boolean;
 }
 
 /**
@@ -78,6 +89,15 @@ export async function readOAuthRequest(
   if (!query || !clientId) {
     return undefined;
   }
+  if (oauthRequestHasExpired(query)) {
+    return {
+      query,
+      client: await getExpiredRequestClient(clientId),
+      canHandBack: false,
+      accountToConfirm: undefined,
+      hasExpired: true,
+    };
+  }
 
   const [session, client] = await Promise.all([
     getSession(),
@@ -88,13 +108,7 @@ export async function readOAuthRequest(
   const canHandBack = session != null && !oauthRequestRequiresSignIn(query);
   return {
     query,
-    client: client?.client_name
-      ? {
-          name: client.client_name,
-          uri: httpsUrl(client.client_uri),
-          logoUri: httpsUrl(client.logo_uri),
-        }
-      : undefined,
+    client: toRequestClient(client),
     canHandBack,
     accountToConfirm:
       canHandBack &&
@@ -106,7 +120,34 @@ export async function readOAuthRequest(
             email: session.user.email,
           }
         : undefined,
+    hasExpired: false,
   };
+}
+
+/**
+ * Core's pre-sign-in lookup refuses an expired request, but its session lookup
+ * still names the client to a person who is signed in.
+ */
+async function getExpiredRequestClient(
+  clientId: string,
+): Promise<OAuthRequestClient | undefined> {
+  if (!(await getSession())) {
+    return undefined;
+  }
+  const result = await getOAuthClientPublic(clientId);
+  return result.isOk() ? toRequestClient(result.value) : undefined;
+}
+
+function toRequestClient(
+  client: OAuthClientPublic | null,
+): OAuthRequestClient | undefined {
+  return client?.client_name
+    ? {
+        name: client.client_name,
+        uri: httpsUrl(client.client_uri),
+        logoUri: httpsUrl(client.logo_uri),
+      }
+    : undefined;
 }
 
 /**
