@@ -37,4 +37,3 @@ ALTER TABLE "badge_campaign_seen" ADD CONSTRAINT "badge_campaign_seen_userId_fke
 
 -- AddForeignKey
 ALTER TABLE "badge_campaign_seen" ADD CONSTRAINT "badge_campaign_seen_campaignId_fkey" FOREIGN KEY ("campaignId") REFERENCES "badge_campaign"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
