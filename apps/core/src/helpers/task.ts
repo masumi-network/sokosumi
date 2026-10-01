@@ -3,6 +3,7 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   countSetAssignees,
+  formatTaskIdentifier,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
@@ -474,6 +475,8 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator.type === "sokoBot" ? creator.id : null,
     sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
+    number: task.number,
+    identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),

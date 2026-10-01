@@ -23,6 +23,7 @@ function createDatabaseProject(
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     name: "Launch",
     identifier: null,
+    taskCounter: 0,
     filesToken: null,
     briefing: "# Briefing",
     briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
