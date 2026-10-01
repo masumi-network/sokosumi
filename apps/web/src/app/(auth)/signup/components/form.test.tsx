@@ -923,6 +923,41 @@ describe("SignUpForm email code", () => {
     expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
+  it("drops the existing-account notice when a code is tried next", async () => {
+    mockSignUpEmail.mockResolvedValueOnce({
+      data: null,
+      error: {
+        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+        message: "User already exists. Use another email.",
+        status: 422,
+      },
+    });
+    mockEmailCodeSignIn.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
+    });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.click(
+      screen.getByRole("button", { name: "usePasswordInstead" }),
+    );
+    await user.type(
+      screen.getByLabelText("Fields.Password.label"),
+      "Passw0rd!",
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await screen.findByRole("alert");
+
+    await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+    const code = screen.getByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
   it("swaps the code for a password and back, without a new code", async () => {
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);

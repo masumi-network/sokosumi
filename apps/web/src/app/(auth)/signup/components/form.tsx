@@ -128,6 +128,7 @@ export default function SignUpForm({
     values: z.infer<typeof passwordStepSchema>,
   ) => {
     track("Sign Up", { provider: "email-otp" });
+    setAccountExists(false);
     const error = await emailCode.signInWithCode(email, values.code, {
       firstName: values.firstName,
       lastName: values.lastName,
