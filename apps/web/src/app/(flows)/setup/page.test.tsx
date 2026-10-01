@@ -90,6 +90,10 @@ vi.mock("./components/pending-invites-queue.client", () => ({
   ),
 }));
 
+function pageProps(searchParams: Record<string, string> = {}) {
+  return { searchParams: Promise.resolve(searchParams) };
+}
+
 describe("WorkspaceGatePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -119,7 +123,9 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    await expect(WorkspaceGatePage()).rejects.toThrow("NEXT_REDIRECT");
+    await expect(WorkspaceGatePage(pageProps())).rejects.toThrow(
+      "NEXT_REDIRECT",
+    );
 
     expect(redirectMock).toHaveBeenCalledWith("/signin");
     expect(getWorkspaceAccessMock).not.toHaveBeenCalled();
@@ -134,7 +140,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     const { CoreUnavailableNotice } = await import(
       "@/app/components/core-unavailable-notice.client"
@@ -153,7 +159,7 @@ describe("WorkspaceGatePage", () => {
 
     const { default: WorkspaceGatePage } = await import("./page");
 
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
@@ -179,7 +185,7 @@ describe("WorkspaceGatePage", () => {
     ]);
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     expect(getMyPendingOrganizationInvitationsMock).not.toHaveBeenCalled();
     const serialized = JSON.stringify(ui);
@@ -198,7 +204,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     expect(ui).toBeTruthy();
     const serialized = JSON.stringify(ui);
@@ -227,7 +233,7 @@ describe("WorkspaceGatePage", () => {
     getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const serialized = JSON.stringify(await WorkspaceGatePage());
+    const serialized = JSON.stringify(await WorkspaceGatePage(pageProps()));
 
     expect(serialized).toContain("identityDescriptionEnter");
     expect(serialized).not.toContain("identityDescriptionChoose");
@@ -260,7 +266,7 @@ describe("WorkspaceGatePage", () => {
       });
       getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
       const { default: WorkspaceGatePage } = await import("./page");
-      const serialized = JSON.stringify(await WorkspaceGatePage());
+      const serialized = JSON.stringify(await WorkspaceGatePage(pageProps()));
       expect(serialized).toContain(`"askName":${parts.askName}`);
       expect(serialized).toContain(
         JSON.stringify({
@@ -297,7 +303,7 @@ describe("WorkspaceGatePage", () => {
     getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const serialized = JSON.stringify(await WorkspaceGatePage());
+    const serialized = JSON.stringify(await WorkspaceGatePage(pageProps()));
 
     expect(serialized).toContain("identityDescriptionEnter");
     expect(serialized).toContain('"askName":true');
@@ -319,7 +325,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
     const serialized = JSON.stringify(ui);
 
     expect(serialized).toContain("identityDescriptionEnter");
@@ -342,7 +348,7 @@ describe("WorkspaceGatePage", () => {
     ]);
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
@@ -371,7 +377,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("pendingInvitesTitle");
@@ -406,7 +412,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
     const serialized = JSON.stringify(ui);
 
     expect(serialized).toContain('"kind":"invitation"');
@@ -440,7 +446,7 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
     const serialized = JSON.stringify(ui);
 
     expect(serialized).toContain('"kind":"invitation"');
@@ -456,7 +462,7 @@ describe("WorkspaceGatePage", () => {
     getWorkspaceAccessMock.mockRejectedValue(new Error("Core down"));
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("unavailableTitle");
@@ -471,7 +477,7 @@ describe("WorkspaceGatePage", () => {
     getWorkspaceAccessMock.mockResolvedValue(null);
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     const serialized = JSON.stringify(ui);
     expect(serialized).toContain("unavailableTitle");
@@ -490,7 +496,7 @@ describe("WorkspaceGatePage", () => {
     );
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
     const serialized = JSON.stringify(ui);
 
     expect(serialized).toContain("unavailableTitle");
@@ -511,7 +517,7 @@ describe("WorkspaceGatePage", () => {
     );
 
     const { default: WorkspaceGatePage } = await import("./page");
-    const ui = await WorkspaceGatePage();
+    const ui = await WorkspaceGatePage(pageProps());
 
     expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
     expect(JSON.stringify(ui)).toContain("identityTitle");
@@ -530,8 +536,67 @@ describe("WorkspaceGatePage", () => {
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
-    await WorkspaceGatePage();
+    await WorkspaceGatePage(pageProps());
 
     expect(clearPendingOrganizationJoinTokenMock).not.toHaveBeenCalled();
+  });
+
+  it("ends identity onboarding where the user was going", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(
+      await WorkspaceGatePage(
+        pageProps({ next: "/chat/join/abc?ref=mail&x=1" }),
+      ),
+    );
+
+    expect(serialized).toContain('"returnUrl":"/chat/join/abc?ref=mail&x=1"');
+  });
+
+  it("ends the pending-invites queue where the user was going", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "pending-invites" });
+    getMyPendingOrganizationInvitationsMock.mockResolvedValue([
+      {
+        id: "inv_1",
+        organizationId: "org_1",
+        organization: { name: "Acme", slug: "acme" },
+      },
+    ]);
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(
+      await WorkspaceGatePage(pageProps({ next: "/chat/join/abc" })),
+    );
+
+    expect(serialized).toContain("pendingInvitesTitle");
+    expect(serialized).toContain('"returnUrl":"/chat/join/abc"');
+  });
+
+  it("ends at the app root when no target was carried", async () => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(await WorkspaceGatePage(pageProps()));
+
+    expect(serialized).toContain('"returnUrl":"/"');
+  });
+
+  it.each([
+    "https://evil.example/phish",
+    "//evil.example/phish",
+    "/\\evil.example/phish",
+    "javascript:alert(1)",
+  ])("never sends a user off-site after setup: %s", async (next) => {
+    getWorkspaceAccessMock.mockResolvedValue({ gate: "identity-onboarding" });
+
+    const { default: WorkspaceGatePage } = await import("./page");
+    const serialized = JSON.stringify(
+      await WorkspaceGatePage(pageProps({ next })),
+    );
+
+    expect(serialized).toContain('"returnUrl":"/"');
+    expect(serialized).not.toContain("evil.example");
+    expect(serialized).not.toContain("javascript:");
   });
 });

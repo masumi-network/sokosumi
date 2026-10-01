@@ -337,10 +337,15 @@ describe("normalizeAuthReturnUrl", () => {
     expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
   });
 
-  it("returns / for external returnUrl during SSR", () => {
+  it.each([
+    "https://evil.example/attack",
+    "//evil.example/attack",
+    "/\\evil.example/attack",
+    "javascript:alert('x')",
+  ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
   });
 });
 
