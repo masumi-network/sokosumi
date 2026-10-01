@@ -1,7 +1,7 @@
 "use client";
 
 import { AnnouncedFeature, type BadgeCampaign } from "@sokosumi/core-client";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import {
   type FormEvent,
   useId,
@@ -20,13 +20,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
   createAdminBadgeCampaignAction,
   updateAdminBadgeCampaignAction,
 } from "@/lib/actions/admin-badge-campaigns/action";
+import { cn } from "@/lib/utils";
 
-/** How long a campaign runs unless the admin picks an end. */
-const DEFAULT_CAMPAIGN_DAYS = 21;
+/** The lengths offered, in days; the last is the default. */
+const DURATION_DAYS = [7, 14, 21] as const;
+const DEFAULT_DURATION = "21";
+const CUSTOM_DURATION = "custom";
+/** The chosen length takes the tint the app uses for what is on. */
+const DURATION_ITEM_CLASS =
+  "data-[state=on]:bg-primary-quaternary data-[state=on]:text-primary-variant data-[state=on]:font-medium";
 
 /**
  * Dates are entered in the admin's own time zone and sent to Core as UTC. A
@@ -48,6 +55,14 @@ function addDays(value: string, days: number): string {
   const date = new Date(value);
   date.setDate(date.getDate() + days);
   return toLocalInputValue(date);
+}
+
+/** The offered length a saved campaign matches, or custom when it fits none. */
+function durationOf(campaign: BadgeCampaign): string {
+  const start = toLocalInputValue(campaign.startsAt);
+  const end = toLocalInputValue(campaign.endsAt);
+  const days = DURATION_DAYS.find((length) => addDays(start, length) === end);
+  return days ? String(days) : CUSTOM_DURATION;
 }
 
 function subscribeToNothing() {
@@ -79,6 +94,7 @@ export function BadgeCampaignForm({
   onSaved,
 }: BadgeCampaignFormProps) {
   const t = useTranslations("App.Admin.BadgeCampaigns");
+  const formatter = useFormatter();
   const fieldId = useId();
   const [feature, setFeature] = useState<AnnouncedFeature | "">(
     campaign?.feature ?? "",
@@ -86,24 +102,34 @@ export function BadgeCampaignForm({
   const [startsAt, setStartsAt] = useState(
     campaign ? toLocalInputValue(campaign.startsAt) : "",
   );
-  const [endsAt, setEndsAt] = useState(
+  // A length in days, or custom with its own end.
+  const [duration, setDuration] = useState(
+    campaign ? durationOf(campaign) : DEFAULT_DURATION,
+  );
+  const [customEndsAt, setCustomEndsAt] = useState(
     campaign ? toLocalInputValue(campaign.endsAt) : "",
   );
-  // The default end follows the start until the admin sets one themselves.
-  const [hasChosenEnd, setHasChosenEnd] = useState(Boolean(campaign));
   const [isPending, startTransition] = useTransition();
   const timeZone = useBrowserTimeZone();
 
-  function handleStartsAtChange(value: string) {
-    setStartsAt(value);
-    if (!hasChosenEnd && value) {
-      setEndsAt(addDays(value, DEFAULT_CAMPAIGN_DAYS));
-    }
-  }
+  const isCustom = duration === CUSTOM_DURATION;
+  const endsAt = isCustom
+    ? customEndsAt
+    : startsAt
+      ? addDays(startsAt, Number(duration))
+      : "";
 
   /** The current minute, so the campaign is live the moment it is saved. */
   function handleStartNow() {
-    handleStartsAtChange(toLocalInputValue(new Date()));
+    setStartsAt(toLocalInputValue(new Date()));
+  }
+
+  function handleDurationChange(value: string) {
+    // Radix reports "" when the pressed item is pressed again; keep a choice.
+    if (!value) return;
+    // Custom starts from the end the admin was already looking at.
+    if (value === CUSTOM_DURATION && !customEndsAt) setCustomEndsAt(endsAt);
+    setDuration(value);
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -138,8 +164,8 @@ export function BadgeCampaignForm({
       if (!campaign) {
         setFeature("");
         setStartsAt("");
-        setEndsAt("");
-        setHasChosenEnd(false);
+        setDuration(DEFAULT_DURATION);
+        setCustomEndsAt("");
       }
       onSaved?.();
     });
@@ -151,7 +177,8 @@ export function BadgeCampaignForm({
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      <div className="grid items-start gap-x-4 gap-y-5 sm:grid-cols-3">
+      {/* Columns may shrink below their content; the date field alone won't. */}
+      <div className="grid items-start gap-x-4 gap-y-5 *:min-w-0 lg:grid-cols-[1fr_1.4fr_1.3fr]">
         <div className="space-y-2">
           <Label htmlFor={`${fieldId}-feature`}>{t("Form.feature")}</Label>
           <Select
@@ -174,15 +201,15 @@ export function BadgeCampaignForm({
         </div>
         <div className="space-y-2">
           <Label htmlFor={`${fieldId}-starts`}>{t("Form.startsAt")}</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Input
               id={`${fieldId}-starts`}
               type="datetime-local"
               required
               value={startsAt}
-              onChange={(event) => handleStartsAtChange(event.target.value)}
+              onChange={(event) => setStartsAt(event.target.value)}
               aria-describedby={`${fieldId}-starts-help`}
-              className={dateInputClass}
+              className={cn("min-w-48 flex-1", dateInputClass)}
             />
             {campaign ? null : (
               <Button
@@ -203,26 +230,61 @@ export function BadgeCampaignForm({
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor={`${fieldId}-ends`}>{t("Form.endsAt")}</Label>
-          <Input
-            id={`${fieldId}-ends`}
-            type="datetime-local"
-            required
-            min={startsAt || undefined}
-            value={endsAt}
-            onChange={(event) => {
-              setHasChosenEnd(true);
-              setEndsAt(event.target.value);
-            }}
+          <Label id={`${fieldId}-duration-label`}>{t("Form.runsFor")}</Label>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="lg"
+            value={duration}
+            onValueChange={handleDurationChange}
+            aria-labelledby={`${fieldId}-duration-label`}
             aria-describedby={`${fieldId}-ends-help`}
-            className={dateInputClass}
-          />
-          <p
-            id={`${fieldId}-ends-help`}
-            className="text-muted-foreground text-xs"
+            className="w-full"
           >
-            {t("Form.endsAtHelper", { days: DEFAULT_CAMPAIGN_DAYS })}
-          </p>
+            {DURATION_DAYS.map((days) => (
+              <ToggleGroupItem
+                key={days}
+                value={String(days)}
+                className={DURATION_ITEM_CLASS}
+              >
+                {t("Form.weeks", { count: days / 7 })}
+              </ToggleGroupItem>
+            ))}
+            <ToggleGroupItem
+              value={CUSTOM_DURATION}
+              className={DURATION_ITEM_CLASS}
+            >
+              {t("Form.custom")}
+            </ToggleGroupItem>
+          </ToggleGroup>
+          {isCustom ? (
+            <Input
+              id={`${fieldId}-ends`}
+              type="datetime-local"
+              required
+              aria-label={t("Form.endsAt")}
+              min={startsAt || undefined}
+              value={customEndsAt}
+              onChange={(event) => setCustomEndsAt(event.target.value)}
+              className={dateInputClass}
+            />
+          ) : null}
+          {/* With Custom the end field says it; the line would only repeat it. */}
+          {isCustom ? null : (
+            <p
+              id={`${fieldId}-ends-help`}
+              className="text-muted-foreground min-h-4 text-xs"
+            >
+              {endsAt
+                ? t("Form.endsOn", {
+                    date: formatter.dateTime(
+                      new Date(endsAt),
+                      "dateTimeMedium",
+                    ),
+                  })
+                : t("Form.endsPending")}
+            </p>
+          )}
         </div>
       </div>
       <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">

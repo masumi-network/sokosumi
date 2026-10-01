@@ -4513,12 +4513,16 @@
           "featureRequired": "Wähle zuerst eine Funktion.",
           "startsAt": "Start",
           "endsAt": "Ende",
-          "endsAtHelper": "Wird auf {days} Tage nach dem Start gesetzt, sofern du es nicht änderst.",
           "audienceHelper": "Nur Nutzer, die sich vor dem Start registriert haben, sehen das Badge.",
           "create": "Kampagne erstellen",
           "save": "Daten speichern",
           "startNow": "Jetzt starten",
-          "timeZoneHelper": "Zeiten sind in deiner Zeitzone ({timeZone})."
+          "timeZoneHelper": "Zeiten sind in deiner Zeitzone ({timeZone}).",
+          "runsFor": "Laufzeit",
+          "weeks": "{count, plural, one {# Woche} other {# Wochen}}",
+          "custom": "Eigene",
+          "endsOn": "Endet {date}",
+          "endsPending": "Wähle einen Start, um das Ende zu sehen."
         },
         "Toasts": {
           "created": "Kampagne erstellt",

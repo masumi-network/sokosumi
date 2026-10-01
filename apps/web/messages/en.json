@@ -4549,12 +4549,16 @@
           "featureRequired": "Choose a feature first.",
           "startsAt": "Starts",
           "endsAt": "Ends",
-          "endsAtHelper": "Set to {days} days after the start unless you change it.",
           "audienceHelper": "Only users who signed up before the start see the badge.",
           "create": "Create campaign",
           "save": "Save dates",
           "startNow": "Start now",
-          "timeZoneHelper": "Times are in your time zone ({timeZone})."
+          "timeZoneHelper": "Times are in your time zone ({timeZone}).",
+          "runsFor": "Runs for",
+          "weeks": "{count, plural, one {# week} other {# weeks}}",
+          "custom": "Custom",
+          "endsOn": "Ends {date}",
+          "endsPending": "Pick a start to see when it ends."
         },
         "Toasts": {
           "created": "Campaign created",

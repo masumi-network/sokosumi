@@ -4513,12 +4513,16 @@
           "featureRequired": "Elige primero una función.",
           "startsAt": "Inicio",
           "endsAt": "Fin",
-          "endsAtHelper": "Se fija en {days} días después del inicio, salvo que lo cambies.",
           "audienceHelper": "Solo los usuarios que se registraron antes del inicio ven la insignia.",
           "create": "Crear campaña",
           "save": "Guardar fechas",
           "startNow": "Iniciar ahora",
-          "timeZoneHelper": "Las horas están en tu zona horaria ({timeZone})."
+          "timeZoneHelper": "Las horas están en tu zona horaria ({timeZone}).",
+          "runsFor": "Duración",
+          "weeks": "{count, plural, one {# semana} other {# semanas}}",
+          "custom": "Personalizada",
+          "endsOn": "Termina el {date}",
+          "endsPending": "Elige un inicio para ver cuándo termina."
         },
         "Toasts": {
           "created": "Campaña creada",
