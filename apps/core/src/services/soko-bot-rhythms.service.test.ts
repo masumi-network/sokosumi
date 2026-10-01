@@ -34,6 +34,13 @@ vi.mock("@/lib/soko-bot/task-charges", () => ({
   taskCreditsCharged: chargedMock,
   roundCredits: (n: number) => Math.round(n * 100) / 100,
 }));
+const { statsMock } = vi.hoisted(() => ({ statsMock: vi.fn() }));
+vi.mock("@/services/soko-bot-activity-stats.service", async (original) => ({
+  ...(await original<
+    typeof import("@/services/soko-bot-activity-stats.service")
+  >()),
+  activityStats: statsMock,
+}));
 
 import { buildRhythmPacket, dueSoonBlock } from "./soko-bot-rhythms.service";
 
@@ -241,28 +248,43 @@ describe("follow-up chaser", () => {
 });
 
 describe("monthly review", () => {
-  it("totals credits by Coworker", async () => {
-    taskFindManyMock.mockResolvedValue([
-      { id: "a", assignee: { name: "Hannah" } },
-      { id: "b", assignee: { name: "Hannah" } },
-      { id: "c", assignee: { name: "Jamal" } },
-    ]);
-    chargedMock.mockResolvedValue(
-      new Map([
-        ["a", 100],
-        ["b", 21.31],
-        ["c", 50],
-      ]),
-    );
+  it("leads with the month's numbers for the owner, the bot and the team", async () => {
+    statsMock.mockResolvedValue({
+      own: { created: 12, completed: 9, failed: 1, viaBot: 4 },
+      ownerMessages: 42,
+      botTurns: 120,
+      botMessages: 80,
+      botCredits: 45.5,
+      coworkerCredits: [
+        { name: "Hannah", credits: 121.31 },
+        { name: "Jamal", credits: 50 },
+      ],
+      team: [{ name: "Albina", completed: 5, created: 7 }],
+    });
+    inboxMock.mockResolvedValue([]);
     const packet = await buildRhythmPacket({
       key: "monthly-review",
-      bot,
+      bot: { ...bot, name: "Jarvis" },
       now: new Date("2026-10-01T09:00:00.000Z"),
       dayStart: new Date("2026-10-01T00:00:00.000Z"),
     });
     const text = packet.lines.join("\n");
-    expect(text).toContain("total 171.31");
-    expect(text).toContain("- Hannah: 121.31");
+    expect(statsMock).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "bot-1" }),
+      new Date("2026-08-31T00:00:00.000Z"),
+      new Date("2026-10-01T00:00:00.000Z"),
+    );
+    expect(text).toContain("## Last 31 days in numbers");
+    expect(text).toContain(
+      "- Your Tasks: 12 created, 9 completed, 1 failed (4 completed through Jarvis)",
+    );
+    expect(text).toContain(
+      "- Chat: you sent 42 messages; Jarvis ran 120 turns and posted 80 messages",
+    );
+    expect(text).toContain(
+      "- Credits: 216.81 in total, 45.5 for Jarvis, Hannah 121.31, Jamal 50",
+    );
+    expect(text).toContain("- Team: Albina 5 completed / 7 created");
   });
 });
 

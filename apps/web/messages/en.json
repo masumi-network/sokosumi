@@ -1263,32 +1263,13 @@
           },
           "error": "Register failed",
           "Fields": {
-            "FirstName": {
-              "label": "First name"
-            },
-            "LastName": {
-              "label": "Last name"
-            },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
             },
-            "Organization": {
-              "placeholder": "Select an organization",
-              "search": "Search organizations",
-              "create": "Create {organization}",
-              "new": "New Organization",
-              "createPlaceholder": "New organization name",
-              "success": "Organization created successfully",
-              "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see or create organizations"
-            },
             "Password": {
-              "label": "Password"
+              "label": "Password",
+              "description": "At least 8 characters."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "Email domain not allowed",
-            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",
@@ -4933,6 +4914,7 @@
         "confirmTitle": "Are you sure?",
         "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
         "currentPassword": "Current password",
+        "confirmEmail": "Type {email} to confirm",
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
         "error": "Failed to delete account",
@@ -7451,7 +7433,8 @@
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
-          "required": "Email is required"
+          "required": "Email is required",
+          "confirmationMismatch": "Type the email address shown above."
         },
         "Name": {
           "min": "Name must be at least 2 characters.",

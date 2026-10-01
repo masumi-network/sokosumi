@@ -124,10 +124,7 @@ describe("stepped sign-up with an OAuth request", () => {
 
     await user.type(screen.getByLabelText("label"), "ada@example.com");
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-    await user.type(
-      await screen.findByLabelText("Fields.FirstName.label"),
-      "Ada",
-    );
+    await user.type(await screen.findByLabelText("firstNameLabel"), "Ada");
 
     // The step change is component state. The OAuth request lives in the page
     // URL, and the auth client reads it from there on every call, so a
@@ -137,7 +134,7 @@ describe("stepped sign-up with an OAuth request", () => {
     expect(locationReplaceMock).not.toHaveBeenCalled();
     expect(window.location.search).toBe(`?${OAUTH_SEARCH}`);
 
-    await user.type(screen.getByLabelText("Fields.LastName.label"), "Lovelace");
+    await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
     await user.type(
       screen.getByLabelText("Fields.Password.label"),
       "Passw0rd!",

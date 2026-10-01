@@ -5,7 +5,15 @@ import type {
 import { parseSokoBotMemory, upcomingFollowUps } from "@sokosumi/soko-bot";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
-import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
+import {
+  foreignTasksBlock,
+  memoryTasks,
+  tasksIn,
+} from "@/lib/soko-bot/memory-task-ownership";
+import {
+  activityStats,
+  activityStatsLines,
+} from "@/services/soko-bot-activity-stats.service";
 import {
   activeIntegrationsForBot,
   fetchCalendarEvents,
@@ -34,6 +42,7 @@ const FREEMAIL = new Set([
 
 export interface RhythmBot {
   id: string;
+  name?: string | null;
   userId: string;
   workspaceId: string;
   ingestTimezone: string;
@@ -350,14 +359,27 @@ async function followUpChaser(
   return { lines, skip: lines.length === 0 };
 }
 
-async function memoryFollowUps(bot: RhythmBot): Promise<string[]> {
+async function latestMemory(bot: RhythmBot): Promise<string | null> {
   const revision = await prisma.sokoBotMemoryRevision.findFirst({
     where: { sokoBotId: bot.id },
     orderBy: { version: "desc" },
     select: { markdown: true },
   });
-  return revision ? parseSokoBotMemory(revision.markdown).followUps : [];
+  return revision?.markdown ?? null;
 }
+
+/** Follow-ups that are the owner's: none about a teammate's Task. */
+async function memoryFollowUps(bot: RhythmBot): Promise<string[]> {
+  const markdown = await latestMemory(bot);
+  if (!markdown) return [];
+  const followUps = parseSokoBotMemory(markdown).followUps;
+  const known = await memoryTasks(followUps, bot);
+  return followUps.filter(
+    (entry) => !tasksIn(entry, known).some((task) => task.foreign),
+  );
+}
+
+const DAY_STATS = (days: number) => days * DAY_MS;
 
 async function mondayPlan(
   bot: RhythmBot,
@@ -371,7 +393,15 @@ async function mondayPlan(
       new Date(dayStart.getTime() + 7 * DAY_MS),
       40,
     )) ?? [];
-  const lines: string[] = [];
+  const lines: string[] = activityStatsLines(
+    await activityStats(
+      bot,
+      new Date(dayStart.getTime() - DAY_STATS(7)),
+      dayStart,
+    ),
+    "Last week in numbers",
+    bot.name ?? null,
+  );
   const timed = events.filter((event) => !event.allDay);
   if (timed.length > 0) {
     const perDay = new Map<string, number>();
@@ -412,36 +442,11 @@ async function monthlyReview(
   dayStart: Date,
 ): Promise<RhythmPacket> {
   const monthAgo = new Date(dayStart.getTime() - 31 * DAY_MS);
-  const tasks = await prisma.task.findMany({
-    where: {
-      workspaceId: bot.workspaceId,
-      updatedAt: { gte: monthAgo },
-      OR: [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }],
-    },
-    select: { id: true, assignee: { select: { name: true } } },
-    take: 300,
-  });
-  const charged = await taskCreditsCharged(tasks.map((task) => task.id));
-  const byCoworker = new Map<string, number>();
-  for (const task of tasks) {
-    const credits = charged.get(task.id) ?? 0;
-    if (credits <= 0) continue;
-    const who = task.assignee?.name ?? "Unassigned";
-    byCoworker.set(who, (byCoworker.get(who) ?? 0) + credits);
-  }
-  const lines: string[] = [];
-  if (byCoworker.size > 0) {
-    const total = [...byCoworker.values()].reduce((a, b) => a + b, 0);
-    lines.push(
-      `## Credits charged on your Tasks, last 31 days (total ${roundCredits(total)})`,
-    );
-    lines.push(
-      ...[...byCoworker]
-        .sort((a, b) => b[1] - a[1])
-        .map(([who, credits]) => `- ${who}: ${roundCredits(credits)}`),
-      "",
-    );
-  }
+  const lines = activityStatsLines(
+    await activityStats(bot, monthAgo, dayStart),
+    "Last 31 days in numbers",
+    bot.name ?? null,
+  );
   const invoices =
     (await mail(bot, {
       query:
@@ -456,11 +461,11 @@ async function monthlyReview(
   return { lines, skip: false };
 }
 
-const TASK_ID_IN_TEXT =
-  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
-
 async function memoryCleanup(bot: RhythmBot, now: Date): Promise<RhythmPacket> {
-  const followUps = await memoryFollowUps(bot);
+  const markdown = await latestMemory(bot);
+  if (!markdown) return { lines: [], skip: false };
+  const followUps = parseSokoBotMemory(markdown).followUps;
+  const known = await memoryTasks([markdown], bot);
   const weekAgo = new Intl.DateTimeFormat("en-CA", {
     timeZone: bot.ingestTimezone,
   }).format(new Date(now.getTime() - 7 * DAY_MS));
@@ -468,26 +473,8 @@ async function memoryCleanup(bot: RhythmBot, now: Date): Promise<RhythmPacket> {
     const date = /\b\d{4}-\d{2}-\d{2}\b/.exec(entry)?.[0];
     return !!date && date < weekAgo;
   });
-  const ids = [
-    ...new Set(
-      followUps.flatMap((entry) => entry.match(TASK_ID_IN_TEXT) ?? []),
-    ),
-  ];
-  const closed = ids.length
-    ? await prisma.task.findMany({
-        where: {
-          id: { in: ids },
-          OR: [
-            { archivedAt: { not: null } },
-            { status: { in: ["COMPLETED", "CANCELED"] } },
-          ],
-        },
-        select: { id: true },
-      })
-    : [];
-  const closedIds = new Set(closed.map((task) => task.id));
   const onClosed = followUps.filter((entry) =>
-    (entry.match(TASK_ID_IN_TEXT) ?? []).some((id) => closedIds.has(id)),
+    tasksIn(entry, known).some((task) => task.closed),
   );
   const lines: string[] = [];
   if (past.length > 0)
@@ -502,6 +489,7 @@ async function memoryCleanup(bot: RhythmBot, now: Date): Promise<RhythmPacket> {
       ...onClosed.map((entry) => `- ${entry}`),
       "",
     );
+  lines.push(...foreignTasksBlock(known));
   // Goals have no date to test, so the bot still looks at its memory weekly.
   return { lines, skip: false };
 }

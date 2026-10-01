@@ -464,6 +464,20 @@ vi.mock("@/routes/v1/chats/rooms/room-unread", () => ({
 }));
 vi.mock("@/helpers/access-control", () => ({
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
+  buildTaskWriteAccessWhere: (userId: string) => ({
+    OR: [{ ownerId: userId }, { visibility: "PUBLIC" }],
+  }),
+  requireTaskWriteAccess: async (
+    _userContext: unknown,
+    id: string,
+    tx: {
+      task: { findFirst: (args: unknown) => Promise<{ id: string } | null> };
+    },
+  ) => {
+    const task = await tx.task.findFirst({ where: { id, archivedAt: null } });
+    if (!task) throw new Error("Task not found");
+    return task;
+  },
 }));
 vi.mock("@/helpers/vendor-grants", () => ({
   isGrantDeniedOrRevoked: vi.fn(() => false),

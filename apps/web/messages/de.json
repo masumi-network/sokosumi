@@ -1263,32 +1263,13 @@
           },
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
-            "FirstName": {
-              "label": "Vorname"
-            },
-            "LastName": {
-              "label": "Nachname"
-            },
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
             },
-            "Organization": {
-              "placeholder": "Organisation auswählen",
-              "search": "Organisationen suchen",
-              "create": "{organization} erstellen",
-              "new": "Neue Organisation",
-              "createPlaceholder": "Name der neuen Organisation",
-              "success": "Organisation erfolgreich erstellt",
-              "error": "Organisation konnte nicht erstellt werden",
-              "invalidEmail": "Gib eine gültige E-Mail-Adresse ein, um Organisationen zu sehen oder zu erstellen"
-            },
             "Password": {
-              "label": "Passwort"
+              "label": "Passwort",
+              "description": "Mindestens 8 Zeichen."
             }
-          },
-          "Errors": {
-            "emailDomainNotAllowed": "E-Mail-Domain nicht erlaubt",
-            "badInput": "Bitte fülle das Formular korrekt aus."
           },
           "Login": {
             "message": "Bereits ein Konto?",
@@ -4897,6 +4878,7 @@
         "confirmTitle": "Bist du sicher?",
         "confirmDescription": "Diese Aktion kann nicht rückgängig gemacht werden. Dein Account wird dauerhaft gelöscht und deine Daten werden von unseren Servern entfernt.",
         "currentPassword": "Aktuelles Passwort",
+        "confirmEmail": "Gib {email} zur Bestätigung ein",
         "confirm": "Ja, meinen Account löschen",
         "success": "Account erfolgreich gelöscht",
         "error": "Account konnte nicht gelöscht werden",
@@ -7451,7 +7433,8 @@
       "Schema": {
         "Email": {
           "invalid": "Bitte gib eine gültige E-Mail-Adresse ein.",
-          "required": "E-Mail ist erforderlich"
+          "required": "E-Mail ist erforderlich",
+          "confirmationMismatch": "Gib die oben angezeigte E-Mail-Adresse ein."
         },
         "Name": {
           "min": "Name muss mindestens 2 Zeichen lang sein.",

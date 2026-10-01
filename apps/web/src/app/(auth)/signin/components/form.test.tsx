@@ -100,7 +100,8 @@ function fakeEmailCode(overrides: Partial<EmailCode> = {}): EmailCode {
     isSending: false,
     sentTo: EMAIL,
     sentAt: Date.now(),
-    sendCode: vi.fn().mockResolvedValue(undefined),
+    sendCode: vi.fn().mockResolvedValue(Date.now()),
+    adoptSentCode: vi.fn(),
     signInWithCode: vi.fn().mockResolvedValue(undefined),
     ...overrides,
   };
