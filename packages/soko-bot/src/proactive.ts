@@ -20,7 +20,15 @@ export function isSokoBotSilentAnswer(
  * console's "How it works" explanation.
  */
 export interface SokoBotSystemSchedule {
-  key: "standup" | "weekly-wrap";
+  key:
+    | "standup"
+    | "weekly-wrap"
+    | "meeting-prep"
+    | "end-of-day"
+    | "follow-ups"
+    | "monday-plan"
+    | "monthly-review"
+    | "memory-cleanup";
   name: string;
   /** Cron in the bot's timezone. */
   cronExpression: string;
@@ -36,7 +44,7 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Weekday mornings: today's meetings, mail that needs you, and what is stuck on the board.",
     prompt:
-      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) mail that needs them, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn and name it in the brief. "Open on the board" is context only — never nudge or comment on those. Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
+      'Daily stand-up. Using the packet below, give the owner one short brief (under 12 lines): 1) today\'s calendar with times and who with, 2) mail that needs them, 3) items under "Needs attention" and what you did about each in this turn (nudge the Coworker with reply_to_task in one concrete sentence, ask the owner one question, or reschedule), 4) follow-ups due from memory, 5) anything under "Due within 48h", once. If a mail is an explicit request to the owner with a deliverable and a date (an invoice due, a signature, a deadline someone set), create the DRAFT Task for it in this turn and name it in the brief. "Open on the board" is context only — never nudge or comment on those. Skip empty sections; when every section is empty, answer exactly: Nothing to add.',
   },
   {
     key: "weekly-wrap",
@@ -45,7 +53,61 @@ export const SOKO_BOT_SYSTEM_SCHEDULES: readonly SokoBotSystemSchedule[] = [
     description:
       "Friday afternoon: what got done, what slipped, and what is queued for next week.",
     prompt:
-      "Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.",
+      "Weekly wrap. Using the packet below and get_task_status where needed: what got done this week (only Tasks whose status is COMPLETED; RUNNING or waiting for input is still in progress, FAILED slipped), what slipped and why, what is queued for next week, and one decision the owner should make. Compare with the Monday plan in memory if there is one. Update memory (goals, follow-ups, blockers) to match. Under 12 lines; when nothing moved this week, say so in one line.",
+  },
+  {
+    key: "meeting-prep",
+    name: "Meeting prep",
+    cronExpression: "*/30 7-19 * * 1-5",
+    description:
+      "Before a meeting with people from outside: who is coming, your last mail with them, and related open Tasks.",
+    prompt:
+      "Meeting prep. A meeting with people from outside starts within the hour. From the packet below, give the owner a short brief (under 10 lines): who is coming and from where, what was last said with them by mail, open Tasks connected to them, and anything still unanswered. Name the meeting and its time first. When the packet has nothing useful beyond the meeting itself, answer exactly: Nothing to add.",
+  },
+  {
+    key: "end-of-day",
+    name: "End of day",
+    cronExpression: "30 17 * * 1-5",
+    description:
+      "Weekday evenings: what got done, what waits on you, tomorrow's first meeting, three priorities.",
+    prompt:
+      "End of day. From the packet below, in under 10 lines: what got done today, what is waiting on the owner, tomorrow's first meeting with its time, and three priorities you suggest for tomorrow, each with a reason. Skip empty parts; when nothing happened and nothing waits, answer exactly: Nothing to add.",
+  },
+  {
+    key: "follow-ups",
+    name: "Follow-up chaser",
+    cronExpression: "0 10 * * 1-5",
+    description:
+      "Weekday mornings, only when it matters: mail waiting on your answer, and mail you sent that nobody answered.",
+    prompt:
+      'Follow-up chaser. "Waiting on you" lists mail that asks the owner something and is a few days old; "Waiting on others" lists mail the owner sent that got no reply. Raise only the ones that genuinely need action, at most five, each in one line with who and what. For mail the owner sent, offer to draft a short nudge; never send anything. When none needs action, answer exactly: Nothing to add.',
+  },
+  {
+    key: "monday-plan",
+    name: "Monday plan",
+    cronExpression: "0 9 * * 1",
+    description:
+      "Monday mornings: how full the week is, deadlines, your goals, and where to protect time.",
+    prompt:
+      "Monday plan. From the packet below and your memory: how full this week's calendar is (busiest days), deadlines this week, the goals you know of, and two or three blocks of time worth protecting, with why. Under 12 lines. Write the plan's three main points into memory follow-ups dated this Friday, so the weekly wrap can check them. When the week is empty and there are no goals, answer exactly: Nothing to add.",
+  },
+  {
+    key: "monthly-review",
+    name: "Monthly review",
+    cronExpression: "0 9 1 * *",
+    description:
+      "First of the month: progress on your goals, what last month's work cost, and invoices or subscriptions seen in mail.",
+    prompt:
+      "Monthly review. From the packet below and your memory: progress on the goals you know of, what last month's delegated work cost by Coworker, and recurring invoices or subscriptions seen in mail (name, amount if shown, how often). Under 12 lines; suggest one thing to change. When there is nothing to review, answer exactly: Nothing to add.",
+  },
+  {
+    key: "memory-cleanup",
+    name: "Memory cleanup",
+    cronExpression: "0 18 * * 0",
+    description:
+      "Sunday evenings, silently: drops goals and follow-ups that are done or out of date.",
+    prompt:
+      "Memory cleanup. Using your memory and the packet below, remove goals and follow-ups that are done, refer to Tasks that are closed, or whose date passed more than a week ago, with update_memory. Keep everything still relevant. Say nothing to the owner unless you dropped a goal they should know about; otherwise answer exactly: Nothing to add.",
   },
 ];
 
@@ -116,6 +178,26 @@ function localDate(now: Date, timeZone: string): string {
     month: "2-digit",
     day: "2-digit",
   }).format(now);
+}
+
+/** Memory follow-ups dated after today and within `days`, in the bot's timezone. */
+export function upcomingFollowUps(
+  followUps: readonly string[],
+  now: Date,
+  timeZone: string,
+  days: number,
+): SokoBotDueFollowUp[] {
+  const today = localDate(now, timeZone);
+  const until = localDate(
+    new Date(now.getTime() + days * 86_400_000),
+    timeZone,
+  );
+  return followUps.flatMap((entry) => {
+    const date = ISO_DATE.exec(entry)?.[0];
+    return date && date > today && date <= until
+      ? [{ text: entry.trim(), date, overdue: false }]
+      : [];
+  });
 }
 
 /** Memory follow-ups whose ISO date is today or in the past, in the bot's timezone. */
