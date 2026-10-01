@@ -35,6 +35,12 @@ export function ChangeCreditsPerMonthDialog({
   const [value, setValue] = useState(creditsPerMonth);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  function handleOpenChange(nextOpen: boolean) {
+    if (isSubmitting) return;
+    if (nextOpen) setValue(creditsPerMonth);
+    setOpen(nextOpen);
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsSubmitting(true);
@@ -51,17 +57,19 @@ export function ChangeCreditsPerMonthDialog({
       toast.success(t("success"));
       setOpen(false);
       router.refresh();
+    } catch {
+      toast.error(t("error"));
     } finally {
       setIsSubmitting(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline">{t("title")}</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent showCloseButton={!isSubmitting}>
         <form onSubmit={handleSubmit} className="space-y-4">
           <DialogHeader>
             <DialogTitle>{t("title")}</DialogTitle>
@@ -79,6 +87,7 @@ export function ChangeCreditsPerMonthDialog({
                 setValue(Number(event.target.value) || MIN_CREDITS_PER_MONTH)
               }
               required
+              disabled={isSubmitting}
             />
             <p className="text-muted-foreground text-xs">
               {t("min", { min: MIN_CREDITS_PER_MONTH })}

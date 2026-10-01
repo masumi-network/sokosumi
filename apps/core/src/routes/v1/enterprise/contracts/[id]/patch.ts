@@ -18,6 +18,7 @@ import {
 } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import {
   enterpriseContractIdParamsSchema,
@@ -60,10 +61,11 @@ const route = createRoute({
 async function updateActiveContractCreditsPerMonth(
   id: string,
   body: z.infer<typeof patchEnterpriseContractRequestSchema>,
+  fieldNames: string[],
 ) {
-  const { creditsPerMonth, ...otherFields } = body;
-  const hasOtherFields = Object.values(otherFields).some(
-    (value) => value !== undefined,
+  const { creditsPerMonth } = body;
+  const hasOtherFields = fieldNames.some(
+    (field) => field !== "creditsPerMonth",
   );
   if (creditsPerMonth === undefined || hasOtherFields) {
     throw conflict(
@@ -73,7 +75,22 @@ async function updateActiveContractCreditsPerMonth(
 
   const centsPerMonth = creditsPerMonthToCents(creditsPerMonth);
 
-  return await prisma.$transaction(async (tx) => {
+  return await serializableTransaction(async (tx) => {
+    const current = await tx.enterpriseContract.findUnique({ where: { id } });
+    if (!current) {
+      throw notFound("Enterprise contract not found");
+    }
+    if (current.status !== EnterpriseContractStatus.active) {
+      throw conflict(
+        "Only active enterprise contracts can change future monthly credits",
+      );
+    }
+
+    const updated = await tx.enterpriseContract.update({
+      where: { id },
+      data: { centsPerMonth },
+      include: enterpriseContractOrganizationSelect,
+    });
     await tx.enterpriseContractPeriod.updateMany({
       where: {
         contractId: id,
@@ -82,12 +99,8 @@ async function updateActiveContractCreditsPerMonth(
       data: { centsToGrant: centsPerMonth },
     });
 
-    return await tx.enterpriseContract.update({
-      where: { id },
-      data: { centsPerMonth },
-      include: enterpriseContractOrganizationSelect,
-    });
-  });
+    return updated;
+  }, "Enterprise contract changed concurrently; retry the credit update");
 }
 
 export default function mount(app: OpenAPIHonoWithAuth) {
@@ -104,11 +117,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     if (current.status === EnterpriseContractStatus.active) {
+      // Zod strips unknown fields. Check the cached request as well so an
+      // active mutation cannot silently accept anything except monthly credits.
+      const fieldNames = Object.keys(
+        await c.req.json<Record<string, unknown>>(),
+      );
       return ok(
         c,
         enterpriseContractSchema.parse(
           mapEnterpriseContractForApi(
-            await updateActiveContractCreditsPerMonth(id, body),
+            await updateActiveContractCreditsPerMonth(id, body, fieldNames),
           ),
         ),
       );
