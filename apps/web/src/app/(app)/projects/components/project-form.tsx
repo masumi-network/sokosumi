@@ -129,7 +129,9 @@ export function ProjectForm({
             });
 
       if (!result.ok) {
-        setIsIdentifierTaken(true);
+        if (result.error.kind === "identifier_taken") {
+          setIsIdentifierTaken(true);
+        }
         return;
       }
 

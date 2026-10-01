@@ -17,7 +17,7 @@ import {
   projectIdentifierSchema,
   SOCIAL_POST_MEDIA_MAX,
 } from "@sokosumi/utils";
-import { err, ok } from "neverthrow";
+import { err, ok, type Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
 
@@ -194,12 +194,12 @@ function revalidateProjectSocialPostMutationRoutes(projectId: string) {
   revalidatePath("/calendar");
 }
 
-/** The one project write failure the form shows on a field rather than as a toast. */
-interface ProjectIdentifierTakenError {
-  kind: "identifier_taken";
-}
+/** Project write failures the form shows on the identifier field. */
+type ProjectIdentifierError =
+  | { kind: "identifier_taken" }
+  | { kind: "identifier_invalid" };
 
-type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierTakenError>;
+type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierError>;
 
 function isIdentifierTaken(error: unknown): boolean {
   return (
@@ -212,13 +212,19 @@ function identifierTaken<T>(): ProjectMutationResult<T> {
   return toActionResult(err({ kind: "identifier_taken" as const }));
 }
 
-function normalizeProjectIdentifier(identifier?: string): string | undefined {
+function identifierInvalid<T>(): ProjectMutationResult<T> {
+  return toActionResult(err({ kind: "identifier_invalid" as const }));
+}
+
+function normalizeProjectIdentifier(
+  identifier?: string,
+): Result<string | undefined, "identifier_invalid"> {
   const normalized = identifier?.trim().toUpperCase();
-  if (!normalized) return undefined;
+  if (!normalized) return ok(undefined);
   if (!projectIdentifierSchema.safeParse(normalized).success) {
-    throw new Error("Invalid project identifier");
+    return err("identifier_invalid");
   }
-  return normalized;
+  return ok(normalized);
 }
 
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
@@ -265,7 +271,11 @@ export const createProject = withSession<
   }
 
   const normalizedWebsiteUrl = normalizeOptionalWebsiteUrl(websiteUrl);
-  const normalizedIdentifier = normalizeProjectIdentifier(identifier);
+  const identifierResult = normalizeProjectIdentifier(identifier);
+  if (identifierResult.isErr()) {
+    return identifierInvalid();
+  }
+  const normalizedIdentifier = identifierResult.value;
 
   try {
     const project = await projectService.createProject({
@@ -301,7 +311,11 @@ export const updateProject = withSession<
     websiteUrl !== undefined
       ? normalizeOptionalWebsiteUrl(websiteUrl)
       : undefined;
-  const normalizedIdentifier = normalizeProjectIdentifier(identifier);
+  const identifierResult = normalizeProjectIdentifier(identifier);
+  if (identifierResult.isErr()) {
+    return identifierInvalid();
+  }
+  const normalizedIdentifier = identifierResult.value;
 
   try {
     await projectService.patchProject(normalizedProjectId, {
