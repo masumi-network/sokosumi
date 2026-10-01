@@ -29,6 +29,8 @@ interface GetSessionOptions {
 export interface OAuthClientPublic {
   client_id?: string;
   client_name?: string;
+  client_uri?: string;
+  logo_uri?: string;
 }
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";

@@ -92,6 +92,8 @@ describe("SignUp page", () => {
     getOAuthClientPublicPreloginMock.mockResolvedValue({
       client_id: "cmo",
       client_name: "CMO",
+      client_uri: "https://cmo.xyz",
+      logo_uri: "https://cmo.xyz/logo.png",
     });
   });
 
@@ -125,7 +127,7 @@ describe("SignUp page", () => {
 
     expect(signUpFlowMock).toHaveBeenCalledWith({
       invitationId: "inv_1",
-      clientName: undefined,
+      client: undefined,
       prefilledEmail: "ada@example.com",
       returnUrl: "/agents",
       lastUsedMethod: "google",
@@ -141,7 +143,7 @@ describe("SignUp page", () => {
     expect(screen.getByTestId("terms-notice")).toBeInTheDocument();
   });
 
-  it("names the product the person is continuing to", async () => {
+  it("shows the product the person is continuing to", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
@@ -152,11 +154,17 @@ describe("SignUp page", () => {
       OAUTH_QUERY,
     );
     expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: "CMO" }),
+      expect.objectContaining({
+        client: {
+          name: "CMO",
+          uri: "https://cmo.xyz/",
+          logoUri: "https://cmo.xyz/logo.png",
+        },
+      }),
     );
   });
 
-  it("names no product without an OAuth request", async () => {
+  it("shows no product without an OAuth request", async () => {
     const { default: Page } = await import("./page");
 
     render(await Page({ searchParams: Promise.resolve({}) }));
@@ -164,7 +172,7 @@ describe("SignUp page", () => {
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
     expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: undefined }),
+      expect.objectContaining({ client: undefined }),
     );
   });
 
@@ -175,7 +183,7 @@ describe("SignUp page", () => {
     render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
 
     expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientName: undefined }),
+      expect.objectContaining({ client: undefined }),
     );
     expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
   });
@@ -188,7 +196,11 @@ describe("SignUp page", () => {
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: OAUTH_QUERY,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz/",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
     });
     expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
   });
@@ -213,7 +225,11 @@ describe("SignUp page", () => {
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz/",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
       accountToConfirm: {
         id: "user-1",
         name: "Ada Lovelace",
@@ -247,7 +263,11 @@ describe("SignUp page", () => {
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
-      clientName: "CMO",
+      client: {
+        name: "CMO",
+        uri: "https://cmo.xyz/",
+        logoUri: "https://cmo.xyz/logo.png",
+      },
       accountToConfirm: undefined,
     });
   });
