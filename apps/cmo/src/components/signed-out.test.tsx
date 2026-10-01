@@ -1,7 +1,20 @@
+// @vitest-environment happy-dom
+
+import { act } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { SignedOut } from "./signed-out";
+
+// The mascot's separate suite covers WebGL. Keep asset downloads out of form tests.
+vi.mock("three/addons/loaders/GLTFLoader.js", () => ({
+  GLTFLoader: class {
+    async loadAsync() {
+      throw new Error("No WebGL in form tests");
+    }
+  },
+}));
 
 async function signIn() {}
 async function createAccount() {}
@@ -9,6 +22,50 @@ async function createAccount() {}
 const actions = { signIn, createAccount };
 
 describe("signed-out page", () => {
+  it.each(["Create account", "Sign in"])(
+    "%s stays busy until its action settles and can be retried",
+    async (label) => {
+      const container = document.createElement("div");
+      document.body.append(container);
+      const root = createRoot(container);
+      const attempts: Array<() => void> = [];
+      const action = vi.fn(
+        () => new Promise<void>((resolve) => attempts.push(resolve)),
+      );
+      try {
+        await act(async () => {
+          root.render(<SignedOut signIn={action} createAccount={action} />);
+        });
+        const button = Array.from(container.querySelectorAll("button")).find(
+          (candidate) => candidate.textContent === label,
+        );
+        if (!button) throw new Error(`Missing ${label} button`);
+        expect(button.disabled).toBe(false);
+        expect(button.hasAttribute("aria-busy")).toBe(false);
+
+        for (let attempt = 0; attempt < 2; attempt++) {
+          await act(async () => button.click());
+          expect(action).toHaveBeenCalledTimes(attempt + 1);
+          expect(button.disabled).toBe(true);
+          expect(button.getAttribute("aria-busy")).toBe("true");
+          expect(button.textContent).toBe(label);
+          expect(button.querySelector("[aria-hidden='true']")).not.toBeNull();
+
+          await act(async () => button.click());
+          expect(action).toHaveBeenCalledTimes(attempt + 1);
+          await act(async () => attempts[attempt]());
+          expect(button.disabled).toBe(false);
+          expect(button.hasAttribute("aria-busy")).toBe(false);
+          expect(button.querySelector("[aria-hidden='true']")).toBeNull();
+          expect(button.textContent).toBe(label);
+        }
+      } finally {
+        await act(async () => root.unmount());
+        container.remove();
+      }
+    },
+  );
+
   it("names the product and offers to create an account or sign in", () => {
     const html = renderToStaticMarkup(<SignedOut {...actions} />);
 
