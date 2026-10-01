@@ -59,11 +59,23 @@ export const adsService = (() => {
     });
   }
 
+  /** Drops a connection nothing was attached to; Core refuses one in use. */
+  async function discardConnection(
+    projectId: string,
+    adConnectionId: string,
+  ): Promise<void> {
+    await coreClient.deleteProjectsByIdAdsConnectionsByAdConnectionId({
+      id: projectId,
+      adConnectionId,
+    });
+  }
+
   return {
     listAccounts,
     initiateConnection,
     finalizeConnection,
     attachAccounts,
     disconnectAccount,
+    discardConnection,
   };
 })();

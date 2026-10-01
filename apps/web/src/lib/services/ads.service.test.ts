@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 const coreClientMock = {
   deleteProjectsByIdAdsAccountsByAccountId: vi.fn(),
+  deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
   getProjectsByIdAdsAccounts: vi.fn(),
   postProjectsByIdAdsAccounts: vi.fn(),
   postProjectsByIdAdsConnectionsFinalize: vi.fn(),
@@ -118,6 +119,21 @@ describe("adsService", () => {
     expect(
       coreClientMock.deleteProjectsByIdAdsAccountsByAccountId,
     ).toHaveBeenCalledWith({ id: "project-1", accountId: "account-1" });
+  });
+
+  it("discards a connection that holds no accounts", async () => {
+    coreClientMock.deleteProjectsByIdAdsConnectionsByAdConnectionId.mockResolvedValue(
+      undefined,
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.discardConnection("project-1", "connection-1"),
+    ).resolves.toBeUndefined();
+    expect(
+      coreClientMock.deleteProjectsByIdAdsConnectionsByAdConnectionId,
+    ).toHaveBeenCalledWith({ id: "project-1", adConnectionId: "connection-1" });
   });
 
   it("lets Core errors through", async () => {

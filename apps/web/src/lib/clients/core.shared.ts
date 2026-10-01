@@ -19,6 +19,7 @@ import type {
   CreateTaskScheduleRequest,
   DeleteJobsByIdShareError,
   DeleteProjectsByIdAdsAccountsByAccountIdData,
+  DeleteProjectsByIdAdsConnectionsByAdConnectionIdData,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -170,6 +171,7 @@ import {
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
   deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
+  deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
@@ -3425,6 +3427,17 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
+    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
+      "Failed to discard Project ad connection",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -5688,6 +5701,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteJobShare,
     deleteProjectsByIdDesignMd,
     deleteProjectsByIdAdsAccountsByAccountId,
+    deleteProjectsByIdAdsConnectionsByAdConnectionId,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,

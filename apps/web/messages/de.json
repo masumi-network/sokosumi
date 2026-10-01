@@ -2812,6 +2812,7 @@
         "connect": "{provider} verbinden",
         "unavailable": "{provider} ist noch nicht verfügbar",
         "noAccountsFound": "Für diesen Login wurden keine Werbekonten gefunden",
+        "sectionLabel": "Werbekonten",
         "listLabel": "Verbundene Werbekonten",
         "disconnect": "Trennen",
         "disconnectLabel": "{name} trennen",
@@ -2822,7 +2823,7 @@
         },
         "disconnectDialog": {
           "title": "{name} trennen?",
-          "description": "Die Kampagnen erscheinen hier nicht mehr. Du kannst das Konto jederzeit wieder verbinden.",
+          "description": "Die Kampagnen erscheinen hier nicht mehr. Ist dies das letzte Konto dieses Logins, trennt Sokosumi auch den Login. Du kannst das Konto jederzeit wieder verbinden.",
           "confirm": "Trennen"
         },
         "picker": {
@@ -2840,6 +2841,7 @@
           "connect": "{provider} konnte nicht verbunden werden",
           "attach": "Werbekonten konnten nicht verbunden werden",
           "disconnect": "Werbekonto konnte nicht getrennt werden",
+          "discard": "Verbindung konnte nicht verworfen werden",
           "popupBlocked": "Dein Browser hat das Autorisierungsfenster blockiert. Erlaube Pop-ups und versuche es erneut.",
           "timeout": "Die Autorisierung hat zu lange gedauert. Versuche es erneut.",
           "inFlight": "Es läuft bereits eine Verbindung."

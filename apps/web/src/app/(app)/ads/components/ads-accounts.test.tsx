@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   attachAdAccounts,
+  discardAdConnection,
   disconnectAdAccount,
   finalizeAdConnection,
   initiateAdConnection,
@@ -34,6 +35,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/actions/ads/action", () => ({
   attachAdAccounts: vi.fn(),
   disconnectAdAccount: vi.fn(),
+  discardAdConnection: vi.fn(),
   finalizeAdConnection: vi.fn(),
   initiateAdConnection: vi.fn(),
 }));
@@ -143,6 +145,10 @@ describe("AdsAccounts", () => {
       ok: true,
       value: undefined,
     });
+    vi.mocked(discardAdConnection).mockResolvedValue({
+      ok: true,
+      value: undefined,
+    });
   });
 
   describe("empty state", () => {
@@ -156,6 +162,35 @@ describe("AdsAccounts", () => {
       expect(
         screen.getByRole("button", { name: "Connect Meta Ads" }),
       ).toBeEnabled();
+    });
+  });
+
+  describe("busy state", () => {
+    it("shows a spinner on the button being connected", async () => {
+      let finish: (value: unknown) => void = () => {};
+      flow.waitForCallback.mockReturnValue(
+        new Promise((resolve) => {
+          finish = resolve;
+        }),
+      );
+      const user = userEvent.setup();
+      renderAccounts();
+
+      await user.click(
+        screen.getByRole("button", { name: "Connect Meta Ads" }),
+      );
+
+      const button = screen.getByRole("button", { name: "Connect Meta Ads" });
+      expect(button).toBeDisabled();
+      expect(button).toHaveAttribute("aria-busy", "true");
+      expect(button.querySelector("svg.animate-spin")).not.toBeNull();
+      expect(
+        screen.getByRole("button", { name: "Connect Google Ads" }),
+      ).toBeDisabled();
+
+      finish({ kind: "cancelled" });
+      await waitFor(() => expect(button).toBeEnabled());
+      expect(button.querySelector("svg.animate-spin")).toBeNull();
     });
   });
 
@@ -253,6 +288,97 @@ describe("AdsAccounts", () => {
       expect(screen.queryByRole("dialog")).toBeNull();
     });
 
+    it("discards the connection when the picker is cancelled", async () => {
+      const user = userEvent.setup();
+      renderAccounts();
+
+      await user.click(
+        screen.getByRole("button", { name: "Connect Google Ads" }),
+      );
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(discardAdConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          adConnectionId: "connection-1",
+        }),
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(toastErrorMock).not.toHaveBeenCalled();
+    });
+
+    it("toasts only when discarding fails", async () => {
+      vi.mocked(discardAdConnection).mockResolvedValue({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      const user = userEvent.setup();
+      renderAccounts();
+
+      await user.click(
+        screen.getByRole("button", { name: "Connect Google Ads" }),
+      );
+      const dialog = await screen.findByRole("dialog");
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(toastErrorMock).toHaveBeenCalledWith(
+          "Failed to discard ad connection",
+        ),
+      );
+    });
+
+    it("does not discard once the accounts were attached", async () => {
+      const user = userEvent.setup();
+      renderAccounts();
+
+      await user.click(
+        screen.getByRole("button", { name: "Connect Google Ads" }),
+      );
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("checkbox", { name: /Account 1/ }),
+      );
+      await user.click(
+        within(dialog).getByRole("button", { name: "Connect selected" }),
+      );
+
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(discardAdConnection).not.toHaveBeenCalled();
+    });
+
+    it("discards after a failed attach when the dialog is then closed", async () => {
+      vi.mocked(attachAdAccounts).mockResolvedValue({
+        ok: false,
+        error: { code: "INTERNAL_SERVER_ERROR" },
+      });
+      const user = userEvent.setup();
+      renderAccounts();
+
+      await user.click(
+        screen.getByRole("button", { name: "Connect Google Ads" }),
+      );
+      const dialog = await screen.findByRole("dialog");
+      await user.click(
+        within(dialog).getByRole("checkbox", { name: /Account 1/ }),
+      );
+      await user.click(
+        within(dialog).getByRole("button", { name: "Connect selected" }),
+      );
+      await waitFor(() => expect(toastErrorMock).toHaveBeenCalled());
+      expect(discardAdConnection).not.toHaveBeenCalled();
+
+      await user.click(within(dialog).getByRole("button", { name: "Cancel" }));
+
+      await waitFor(() =>
+        expect(discardAdConnection).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          adConnectionId: "connection-1",
+        }),
+      );
+    });
+
     it("keeps the dialog open and toasts when attaching fails", async () => {
       vi.mocked(attachAdAccounts).mockResolvedValue({
         ok: false,
@@ -283,7 +409,10 @@ describe("AdsAccounts", () => {
     it("notes that a provider isn't available when Core is not configured, keeping the other usable", async () => {
       vi.mocked(initiateAdConnection).mockResolvedValue({
         ok: false,
-        error: { code: "ADS_NOT_CONFIGURED" },
+        error: {
+          code: "INTERNAL_SERVER_ERROR",
+          kind: "integration_not_configured",
+        },
       });
       const user = userEvent.setup();
       renderAccounts();
@@ -403,6 +532,25 @@ describe("AdsAccounts", () => {
       );
       expect(toastSuccessMock).toHaveBeenCalledWith(
         "Ad account disconnected successfully",
+      );
+    });
+
+    it("moves focus to the accounts section once the row is gone", async () => {
+      const user = userEvent.setup();
+      renderAccounts([buildAccount()]);
+
+      await user.click(
+        screen.getByRole("button", { name: "Disconnect Launch plan" }),
+      );
+      const dialog = await screen.findByRole("alertdialog");
+      await user.click(
+        within(dialog).getByRole("button", { name: "Disconnect" }),
+      );
+
+      await waitFor(() =>
+        expect(
+          screen.getByRole("region", { name: "Ad accounts" }),
+        ).toHaveFocus(),
       );
     });
 

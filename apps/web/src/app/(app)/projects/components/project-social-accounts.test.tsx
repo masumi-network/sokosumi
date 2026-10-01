@@ -246,8 +246,9 @@ describe("ProjectSocialAccounts", () => {
     vi.mocked(initiateProjectSocialConnection).mockResolvedValue({
       ok: false,
       error: {
-        code: "SERVICE_UNAVAILABLE",
-        message: "COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID is not configured",
+        code: "INTERNAL_SERVER_ERROR",
+        kind: "integration_not_configured",
+        message: "The service is currently unavailable.",
       },
     });
     render(<ProjectSocialAccounts projectId={PROJECT_ID} connections={[]} />);

@@ -2812,6 +2812,7 @@
         "connect": "Conectar {provider}",
         "unavailable": "{provider} aún no está disponible",
         "noAccountsFound": "No se encontraron cuentas publicitarias para este inicio de sesión",
+        "sectionLabel": "Cuentas publicitarias",
         "listLabel": "Cuentas publicitarias conectadas",
         "disconnect": "Desconectar",
         "disconnectLabel": "Desconectar {name}",
@@ -2822,7 +2823,7 @@
         },
         "disconnectDialog": {
           "title": "¿Desconectar {name}?",
-          "description": "Sus campañas dejarán de aparecer aquí. Puedes volver a conectarla en cualquier momento.",
+          "description": "Sus campañas dejarán de aparecer aquí. Si es la última cuenta de ese inicio de sesión, Sokosumi también desconecta el inicio de sesión. Puedes volver a conectarla en cualquier momento.",
           "confirm": "Desconectar"
         },
         "picker": {
@@ -2840,6 +2841,7 @@
           "connect": "No se pudo conectar {provider}",
           "attach": "No se pudieron conectar las cuentas publicitarias",
           "disconnect": "No se pudo desconectar la cuenta publicitaria",
+          "discard": "No se pudo descartar la conexión",
           "popupBlocked": "Tu navegador bloqueó la ventana de autorización. Permite las ventanas emergentes e inténtalo de nuevo.",
           "timeout": "La autorización tardó demasiado. Inténtalo de nuevo.",
           "inFlight": "Ya hay una conexión en curso."

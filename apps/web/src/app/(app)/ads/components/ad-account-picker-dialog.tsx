@@ -43,7 +43,7 @@ export function AdAccountPickerDialog({
     () => new Set(accounts.length === 1 ? [accounts[0].externalAccountId] : []),
   );
 
-  function toggle(externalAccountId: string, checked: boolean): void {
+  function handleToggle(externalAccountId: string, checked: boolean): void {
     setSelected((current) => {
       const next = new Set(current);
       if (checked) next.add(externalAccountId);
@@ -81,7 +81,7 @@ export function AdAccountPickerDialog({
                   className="mt-0.5"
                   disabled={isAttaching}
                   onCheckedChange={(checked) =>
-                    toggle(account.externalAccountId, checked === true)
+                    handleToggle(account.externalAccountId, checked === true)
                   }
                 />
                 <span className="min-w-0">

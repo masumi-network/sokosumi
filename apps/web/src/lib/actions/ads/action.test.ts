@@ -18,25 +18,16 @@ const adsServiceMock = {
   disconnectAccount: vi.fn(),
   finalizeConnection: vi.fn(),
   initiateConnection: vi.fn(),
+  discardConnection: vi.fn(),
 };
 
-class CoreApiRequestError extends Error {
-  status?: number;
-
-  constructor(message: string, options?: { status?: number }) {
-    super(message);
-    this.name = "CoreApiRequestError";
-    this.status = options?.status;
-  }
-}
-
-vi.mock("@/lib/clients/core.client", () => ({
-  CoreApiRequestError,
-  toCoreApiActionError: (error: unknown) => ({
-    code: "INTERNAL_SERVER_ERROR",
-    message: error instanceof Error ? error.message : "unknown",
-  }),
-}));
+// The real error mapper, so these tests see what the UI sees.
+vi.mock("@/lib/clients/core.client", async () => {
+  const { CoreApiRequestError, toCoreApiActionError } = await vi.importActual<
+    typeof import("@/lib/clients/core.request")
+  >("@/lib/clients/core.request");
+  return { CoreApiRequestError, toCoreApiActionError };
+});
 
 vi.mock("@/lib/services/ads.service", () => ({ adsService: adsServiceMock }));
 
@@ -51,6 +42,11 @@ const ACCOUNT = {
   loginCustomerId: null,
   createdAt: new Date("2026-10-01T10:00:00.000Z"),
 };
+
+async function coreError(message: string, status: number, kind?: string) {
+  const { CoreApiRequestError } = await import("@/lib/clients/core.client");
+  return new CoreApiRequestError(message, { status, kind });
+}
 
 describe("ads actions", () => {
   beforeEach(() => {
@@ -85,11 +81,13 @@ describe("ads actions", () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     });
 
-    it("maps Core's 503 to a not-configured error", async () => {
+    it("keeps the not-configured kind Core sent with its 503", async () => {
       adsServiceMock.initiateConnection.mockRejectedValue(
-        new CoreApiRequestError("Ads integrations are not configured.", {
-          status: 503,
-        }),
+        await coreError(
+          "Ads integrations are not configured on this server.",
+          503,
+          "integration_not_configured",
+        ),
       );
 
       const { initiateAdConnection } = await import("./action");
@@ -100,13 +98,13 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({
         ok: false,
-        error: { code: "ADS_NOT_CONFIGURED" },
+        error: { kind: "integration_not_configured" },
       });
     });
 
     it("keeps other Core failures as ordinary action errors", async () => {
       adsServiceMock.initiateConnection.mockRejectedValue(
-        new CoreApiRequestError("Bad gateway", { status: 502 }),
+        await coreError("Bad gateway", 502),
       );
 
       const { initiateAdConnection } = await import("./action");
@@ -117,8 +115,20 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({
         ok: false,
-        error: { code: "INTERNAL_SERVER_ERROR" },
+        error: { code: "INTERNAL_SERVER_ERROR", message: "Bad gateway" },
       });
+      expect(result).not.toHaveProperty("error.kind");
+    });
+
+    it("rejects an unknown provider, calling nothing", async () => {
+      const { initiateAdConnection } = await import("./action");
+      const result = await initiateAdConnection({
+        projectId: "project-1",
+        provider: "tiktok_ads" as never,
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.initiateConnection).not.toHaveBeenCalled();
     });
 
     it("rejects a missing project, calling nothing", async () => {
@@ -168,7 +178,7 @@ describe("ads actions", () => {
 
     it("surfaces a Core failure", async () => {
       adsServiceMock.finalizeConnection.mockRejectedValue(
-        new CoreApiRequestError("Bad gateway", { status: 502 }),
+        await coreError("Bad gateway", 502),
       );
 
       const { finalizeAdConnection } = await import("./action");
@@ -205,6 +215,18 @@ describe("ads actions", () => {
       expect(revalidatePath).toHaveBeenCalledWith("/ads");
     });
 
+    it("rejects blank account ids, calling nothing", async () => {
+      const { attachAdAccounts } = await import("./action");
+      const result = await attachAdAccounts({
+        projectId: "project-1",
+        adConnectionId: "connection-1",
+        externalAccountIds: ["123", " "],
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.attachAccounts).not.toHaveBeenCalled();
+    });
+
     it("rejects an empty choice, calling nothing", async () => {
       const { attachAdAccounts } = await import("./action");
       const result = await attachAdAccounts({
@@ -219,7 +241,7 @@ describe("ads actions", () => {
 
     it("does not revalidate when Core refuses", async () => {
       adsServiceMock.attachAccounts.mockRejectedValue(
-        new CoreApiRequestError("Conflict", { status: 409 }),
+        await coreError("Conflict", 409),
       );
 
       const { attachAdAccounts } = await import("./action");
@@ -256,7 +278,7 @@ describe("ads actions", () => {
 
     it("surfaces a Core failure without revalidating", async () => {
       adsServiceMock.disconnectAccount.mockRejectedValue(
-        new CoreApiRequestError("Not found", { status: 404 }),
+        await coreError("Not found", 404),
       );
 
       const { disconnectAdAccount } = await import("./action");
@@ -268,6 +290,51 @@ describe("ads actions", () => {
 
       expect(result).toMatchObject({ ok: false });
       expect(revalidatePath).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("discardAdConnection", () => {
+    it("discards the connection without revalidating", async () => {
+      adsServiceMock.discardConnection.mockResolvedValue(undefined);
+
+      const { discardAdConnection } = await import("./action");
+      const { revalidatePath } = await import("next/cache");
+      const result = await discardAdConnection({
+        projectId: "project-1",
+        adConnectionId: " connection-1 ",
+      });
+
+      expect(adsServiceMock.discardConnection).toHaveBeenCalledWith(
+        "project-1",
+        "connection-1",
+      );
+      expect(result).toEqual({ ok: true, value: undefined });
+      expect(revalidatePath).not.toHaveBeenCalled();
+    });
+
+    it("surfaces Core's refusal when the connection has accounts", async () => {
+      adsServiceMock.discardConnection.mockRejectedValue(
+        await coreError("Connection has ad accounts", 409),
+      );
+
+      const { discardAdConnection } = await import("./action");
+      const result = await discardAdConnection({
+        projectId: "project-1",
+        adConnectionId: "connection-1",
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+    });
+
+    it("rejects a missing connection id, calling nothing", async () => {
+      const { discardAdConnection } = await import("./action");
+      const result = await discardAdConnection({
+        projectId: "project-1",
+        adConnectionId: " ",
+      });
+
+      expect(result).toMatchObject({ ok: false, error: { code: "BAD_INPUT" } });
+      expect(adsServiceMock.discardConnection).not.toHaveBeenCalled();
     });
   });
 });

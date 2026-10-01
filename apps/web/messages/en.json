@@ -2812,6 +2812,7 @@
         "connect": "Connect {provider}",
         "unavailable": "{provider} isn't available yet",
         "noAccountsFound": "No ad accounts found for this login",
+        "sectionLabel": "Ad accounts",
         "listLabel": "Connected ad accounts",
         "disconnect": "Disconnect",
         "disconnectLabel": "Disconnect {name}",
@@ -2822,7 +2823,7 @@
         },
         "disconnectDialog": {
           "title": "Disconnect {name}?",
-          "description": "Its campaigns will no longer appear here. You can connect it again at any time.",
+          "description": "Its campaigns will no longer appear here. If this is the last account from that login, Sokosumi also disconnects the login. You can connect it again at any time.",
           "confirm": "Disconnect"
         },
         "picker": {
@@ -2840,6 +2841,7 @@
           "connect": "Failed to connect {provider}",
           "attach": "Failed to connect ad accounts",
           "disconnect": "Failed to disconnect ad account",
+          "discard": "Failed to discard ad connection",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
           "inFlight": "Another connection is already in progress."

@@ -170,18 +170,19 @@ export function ProjectSocialAccounts({
     const message = error.message?.toLowerCase();
     showFeedback({
       kind: "error",
-      message: message?.includes("not configured")
-        ? t("errors.notConfigured")
-        : isExpiredIntentError(error)
-          ? t("errors.intent")
-          : message?.includes("already connected")
-            ? t("errors.duplicate")
-            : message?.includes("reconnect must match")
-              ? t("errors.reconnectMismatch")
-              : error.kind ===
-                  CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
-                ? t("errors.facebookPage")
-                : fallback,
+      message:
+        error.kind === CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED
+          ? t("errors.notConfigured")
+          : isExpiredIntentError(error)
+            ? t("errors.intent")
+            : message?.includes("already connected")
+              ? t("errors.duplicate")
+              : message?.includes("reconnect must match")
+                ? t("errors.reconnectMismatch")
+                : error.kind ===
+                    CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
+                  ? t("errors.facebookPage")
+                  : fallback,
     });
   }
 

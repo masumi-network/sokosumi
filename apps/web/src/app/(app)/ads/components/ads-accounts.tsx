@@ -1,13 +1,15 @@
 "use client";
 
-import type {
-  AvailableAdAccount,
-  FinalizeProjectAdConnectionResponse,
-  ProjectAdAccount,
+import {
+  type AvailableAdAccount,
+  type FinalizeProjectAdConnectionResponse,
+  type ProjectAdAccount,
   ProjectAdProvider,
 } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/common/empty-state";
@@ -24,19 +26,17 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   attachAdAccounts,
+  discardAdConnection,
   disconnectAdAccount,
   finalizeAdConnection,
   initiateAdConnection,
 } from "@/lib/actions/ads/action";
-import { AdsErrorCode } from "@/lib/actions/errors/error-codes/ads";
+import type { ActionError } from "@/lib/actions/errors/action-error";
 import { useComposioConnection } from "@/lib/composio/use-composio-connection";
 
 import { AdAccountPickerDialog } from "./ad-account-picker-dialog";
 
-const PROVIDERS = ["google_ads", "meta_ads"] as const satisfies readonly [
-  ProjectAdProvider,
-  ...ProjectAdProvider[],
-];
+const PROVIDERS = Object.values(ProjectAdProvider);
 
 interface PickerState {
   accounts: AvailableAdAccount[];
@@ -57,7 +57,8 @@ interface AdsAccountsProps {
  */
 export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
   const t = useTranslations("App.Ads.accounts");
-  const { connect: connectComposio } = useComposioConnection();
+  const { connect } = useComposioConnection();
+  const sectionRef = useRef<HTMLElement | null>(null);
   const [connecting, setConnecting] = useState<ProjectAdProvider | null>(null);
   // Providers Core said it has no auth config for, until the page reloads.
   const [unavailable, setUnavailable] = useState<readonly ProjectAdProvider[]>(
@@ -76,9 +77,9 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
 
   function failConnect(
     provider: ProjectAdProvider,
-    error: { code: string } | null,
+    error: ActionError | null,
   ): void {
-    if (error?.code === AdsErrorCode.NOT_CONFIGURED) {
+    if (error?.kind === CORE_API_ERROR_KINDS.INTEGRATION_NOT_CONFIGURED) {
       setUnavailable((current) =>
         current.includes(provider) ? current : [...current, provider],
       );
@@ -87,8 +88,25 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
     toast.error(t("errors.connect", { provider: providerName(provider) }));
   }
 
-  async function connect(provider: ProjectAdProvider): Promise<void> {
-    const outcome = await connectComposio({
+  function showFinalization(
+    provider: ProjectAdProvider,
+    { availableAccounts, connection }: FinalizeProjectAdConnectionResponse,
+  ): void {
+    if (availableAccounts.length === 0) {
+      setNoAccountsFound(true);
+    } else if (connection) {
+      setPicker({
+        accounts: availableAccounts,
+        connectionId: connection.id,
+        provider,
+      });
+    } else {
+      failConnect(provider, null);
+    }
+  }
+
+  async function handleConnect(provider: ProjectAdProvider): Promise<void> {
+    const outcome = await connect({
       onStart: () => {
         setNoAccountsFound(false);
         setConnecting(provider);
@@ -120,24 +138,7 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
     setConnecting(null);
   }
 
-  function showFinalization(
-    provider: ProjectAdProvider,
-    { availableAccounts, connection }: FinalizeProjectAdConnectionResponse,
-  ): void {
-    if (availableAccounts.length === 0) {
-      setNoAccountsFound(true);
-    } else if (connection) {
-      setPicker({
-        accounts: availableAccounts,
-        connectionId: connection.id,
-        provider,
-      });
-    } else {
-      failConnect(provider, null);
-    }
-  }
-
-  async function attach(externalAccountIds: string[]): Promise<void> {
+  async function handleAttach(externalAccountIds: string[]): Promise<void> {
     if (!picker) return;
     setIsAttaching(true);
     try {
@@ -159,7 +160,22 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
     }
   }
 
-  async function disconnect(account: ProjectAdAccount): Promise<void> {
+  /**
+   * Closing the picker leaves a finalized connection with no accounts, which
+   * Core would otherwise keep authorized. Discard it in the background.
+   */
+  function handleCancelPicker(): void {
+    if (!picker) return;
+    const adConnectionId = picker.connectionId;
+    setPicker(null);
+    void discardAdConnection({ projectId, adConnectionId })
+      .then((result) => {
+        if (!result.ok) toast.error(t("errors.discard"));
+      })
+      .catch(() => toast.error(t("errors.discard")));
+  }
+
+  async function handleDisconnect(account: ProjectAdAccount): Promise<void> {
     setDisconnectingId(account.id);
     try {
       const result = await disconnectAdAccount({
@@ -171,6 +187,8 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
         return;
       }
       toast.success(t("success.disconnected"));
+      // The row that held focus is gone, so keep it in the list.
+      sectionRef.current?.focus();
     } catch {
       toast.error(t("errors.disconnect"));
     } finally {
@@ -190,12 +208,18 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
               className="flex flex-col items-stretch gap-1.5 sm:items-start"
             >
               <Button
-                aria-describedby={isUnavailable ? noteId : undefined}
                 aria-busy={connecting === provider}
+                aria-describedby={isUnavailable ? noteId : undefined}
                 disabled={isUnavailable || connecting !== null}
-                onClick={() => void connect(provider)}
+                onClick={() => void handleConnect(provider)}
                 type="button"
               >
+                {connecting === provider ? (
+                  <Loader2
+                    aria-hidden
+                    className="size-4 animate-spin motion-reduce:animate-pulse"
+                  />
+                ) : null}
                 {t("connect", { provider: providerName(provider) })}
               </Button>
               {isUnavailable ? (
@@ -216,7 +240,13 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
   );
 
   return (
-    <section className="flex flex-col gap-6" data-testid="ads-accounts">
+    <section
+      aria-label={t("sectionLabel")}
+      className="flex flex-col gap-6 outline-none"
+      data-testid="ads-accounts"
+      ref={sectionRef}
+      tabIndex={-1}
+    >
       {accounts.length === 0 ? (
         <EmptyState
           action={connectControls}
@@ -260,8 +290,8 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
         <AdAccountPickerDialog
           accounts={picker.accounts}
           isAttaching={isAttaching}
-          onAttach={(ids) => void attach(ids)}
-          onCancel={() => setPicker(null)}
+          onAttach={(ids) => void handleAttach(ids)}
+          onCancel={handleCancelPicker}
           provider={picker.provider}
         />
       ) : null}
@@ -287,7 +317,7 @@ export function AdsAccounts({ accounts, projectId }: AdsAccountsProps) {
             <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => {
-                if (disconnectTarget) void disconnect(disconnectTarget);
+                if (disconnectTarget) void handleDisconnect(disconnectTarget);
               }}
             >
               {t("disconnectDialog.confirm")}
