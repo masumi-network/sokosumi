@@ -1,5 +1,6 @@
 import CoreAPI
 import Foundation
+import OpenAPIRuntime
 
 public extension ChatService {
   func channelRoster(client: Client, organizationId: String, organizationSlug: String) async throws -> ChannelRoster {
@@ -13,10 +14,17 @@ public extension ChatService {
       if case ChatServiceError.unauthorized = error {
         throw error
       }
-      if error is CancellationError {
-        throw error
-      }
       try Task.checkCancellation()
+      // OpenAPI wraps transport/middleware cancellation and response decoding errors in ClientError.
+      let clientError = error as? ClientError
+      let cause = clientError?.underlyingError ?? error
+      let networkError = cause as NSError
+      if cause is CancellationError || (networkError.domain == NSURLErrorDomain && networkError.code == URLError.cancelled.rawValue) {
+        throw CancellationError()
+      }
+      if clientError?.response?.status.code == 401 {
+        throw unauthorized("Sign in required.")
+      }
       isOwnerOrAdmin = nil
     }
     return try await .init(recipients: recipients, isOwnerOrAdmin: isOwnerOrAdmin == true, roleLoadFailed: isOwnerOrAdmin == nil)
