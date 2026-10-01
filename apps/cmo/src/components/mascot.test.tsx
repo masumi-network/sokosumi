@@ -213,7 +213,10 @@ describe("mascot lifecycle", () => {
     renderer.frame?.();
     expect(pivot?.rotation.toArray().slice(0, 3)).toEqual([0, 0, 0]);
     expect(pivot?.position.y).toBe(0);
-    expect(host.querySelector("button")?.textContent).toBe("Resume animation");
+    const button = host.querySelector("button");
+    expect(button?.textContent).toBe("Resume animation");
+    // The label carries the state, so aria-pressed would announce it twice.
+    expect(button?.hasAttribute("aria-pressed")).toBe(false);
     await act(() => host.querySelector("button")?.click());
     media.matches = true;
     renderer.frame?.();

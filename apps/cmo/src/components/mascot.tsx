@@ -230,7 +230,6 @@ export function Mascot({ className }: MascotProps) {
         <button
           className="button button-secondary mascot-motion"
           type="button"
-          aria-pressed={paused}
           onClick={() => {
             pausedRef.current = !pausedRef.current;
             setPaused(pausedRef.current);
