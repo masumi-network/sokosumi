@@ -1164,16 +1164,8 @@
     },
     "SocialButtons": {
       "continueWith": "Weiter mit {provider}",
-      "passwordDivider": "oder mit Passwort anmelden",
       "orDivider": "oder",
-      "emailCodeProvider": "E-Mail",
-      "emailCodeInputLabel": "E-Mail für den Anmeldecode",
-      "emailCodePlaceholder": "E-Mail-Adresse eingeben",
-      "emailCodeSend": "Code per E-Mail senden",
-      "emailCodeSending": "Code wird gesendet...",
-      "emailCodeSubmit": "Anmelden",
       "emailCodeError": "Wir konnten keinen Code senden. Bitte versuche es erneut.",
-      "emailCodeInvalidEmail": "Bitte gib eine gültige E-Mail-Adresse ein.",
       "success": "Anmeldung erfolgreich",
       "error": "Anmeldung fehlgeschlagen",
       "lastUsed": "Zuletzt verwendet",
@@ -1186,6 +1178,20 @@
     "PasswordToggle": {
       "show": "Passwort anzeigen",
       "hide": "Passwort ausblenden"
+    },
+    "Email": {
+      "Form": {
+        "label": "E-Mail",
+        "continueWithEmail": "Weiter mit E-Mail",
+        "change": "Ändern",
+        "changeEmail": "E-Mail ändern",
+        "usePasswordInstead": "Stattdessen ein Passwort verwenden",
+        "emailCodeInstead": "Stattdessen Code per E-Mail senden",
+        "emailCodeSending": "Code wird gesendet...",
+        "codeStillWorks": "Der gesendete Code gilt weiterhin.",
+        "useCodeInstead": "Stattdessen den Code verwenden",
+        "error": "Wir konnten diese E-Mail nicht prüfen. Bitte versuche es erneut."
+      }
     },
     "Pages": {
       "SignIn": {
@@ -1203,11 +1209,8 @@
           "lastUsed": "Zuletzt verwendet",
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {
-            "Email": {
-              "placeholder": "E-Mail"
-            },
             "Password": {
-              "placeholder": "Passwort"
+              "label": "Passwort"
             },
             "RememberMe": {
               "label": "Angemeldet bleiben"
@@ -1220,6 +1223,11 @@
           },
           "Errors": {
             "termsNotAccepted": "Du musst den Nutzungsbedingungen zustimmen, um dich anzumelden"
+          },
+          "NoAccount": {
+            "title": "Kein Konto für diese Adresse",
+            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "createAccount": "Konto erstellen"
           }
         }
       },
@@ -1248,19 +1256,13 @@
         },
         "Form": {
           "submit": "Registrieren",
-          "continueWithEmail": "Weiter mit E-Mail",
           "AccountExists": {
             "title": "Du hast bereits ein Konto",
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "change": "Ändern",
-          "changeEmail": "E-Mail ändern",
           "error": "Registrierung fehlgeschlagen",
           "Fields": {
-            "Email": {
-              "label": "E-Mail"
-            },
             "FirstName": {
               "label": "Vorname"
             },
@@ -1291,12 +1293,7 @@
           "Login": {
             "message": "Bereits ein Konto?",
             "link": "Anmelden"
-          },
-          "emailCodeInstead": "Stattdessen Code per E-Mail senden",
-          "emailCodeSending": "Code wird gesendet...",
-          "usePasswordInstead": "Stattdessen ein Passwort verwenden",
-          "codeStillWorks": "Der gesendete Code gilt weiterhin.",
-          "useCodeInstead": "Stattdessen den Code verwenden"
+          }
         }
       },
       "ForgotPassword": {

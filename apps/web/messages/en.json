@@ -1164,16 +1164,8 @@
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
-      "passwordDivider": "or sign in with password",
       "orDivider": "or",
-      "emailCodeProvider": "Email",
-      "emailCodeInputLabel": "Email for sign-in code",
-      "emailCodePlaceholder": "Enter your email",
-      "emailCodeSend": "Email me a code",
-      "emailCodeSending": "Sending code...",
-      "emailCodeSubmit": "Sign in",
       "emailCodeError": "We could not send a code. Please try again.",
-      "emailCodeInvalidEmail": "Please enter a valid email address.",
       "success": "Login successful",
       "error": "Login failed",
       "lastUsed": "Last used",
@@ -1186,6 +1178,20 @@
     "PasswordToggle": {
       "show": "Show password",
       "hide": "Hide password"
+    },
+    "Email": {
+      "Form": {
+        "label": "Email",
+        "continueWithEmail": "Continue with Email",
+        "change": "Change",
+        "changeEmail": "Change email",
+        "usePasswordInstead": "Use a password instead",
+        "emailCodeInstead": "Email me a code instead",
+        "emailCodeSending": "Sending code...",
+        "codeStillWorks": "The code we sent still works.",
+        "useCodeInstead": "Use the code instead",
+        "error": "We could not check this email. Please try again."
+      }
     },
     "Pages": {
       "SignIn": {
@@ -1203,11 +1209,8 @@
           "lastUsed": "Last used",
           "error": "Invalid email or password",
           "Fields": {
-            "Email": {
-              "placeholder": "Email"
-            },
             "Password": {
-              "placeholder": "Password"
+              "label": "Password"
             },
             "RememberMe": {
               "label": "Keep me signed in"
@@ -1220,6 +1223,11 @@
           },
           "Errors": {
             "termsNotAccepted": "You must accept the terms and conditions to login"
+          },
+          "NoAccount": {
+            "title": "No account for this address",
+            "description": "Create one with this email now.",
+            "createAccount": "Create account"
           }
         }
       },
@@ -1248,19 +1256,13 @@
         },
         "Form": {
           "submit": "Register",
-          "continueWithEmail": "Continue with email",
           "AccountExists": {
             "title": "You already have an account",
             "description": "Log in with this email, or enter a different one to register.",
             "logIn": "Log in"
           },
-          "change": "Change",
-          "changeEmail": "Change email",
           "error": "Register failed",
           "Fields": {
-            "Email": {
-              "label": "Email"
-            },
             "FirstName": {
               "label": "First name"
             },
@@ -1291,12 +1293,7 @@
           "Login": {
             "message": "Already have an account?",
             "link": "Login"
-          },
-          "emailCodeInstead": "Email me a code instead",
-          "emailCodeSending": "Sending code...",
-          "usePasswordInstead": "Use a password instead",
-          "codeStillWorks": "The code we sent still works.",
-          "useCodeInstead": "Use the code instead"
+          }
         }
       },
       "ForgotPassword": {

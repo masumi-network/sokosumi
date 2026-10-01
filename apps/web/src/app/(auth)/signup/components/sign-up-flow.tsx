@@ -2,24 +2,23 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useId, useMemo, useRef, useState } from "react";
+import { type ReactNode, useMemo, useRef, useState } from "react";
 
+import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
-import SocialButtons, {
-  type SignInMethodId,
-} from "@/auth/components/social-buttons";
+import { EmailStep } from "@/auth/components/email-step";
+import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
-import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-import { SignUpEmailStep } from "./email-step";
 import SignUpForm from "./form";
 import SignUpHeader from "./header";
-import SignInLink from "./sign-in-link";
+import SignInLink, { useSignInHref } from "./sign-in-link";
 
 interface SignUpFlowProps {
   invitationId?: string | undefined;
@@ -27,7 +26,7 @@ interface SignUpFlowProps {
   client?: OAuthRequestClient | undefined;
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
-  lastUsedMethod: SignInMethodId | null;
+  lastUsedMethod: ProviderAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -50,6 +49,7 @@ export default function SignUpFlow({
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const searchParams = useSearchParams();
+  const signInHref = useSignInHref();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
@@ -119,10 +119,19 @@ export default function SignUpFlow({
       <SignUpHeader invitationId={invitationId} client={client} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {notice}
-        <SignUpEmailStep
+        <EmailStep
           defaultEmail={email}
           emailLocked={emailLocked}
           autoFocus={cameBack}
+          autoComplete="email"
+          captchaEntry="signup"
+          detour={{
+            when: "exists",
+            title: t("AccountExists.title"),
+            description: t("AccountExists.description"),
+            label: t("AccountExists.logIn"),
+            href: signInHref,
+          }}
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail) => {
@@ -132,7 +141,7 @@ export default function SignUpFlow({
             setStep("details");
           }}
         />
-        <Divider labelKey="orDivider" />
+        <Divider />
         <SocialButtons returnUrl={returnUrl} lastUsedMethod={lastUsedMethod} />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
@@ -141,66 +150,6 @@ export default function SignUpFlow({
           <SignInLink />
         </div>
         {children}
-      </div>
-    </div>
-  );
-}
-
-/**
- * The email from the first step, now fixed: it keeps that field's label and
- * shape so it reads as part of the form, with a way back to edit it.
- */
-function ConfirmedEmail({
-  email,
-  onChange,
-  changeDisabled,
-}: {
-  email: string;
-  onChange: (() => void) | undefined;
-  changeDisabled: boolean;
-}) {
-  const t = useTranslations("Auth.Pages.SignUp.Form");
-  const labelId = useId();
-  const at = email.lastIndexOf("@");
-
-  return (
-    <div className="grid gap-2">
-      <span id={labelId} className="text-sm leading-none font-medium">
-        {t("Fields.Email.label")}
-      </span>
-      <div
-        role="group"
-        aria-labelledby={labelId}
-        data-testid="sign-up-confirmed-email"
-        className="flex min-h-10 items-center gap-2 rounded-md border border-input bg-quinary py-1 pr-1 pl-3"
-      >
-        {/* Never cut off. Each half stays whole while it fits, so a long
-            address breaks before the "@" rather than inside the domain. */}
-        <span className="min-w-0 flex-1 text-sm [overflow-wrap:anywhere]">
-          {at > 0 ? (
-            <>
-              <span className="inline-block max-w-full">
-                {email.slice(0, at)}
-              </span>
-              <span className="inline-block max-w-full">{email.slice(at)}</span>
-            </>
-          ) : (
-            email
-          )}
-        </span>
-        {onChange ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            className="shrink-0"
-            aria-label={t("changeEmail")}
-            disabled={changeDisabled}
-            onClick={onChange}
-          >
-            {t("change")}
-          </Button>
-        ) : null}
       </div>
     </div>
   );
