@@ -7070,7 +7070,13 @@
       "statsMessages": "{count, plural, one {# mensaje} other {# mensajes}} en {days} días",
       "assistantOf": "Asistente de",
       "message": "Escribir",
-      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día."
+      "roleLine": "Delega trabajo, hace seguimiento y te mantiene al día.",
+      "heroCaption": "Soko Bots para todo tu equipo",
+      "heroTitle": "Los asistentes personales de tu equipo",
+      "chatWith": "Chatear con {name}",
+      "yourAssistantTitle": "Tu asistente",
+      "teamTitle": "Los asistentes de tu equipo",
+      "heroBody": "Cada persona tiene un asistente que trabaja su Taskboard con Coworkers, lee el correo y el calendario que conecta y la mantiene al día en el chat."
     },
     "Calendar": {
       "Metadata": {

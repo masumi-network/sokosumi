@@ -7070,7 +7070,13 @@
       "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
       "assistantOf": "Assistant of",
       "message": "Message",
-      "roleLine": "Delegates work, follows up and keeps you posted."
+      "roleLine": "Delegates work, follows up and keeps you posted.",
+      "heroCaption": "Soko Bots for everyone on your team",
+      "heroTitle": "Your team's personal assistants",
+      "chatWith": "Chat with {name}",
+      "yourAssistantTitle": "Your assistant",
+      "teamTitle": "Your team's assistants",
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
     },
     "Calendar": {
       "Metadata": {

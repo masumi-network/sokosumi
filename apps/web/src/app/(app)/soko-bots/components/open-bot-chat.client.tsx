@@ -29,15 +29,22 @@ export function ChatWithBotButton({
   sokoBotId,
   label,
   errorLabel,
+  className,
 }: {
   sokoBotId: string;
   label: string;
   errorLabel: string;
+  className?: string;
 }) {
   const { open, isPending } = useOpenBotChat(sokoBotId, errorLabel);
   return (
-    <Button type="button" size="sm" disabled={isPending} onClick={open}>
-      <MessageSquare aria-hidden className="size-3.5" />
+    <Button
+      type="button"
+      disabled={isPending}
+      onClick={open}
+      className={className}
+    >
+      <MessageSquare aria-hidden className="size-4" />
       {label}
     </Button>
   );
