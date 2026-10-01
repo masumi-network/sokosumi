@@ -3198,6 +3198,10 @@
           "matchedChannels": {
             "title": "Matched Channels",
             "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
+          },
+          "badgeCampaigns": {
+            "title": "Feature-Badges",
+            "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
           }
         }
       },
@@ -4468,6 +4472,56 @@
             "success": "Matched Channel dauerhaft gelöscht",
             "error": "Matched Channel konnte nicht gelöscht werden"
           }
+        }
+      },
+      "BadgeCampaigns": {
+        "title": "Feature-Badges",
+        "description": "Eine Kampagne setzt ein Neu-Badge an eine Funktion in der Seitenleiste. Nutzer, die sich vor dem Start registriert haben, sehen es bis zum Ende oder bis sie die Funktion öffnen.",
+        "loadFailed": "Die Kampagnen konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+        "Features": {
+          "SOKO_BOTS": "Soko Bots",
+          "CONTENT_STUDIO": "Content Studio",
+          "SOCIAL": "Social",
+          "DRIVE": "Drive"
+        },
+        "Status": {
+          "scheduled": "Geplant",
+          "live": "Aktiv",
+          "ended": "Beendet"
+        },
+        "Table": {
+          "feature": "Funktion",
+          "startsAt": "Start (UTC)",
+          "endsAt": "Ende (UTC)",
+          "status": "Status",
+          "actions": "Aktionen",
+          "empty": "Noch keine Kampagnen."
+        },
+        "Actions": {
+          "edit": "Daten bearbeiten",
+          "endNow": "Jetzt beenden",
+          "delete": "Löschen"
+        },
+        "Form": {
+          "createTitle": "Neue Kampagne",
+          "editTitle": "Daten bearbeiten",
+          "feature": "Funktion",
+          "featurePlaceholder": "Funktion wählen",
+          "featureRequired": "Wähle zuerst eine Funktion.",
+          "startsAt": "Start (UTC)",
+          "endsAt": "Ende (UTC)",
+          "endsAtHelper": "Wird auf {days} Tage nach dem Start gesetzt, sofern du es nicht änderst.",
+          "audienceHelper": "Nur Nutzer, die sich vor dem Start registriert haben, sehen das Badge.",
+          "create": "Kampagne erstellen",
+          "save": "Daten speichern"
+        },
+        "Toasts": {
+          "created": "Kampagne erstellt",
+          "updated": "Daten gespeichert",
+          "ended": "Kampagne beendet",
+          "deleted": "Kampagne gelöscht",
+          "saveFailed": "Kampagne konnte nicht gespeichert werden",
+          "deleteFailed": "Kampagne konnte nicht gelöscht werden"
         }
       }
     },

@@ -216,6 +216,20 @@ _Avoid_: Topbar, shell (unless meaning the loading frame)
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
 
+### Feature badges
+
+**Announced feature**:
+A stable, named destination in the App chrome that a Badge campaign can point at, such as Drive or Content Studio. The set is fixed by the product; admins choose from it, they never invent one.
+_Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
+
+**Badge campaign**:
+One time-boxed announcement of an Announced feature, with a start and an end set by a platform admin. At most one per Announced feature at a time. A later campaign for the same feature announces it again, even to users who opened it before.
+_Avoid_: Announcement, release, feature flag
+
+**New badge**:
+The "New" pill on an Announced feature's nav row while a Badge campaign runs. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
+_Avoid_: NEW tag, beta badge, unread badge
+
 ### Account access
 
 **Security check**:

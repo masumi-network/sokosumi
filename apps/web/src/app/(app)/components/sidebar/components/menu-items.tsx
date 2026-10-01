@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncedFeature } from "@sokosumi/core-client";
 import {
   Bot,
   HardDrive,
@@ -50,7 +51,7 @@ interface MenuItemConfig {
   shortcutLabel?: string;
   ariaKeyshortcuts?: string;
   separatorAfter?: boolean;
-  isNew?: boolean;
+  feature?: AnnouncedFeature;
 }
 
 /**
@@ -156,7 +157,7 @@ function ScopedMenuItems({
       href: "/studio",
       label: t("contentStudio"),
       Icon: ImagePlus,
-      isNew: true,
+      feature: AnnouncedFeature.CONTENT_STUDIO,
     },
     // Social used to be a tab inside a project. It is a destination of its
     // own now, scoped the same way the studio is, and it is still behind the
@@ -168,7 +169,7 @@ function ScopedMenuItems({
             href: "/social",
             label: t("social"),
             Icon: Share2,
-            isNew: true,
+            feature: AnnouncedFeature.SOCIAL,
           },
         ]
       : []),
@@ -180,7 +181,7 @@ function ScopedMenuItems({
             href: "/drive",
             label: t("drive"),
             Icon: HardDrive,
-            isNew: true,
+            feature: AnnouncedFeature.DRIVE,
           },
         ]
       : []),
@@ -206,7 +207,7 @@ function ScopedMenuItems({
                 shortcutLabel,
                 ariaKeyshortcuts,
                 separatorAfter,
-                isNew,
+                feature,
               }) => {
                 const isActive = href ? isPathActive(href) : false;
                 // The pill wears the rail square's 4px inset and 4px padding
@@ -240,10 +241,14 @@ function ScopedMenuItems({
                       className={cn(
                         SIDEBAR_ROW_LABEL_CLASS,
                         SIDEBAR_ROW_FIXED_LABEL_CLASS,
-                        isNew && SIDEBAR_NEW_LABEL_CLASS,
+                        feature && SIDEBAR_NEW_LABEL_CLASS,
                       )}
                     >
-                      {isNew ? <SidebarLabelWithNew label={label} /> : label}
+                      {feature ? (
+                        <SidebarLabelWithNew label={label} feature={feature} />
+                      ) : (
+                        label
+                      )}
                     </span>
                   </>
                 );

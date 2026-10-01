@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncedFeature } from "@sokosumi/core-client";
 import { Bot } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -91,7 +92,10 @@ export default function PersonalAssistantNav({
                       "font-medium",
                     )}
                   >
-                    <SidebarLabelWithNew label={t("sokoBot")} />
+                    <SidebarLabelWithNew
+                      label={t("sokoBot")}
+                      feature={AnnouncedFeature.SOKO_BOTS}
+                    />
                   </span>
                 </Link>
               </SheetClose>
