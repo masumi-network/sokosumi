@@ -48,6 +48,16 @@ export function describeCron(cron: string): string {
   const at = time(hour, minute);
   if (minute === "*" && hour === "*") return "Every minute";
   if (/^\d{1,2}$/.test(minute) && hour === "*") return "Every hour";
+  const step = /^\*\/(\d{1,2})$/.exec(minute);
+  const hours = /^(\d{1,2})-(\d{1,2})$/.exec(hour);
+  if (step && dayOfMonth === "*" && month === "*" && (hour === "*" || hours)) {
+    const span = hours
+      ? ` between ${hours[1].padStart(2, "0")}:00 and ${hours[2].padStart(2, "0")}:59`
+      : "";
+    const days =
+      dayOfWeek === "1-5" ? " on weekdays" : dayOfWeek === "*" ? "" : null;
+    if (days !== null) return `Every ${Number(step[1])} minutes${span}${days}`;
+  }
   if (at && month === "*" && dayOfWeek === "*") {
     if (dayOfMonth === "L") return `Last day of each month at ${at}`;
     if (/^\d{1,2}$/.test(dayOfMonth)) {

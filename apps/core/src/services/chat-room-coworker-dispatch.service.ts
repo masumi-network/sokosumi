@@ -95,6 +95,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         select: {
           id: true,
           userId: true,
+          workspaceId: true,
           archivedAt: true,
         },
       },
@@ -234,7 +235,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         mentionId,
         mention,
         userId,
-        workspaceId,
         failWithShell,
         askedByBot,
         chainDepth: mention.chainDepth,

@@ -17,6 +17,11 @@ import {
   fetchCalendarEvents,
   fetchInboxMessages,
 } from "@/services/soko-bot-integrations.service";
+import {
+  buildRhythmPacket,
+  dueSoonBlock,
+  RHYTHM_KEYS,
+} from "@/services/soko-bot-rhythms.service";
 
 const HOUR_MS = 60 * 60 * 1_000;
 const NUDGE_COOLDOWN_MS = 24 * HOUR_MS;
@@ -438,11 +443,26 @@ export async function buildSystemBeatMessage(input: {
   key: string;
   prompt: string;
   now: Date;
-}): Promise<{ message: string; nudgeKeys: string[] }> {
+}): Promise<{ message: string; nudgeKeys: string[]; skip?: boolean }> {
   const { bot, now } = input;
   const lines: string[] = [input.prompt, ""];
   const nudgeKeys: string[] = [];
+  if (RHYTHM_KEYS.has(input.key)) {
+    const packet = await buildRhythmPacket({
+      key: input.key,
+      bot,
+      now,
+      dayStart: localDayStart(now, bot.ingestTimezone),
+    });
+    lines.push(...packet.lines);
+    return {
+      message: lines.join("\n").trim(),
+      nudgeKeys,
+      skip: packet.skip,
+    };
+  }
   if (input.key === "standup") {
+    lines.push(...(await dueSoonBlock(bot, now)));
     const events: SokoBotCalendarEvent[] = [];
     for (const integration of await activeIntegrationsForBot(
       bot.id,
@@ -503,20 +523,15 @@ export async function buildSystemBeatMessage(input: {
     lines.push(...attentionBlock(items));
     nudgeKeys.push(...items.map((item) => item.key));
   }
+  const visible = buildSokoBotOwnerTaskVisibilityWhere(bot.userId);
+  const ownTasks = [{ ownerId: bot.userId }, { assigneeSokoBotId: bot.id }];
   const open = await prisma.task.findMany({
     where: {
       workspaceId: bot.workspaceId,
       archivedAt: null,
       status: { notIn: ["COMPLETED", "CANCELED"] },
-      ...(bot.followWholeBoard
-        ? {}
-        : {
-            OR: [
-              { assigneeSokoBotId: bot.id },
-              { sokoBotWatches: { some: { sokoBotId: bot.id } } },
-            ],
-          }),
-      AND: [buildSokoBotOwnerTaskVisibilityWhere(bot.userId)],
+      OR: ownTasks,
+      AND: [visible],
     },
     select: {
       id: true,
@@ -528,13 +543,41 @@ export async function buildSystemBeatMessage(input: {
     take: 12,
   });
   if (open.length > 0) {
-    lines.push("## Open on the board");
+    lines.push("## Your open Tasks");
     for (const task of open) {
       lines.push(
         `- ${task.status} · "${task.name ?? "Untitled task"}" (id ${task.id})${task.assignee ? ` · ${task.assignee.name}` : ""}`,
       );
     }
     lines.push("");
+  }
+  if (input.key === "standup") {
+    const team = await prisma.task.findMany({
+      where: {
+        workspaceId: bot.workspaceId,
+        archivedAt: null,
+        updatedAt: { gte: new Date(now.getTime() - 24 * HOUR_MS) },
+        NOT: { OR: ownTasks },
+        AND: [visible],
+      },
+      select: {
+        name: true,
+        status: true,
+        owner: { select: { name: true } },
+        assignee: { select: { name: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+    });
+    if (team.length > 0) {
+      lines.push("## Team activity (last 24h)");
+      for (const task of team) {
+        lines.push(
+          `- ${task.owner.name ?? "A teammate"} · ${task.status} · "${task.name ?? "Untitled task"}"${task.assignee ? ` · with ${task.assignee.name}` : ""}`,
+        );
+      }
+      lines.push("");
+    }
   }
   lines.push(...(await followUpsBlock(bot.id, bot.ingestTimezone, now)));
   return { message: lines.join("\n").trim(), nudgeKeys };

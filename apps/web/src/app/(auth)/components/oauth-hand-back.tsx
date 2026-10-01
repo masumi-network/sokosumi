@@ -2,19 +2,36 @@
 
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { useRef, useState } from "react";
+import { toast } from "sonner";
 
 import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
+import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
-import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
+import {
+  isRejectedOAuthRequestError,
+  oauthRequestExpiresSoon,
+} from "@/lib/auth/auth.utils";
+import type {
+  OAuthRequestAccount,
+  OAuthRequestClient,
+} from "@/lib/auth/oauth-request.server";
+import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 
 interface OAuthHandBackProps {
   /** The signed OAuth request the page carries. */
   oauthQuery: string;
   /** The product the person is continuing to, when Core could name it. */
   client?: OAuthRequestClient | undefined;
+  /**
+   * Ask whether to continue as this account, or use another one, before the
+   * request goes back. Without it the request goes back at once.
+   */
+  accountToConfirm?: OAuthRequestAccount | undefined;
 }
 
 /**
@@ -28,17 +45,29 @@ interface OAuthHandBackProps {
  * tokens.
  */
 export default function OAuthHandBack({
-  oauthQuery,
-  client,
+  accountToConfirm,
+  ...request
 }: OAuthHandBackProps) {
-  const t = useTranslations("Auth.OAuthHandBack");
-  const clientName = client?.name;
+  return accountToConfirm ? (
+    <AccountChoice
+      key={`${request.oauthQuery}:${accountToConfirm.id}`}
+      {...request}
+      account={accountToConfirm}
+    />
+  ) : (
+    <AutomaticHandBack {...request} />
+  );
+}
+
+type HandBackRequest = Omit<OAuthHandBackProps, "accountToConfirm">;
+
+function useHandBack(oauthQuery: string) {
   const [hasFailed, setHasFailed] = useState(false);
   const hasStarted = useRef(false);
 
-  useMountEffect(() => {
-    // StrictMode mounts twice in development. A second hand-back would issue
-    // a second authorization code.
+  function handBack() {
+    // StrictMode mounts twice in development, and a person can press twice.
+    // A second hand-back would issue a second authorization code.
     if (hasStarted.current) {
       return;
     }
@@ -54,32 +83,20 @@ export default function OAuthHandBack({
       .catch(() => {
         setHasFailed(true);
       });
-  });
+  }
+
+  return { hasFailed, handBack, fail: () => setHasFailed(true) };
+}
+
+function AutomaticHandBack({ oauthQuery, client }: HandBackRequest) {
+  const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
+  const { hasFailed, handBack } = useHandBack(oauthQuery);
+
+  useMountEffect(handBack);
 
   if (hasFailed) {
-    return (
-      <div role="alert" className="flex flex-1 flex-col gap-2 p-6">
-        {client ? <OAuthClientBackLink client={client} /> : null}
-        <h1 className="text-2xl font-light text-balance tracking-tight">
-          {clientName
-            ? t("errorTitleFor", { client: clientName })
-            : t("errorTitle")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {clientName
-            ? t("errorDescriptionFor", { client: clientName })
-            : t("errorDescription")}
-        </p>
-        {!client?.uri ? (
-          <Link
-            href="/"
-            className="self-start rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
-          >
-            {t("backToSokosumi")}
-          </Link>
-        ) : null}
-      </div>
-    );
+    return <HandBackError client={client} />;
   }
 
   return (
@@ -87,11 +104,177 @@ export default function OAuthHandBack({
       role="status"
       className="flex flex-1 items-center justify-center gap-2 p-6 text-sm text-muted-foreground"
     >
-      <Loader2
-        aria-hidden="true"
-        className="size-4 animate-spin motion-reduce:animate-pulse"
-      />
+      <Spinner />
       {clientName ? t("continuingTo", { client: clientName }) : t("continuing")}
     </div>
+  );
+}
+
+function AccountChoice({
+  oauthQuery,
+  client,
+  account,
+}: HandBackRequest & { account: OAuthRequestAccount }) {
+  const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
+  const router = useRouter();
+  const { hasFailed, handBack, fail } = useHandBack(oauthQuery);
+  const [pendingChoice, setPendingChoice] = useState<
+    "continue" | "switch" | null
+  >(null);
+
+  const choiceStarted = useRef(false);
+
+  async function handleChoice(choice: "continue" | "switch") {
+    if (choiceStarted.current) return;
+    if (choice === "switch" && oauthRequestExpiresSoon(oauthQuery)) {
+      fail();
+      return;
+    }
+    choiceStarted.current = true;
+    setPendingChoice(choice);
+    function chooseAgain() {
+      choiceStarted.current = false;
+      setPendingChoice(null);
+    }
+
+    // Another tab can replace the session after this account was rendered.
+    // Recheck before confirming it or signing it out.
+    try {
+      const result = await authClient.getSession({
+        query: { disableCookieCache: true },
+      });
+      if (result.error) throw result.error;
+      if (result.data?.user.id !== account.id) {
+        router.refresh();
+        chooseAgain();
+        return;
+      }
+    } catch {
+      toast.error(t("accountCheckError"));
+      chooseAgain();
+      return;
+    }
+
+    if (choice === "continue") {
+      handBack();
+      return;
+    }
+    // Account validation also consumes request lifetime.
+    if (oauthRequestExpiresSoon(oauthQuery)) {
+      fail();
+      return;
+    }
+    const signOutFailed = () => {
+      toast.error(t("signOutError"));
+      chooseAgain();
+    };
+    signOutWithPushRelease(account.id, {
+      fetchOptions: {
+        // Always validate this exact request, including a missing or invalid
+        // parameter manifest that the client plugin would otherwise omit.
+        body: { oauth_query: oauthQuery },
+        onSuccess: () => router.refresh(),
+        onError: ({ error }) =>
+          isRejectedOAuthRequestError(error) ? fail() : signOutFailed(),
+      },
+    }).catch(signOutFailed);
+  }
+
+  function handleContinue() {
+    void handleChoice("continue");
+  }
+
+  function handleUseAnotherAccount() {
+    void handleChoice("switch");
+  }
+
+  if (hasFailed) {
+    return <HandBackError client={client} />;
+  }
+
+  return (
+    <div className="flex flex-1 flex-col gap-6 p-6">
+      <div className="flex flex-col gap-2">
+        {client ? <OAuthClientBackLink client={client} /> : null}
+        <h1 className="text-2xl font-light text-balance tracking-tight">
+          {clientName
+            ? t("chooseAccountTitleFor", { client: clientName })
+            : t("chooseAccountTitle")}
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          {t.rich("signedInAs", {
+            email: account.email,
+            account: (chunks: ReactNode) => (
+              <span className="font-medium text-foreground">{chunks}</span>
+            ),
+          })}
+        </p>
+      </div>
+      <div className="flex flex-col gap-3">
+        <Button
+          type="button"
+          variant="primary"
+          className="w-full"
+          disabled={pendingChoice !== null}
+          onClick={handleContinue}
+        >
+          {pendingChoice === "continue" && <Spinner />}
+          {t("continueAs", { account: account.name.trim() || account.email })}
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full"
+          disabled={pendingChoice !== null}
+          onClick={handleUseAnotherAccount}
+        >
+          {pendingChoice === "switch" && <Spinner />}
+          {t("useAnotherAccount")}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function HandBackError({
+  client,
+}: {
+  client?: OAuthRequestClient | undefined;
+}) {
+  const t = useTranslations("Auth.OAuthHandBack");
+  const clientName = client?.name;
+
+  return (
+    <div role="alert" className="flex flex-1 flex-col gap-2 p-6">
+      {client ? <OAuthClientBackLink client={client} /> : null}
+      <h1 className="text-2xl font-light text-balance tracking-tight">
+        {clientName
+          ? t("errorTitleFor", { client: clientName })
+          : t("errorTitle")}
+      </h1>
+      <p className="text-sm text-muted-foreground">
+        {clientName
+          ? t("errorDescriptionFor", { client: clientName })
+          : t("errorDescription")}
+      </p>
+      {!client?.uri ? (
+        <Link
+          href="/"
+          className="self-start rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          {t("backToSokosumi")}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
+function Spinner() {
+  return (
+    <Loader2
+      aria-hidden="true"
+      className="size-4 animate-spin motion-reduce:animate-pulse"
+    />
   );
 }

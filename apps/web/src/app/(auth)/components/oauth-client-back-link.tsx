@@ -38,7 +38,7 @@ export default function OAuthClientBackLink({
   return (
     <Link
       href={client.uri}
-      className="mb-4 inline-flex max-w-full items-center gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+      className="mb-4 inline-flex max-w-full items-center self-start gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
     >
       <ArrowLeft aria-hidden className="size-4 shrink-0" />
       {logo}

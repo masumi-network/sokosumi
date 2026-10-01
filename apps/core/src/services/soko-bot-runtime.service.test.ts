@@ -133,8 +133,11 @@ const {
     getJob: vi.fn(),
     reconcile: vi.fn(),
     credits: vi.fn(),
+    readBytes: vi.fn(),
+    assetFindFirst: vi.fn(),
   },
   files: {
+    resourceFindUnique: vi.fn(),
     list: vi.fn(),
     put: vi.fn(),
     head: vi.fn(),
@@ -274,6 +277,7 @@ vi.mock("@/lib/image-studio/access", () => ({
 }));
 vi.mock("@/services/image-studio-assets.service", () => ({
   getJob: images.getJob,
+  readAssetBytes: images.readBytes,
 }));
 vi.mock("@/services/image-studio-jobs.service", () => ({
   createImageJob: images.create,
@@ -302,9 +306,16 @@ vi.mock("@/lib/files/in-process-indexer", () => ({
 vi.mock("@/services/file-index.service", () => ({
   downloadBlob: files.download,
 }));
+const { taskChargeEventsMock } = vi.hoisted(() => ({
+  taskChargeEventsMock: vi.fn().mockResolvedValue([]),
+}));
+
 vi.mock("@/lib/db/prisma", () => ({
   default: {
+    taskEvent: { findMany: taskChargeEventsMock },
     fileChunk: { findMany: files.chunks },
+    fileResource: { findUnique: files.resourceFindUnique },
+    projectImageAsset: { findFirst: images.assetFindFirst },
     $transaction: transactionMock,
     user: { findUnique: social.owner },
     sokoBot: {
@@ -1488,6 +1499,11 @@ describe("SokoBotRuntimeService authorization", () => {
       },
     ]);
     taskCountMock.mockResolvedValue(1);
+    // Two debits and a refund: only what was billed counts.
+    taskChargeEventsMock.mockResolvedValueOnce([
+      { taskId: "task-1", transaction: { amount: -4_000_000_000_000n } },
+      { taskId: "task-1", transaction: { amount: -213_100_000_000n } },
+    ]);
 
     const result = await new SokoBotRuntimeService().executeTool({
       ...SCOPE,
@@ -1506,6 +1522,7 @@ describe("SokoBotRuntimeService authorization", () => {
           project: null,
           idleDays: 5,
           updatedAt: updatedAt.toISOString(),
+          creditsCharged: 421.31,
           latest: null,
         },
       ],
@@ -4244,6 +4261,36 @@ describe("open_direct_chat", () => {
     ).rejects.toThrow(/already have a direct chat with your owner/i);
     expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
   });
+
+  it("tells its owner something in their chat when a teammate asks", async () => {
+    const authorized = {
+      ...(arm() as object),
+      askedByKind: "TEAMMATE",
+    } as never;
+    memberFindManyMock.mockResolvedValue([
+      { user: { id: SCOPE.userId, name: "Owner", email: "owner@x.io" } },
+    ]);
+    const prisma = (await import("@/lib/db/prisma")).default as unknown as {
+      chatRoom: { findFirst: ReturnType<typeof vi.fn> };
+    };
+    prisma.chatRoom.findFirst.mockResolvedValueOnce({ id: "owner-room" });
+    const service = new SokoBotRuntimeService();
+    const postChat = vi.fn().mockResolvedValue({ ok: true });
+    (service as unknown as { postChat: typeof postChat }).postChat = postChat;
+
+    await service["openDirectChat"](authorized, {
+      person: "Owner",
+      message: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+
+    expect(postChat).toHaveBeenCalledWith(authorized, {
+      roomId: "owner-room",
+      content: "Why did the scarecrow win an award?",
+      toolCallId: "call_1",
+    });
+    expect(createOrGetDirectRoomMock).not.toHaveBeenCalled();
+  });
 });
 
 describe("get_agent_input_schema", () => {
@@ -5481,13 +5528,20 @@ describe("Content Studio image tools", () => {
 
   it.each([
     ["a scheduled turn", { turn: { ...ownerChat.turn, source: "SCHEDULE" } }],
-    ["a teammate", { askedByKind: "TEAMMATE" }],
+    ["another assistant", { askedByKind: "ASSISTANT" }],
     ["another bot", { turn: { ...ownerChat.turn, chainDepth: 1 } }],
   ])("refuses to spend for %s", async (_label, override) => {
     await expect(
       generate({ ...ownerChat, ...override }, request, "call-3"),
-    ).rejects.toThrow("only when your owner asks in chat");
+    ).rejects.toThrow("only when a person asks in chat");
     expect(images.create).not.toHaveBeenCalled();
+  });
+
+  it("generates for a teammate who asks in chat, on the owner's credits", async () => {
+    await expect(
+      generate({ ...ownerChat, askedByKind: "TEAMMATE" }, request, "call-7"),
+    ).resolves.toBeDefined();
+    expect(images.create).toHaveBeenCalled();
   });
 
   it("passes the studio's refusal to the model in its own words", async () => {
@@ -5512,7 +5566,7 @@ describe("Content Studio image tools", () => {
         projectId: "project-1",
         jobId: "job-1",
       }),
-    ).resolves.toEqual({
+    ).resolves.toMatchObject({
       jobId: "job-1",
       status: "SUCCEEDED",
       failureReason: null,
@@ -5521,6 +5575,145 @@ describe("Content Studio image tools", () => {
     expect(images.access.mock.invocationCallOrder[0]).toBeLessThan(
       images.reconcile.mock.invocationCallOrder[0],
     );
+  });
+
+  describe("a ready image in the owner's Files", () => {
+    const ready = {
+      id: "01a0f430-aaaa-7000-8000-000000000001",
+      status: "SUCCEEDED",
+      assetId: "asset-7",
+      failureReason: null,
+      prompt: "A purple robot logo",
+    };
+    beforeEach(() => {
+      images.getJob.mockResolvedValue(ready);
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+      images.assetFindFirst.mockResolvedValue({
+        blobPathname: "studio/asset-7.png",
+        contentType: "image/png",
+      });
+      images.readBytes.mockResolvedValue(new Uint8Array([1, 2, 3]));
+      files.reserve.mockResolvedValue({ resourceId: "file-9", versionId: "v" });
+      files.activate.mockResolvedValue({ resourceId: "file-9" });
+      files.put.mockResolvedValue({});
+    });
+
+    it("copies it once into a Content Studio folder and returns its file id", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      const result = await service["getImage"](ownerChat as never, {
+        projectId: "project-1",
+        jobId: ready.id,
+      });
+      expect(result).toMatchObject({
+        file: {
+          id: "file-9",
+          name: "a-purple-robot-logo-01a0f430.png",
+          link: "/drive/files/file-9",
+        },
+      });
+      expect(files.put).toHaveBeenCalledWith(
+        "drive/organizations/org-1/Content Studio/a-purple-robot-logo-01a0f430.png",
+        expect.any(Buffer),
+        expect.objectContaining({ access: "public", addRandomSuffix: false }),
+      );
+    });
+
+    it("hands back the existing copy instead of writing another", async () => {
+      files.resourceFindUnique.mockResolvedValue({
+        id: "file-9",
+        lifecycle: "ACTIVE",
+        tombstonedAt: null,
+      });
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ file: { id: "file-9" } });
+      expect(files.put).not.toHaveBeenCalled();
+      expect(images.readBytes).not.toHaveBeenCalled();
+    });
+
+    it("still reports the image when the copy fails", async () => {
+      files.resourceFindUnique.mockResolvedValue(null);
+      images.readBytes.mockRejectedValue(new Error("store down"));
+      await expect(
+        service["getImage"](ownerChat as never, {
+          projectId: "project-1",
+          jobId: ready.id,
+        }),
+      ).resolves.toMatchObject({ status: "SUCCEEDED", file: null });
+    });
+  });
+
+  describe("Social media by file id", () => {
+    beforeEach(() => {
+      workspaceFindUniqueMock.mockResolvedValue({
+        id: SCOPE.workspaceId,
+        organizationId: "org-1",
+      });
+    });
+
+    it("turns a Drive file id into the reference the Social service stores", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "logo.png",
+          mimeType: "image/png",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/Content Studio/logo.png",
+        },
+      ]);
+      files.head.mockResolvedValue({
+        url: "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+      });
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).resolves.toEqual([
+        {
+          pathname: "drive/organizations/org-1/Content Studio/logo.png",
+          fileUrl:
+            "https://x.public.blob.vercel-storage.com/drive/organizations/org-1/Content%20Studio/logo.png",
+          name: "logo.png",
+          size: 3,
+          mimeType: "image/png",
+          kind: "image",
+        },
+      ]);
+    });
+
+    it("refuses a file the owner's Files do not hold", async () => {
+      files.loadLive.mockResolvedValue([]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not in the owner's Files");
+    });
+
+    it("refuses a document that no network can carry", async () => {
+      files.loadLive.mockResolvedValue([
+        {
+          id: "01a0f430-aaaa-7000-8000-000000000009",
+          displayName: "notes.md",
+          mimeType: "text/markdown",
+          sizeBytes: 3,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: "drive/organizations/org-1/notes.md",
+        },
+      ]);
+      await expect(
+        service["resolveSocialMedia"](ownerChat as never, [
+          { fileId: "01a0f430-aaaa-7000-8000-000000000009" },
+        ]),
+      ).rejects.toThrow("not an image or video");
+    });
   });
 
   it("returns nothing for a job that is not in the Project", async () => {

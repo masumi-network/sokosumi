@@ -189,22 +189,7 @@ const CHAT_FILE_WRITE_CAPABILITIES = [
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
- * A teammate mentioning someone else's bot in a shared room answers into that
- * room, so the ceiling is strictly smaller than the owner's own CLARIFY turn:
- * the owner's private surfaces — durable memory, inbox, calendar, Drive,
- * connected accounts, and the bot's other chats — stay unreadable. Workspace
- * projects, tasks, and jobs are already visible to every member of the
- * workspace the turn runs in, so status reads remain available.
- */
-export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
-  "refresh_context",
-  "get_task_status",
-  "list_tasks",
-  "get_job_status",
-] as const satisfies readonly SokoBotCapability[];
-
-/**
- * A turn another assistant asked for: the teammate ceiling, and nothing more.
+ * A turn another assistant asked for: status reads, and nothing more.
  *
  * A consulted assistant answers by finishing its turn — the reply is posted
  * for it, in the room it was asked in. It gets no `post_chat`, which means it
@@ -218,7 +203,10 @@ export const SOKO_BOT_TEAMMATE_CAPABILITIES = [
  * the room to notice it, and a person can always ask C directly.
  */
 export const SOKO_BOT_BOT_TO_BOT_CAPABILITIES = [
-  ...SOKO_BOT_TEAMMATE_CAPABILITIES,
+  "refresh_context",
+  "get_task_status",
+  "list_tasks",
+  "get_job_status",
 ] as const satisfies readonly SokoBotCapability[];
 
 /**
@@ -327,7 +315,14 @@ export function capabilitiesForClassification(
     MEMORY: ["update_memory"],
     SCHEDULE: SCHEDULE_CAPABILITIES,
     CHAT: ["post_chat", "open_direct_chat"],
-    FILE: ["upload_file", "generate_image"],
+    // A table the owner asks for is a Files table, not a markdown file.
+    FILE: [
+      "upload_file",
+      "generate_image",
+      "create_table",
+      "write_table_rows",
+      "update_table_columns",
+    ],
     INTEGRATION: ["run_integration_tool"],
     SOCIAL: SOCIAL_WRITE_CAPABILITIES,
   };

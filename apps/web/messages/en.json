@@ -318,7 +318,7 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social",
+      "social": "Social Scheduling",
       "evaluations": "Model evaluations"
     },
     "Jobs": {
@@ -1334,7 +1334,14 @@
       "errorTitle": "Unable to continue",
       "errorTitleFor": "Unable to continue to {client}",
       "errorDescription": "This sign-in request has expired or is no longer valid. Go back to the app you came from and start again.",
-      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again."
+      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again.",
+      "chooseAccountTitle": "Choose an account",
+      "chooseAccountTitleFor": "Choose an account for {client}",
+      "signedInAs": "Signed in to Sokosumi as <account>{email}</account>",
+      "continueAs": "Continue as {account}",
+      "useAnotherAccount": "Use another account",
+      "accountCheckError": "Could not check your account. Try again.",
+      "signOutError": "Could not sign out. Try again."
     },
     "OAuthClient": {
       "backTo": "Back to {client}"
@@ -1565,7 +1572,10 @@
         }
       },
       "SokoBot": {
-        "feedbackAsk": "Useful?",
+        "connectPrompt": "Connect your mail and calendar so {bot} can prep your meetings and chase follow-ups.",
+        "connectProvider": "Connect {name}",
+        "connectDismiss": "Dismiss",
+        "connectError": "Could not start the connection.",
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
@@ -1574,7 +1584,14 @@
         "task": "Task",
         "chainDepth": "Assistant-to-assistant reply {depth} of {max}. A person writing here resets the count.",
         "chainRoomRate": "{count} of {max} assistant messages in this room this hour.",
-        "chainLastHop": "This is the last hop — it will not wake anyone else."
+        "chainLastHop": "This is the last hop — it will not wake anyone else.",
+        "source": {
+          "inbox": "From your inbox",
+          "standup": "Daily stand-up",
+          "weeklyWrap": "Weekly wrap",
+          "scheduled": "Scheduled: {name}",
+          "taskUpdate": "Task update"
+        }
       }
     },
     "Tasks": {
@@ -2006,37 +2023,6 @@
           "monthlyWithDayTime": "Monthly (Day {day}, {time})",
           "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
           "custom": "Custom cron"
-        },
-        "firstRun": "First run",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
-        "timezone": "Timezone",
-        "customCron": "Custom cron expression",
-        "customCronValid": "Valid cron expression",
-        "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
-        },
-        "save": "Save",
-        "cancel": "Cancel",
-        "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
       },
       "RunAt": {
@@ -2092,6 +2078,56 @@
           "errors": {
             "stale": "This schedule changed somewhere else. Reload the page and try again.",
             "saveFailed": "Couldn't save the schedule."
+          },
+          "When": {
+            "title": "When",
+            "repeat": "Repeat",
+            "repeats": {
+              "daily": "Daily",
+              "weekdays": "Weekdays",
+              "weekly": "Weekly",
+              "monthly": "Monthly",
+              "interval": "Every few days",
+              "custom": "Custom"
+            },
+            "on": "On",
+            "pickADay": "Pick at least one day",
+            "dayOfMonth": "Day of the month",
+            "dayN": "Day {day}",
+            "shortMonths": "Skips months without this day",
+            "every": "Every",
+            "days": "days",
+            "starting": "starting",
+            "startDate": "Start date",
+            "pickDate": "Pick a date",
+            "cron": "Cron",
+            "cronHelp": "Five fields: minute, hour, day, month, weekday.",
+            "cronInvalid": "That cron expression isn't valid.",
+            "at": "At",
+            "time": "Time",
+            "timeSearch": "Type a time, e.g. 08:30",
+            "useTime": "Use {time}",
+            "timezone": "Timezone",
+            "timezoneSearch": "Search timezones",
+            "noTimezone": "No timezone found",
+            "ends": "Ends",
+            "endsNever": "Never",
+            "endsOn": "On a date",
+            "endsAfter": "After a number of runs",
+            "endDate": "End date",
+            "runs": "runs",
+            "summary": {
+              "daily": "Every day at {time}",
+              "weekdays": "Every weekday at {time}",
+              "weekly": "Every {days} at {time}",
+              "monthly": "Every month on day {day} at {time}",
+              "interval": "Every {n} days at {time}",
+              "custom": "Custom schedule",
+              "incomplete": "Pick when this runs"
+            },
+            "next": "Next: {date}",
+            "noNext": "No upcoming runs",
+            "nextRuns": "Next runs"
           }
         },
         "Actions": {
@@ -2806,7 +2842,7 @@
       "creditsCheckedOn": "Price checked {date}"
     },
     "Social": {
-      "title": "Social",
+      "title": "Social Scheduling",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
@@ -2859,6 +2895,7 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "New",
           "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
@@ -2874,7 +2911,7 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social"
+          "social": "Social Scheduling"
         },
         "ChatLists": {
           "title": "Recent Chats",
@@ -3828,7 +3865,8 @@
           "unnamed": "Unnamed",
           "archived": "Archived",
           "version": "Version",
-          "showDormant": "Show unused and archived ({count})"
+          "showDormant": "Show unused and archived ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
@@ -3847,7 +3885,8 @@
           "viewsNav": "Bot views",
           "views": {
             "status": "Status",
-            "advanced": "Advanced"
+            "advanced": "Advanced",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Delete this Soko Bot",
@@ -3859,6 +3898,17 @@
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
             "error": "Could not delete this Soko Bot."
+          },
+          "chat": {
+            "readOnly": "Read-only",
+            "roomsNav": "Chats",
+            "ownerRoom": "Owner",
+            "loadOlder": "Load older",
+            "loading": "Loading…",
+            "noMessages": "No messages yet.",
+            "empty": "Nobody has chatted with this bot yet.",
+            "deleted": "Message deleted",
+            "loadError": "Could not load older messages."
           }
         },
         "Actions": {
@@ -4356,6 +4406,13 @@
             "after": "After the reply: “{reply}”",
             "want": "Expected"
           }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Give this bot a mascot from the shared pool, as its owner would.",
+          "apply": "Set avatar",
+          "done": "Avatar updated.",
+          "error": "Could not set the avatar."
         }
       },
       "MatchedChannels": {
@@ -5036,6 +5093,12 @@
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "One URI per line. HTTPS for web apps. Native apps: http://127.0.0.1, http://localhost, http://[::1], or a reverse-domain scheme with no host (com.example.app:/callback). No fragments.",
+          "clientUriLabel": "Home page",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "Optional. HTTPS. Sokosumi's sign-in page links back here.",
+          "logoUriLabel": "Logo URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "Optional. HTTPS. A square image, shown on Sokosumi's sign-in page.",
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
           "includeOfflineAccessLabel": "Allow refresh tokens",
@@ -5083,6 +5146,12 @@
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "One URI per line. HTTPS for web apps. Native apps: http://127.0.0.1, http://localhost, http://[::1], or a reverse-domain scheme with no host (com.example.app:/callback). No fragments.",
+          "clientUriLabel": "Home page",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "HTTPS. Sokosumi's sign-in page links back here. An emptied field keeps the current value.",
+          "logoUriLabel": "Logo URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "HTTPS. A square image, shown on Sokosumi's sign-in page. An emptied field keeps the current value.",
           "cancelButton": "Cancel",
           "saveButton": "Save Changes",
           "includeCoreApiLabel": "Allow Sokosumi API access",
@@ -5116,7 +5185,8 @@
           "nameRequired": "Name is required",
           "nameMaxLength": "Name must be less than 100 characters",
           "redirectUrisRequired": "At least one redirect URI is required",
-          "redirectUrisInvalid": "Each redirect URI must be HTTPS, loopback HTTP (localhost / 127.0.0.1 / [::1]), or a reverse-domain app scheme such as com.example.app:/callback, with no fragment."
+          "redirectUrisInvalid": "Each redirect URI must be HTTPS, loopback HTTP (localhost / 127.0.0.1 / [::1]), or a reverse-domain app scheme such as com.example.app:/callback, with no fragment.",
+          "httpsUrlInvalid": "Enter a full HTTPS URL, such as https://example.com"
         },
         "RotateDialog": {
           "title": "Rotate Client Secret",
@@ -6642,7 +6712,8 @@
         "submitting": "Creating…",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
-        "avatarLabel": "Picture"
+        "avatarLabel": "Picture",
+        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -6740,7 +6811,8 @@
           "limitUsage": "{used} of {limit} self-started turns used today.",
           "timezoneTitle": "Timezone",
           "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
-          "error": "Could not save the setting."
+          "error": "Could not save the setting.",
+          "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings."
         },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
@@ -7015,30 +7087,33 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Soko Bots are the AI coworkers you build yourself. Everyone gets a Personal Assistant that delegates work, follows up, and keeps them posted. More kinds of Soko Bots will appear here.",
+      "description": "Personal assistants that delegate work, follow up and keep you posted in chat.",
       "unavailable": "The team overview is not available right now.",
-      "personalWorkspace": "Personal workspace",
-      "peopleCount": "{count, plural, one {# person} other {# people}}",
-      "you": "you",
-      "noAssistant": "No assistant yet",
-      "createAssistant": "Create your Personal Assistant",
-      "createAssistantHint": "Takes a minute. Pick a name and a picture.",
+      "createAssistant": "Create your assistant",
+      "createAssistantHint": "Get an assistant that takes on Tasks, follows up and keeps you posted. Setup takes a minute.",
       "assistantFallback": "Personal Assistant",
-      "yourAssistant": "Your Personal Assistant",
-      "assistantOf": "{name}'s Personal Assistant",
-      "openChat": "Open chat",
-      "messageAssistant": "Message it",
       "chatError": "Could not open the chat.",
-      "manage": "Open",
-      "teamTitle": "Team",
-      "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
+      "manage": "Settings",
       "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
-      "heroTitle": "Introducing Soko Bots!",
-      "heroBody": "A Soko Bot is your own assistant inside Sokosumi. It works your Taskboard with your Coworkers, reads the mail and calendar you connect, starts the work that's worth doing, and tells you about it in chat. Everyone in the workspace builds their own.",
-      "heroCta": "Create your Soko Bot",
-      "heroCtaHint": "Takes a minute: pick a name and a face.",
-      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot is temporarily unavailable"
+      "disabled": "Soko Bot is temporarily unavailable",
+      "noAssistantYou": "You don't have an assistant yet",
+      "chat": "Chat",
+      "teamSummary": "{bots, plural, one {# assistant} other {# assistants}} · {people, plural, one {# person} other {# people}}",
+      "notSetUp": "Not set up yet",
+      "messageBot": "Message {name}",
+      "lastActive": "Last active {date}",
+      "notActiveYet": "Not active yet",
+      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
+      "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
+      "assistantOf": "Assistant of",
+      "message": "Message",
+      "roleLine": "Delegates work, follows up and keeps you posted.",
+      "heroCaption": "Soko Bots for everyone on your team",
+      "heroTitle": "Your team's personal assistants",
+      "chatWith": "Chat with {name}",
+      "yourAssistantTitle": "Your assistant",
+      "teamTitle": "Your team's assistants",
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
     },
     "Calendar": {
       "Metadata": {

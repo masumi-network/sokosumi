@@ -306,6 +306,8 @@ import {
   listAdminMatchedChannels as coreListAdminMatchedChannels,
   listAdminOrganizationMembers as coreListAdminOrganizationMembers,
   listAdminOrganizations as coreListAdminOrganizations,
+  listAdminSokoBotChatMessages as coreListAdminSokoBotChatMessages,
+  listAdminSokoBotChats as coreListAdminSokoBotChats,
   listAdminSokoBotGatewayModels as coreListAdminSokoBotGatewayModels,
   listAdminSokoBots as coreListAdminSokoBots,
   listAdminSokoBotVersions as coreListAdminSokoBotVersions,
@@ -455,6 +457,7 @@ import {
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
   setAdminSokoBotAvailability as coreSetAdminSokoBotAvailability,
+  setAdminSokoBotAvatar as coreSetAdminSokoBotAvatar,
   simulateMySokoBotTaskEvent as coreSimulateMySokoBotTaskEvent,
   startAdminImpersonation as coreStartAdminImpersonation,
   startMySokoBotTurn as coreStartMySokoBotTurn,
@@ -4720,6 +4723,19 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function setAdminSokoBotAvatar(sokoBotId: string, avatarId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreSetAdminSokoBotAvatar({
+          client,
+          path: { sokoBotId },
+          body: { avatarId },
+        }),
+      "Failed to set Soko Bot avatar",
+    );
+  }
+
   async function introduceMySokoBot(body: { roomId: string }) {
     return executeCoreOperation(
       getClient,
@@ -5070,6 +5086,37 @@ export function createCoreClient(getClient: GetCoreClient) {
       (client) =>
         coreGetAdminSokoBot({ client, path: { sokoBotId }, cache: "no-store" }),
       "Failed to fetch Soko Bot",
+    );
+  }
+
+  async function listAdminSokoBotChats(sokoBotId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminSokoBotChats({
+          client,
+          path: { sokoBotId },
+          cache: "no-store",
+        }),
+      "Failed to fetch Soko Bot chats",
+    );
+  }
+
+  async function listAdminSokoBotChatMessages(
+    sokoBotId: string,
+    roomId: string,
+    query?: { cursor?: string; limit?: number },
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreListAdminSokoBotChatMessages({
+          client,
+          path: { sokoBotId, roomId },
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch Soko Bot chat messages",
     );
   }
 
@@ -5866,6 +5913,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     createMySokoBot,
     archiveMySokoBot,
     deleteAdminSokoBot,
+    setAdminSokoBotAvatar,
     getAdminSokoBotAvailability,
     setAdminSokoBotAvailability,
     deleteMySokoBotPermanently,
@@ -5913,6 +5961,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     migrateAdminSokoBotVersions,
     promoteAdminSokoBotVersion,
     getAdminSokoBot,
+    listAdminSokoBotChats,
+    listAdminSokoBotChatMessages,
     getAdminSokoBotQuality,
     getAdminSokoBotModelEvaluations,
     performAdminSokoBotAction,

@@ -2,39 +2,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   balanceMock,
-  billingPlanMock,
   getEnvMock,
-  memberFindManyMock,
   prepareConsumptionMock,
-  subscriptionMock,
   usageCreateMock,
   usageFindManyMock,
   usageFindUniqueMock,
   turnFindFirstMock,
   turnFindManyMock,
-  userFindUniqueMock,
   transactionCreateMock,
 } = vi.hoisted(() => ({
   balanceMock: vi.fn(),
-  billingPlanMock: vi.fn(),
   getEnvMock: vi.fn(),
-  memberFindManyMock: vi.fn(),
   prepareConsumptionMock: vi.fn(),
-  subscriptionMock: vi.fn(),
   usageCreateMock: vi.fn(),
   usageFindManyMock: vi.fn(),
   usageFindUniqueMock: vi.fn(),
   turnFindFirstMock: vi.fn(),
   turnFindManyMock: vi.fn(),
-  userFindUniqueMock: vi.fn(),
   transactionCreateMock: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    user: { findUnique: userFindUniqueMock },
-    member: { findMany: memberFindManyMock },
     sokoBotUsage: {
       findMany: usageFindManyMock,
       findUnique: usageFindUniqueMock,
@@ -45,16 +35,10 @@ vi.mock("@/lib/db/prisma", () => ({
     },
   },
 }));
-vi.mock("@sokosumi/database/helpers", () => ({
-  resolveOrganizationBillingPlan: billingPlanMock,
-}));
 vi.mock("@sokosumi/database/repositories", () => ({
   creditBucketRepository: {
     getBalance: balanceMock,
     prepareConsumption: prepareConsumptionMock,
-  },
-  subscriptionRepository: {
-    resolveActiveSubscriptionByReferenceId: subscriptionMock,
   },
 }));
 
@@ -65,7 +49,6 @@ import {
   requireSokoBotTurnFunding,
   SokoBotBillingAccessError,
   sokoBotUsageCents,
-  userHasSokoBotPaidCoverage,
 } from "@/services/soko-bot-billing.service";
 
 const SOKO_BOT_ID = "01960001-0001-7001-8001-000000000001";
@@ -87,9 +70,6 @@ describe("Soko Bot billing", () => {
       SOKO_BOT_CREDITS_PER_USD: 100,
       SOKO_BOT_MIN_TURN_CREDITS: 0.1,
     });
-    userFindUniqueMock.mockResolvedValue({ role: "user" });
-    memberFindManyMock.mockResolvedValue([]);
-    subscriptionMock.mockResolvedValue(null);
     turnFindFirstMock.mockResolvedValue(null);
     turnFindManyMock.mockResolvedValue([]);
     usageFindManyMock.mockResolvedValue([]);
@@ -101,40 +81,19 @@ describe("Soko Bot billing", () => {
     expect(sokoBotUsageCents(0n)).toBe(0n);
   });
 
-  it("accepts personal or organization paid coverage", async () => {
-    subscriptionMock.mockResolvedValueOnce({ plan: "starter" });
-    await expect(userHasSokoBotPaidCoverage("user_1")).resolves.toBe(true);
-
-    subscriptionMock.mockResolvedValue(null);
-    memberFindManyMock.mockResolvedValue([{ organizationId: "org_1" }]);
-    billingPlanMock.mockResolvedValue({
-      mode: "enterprise_contract",
-      isConsumable: true,
-    });
-    await expect(userHasSokoBotPaidCoverage("user_1")).resolves.toBe(true);
-  });
-
-  it("accepts platform admin coverage without a subscription", async () => {
-    userFindUniqueMock.mockResolvedValue({ role: "user, admin" });
-
-    await expect(userHasSokoBotPaidCoverage("user_1")).resolves.toBe(true);
-    expect(subscriptionMock).not.toHaveBeenCalled();
-  });
-
-  it("fails closed without paid coverage or minimum personal credits", async () => {
-    await expect(
-      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
-    ).rejects.toBeInstanceOf(SokoBotBillingAccessError);
-
-    subscriptionMock.mockResolvedValue({ plan: "starter" });
+  it("lets a free user start a turn with enough personal credits", async () => {
     balanceMock.mockResolvedValue(0n);
     await expect(
       requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
     ).rejects.toThrow("Insufficient personal credits");
+
+    balanceMock.mockResolvedValue(convertCreditsToCents(1));
+    await expect(
+      requireSokoBotTurnFunding("user_1", SOKO_BOT_ID),
+    ).resolves.toBeUndefined();
   });
 
   it("requires enough balance for the most expensive of the last three completed turns", async () => {
-    subscriptionMock.mockResolvedValue({ plan: "starter" });
     balanceMock.mockResolvedValue(convertCreditsToCents(50));
     turnFindManyMock.mockResolvedValue([
       { id: "turn_3" },
@@ -161,7 +120,6 @@ describe("Soko Bot billing", () => {
   });
 
   it("blocks another turn until balance covers the prior unpaid remainder", async () => {
-    subscriptionMock.mockResolvedValue({ plan: "starter" });
     balanceMock.mockResolvedValue(convertCreditsToCents(94));
     turnFindFirstMock.mockResolvedValue({
       id: "turn_shortfall",

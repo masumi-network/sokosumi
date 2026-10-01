@@ -1,10 +1,11 @@
 import { AgentsSkeleton } from "@/components/agents/agents";
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function AgentsLoading() {
   return (
     <div className="w-full">
-      <div className="space-y-16 pb-8 md:space-y-24 md:px-2">
+      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
         <section className="space-y-8">
           <div className="space-y-2">
             <Skeleton className="h-7 w-56 md:h-8" />

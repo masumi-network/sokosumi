@@ -29,6 +29,8 @@ public struct ChannelEditDraft: Equatable, Sendable {
   public private(set) var topic: String
   public var visibility: ChannelDraft.Visibility
   public var recipients: Set<DirectRecipient>
+  /// When People is unavailable, Save must preserve the latest room humans rather than this opening snapshot.
+  public fileprivate(set) var preservesRoomMembers = false
 
   public init(room: Components.Schemas.ChatRoom) {
     name = room.name
@@ -54,7 +56,7 @@ public struct ChannelEditDraft: Equatable, Sendable {
 
 @MainActor
 public final class ChannelEditing: ObservableObject {
-  public let room: Components.Schemas.ChatRoom
+  @Published public private(set) var room: Components.Schemas.ChatRoom
   @Published public var draft: ChannelEditDraft
   @Published public var query = ""
   @Published public private(set) var roster: ChannelRoster?
@@ -68,6 +70,38 @@ public final class ChannelEditing: ObservableObject {
     draft = ChannelEditDraft(room: room)
   }
 
+  /// Room updates can arrive from another window or a sidebar refresh. Keep agent edits, but adopt the
+  /// current human roster so a successful People retry cannot make an old snapshot authoritative again.
+  public func updateRoom(_ room: Components.Schemas.ChatRoom) {
+    guard room.id == self.room.id, room != self.room else { return }
+    let currentHumans = ChannelEditDraft(room: room).recipients.filter {
+      if case .human = $0 {
+        return true
+      }
+      return false
+    }
+    let previousHumans = ChannelEditDraft(room: self.room).recipients.filter {
+      if case .human = $0 {
+        return true
+      }
+      return false
+    }
+    self.room = room
+    guard currentHumans != previousHumans else { return }
+    draft.recipients = draft.recipients.filter {
+      if case .human = $0 {
+        return false
+      }
+      return true
+    }
+    draft.recipients.formUnion(ChannelEditDraft(room: room).recipients.filter {
+      if case .human = $0 {
+        return true
+      }
+      return false
+    })
+  }
+
   public var permissions: ChannelEditPermissions? {
     roster.map { ChannelEditPermissions(room: room, isOwnerOrAdmin: $0.isOwnerOrAdmin) }
   }
@@ -77,8 +111,16 @@ public final class ChannelEditing: ObservableObject {
     return [ChatRecipientSection.Kind.people, .coworkers, .assistant].compactMap { kind in sections.first { $0.id == kind } }
   }
 
+  /// The organization member page failed while the rest of the roster loaded (web `membersLoadFailed`): only the
+  /// People section is missing, so coworkers and the assistant still toggle.
+  public var membersLoadFailed: Bool {
+    roster?.recipients.membersLoadFailed == true
+  }
+
+  /// A failed member page does not block Save, as on web: the draft's humans come from the room, never from the
+  /// organization list. The coordinator supplies the latest room so hidden members survive changes in other windows.
   public var canSave: Bool {
-    !loading && !saving && roster?.recipients.membersLoadFailed == false && permissions?.canEditMembers == true && draft.isValid
+    !loading && !saving && permissions?.canEditMembers == true && draft.isValid
   }
 
   public func load(using fetch: () async throws -> ChannelRoster) async {
@@ -96,6 +138,7 @@ public final class ChannelEditing: ObservableObject {
       let result = try await fetch()
       guard attempt == loadGeneration, !Task.isCancelled else { return }
       roster = result
+      draft.preservesRoomMembers = result.recipients.membersLoadFailed
     } catch {
       guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
       roster = nil
