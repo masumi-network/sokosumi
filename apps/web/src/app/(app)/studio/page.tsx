@@ -2,13 +2,13 @@ import type { Metadata } from "next";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
 
+import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
 import { ImageStudio } from "@/app/projects/components/image-studio/image-studio";
 import { buildStudioLabels } from "@/app/projects/components/image-studio/studio-labels";
 import { imageStudioService } from "@/lib/services/image-studio.service";
 import { projectService } from "@/lib/services/project.service";
 
 import { StudioPageShell } from "./components/studio-page-shell";
-import { StudioProjectPicker } from "./components/studio-project-picker";
 
 // Wait for the current session and project access before rendering.
 export const instant = false;
@@ -47,7 +47,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   if (!projectId) {
     return (
       <StudioPageShell title={t("title")}>
-        <StudioProjectPicker />
+        <ProjectScopePicker
+          action={t("pickAction")}
+          body={t("pickBody")}
+          testId="studio-no-project"
+          title={t("pickTitle")}
+        />
       </StudioPageShell>
     );
   }
@@ -58,7 +63,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   if (!project) {
     return (
       <StudioPageShell title={t("title")}>
-        <StudioProjectPicker notice={t("pickUnavailable")} />
+        <ProjectScopePicker
+          action={t("pickAction")}
+          body={t("pickUnavailable")}
+          testId="studio-no-project"
+          title={t("pickTitle")}
+        />
       </StudioPageShell>
     );
   }

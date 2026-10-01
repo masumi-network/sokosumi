@@ -9,6 +9,7 @@ import {
   ImagePlus,
   LifeBuoy,
   LogOut,
+  Megaphone,
   Repeat,
   Scale,
   Share2,
@@ -45,11 +46,12 @@ const DRIVE_HREF = "/drive";
 const HISTORY_HREF = "/history";
 const STUDIO_HREF = "/studio";
 const SOCIAL_HREF = "/social";
+const ADS_HREF = "/ads";
 
 export interface YouPageClientProps extends AccountSummaryCreditProps {
   sessionUser: SessionUser;
   adminSettingsChrome: AccountAdminSettingsChrome;
-  /** Social is still behind the beta; the row exists only where the page does. */
+  /** Social and Ads are still behind the beta; their rows exist only where the pages do. */
   socialMenuEnabled?: boolean;
 }
 
@@ -194,6 +196,14 @@ export function YouPageClient({
                 icon={<Share2 className="size-4 shrink-0" aria-hidden />}
                 label={tMenu("social")}
                 testId="you-social"
+              />
+            ) : null}
+            {socialMenuEnabled ? (
+              <MobileStackedMenuLink
+                href={ADS_HREF}
+                icon={<Megaphone className="size-4 shrink-0" aria-hidden />}
+                label={tMenu("ads")}
+                testId="you-ads"
               />
             ) : null}
             <MobileStackedMenuLink

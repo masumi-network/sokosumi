@@ -314,6 +314,41 @@ describe("MenuItems search action", () => {
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
   });
 
+  /** Ads shares Social's beta gate: one flag, no second check. */
+  it("leaves Ads out until the frame resolves the beta", () => {
+    renderMenu();
+
+    expect(screen.queryByRole("link", { name: /ads/i })).toBeNull();
+  });
+
+  it("shows Ads inside the beta, scoped to the reader's project", () => {
+    pathnameRef.current = "/studio";
+    searchRef.current = "projectId=project-1";
+    renderMenu(true, true, true);
+    pathnameRef.current = "/";
+    searchRef.current = "";
+
+    expect(screen.getByRole("link", { name: /ads/i })).toHaveAttribute(
+      "href",
+      "/ads?projectId=project-1",
+    );
+  });
+
+  it("puts Ads after Social and before Files", () => {
+    const { container } = renderMenu(true, false, true);
+    const menuLabels = Array.from(container.querySelectorAll("button, a")).map(
+      (element) => element.textContent ?? "",
+    );
+
+    const order = ["social", "ads", "drive"];
+    const positions = order.map((label) =>
+      menuLabels.findIndex((text) => text.includes(label)),
+    );
+
+    expect(positions.every((position) => position >= 0)).toBe(true);
+    expect([...positions].sort((a, b) => a - b)).toEqual(positions);
+  });
+
   it("keeps the separator under New Task on the collapsed rail", () => {
     const { container } = render(
       <TestQueryProvider>

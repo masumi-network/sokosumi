@@ -5,6 +5,7 @@ import {
   HardDrive,
   ImagePlus,
   ListTodo,
+  Megaphone,
   Plus,
   Repeat,
   Search,
@@ -48,7 +49,7 @@ interface MenuItemConfig {
 }
 
 /**
- * `socialMenuEnabled` is off by default so the Instant Nav shell, which has
+ * `socialMenuEnabled` (the social beta, which Ads shares) is off by default so the Instant Nav shell, which has
  * not resolved the reader's beta membership yet, leaves the row out rather
  * than guessing it: a row that appears once is cheaper than one that appears
  * and then goes away.
@@ -161,6 +162,13 @@ function ScopedMenuItems({
             href: "/social",
             label: t("social"),
             Icon: Share2,
+          },
+          // Ads rides the same beta and the same project scope.
+          {
+            key: "ads",
+            href: "/ads",
+            label: t("ads"),
+            Icon: Megaphone,
           },
         ]
       : []),

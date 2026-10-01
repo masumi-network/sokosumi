@@ -303,6 +303,7 @@
       "design-md": "Design",
       "memory": "Gedächtnis",
       "social": "Social",
+      "ads": "Ads",
       "evaluations": "Modellvergleiche"
     },
     "Jobs": {
@@ -2783,6 +2784,38 @@
       },
       "creditsCheckedOn": "Preis geprüft am {date}"
     },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Projekt auswählen",
+      "pickBody": "Ads gehören zu einem Projekt: Werbekonten und Kampagnen werden dort verwaltet. Wähle ein Projekt aus, um seine Ads zu öffnen.",
+      "pickAction": "Projekt auswählen",
+      "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "tabsLabel": "Ads-Bereiche",
+      "loading": "Ads werden geladen…",
+      "tabs": {
+        "campaigns": "Kampagnen",
+        "market": "Markt",
+        "accounts": "Konten"
+      },
+      "campaigns": {
+        "emptyTitle": "Verbinde ein Werbekonto, um Kampagnen zu sehen",
+        "emptyBody": "Kampagnen aus Google Ads und Meta Ads erscheinen hier, sobald ein Konto verbunden ist.",
+        "emptyAction": "Zu den Konten"
+      },
+      "market": {
+        "emptyTitle": "Richte deinen Markt ein, um Trend-Keywords und Anzeigen zu sehen",
+        "emptyBody": "Füge Keywords und Land hinzu, um zu sehen, was im Trend liegt und welche Anzeigen dein Markt schaltet."
+      },
+      "accounts": {
+        "emptyTitle": "Noch keine Werbekonten verbunden",
+        "emptyBody": "Verbinde Google Ads oder Meta Ads, um die Kampagnen dieses Projekts zu verwalten."
+      },
+      "error": {
+        "title": "Etwas ist schiefgelaufen",
+        "description": "Ads konnten nicht geladen werden. Versuche es erneut.",
+        "retry": "Erneut versuchen"
+      }
+    },
     "Social": {
       "title": "Social",
       "pickAction": "Projekt auswählen",
@@ -2852,7 +2885,8 @@
           "calendar": "Kalender",
           "contentStudio": "Content Studio",
           "schedules": "Zeitpläne",
-          "social": "Social"
+          "social": "Social",
+          "ads": "Ads"
         },
         "ChatLists": {
           "title": "Letzte Chats",

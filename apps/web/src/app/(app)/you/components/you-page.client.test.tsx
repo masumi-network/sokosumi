@@ -151,6 +151,27 @@ describe("YouPageClient", () => {
     expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
   });
 
+  it("links Ads after Social for people in the Social beta", () => {
+    renderYouPage({ socialMenuEnabled: true });
+
+    const ads = screen.getByTestId("you-ads");
+    expect(ads).toHaveAttribute("href", "/ads");
+    expect(
+      screen.getByTestId("you-social").compareDocumentPosition(ads) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      ads.compareDocumentPosition(screen.getByTestId("you-files")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Ads out for everyone else", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
+  });
+
   it("groups Schedules, Studio and Files in the destinations section", () => {
     renderYouPage();
 
