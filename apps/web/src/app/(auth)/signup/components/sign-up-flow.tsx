@@ -2,7 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
@@ -12,6 +18,7 @@ import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
+import { takeSignUpHandover } from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
@@ -69,6 +76,19 @@ export default function SignUpFlow({
   const [cameBack, setCameBack] = useState(false);
   const [isDetailsPending, setIsDetailsPending] = useState(false);
   const formStarted = useRef(false);
+
+  // Sign-in found no account and emailed the code, so step 2 opens at once.
+  // A layout effect: after a client navigation the email step never paints.
+  useLayoutEffect(() => {
+    if (emailLocked) return;
+    const handover = takeSignUpHandover();
+    if (!handover) return;
+    setEmail(handover.email);
+    if (handover.codeSentAt !== null) {
+      emailCode.adoptSentCode(handover.email, handover.codeSentAt);
+    }
+    setStep("details");
+  }, []);
 
   // when user first sees the register page
   useMountEffect(() => {

@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -16,9 +17,9 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
+  isSameTabClick,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
-  takeAuthEmailHintEntry,
 } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
 import {
@@ -43,6 +44,11 @@ export interface EmailStepDetour {
   description: string;
   label: string;
   href: string;
+  /**
+   * Work that takes the person there, e.g. emailing a code first. The link
+   * spins until it has navigated. A click for another tab just opens `href`.
+   */
+  follow?: (email: string, signal: AbortSignal) => Promise<void>;
 }
 
 interface EmailStepProps {
@@ -96,10 +102,12 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  // Set at once, so a second click before the spinner renders is ignored.
+  const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
-  const formRef = useRef<HTMLFormElement>(null);
   const mounted = useRef(false);
   const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailStepFormSchemaType>({
@@ -122,19 +130,14 @@ export function EmailStep({
     mounted.current = true;
     // The other page hands over the address the person typed there. It is a
     // starting value, not a locked one like an invitation's address.
-    const emailHint = takeAuthEmailHintEntry();
+    const emailHint = takeAuthEmailHint();
     const useHint =
       emailHint !== null && !emailLocked && !form.getValues("email").trim();
     if (useHint) {
-      form.setValue("email", emailHint.email);
-      onEmailChange?.(emailHint.email);
+      form.setValue("email", emailHint);
+      onEmailChange?.(emailHint);
     }
-    // Sign-in has just found no account and the person chose to create
-    // one, so the step goes on as if Continue were pressed. It still asks
-    // Core, in case an account has appeared since.
-    if (useHint && emailHint.noAccount && detour.when === "exists") {
-      formRef.current?.requestSubmit();
-    } else if (autoFocus || useHint) {
+    if (autoFocus || useHint) {
       form.setFocus("email");
     }
     return () => {
@@ -152,6 +155,21 @@ export function EmailStep({
     if (!isDetoured || isSubmitting) return;
     detourLinkRef.current?.focus();
   }, [isDetoured, isSubmitting]);
+
+  async function followDetour(
+    email: string,
+    follow: NonNullable<EmailStepDetour["follow"]>,
+  ) {
+    const controller = new AbortController();
+    pending.current = controller;
+    isFollowingRef.current = true;
+    setIsFollowing(true);
+    await follow(email, controller.signal);
+    // Done, the page is leaving; keep spinning until it has.
+    if (!controller.signal.aborted) return;
+    isFollowingRef.current = false;
+    if (mounted.current) setIsFollowing(false);
+  }
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
     if (!mounted.current) return;
@@ -200,10 +218,11 @@ export function EmailStep({
   return (
     <BaseForm
       form={form}
-      formRef={formRef}
       onSubmit={handleSubmit}
       onChange={() => {
         pending.current?.abort();
+        isFollowingRef.current = false;
+        setIsFollowing(false);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -280,21 +299,30 @@ export function EmailStep({
                 href={detour.href}
                 inert={!isDetoured}
                 aria-describedby={isDetoured ? noticeId : undefined}
+                aria-busy={isFollowing || undefined}
+                aria-disabled={isFollowing || undefined}
                 onAuxClick={() => takeAuthEmailHint()}
                 onClick={(event) => {
                   const shownFor = performance.now() - detouredSince.current;
-                  if (shownFor < DETOUR_GRACE_MS) {
+                  if (shownFor < DETOUR_GRACE_MS || isFollowingRef.current) {
                     event.preventDefault();
                     return;
                   }
-                  rememberAuthEmailHintOnClick(
-                    event,
-                    emailLocked ? "" : form.getValues("email"),
-                    // What this step just learned, so sign-up can go on.
-                    { noAccount: detour.when === "missing" },
-                  );
+                  const email = emailLocked ? "" : form.getValues("email");
+                  if (detour.follow && email && isSameTabClick(event)) {
+                    event.preventDefault();
+                    void followDetour(email, detour.follow);
+                    return;
+                  }
+                  rememberAuthEmailHintOnClick(event, email);
                 }}
               >
+                {isFollowing ? (
+                  <Loader2
+                    aria-hidden="true"
+                    className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
+                  />
+                ) : null}
                 {detour.label}
               </Link>
             </Button>

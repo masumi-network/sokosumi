@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { StrictMode } from "react";
 import { toast } from "sonner";
@@ -7,7 +13,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   rememberAuthEmailHint,
   takeAuthEmailHint,
-  takeAuthEmailHintEntry,
+  takeSignUpHandover,
 } from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
@@ -21,10 +27,12 @@ const socialButtonsMock = vi.fn();
 const signInFormMock = vi.fn();
 const emailStatusMock = vi.fn();
 const sendEmailCodeMock = vi.fn();
+const pushMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: pushMock }),
   useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
@@ -235,8 +243,7 @@ describe("SignInFlow", () => {
     ).toHaveAttribute("href", "/signup");
   });
 
-  it("hands the typed email to sign-up when the person creates an account", async () => {
-    const user = userEvent.setup();
+  async function showCreateAccount(user: ReturnType<typeof userEvent.setup>) {
     emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
     render(<SignInFlow lastUsedMethod={null} />);
     await continueWith(user, "new@example.com");
@@ -244,16 +251,92 @@ describe("SignInFlow", () => {
       name: "NoAccount.createAccount",
     });
     await waitFor(() => expect(createAccount).toHaveFocus());
-
     // Past the guard against the second click of a double-click.
     await new Promise((resolve) => setTimeout(resolve, 450));
+    sendEmailCodeMock.mockClear();
+    return createAccount;
+  }
+
+  it("emails the sign-up code from Create account, then opens sign-up on step 2", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    let finishSend!: (result: { data: unknown; error: null }) => void;
+    sendEmailCodeMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSend = resolve;
+      }),
+    );
+
     await user.click(createAccount);
 
-    // Sign-up rechecks this address, then continues without another click.
-    expect(takeAuthEmailHintEntry()).toEqual({
-      email: "new@example.com",
-      noAccount: true,
+    await waitFor(() =>
+      expect(sendEmailCodeMock).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
+        email: "new@example.com",
+        type: "sign-in",
+      }),
+    );
+    expect(createAccount).toHaveAttribute("aria-busy", "true");
+    expect(pushMock).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finishSend({ data: { success: true }, error: null });
     });
+
+    expect(pushMock).toHaveBeenCalledWith("/signup");
+    expect(takeSignUpHandover()).toEqual({
+      email: "new@example.com",
+      codeSentAt: expect.any(Number),
+    });
+  });
+
+  it("still opens sign-up on step 2 when the code could not be sent", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    sendEmailCodeMock.mockResolvedValueOnce({
+      data: null,
+      error: { message: "Too many requests", status: 429 },
+    });
+
+    await user.click(createAccount);
+
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith("/signup"));
+    expect(takeSignUpHandover()).toEqual({
+      email: "new@example.com",
+      codeSentAt: null,
+    });
+  });
+
+  it("sends nothing for a Create account click that opens another tab", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+
+    fireEvent.click(createAccount, { metaKey: true });
+
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("stays when the address is edited while the code is on its way", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    let finishSend!: (result: { data: unknown; error: null }) => void;
+    sendEmailCodeMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSend = resolve;
+      }),
+    );
+    await user.click(createAccount);
+    await waitFor(() => expect(sendEmailCodeMock).toHaveBeenCalled());
+
+    fireEvent.change(emailField(), { target: { value: "bob@example.com" } });
+    await act(async () => {
+      finishSend({ data: { success: true }, error: null });
+    });
+
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(takeSignUpHandover()).toBeNull();
   });
 
   it("carries the OAuth request to sign-up", async () => {

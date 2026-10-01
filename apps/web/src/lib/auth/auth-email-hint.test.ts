@@ -4,7 +4,7 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
-  takeAuthEmailHintEntry,
+  takeSignUpHandover,
 } from "./auth-email-hint";
 
 describe("auth email hint", () => {
@@ -32,46 +32,47 @@ describe("auth email hint", () => {
     expect(takeAuthEmailHint()).toBeNull();
   });
 
-  it("hands over that sign-in found no account for the email", () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("hands sign-up the address sign-in found no account for, with the code's send time", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
 
-    expect(takeAuthEmailHintEntry()).toEqual({
+    expect(takeSignUpHandover()).toEqual({
       email: "ada@example.com",
-      noAccount: true,
+      codeSentAt: 1_000,
     });
-    expect(takeAuthEmailHintEntry()).toBeNull();
+    expect(takeSignUpHandover()).toBeNull();
+    expect(takeAuthEmailHint()).toBeNull();
   });
 
-  it("does not carry an earlier no-account finding to a later email", () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("hands sign-up the address when no code went out", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: null } });
+
+    expect(takeSignUpHandover()).toEqual({
+      email: "ada@example.com",
+      codeSentAt: null,
+    });
+  });
+
+  it("leaves a plain hint for the email step", () => {
+    rememberAuthEmailHint("ada@example.com");
+
+    expect(takeSignUpHandover()).toBeNull();
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+  });
+
+  it("does not carry an earlier handover to a later email", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     rememberAuthEmailHint("bob@example.com");
 
-    expect(takeAuthEmailHintEntry()).toEqual({
-      email: "bob@example.com",
-      noAccount: false,
-    });
+    expect(takeSignUpHandover()).toBeNull();
+    expect(takeAuthEmailHint()).toBe("bob@example.com");
   });
 
-  it("drops the no-account finding with the email it belongs to", () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("drops the handover with the email the email step took", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     expect(takeAuthEmailHint()).toBe("ada@example.com");
     rememberAuthEmailHintOnClick(plainClick, "bob@example.com");
 
-    expect(takeAuthEmailHintEntry()).toEqual({
-      email: "bob@example.com",
-      noAccount: false,
-    });
-  });
-
-  it("remembers the no-account finding for a plain click", () => {
-    rememberAuthEmailHintOnClick(plainClick, "ada@example.com", {
-      noAccount: true,
-    });
-
-    expect(takeAuthEmailHintEntry()).toEqual({
-      email: "ada@example.com",
-      noAccount: true,
-    });
+    expect(takeSignUpHandover()).toBeNull();
   });
 
   it("remembers nothing for a blank email", () => {

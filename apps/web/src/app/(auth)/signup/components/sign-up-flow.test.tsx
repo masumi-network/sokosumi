@@ -250,148 +250,71 @@ describe("SignUpFlow", () => {
     ).toBeInTheDocument();
   });
 
-  it("goes on to step 2 when sign-in has just found no account", async () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("opens on step 2 with the code sign-in has just sent", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
 
     render(<SignUpFlow lastUsedMethod={null} />);
 
-    await waitFor(() => {
-      expect(signUpFormMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          email: "ada@example.com",
-          emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
+    // In the same render pass: the email step is never painted.
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        email: "ada@example.com",
+        emailCode: expect.objectContaining({
+          sentTo: "ada@example.com",
+          sentAt: 1_000,
         }),
-      );
-    });
-    expect(sendEmailCodeMock).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not send twice when automatic and manual submits overlap", async () => {
-    let finishStatus!: (result: {
-      data: { exists: boolean };
-      error: null;
-    }) => void;
-    emailStatusMock.mockReturnValue(
-      new Promise((resolve) => {
-        finishStatus = resolve;
       }),
     );
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+    expect(
+      screen.queryByRole("button", { name: "continueWithEmail" }),
+    ).not.toBeInTheDocument();
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("opens on step 2 without a code when sign-in could not send one", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: null } });
+
     render(<SignUpFlow lastUsedMethod={null} />);
-    // The automatic resolver has started, before its pending state renders.
-    fireEvent.submit(emailField().closest("form")!);
-    await waitFor(() => expect(emailStatusMock).toHaveBeenCalled());
-    await act(async () => {
-      finishStatus({ data: { exists: false }, error: null });
-    });
-    await waitFor(() => expect(signUpFormMock).toHaveBeenCalled());
-    expect(emailStatusMock).toHaveBeenCalledTimes(1);
-    expect(sendEmailCodeMock).toHaveBeenCalledTimes(1);
-  });
 
-  it("does not email after leaving while the automatic status check is pending", async () => {
-    let finishStatus!: (result: {
-      data: { exists: boolean };
-      error: null;
-    }) => void;
-    emailStatusMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishStatus = resolve;
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        email: "ada@example.com",
+        emailCode: expect.objectContaining({ sentTo: null }),
       }),
     );
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
-    const view = render(<SignUpFlow lastUsedMethod={null} />);
-    await waitFor(() => expect(emailStatusMock).toHaveBeenCalledTimes(1));
-    view.unmount();
-    await act(async () => {
-      finishStatus({ data: { exists: false }, error: null });
-    });
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
-  it("sends once under Strict Mode with a checked hint", async () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("keeps the handover through Strict Mode", () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
+
     render(
       <StrictMode>
         <SignUpFlow lastUsedMethod={null} />
       </StrictMode>,
     );
-    await waitFor(() => expect(signUpFormMock).toHaveBeenCalled());
-    expect(emailStatusMock).toHaveBeenCalledTimes(1);
-    expect(sendEmailCodeMock).toHaveBeenCalledTimes(1);
-  });
 
-  it.each(["status captcha", "code captcha"])(
-    "does not send after leaving during %s",
-    async (stage) => {
-      let finishCaptcha!: (options: typeof captchaFetchOptions) => void;
-      const captcha = new Promise<typeof captchaFetchOptions>((resolve) => {
-        finishCaptcha = resolve;
-      });
-      if (stage === "code captcha")
-        requestCaptchaMock.mockResolvedValueOnce(captchaFetchOptions);
-      requestCaptchaMock.mockReturnValueOnce(captcha);
-      rememberAuthEmailHint("ada@example.com", { noAccount: true });
-      const view = render(<SignUpFlow lastUsedMethod={null} />);
-      await waitFor(() =>
-        expect(requestCaptchaMock).toHaveBeenCalledTimes(
-          stage === "code captcha" ? 2 : 1,
-        ),
-      );
-      view.unmount();
-      await act(async () => {
-        finishCaptcha(captchaFetchOptions);
-      });
-      expect(sendEmailCodeMock).not.toHaveBeenCalled();
-      expect(signUpFormMock).not.toHaveBeenCalled();
-      expect(emailStatusMock).toHaveBeenCalledTimes(
-        stage === "code captcha" ? 1 : 0,
-      );
-    },
-  );
-
-  it("does not show an abandoned send's transport error on the next page", async () => {
-    let failSend!: (error: Error) => void;
-    sendEmailCodeMock.mockReturnValueOnce(
-      new Promise((_resolve, reject) => {
-        failSend = reject;
-      }),
+    expect(signUpFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ email: "ada@example.com" }),
     );
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
-    const view = render(<SignUpFlow lastUsedMethod={null} />);
-    await waitFor(() => expect(sendEmailCodeMock).toHaveBeenCalledTimes(1));
-    view.unmount();
-    await act(async () => {
-      failSend(new Error("disconnected"));
-    });
-    expect(toast.error).not.toHaveBeenCalled();
-  });
-
-  it("ignores a status response for an address that changed", async () => {
-    let finishStatus!: (result: {
-      data: { exists: boolean };
-      error: null;
-    }) => void;
-    emailStatusMock.mockReturnValueOnce(
-      new Promise((resolve) => {
-        finishStatus = resolve;
-      }),
-    );
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
-    render(<SignUpFlow lastUsedMethod={null} />);
-    await waitFor(() => expect(emailStatusMock).toHaveBeenCalledTimes(1));
-    // Programmatic/autofill changes can arrive even while the fieldset is disabled.
-    fireEvent.change(emailField(), { target: { value: "bob@example.com" } });
-    await act(async () => {
-      finishStatus({ data: { exists: false }, error: null });
-    });
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
-    expect(signUpFormMock).not.toHaveBeenCalled();
-    expect(emailField()).toHaveValue("bob@example.com");
   });
 
-  it("ignores a checked hint when an invitation supplies the address", async () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+  it("goes back to the email step with the handed-over address on Change", async () => {
+    const user = userEvent.setup();
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
+    render(<SignUpFlow lastUsedMethod={null} />);
+
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+
+    expect(emailField()).toHaveValue("ada@example.com");
+    expect(emailField()).toBeEnabled();
+  });
+
+  it("ignores a handover when an invitation supplies the address", async () => {
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     render(
       <SignUpFlow
         lastUsedMethod={null}
@@ -402,26 +325,12 @@ describe("SignUpFlow", () => {
     await act(async () => {});
     expect(emailField()).toHaveValue("invited@example.com");
     expect(emailField()).toBeDisabled();
-    expect(emailStatusMock).not.toHaveBeenCalled();
-    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
     expect(takeAuthEmailHint()).toBeNull();
   });
 
-  it.each(["0", "true", "old@example.com"])(
-    "waits when a marker is false or malformed (%s)",
-    async (marker) => {
-      window.sessionStorage.setItem("auth-email-hint", "ada@example.com");
-      window.sessionStorage.setItem("auth-email-hint-no-account", marker);
-      render(<SignUpFlow lastUsedMethod={null} />);
-      await act(async () => {});
-      expect(emailField()).toHaveValue("ada@example.com");
-      expect(emailStatusMock).not.toHaveBeenCalled();
-      expect(sendEmailCodeMock).not.toHaveBeenCalled();
-    },
-  );
-
   it("keeps signup usable when reading storage fails", async () => {
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
+    rememberAuthEmailHint("ada@example.com", { signUp: { codeSentAt: 1_000 } });
     const storage = vi
       .spyOn(window.sessionStorage, "getItem")
       .mockImplementation(() => {
@@ -431,21 +340,6 @@ describe("SignUpFlow", () => {
     await act(async () => {});
     storage.mockRestore();
     expect(emailField()).toHaveValue("");
-    expect(emailStatusMock).not.toHaveBeenCalled();
-    expect(sendEmailCodeMock).not.toHaveBeenCalled();
-  });
-
-  it("stays on the email when the account exists by now", async () => {
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
-    rememberAuthEmailHint("ada@example.com", { noAccount: true });
-
-    render(<SignUpFlow lastUsedMethod={null} />);
-
-    await waitFor(() => {
-      expect(notice()).toHaveAttribute("data-state", "open");
-    });
-    expect(emailField()).toHaveValue("ada@example.com");
-    expect(sendEmailCodeMock).not.toHaveBeenCalled();
     expect(signUpFormMock).not.toHaveBeenCalled();
   });
 
@@ -459,6 +353,96 @@ describe("SignUpFlow", () => {
     });
     expect(emailStatusMock).not.toHaveBeenCalled();
     expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("does not email after leaving while the status check is pending", async () => {
+    const user = userEvent.setup();
+    let finishStatus!: (result: {
+      data: { exists: boolean };
+      error: null;
+    }) => void;
+    emailStatusMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishStatus = resolve;
+      }),
+    );
+    const view = render(<SignUpFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(emailStatusMock).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () => {
+      finishStatus({ data: { exists: false }, error: null });
+    });
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+  });
+
+  it.each(["status captcha", "code captcha"])(
+    "does not send after leaving during the %s",
+    async (stage) => {
+      const user = userEvent.setup();
+      let finishCaptcha!: (options: typeof captchaFetchOptions) => void;
+      const captcha = new Promise<typeof captchaFetchOptions>((resolve) => {
+        finishCaptcha = resolve;
+      });
+      if (stage === "code captcha")
+        requestCaptchaMock.mockResolvedValueOnce(captchaFetchOptions);
+      requestCaptchaMock.mockReturnValueOnce(captcha);
+      const view = render(<SignUpFlow lastUsedMethod={null} />);
+      await continueWith(user, "ada@example.com");
+      await waitFor(() =>
+        expect(requestCaptchaMock).toHaveBeenCalledTimes(
+          stage === "code captcha" ? 2 : 1,
+        ),
+      );
+      view.unmount();
+      await act(async () => {
+        finishCaptcha(captchaFetchOptions);
+      });
+      expect(sendEmailCodeMock).not.toHaveBeenCalled();
+      expect(signUpFormMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("does not show an abandoned send's transport error on the next page", async () => {
+    const user = userEvent.setup();
+    let failSend!: (error: Error) => void;
+    sendEmailCodeMock.mockReturnValueOnce(
+      new Promise((_resolve, reject) => {
+        failSend = reject;
+      }),
+    );
+    const view = render(<SignUpFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(sendEmailCodeMock).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () => {
+      failSend(new Error("disconnected"));
+    });
+    expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("ignores a status response for an address that changed", async () => {
+    const user = userEvent.setup();
+    let finishStatus!: (result: {
+      data: { exists: boolean };
+      error: null;
+    }) => void;
+    emailStatusMock.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishStatus = resolve;
+      }),
+    );
+    render(<SignUpFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(emailStatusMock).toHaveBeenCalledTimes(1));
+    // Programmatic/autofill changes can arrive even while the fieldset is disabled.
+    fireEvent.change(emailField(), { target: { value: "bob@example.com" } });
+    await act(async () => {
+      finishStatus({ data: { exists: false }, error: null });
+    });
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
+    expect(emailField()).toHaveValue("bob@example.com");
   });
 
   it("uses the handed-over email once", async () => {
