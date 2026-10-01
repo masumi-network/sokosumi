@@ -157,9 +157,14 @@ A Coworker needs `X-Context-*` headers, the `tasks` capability, and a
 **403** `grant_required` until a human approves; nothing parks. The
 organization seat applies to the contextual user, and Task Schedules are not
 behind the Calendar beta. The Coworker reads the workspace's public schedules
-and the contextual user's private ones in its vendor family, as for Tasks. It
-changes only the contextual user's schedules that it created or whose assignee
-is in its vendor family. A schedule's workspace is fixed at creation.
+and the contextual user's private ones in its vendor family, as for Tasks.
+Every member changes the schedules they see: the workspace's public ones and
+their own private ones
+([ADR 0048](../adr/0048-members-change-workspace-visible-task-schedules.md)).
+The Coworker changes a schedule the contextual user may change when it created
+the schedule or the assignee is in its vendor family. Every schedule carries `canWrite`
+for the caller. The owner stays the owner, and each Run's Task belongs to them.
+A schedule's workspace is fixed at creation.
 
 `POST /v1/tasks/schedules` takes an optional `operationId` (a UUID, scoped to
 the workspace) so a timed-out create can be retried safely: a retry with the

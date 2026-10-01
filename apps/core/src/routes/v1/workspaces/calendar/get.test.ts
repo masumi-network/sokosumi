@@ -149,6 +149,7 @@ function createRun(overrides: Record<string, unknown> = {}) {
       id: SCHEDULE_ID,
       name: "Weekly report",
       ownerId: "user_123",
+      visibility: TaskVisibility.PUBLIC,
       state: TaskScheduleState.ACTIVE,
       revision: 4,
       creatorCoworkerId: null,
@@ -386,7 +387,12 @@ describe("GET /workspaces/calendar", () => {
   });
 
   it.each([
-    ["another member's schedule", { schedule: { ownerId: "user_456" } }],
+    [
+      "another member's private schedule",
+      {
+        schedule: { ownerId: "user_456", visibility: TaskVisibility.PRIVATE },
+      },
+    ],
     [
       "a Run already due",
       { effectiveScheduledAt: new Date("2026-06-01T11:00:00.000Z") },
@@ -405,6 +411,21 @@ describe("GET /workspaces/calendar", () => {
     );
 
     expect(items).toEqual([expect.objectContaining({ canChangeRun: false })]);
+  });
+
+  it("offers changes to another member's workspace-visible schedule", async () => {
+    taskScheduleOccurrenceFindManyMock.mockResolvedValue([
+      createRun({ schedule: { ownerId: "user_456" } }),
+    ]);
+
+    const { items } = await readWorkspaceCalendar(
+      WORKSPACE_ID,
+      "user_123",
+      QUERY,
+      { access: USER_ACCESS },
+    );
+
+    expect(items).toEqual([expect.objectContaining({ canChangeRun: true })]);
   });
 
   it("applies owner and assignee filters to schedules and created Tasks", async () => {

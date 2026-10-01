@@ -224,6 +224,10 @@ export const taskScheduleSchema = z
     assigneeUserId: z.string().nullable(),
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
+    canWrite: z.boolean().openapi({
+      description:
+        "Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).",
+    }),
   })
   .openapi("TaskSchedule");
 

@@ -32,7 +32,6 @@ interface TaskScheduleRowProps {
   /** The create picker's choices, for the edit dialog. */
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
-  currentUserId: string | null;
   canCreatePrivate: boolean;
   onChanged: () => void;
 }
@@ -50,7 +49,8 @@ function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
 
 /**
  * One Task Schedule: who runs it and where it lives, its rule, its state, and
- * its next run. Its owner manages it in place; everyone opens its detail page.
+ * its next run. Members who may change it do so in place; everyone opens its
+ * detail page.
  */
 export function TaskScheduleRow({
   schedule,
@@ -58,7 +58,6 @@ export function TaskScheduleRow({
   assigneeDisplayOptions,
   coworkerOptions,
   projectOptions,
-  currentUserId,
   canCreatePrivate,
   onChanged,
 }: TaskScheduleRowProps) {
@@ -148,7 +147,7 @@ export function TaskScheduleRow({
           </div>
         </div>
       </div>
-      {schedule.ownerId === currentUserId ? (
+      {schedule.canWrite ? (
         <div className="relative z-10 shrink-0">
           <TaskScheduleActions
             onChanged={onChanged}

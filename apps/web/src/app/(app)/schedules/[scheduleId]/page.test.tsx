@@ -88,6 +88,7 @@ const SCHEDULE = {
   name: "Weekly report",
   description: null,
   ownerId: "user-owner",
+  canWrite: false,
   state: "ACTIVE",
   visibility: "WORKSPACE",
   nextRunAt: null,

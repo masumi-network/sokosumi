@@ -364,6 +364,7 @@ export async function readWorkspaceCalendar(
             id: true,
             name: true,
             ownerId: true,
+            visibility: true,
             state: true,
             revision: true,
             creatorCoworkerId: true,
@@ -422,7 +423,7 @@ export async function readWorkspaceCalendar(
         kind: "RUN",
         scheduleId: schedule.id,
         scheduleRevision: schedule.revision,
-        // The same Runs PATCH /runs/{runId} accepts from their owner.
+        // The same Runs PATCH /runs/{runId} accepts from this caller.
         canChangeRun:
           run.state === TaskScheduleRunState.PLANNED &&
           schedule.state === TaskScheduleState.ACTIVE &&

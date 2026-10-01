@@ -463,17 +463,23 @@ describe("PATCH /tasks/schedules/{id}", () => {
     });
   });
 
-  it("lets only the owner edit a workspace-visible schedule", async () => {
+  it("lets another member edit a workspace-visible schedule", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await patch(
       schedule.id,
-      { expectedRevision: 0, name: "Mine now" },
+      { expectedRevision: 0, name: "Renamed by a teammate" },
       createTaskScheduleTestApp(mountPatchTaskSchedule, userAuth(MEMBER_ID)),
     );
 
-    expect(response.status).toBe(403);
-    expect(stored(schedule.id)?.name).toBe("Weekly report");
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      data: { ownerId: OWNER_ID, canWrite: true },
+    });
+    expect(stored(schedule.id)).toMatchObject({
+      name: "Renamed by a teammate",
+      ownerId: OWNER_ID,
+    });
   });
 
   it("hides another member's private schedule", async () => {
@@ -511,7 +517,7 @@ describe("PATCH /tasks/schedules/{id}", () => {
       expect(response.status).toBe(200);
     });
 
-    it("does not edit another member's schedule it is assigned to", async () => {
+    it("edits another member's workspace-visible schedule it is assigned to", async () => {
       const schedule = seedTaskSchedule({
         ownerId: MEMBER_ID,
         creatorUserId: MEMBER_ID,
@@ -523,7 +529,24 @@ describe("PATCH /tasks/schedules/{id}", () => {
         name: "Renamed by vendor",
       });
 
-      expect(response.status).toBe(403);
+      expect(response.status).toBe(200);
+      expect(stored(schedule.id)?.ownerId).toBe(MEMBER_ID);
+    });
+
+    it("does not see another member's private schedule it is assigned to", async () => {
+      const schedule = seedTaskSchedule({
+        ownerId: MEMBER_ID,
+        creatorUserId: MEMBER_ID,
+        assigneeId: COWORKER_ID,
+        visibility: "PRIVATE",
+      });
+
+      const response = await coworkerPatch(schedule.id, {
+        expectedRevision: 0,
+        name: "Renamed by vendor",
+      });
+
+      expect(response.status).toBe(404);
     });
 
     it("does not edit a schedule outside its vendor family", async () => {
