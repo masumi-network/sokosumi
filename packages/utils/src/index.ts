@@ -425,6 +425,7 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,

@@ -2098,6 +2098,7 @@
             "cron": "Cron",
             "cronHelp": "Five fields: minute, hour, day, month, weekday.",
             "cronInvalid": "That cron expression isn't valid.",
+            "cronLegacy": "Saved before five fields were required. It keeps running; a changed cron needs five fields.",
             "at": "At",
             "time": "Time",
             "timeSearch": "Type a time, e.g. 08:30",

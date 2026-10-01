@@ -20,4 +20,5 @@ A repeating rule is a **Task Schedule**, its own model, not a Task. It holds the
 - Deleting a schedule sets `scheduleId` to null on the Tasks it created. Closing or deleting a project Ends its schedules.
 - A skipped or moved Run is recorded on its Run row (state, moved time, and the person or Coworker who last changed it), not as a Task event or in a separate history table; a skip that was later restored leaves no trace.
 - Task Schedules are not behind the Calendar beta; only the calendar view is.
+- A rule's cron has five fields (minute, hour, day of month, month, day of week), with `L` and `#` allowed. A seconds field, `@` macros, and `H` are refused, so a rule fires at most once a minute and at the same time each time it is read. Only a rule that is sent is checked: rules stored earlier keep running, and an edit that leaves the rule alone still saves. Loosening this later is easy; tightening it again is not.
 - `SokoBotSchedule` is unrelated and stays separate.
