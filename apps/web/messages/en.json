@@ -6759,7 +6759,12 @@
         "showFewer": "Show fewer",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
-        "kindsMailCalendar": "Reads your inbox and calendar"
+        "kindsMailCalendar": "Reads your inbox and calendar",
+        "connectedNotRead": "Connected · read when a briefing or meeting needs it",
+        "lastRead": "Connected · read {when}",
+        "connectedTools": "Connected",
+        "manage": "Manage",
+        "browseAll": "Browse all apps"
       },
       "Schedules": {
         "builtIn": "Built-in",
@@ -7024,13 +7029,19 @@
         },
         "Usage": {
           "title": "Usage",
-          "description": "Everything this assistant has spent since you created it.",
+          "description": "Everything this assistant has spent since you created it, including the Coworkers and Agents it hired.",
           "credits": "Credits spent",
           "turns": "over {count, plural, one {# turn} other {# turns}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} in · {output} out",
           "modelCost": "Model cost",
-          "modelCostHint": "What the tokens cost, before the per-turn minimum"
+          "modelCostHint": "What the tokens cost, before the per-turn minimum",
+          "creditSplit": "{own} on its own turns · {delegated} on Coworkers and Agents",
+          "creditsOwnOnly": "All on its own turns"
+        },
+        "Connectors": {
+          "title": "Tools",
+          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {

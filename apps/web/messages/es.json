@@ -6759,7 +6759,12 @@
         "showFewer": "Mostrar menos",
         "kindsMail": "Lee tu bandeja de entrada",
         "kindsCalendar": "Lee tu calendario",
-        "kindsMailCalendar": "Lee tu bandeja de entrada y calendario"
+        "kindsMailCalendar": "Lee tu bandeja de entrada y calendario",
+        "connectedNotRead": "Conectado · se lee cuando un resumen o una reunión lo necesita",
+        "lastRead": "Conectado · leído {when}",
+        "connectedTools": "Conectado",
+        "manage": "Gestionar",
+        "browseAll": "Ver todas las apps"
       },
       "Schedules": {
         "builtIn": "Integrado",
@@ -7024,13 +7029,19 @@
         },
         "Usage": {
           "title": "Uso",
-          "description": "Todo lo que este asistente ha gastado desde que lo creaste.",
+          "description": "Todo lo que este asistente ha gastado desde que lo creaste, incluidos los Coworkers y Agents que contrató.",
           "credits": "Créditos gastados",
           "turns": "en {count, plural, one {# turno} other {# turnos}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} entrada · {output} salida",
           "modelCost": "Coste del modelo",
-          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno"
+          "modelCostHint": "Lo que costaron los tokens, antes del mínimo por turno",
+          "creditSplit": "{own} en sus propios turnos · {delegated} en Coworkers y Agents",
+          "creditsOwnOnly": "Todo en sus propios turnos"
+        },
+        "Connectors": {
+          "title": "Herramientas",
+          "description": "Apps que puede usar por ti. El correo y los calendarios son de solo lectura; otras apps actúan en tu nombre cuando se lo pides."
         }
       },
       "Avatar": {

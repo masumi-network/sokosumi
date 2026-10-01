@@ -23,9 +23,14 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { ensureSokoBotDirectRoomAction } from "@/app/chat/actions";
+import { GALLERY_SECTION_HEADLINE_CLASS } from "@/components/agents/gallery-page-classes";
 import Markdown from "@/components/markdown";
 import { SokoBotStatusBadge } from "@/components/soko-bot/soko-bot-badges";
 import { Button } from "@/components/ui/button";
+import {
+  HOLDER_CLASS,
+  HOLDER_ITEM_CLASS,
+} from "@/components/ui/holder-surface";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { claimSokoBotAvatarAction } from "@/lib/actions/soko-bot/action";
@@ -55,6 +60,7 @@ import { SkillsSection } from "../skills-section.client";
 import { ActivityList } from "./activity-list.client";
 import { AutomationChecks } from "./automation-checks";
 import { DailyStats } from "./daily-stats";
+import { ToolConnectors } from "./tool-connectors.client";
 import { UsageSummary } from "./usage-summary";
 
 function Section({
@@ -83,6 +89,37 @@ function Section({
       </header>
       <div className="p-4">{children}</div>
     </section>
+  );
+}
+
+/** A simple-view section: the Agents page's headline over a Schedules holder. */
+function HolderSection({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="space-y-1">
+        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
+        <p className="text-muted-foreground text-sm text-pretty">
+          {description}
+        </p>
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function HolderPanel({ children }: { children: ReactNode }) {
+  return (
+    <div className={HOLDER_CLASS}>
+      <div className={cn(HOLDER_ITEM_CLASS, "p-4")}>{children}</div>
+    </div>
   );
 }
 
@@ -132,7 +169,7 @@ export function SokoBotConsole({
   // shallow: false so flipping Advanced re-runs the server component, which is
   // what fetches the skills, integrations and catalog that view needs.
   const [view, setView] = useQueryState("view", { shallow: false });
-  const isAdvanced = view === "advanced";
+  const isAdvanced = view === "advanced" || focusTurnId !== null;
   const format = useFormatter();
   const router = useRouter();
   const { state, refresh } = useSokoBotState(initialState);
@@ -231,9 +268,10 @@ export function SokoBotConsole({
                 <Switch
                   id="soko-bot-advanced"
                   checked={isAdvanced}
-                  onCheckedChange={(checked) =>
-                    setView(checked ? "advanced" : null)
-                  }
+                  onCheckedChange={(checked) => {
+                    if (!checked && focusTurnId) router.replace(SOKO_BOT_ROUTE);
+                    else setView(checked ? "advanced" : null);
+                  }}
                 />
                 <Label
                   htmlFor="soko-bot-advanced"
@@ -275,53 +313,91 @@ export function SokoBotConsole({
                 : "grid items-start gap-6"
             }
           >
-            <div className="min-w-0 space-y-6">
-              {stats ? (
-                <Section
-                  title={t("Console.Stats.title")}
-                  description={t("Console.Stats.description", {
-                    days: stats.days,
-                  })}
-                >
-                  <DailyStats stats={stats} />
-                </Section>
-              ) : null}
-              {usage ? (
-                <Section
-                  title={t("Console.Usage.title")}
-                  description={t("Console.Usage.description")}
-                >
-                  <UsageSummary usage={usage} />
-                </Section>
-              ) : null}
-              {stats ? (
-                <Section
-                  title={t("Console.Automation.title")}
-                  description={t("Console.Automation.description")}
-                >
-                  <AutomationChecks checks={stats.checks} />
-                </Section>
-              ) : null}
-              <Section
-                title={t("Console.activityTitle")}
-                description={t("Console.activityDescription")}
-              >
-                {turns.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
-                    {t("Console.activityEmpty")}
-                  </p>
-                ) : (
-                  <ActivityList
-                    turns={turns}
-                    focusTurnId={focusTurnId}
-                    userImageUrl={userImageUrl}
-                    userName={userName}
-                    onDecisionResolved={refresh}
-                  />
-                )}
-              </Section>
+            {isAdvanced ? null : (
+              <div className="min-w-0 space-y-10">
+                {integrations ? (
+                  <HolderSection
+                    title={t("Console.Connectors.title")}
+                    description={t("Console.Connectors.description")}
+                  >
+                    <ToolConnectors
+                      integrations={integrations}
+                      catalog={catalog}
+                      onBrowseAll={() => setView("advanced")}
+                    />
+                  </HolderSection>
+                ) : null}
+                {usage ? (
+                  <HolderSection
+                    title={t("Console.Usage.title")}
+                    description={t("Console.Usage.description")}
+                  >
+                    <HolderPanel>
+                      <UsageSummary usage={usage} />
+                    </HolderPanel>
+                  </HolderSection>
+                ) : null}
+                {stats ? (
+                  <HolderSection
+                    title={t("Console.Stats.title")}
+                    description={t("Console.Stats.description", {
+                      days: stats.days,
+                    })}
+                  >
+                    <HolderPanel>
+                      <DailyStats stats={stats} />
+                    </HolderPanel>
+                  </HolderSection>
+                ) : null}
+              </div>
+            )}
+            <div className={isAdvanced ? "min-w-0 space-y-6" : "hidden"}>
               {isAdvanced ? (
                 <>
+                  {stats ? (
+                    <Section
+                      title={t("Console.Stats.title")}
+                      description={t("Console.Stats.description", {
+                        days: stats.days,
+                      })}
+                    >
+                      <DailyStats stats={stats} />
+                    </Section>
+                  ) : null}
+                  {usage ? (
+                    <Section
+                      title={t("Console.Usage.title")}
+                      description={t("Console.Usage.description")}
+                    >
+                      <UsageSummary usage={usage} detailed />
+                    </Section>
+                  ) : null}
+                  {stats ? (
+                    <Section
+                      title={t("Console.Automation.title")}
+                      description={t("Console.Automation.description")}
+                    >
+                      <AutomationChecks checks={stats.checks} />
+                    </Section>
+                  ) : null}
+                  <Section
+                    title={t("Console.activityTitle")}
+                    description={t("Console.activityDescription")}
+                  >
+                    {turns.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">
+                        {t("Console.activityEmpty")}
+                      </p>
+                    ) : (
+                      <ActivityList
+                        turns={turns}
+                        focusTurnId={focusTurnId}
+                        userImageUrl={userImageUrl}
+                        userName={userName}
+                        onDecisionResolved={refresh}
+                      />
+                    )}
+                  </Section>
                   <Section
                     title={t("HowItWorks.title")}
                     description={t("HowItWorks.description")}
