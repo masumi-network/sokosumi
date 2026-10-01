@@ -174,6 +174,11 @@ export function SokoBotFleetTable({
                           {t("archived")}
                         </StatusBadge>
                       ) : null}
+                      {item.outOfCredits ? (
+                        <StatusBadge tone="danger">
+                          {t("outOfCredits")}
+                        </StatusBadge>
+                      ) : null}
                       {attentionReasons(item).map((reason) =>
                         reason.kind === "failures" ||
                         reason.kind === "pending" ? (

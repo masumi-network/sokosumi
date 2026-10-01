@@ -69,8 +69,11 @@ import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
+  notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
+  SokoBotBillingAccessError,
+  sokoBotIdsOutOfCredits,
 } from "@/services/soko-bot-billing.service";
 import {
   assessSokoBotIntentOutcome,
@@ -2146,7 +2149,24 @@ export class SokoBotControlPlane {
       input.versionId ?? bot.versionId,
     );
 
-    await requireSokoBotTurnFunding(input.userId, bot.id);
+    try {
+      await requireSokoBotTurnFunding(input.userId, bot.id);
+    } catch (error) {
+      // A chat turn's sender sees the refusal; a self-started one has nobody
+      // watching, so the owner hears about it in their chat instead.
+      if (error instanceof SokoBotBillingAccessError && source !== "CHAT") {
+        await notifySokoBotOutOfCredits(bot.id).catch(
+          (noticeError: unknown) => {
+            console.warn("Soko Bot out-of-credits notice failed", {
+              sokoBotId: bot.id,
+              error:
+                noticeError instanceof Error ? noticeError.name : "unknown",
+            });
+          },
+        );
+      }
+      throw error;
+    }
 
     const requestedByTeammate =
       input.chat?.askedByBot === true ||
@@ -3629,6 +3649,7 @@ export class SokoBotControlPlane {
           : undefined),
         include: {
           user: { select: { id: true, name: true, email: true } },
+          workspace: { select: { organizationId: true } },
           _count: {
             select: {
               turns: true,
@@ -3643,7 +3664,21 @@ export class SokoBotControlPlane {
     ]);
     const hasMore = items.length > take;
     if (hasMore) items.pop();
-    return { items, total, hasMore };
+    const outOfCredits = await sokoBotIdsOutOfCredits(
+      items.map((bot) => ({
+        id: bot.id,
+        userId: bot.userId,
+        organizationId: bot.workspace.organizationId,
+      })),
+    );
+    return {
+      items: items.map(({ workspace: _workspace, ...bot }) => ({
+        ...bot,
+        outOfCredits: outOfCredits.has(bot.id),
+      })),
+      total,
+      hasMore,
+    };
   }
 
   async getForAdmin(sokoBotId: string) {
