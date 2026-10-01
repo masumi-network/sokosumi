@@ -384,6 +384,7 @@ describe("CMO auth handler", () => {
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.useRealTimers();
   });
 
@@ -504,6 +505,29 @@ describe("CMO auth handler", () => {
       expect(await response.text()).toContain("Try again");
     },
   );
+
+  it("signs in once Core answers after discovery failed at startup", async () => {
+    // A preview's first request can beat its branch's Core preview deploy.
+    vi.stubEnv("BETTER_AUTH_URL", CMO);
+    vi.stubEnv("CORE_APP_BASE_URL", CORE);
+    vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_ID", CLIENT_ID);
+    vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_SECRET", CLIENT_SECRET);
+    vi.stubEnv(
+      "BETTER_AUTH_SECRET",
+      "a-cookie-secret-that-is-at-least-32-characters",
+    );
+    const { getAuth: getRealAuth } =
+      await vi.importActual<typeof import("./auth")>("./auth");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+    await getRealAuth().$context;
+    core.discoveryDown = false;
+
+    const url = new URL(await startSignIn(getRealAuth(), jar));
+
+    logged.mockRestore();
+    expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
+  });
 
   it("returns an uncached error instead of redirecting when auth returns no URL", async () => {
     const signInSocial = auth.api.signInSocial;
