@@ -53,6 +53,17 @@ describe("validateTaskScheduleRule", () => {
     expect(() => validateTaskScheduleRule(rule)).not.toThrow();
   });
 
+  it.each([
+    "0 9 * * MON-FRI",
+    "30 8 1,15 JAN,JUL *",
+    "0 17 * * 5L",
+    "0 9 * * 1#1",
+    "0 0 L * *",
+    "0 9 ? * thu",
+  ])("accepts supported five-field syntax %s", (expr) => {
+    expect(() => validateTaskScheduleRule({ ...rule, expr })).not.toThrow();
+  });
+
   it("rejects an unknown timezone", () => {
     expect(() =>
       validateTaskScheduleRule({ ...rule, timezone: "Mars/Olympus" }),
@@ -64,6 +75,20 @@ describe("validateTaskScheduleRule", () => {
       validateTaskScheduleRule({ ...rule, expr: "0 0 9 * * 1" }),
     ).toThrow("expr must be a five-field cron expression");
   });
+
+  it.each(["99 9 * * *", "0 9 * * 1#6", "@daily * * * *"])(
+    "rejects invalid cron semantics %s even for an interval rule",
+    (expr) => {
+      expect(() =>
+        validateTaskScheduleRule({
+          ...rule,
+          expr,
+          intervalDays: 2,
+          anchorAt: "2030-01-01T09:00:00.000Z",
+        }),
+      ).toThrow("expr is not a valid cron expression for the timezone");
+    },
+  );
 
   it("rejects an end in the past", () => {
     expect(() =>

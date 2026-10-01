@@ -115,7 +115,20 @@ function useWhenSummary(when: ScheduleWhen, selection: TaskScheduleSelection) {
  * creates, and when it runs. It uses the New Task form's shell, fields and
  * pickers. Mount it only while open, so every opening starts from the props.
  */
-export function TaskScheduleDialog({
+export function TaskScheduleDialog(props: TaskScheduleDialogProps) {
+  return (
+    <TaskScheduleDialogForm
+      key={
+        props.schedule
+          ? `${props.schedule.id}:${props.schedule.revision}`
+          : "new"
+      }
+      {...props}
+    />
+  );
+}
+
+function TaskScheduleDialogForm({
   schedule,
   initialBlueprint,
   coworkerOptions,
@@ -148,21 +161,20 @@ export function TaskScheduleDialog({
     blueprint.visibility === TaskVisibility.PRIVATE,
   );
   const [isSaving, setIsSaving] = useState(false);
-  const initialSelection = useMemo<TaskScheduleSelection>(
-    () =>
-      schedule
-        ? taskScheduleRuleToSelection(schedule.rule)
-        : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
-    [schedule],
+  // Keep the baseline stable for this keyed form's lifetime. Re-reading a
+  // stored H cron on a same-revision refresh can select a different minute.
+  const [initialSelection] = useState<TaskScheduleSelection>(() =>
+    schedule
+      ? taskScheduleRuleToSelection(schedule.rule)
+      : { timezone: getDefaultTimezone(), cron: NEW_SCHEDULE_CRON },
   );
-  const initialWhen = useMemo(
-    () => selectionToWhen(initialSelection),
-    [initialSelection],
-  );
+  const [initialWhen] = useState(() => selectionToWhen(initialSelection));
   const [when, setWhen] = useState<ScheduleWhen>(initialWhen);
   // Until the controls differ from what was read, the rule stays as read: an
   // edit to the blueprint never rewrites a rule the controls only approximate.
-  const whenChanged = JSON.stringify(when) !== JSON.stringify(initialWhen);
+  const whenChanged =
+    JSON.stringify(whenToSelection(when)) !==
+    JSON.stringify(whenToSelection(initialWhen));
   const selection = useMemo(
     () => (whenChanged ? whenToSelection(when) : initialSelection),
     [whenChanged, when, initialSelection],

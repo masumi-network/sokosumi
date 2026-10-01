@@ -197,7 +197,13 @@ export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
     );
   }
 
-  let nextRun: Date | null;
+  // Even when an interval determines the Runs, the submitted cron must
+  // satisfy the same parser semantics as every other Task Schedule rule.
+  let nextRun = computeNextRun({ cron: rule.expr, timezone: rule.timezone });
+  if (!nextRun) {
+    throw badRequest("expr is not a valid cron expression for the timezone");
+  }
+
   if (rule.intervalDays != null && rule.intervalDays > 1) {
     if (!rule.anchorAt) {
       throw badRequest(
@@ -216,12 +222,6 @@ export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
       new Date(),
       rule.timezone,
     );
-  } else {
-    nextRun = computeNextRun({ cron: rule.expr, timezone: rule.timezone });
-  }
-
-  if (!nextRun) {
-    throw badRequest("expr is not a valid cron expression for the timezone");
   }
 
   if (rule.endsMode === TaskScheduleEndsMode.ON && rule.endsOn) {
