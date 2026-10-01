@@ -12,14 +12,33 @@ describe("signed-out page", () => {
   it("names the product and offers to create an account or sign in", () => {
     const html = renderToStaticMarkup(<SignedOut {...actions} />);
 
-    expect(html).toContain("<h1>CMO.XYZ</h1>");
-    expect(html).toContain('<button type="submit">Create account</button>');
-    expect(html).toContain('<button type="submit">Sign in</button>');
+    expect(html).toContain("CMO.XYZ runs your marketing end to end");
+    expect(html).toContain(
+      '<button class="button" type="submit">Create account</button>',
+    );
+    expect(html).toContain(
+      '<button class="button button-secondary" type="submit">Sign in</button>',
+    );
     expect(html.indexOf("Create account")).toBeLessThan(
       html.indexOf("Sign in</button>"),
     );
-    expect(html).toContain("CMO uses your Sokosumi account.");
+    expect(html).toContain(
+      'CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.',
+    );
     expect(html).not.toContain('role="alert"');
+  });
+
+  it("lists only the launch scope, not the newsletter", () => {
+    const html = renderToStaticMarkup(<SignedOut {...actions} />);
+
+    expect(html).toContain("<li>Google and Meta ads</li>");
+    expect(html).not.toContain("ewsletter");
+  });
+
+  it("shows the mascot", () => {
+    const html = renderToStaticMarkup(<SignedOut {...actions} />);
+
+    expect(html).toContain('class="mascot hero-mascot"');
   });
 
   it("says plainly that nothing was shared when consent was declined", () => {
