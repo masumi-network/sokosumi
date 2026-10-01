@@ -2020,37 +2020,6 @@
           "monthlyWithDayTime": "Monthly (Day {day}, {time})",
           "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
           "custom": "Custom cron"
-        },
-        "firstRun": "First run",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
-        "timezone": "Timezone",
-        "customCron": "Custom cron expression",
-        "customCronValid": "Valid cron expression",
-        "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
-        },
-        "save": "Save",
-        "cancel": "Cancel",
-        "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
       },
       "RunAt": {
@@ -2106,6 +2075,56 @@
           "errors": {
             "stale": "This schedule changed somewhere else. Reload the page and try again.",
             "saveFailed": "Couldn't save the schedule."
+          },
+          "When": {
+            "title": "When",
+            "repeat": "Repeat",
+            "repeats": {
+              "daily": "Daily",
+              "weekdays": "Weekdays",
+              "weekly": "Weekly",
+              "monthly": "Monthly",
+              "interval": "Every few days",
+              "custom": "Custom"
+            },
+            "on": "On",
+            "pickADay": "Pick at least one day",
+            "dayOfMonth": "Day of the month",
+            "dayN": "Day {day}",
+            "shortMonths": "Skips months without this day",
+            "every": "Every",
+            "days": "days",
+            "starting": "starting",
+            "startDate": "Start date",
+            "pickDate": "Pick a date",
+            "cron": "Cron",
+            "cronHelp": "Five fields: minute, hour, day, month, weekday.",
+            "cronInvalid": "That cron expression isn't valid.",
+            "at": "At",
+            "time": "Time",
+            "timeSearch": "Type a time, e.g. 08:30",
+            "useTime": "Use {time}",
+            "timezone": "Timezone",
+            "timezoneSearch": "Search timezones",
+            "noTimezone": "No timezone found",
+            "ends": "Ends",
+            "endsNever": "Never",
+            "endsOn": "On a date",
+            "endsAfter": "After a number of runs",
+            "endDate": "End date",
+            "runs": "runs",
+            "summary": {
+              "daily": "Every day at {time}",
+              "weekdays": "Every weekday at {time}",
+              "weekly": "Every {days} at {time}",
+              "monthly": "Every month on day {day} at {time}",
+              "interval": "Every {n} days at {time}",
+              "custom": "Custom schedule",
+              "incomplete": "Pick when this runs"
+            },
+            "next": "Next: {date}",
+            "noNext": "No upcoming runs",
+            "nextRuns": "Next runs"
           }
         },
         "Actions": {
