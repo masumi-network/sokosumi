@@ -120,6 +120,10 @@ _Avoid_: Recurring task, series task, template Task, automation
 One point in time at which a Task Schedule creates a Task. A single Run can be skipped, moved, or restored without changing the rule. The Run only creates the Task; the work happens when the Task is picked up, which is not part of the Run. Distinct from a Task's Run at and from a Job.
 _Avoid_: Occurrence, instance
 
+**Run now**:
+A Run started by hand on an Active or Paused Task Schedule, in addition to the Runs its rule plans. It creates its Task at once and leaves the rule and the planned Runs unchanged.
+_Avoid_: Trigger, manual fire, pulling the next Run forward
+
 ### Social publishing
 
 **Social account**:

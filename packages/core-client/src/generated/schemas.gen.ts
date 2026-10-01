@@ -16296,6 +16296,22 @@ export const UserSchema = {
             type: 'string',
             example: 'John Doe'
         },
+        firstName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'John'
+        },
+        lastName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given, as for magic-link sign-up',
+            example: 'Doe'
+        },
         email: {
             type: 'string',
             format: 'email',
@@ -16322,6 +16338,8 @@ export const UserSchema = {
         'createdAt',
         'updatedAt',
         'name',
+        'firstName',
+        'lastName',
         'email',
         'emailVerified',
         'role'
@@ -24141,6 +24159,11 @@ export const TaskScheduleRunSchema = {
             example: '2021-01-01T00:00:00.000Z',
             description: 'Time the Run holds; differs from the rule when moved'
         },
+        manual: {
+            type: 'boolean',
+            description: 'Run now: released by hand outside the rule, and not counted toward an end-after-N rule',
+            example: false
+        },
         releasedTaskId: {
             type: [
                 'string',
@@ -24153,14 +24176,14 @@ export const TaskScheduleRunSchema = {
                 'string',
                 'null'
             ],
-            description: 'Person who last skipped, moved, or restored it'
+            description: 'Person who ran it now, or last skipped, moved, or restored it'
         },
         actorCoworkerId: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Coworker that last skipped, moved, or restored it'
+            description: 'Coworker that ran it now, or last skipped, moved, or restored it'
         },
         updatedAt: {
             type: 'string',
@@ -24173,6 +24196,7 @@ export const TaskScheduleRunSchema = {
         'state',
         'originalScheduledAt',
         'effectiveScheduledAt',
+        'manual',
         'releasedTaskId',
         'actorUserId',
         'actorCoworkerId',
@@ -24196,6 +24220,21 @@ export const TaskScheduleRunUpdateSchema = {
     required: [
         'revision',
         'run'
+    ]
+} as const;
+
+export const CreateTaskScheduleRunRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision observed by the caller',
+            example: 3
+        }
+    },
+    required: [
+        'expectedRevision'
     ]
 } as const;
 

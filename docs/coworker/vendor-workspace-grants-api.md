@@ -173,6 +173,16 @@ Pause, resume, and end answer **409** `schedule_state_conflict` from the wrong
 state. A Run change answers **409** `schedule_run_state_conflict` or **422**
 `schedule_run_target_invalid`.
 
+`POST /v1/tasks/schedules/{id}/runs` is Run now
+([ADR 0047](../adr/0047-run-now-is-a-run-outside-the-rule-count.md)): with the
+`expectedRevision` the caller read, it creates one extra Run of an Active or
+Paused schedule and its Task at once, and answers **201** with the Run
+(`manual: true`, `releasedTaskId`) and the new revision. The rule and its
+planned Runs stay as they are, and the Run does not count toward an
+end-after-N rule. An Ended schedule answers **409** `schedule_state_conflict`;
+a stale revision answers **409** `schedule_revision_conflict`, so a retried
+request creates one Task.
+
 ### Legacy vendor schedules (temporary)
 
 Until this compatibility layer is removed, Coworkers of the vendors listed in
