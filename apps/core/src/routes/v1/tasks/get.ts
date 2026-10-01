@@ -1,10 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  Prisma,
-  TaskPriority,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { Prisma, TaskStatus, TaskVisibility } from "@sokosumi/database";
 
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { badRequest } from "@/helpers/error";
@@ -52,83 +47,6 @@ import { requireWorkspaceContext } from "@/middleware/workspace";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
-
-type PriorityListCursor = {
-  id: string;
-  priority: TaskPriority;
-  updatedAt: string;
-};
-
-function encodePriorityListCursor(item: {
-  id: string;
-  priority: TaskPriority;
-  updatedAt: Date;
-}): string {
-  return Buffer.from(
-    JSON.stringify({
-      id: item.id,
-      priority: item.priority,
-      updatedAt: item.updatedAt.toISOString(),
-    }),
-    "utf8",
-  ).toString("base64url");
-}
-
-function isPriorityListCursor(value: unknown): value is PriorityListCursor {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "id" in value &&
-    "priority" in value &&
-    "updatedAt" in value &&
-    typeof value.id === "string" &&
-    typeof value.priority === "string" &&
-    Object.values(TaskPriority).includes(value.priority as TaskPriority) &&
-    typeof value.updatedAt === "string" &&
-    !Number.isNaN(new Date(value.updatedAt).getTime())
-  );
-}
-
-function decodePriorityListCursor(cursor: string): PriorityListCursor {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(Buffer.from(cursor, "base64url").toString("utf8"));
-  } catch {
-    throw badRequest("Invalid pagination cursor");
-  }
-  if (!isPriorityListCursor(parsed)) {
-    throw badRequest("Invalid pagination cursor");
-  }
-  return parsed;
-}
-
-/** Keyset for orderBy priority ASC, updatedAt DESC, id DESC. */
-function priorityKeysetWhere(
-  cursor: PriorityListCursor,
-): Prisma.TaskWhereInput {
-  const updatedAt = new Date(cursor.updatedAt);
-  const laterPriorities = Object.values(TaskPriority).slice(
-    Object.values(TaskPriority).indexOf(cursor.priority) + 1,
-  );
-
-  return {
-    OR: [
-      ...(laterPriorities.length > 0
-        ? [{ priority: { in: laterPriorities } }]
-        : []),
-      {
-        AND: [{ priority: cursor.priority }, { updatedAt: { lt: updatedAt } }],
-      },
-      {
-        AND: [
-          { priority: cursor.priority },
-          { updatedAt },
-          { id: { lt: cursor.id } },
-        ],
-      },
-    ],
-  };
-}
 
 const taskStatusQuerySchema = z
   .preprocess(
@@ -178,12 +96,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt", "updatedAt", "priority"])
+  .enum(["createdAt", "updatedAt"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated; nextCursor encodes priority+updatedAt+id so a mid-page reprioritize does not skip or repeat rows.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable.",
     example: "createdAt",
   });
 
@@ -423,42 +341,19 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // touches to the top while the card still shows its real creation date,
     // and it makes cursor pagination unstable: a row updated mid-paging moves
     // between pages, so "Load more" can duplicate or skip rows.
-    const sortByPriority = sort === "priority";
-    const orderBy = sortByPriority
-      ? ([
-          { priority: "asc" as const },
-          { updatedAt: "desc" as const },
-          { id: "desc" as const },
-        ] as const)
-      : sort === "updatedAt"
+    const orderBy =
+      sort === "updatedAt"
         ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
         : ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const);
-
-    let listWhere = where;
-    let listSkip = skip;
-    let listCursor: { id: string } | undefined = cursor
-      ? { id: cursor }
-      : undefined;
-    let priorityCursor: PriorityListCursor | null = null;
-
-    if (sortByPriority && cursor) {
-      // Opaque composite keyset: preferring the encoded boundary keeps the
-      // page stable when the page-ending row is reprioritized before "Load more".
-      priorityCursor = decodePriorityListCursor(cursor);
-      listWhere = { AND: [where, priorityKeysetWhere(priorityCursor)] };
-      listSkip = undefined;
-      listCursor = undefined;
-    }
-
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.
     const [tasks, count] = await Promise.all([
       prisma.task.findMany({
-        where: listWhere,
+        where,
         take: takePlusOne,
-        skip: listSkip,
-        cursor: listCursor,
+        skip,
+        cursor: cursor ? { id: cursor } : undefined,
         orderBy: [...orderBy],
         include: taskListInclude,
       }),
@@ -466,23 +361,15 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     ]);
 
     const hasMore = tasks.length === takePlusOne;
-    const pagedTasks = tasks.slice(0, take);
-    const mappedTasks = pagedTasks.map((task) => mapTaskListItem(task));
+    const mappedTasks = tasks
+      .slice(0, take)
+      .map((task) => mapTaskListItem(task));
     const paginationMeta = createPaginationMeta(
       mappedTasks,
       count,
       take,
       hasMore,
       cursor,
-      sortByPriority
-        ? (item) => {
-            const source = pagedTasks.find((task) => task.id === item.id);
-            if (!source) {
-              return item.id;
-            }
-            return encodePriorityListCursor(source);
-          }
-        : undefined,
     );
 
     return ok(c, taskListSchema.parse(mappedTasks), paginationMeta);

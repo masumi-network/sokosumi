@@ -41,9 +41,7 @@ const taskParticipantsInclude = {
 const taskOwnerAssigneeCreatorInclude = {
   owner: taskEventApiInclude.user,
   organization: { select: { id: true, name: true, slug: true } },
-  project: {
-    select: { id: true, name: true, identifier: true, logo: true },
-  },
+  project: { select: { id: true, name: true, logo: true } },
   assignee: taskEventApiInclude.coworker,
   assigneeSokoBot: taskEventApiInclude.sokoBot,
   assigneeUser: taskEventApiInclude.user,

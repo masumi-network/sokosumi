@@ -39,7 +39,6 @@ import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors"
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
-import { taskHref } from "@/app/tasks/utils/task-href";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
@@ -84,7 +83,6 @@ interface TaskDetailViewProps {
    * able to edit, comment, or mutate the task.
    */
   forceReadOnly?: boolean;
-  relatedTaskHrefBasePath?: string;
 }
 
 /**
@@ -96,7 +94,6 @@ interface TaskDetailViewProps {
 export async function TaskDetailView({
   task,
   forceReadOnly = false,
-  relatedTaskHrefBasePath,
 }: TaskDetailViewProps) {
   const taskId = task.id;
   const coworkersPromise = coworkerService.listCoworkers().catch(() => []);
@@ -146,33 +143,13 @@ export async function TaskDetailView({
           <div className={TASK_DETAIL_MAIN_CLASS}>
             <TaskDetailHeader
               taskName={task.name}
-              identifier={task.identifier}
-              identifierLabels={
-                task.identifier
-                  ? {
-                      copy: t("copyIdentifier"),
-                      copied: t("identifierCopied", {
-                        identifier: task.identifier,
-                      }),
-                      copyError: t("identifierCopyError"),
-                    }
-                  : undefined
-              }
               backLabel={t("back")}
               parentLink={
                 <>
                   {parentTask ? (
                     <p className="text-muted-foreground text-sm">
                       <Link
-                        href={
-                          relatedTaskHrefBasePath
-                            ? `${relatedTaskHrefBasePath}/${parentTask.id}`
-                            : taskHref({
-                                id: parentTask.id,
-                                identifier: parentTask.identifier,
-                                name: parentTask.name,
-                              })
-                        }
+                        href={`/tasks/${parentTask.id}`}
                         className="text-primary hover:underline"
                       >
                         {t("clonedFrom", { name: parentTask.name })}
@@ -255,7 +232,6 @@ export async function TaskDetailView({
                   duplicate: t("actions.relations.duplicate"),
                 }}
                 statusLabels={buildTaskStatusLabels((key) => tStatus(key))}
-                hrefBasePath={relatedTaskHrefBasePath}
               />
             </div>
           </aside>
@@ -477,15 +453,13 @@ async function TaskMetadataSection({
   hasAssignedSeatPromise: Promise<boolean>;
   projectPromise: Promise<ProjectResult>;
 }) {
-  const [project, hasAssignedSeat, t, tTasks, tStatus, tPriority] =
-    await Promise.all([
-      projectPromise,
-      hasAssignedSeatPromise,
-      getTranslations("App.Tasks.Detail"),
-      getTranslations("App.Tasks"),
-      getTranslations("App.Tasks.Filters.statusOptions"),
-      getTranslations("App.Tasks.Priority"),
-    ]);
+  const [project, hasAssignedSeat, t, tTasks, tStatus] = await Promise.all([
+    projectPromise,
+    hasAssignedSeatPromise,
+    getTranslations("App.Tasks.Detail"),
+    getTranslations("App.Tasks"),
+    getTranslations("App.Tasks.Filters.statusOptions"),
+  ]);
   const statusLabels = buildTaskStatusLabels((key) => tStatus(key));
   const isReadOnly = isReadOnlyForViewer({
     forceReadOnly,
@@ -501,7 +475,6 @@ async function TaskMetadataSection({
         editable={!isReadOnly}
         task={{
           status: task.status,
-          priority: task.priority,
           visibility: task.visibility,
           selectableStatuses: task.selectableStatuses,
           owner: task.owner,
@@ -530,19 +503,6 @@ async function TaskMetadataSection({
           assignee: t("assignee"),
           noAssignee: t("noAssignee"),
           personalAssistantFallback: tTasks("personalAssistant"),
-        }}
-        priorityLabels={{
-          priority: tPriority("title"),
-          levels: {
-            URGENT: tPriority("levels.URGENT"),
-            HIGH: tPriority("levels.HIGH"),
-            MEDIUM: tPriority("levels.MEDIUM"),
-            LOW: tPriority("levels.LOW"),
-            NONE: tPriority("levels.NONE"),
-          },
-          changePriority: tPriority("change"),
-          noPriorityMatches: tPriority("noResults"),
-          updateError: tPriority("updateError"),
         }}
         statusFieldLabels={{
           status: t("status"),

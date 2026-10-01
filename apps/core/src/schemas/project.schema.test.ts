@@ -22,8 +22,6 @@ function createDatabaseProject(
     id: "22222222-2222-4222-8222-222222222222",
     workspaceId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
     name: "Launch",
-    identifier: "SOK",
-    taskCounter: 0,
     filesToken: null,
     briefing: "# Briefing",
     briefingUrl: "https://blob.example/projects/project_1/BRIEFING.md",
@@ -105,39 +103,6 @@ describe("project schemas", () => {
     expect(
       patchProjectRequestSchema.safeParse({ designMd: null }).success,
     ).toBe(false);
-  });
-
-  it("uppercases and validates a project identifier on create and patch", () => {
-    expect(
-      createProjectRequestSchema.parse({ name: "Launch", identifier: " sok1 " })
-        .identifier,
-    ).toBe("SOK1");
-    expect(
-      patchProjectRequestSchema.parse({ identifier: "web" }).identifier,
-    ).toBe("WEB");
-    expect(
-      createProjectRequestSchema.parse({ name: "Launch" }).identifier,
-    ).toBeUndefined();
-    for (const bad of ["S", "1AB", "ABCDEFGH", "S-K", "", "SÖK"]) {
-      expect(
-        createProjectRequestSchema.safeParse({
-          name: "Launch",
-          identifier: bad,
-        }).success,
-      ).toBe(false);
-      expect(
-        patchProjectRequestSchema.safeParse({ identifier: bad }).success,
-      ).toBe(false);
-    }
-    expect(
-      patchProjectRequestSchema.safeParse({ identifier: null }).success,
-    ).toBe(false);
-  });
-
-  it("maps the project identifier", () => {
-    expect(
-      mapProjectForApi(createDatabaseProject({ identifier: "LAU" })).identifier,
-    ).toBe("LAU");
   });
 
   it("accepts deprecated description as a briefing alias", () => {

@@ -33,7 +33,6 @@ function buildMetaProps(
 const autumnProject: ProjectSummary = {
   id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   name: "Autumn",
-  identifier: "SOK",
   logo: "https://example.com/logo.png",
 };
 
@@ -141,7 +140,6 @@ describe("TaskMetaDetails", () => {
           project: {
             id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             name: "   ",
-            identifier: "SOK",
             logo: null,
           },
           variant: "card",

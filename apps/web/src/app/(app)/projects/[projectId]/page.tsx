@@ -85,7 +85,6 @@ export default async function ProjectDetailPage({
       ]}
       labels={workspaceLabels}
       projectId={project.id}
-      projectIdentifier={project.identifier}
       projectLogo={project.logo}
       projectName={project.name}
       websiteUrl={project.websiteUrl}

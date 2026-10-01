@@ -42,7 +42,6 @@ import {
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
-import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import {
   createTaskContextSchema,
   taskEventChannelField,
@@ -103,9 +102,6 @@ export const createTaskRequestSchema = z
     context: createTaskContextSchema.optional().openapi({
       description:
         "Task context attachments. DESIGN.md, project briefing, and project memory are attached by default; explicit false values opt out.",
-    }),
-    priority: taskPrioritySchema.optional().openapi({
-      description: "Defaults to NONE when omitted.",
     }),
     visibility: z
       .enum([TaskVisibility.PUBLIC, TaskVisibility.PRIVATE])
@@ -273,7 +269,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           runAt,
           channel: body.channel,
           visibility: body.visibility,
-          priority: body.priority,
         },
         tx,
       );

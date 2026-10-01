@@ -3,7 +3,6 @@ import { requireTaskReadForRouteVars } from "@/helpers/access-control";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { mapTask } from "@/helpers/task";
-import { resolveTaskRefToId } from "@/helpers/task-ref";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { isCoworkerAuthContext, isUserAuthContext } from "@/middleware/auth";
@@ -14,17 +13,14 @@ import { buildTaskIncludeForViewer } from "@/types/task";
 const paramsSchema = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
-    description:
-      "Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace; a trailing slug like SOK-123-fix-login is ignored).",
-    example: "SOK-123",
+    example: "tsk_123",
   }),
 });
 
 const route = createRoute({
   method: "get",
   path: "/{id}",
-  description:
-    "Retrieve task details by task id or by project identifier such as SOK-123. Tasks that moved projects still resolve by their former identifier.",
+  description: "Retrieve task details",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
@@ -48,15 +44,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
         : null;
 
     const include = buildTaskIncludeForViewer(authContext, workspaceId);
-    const taskId = workspaceId
-      ? await resolveTaskRefToId(id, workspaceId, prisma)
-      : id;
-    const task = await requireTaskReadForRouteVars(
-      c.var,
-      taskId,
-      prisma,
-      include,
-    );
+    const task = await requireTaskReadForRouteVars(c.var, id, prisma, include);
 
     return ok(c, taskSchema.parse(mapTask(task, authContext)));
   });

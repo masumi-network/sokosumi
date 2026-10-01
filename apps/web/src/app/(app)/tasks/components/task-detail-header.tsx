@@ -1,17 +1,9 @@
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
 
 import { BackToTasksButton } from "./back-to-tasks-button";
-import { TaskIdentifierCopy } from "./task-identifier-copy";
 
 interface TaskDetailHeaderProps {
   taskName: string;
-  /** Short id such as SOK-12; hidden for tasks without a project. */
-  identifier?: string | null;
-  identifierLabels?: {
-    copy: string;
-    copied: string;
-    copyError: string;
-  };
   backLabel: string;
   parentLink?: React.ReactNode;
   actions?: React.ReactNode;
@@ -19,8 +11,6 @@ interface TaskDetailHeaderProps {
 
 export function TaskDetailHeader({
   taskName,
-  identifier,
-  identifierLabels,
   backLabel,
   parentLink,
   actions,
@@ -33,19 +23,9 @@ export function TaskDetailHeader({
         {actions}
       </div>
 
-      <div className="space-y-1">
-        {identifier && identifierLabels ? (
-          <TaskIdentifierCopy
-            identifier={identifier}
-            copyAriaLabelPrefix={identifierLabels.copy}
-            copiedMessage={identifierLabels.copied}
-            copyErrorMessage={identifierLabels.copyError}
-          />
-        ) : null}
-        <h1 className="text-xl leading-tight font-semibold tracking-tight">
-          {stripInlineMarkdown(taskName)}
-        </h1>
-      </div>
+      <h1 className="text-xl leading-tight font-semibold tracking-tight">
+        {stripInlineMarkdown(taskName)}
+      </h1>
       {parentLink}
     </div>
   );

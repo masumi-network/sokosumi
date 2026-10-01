@@ -33,7 +33,6 @@ export default async function ProjectEditModalPage({
       }}
       initialValues={{
         name: project.name,
-        identifier: project.identifier,
         briefing: project.briefing ?? "",
         websiteUrl: project.websiteUrl,
       }}

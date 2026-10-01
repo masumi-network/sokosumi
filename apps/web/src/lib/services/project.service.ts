@@ -42,14 +42,12 @@ interface ListProjectResourcesParams {
 
 interface CreateProjectInput {
   name: string;
-  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
 }
 
 interface PatchProjectInput {
   name?: string;
-  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
@@ -183,7 +181,6 @@ export const projectService = (() => {
   async function createProject(input: CreateProjectInput): Promise<Project> {
     const result = await coreClient.postProjects({
       name: input.name,
-      ...(input.identifier ? { identifier: input.identifier } : {}),
       briefing: input.briefing ?? null,
       websiteUrl: input.websiteUrl ?? null,
     });

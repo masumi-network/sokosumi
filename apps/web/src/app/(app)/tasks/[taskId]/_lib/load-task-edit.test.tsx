@@ -265,38 +265,6 @@ describe("loadTaskEdit", () => {
     expect(screen.getByTestId("task-edit-modal")).toBeInTheDocument();
   });
 
-  it("passes the resolved uuid when the edit URL used an identifier ref", async () => {
-    getTaskByIdMock.mockResolvedValue({
-      id: "11111111-1111-4111-8111-111111111111",
-      identifier: "SOK-12",
-      name: "Fix login",
-      description: "Desc",
-      assigneeId: "cow_123",
-      assigneeSokoBotId: null,
-      status: "READY",
-      workspace: {
-        organizationId: "org-current",
-      },
-    });
-    getSessionMock.mockResolvedValue({
-      session: {
-        activeOrganizationId: "org-current",
-      },
-      user: { id: "user_1" },
-    });
-    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue([]);
-    resolveEffectiveDesignMdMock.mockResolvedValue(null);
-
-    await renderTaskEdit("SOK-12-fix-login");
-
-    expect(getTaskByIdMock).toHaveBeenCalledWith("SOK-12-fix-login");
-    expect(taskEditModalMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        taskId: "11111111-1111-4111-8111-111111111111",
-      }),
-    );
-  });
-
   it("renders the edit modal for a queued task", async () => {
     getTaskByIdMock.mockResolvedValue({
       id: "task_1",

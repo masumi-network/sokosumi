@@ -34,8 +34,6 @@ function createLink(
       name: getTaskName(overrides?.fromTaskId ?? "tsk_a"),
       status: TaskStatus.READY,
       archivedAt: null,
-      number: null,
-      project: null,
       ...(overrides?.fromTask ?? {}),
     },
     toTask: {
@@ -43,8 +41,6 @@ function createLink(
       name: getTaskName(overrides?.toTaskId ?? "tsk_b"),
       status: TaskStatus.READY,
       archivedAt: null,
-      number: null,
-      project: null,
       ...(overrides?.toTask ?? {}),
     },
     ...(overrides?.fromTask === null ? { fromTask: null } : {}),
@@ -76,27 +72,8 @@ describe("mapTaskLinkForTask", () => {
         name: "Task B",
         status: "READY",
         archivedAt: null,
-        identifier: null,
       },
     });
-  });
-
-  it("builds the peer identifier from project prefix and number", () => {
-    const result = mapTaskLinkForTask(
-      "tsk_a",
-      createLink({
-        toTask: {
-          id: "tsk_b",
-          name: "Task B",
-          status: TaskStatus.READY,
-          archivedAt: null,
-          number: 12,
-          project: { identifier: "SOK" },
-        },
-      }),
-    );
-
-    expect(result.peerTask.identifier).toBe("SOK-12");
   });
 
   it("maps incoming links for the current task", () => {

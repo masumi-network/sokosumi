@@ -39,10 +39,7 @@ describe("ProjectBrandSetup", () => {
 
   it("updates the project logo without sending briefing", async () => {
     const updateProjectMock = vi.mocked(updateProject);
-    updateProjectMock.mockResolvedValue({
-      ok: true,
-      value: { projectId: "project-1" },
-    });
+    updateProjectMock.mockResolvedValue({ projectId: "project-1" });
 
     render(
       <ProjectBrandSetup

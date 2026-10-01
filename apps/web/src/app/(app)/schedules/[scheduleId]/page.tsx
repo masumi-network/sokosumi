@@ -21,7 +21,6 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
-import { taskHref } from "@/app/tasks/utils/task-href";
 import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   formatTaskScheduleRule,
@@ -206,7 +205,7 @@ async function TaskScheduleDetailContent({
                   {createdTasks.tasks.map((task) => (
                     <li key={task.id}>
                       <Link
-                        href={taskHref(task)}
+                        href={`/tasks/${task.id}`}
                         className="hover:bg-card-background-hover flex items-center justify-between gap-3 px-4 py-2.5 transition-colors"
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">

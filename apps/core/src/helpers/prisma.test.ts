@@ -4,7 +4,6 @@ import {
   isPrismaForeignKeyViolation,
   isPrismaRecordNotFoundError,
   isPrismaTransactionConflict,
-  isProjectIdentifierUniqueConstraintError,
 } from "@/helpers/prisma";
 
 describe("isPrismaForeignKeyViolation", () => {
@@ -74,44 +73,6 @@ describe("isPrismaTransactionConflict", () => {
 
   it("ignores unrelated errors", () => {
     expect(isPrismaTransactionConflict(new Error("connection lost"))).toBe(
-      false,
-    );
-  });
-});
-
-describe("isProjectIdentifierUniqueConstraintError", () => {
-  it("detects a P2002 on the composite workspace identifier", () => {
-    expect(
-      isProjectIdentifierUniqueConstraintError({
-        code: "P2002",
-        meta: { target: ["workspaceId", "identifier"] },
-      }),
-    ).toBe(true);
-  });
-
-  it("detects the driver-adapter constraint shape", () => {
-    expect(
-      isProjectIdentifierUniqueConstraintError({
-        code: "P2002",
-        meta: {
-          driverAdapterError: {
-            cause: {
-              constraint: { fields: ["workspaceId", "identifier"] },
-            },
-          },
-        },
-      }),
-    ).toBe(true);
-  });
-
-  it("ignores other unique violations", () => {
-    expect(
-      isProjectIdentifierUniqueConstraintError({
-        code: "P2002",
-        meta: { target: ["slug"] },
-      }),
-    ).toBe(false);
-    expect(isProjectIdentifierUniqueConstraintError(new Error("boom"))).toBe(
       false,
     );
   });

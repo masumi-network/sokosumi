@@ -3,7 +3,6 @@ import {
   type GrantResumeStatus,
   type Prisma,
   type Task,
-  type TaskPriority,
   TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
@@ -67,7 +66,6 @@ export interface CreateTaskDomainInput {
    * Immutable after create.
    */
   visibility?: "PUBLIC" | "PRIVATE";
-  priority?: TaskPriority;
   status:
     | typeof TaskStatus.DRAFT
     | typeof TaskStatus.QUEUED
@@ -356,7 +354,6 @@ export async function createTaskForActor(
       ...creatorFields(input.actor),
       status,
       visibility,
-      priority: input.priority,
       grantResumeStatus: pendingGrant?.grantResumeStatus ?? null,
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,

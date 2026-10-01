@@ -115,8 +115,7 @@ export async function loadTaskEdit(
 
   return {
     kind: "edit",
-    // Mutations (PATCH) need the uuid; GET alone resolves identifier refs.
-    taskId: taskResult.id,
+    taskId,
     title: tEdit("title"),
     initialDesignMdAttachment,
     labels: {

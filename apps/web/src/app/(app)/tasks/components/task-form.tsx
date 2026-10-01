@@ -34,7 +34,6 @@ import {
   isOtherHumanAssignee,
   resolveTaskAssigneeFields,
 } from "@/app/tasks/utils/coworker-options";
-import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { AssistantOrb } from "@/components/aurora-orb";
@@ -243,11 +242,7 @@ interface TaskFormProps {
   lockProjectSelection?: boolean;
   defaultProjectId?: string | null;
   onCancel?: () => void;
-  onSuccess?: (task: {
-    id: string;
-    identifier: string | null;
-    name: string;
-  }) => void;
+  onSuccess?: (taskId: string) => void;
   /** Runs right after a modal create succeeds (before the celebration step). */
   onCreated?: (taskId: string) => void;
   onCreateAnother?: () => void;
@@ -445,7 +440,6 @@ export function TaskForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createdTask, setCreatedTask] = useState<{
     id: string;
-    identifier: string | null;
     name: string;
     status: "DRAFT" | "QUEUED" | "READY";
     statusLabel: string;
@@ -746,17 +740,11 @@ export function TaskForm({
           return;
         }
         const createdTask = result.value;
-        const createdHref = taskHref({
-          id: createdTask.taskId,
-          identifier: createdTask.identifier,
-          name: createdTask.name.trim() || labels.untitledTask,
-        });
         // Confirm success in place and let the user choose when to navigate;
         // the redirect target is prefetched so it lands fast.
-        router.prefetch(createdHref);
+        router.prefetch(`/tasks/${createdTask.taskId}`);
         setCreatedTask({
           id: createdTask.taskId,
-          identifier: createdTask.identifier,
           name: createdTask.name.trim() || labels.untitledTask,
           status,
           statusLabel:
@@ -795,7 +783,7 @@ export function TaskForm({
         return;
       }
       if (onSuccess) {
-        onSuccess({ id: taskId, identifier: null, name: trimmedName });
+        onSuccess(taskId);
         return;
       }
       router.push(`/tasks/${taskId}`);
@@ -1021,20 +1009,10 @@ export function TaskForm({
   const handleGoToTask = () => {
     if (!createdTask) return;
     if (onSuccess) {
-      onSuccess({
-        id: createdTask.id,
-        identifier: createdTask.identifier,
-        name: createdTask.name,
-      });
+      onSuccess(createdTask.id);
       return;
     }
-    router.push(
-      taskHref({
-        id: createdTask.id,
-        identifier: createdTask.identifier,
-        name: createdTask.name,
-      }),
-    );
+    router.push(`/tasks/${createdTask.id}`);
   };
 
   if (createdTask) {

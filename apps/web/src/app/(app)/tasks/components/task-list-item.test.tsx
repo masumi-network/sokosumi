@@ -37,8 +37,6 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     id: "task-1",
     name: "Ship filter",
     status: TaskStatus.READY,
-    identifier: null,
-    priority: "NONE",
     visibility,
     description: null,
     descriptionPlain: null,
@@ -79,74 +77,12 @@ describe("TaskListItem privacy cue", () => {
   });
 });
 
-describe("TaskListItem priority", () => {
-  it("shows the priority icon before the name", () => {
-    render(
-      <TaskListItem
-        task={{ ...buildTask(TaskVisibility.PUBLIC), priority: "URGENT" }}
-      />,
-    );
-
-    const icon = screen.getByRole("img", { name: "URGENT" });
-    const name = screen.getByText("Ship filter");
-    expect(
-      icon.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
-
-  it("hides the priority icon when there is none", () => {
-    render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
-
-    expect(screen.queryByRole("img", { name: "NONE" })).not.toBeInTheDocument();
-    expect(document.querySelector("[data-priority]")).toBeNull();
-  });
-});
-
-describe("TaskListItem short id", () => {
-  it("shows the identifier before the name and links with the slug URL", () => {
-    render(
-      <TaskListItem
-        task={{
-          ...buildTask(TaskVisibility.PUBLIC),
-          identifier: "SOK-12",
-        }}
-      />,
-    );
-
-    const identifier = screen.getByText("SOK-12");
-    expect(identifier).toHaveClass("text-muted-foreground", "tabular-nums");
-    expect(
-      identifier.compareDocumentPosition(screen.getByText("Ship filter")) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
-      "href",
-      "/tasks/SOK-12-ship-filter",
-    );
-  });
-
-  it("shows no identifier and links by id without a project", () => {
-    render(<TaskListItem task={buildTask(TaskVisibility.PUBLIC)} />);
-
-    expect(screen.queryByText(/^SOK-/)).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
-      "href",
-      "/tasks/task-1",
-    );
-  });
-});
-
 describe("TaskListItem description preview", () => {
   it("hides description and project in Compact and restores them in Normal", () => {
     const task = {
       ...buildTask(TaskVisibility.PRIVATE),
       descriptionPlain: "Full instructions remain in task detail.",
-      project: {
-        id: "project-1",
-        name: "Launch project",
-        identifier: "SOK",
-        logo: null,
-      },
+      project: { id: "project-1", name: "Launch project", logo: null },
     };
     const { rerender } = render(<TaskListItem task={task} />);
     expect(screen.getByText(task.descriptionPlain)).toBeInTheDocument();

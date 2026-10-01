@@ -47,7 +47,6 @@ interface ProjectWorkspaceShellProps {
   labels: ProjectWorkspaceLabels;
   metadata: { label: string; value: string }[];
   projectId: string;
-  projectIdentifier?: string | null;
   projectLogo?: string | null;
   projectName: string;
   websiteUrl?: string | null;
@@ -74,7 +73,6 @@ export function ProjectWorkspaceShell({
   labels,
   metadata,
   projectId,
-  projectIdentifier,
   projectLogo,
   projectName,
   websiteUrl,
@@ -118,7 +116,6 @@ export function ProjectWorkspaceShell({
           backLabel={labels.backToProjects}
           className={cn(PROJECTS_WORKSPACE_GUTTER_CLASS, "pt-4 md:pt-5")}
           metadata={metadata}
-          projectIdentifier={projectIdentifier}
           projectLogo={projectLogo}
           projectName={projectName}
           websiteUrl={websiteUrl}

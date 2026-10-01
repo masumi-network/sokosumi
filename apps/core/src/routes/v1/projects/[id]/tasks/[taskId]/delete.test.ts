@@ -130,7 +130,6 @@ describe("DELETE /projects/{id}/tasks/{taskId}", () => {
       workspaceId: WORKSPACE_ID,
       name: "P",
       websiteUrl: null,
-      identifier: "SOK",
       logo: null,
       designMdUrl: null,
       designMdExtractionId: null,

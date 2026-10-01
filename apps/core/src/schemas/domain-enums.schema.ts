@@ -12,7 +12,6 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
-  TaskPriority,
   TaskScheduleEndsMode,
   TaskScheduleState,
   TaskStatus,
@@ -42,8 +41,6 @@ export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
 export const taskVisibilitySchema = z
   .enum(TaskVisibility)
   .openapi("TaskVisibility");
-
-export const taskPrioritySchema = z.enum(TaskPriority).openapi("TaskPriority");
 
 export const taskScheduleStateSchema = z
   .enum(TaskScheduleState)

@@ -16,7 +16,6 @@ describe("task-detail-api-types", () => {
           name: "Visible task",
           status: TaskStatus.READY,
           archivedAt: null,
-          identifier: "SOK-2",
         },
       },
       {
@@ -30,7 +29,6 @@ describe("task-detail-api-types", () => {
           name: "Archived task",
           status: TaskStatus.CANCELED,
           archivedAt: new Date("2026-03-31T10:00:00.000Z"),
-          identifier: null,
         },
       },
     ]);
@@ -39,7 +37,6 @@ describe("task-detail-api-types", () => {
       {
         id: "task-2",
         name: "Visible task",
-        identifier: "SOK-2",
         status: TaskStatus.READY,
         relation: TaskLinkRelation.RELATED,
       },
@@ -59,7 +56,6 @@ describe("task-detail-api-types", () => {
           name: "**Task Name:** _Weekly_",
           status: TaskStatus.READY,
           archivedAt: null,
-          identifier: null,
         },
       },
     ]);

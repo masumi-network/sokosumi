@@ -1,4 +1,4 @@
-import { TaskPriority, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import { TaskStatus, TaskVisibility } from "@sokosumi/database";
 import { HTTPException } from "hono/http-exception";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -203,9 +203,6 @@ function createTaskApi(overrides: Partial<Record<string, unknown>> = {}) {
     description: "Current description",
     status: TaskStatus.READY,
     visibility: TaskVisibility.PUBLIC,
-    priority: TaskPriority.NONE,
-    number: null,
-    identifier: null,
     credits: 0,
     grantResumeStatus: null,
     pendingVendorGrantId: null,

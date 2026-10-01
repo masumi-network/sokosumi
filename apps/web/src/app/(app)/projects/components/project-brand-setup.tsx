@@ -88,14 +88,11 @@ export function ProjectBrandSetup({
         onReadyLogo?.(nextLogo);
         onBrandChange?.({ logo: nextLogo });
         if (nextLogo) {
-          const updateResult = await updateProject({
+          await updateProject({
             projectId,
             name: projectName,
             logo: nextLogo,
           });
-          if (!updateResult.ok) {
-            toast.error(t("logoFailed"));
-          }
         }
       } catch (error) {
         console.error("Failed to resolve project logo", error);

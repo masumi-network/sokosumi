@@ -55,11 +55,7 @@ export default async function AdminTaskDetailPage({
         </div>
       </div>
 
-      <TaskDetailView
-        task={task}
-        forceReadOnly
-        relatedTaskHrefBasePath="/admin/tasks"
-      />
+      <TaskDetailView task={task} forceReadOnly />
     </div>
   );
 }

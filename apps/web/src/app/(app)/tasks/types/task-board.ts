@@ -1,7 +1,6 @@
 import type {
   ProjectSummary,
   TaskEvent,
-  TaskPriority,
   TaskShare,
   TaskTags,
   TaskVisibility,
@@ -25,11 +24,8 @@ export interface TaskAssigneeView {
  */
 export interface TaskWithCoworker {
   id: string;
-  /** Short id such as SOK-12; null for tasks without a project. */
-  identifier: string | null;
   name: string;
   status: TaskStatus;
-  priority: TaskPriority;
   visibility: TaskVisibility;
   ownerId: string;
   owner: UserSummary;

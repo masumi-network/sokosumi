@@ -442,10 +442,6 @@ model Project {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   name                    String
-  /// Short task-id prefix (e.g. SOK), unique per workspace. Filled by the
-  /// project_set_identifier trigger when omitted. Format enforced by a DB CHECK.
-  /// Optional so Prisma create can omit the column and let the trigger fill it.
-  identifier              String?
   filesToken              String?
   briefing                String?
   briefingUrl             String?
@@ -486,12 +482,6 @@ model Project {
 
   fileLinks FileProjectLink[]
 
-  /// Last task number handed out. Advanced by the task_assign_number trigger.
-  taskCounter Int @default(0)
-
-  taskIdentifierAliases TaskIdentifierAlias[]
-
-  @@unique([workspaceId, identifier])
   @@index([workspaceId])
   @@map("project")
 }
@@ -2813,8 +2803,6 @@ model Task {
   /// Private is meaningful only in organization workspaces (SOK-1046).
   visibility TaskVisibility @default(PUBLIC)
 
-  priority TaskPriority @default(NONE)
-
   /// Marketplace coworker assignee. XOR with assigneeSokoBotId (DB check).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -2866,13 +2854,6 @@ model Task {
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
-  /// Per-project sequence number. Set by the task_assign_number trigger (null
-  /// outside a project); never write it directly.
-  number Int?
-
-  /// Former numbers of this Task in projects it has left.
-  identifierAliases TaskIdentifierAlias[]
-
   /// The Run whose release created this Task.
   releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
 
@@ -2893,7 +2874,6 @@ model Task {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@index([projectId])
-  @@unique([projectId, number])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
@@ -3001,24 +2981,6 @@ model TaskSchedule {
 
 /// A workspace member pulled onto a Task by @ in comment activity.
 /// Distinct from Chat Participant. Unique per Task and user. createdAt is join time.
-/// A number a Task held in a project it later left, so old identifiers still
-/// resolve. Written by the task_alias_old_number trigger.
-model TaskIdentifierAlias {
-  createdAt DateTime @default(now())
-
-  projectId String  @db.Uuid
-  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-
-  number Int
-
-  taskId String
-  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
-
-  @@id([projectId, number])
-  @@index([taskId])
-  @@map("task_identifier_alias")
-}
-
 model TaskParticipant {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -3298,15 +3260,6 @@ enum TaskStatus {
 enum TaskVisibility {
   PUBLIC
   PRIVATE
-}
-
-/// Declaration order is sort order: ORDER BY priority ASC lists urgent first, none last.
-enum TaskPriority {
-  URGENT
-  HIGH
-  MEDIUM
-  LOW
-  NONE
 }
 
 enum Channel {

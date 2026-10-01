@@ -5,7 +5,6 @@ import { TaskRelationRow } from "./task-relation-row";
 interface RelatedTaskSummary {
   id: string;
   name: string;
-  identifier: string | null;
   status: TaskStatus;
   relation: TaskLinkRelation;
 }
@@ -15,7 +14,6 @@ interface TaskRelatedTasksProps {
   tasks: RelatedTaskSummary[];
   relationLabels: Record<TaskLinkRelation, string>;
   statusLabels: Record<TaskStatus, string>;
-  hrefBasePath?: string;
 }
 
 /** Blockers first, then hierarchy (parent, sub-tasks), then the loose links. */
@@ -33,7 +31,6 @@ export function TaskRelatedTasks({
   tasks,
   relationLabels,
   statusLabels,
-  hrefBasePath,
 }: TaskRelatedTasksProps) {
   if (tasks.length === 0) return null;
 
@@ -59,10 +56,8 @@ export function TaskRelatedTasks({
                   <TaskRelationRow
                     taskId={task.id}
                     taskName={task.name}
-                    taskIdentifier={task.identifier}
                     taskStatus={task.status}
                     statusLabel={statusLabels[task.status]}
-                    hrefBasePath={hrefBasePath}
                   />
                 </li>
               ))}

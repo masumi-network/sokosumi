@@ -2,12 +2,10 @@
 
 import { TaskStatus } from "@sokosumi/core-client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { taskHref } from "@/app/tasks/utils/task-href";
 import { cn } from "@/lib/utils";
 import { TaskDetailLink } from "./task-detail-link";
 import type { DragHandleProps } from "./task-dnd";
 import { TaskMetaDetails } from "./task-meta";
-import { TaskPriorityMark } from "./task-priority-mark";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 import { TaskRunAtBadge } from "./task-run-at-badge";
 import { TaskStatusBadge } from "./task-status-badge";
@@ -44,7 +42,7 @@ export function TaskListItem({
       {...handleProps}
     >
       <TaskDetailLink
-        href={taskHref(task)}
+        href={`/tasks/${task.id}`}
         className={cn(
           "flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4",
           "bg-background rounded-lg border border-border px-4 py-3 transition-colors",
@@ -54,18 +52,10 @@ export function TaskListItem({
         )}
       >
         <div className="flex min-w-0 flex-1 items-center gap-3">
-          <TaskPriorityMark priority={task.priority} />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-            <div className="flex min-w-0 items-baseline gap-2">
-              {task.identifier ? (
-                <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
-                  {task.identifier}
-                </span>
-              ) : null}
-              <span className="text-foreground line-clamp-1 text-sm font-medium">
-                {task.name}
-              </span>
-            </div>
+            <span className="text-foreground line-clamp-1 text-sm font-medium">
+              {task.name}
+            </span>
             {!compact && (
               <p className="text-muted-foreground line-clamp-1 text-xs break-all">
                 {task.descriptionPlain ?? "—"}

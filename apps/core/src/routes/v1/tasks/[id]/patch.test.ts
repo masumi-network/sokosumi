@@ -1,16 +1,11 @@
-import {
-  Channel,
-  TaskPriority,
-  TaskStatus,
-  TaskVisibility,
-} from "@sokosumi/database";
+import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
 import {
   buildAdHocDesignMdPrefix,
   CORE_API_ERROR_KINDS,
 } from "@sokosumi/utils";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { forbidden, notFound } from "@/helpers/error";
+import { forbidden } from "@/helpers/error";
 import { errorHandler } from "@/helpers/error-handler";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
@@ -117,9 +112,7 @@ function createTaskApi(projectId: string | null = null) {
     organizationId: "org_123",
     projectId,
     project:
-      projectId == null
-        ? null
-        : { id: projectId, name: "Project", identifier: "SOK", logo: null },
+      projectId == null ? null : { id: projectId, name: "Project", logo: null },
     owner: {
       id: "user_123",
       name: "Ada Lovelace",
@@ -157,9 +150,6 @@ function createTaskApi(projectId: string | null = null) {
     description: null,
     status: TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
-    priority: TaskPriority.NONE,
-    number: null,
-    identifier: null,
     grantResumeStatus: null,
     pendingVendorGrantId: null,
     credits: 0,
@@ -297,20 +287,6 @@ describe("patchTaskRequestSchema", () => {
     expect(result.runAt).toBeNull();
   });
 
-  it("accepts priority as the only patch field", () => {
-    const result = patchTaskRequestSchema.parse({
-      priority: TaskPriority.HIGH,
-    });
-
-    expect(result.priority).toBe(TaskPriority.HIGH);
-  });
-
-  it("rejects an unknown priority", () => {
-    expect(() => {
-      patchTaskRequestSchema.parse({ priority: "HUGE" });
-    }).toThrow();
-  });
-
   it("rejects coworker and user assignees together", () => {
     expect(() => {
       patchTaskRequestSchema.parse({
@@ -351,31 +327,6 @@ describe("PATCH /tasks/{id}", () => {
         },
       });
     });
-  });
-
-  it("keeps the path UUID-only: an identifier is looked up as a raw id", async () => {
-    const app = createApp();
-    requireTaskWriteAccessMock.mockImplementation(() => {
-      throw notFound("Task not found");
-    });
-
-    const response = await app.request("http://localhost/SOK-12", {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        name: "Renamed",
-      }),
-    });
-
-    expect(response.status).toBe(404);
-    expect(requireTaskWriteAccessMock).toHaveBeenCalledWith(
-      expect.anything(),
-      "SOK-12",
-      expect.anything(),
-    );
-    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("assigns a task to a workspace project", async () => {
@@ -521,32 +472,6 @@ describe("PATCH /tasks/{id}", () => {
         }),
       }),
     );
-  });
-
-  it("updates priority alone", async () => {
-    const response = await createApp().request("http://localhost/tsk_123", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priority: TaskPriority.URGENT }),
-    });
-
-    expect(response.status).toBe(200);
-    expect(taskUpdateMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
-      }),
-    );
-  });
-
-  it("rejects an invalid priority", async () => {
-    const response = await createApp().request("http://localhost/tsk_123", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ priority: "HUGE" }),
-    });
-
-    expect(response.status).toBe(422);
-    expect(taskUpdateMock).not.toHaveBeenCalled();
   });
 
   it("updates fields of a queued task", async () => {
