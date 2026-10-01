@@ -1,4 +1,5 @@
 import { Mascot } from "./mascot";
+import { SubmitButton } from "./submit-button";
 
 interface SignedOutProps {
   /** The `error` query Sokosumi sent back, if sign in did not finish. */
@@ -45,14 +46,12 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
         {error ? <p role="alert">{errorMessage(error)}</p> : null}
         <div className="actions">
           <form action={createAccount}>
-            <button className="button" type="submit">
-              Create account
-            </button>
+            <SubmitButton className="button">Create account</SubmitButton>
           </form>
           <form action={signIn}>
-            <button className="button button-secondary" type="submit">
+            <SubmitButton className="button button-secondary">
               Sign in
-            </button>
+            </SubmitButton>
           </form>
         </div>
         <p className="note">

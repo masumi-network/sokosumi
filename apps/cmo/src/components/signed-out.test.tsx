@@ -14,13 +14,13 @@ describe("signed-out page", () => {
 
     expect(html).toContain("CMO.XYZ runs your marketing end to end");
     expect(html).toContain(
-      '<button class="button" type="submit">Create account</button>',
+      '<button class="button" type="submit"><span class="button-label">Create account</span></button>',
     );
     expect(html).toContain(
-      '<button class="button button-secondary" type="submit">Sign in</button>',
+      '<button class="button button-secondary" type="submit"><span class="button-label">Sign in</span></button>',
     );
     expect(html.indexOf("Create account")).toBeLessThan(
-      html.indexOf("Sign in</button>"),
+      html.indexOf("Sign in</span>"),
     );
     expect(html).toContain(
       'CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.',
