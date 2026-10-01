@@ -12,7 +12,15 @@ import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
 
-import { BOARD_CARD_CLASS } from "@/app/tasks/components/board-classes";
+import {
+  GALLERY_DIVIDER_CLASS,
+  GALLERY_HERO_BAND_CLASS,
+  GALLERY_HERO_HEADLINE_CLASS,
+  GALLERY_HERO_INNER_CLASS,
+  GALLERY_SECTION_HEADLINE_CLASS,
+  GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
+  GALLERY_SOCIAL_PROOF_FACE_CLASS,
+} from "@/components/agents/gallery-page-classes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -32,7 +40,10 @@ type Bot = NonNullable<Member["bot"]>;
 type Translate = Awaited<ReturnType<typeof getTranslations<"App.SokoBots">>>;
 type Format = Awaited<ReturnType<typeof getFormatter>>;
 
+const HERO_FACES = 5;
 const STACK_SHOWN = 8;
+/** The Agents page's card surface. */
+const CARD_CLASS = "bg-card border-border rounded-2xl border";
 
 function initials(name: string): string {
   return name
@@ -62,7 +73,6 @@ function PersonAvatar({
   );
 }
 
-/** One muted icon-and-value, as in the task card footer. */
 function Stat({ icon, children }: { icon: ReactNode; children: ReactNode }) {
   return (
     <span className="flex items-center gap-1">
@@ -70,10 +80,6 @@ function Stat({ icon, children }: { icon: ReactNode; children: ReactNode }) {
       <span className="tabular-nums">{children}</span>
     </span>
   );
-}
-
-function shortDate(format: Format, date: Date) {
-  return format.dateTime(date, { month: "short", day: "numeric" });
 }
 
 function LastActive({
@@ -86,9 +92,13 @@ function LastActive({
   format: Format;
 }) {
   if (!bot.lastActivityAt) return <span>{t("notActiveYet")}</span>;
+  const date = format.dateTime(bot.lastActivityAt, {
+    month: "short",
+    day: "numeric",
+  });
   return (
-    <Stat icon={<Calendar aria-hidden className="size-3" />}>
-      {t("lastActive", { date: shortDate(format, bot.lastActivityAt) })}
+    <Stat icon={<Calendar aria-hidden className="size-3.5" />}>
+      {t("lastActive", { date })}
     </Stat>
   );
 }
@@ -97,8 +107,83 @@ function botName(bot: Bot, t: Translate) {
   return bot.name?.trim() || t("assistantFallback");
 }
 
+/** What a Soko Bot is, in the Agents hero's layout, and the one next step. */
+export async function SokoBotsHero({ team }: { team: SokoBotTeam | null }) {
+  const t = await getTranslations("App.SokoBots");
+  const members = team?.members ?? [];
+  const me = members.find((member) => member.isYou) ?? null;
+  const faces = members
+    .filter((member) => member.bot?.avatarImageUrl)
+    .sort((a, b) => Number(b.isYou) - Number(a.isYou))
+    .slice(0, HERO_FACES);
+
+  return (
+    <div className={GALLERY_HERO_BAND_CLASS}>
+      <div className={GALLERY_HERO_INNER_CLASS}>
+        {faces.length > 0 ? (
+          <div className="flex items-center gap-2.5">
+            <div className="flex -space-x-2">
+              {faces.map((member) =>
+                member.bot ? (
+                  <BotFace
+                    key={member.userId}
+                    bot={member.bot}
+                    ownerId={member.userId}
+                    className={cn(
+                      GALLERY_SOCIAL_PROOF_FACE_CLASS,
+                      "ring-background ring-2",
+                    )}
+                  />
+                ) : null,
+              )}
+            </div>
+            <span className={GALLERY_SOCIAL_PROOF_CAPTION_CLASS}>
+              {t("heroCaption")}
+            </span>
+          </div>
+        ) : null}
+        <h1 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroTitle")}</h1>
+        <p className="text-muted-foreground max-w-xl text-sm text-pretty md:text-base">
+          {t("heroBody")}
+        </p>
+        {me?.bot ? (
+          <ChatWithBotButton
+            sokoBotId={me.bot.id}
+            label={t("chatWith", { name: botName(me.bot, t) })}
+            errorLabel={t("chatError")}
+          />
+        ) : (
+          <Button asChild>
+            <Link href={SOKO_BOT_ROUTE}>
+              {t("createAssistant")}
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** A section headline with a muted note beside it, ruled off like Agents. */
+function SectionHeader({ title, note }: { title: string; note?: string }) {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>{title}</h2>
+        {note ? (
+          <span className="text-muted-foreground text-sm tabular-nums">
+            {note}
+          </span>
+        ) : null}
+      </div>
+      <div aria-hidden className={GALLERY_DIVIDER_CLASS} />
+    </div>
+  );
+}
+
 /** The viewer's own assistant: the one card on the page with the accent. */
-export async function YourAssistantCard({
+export async function YourAssistantSection({
   me,
   stats,
 }: {
@@ -111,83 +196,94 @@ export async function YourAssistantCard({
     getFormatter(),
   ]);
   const bot = me?.bot ?? null;
-  const shell =
-    "bg-background border-primary-tertiary flex flex-col gap-4 rounded-lg border p-4 sm:flex-row sm:items-center";
-
-  if (!bot || !me) {
-    return (
-      <section className={shell}>
-        <span className="bg-primary-quinary text-primary inline-flex size-12 shrink-0 items-center justify-center rounded-full">
-          <Plus aria-hidden className="size-5" />
-        </span>
-        <div className="min-w-0 flex-1 space-y-1">
-          <p className="text-foreground text-sm font-medium">
-            {t("noAssistantYou")}
-          </p>
-          <p className="text-muted-foreground text-xs">
-            {t("createAssistantHint")}
-          </p>
-        </div>
-        <Button asChild size="sm" className="w-full sm:w-auto">
-          <Link href={SOKO_BOT_ROUTE}>
-            {t("createAssistant")}
-            <ArrowRight aria-hidden className="size-3.5" />
-          </Link>
-        </Button>
-      </section>
-    );
-  }
+  const shell = cn(
+    CARD_CLASS,
+    "border-primary-tertiary flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:p-6",
+  );
 
   return (
-    <section className={shell} aria-label={botName(bot, t)}>
-      <div className="flex min-w-0 flex-1 items-start gap-4 sm:items-center">
-        <BotFace bot={bot} ownerId={me.userId} className="size-12" />
-        <div className="min-w-0 space-y-1">
-          <div className="flex min-w-0 items-center gap-2">
-            <span className="text-foreground truncate text-sm font-semibold">
-              {botName(bot, t)}
-            </span>
-            <SokoBotStatusChip
-              status={bot.status}
-              label={tStatus(bot.status)}
-              size="sm"
+    <section className="space-y-6">
+      <SectionHeader title={t("yourAssistantTitle")} />
+      {!bot || !me ? (
+        <div className={shell}>
+          <span className="bg-primary-quinary text-primary inline-flex size-14 shrink-0 items-center justify-center rounded-full sm:size-16">
+            <Plus aria-hidden className="size-6" />
+          </span>
+          <div className="min-w-0 flex-1 space-y-1">
+            <p className="text-foreground text-lg font-medium">
+              {t("noAssistantYou")}
+            </p>
+            <p className="text-muted-foreground text-sm">
+              {t("createAssistantHint")}
+            </p>
+          </div>
+          {/* The hero carries the primary "Create"; this one stays secondary. */}
+          <Button asChild variant="outline" className="w-full sm:w-auto">
+            <Link href={SOKO_BOT_ROUTE}>
+              {t("createAssistant")}
+              <ArrowRight aria-hidden className="size-4" />
+            </Link>
+          </Button>
+        </div>
+      ) : (
+        <div className={shell}>
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            <BotFace
+              bot={bot}
+              ownerId={me.userId}
+              className="size-14 sm:size-16"
+            />
+            <div className="min-w-0 space-y-1.5">
+              <div className="flex min-w-0 items-center gap-2">
+                <h3 className="text-foreground truncate text-lg font-medium">
+                  {botName(bot, t)}
+                </h3>
+                <SokoBotStatusChip
+                  status={bot.status}
+                  label={tStatus(bot.status)}
+                  size="sm"
+                />
+              </div>
+              <p className="text-muted-foreground text-sm">{t("roleLine")}</p>
+              <div className="text-muted-foreground flex flex-wrap items-center gap-x-4 gap-y-1 text-xs">
+                {stats ? (
+                  <>
+                    <Stat icon={<ListTodo aria-hidden className="size-3.5" />}>
+                      {t("statsTasks", {
+                        count: stats.totals.tasks,
+                        days: stats.days,
+                      })}
+                    </Stat>
+                    <Stat
+                      icon={<MessageSquare aria-hidden className="size-3.5" />}
+                    >
+                      {t("statsMessages", {
+                        count: stats.totals.messages,
+                        days: stats.days,
+                      })}
+                    </Stat>
+                  </>
+                ) : null}
+                <LastActive bot={bot} t={t} format={format} />
+              </div>
+            </div>
+          </div>
+          <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+            <Button asChild variant="outline" className="w-full sm:w-auto">
+              <Link href={SOKO_BOT_ROUTE}>
+                <Settings aria-hidden className="size-4" />
+                {t("manage")}
+              </Link>
+            </Button>
+            <ChatWithBotButton
+              sokoBotId={bot.id}
+              label={t("chat")}
+              errorLabel={t("chatError")}
+              className="w-full sm:w-auto"
             />
           </div>
-          <p className="text-muted-foreground text-xs">{t("roleLine")}</p>
-          <div className="text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-            {stats ? (
-              <>
-                <Stat icon={<ListTodo aria-hidden className="size-3" />}>
-                  {t("statsTasks", {
-                    count: stats.totals.tasks,
-                    days: stats.days,
-                  })}
-                </Stat>
-                <Stat icon={<MessageSquare aria-hidden className="size-3" />}>
-                  {t("statsMessages", {
-                    count: stats.totals.messages,
-                    days: stats.days,
-                  })}
-                </Stat>
-              </>
-            ) : null}
-            <LastActive bot={bot} t={t} format={format} />
-          </div>
         </div>
-      </div>
-      <div className="flex shrink-0 items-center gap-2 pl-16 sm:pl-0">
-        <ChatWithBotButton
-          sokoBotId={bot.id}
-          label={t("chat")}
-          errorLabel={t("chatError")}
-        />
-        <Button asChild size="sm" variant="ghost">
-          <Link href={SOKO_BOT_ROUTE}>
-            <Settings aria-hidden className="size-3.5" />
-            {t("manage")}
-          </Link>
-        </Button>
-      </div>
+      )}
     </section>
   );
 }
@@ -220,13 +316,13 @@ function PairCard({
         label={t("messageBot", { name })}
         errorLabel={t("chatError")}
         className={cn(
-          BOARD_CARD_CLASS,
-          "hover:border-border hover:bg-card-background-hover group flex w-full flex-col gap-3 p-4 hover:shadow-none",
+          CARD_CLASS,
+          "hover:bg-card-background group flex size-full flex-col gap-4 p-4 transition-colors",
         )}
       >
-        <span className="flex min-w-0 items-center gap-2">
-          <BotFace bot={bot} ownerId={member.userId} className="size-8" />
-          <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">
+        <span className="flex min-w-0 items-center gap-3">
+          <BotFace bot={bot} ownerId={member.userId} className="size-10" />
+          <span className="text-foreground min-w-0 flex-1 truncate font-medium">
             {name}
           </span>
           <SokoBotStatusChip
@@ -235,19 +331,19 @@ function PairCard({
             size="sm"
           />
         </span>
-        <span className="text-muted-foreground flex min-w-0 items-center gap-2 text-xs">
+        <span className="text-muted-foreground flex min-w-0 items-center gap-2 text-sm">
           <span className="shrink-0">{t("assistantOf")}</span>
           <PersonAvatar member={member} />
           <span className="truncate">{member.name}</span>
         </span>
-        <span className="border-border text-muted-foreground flex items-center justify-between gap-2 border-t pt-2 text-xs">
+        <span className="border-border text-muted-foreground mt-auto flex items-center justify-between gap-2 border-t pt-3 text-xs">
           <LastActive bot={bot} t={t} format={format} />
           <span
             aria-hidden
             className="text-foreground flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
           >
             {t("message")}
-            <ArrowRight className="size-3" />
+            <ArrowRight className="size-3.5" />
           </span>
         </span>
       </ChatWithBotTile>
@@ -255,11 +351,10 @@ function PairCard({
   );
 }
 
-/** People without an assistant: one quiet line, names on hover. */
 function NotSetUpLine({ members, t }: { members: Member[]; t: Translate }) {
   if (members.length === 0) return null;
   return (
-    <div className="text-muted-foreground flex items-center gap-3 text-xs">
+    <div className="text-muted-foreground flex items-center gap-3 text-sm">
       <span>{t("notSetUp")}</span>
       <ul className="flex -space-x-1">
         {members.slice(0, STACK_SHOWN).map((member) => (
@@ -267,7 +362,7 @@ function NotSetUpLine({ members, t }: { members: Member[]; t: Translate }) {
             <Tooltip>
               <TooltipTrigger asChild>
                 <span className="ring-background block rounded-full ring-2">
-                  <PersonAvatar member={member} className="size-6" />
+                  <PersonAvatar member={member} className="size-7" />
                   <span className="sr-only">{member.name}</span>
                 </span>
               </TooltipTrigger>
@@ -283,8 +378,8 @@ function NotSetUpLine({ members, t }: { members: Member[]; t: Translate }) {
   );
 }
 
-/** Everyone else's assistant, as a grid of person-and-bot pairs. */
-export async function TeamRoster({ team }: { team: SokoBotTeam }) {
+/** Everyone else's assistant, paired with the person it works for. */
+export async function TeamSection({ team }: { team: SokoBotTeam }) {
   const [t, tStatus, format] = await Promise.all([
     getTranslations("App.SokoBots"),
     getTranslations("Components.SokoBot.BotStatus"),
@@ -295,9 +390,17 @@ export async function TeamRoster({ team }: { team: SokoBotTeam }) {
   const unpaired = others.filter((member) => !member.bot);
 
   return (
-    <div className="space-y-4">
+    <section className="space-y-6">
+      <SectionHeader
+        title={t("teamTitle")}
+        note={
+          team.workspace.kind === "organization"
+            ? t("teamSummary", { bots: paired.length, people: others.length })
+            : undefined
+        }
+      />
       {paired.length > 0 ? (
-        <ul className="grid gap-3 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
+        <ul className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(16.25rem,1fr))]">
           {paired.map((member) =>
             member.bot ? (
               <PairCard
@@ -317,6 +420,6 @@ export async function TeamRoster({ team }: { team: SokoBotTeam }) {
         </p>
       ) : null}
       <NotSetUpLine members={unpaired} t={t} />
-    </div>
+    </section>
   );
 }
