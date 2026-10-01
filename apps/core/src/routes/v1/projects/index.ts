@@ -5,6 +5,7 @@ import mountCreateProjectAdCampaign from "./[id]/ads/accounts/[accountId]/campai
 import mountDeleteProjectAdAccount from "./[id]/ads/accounts/[accountId]/delete.js";
 import mountListProjectAdAccounts from "./[id]/ads/accounts/get.js";
 import mountAttachProjectAdAccounts from "./[id]/ads/accounts/post.js";
+import mountDiscardProjectAdConnection from "./[id]/ads/connections/[adConnectionId]/delete.js";
 import mountFinalizeProjectAdConnection from "./[id]/ads/connections/finalize/post.js";
 import mountInitiateProjectAdConnection from "./[id]/ads/connections/initiate/post.js";
 import mountListProjectAdMarketAds from "./[id]/ads/market/ads/get.js";
@@ -76,6 +77,7 @@ mountInitiateProjectAdConnection(app);
 mountFinalizeProjectAdConnection(app);
 mountAttachProjectAdAccounts(app);
 mountDeleteProjectAdAccount(app);
+mountDiscardProjectAdConnection(app);
 mountListProjectAdCampaigns(app);
 mountUpdateProjectAdCampaign(app);
 mountCreateProjectAdCampaign(app);

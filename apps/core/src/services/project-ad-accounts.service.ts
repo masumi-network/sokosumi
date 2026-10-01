@@ -535,6 +535,49 @@ export async function detachProjectAdAccount(
   });
 }
 
+/**
+ * Discards a connection that has no ad accounts (an abandoned account picker),
+ * so no live grant is orphaned. Same order as the last detach: close to new
+ * attaches, revoke, then delete; a failed revoke reopens it for a retry.
+ */
+export async function discardProjectAdConnection(
+  input: ProjectScope & { adConnectionId: string },
+): Promise<void> {
+  await requireScopedProject(input);
+  const closing = await serializableTransaction(async (tx) => {
+    const connection = await tx.projectAdConnection.findFirst({
+      where: { id: input.adConnectionId, projectId: input.projectId },
+    });
+    if (!connection) throw notFound("Ad connection not found");
+    const accounts = await tx.projectAdAccount.count({
+      where: { connectionId: connection.id },
+    });
+    if (accounts > 0) {
+      throw conflict(
+        "Ad connection has ad accounts. Disconnect its ad accounts instead.",
+      );
+    }
+    await tx.projectAdConnection.update({
+      where: { id: connection.id },
+      data: { status: "disconnected" },
+    });
+    return connection;
+  }, "Ad connection changed. Please retry.");
+
+  try {
+    await revokeComposioConnectedAccount({
+      connectedAccountId: closing.composioConnectedAccountId,
+    });
+  } catch (error) {
+    await prisma.projectAdConnection.updateMany({
+      where: { id: closing.id },
+      data: { status: closing.status },
+    });
+    throw error;
+  }
+  await prisma.projectAdConnection.deleteMany({ where: { id: closing.id } });
+}
+
 /** Called inside the close loop's transaction: the next ad grant still to revoke. */
 export async function getPendingProjectAdRevocation(
   tx: Pick<Prisma.TransactionClient, "projectAdConnection">,

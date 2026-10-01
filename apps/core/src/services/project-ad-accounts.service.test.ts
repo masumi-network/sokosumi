@@ -107,6 +107,7 @@ import {
   attachProjectAdAccounts,
   createProjectAdCampaign,
   detachProjectAdAccount,
+  discardProjectAdConnection,
   finalizeProjectAdConnection,
   getPendingProjectAdRevocation,
   initiateProjectAdConnection,
@@ -807,6 +808,75 @@ describe("project ad accounts service", () => {
       await expect(
         detachProjectAdAccount({ ...scope, accountId: ACCOUNT_UUID }),
       ).rejects.toMatchObject({ status: 404 });
+    });
+  });
+
+  describe("discard", () => {
+    beforeEach(() => {
+      m.connectionFindFirst.mockResolvedValue(storedConnection);
+      m.accountCount.mockResolvedValue(0);
+    });
+
+    it("closes, revokes and deletes a connection without ad accounts", async () => {
+      await discardProjectAdConnection({
+        ...scope,
+        adConnectionId: CONNECTION_UUID,
+      });
+      expect(m.connectionFindFirst).toHaveBeenCalledWith({
+        where: { id: CONNECTION_UUID, projectId: PROJECT_ID },
+      });
+      expect(m.connectionUpdate).toHaveBeenCalledWith({
+        where: { id: CONNECTION_UUID },
+        data: { status: "disconnected" },
+      });
+      expect(m.revoke).toHaveBeenCalledWith({ connectedAccountId: "ca_1" });
+      expect(m.connectionDeleteMany).toHaveBeenCalledWith({
+        where: { id: CONNECTION_UUID },
+      });
+      const closed = m.connectionUpdate.mock.invocationCallOrder[0];
+      const revoked = m.revoke.mock.invocationCallOrder[0];
+      const deleted = m.connectionDeleteMany.mock.invocationCallOrder[0];
+      expect(closed).toBeLessThan(revoked);
+      expect(revoked).toBeLessThan(deleted);
+    });
+
+    it("refuses a connection that has ad accounts", async () => {
+      m.accountCount.mockResolvedValue(1);
+      await expect(
+        discardProjectAdConnection({
+          ...scope,
+          adConnectionId: CONNECTION_UUID,
+        }),
+      ).rejects.toMatchObject({ status: 409 });
+      expect(m.connectionUpdate).not.toHaveBeenCalled();
+      expect(m.revoke).not.toHaveBeenCalled();
+      expect(m.connectionDeleteMany).not.toHaveBeenCalled();
+    });
+
+    it("rejects a connection of another Project", async () => {
+      m.connectionFindFirst.mockResolvedValue(null);
+      await expect(
+        discardProjectAdConnection({
+          ...scope,
+          adConnectionId: CONNECTION_UUID,
+        }),
+      ).rejects.toMatchObject({ status: 404 });
+      expect(m.revoke).not.toHaveBeenCalled();
+    });
+
+    it("reopens the connection and keeps the row when the revoke fails", async () => {
+      m.revoke.mockRejectedValue(new Error("composio down"));
+      await expect(
+        discardProjectAdConnection({
+          ...scope,
+          adConnectionId: CONNECTION_UUID,
+        }),
+      ).rejects.toThrow("composio down");
+      expect(m.connectionUpdateMany).toHaveBeenCalledWith({
+        where: { id: CONNECTION_UUID },
+        data: { status: "active" },
+      });
+      expect(m.connectionDeleteMany).not.toHaveBeenCalled();
     });
   });
 
