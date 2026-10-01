@@ -7,8 +7,16 @@ import {
 } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type CmoAuth, createCmoAuth, renewSession } from "./auth";
+import { GET as signInLink } from "../app/signin/route";
+import { GET as signUpLink } from "../app/signup/route";
+import { type CmoAuth, createCmoAuth, getAuth, renewSession } from "./auth";
 import { sokosumiSignInBody } from "./sokosumi-oauth";
+
+// The link routes reach the auth each test creates.
+vi.mock("./auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./auth")>()),
+  getAuth: vi.fn(),
+}));
 
 const CMO = "https://app.cmo.xyz";
 const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
@@ -316,6 +324,24 @@ function callbackPath({ code, state }: { code: string; state: string }) {
   return `/api/auth/callback/sokosumi?code=${code}&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(ISSUER)}`;
 }
 
+const LINK_ROUTES = { "/signin": signInLink, "/signup": signUpLink };
+
+/** A link from cmo.xyz or an email: a cross-site GET with no Origin. */
+async function followLink(
+  jar: CookieJar,
+  path: keyof typeof LINK_ROUTES,
+): Promise<Response> {
+  // Better Auth's origin check needs a request object; the routes pass it
+  // headers only, so a cross-site link without an Origin may start the flow.
+  const response = await LINK_ROUTES[path](
+    new Request(`${jar.origin}${path}`, {
+      headers: { cookie: jar.header(), "x-vercel-forwarded-for": jar.ip },
+    }),
+  );
+  jar.store(response);
+  return response;
+}
+
 async function signIn(auth: CmoAuth, jar: CookieJar, core: FakeCore) {
   const approval = core.approve(await startSignIn(auth, jar));
   return send(auth, jar, callbackPath(approval));
@@ -357,6 +383,7 @@ describe("CMO auth handler", () => {
       oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
     });
     jar = new CookieJar();
+    vi.mocked(getAuth).mockReturnValue(auth);
   });
 
   afterEach(() => {
@@ -392,6 +419,34 @@ describe("CMO auth handler", () => {
 
     expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
     expect(url.searchParams.get("prompt")).toBe("create");
+  });
+
+  it("starts Create account from a link and signs in on the callback", async () => {
+    const response = await followLink(jar, "/signup");
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const authorizeUrl = response.headers.get("location") ?? "";
+    expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
+    await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
+  it("sends a link home when the person is already signed in to CMO", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+
+    for (const path of ["/signup", "/signin"] as const) {
+      const response = await followLink(jar, path);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/");
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(jar.header()).toBe(cookies);
+    }
   });
 
   it("signs in on the callback and returns name and email from the session", async () => {

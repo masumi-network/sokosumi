@@ -20,7 +20,11 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { oAuthProxy } from "better-auth/plugins/oauth-proxy";
 
 import { readCmoAuthConfig } from "./auth-config";
-import { SOKOSUMI_OAUTH_PROVIDER_ID } from "./sokosumi-oauth";
+import {
+  SOKOSUMI_OAUTH_PROVIDER_ID,
+  type SokosumiSignInOptions,
+  sokosumiSignInBody,
+} from "./sokosumi-oauth";
 
 export interface CmoAuthConfig {
   /** CMO's own public origin, the base of its OAuth callback. */
@@ -247,6 +251,47 @@ let auth: CmoAuth | undefined;
 export function getAuth(): CmoAuth {
   auth ??= createCmoAuth(readCmoAuthConfig());
   return auth;
+}
+
+/**
+ * Starts Sign in with Sokosumi: Core's authorize URL, and the `Set-Cookie`
+ * headers that carry CMO's OAuth state. A server action gets those cookies
+ * through `nextCookies`; a route handler sends them on its own response.
+ */
+export async function startSokosumiSignIn(
+  auth: CmoAuth,
+  headers: Headers,
+  options: SokosumiSignInOptions,
+): Promise<{ url: string; setCookies: string[] }> {
+  const { headers: responseHeaders, response } = await auth.api.signInSocial({
+    body: sokosumiSignInBody(options),
+    headers,
+    returnHeaders: true,
+  });
+  if (!response.url) throw new Error("Sign in with Sokosumi returned no URL");
+  return { url: response.url, setCookies: responseHeaders.getSetCookie() };
+}
+
+/**
+ * A link's way into Sign in with Sokosumi, for `/signup` and `/signin`.
+ * A person already signed in to CMO goes home instead.
+ */
+export async function sokosumiSignInRedirect(
+  auth: CmoAuth,
+  request: Request,
+  options: SokosumiSignInOptions,
+): Promise<Response> {
+  const headers = new Headers({ location: "/", "cache-control": "no-store" });
+  if (!(await auth.api.getSession({ headers: request.headers }))) {
+    const { url, setCookies } = await startSokosumiSignIn(
+      auth,
+      request.headers,
+      options,
+    );
+    headers.set("location", url);
+    for (const cookie of setCookies) headers.append("set-cookie", cookie);
+  }
+  return new Response(null, { status: 302, headers });
 }
 
 function withSetCookies(from: Response): Response {
