@@ -2852,7 +2852,10 @@
           "label": "Daily budget ({currency})",
           "save": "Save budget",
           "saving": "Saving…",
+          "change": "Daily budget changes from {old} to {new}.",
+          "notSet": "not set",
           "errors": {
+            "shared": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there.",
             "required": "Enter a daily budget greater than 0.",
             "wholeNumber": "Use a whole number for {currency}.",
             "precision": "Use at most {digits} decimal places for {currency}."

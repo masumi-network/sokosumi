@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
 import { getTranslations } from "next-intl/server";
+import type { SearchParams } from "nuqs/server";
 import { Suspense } from "react";
 
 import { ProjectScopePicker } from "@/app/components/project-scope/project-scope-picker";
@@ -9,7 +10,7 @@ import { adsService } from "@/lib/services/ads.service";
 import { projectService } from "@/lib/services/project.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
-import { isCampaignsTab, parseCampaignsSelection } from "./ads-query";
+import { loadAdsSearchParams, selectAccount } from "./ads-query";
 import { AdsCampaignsSection } from "./components/ads-campaigns-section";
 import { AdsCampaignsSkeleton } from "./components/ads-campaigns-skeleton";
 import { AdsCampaignsToolbar } from "./components/ads-campaigns-toolbar";
@@ -20,12 +21,7 @@ import { AdsTabs } from "./components/ads-tabs";
 export const instant = false;
 
 interface AdsPageProps {
-  searchParams: Promise<{
-    projectId?: string;
-    tab?: string;
-    account?: string;
-    range?: string;
-  }>;
+  searchParams: Promise<SearchParams>;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -45,7 +41,7 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
     notFound();
   }
 
-  const query = await searchParams;
+  const query = await loadAdsSearchParams(searchParams);
   const t = await getTranslations("App.Ads");
   const projectId = query.projectId?.trim();
   const project = projectId
@@ -68,26 +64,26 @@ export default async function AdsPage({ searchParams }: AdsPageProps) {
   }
 
   const accounts = await adsService.listAccounts(project.id);
-  const selection = parseCampaignsSelection(query, accounts);
+  const account = selectAccount(accounts, query.account);
 
   // Only load campaigns while the Campaigns tab is the one showing: they come
   // from the ad provider, so an Accounts visit should not pay for them.
   const campaigns =
-    selection && isCampaignsTab(query.tab) ? (
+    account && query.tab === "campaigns" ? (
       <div className="flex flex-col gap-6">
         <AdsCampaignsToolbar
-          accountId={selection.account.id}
+          accountId={account.id}
           accounts={accounts}
-          range={selection.range}
+          range={query.range}
         />
         <Suspense
-          key={`${selection.account.id}:${selection.range}`}
+          key={`${account.id}:${query.range}`}
           fallback={<AdsCampaignsSkeleton />}
         >
           <AdsCampaignsSection
-            account={selection.account}
+            account={account}
             projectId={project.id}
-            range={selection.range}
+            range={query.range}
           />
         </Suspense>
       </div>

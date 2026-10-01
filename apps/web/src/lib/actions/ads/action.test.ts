@@ -395,7 +395,7 @@ describe("ads actions", () => {
       expect(revalidatePath).not.toHaveBeenCalled();
     });
 
-    it("hands Core's refusal message back for the dialog to show", async () => {
+    it("tells the UI which status Core refused with, so it can word it", async () => {
       adsServiceMock.updateCampaign.mockRejectedValue(
         await coreError("Budget is shared with 2 other campaigns", 409),
       );
@@ -404,12 +404,9 @@ describe("ads actions", () => {
       const { revalidatePath } = await import("next/cache");
       const result = await updateAdCampaign({ ...base, dailyBudget: 10 });
 
-      expect(result).toEqual({
+      expect(result).toMatchObject({
         ok: false,
-        error: {
-          code: "BAD_INPUT",
-          message: "Budget is shared with 2 other campaigns",
-        },
+        error: { code: "BAD_INPUT", status: 409 },
       });
       expect(revalidatePath).not.toHaveBeenCalled();
     });

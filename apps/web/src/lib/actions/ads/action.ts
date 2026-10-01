@@ -15,7 +15,10 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import { toCoreApiActionError } from "@/lib/clients/core.client";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import { adsService } from "@/lib/services/ads.service";
 import {
   type AuthenticatedRequest,
@@ -27,7 +30,7 @@ const trimmedId = z.string().trim().min(1);
 /**
  * An ads action: input validated against `schema`, then `run` against Core.
  * Core's errors keep their `kind` (for example "integration_not_configured"),
- * which is what the UI branches on.
+ * which is what the UI branches on, and so does their HTTP `status`.
  */
 function adsAction<S extends z.ZodType, T>(
   schema: S,
@@ -50,7 +53,14 @@ function adsAction<S extends z.ZodType, T>(
     try {
       return toActionResult(ok(await run(parsed.data)));
     } catch (error) {
-      return toActionResult(err(toCoreApiActionError(error)));
+      return toActionResult(
+        err({
+          ...toCoreApiActionError(error),
+          ...(error instanceof CoreApiRequestError && error.status
+            ? { status: error.status }
+            : {}),
+        }),
+      );
     }
   });
 }

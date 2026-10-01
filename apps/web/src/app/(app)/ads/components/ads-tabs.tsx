@@ -2,7 +2,7 @@
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { useQueryState } from "nuqs";
 
 import { EmptyState } from "@/components/common/empty-state";
 import { Button } from "@/components/ui/button";
@@ -16,12 +16,9 @@ import {
 } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
-import { ADS_TABS } from "../ads-query";
+import { ADS_TABS, adsSearchParams } from "../ads-query";
 import { AdsAccounts } from "./ads-accounts";
 import { AdsCampaignsSkeleton } from "./ads-campaigns-skeleton";
-
-/** An unknown `?tab=` parses to null, which falls back to Campaigns. */
-const tabParser = parseAsStringLiteral(ADS_TABS).withDefault("campaigns");
 
 interface AdsTabsProps {
   accounts: ProjectAdAccount[];
@@ -42,7 +39,7 @@ export function AdsTabs({ accounts, campaigns, projectId }: AdsTabsProps) {
   const t = useTranslations("App.Ads");
   const [tab, setTab] = useQueryState(
     "tab",
-    tabParser.withOptions({ shallow: false }),
+    adsSearchParams.tab.withOptions({ shallow: false }),
   );
 
   return (

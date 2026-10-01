@@ -11,7 +11,7 @@ import {
   type CampaignsLoadError,
 } from "./ads-campaigns-error";
 
-/** 409 means the connection is no longer active; 503 and kind, not configured. */
+/** 409 means the connection is no longer active; the kind says not configured. */
 export function toCampaignsLoadError(
   error: CoreApiRequestError,
 ): CampaignsLoadError {
@@ -50,6 +50,7 @@ export async function AdsCampaignsSection({
         campaigns={campaigns}
         currency={currency}
         projectId={projectId}
+        provider={account.provider}
       />
     );
   } catch (error) {

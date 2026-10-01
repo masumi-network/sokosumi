@@ -1,8 +1,5 @@
-"use client";
-
-import type { AdCampaign } from "@sokosumi/core-client";
-import { useLocale, useTranslations } from "next-intl";
-import { useState } from "react";
+import type { AdCampaign, ProjectAdProvider } from "@sokosumi/core-client";
+import { getFormatter, getTranslations } from "next-intl/server";
 
 import { EmptyState } from "@/components/common/empty-state";
 import {
@@ -13,17 +10,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
-import { formatCount, formatMoney, formatPercent } from "../format-ads";
-import {
-  AdsCampaignActions,
-  type CampaignActionKind,
-} from "./ads-campaign-actions";
-import {
-  AdsCampaignBudgetDialog,
-  AdsCampaignStatusDialog,
-} from "./ads-campaign-dialogs";
-import { AdsCampaignStatus } from "./ads-campaign-status";
+import { AdsCampaignActions } from "./ads-campaign-actions";
+
+/** What a metric shows when the provider has no value for it. */
+const NO_VALUE = "—";
 
 const NUMERIC_COLUMNS = [
   "dailyBudget",
@@ -40,25 +32,22 @@ interface AdsCampaignsProps {
   campaigns: AdCampaign[];
   currency: string;
   projectId: string;
+  provider: ProjectAdProvider;
 }
 
 /**
- * One account's campaigns: a table from `md` up, stacked rows below. Pause,
- * resume and the budget go through a confirm step and then a server action;
- * the page revalidates, so the list is never patched locally.
+ * One account's campaigns, rendered on the server: a table from `md` up,
+ * stacked rows below. Only each row's action menu is client code.
  */
-export function AdsCampaigns({
+export async function AdsCampaigns({
   accountId,
   campaigns,
   currency,
   projectId,
+  provider,
 }: AdsCampaignsProps) {
-  const t = useTranslations("App.Ads.campaigns");
-  const locale = useLocale();
-  const [pending, setPending] = useState<{
-    campaign: AdCampaign;
-    kind: CampaignActionKind;
-  } | null>(null);
+  const t = await getTranslations("App.Ads.campaigns");
+  const formatter = await getFormatter();
 
   if (campaigns.length === 0) {
     return (
@@ -69,26 +58,63 @@ export function AdsCampaigns({
     );
   }
 
-  const money = (value: number | null) => formatMoney(value, currency, locale);
+  const money = (value: number | null) =>
+    value === null
+      ? NO_VALUE
+      : formatter.number(value, { style: "currency", currency });
+  const count = (value: number | null) =>
+    // Conversions can be fractional (Google attributes shares of one).
+    value === null
+      ? NO_VALUE
+      : formatter.number(value, { maximumFractionDigits: 1 });
+  // CTR is clicks / impressions as a fraction.
+  const percent = (value: number | null) =>
+    value === null
+      ? NO_VALUE
+      : formatter.number(value, { style: "percent", maximumFractionDigits: 2 });
+
   const cells: Record<
     (typeof NUMERIC_COLUMNS)[number],
     (campaign: AdCampaign) => string
   > = {
     dailyBudget: ({ dailyBudget }) => money(dailyBudget),
     spend: ({ spend }) => money(spend),
-    impressions: ({ impressions }) => formatCount(impressions, locale),
-    clicks: ({ clicks }) => formatCount(clicks, locale),
-    ctr: ({ ctr }) => formatPercent(ctr, locale),
+    impressions: ({ impressions }) => count(impressions),
+    clicks: ({ clicks }) => count(clicks),
+    ctr: ({ ctr }) => percent(ctr),
     cpc: ({ cpc }) => money(cpc),
-    conversions: ({ conversions }) => formatCount(conversions, locale),
+    conversions: ({ conversions }) => count(conversions),
   };
 
-  const dialogProps = pending && {
-    accountId,
-    campaign: pending.campaign,
-    onClose: () => setPending(null),
-    projectId,
-  };
+  /** Quiet text with a dot. Only Active takes the accent. */
+  const status = ({ status }: AdCampaign) => (
+    <span className="inline-flex items-center gap-2 text-sm">
+      <span
+        aria-hidden
+        className={cn(
+          "size-1.5 rounded-full",
+          status === "ACTIVE" ? "bg-primary" : "bg-muted-foreground",
+        )}
+      />
+      <span
+        className={
+          status === "ACTIVE" ? "text-foreground" : "text-muted-foreground"
+        }
+      >
+        {t(`status.${status}`)}
+      </span>
+    </span>
+  );
+
+  const actions = (campaign: AdCampaign) => (
+    <AdsCampaignActions
+      accountId={accountId}
+      campaign={campaign}
+      currency={currency}
+      projectId={projectId}
+      provider={provider}
+    />
+  );
 
   return (
     <section aria-label={t("tableLabel")} data-testid="ads-campaigns">
@@ -124,19 +150,14 @@ export function AdsCampaigns({
                     </p>
                   ) : null}
                 </TableCell>
-                <TableCell>
-                  <AdsCampaignStatus status={campaign.status} />
-                </TableCell>
+                <TableCell>{status(campaign)}</TableCell>
                 {NUMERIC_COLUMNS.map((column) => (
                   <TableCell key={column} className="text-right tabular-nums">
                     {cells[column](campaign)}
                   </TableCell>
                 ))}
                 <TableCell className="w-12 text-right">
-                  <AdsCampaignActions
-                    campaign={campaign}
-                    onAction={(kind) => setPending({ campaign, kind })}
-                  />
+                  {actions(campaign)}
                 </TableCell>
               </TableRow>
             ))}
@@ -153,7 +174,7 @@ export function AdsCampaigns({
             <div className="min-w-0 flex-1">
               <div className="flex items-center justify-between gap-3">
                 <p className="truncate text-sm font-medium">{campaign.name}</p>
-                <AdsCampaignStatus status={campaign.status} />
+                {status(campaign)}
               </div>
               <p className="text-muted-foreground mt-0.5 text-xs tabular-nums">
                 {t("spendAndClicks", {
@@ -162,23 +183,10 @@ export function AdsCampaigns({
                 })}
               </p>
             </div>
-            <AdsCampaignActions
-              campaign={campaign}
-              onAction={(kind) => setPending({ campaign, kind })}
-            />
+            {actions(campaign)}
           </li>
         ))}
       </ul>
-
-      {dialogProps && pending?.kind === "budget" ? (
-        <AdsCampaignBudgetDialog {...dialogProps} currency={currency} />
-      ) : null}
-      {dialogProps && pending && pending.kind !== "budget" ? (
-        <AdsCampaignStatusDialog
-          {...dialogProps}
-          nextStatus={pending.kind === "pause" ? "PAUSED" : "ACTIVE"}
-        />
-      ) : null}
     </section>
   );
 }

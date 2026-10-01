@@ -1,43 +1,50 @@
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 
-import { isCampaignsTab, parseCampaignsSelection } from "./ads-query";
+import { loadAdsSearchParams, selectAccount } from "./ads-query";
 
 const accounts = [{ id: "a1" }, { id: "a2" }] as ProjectAdAccount[];
 
-describe("parseCampaignsSelection", () => {
-  it("defaults to the first account and 30 days", () => {
-    expect(parseCampaignsSelection({}, accounts)).toEqual({
-      account: accounts[0],
+describe("loadAdsSearchParams", () => {
+  it("defaults to Campaigns over 30 days", () => {
+    expect(loadAdsSearchParams({})).toEqual({
+      projectId: null,
+      tab: "campaigns",
+      account: null,
       range: "30d",
     });
   });
 
-  it("reads the account and range from the URL", () => {
+  it("reads the tab, account and range from the URL", () => {
     expect(
-      parseCampaignsSelection({ account: "a2", range: "7d" }, accounts),
-    ).toEqual({ account: accounts[1], range: "7d" });
+      loadAdsSearchParams({
+        projectId: "p1",
+        tab: "accounts",
+        account: "a2",
+        range: "7d",
+      }),
+    ).toEqual({ projectId: "p1", tab: "accounts", account: "a2", range: "7d" });
   });
 
-  it("falls back for an unknown account or range", () => {
-    expect(
-      parseCampaignsSelection({ account: "gone", range: "90d" }, accounts),
-    ).toEqual({ account: accounts[0], range: "30d" });
-  });
-
-  it("has no selection without accounts", () => {
-    expect(parseCampaignsSelection({}, [])).toBeNull();
+  it("falls back for an unknown tab or range", () => {
+    expect(loadAdsSearchParams({ tab: "bogus", range: "90d" })).toMatchObject({
+      tab: "campaigns",
+      range: "30d",
+    });
   });
 });
 
-describe("isCampaignsTab", () => {
-  it.each([
-    [undefined, true],
-    ["campaigns", true],
-    ["bogus", true],
-    ["market", false],
-    ["accounts", false],
-  ])("%s -> %s", (tab, expected) => {
-    expect(isCampaignsTab(tab)).toBe(expected);
+describe("selectAccount", () => {
+  it("picks the account the URL names", () => {
+    expect(selectAccount(accounts, "a2")).toBe(accounts[1]);
+  });
+
+  it("falls back to the first account when unknown or missing", () => {
+    expect(selectAccount(accounts, "gone")).toBe(accounts[0]);
+    expect(selectAccount(accounts, null)).toBe(accounts[0]);
+  });
+
+  it("has no account without accounts", () => {
+    expect(selectAccount([], null)).toBeUndefined();
   });
 });

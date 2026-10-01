@@ -2852,7 +2852,10 @@
           "label": "Tagesbudget ({currency})",
           "save": "Budget speichern",
           "saving": "Wird gespeichert…",
+          "change": "Das Tagesbudget ändert sich von {old} auf {new}.",
+          "notSet": "nicht festgelegt",
           "errors": {
+            "shared": "Das Budget dieser Kampagne wird in {provider} verwaltet (gemeinsames oder Anzeigengruppen-Budget). Ändere es dort.",
             "required": "Gib ein Tagesbudget über 0 ein.",
             "wholeNumber": "Verwende eine ganze Zahl für {currency}.",
             "precision": "Verwende höchstens {digits} Nachkommastellen für {currency}."

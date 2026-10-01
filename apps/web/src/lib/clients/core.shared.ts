@@ -3420,6 +3420,28 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function deleteProjectsByIdAdsAccountsByAccountId(
+    path: DeleteProjectsByIdAdsAccountsByAccountIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsAccountsByAccountId({ client, path }),
+      "Failed to disconnect Project ad account",
+    );
+  }
+
+  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
+    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
+      "Failed to discard Project ad connection",
+    );
+  }
+
   async function getProjectsByIdAdsAccountsByAccountIdCampaigns(
     path: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
     query: GetProjectsByIdAdsAccountsByAccountIdCampaignsData["query"],
@@ -3450,28 +3472,6 @@ export function createCoreClient(getClient: GetCoreClient) {
           body,
         }),
       "Failed to update ad campaign",
-    );
-  }
-
-  async function deleteProjectsByIdAdsAccountsByAccountId(
-    path: DeleteProjectsByIdAdsAccountsByAccountIdData["path"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteProjectsByIdAdsAccountsByAccountId({ client, path }),
-      "Failed to disconnect Project ad account",
-    );
-  }
-
-  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
-    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
-  ) {
-    return executeCoreOperation(
-      getClient,
-      (client) =>
-        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
-      "Failed to discard Project ad connection",
     );
   }
 
@@ -5738,8 +5738,6 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteJobShare,
     deleteProjectsByIdDesignMd,
     deleteProjectsByIdAdsAccountsByAccountId,
-    getProjectsByIdAdsAccountsByAccountIdCampaigns,
-    patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     deleteProjectsByIdAdsConnectionsByAdConnectionId,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdSocialConnectionsByConnectionId,
@@ -5945,6 +5943,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
     getProjectsByIdAdsAccounts,
+    getProjectsByIdAdsAccountsByAccountIdCampaigns,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getProjectsByIdImageStudio,
@@ -5952,6 +5951,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdImageStudioJobsByJobIdCancel,
     getProjectsByIdSocialPosts,
     getProjectsByIdSocialPostsByPostId,
+    patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
     patchProjectsByIdSocialPostsByPostId,
     postProjectsByIdSocialPosts,
     postProjectsByIdSocialPostsByPostIdCancel,

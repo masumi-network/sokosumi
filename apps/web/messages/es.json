@@ -2852,7 +2852,10 @@
           "label": "Presupuesto diario ({currency})",
           "save": "Guardar presupuesto",
           "saving": "Guardando…",
+          "change": "El presupuesto diario cambia de {old} a {new}.",
+          "notSet": "sin definir",
           "errors": {
+            "shared": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí.",
             "required": "Introduce un presupuesto diario mayor que 0.",
             "wholeNumber": "Usa un número entero para {currency}.",
             "precision": "Usa como máximo {digits} decimales para {currency}."

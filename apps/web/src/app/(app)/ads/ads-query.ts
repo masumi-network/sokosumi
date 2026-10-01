@@ -1,4 +1,5 @@
 import { AdRange, type ProjectAdAccount } from "@sokosumi/core-client";
+import { createLoader, parseAsString, parseAsStringLiteral } from "nuqs/server";
 
 export const ADS_TABS = ["campaigns", "market", "accounts"] as const;
 
@@ -11,31 +12,23 @@ export const CORE_RANGE_BY_PARAM: Record<RangeParam, AdRange> = {
   "30d": AdRange.LAST_30_DAYS,
 };
 
-/** An unknown or missing `?tab=` opens Campaigns, the default tab. */
-export function isCampaignsTab(tab: string | undefined): boolean {
-  return (
-    tab === undefined || tab === "campaigns" || !ADS_TABS.some((t) => t === tab)
-  );
-}
-
-export interface CampaignsSelection {
-  account: ProjectAdAccount;
-  range: RangeParam;
-}
-
 /**
- * Which account and range the Campaigns tab shows. An unknown `?account=`
- * falls back to the first account and an unknown `?range=` to 30 days, so a
- * stale link still opens something useful. Null when there are no accounts.
+ * The page's URL state, read on the server and written by the client. An
+ * unknown `?tab=` opens Campaigns and an unknown `?range=` shows 30 days.
  */
-export function parseCampaignsSelection(
-  query: { account?: string | undefined; range?: string | undefined },
-  accounts: readonly ProjectAdAccount[],
-): CampaignsSelection | null {
-  const account =
-    accounts.find(({ id }) => id === query.account) ?? accounts[0];
-  if (!account) return null;
+export const adsSearchParams = {
+  projectId: parseAsString,
+  tab: parseAsStringLiteral(ADS_TABS).withDefault("campaigns"),
+  account: parseAsString,
+  range: parseAsStringLiteral(RANGE_PARAMS).withDefault("30d"),
+};
 
-  const range = RANGE_PARAMS.find((candidate) => candidate === query.range);
-  return { account, range: range ?? "30d" };
+export const loadAdsSearchParams = createLoader(adsSearchParams);
+
+/** The account `?account=` names, or the first one for a stale link. */
+export function selectAccount(
+  accounts: readonly ProjectAdAccount[],
+  accountId: string | null,
+): ProjectAdAccount | undefined {
+  return accounts.find(({ id }) => id === accountId) ?? accounts[0];
 }

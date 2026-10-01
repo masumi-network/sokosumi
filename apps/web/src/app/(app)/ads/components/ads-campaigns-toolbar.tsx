@@ -2,7 +2,7 @@
 
 import type { ProjectAdAccount } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
+import { useQueryStates } from "nuqs";
 
 import {
   Select,
@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
-import { RANGE_PARAMS, type RangeParam } from "../ads-query";
+import { adsSearchParams, RANGE_PARAMS, type RangeParam } from "../ads-query";
 
 const queryParsers = {
-  account: parseAsString,
-  range: parseAsStringLiteral(RANGE_PARAMS),
+  account: adsSearchParams.account,
+  range: adsSearchParams.range,
 };
 
 interface AdsCampaignsToolbarProps {
@@ -56,11 +56,10 @@ export function AdsCampaignsToolbar({
             ))}
           </SelectContent>
         </Select>
-      ) : (
-        <span />
-      )}
+      ) : null}
       <ToggleGroup
         aria-label={t("rangeLabel")}
+        className="ml-auto"
         onValueChange={(value) => {
           // Clicking the selected range again would clear it; keep it.
           const next = RANGE_PARAMS.find((candidate) => candidate === value);
