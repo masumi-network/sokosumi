@@ -15,16 +15,18 @@ function slugifyTaskName(name: string): string {
   return lastDash > 0 ? head.slice(0, lastDash) : head;
 }
 
+export interface TaskHrefInput {
+  id: string;
+  identifier: string | null;
+  name: string;
+}
+
 /**
  * Canonical task URL: `/tasks/SOK-12-fix-login` when the task has a project
  * identifier, `/tasks/{id}` otherwise. Core resolves either (and ignores the
  * slug), so a stale slug still opens the task.
  */
-export function taskHref(task: {
-  id: string;
-  identifier: string | null;
-  name: string;
-}): string {
+export function taskHref(task: TaskHrefInput): string {
   if (!task.identifier) return `/tasks/${task.id}`;
 
   const slug = slugifyTaskName(task.name);
