@@ -35,15 +35,19 @@ public extension ChannelEditPermissions {
 public struct ArchivedChannelList: Sendable {
   public let rooms: [Components.Schemas.ChatRoom]
   public let canDelete: Bool
+  public let roleLoadFailed: Bool
 
-  public init(rooms: [Components.Schemas.ChatRoom], canDelete: Bool) {
+  public init(rooms: [Components.Schemas.ChatRoom], canDelete: Bool, roleLoadFailed: Bool = false) {
     self.rooms = rooms
     self.canDelete = canDelete
+    self.roleLoadFailed = roleLoadFailed
   }
 }
 
 /// Web `organization-chat-list.client.tsx` Archived section: name-sorted archived channels, Delete for owners/admins.
 /// Loads fail soft (the previous list stays); local archive/restore/delete edits invalidate an in-flight load.
+/// A failed role read lists the rows and leaves Delete as it was: off after `reset`, as on web's first render,
+/// and unchanged afterwards, as web's later archived reads never touch the gate.
 @MainActor
 public final class ArchivedChannels: ObservableObject {
   @Published public private(set) var rooms: [Components.Schemas.ChatRoom] = []
@@ -57,7 +61,9 @@ public final class ArchivedChannels: ObservableObject {
     let attempt = generation
     guard let list = try? await fetch(), attempt == generation, !Task.isCancelled else { return }
     rooms = Self.sorted(list.rooms)
-    canDelete = list.canDelete
+    if !list.roleLoadFailed {
+      canDelete = list.canDelete
+    }
   }
 
   public func reset() {
