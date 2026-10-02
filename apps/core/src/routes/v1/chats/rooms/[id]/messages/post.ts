@@ -12,7 +12,7 @@ import {
 import { emitChatMentionNotifications } from "@/helpers/chat-mention-notifications";
 import { emitChatRoomMessageCreatedEffects } from "@/helpers/chat-room-message-created-effects";
 import { publishChatRoomMessageRealtime } from "@/helpers/chat-room-message-realtime";
-import { conflict, forbidden } from "@/helpers/error";
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
@@ -36,13 +36,12 @@ import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unf
 
 import {
   chatRoomMessageInclude,
-  isReadOnlyDirectRoom,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
   quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireChatRoomUserWriteAccess,
+  requireWritableChatRoom,
   resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
@@ -247,16 +246,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let persisted;
     try {
       persisted = await prisma.$transaction(async (tx) => {
-        const room = await requireChatRoomUserWriteAccess(
-          id,
-          userContext.userId,
-          tx,
-        );
-        if (isReadOnlyDirectRoom(room)) {
-          throw forbidden(
-            "Everyone else has left this Direct, so it is read-only.",
-          );
-        }
+        const room = await requireWritableChatRoom(id, userContext.userId, tx);
 
         if (clientId) {
           const existing = await tx.chatRoomMessage.findUnique({

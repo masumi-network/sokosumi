@@ -3121,7 +3121,11 @@ function RoomView({
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectKey}
-              onToggleReaction={stableMessageHandlers.onToggleReaction}
+              onToggleReaction={
+                room.isReadOnly
+                  ? undefined
+                  : stableMessageHandlers.onToggleReaction
+              }
               onOpenThread={
                 !isOutboundLocal &&
                 shouldShowChatRoomThreadButton({
@@ -3321,16 +3325,19 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
-              {/* The prompt checks the bot is the viewer's own before it shows. */}
-              {isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
-                <SokoBotConnectPrompt
-                  sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
-                />
-              ) : null}
               {readOnlyNotice ? (
                 <ReadOnlyDirectNotice message={readOnlyNotice} />
               ) : (
                 <RoomSessionComposer
+                  aboveCard={
+                    // Inside the composer, so a read-only Direct (bot gone)
+                    // drops the prompt with the composer it would sit on.
+                    isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                      <SokoBotConnectPrompt
+                        sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                      />
+                    ) : null
+                  }
                   ref={roomComposerRef}
                   roomId={selectedRoom.id}
                   draftKey={composeDraftKey.room(selectedRoom.id)}
@@ -3428,7 +3435,11 @@ function RoomView({
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}
-                onToggleReaction={stableMessageHandlers.onToggleReaction}
+                onToggleReaction={
+                  selectedRoom.isReadOnly
+                    ? undefined
+                    : stableMessageHandlers.onToggleReaction
+                }
                 onQuote={handleQuoteThreadMessage}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
