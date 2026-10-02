@@ -196,6 +196,10 @@ import {
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
+import {
+  ReadOnlyDirectNotice,
+  useReadOnlyDirectNotice,
+} from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -976,7 +980,31 @@ function RoomView({
     }
   }
 
-  const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const pageRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const sidebarRoom = sidebarRooms.find((room) => room.id === pageRoom?.id);
+  // Prefer a page fetch to the sidebar roster already in memory. Later fetched
+  // rosters can learn exits and returns; local attention overlays keep these
+  // member arrays, so marking a room read cannot reopen an older roster.
+  const [pageRoomSnapshot, setPageRoomSnapshot] = useState({
+    room: pageRoom,
+    sidebarRoom,
+  });
+  if (pageRoom !== pageRoomSnapshot.room) {
+    setPageRoomSnapshot({ room: pageRoom, sidebarRoom });
+  }
+  const sidebarRosterChanged =
+    sidebarRoom != null &&
+    (sidebarRoom.userMembers !== pageRoomSnapshot.sidebarRoom?.userMembers ||
+      sidebarRoom.formerUserMembers !==
+        pageRoomSnapshot.sidebarRoom?.formerUserMembers ||
+      sidebarRoom.coworkerMembers !==
+        pageRoomSnapshot.sidebarRoom?.coworkerMembers ||
+      sidebarRoom.sokoBotMembers !==
+        pageRoomSnapshot.sidebarRoom?.sokoBotMembers);
+  const selectedRoom =
+    pageRoom?.kind === "direct" && sidebarRosterChanged
+      ? sidebarRoom
+      : pageRoom;
   // The dialog goes with the room. Losing the room takes it off screen, and a
   // reader who is let back in has not asked for it a second time.
   if (selectedRoom == null && editChannelOpen) {
@@ -1010,6 +1038,7 @@ function RoomView({
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
     : "";
+  const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
   // Seen by. Seeded from the room payload, topped up by room read events; both
   // the header stack and the transcript line read it, so neither reaches for
@@ -3274,7 +3303,7 @@ function RoomView({
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
-              enabled
+              enabled={!selectedRoom.isReadOnly}
               onFiles={(files) => {
                 roomComposerRef.current?.attachFiles(files);
               }}
@@ -3292,59 +3321,68 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
-              <RoomSessionComposer
-                aboveCard={
-                  isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
-                    <SokoBotConnectPrompt
-                      sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
-                    />
-                  ) : null
-                }
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                sokoBotsById={sokoBotsById}
-                sokoBotsBySlug={sokoBotsBySlug}
-                channels={channelOptions}
-                channelLinks={channelLinks}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onSetPendingQuote={setPendingQuote}
-                onResolveMessageLink={handleResolveMessageLink}
-                requireBody={isCoworkerStreamRoom}
-                // Autofocus only after history settles. Send stays enabled so
-                // optimistic posts work during progressive open (merge into list).
-                focusOnMount={!messagesPending}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-                currentUserId={currentUserId}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectKey}
-              />
+              {readOnlyNotice ? (
+                <ReadOnlyDirectNotice message={readOnlyNotice} />
+              ) : (
+                <RoomSessionComposer
+                  aboveCard={
+                    // Inside the composer, so a read-only Direct (bot gone)
+                    // drops the prompt with the composer it would sit on.
+                    isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                      <SokoBotConnectPrompt
+                        sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                      />
+                    ) : null
+                  }
+                  ref={roomComposerRef}
+                  roomId={selectedRoom.id}
+                  draftKey={composeDraftKey.room(selectedRoom.id)}
+                  mentions={mentionRecords}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  sokoBotsById={sokoBotsById}
+                  sokoBotsBySlug={sokoBotsBySlug}
+                  channels={channelOptions}
+                  channelLinks={channelLinks}
+                  placeholder={
+                    isDirectRoom
+                      ? t("directComposerPlaceholder", {
+                          member: selectedRoomDisplayName,
+                        })
+                      : t("composerPlaceholderWithChannel", {
+                          channel: selectedRoomDisplayName,
+                        })
+                  }
+                  isSending={isCoworkerStreaming}
+                  showMentionShortcut={shouldShowRoomMentionShortcut(
+                    selectedRoom,
+                  )}
+                  pendingQuote={pendingQuote}
+                  onClearPendingQuote={() => setPendingQuote(null)}
+                  onSetPendingQuote={setPendingQuote}
+                  onResolveMessageLink={handleResolveMessageLink}
+                  requireBody={isCoworkerStreamRoom}
+                  // Autofocus only after history settles. Send stays enabled so
+                  // optimistic posts work during progressive open (merge into list).
+                  focusOnMount={!messagesPending}
+                  onBeforeSend={handleChannelBeforeSend}
+                  onSend={handleChannelSend}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={
+                    stableMessageHandlers.onOpenDirectMessage
+                  }
+                  openingDirectParticipantKey={openingDirectKey}
+                />
+              )}
             </RoomTypingProvider>
           }
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
+                composerDisabledMessage={readOnlyNotice ?? undefined}
                 parentMessage={
                   displayThreadParentMessage ?? threadParentMessage
                 }

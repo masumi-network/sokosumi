@@ -7,6 +7,7 @@ import {
 import { getEnv } from "@/config/env";
 import {
   badRequest,
+  forbidden,
   payloadTooLarge,
   serviceUnavailable,
 } from "@/helpers/error";
@@ -29,9 +30,10 @@ import {
 } from "@/schemas/chat-room-file-upload.schema";
 
 import {
+  isReadOnlyDirectRoom,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireChatRoomUserMembership,
+  requireChatRoomUserWriteAccess,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -165,7 +167,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserAuthContext(authContext);
-    await requireChatRoomUserMembership(roomId, userContext.userId, prisma);
+    const room = await requireChatRoomUserWriteAccess(
+      roomId,
+      userContext.userId,
+      prisma,
+    );
+    if (isReadOnlyDirectRoom(room)) {
+      throw forbidden(
+        "Everyone else has left this Direct, so it is read-only.",
+      );
+    }
 
     const session = await createChatRoomFileUploadSession(
       { kind: "user", userId: userContext.userId },
