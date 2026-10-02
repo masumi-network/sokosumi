@@ -83,7 +83,7 @@ public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMes
 /// Web `isMentionCoworkerShell` (`merge-room-messages.ts`): only a coworker's
 /// bodiless shell stays; a Soko Bot's, which the row could draw, is dropped.
 private func isCoworkerMentionShell(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  guard case .case2 = message.sender else { return false }
+  guard isCoworkerSender(message) else { return false }
   return MentionThoughtShell(message: message) != nil
 }
 
