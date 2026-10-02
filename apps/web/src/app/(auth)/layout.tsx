@@ -43,7 +43,9 @@ export default async function AuthLayout({
   // Pathname and query from proxy (`x-pathname`, `x-search-params`). OAuth
   // consent pages never redirect away on an existing session, and a page that
   // carries an OAuth request hands a signed-in person back to the provider
-  // itself, so both skip the Core session read here.
+  // itself, so both skip the Core session read here. Password reset serves
+  // signed-in people too: someone who signed in with a code because they
+  // forgot the password still needs the emailed link to work.
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
@@ -52,7 +54,10 @@ export default async function AuthLayout({
       new URLSearchParams(headersList.get("x-search-params") ?? ""),
     ) !== undefined;
   const shouldSkipSessionCheck =
-    pathname.startsWith("/oauth") || carriesOAuthRequest;
+    pathname.startsWith("/oauth") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    carriesOAuthRequest;
 
   if (!shouldSkipSessionCheck) {
     // Cookie-cache session is enough for "already signed in → leave auth UI".

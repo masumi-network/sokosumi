@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -49,6 +51,7 @@ const {
   renderVerificationEmailMock,
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
+  sentrySetExtrasMock,
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
@@ -167,6 +170,7 @@ const {
     renderVerificationEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
     sentryCaptureExceptionMock: vi.fn(),
+    sentrySetExtrasMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
@@ -281,6 +285,8 @@ vi.mock("better-auth/api", async (importOriginal) => {
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+  withScope: (callback: (scope: { setExtras: unknown }) => void) =>
+    callback({ setExtras: sentrySetExtrasMock }),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -1302,6 +1308,16 @@ describe("core auth config", () => {
     );
   });
 
+  // Better Auth keys the bucket by IP and path, and this plugin rule overrides
+  // its default three a minute for sending.
+  it("asks the email code plugin for ten requests a minute, so a shared office network still signs in", async () => {
+    await import("./auth");
+
+    expect(emailOTPPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({ rateLimit: { window: 60, max: 10 } }),
+    );
+  });
+
   it("closes the email code endpoints Sokosumi does not use", async () => {
     await import("./auth");
 
@@ -1843,11 +1859,13 @@ describe("core auth config", () => {
         expect(warn).toHaveBeenCalledWith(
           "[email_code_email] suppressed external failure",
           {
-            error: "Email transport unavailable",
-            email: "andreas@example.com",
+            error: "Email code delivery failed",
           },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(
+          "andreas@example.com",
+        );
       } finally {
         warn.mockRestore();
       }
@@ -1864,7 +1882,77 @@ describe("core auth config", () => {
         await expectCodeLine(false);
       },
     );
+
+    it("reports a failed send to Sentry without the address", async () => {
+      const failure = new Error("Resend rejected the request");
+      sendEmailMock.mockRejectedValueOnce(failure);
+
+      await sendCode();
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledOnce();
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Email code delivery failed" }),
+        { tags: { context: "email_code_email" } },
+      );
+      expect(
+        JSON.stringify(sentryCaptureExceptionMock.mock.calls),
+      ).not.toContain("andreas@example.com");
+    });
   });
+
+  it.each([422, 503])(
+    "keeps recipient-bearing provider errors out of telemetry (%s)",
+    async (statusCode) => {
+      const failure = Object.assign(
+        new Error("Unable to send to andreas@example.com: 042917"),
+        {
+          name: "application_error",
+          statusCode,
+          cause: { message: "andreas@example.com", code: "042917" },
+        },
+      );
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await import("./auth");
+
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(
+        statusCode === 503 ? 0 : 1,
+      );
+      expect(warn).toHaveBeenCalledTimes(statusCode === 503 ? 1 : 0);
+      const reported = inspect(
+        [
+          sentryCaptureExceptionMock.mock.calls,
+          sentrySetExtrasMock.mock.calls,
+          warn.mock.calls,
+        ],
+        { depth: null },
+      );
+      expect(reported).not.toContain("andreas@example.com");
+      expect(reported).not.toContain("042917");
+      expect(reported).toContain("Email code delivery failed");
+      warn.mockRestore();
+    },
+  );
 
   describe("verification email", () => {
     type SendVerificationEmail = (
@@ -2377,7 +2465,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("reports Stripe customer creation failures to Sentry", async () => {
+  it("reports Stripe customer creation failures to Sentry without the address or name", async () => {
     stripeCreateUserCustomerMock.mockRejectedValueOnce(
       new Error("stripe failed"),
     );
@@ -2412,15 +2500,14 @@ describe("core auth config", () => {
     await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
+      extra: { userId: "user_123" },
       tags: {
         context: "stripe_user_customer_creation",
       },
     });
+    const report = JSON.stringify(sentryCaptureExceptionMock.mock.calls[0][1]);
+    expect(report).not.toContain("andreas@example.com");
+    expect(report).not.toContain("Andreas");
   });
 
   it("reports organization workspace creation failures to Sentry", async () => {

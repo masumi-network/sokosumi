@@ -583,15 +583,50 @@ describe("SignInForm", () => {
       );
     });
 
-    it("links to the password reset with the address", () => {
+    // The URL reaches server logs and analytics; the address goes through
+    // session storage instead.
+    it("hands the address to the password reset outside the URL", () => {
       renderForm();
+      const link = screen.getByRole("link", { name: "forgotPassword" });
+
+      expect(link).toHaveAttribute("href", "/forgot-password");
+      window.sessionStorage.clear();
+      fireEvent.click(link);
+      expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
+    });
+
+    it("keeps where the person was going on the password reset link", () => {
+      mockSearchParams = new URLSearchParams("returnUrl=/chat");
+      renderForm({ returnUrl: "/chat" });
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute("href", "/forgot-password?returnUrl=%2Fchat");
+    });
+
+    // Sign-in after the reset locks the invited address again.
+    it("keeps the invitation on the password reset link", () => {
+      mockSearchParams = new URLSearchParams(
+        "returnUrl=/accept-invitation/inv_1&invitationId=inv_1",
+      );
+      renderForm({ returnUrl: "/accept-invitation/inv_1" });
 
       expect(
         screen.getByRole("link", { name: "forgotPassword" }),
       ).toHaveAttribute(
         "href",
-        `/forgot-password?email=${encodeURIComponent(EMAIL)}`,
+        "/forgot-password?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
       );
+    });
+
+    it("keeps the signed OAuth request on the password reset link", () => {
+      const oauthQuery = "client_id=cmo&exp=1900000000&sig=abc%2B%2F%3D";
+      mockSearchParams = new URLSearchParams(oauthQuery);
+      renderForm();
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute("href", `/forgot-password?${oauthQuery}`);
     });
 
     it("focuses the password when it is missing", async () => {

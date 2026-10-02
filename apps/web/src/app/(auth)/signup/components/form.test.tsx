@@ -416,12 +416,11 @@ describe("SignUpForm with a password", () => {
     expect(href.searchParams.get("sig")).toBe("signed-value");
   });
 
-  it("leaves an invitation's address in the link, not in the hint", async () => {
+  // Sign-in looks the invitation up and ignores the hint when it locks the
+  // address; if the lookup fails, the typed address still arrives.
+  it("keeps the invitation on the Log in link and hands the address over", async () => {
     mockEmailCodeSignIn.mockResolvedValueOnce(existingAccountError);
-    mockSearchParams = new URLSearchParams({
-      invitationId: "invitation-1",
-      email: EMAIL,
-    });
+    mockSearchParams = new URLSearchParams({ invitationId: "invitation-1" });
     renderForm();
 
     await submitValidSignUpForm();
@@ -430,9 +429,9 @@ describe("SignUpForm with a password", () => {
       name: "AccountExists.logIn",
     });
     expect(logIn.getAttribute("href")).toContain("invitationId=invitation-1");
-    window.sessionStorage.setItem("auth-email-hint", "stale@example.com");
+    expect(logIn.getAttribute("href")).not.toContain("email=");
     fireEvent.click(logIn);
-    expect(window.sessionStorage.getItem("auth-email-hint")).toBeNull();
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
   });
 
   it("drops the notice when a later submit fails for another reason", async () => {

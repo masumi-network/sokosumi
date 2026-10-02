@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
@@ -69,7 +68,6 @@ export default function SignUpForm({
   // in another tab.
   const [accountExists, setAccountExists] = useState(false);
   const signInHref = useSignInHref();
-  const searchParams = useSearchParams();
 
   // Read by the resolver, which validates whichever way the step finishes.
   const withPasswordRef = useRef(withPassword);
@@ -235,15 +233,8 @@ export default function SignUpForm({
             <p>{t("AccountExists.description")}</p>
             <Link
               href={signInHref}
-              onClick={(event) =>
-                // An invitation's address travels in the link itself.
-                rememberAuthEmailHintOnClick(
-                  event,
-                  searchParams.get("invitationId") && searchParams.get("email")
-                    ? ""
-                    : email,
-                )
-              }
+              // Sign-in ignores it when an invitation locks the address.
+              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
               className="text-primary font-medium hover:underline"
             >
               {t("AccountExists.logIn")}

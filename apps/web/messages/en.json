@@ -4,7 +4,8 @@
       "error": "Security check could not load. Turn off content blockers or reload the page.",
       "verificationFailed": "The security check failed. Please try again.",
       "missingResponse": "Complete the security check and try again.",
-      "requestFailed": "Unable to complete this request. Please try again later."
+      "requestFailed": "Unable to complete this request. Please try again later.",
+      "rateLimited": "Too many requests in a row. Wait a minute, then try again."
     },
     "EmailCodeForm": {
       "sent": "We sent a 6-digit code to {email}.",
@@ -1292,8 +1293,13 @@
           "reset_password": "Reset password",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             }
+          },
+          "linkExpired": "That reset link expired or was already used. Request a new one.",
+          "Errors": {
+            "rateLimited": "Too many requests in a row. Wait a minute, then try again.",
+            "generic": "We could not send the reset email. Try again."
           }
         }
       },
@@ -1307,15 +1313,18 @@
         "Form": {
           "submit": "Reset password",
           "success": "Password reset. You have been signed out on all devices.",
-          "error": "Password reset failed",
+          "error": "We could not reset your password. The link may have expired or been used already.",
           "Fields": {
             "Password": {
-              "placeholder": "New password"
+              "label": "New password"
             },
             "ConfirmPassword": {
-              "placeholder": "Confirm password"
+              "label": "Confirm password"
             }
-          }
+          },
+          "requestNewLink": "Request a new link",
+          "signOutError": "Password changed. We could not finish signing out of this browser. Try again to continue to sign-in.",
+          "continueToSignIn": "Continue to sign-in"
         }
       }
     },
@@ -4744,7 +4753,8 @@
         "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
         "submit": "Update password",
         "success": "Password updated successfully",
-        "error": "Failed to update password"
+        "error": "Failed to update password",
+        "forgotPassword": "Forgot your password?"
       },
       "NewPassword": {
         "title": "Set password",
