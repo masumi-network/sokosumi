@@ -51326,7 +51326,7 @@ export type GetTasksByIdData = {
     body?: never;
     path: {
         /**
-         * Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace; a trailing slug like SOK-123-fix-login is ignored).
+         * Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace, including a prefix the project has since changed; a trailing slug like SOK-123-fix-login is ignored).
          */
         id: string;
     };

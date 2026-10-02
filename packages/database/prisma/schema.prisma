@@ -167,6 +167,7 @@ model Workspace {
   socialPosts              SocialPost[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
+  projectIdentifierAliases ProjectIdentifierAlias[]
   taskScheduleRuns         TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
@@ -489,10 +490,32 @@ model Project {
   taskCounter Int @default(0)
 
   taskIdentifierAliases TaskIdentifierAlias[]
+  /// Prefixes this project used before the current identifier.
+  identifierAliases     ProjectIdentifierAlias[]
 
   @@unique([workspaceId, identifier])
   @@index([workspaceId])
   @@map("project")
+}
+
+/// A prefix a project used to hold, so /tasks/OLD-123 still opens its task
+/// after the identifier changes. Another project in the workspace cannot take
+/// the prefix. Written by project_alias_old_identifier. Format matches
+/// Project.identifier via a CHECK Prisma cannot express.
+model ProjectIdentifierAlias {
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  identifier String
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, identifier])
+  @@index([projectId])
+  @@map("project_identifier_alias")
 }
 
 /// One user's Pin on one project: personal, private, and not shared with the
@@ -2891,6 +2914,7 @@ model Task {
   /// The one time this Task is set to start instead of now. Never repeats.
   runAt DateTime?
 
+  @@unique([projectId, number])
   @@index([organizationId])
   @@index([workspaceId])
   @@index([archivedAt])
@@ -2900,7 +2924,6 @@ model Task {
   @@index([assigneeSokoBotId])
   @@index([assigneeUserId])
   @@index([projectId])
-  @@unique([projectId, number])
   @@index([pendingVendorGrantId])
   @@index([creatorUserId])
   @@index([creatorCoworkerId])
@@ -3143,10 +3166,10 @@ model TaskScheduleRun {
   originalScheduledAt  DateTime
   effectiveScheduledAt DateTime
 
-  state TaskScheduleRunState
+  state  TaskScheduleRunState
   /// Run now (ADR 0047): released by hand, outside the rule, and not counted
   /// toward an end-after-N rule.
-  manual Boolean @default(false)
+  manual Boolean              @default(false)
 
   sourceWorkspaceId String             @db.Uuid
   sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)

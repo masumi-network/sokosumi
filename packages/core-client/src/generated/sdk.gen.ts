@@ -4348,7 +4348,7 @@ export const deleteTasksById = <ThrowOnError extends boolean = false>(options: O
 });
 
 /**
- * Retrieve task details by task id or by project identifier such as SOK-123. Tasks that moved projects still resolve by their former identifier.
+ * Retrieve task details by task id or by project identifier such as SOK-123. A former identifier still resolves after the task moves projects or the project prefix changes.
  */
 export const getTasksById = <ThrowOnError extends boolean = false>(options: Options<GetTasksByIdData, ThrowOnError>): RequestResult<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError> => (options.client ?? client).get<GetTasksByIdResponses, GetTasksByIdErrors, ThrowOnError>({
     responseTransformer: getTasksByIdResponseTransformer,

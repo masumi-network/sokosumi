@@ -165,6 +165,28 @@ describe.skipIf(!enabled)("project identifier against PostgreSQL", () => {
     }
   });
 
+  it("allocates past a retired prefix instead of reusing it", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      const retired = await prisma.project.create({
+        data: { workspaceId: ws, name: "Home", identifier: "HOM" },
+      });
+      await prisma.project.update({
+        where: { id: retired.id },
+        data: { identifier: "AWAY" },
+      });
+
+      const next = await prisma.project.create({
+        data: { workspaceId: ws, name: "Home" },
+      });
+
+      expect(next.identifier).toBe("HOM2");
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
   it("rejects identifiers outside the allowed format", async () => {
     for (const identifier of ["sok", "S", "1AB", "ABCDEFGH", "S-K"]) {
       await expect(

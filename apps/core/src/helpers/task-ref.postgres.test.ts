@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { requireTaskWorkspaceMapping } from "@/helpers/access-control";
+import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { resolveTaskRefToId } from "@/helpers/task-ref";
 import prisma from "@/lib/db/prisma";
 
@@ -108,6 +109,35 @@ describe.skipIf(!enabled)("task ref resolution against PostgreSQL", () => {
       "NOP-1",
     );
     expect(await resolveTaskRefToId(first, workspaceId, prisma)).toBe(first);
+  });
+
+  it("keeps the old prefix after the project identifier changes, and blocks reuse", async () => {
+    const project = await prisma.project.create({
+      data: { workspaceId, name: "Renamed", identifier: "OLD" },
+    });
+    const taskId = await createTask(userId, workspaceId, project.id);
+
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { identifier: "NEW" },
+    });
+
+    expect(await resolveTaskRefToId("OLD-1", workspaceId, prisma)).toBe(taskId);
+    expect(await resolveTaskRefToId("NEW-1", workspaceId, prisma)).toBe(taskId);
+
+    const stolen = await prisma.project
+      .create({
+        data: { workspaceId, name: "Thief", identifier: "OLD" },
+      })
+      .catch((error: unknown) => error);
+    expect(isProjectIdentifierUniqueConstraintError(stolen)).toBe(true);
+
+    await prisma.project.update({
+      where: { id: project.id },
+      data: { identifier: "OLD" },
+    });
+    expect(await resolveTaskRefToId("OLD-1", workspaceId, prisma)).toBe(taskId);
+    expect(await resolveTaskRefToId("NEW-1", workspaceId, prisma)).toBe(taskId);
   });
 
   it("keeps GET /tasks/{id}/workspace UUID-only: an identifier is a plain 404", async () => {

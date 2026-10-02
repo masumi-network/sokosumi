@@ -28,12 +28,14 @@ const {
   taskFindFirstMock,
   taskFindUniqueMock,
   projectFindUniqueMock,
+  prefixAliasFindUniqueMock,
   aliasFindUniqueMock,
   coworkerFindFirstMock,
 } = vi.hoisted(() => ({
   taskFindFirstMock: vi.fn(),
   taskFindUniqueMock: vi.fn(),
   projectFindUniqueMock: vi.fn(),
+  prefixAliasFindUniqueMock: vi.fn(),
   aliasFindUniqueMock: vi.fn(),
   coworkerFindFirstMock: vi.fn(),
 }));
@@ -48,6 +50,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: taskFindUniqueMock,
     },
     project: { findUnique: projectFindUniqueMock },
+    projectIdentifierAlias: { findUnique: prefixAliasFindUniqueMock },
     taskIdentifierAlias: { findUnique: aliasFindUniqueMock },
   },
 }));
@@ -697,6 +700,7 @@ describe("GET /tasks/{id} by identifier", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     projectFindUniqueMock.mockResolvedValue({ id: PROJECT_ID });
+    prefixAliasFindUniqueMock.mockResolvedValue(null);
     taskFindUniqueMock.mockResolvedValue({ id: TASK_ID });
     aliasFindUniqueMock.mockResolvedValue(null);
     taskFindFirstMock.mockImplementation(
@@ -750,6 +754,29 @@ describe("GET /tasks/{id} by identifier", () => {
       expect(accessWhereIds()).toEqual([TASK_ID]);
     },
   );
+
+  it("resolves a prefix the project no longer uses", async () => {
+    projectFindUniqueMock.mockResolvedValue(null);
+    prefixAliasFindUniqueMock.mockResolvedValue({ projectId: PROJECT_ID });
+
+    const response = await get("OLD-12");
+
+    expect(response.status).toBe(200);
+    expect(prefixAliasFindUniqueMock).toHaveBeenCalledWith({
+      where: {
+        workspaceId_identifier: {
+          workspaceId: testWorkspaceId,
+          identifier: "OLD",
+        },
+      },
+      select: { projectId: true },
+    });
+    expect(taskFindUniqueMock).toHaveBeenCalledWith({
+      where: { projectId_number: { projectId: PROJECT_ID, number: 12 } },
+      select: { id: true },
+    });
+    expect(accessWhereIds()).toEqual([TASK_ID]);
+  });
 
   it("falls back to the alias of a task that moved away", async () => {
     taskFindUniqueMock.mockResolvedValue(null);

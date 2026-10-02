@@ -15,7 +15,7 @@ const paramsSchema = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
     description:
-      "Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace; a trailing slug like SOK-123-fix-login is ignored).",
+      "Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace, including a prefix the project has since changed; a trailing slug like SOK-123-fix-login is ignored).",
     example: "SOK-123",
   }),
 });
@@ -24,7 +24,7 @@ const route = createRoute({
   method: "get",
   path: "/{id}",
   description:
-    "Retrieve task details by task id or by project identifier such as SOK-123. Tasks that moved projects still resolve by their former identifier.",
+    "Retrieve task details by task id or by project identifier such as SOK-123. A former identifier still resolves after the task moves projects or the project prefix changes.",
   tags: ["Tasks"],
   request: {
     params: paramsSchema,
