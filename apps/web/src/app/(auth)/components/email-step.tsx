@@ -70,6 +70,10 @@ interface EmailStepProps {
   onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
+  /** Another sign-in is starting, e.g. with Google; the step waits. */
+  disabled?: boolean | undefined;
+  /** Whether Continue, or following the detour, is still running. */
+  onPendingChange?: ((pending: boolean) => void) | undefined;
 }
 
 /**
@@ -93,6 +97,8 @@ export function EmailStep({
   onEmailChange,
   onContinue,
   continueCaptcha,
+  disabled = false,
+  onPendingChange,
 }: EmailStepProps) {
   const t = useTranslations("Auth.Email.Form");
   const oauthT = useTranslations("Auth.OAuthHandBack");
@@ -102,7 +108,10 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingState, setFollowingState] = useState<
+    "preparing" | "navigating" | null
+  >(null);
+  const isFollowing = followingState !== null;
   // Set at once, so a second click before the spinner renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
@@ -156,6 +165,13 @@ export function EmailStep({
     detourLinkRef.current?.focus();
   }, [isDetoured, isSubmitting]);
 
+  // Following the detour and Continue never overlap: the detour only shows
+  // once Continue is done. Each tells the parent from the event that changes it.
+  function changeFollowing(state: "preparing" | "navigating" | null) {
+    setFollowingState(state);
+    onPendingChange?.(state !== null);
+  }
+
   async function followDetour(
     email: string,
     follow: NonNullable<EmailStepDetour["follow"]>,
@@ -163,12 +179,16 @@ export function EmailStep({
     const controller = new AbortController();
     pending.current = controller;
     isFollowingRef.current = true;
-    setIsFollowing(true);
+    changeFollowing("preparing");
     await follow(email, controller.signal);
+    if (pending.current !== controller) return;
     // Done, the page is leaving; keep spinning until it has.
-    if (!controller.signal.aborted) return;
+    if (!controller.signal.aborted) {
+      if (mounted.current) changeFollowing("navigating");
+      return;
+    }
     isFollowingRef.current = false;
-    if (mounted.current) setIsFollowing(false);
+    if (mounted.current) changeFollowing(null);
   }
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
@@ -182,47 +202,54 @@ export function EmailStep({
         form.getValues("email").trim() === email
       );
     }
-    await runWithCaptcha(async (fetchOptions) => {
-      if (!isCurrent()) return;
-      const result = await authClient.$fetch<{ exists: boolean }>(
-        "/sign-up/email-status",
-        { method: "POST", body: { email }, headers: fetchOptions.headers },
-      );
+    onPendingChange?.(true);
+    try {
+      await runWithCaptcha(async (fetchOptions) => {
+        if (!isCurrent()) return;
+        const result = await authClient.$fetch<{ exists: boolean }>(
+          "/sign-up/email-status",
+          { method: "POST", body: { email }, headers: fetchOptions.headers },
+        );
 
-      if (!isCurrent()) return;
-      if (result.error) {
-        // The auth client adds the page's OAuth request to every call, this
-        // one included, and Core refuses the call when that request is stale.
-        if (isRejectedOAuthRequestError(result.error)) {
-          toast.error(oauthT("errorDescription"));
+        if (!isCurrent()) return;
+        if (result.error) {
+          // The auth client adds the page's OAuth request to every call, this
+          // one included, and Core refuses the call when that request is stale.
+          if (isRejectedOAuthRequestError(result.error)) {
+            toast.error(oauthT("errorDescription"));
+            return;
+          }
+
+          // Core puts the captcha's error code on the body; the client types
+          // only the transport fields.
+          const error: { code?: string; message?: string } = result.error;
+          toast.error(getErrorMessage(error, error.message ?? t("error")));
           return;
         }
 
-        // Core puts the captcha's error code on the body; the client types
-        // only the transport fields.
-        const error: { code?: string; message?: string } = result.error;
-        toast.error(getErrorMessage(error, error.message ?? t("error")));
-        return;
-      }
+        if (result.data.exists === (detour.when === "exists")) {
+          detouredSince.current = performance.now();
+          setIsDetoured(true);
+          return;
+        }
 
-      if (result.data.exists === (detour.when === "exists")) {
-        detouredSince.current = performance.now();
-        setIsDetoured(true);
-        return;
-      }
-
-      await onContinue(email, controller.signal);
-    });
+        await onContinue(email, controller.signal);
+      });
+    } finally {
+      // Also after Continue has swapped this step out for the next one.
+      onPendingChange?.(false);
+    }
   }
 
   return (
     <BaseForm
       form={form}
       onSubmit={handleSubmit}
+      disabled={disabled || followingState === "navigating"}
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;
-        setIsFollowing(false);
+        changeFollowing(null);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -297,7 +324,7 @@ export function EmailStep({
               <Link
                 ref={detourLinkRef}
                 href={detour.href}
-                inert={!isDetoured}
+                inert={!isDetoured || disabled}
                 aria-describedby={isDetoured ? noticeId : undefined}
                 aria-busy={isFollowing || undefined}
                 aria-disabled={isFollowing || undefined}
@@ -315,6 +342,10 @@ export function EmailStep({
                     return;
                   }
                   rememberAuthEmailHintOnClick(event, email);
+                  if (isSameTabClick(event)) {
+                    isFollowingRef.current = true;
+                    changeFollowing("navigating");
+                  }
                 }}
               >
                 {isFollowing ? (

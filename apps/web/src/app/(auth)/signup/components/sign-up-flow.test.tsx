@@ -168,8 +168,29 @@ describe("SignUpFlow", () => {
       returnUrl: "/agents",
       lastUsedMethod: "google",
       eventType: "signUp",
+      disabled: false,
+      onPendingChange: expect.any(Function),
     });
     expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("does not email a sign-up code while a provider sign-up starts", async () => {
+    const user = userEvent.setup();
+    render(<SignUpFlow lastUsedMethod={null} />);
+    await user.type(emailField(), "ada@example.com");
+
+    const { onPendingChange } = socialButtonsMock.mock.lastCall?.[0] as {
+      onPendingChange: (pending: boolean) => void;
+    };
+    act(() => onPendingChange(true));
+
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeDisabled();
+    fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+    await act(async () => {});
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
   it("stays on the email step while the address is invalid", async () => {
@@ -559,6 +580,32 @@ describe("SignUpFlow", () => {
       expect(takeAuthEmailHint()).toBe("ada@example.com");
     });
 
+    it("holds the providers while the Log in detour navigates", async () => {
+      await openNotice();
+      now += 401;
+
+      fireEvent.click(logInLink());
+
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: true }),
+      );
+      expect(logInLink()).toHaveAttribute("aria-busy", "true");
+      expect(fireEvent.click(logInLink())).toBe(false);
+
+      // Link navigation cannot be aborted by editing the address.
+      expect(emailField()).toBeDisabled();
+      const user = userEvent.setup();
+      await user.type(emailField(), ".uk");
+      expect(emailField()).toHaveValue("ada@example.com");
+      fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+      await act(async () => {});
+      expect(emailStatusMock).toHaveBeenCalledTimes(1);
+      expect(sendEmailCodeMock).not.toHaveBeenCalled();
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: true }),
+      );
+    });
+
     it("leaves no email behind when sign-in opens in another tab", async () => {
       await openNotice();
 
@@ -566,6 +613,9 @@ describe("SignUpFlow", () => {
       fireEvent.click(logInLink(), { ctrlKey: true });
 
       expect(takeAuthEmailHint()).toBeNull();
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: false }),
+      );
     });
 
     it("ignores the second click of a double-click on the button it replaced", async () => {
