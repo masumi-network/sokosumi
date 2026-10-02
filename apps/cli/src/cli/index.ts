@@ -28,6 +28,7 @@ import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import {
+  CLI_COMMAND_CATALOG,
   formatUnknownCommandUsage,
   runDiscoverCommand,
 } from "./commands/discover.js";
@@ -129,16 +130,12 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
-const CORE_COMMAND_SECTIONS = new Set([
-  "admin",
-  "discover",
-  "agents",
-  "coworkers",
-  "vendors",
-  "workspaces",
-  "tasks",
-  "jobs",
-]);
+const CORE_COMMAND_SECTIONS = new Set(
+  CLI_COMMAND_CATALOG.map((entry) => entry.command.split(" ")[0]).filter(
+    (section) =>
+      section !== "skills" && section !== "runtime" && section !== "auth",
+  ),
+);
 interface ParsedArgv {
   positionals: string[];
   options: CliOptions;
@@ -410,10 +407,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "agents" &&
-      (command === undefined || command === "list" || command === "hire")
-    ) {
+    if (section === "agents") {
       await runAgentsCommand({
         client: getCoreClient(session, dependencies),
         stdout,
@@ -424,19 +418,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "coworkers" &&
-      (command === undefined ||
-        [
-          "list",
-          "register",
-          "provision",
-          "connect",
-          "update",
-          "api-key",
-          "me",
-        ].includes(command))
-    ) {
+    if (section === "coworkers") {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
@@ -448,25 +430,18 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "vendors" &&
-      (command === "me" || command === "create") &&
-      positionalId === undefined
-    ) {
+    if (section === "vendors") {
       await runVendorsCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
+        positionalId,
         options,
       });
       return {};
     }
-    if (
-      section === "workspaces" &&
-      ((command === "list" && positionalId === undefined) ||
-        (command === "check" && positionalId !== undefined))
-    ) {
+    if (section === "workspaces") {
       await runWorkspacesCommand({
         client: getCoreClient(session, dependencies),
         stdout,
@@ -476,13 +451,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "tasks" &&
-      (command === undefined ||
-        ["list", "create", "get", "events", "jobs", "comment"].includes(
-          command,
-        ))
-    ) {
+    if (section === "tasks") {
       await runTasksCommand({
         client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
@@ -493,10 +462,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "jobs" &&
-      (command === undefined || ["list", "get", "input"].includes(command))
-    ) {
+    if (section === "jobs") {
       await runJobsCommand({
         client: getCoreClient(session, dependencies),
         stdout,
