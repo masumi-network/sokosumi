@@ -1131,7 +1131,8 @@ export function isGroupDirectRoom(room: {
 /**
  * Humans a Direct was started for, read from its participant key. Empty for
  * Self Directs and AI 1:1s, whose one human owns the room and is never left
- * out of it while it exists.
+ * out of it while it exists. SQL `chat_direct_key_user_ids` mirrors this for
+ * the Organization rejoin trigger; change both together.
  */
 function directKeyUserIds(directKey: string): string[] {
   if (directKey.startsWith(DIRECT_PARTICIPANT_KEY_PREFIX)) {
