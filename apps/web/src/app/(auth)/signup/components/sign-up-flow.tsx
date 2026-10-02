@@ -126,7 +126,6 @@ export default function SignUpFlow({
           />
           <SignUpForm
             email={email}
-            returnUrl={returnUrl}
             emailCode={emailCode}
             onFormStart={handleFormStart}
             onPendingChange={setIsDetailsPending}

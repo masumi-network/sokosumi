@@ -103,6 +103,7 @@ function fakeEmailCode(overrides: Partial<EmailCode> = {}): EmailCode {
     sendCode: vi.fn().mockResolvedValue(Date.now()),
     adoptSentCode: vi.fn(),
     signInWithCode: vi.fn().mockResolvedValue(undefined),
+    removedSignInMethods: null,
     ...overrides,
   };
 }
@@ -375,6 +376,92 @@ describe("SignInForm", () => {
         expect(mockSignInEmailCode).toHaveBeenCalledOnce();
       },
     );
+
+    // Better Auth deletes the password and provider links of an account
+    // whose address was unproven when a code signs into it. Core says so.
+    describe("when the code removed the old sign-in methods", () => {
+      function signInRemovingMethods() {
+        mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+        mockSendEmailCode.mockResolvedValue({
+          data: { success: true },
+          error: null,
+        });
+        mockSignInEmailCode.mockResolvedValue({
+          data: {
+            token: "token",
+            user: { id: "user-1" },
+            signInMethodsRemoved: true,
+          },
+          error: null,
+        });
+      }
+
+      async function enterCode() {
+        render(<SignInCodeStep />);
+        const code = await screen.findByRole("textbox", { name: "codeLabel" });
+        fireEvent.change(code, { target: { value: "042917" } });
+        return screen.findByRole("alertdialog");
+      }
+
+      it("says so before leaving, and leaves once on Continue", async () => {
+        signInRemovingMethods();
+
+        const notice = await enterCode();
+
+        expect(notice).toHaveTextContent("SignInMethodsRemoved.title");
+        expect(notice).toHaveTextContent("SignInMethodsRemoved.description");
+        expect(mockLocationReplace).not.toHaveBeenCalled();
+        await userEvent.setup().click(
+          screen.getByRole("button", {
+            name: "SignInMethodsRemoved.continue",
+          }),
+        );
+        await waitFor(() =>
+          expect(mockLocationReplace).toHaveBeenCalledExactlyOnceWith("/chat"),
+        );
+        expect(fireGTMEvent.signIn).toHaveBeenCalledExactlyOnceWith(
+          "email-otp",
+        );
+      });
+
+      it("takes the person to set a new password", async () => {
+        signInRemovingMethods();
+
+        await enterCode();
+        await userEvent.setup().click(
+          screen.getByRole("button", {
+            name: "SignInMethodsRemoved.setPassword",
+          }),
+        );
+
+        await waitFor(() =>
+          expect(mockLocationReplace).toHaveBeenCalledExactlyOnceWith(
+            "/account",
+          ),
+        );
+      });
+    });
+
+    it("leaves without a notice when the code removed nothing", async () => {
+      mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
+      mockSendEmailCode.mockResolvedValue({
+        data: { success: true },
+        error: null,
+      });
+      mockSignInEmailCode.mockResolvedValue({
+        data: { token: "token", user: { id: "user-1" } },
+        error: null,
+      });
+      render(<SignInCodeStep />);
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+      fireEvent.change(code, { target: { value: "042917" } });
+
+      await waitFor(() =>
+        expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
+      );
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    });
 
     it("asks for all six digits before sending anything", async () => {
       const user = userEvent.setup();

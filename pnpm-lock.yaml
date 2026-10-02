@@ -273,6 +273,9 @@ importers:
       '@better-auth/api-key':
         specifier: 1.7.7
         version: 1.7.7(b4a265fd583d293d6d34448364eafcdb)
+      '@better-auth/core':
+        specifier: 1.7.7
+        version: 1.7.7(@better-auth/utils@0.4.2)(@better-fetch/fetch@1.3.2)(@opentelemetry/api@1.9.1)(better-call@1.4.0(zod@4.6.5))(jose@6.2.12)(kysely@0.28.17)(nanostores@1.3.0)
       '@better-auth/i18n':
         specifier: 1.7.7
         version: 1.7.7(268fad5e31273a31cd8f9c14d4092129)

@@ -1261,7 +1261,8 @@
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "error": "Registrierung fehlgeschlagen",
+          "addPassword": "Zusätzlich ein Passwort festlegen",
+          "removePassword": "Ohne Passwort registrieren",
           "Fields": {
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
@@ -1350,6 +1351,12 @@
       "code": "Fehlercode: {code}",
       "description": "Details: {description}",
       "backToSignIn": "Zurück zur Anmeldung"
+    },
+    "SignInMethodsRemoved": {
+      "title": "Deine bisherigen Anmeldemethoden wurden entfernt",
+      "description": "Du hast dich mit einem Code angemeldet. Aus Sicherheitsgründen haben wir dein bisheriges Passwort und deine Google-/Microsoft-Verknüpfungen entfernt. Lege in deinem Konto ein neues Passwort fest.",
+      "setPassword": "Neues Passwort festlegen",
+      "continue": "Weiter"
     }
   },
   "App": {
