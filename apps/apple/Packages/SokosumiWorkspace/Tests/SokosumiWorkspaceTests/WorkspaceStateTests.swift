@@ -1067,6 +1067,45 @@ struct WorkspaceStateTests {
     state.thread.close()
   }
 
+  /// Row 07d: an explicit thread re-read (envelope, lost continuity) runs while no chat window is active, without
+  /// Looking at the Thread or marking the room read.
+  @Test func hiddenThreadRecoveryReadsWithoutMarkingRead() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let rootID = "550e8400-e29b-41d4-a716-446655440034"
+    let root = transcriptMessage(id: rootID, roomId: roomID, content: "Parent")
+    let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: roomID, content: "Reply")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
+    let later = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440036", roomId: roomID, content: "Later")
+      .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [root], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 3)),
+      (200, #"{"data":{"parentMessageId":"\#(rootID)","lastReadAt":"\#(timestamp)"},"meta":{"timestamp":"\#(timestamp)","requestId":"test"}}"#),
+      (200, roomReadBody(id: roomID, unread: 2)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply, later], nextCursor: nil))
+    ], visible: false)
+    let window = UUID()
+    state.setWindowVisible(true, window: window)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(state.thread.displayedReplies.map(\.content) == ["Reply"])
+    let writes = transport.operationIDs.filter { $0.hasPrefix("post/") }.count
+
+    state.setWindowVisible(false, window: window)
+    state.thread.recovery.requestRefresh()
+    await waitWhile { state.thread.recovery.isRefreshing }
+    #expect(transport.threadGets == 2)
+    #expect(state.thread.displayedReplies.map(\.content) == ["Reply", "Later"])
+    #expect(transport.operationIDs.filter { $0.hasPrefix("post/") }.count == writes)
+    state.thread.close()
+  }
+
   @Test func failedReadKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440035"
     let (state, auth, transport, _) = try ephemeralState([
