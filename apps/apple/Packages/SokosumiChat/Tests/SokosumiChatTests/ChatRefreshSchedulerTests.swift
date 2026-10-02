@@ -233,6 +233,19 @@ struct ChatRefreshSchedulerTests {
     clock.fireAll()
   }
 
+  /// Row 07d: `chat_rooms_changed` naming Archived and the invitations reads both while no chat window is active.
+  @Test func sidebarInvalidationReadsNamedCollectionsWhileHidden() async {
+    let clock = RefreshClock()
+    let recovery = SidebarCollectionsRecovery(sleep: clock.sleep)
+    var reads: [ChatRoomCollection] = []
+    recovery.start(Set(ChatRoomCollection.allCases), foreground: false, healthy: true) { reads.append($0) }
+    recovery.requestRefresh([.archived, .invitations])
+    await waitUntil { reads.count == 2 && !recovery.isRefreshing }
+    #expect(reads == [.archived, .invitations])
+    recovery.stop()
+    clock.fireAll()
+  }
+
   /// A personal workspace starts no Archived reader, so a request for it reads nothing.
   @Test func sidebarCollectionNotStartedIgnoresRequests() async {
     let clock = RefreshClock()
