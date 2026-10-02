@@ -572,8 +572,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       eve:
-        specifier: 0.69.0
-        version: 0.69.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
+        specifier: 0.70.0
+        version: 0.70.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
       fake-indexeddb:
         specifier: 6.2.5
         version: 6.2.5
@@ -6864,8 +6864,8 @@ packages:
       microsandbox:
         optional: true
 
-  eve@0.69.0:
-    resolution: {integrity: sha512-UxWzU4C1+MlTvHQsQ2wi75k+lrxX8sNN4Dz0xVtITmDj/+mR47RUyHHXl8ojAkFv7DCG/dmNSXLCKfTcqCj0cQ==}
+  eve@0.70.0:
+    resolution: {integrity: sha512-qhWy8jOMIERFJZIlUeErcKp9SuFVvlymsQgdBvv1sDtLGiTXiz8+ueE1sal4rblCV8Esbijh2VFgWjuixR2byQ==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
@@ -16359,7 +16359,7 @@ snapshots:
       '@opentelemetry/api': 1.9.1
     optional: true
 
-  eve@0.69.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)):
+  eve@0.70.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)):
     dependencies:
       ai: 7.0.127(zod@4.6.5)
       nitro: 3.0.260903-beta
