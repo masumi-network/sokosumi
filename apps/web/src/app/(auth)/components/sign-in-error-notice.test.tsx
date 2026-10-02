@@ -17,13 +17,23 @@ describe("SignInErrorNotice", () => {
   it.each([
     ["account_not_linked", "accountNotLinked"],
     ["access_denied", "cancelled"],
+    ["state_mismatch", "expired"],
+    ["state_not_found", "expired"],
+    ["state_invalid", "expired"],
+    ["please_restart_the_process", "expired"],
+    ["invalid_client", "clientMisconfigured"],
+    ["client_disabled", "clientMisconfigured"],
+    ["unauthorized_client", "clientMisconfigured"],
+    ["invalid_redirect", "clientMisconfigured"],
+    ["unsupported_response_type", "clientMisconfigured"],
+    ["unsupported_prompt_select_account", "clientMisconfigured"],
   ])("explains %s", (error, message) => {
     render(<SignInErrorNotice error={error} />);
 
     expect(screen.getByRole("alert")).toHaveTextContent(message);
   });
 
-  it.each(["state_mismatch", "constructor"])(
+  it.each(["internal_server_error", "constructor"])(
     "falls back to the generic message for %s",
     (error) => {
       render(<SignInErrorNotice error={error} />);
