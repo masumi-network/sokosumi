@@ -7,12 +7,14 @@ export const resetPasswordFormData: FormData<
 > = [
   {
     name: "password",
-    placeholderKey: "Fields.Password.placeholder",
+    labelKey: "Fields.Password.label",
     type: "password",
+    autoComplete: "new-password",
   },
   {
     name: "confirmPassword",
-    placeholderKey: "Fields.ConfirmPassword.placeholder",
+    labelKey: "Fields.ConfirmPassword.label",
     type: "password",
+    autoComplete: "new-password",
   },
 ];

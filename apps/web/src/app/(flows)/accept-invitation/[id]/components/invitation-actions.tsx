@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { buildAuthPageUrl } from "@/lib/auth/auth.utils";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -47,11 +48,12 @@ export default function InvitationActions({
   );
 
   const goToAuth = (path: "/signin" | "/signup") => {
-    const params = new URLSearchParams();
-    params.set("returnUrl", getReturnUrlFromCurrentLocation());
-    params.set("email", email);
-    params.set("invitationId", id);
-    router.push(`${path}?${params.toString()}`);
+    router.push(
+      buildAuthPageUrl(path, {
+        returnUrl: getReturnUrlFromCurrentLocation(),
+        invitationId: id,
+      }),
+    );
   };
 
   const handleAccept = async () => {

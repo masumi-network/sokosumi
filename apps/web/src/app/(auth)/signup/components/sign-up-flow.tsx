@@ -68,8 +68,8 @@ export default function SignUpFlow({
     // Record UTM attribution for every successful signup.
     beforeLeaving: handleUtmConversion,
   });
-  // An invitation fixes the address. Any other query email is only a
-  // starting value, so a mistyped one can still be fixed.
+  // An invitation fixes the address, which the page read from Core by the
+  // invitation's id. The URL never carries an address.
   const emailLocked = Boolean(invitationId && prefilledEmail);
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");

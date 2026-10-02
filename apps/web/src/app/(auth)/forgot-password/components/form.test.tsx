@@ -4,12 +4,22 @@ import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { requestPasswordReset } from "@/lib/auth/auth.client";
-import { requestCaptchaMock } from "@/test/auth-captcha-mock";
+import { rememberAuthEmailHint } from "@/lib/auth/auth-email-hint";
+import {
+  captchaErrorMessageMock,
+  requestCaptchaMock,
+} from "@/test/auth-captcha-mock";
 
 import ForgotPasswordForm from "./form";
 
-const { push } = vi.hoisted(() => ({ push: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push }) }));
+const { push, searchParams } = vi.hoisted(() => ({
+  push: vi.fn(),
+  searchParams: { current: new URLSearchParams() },
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push }),
+  useSearchParams: () => searchParams.current,
+}));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 vi.mock("@/lib/auth/auth.client", () => ({ requestPasswordReset: vi.fn() }));
@@ -26,30 +36,43 @@ async function submit() {
   );
 }
 
+function renderWithEmail(email: string) {
+  rememberAuthEmailHint(email);
+  render(<ForgotPasswordForm />);
+}
+
 describe("SOK-1144 password reset feedback", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    window.sessionStorage.clear();
+    searchParams.current = new URLSearchParams();
     vi.mocked(requestPasswordReset).mockResolvedValue({
       data: { status: true },
       error: null,
     });
   });
 
-  it("asks for the address with an email keyboard and no autocorrect", () => {
+  it("asks for the address with a visible label, an email keyboard and no autocorrect", () => {
     render(<ForgotPasswordForm />);
 
-    const email = screen.getByTestId("auth-field-email");
+    const email = screen.getByLabelText("Fields.Email.label");
+    expect(email).toBe(screen.getByTestId("auth-field-email"));
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocomplete", "email");
     expect(email).toHaveAttribute("autocapitalize", "none");
     expect(email).toHaveAttribute("spellcheck", "false");
   });
 
-  // The browser strips the space from what is typed into an email input, but
-  // not from an address handed over from sign-in.
-  it("sends a handed-over address without its trailing space", async () => {
-    render(<ForgotPasswordForm initialEmail="ada@example.com " />);
+  // The address comes from sign-in through session storage, never the URL,
+  // which reaches server logs and analytics.
+  it("starts with the address sign-in handed over", async () => {
+    renderWithEmail("ada@example.com");
 
+    await waitFor(() =>
+      expect(screen.getByTestId("auth-field-email")).toHaveValue(
+        "ada@example.com",
+      ),
+    );
     await submit();
 
     expect(requestPasswordReset).toHaveBeenCalledWith(
@@ -57,8 +80,46 @@ describe("SOK-1144 password reset feedback", () => {
     );
   });
 
+  it("links the email back to where the person was going", async () => {
+    searchParams.current = new URLSearchParams("returnUrl=/chat");
+    renderWithEmail("ada@example.com");
+
+    await submit();
+
+    expect(requestPasswordReset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirectTo: `${window.location.origin}/reset-password/exchange?returnUrl=%2Fchat`,
+      }),
+    );
+  });
+
+  it("links the email back to the OAuth request it came from", async () => {
+    const oauthQuery = "client_id=cmo&exp=1900000000&sig=abc%2B%2F%3D";
+    searchParams.current = new URLSearchParams(oauthQuery);
+    renderWithEmail("ada@example.com");
+
+    await submit();
+
+    expect(requestPasswordReset).toHaveBeenCalledWith(
+      expect.objectContaining({
+        redirectTo: `${window.location.origin}/reset-password/exchange?${oauthQuery}`,
+      }),
+    );
+  });
+
+  it("explains that the reset link it came from is dead until a new one is sent", async () => {
+    rememberAuthEmailHint("person@example.com");
+    render(<ForgotPasswordForm linkExpired />);
+    expect(screen.getByText("linkExpired")).toBeInTheDocument();
+
+    await submit();
+
+    expect(screen.getByRole("status")).toHaveTextContent("success");
+    expect(screen.queryByText("linkExpired")).not.toBeInTheDocument();
+  });
+
   it("keeps success visible on the form without redirecting", async () => {
-    render(<ForgotPasswordForm initialEmail="person@example.com" />);
+    renderWithEmail("person@example.com");
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
 
     await submit();
@@ -69,43 +130,55 @@ describe("SOK-1144 password reset feedback", () => {
     expect(toast.error).not.toHaveBeenCalled();
   });
 
-  it("keeps an API failure silent without reporting success", async () => {
+  it("says why a failed security check sent nothing", async () => {
+    captchaErrorMessageMock.mockReturnValue("verificationFailed");
     vi.mocked(requestPasswordReset).mockResolvedValue({
       data: null,
       error: {
-        status: 400,
-        statusText: "Bad Request",
-        message: "Reset failed",
+        status: 403,
+        statusText: "Forbidden",
+        code: "VERIFICATION_FAILED",
       },
     });
-    render(<ForgotPasswordForm initialEmail="person@example.com" />);
+    renderWithEmail("person@example.com");
 
     await submit();
 
-    expect(requestPasswordReset).toHaveBeenCalledOnce();
+    expect(screen.getByRole("alert")).toHaveTextContent("verificationFailed");
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    expect(toast.error).not.toHaveBeenCalled();
-    expect(toast.success).not.toHaveBeenCalled();
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("handles a rejected request silently and allows retry", async () => {
+  it("asks a rate-limited person to wait", async () => {
+    vi.mocked(requestPasswordReset).mockResolvedValue({
+      data: null,
+      error: { status: 429, statusText: "Too Many Requests" },
+    });
+    renderWithEmail("person@example.com");
+
+    await submit();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Errors.rateLimited");
+  });
+
+  it("reports a rejected request and allows retry", async () => {
     vi.mocked(requestPasswordReset).mockRejectedValueOnce(
       new Error("Network unavailable"),
     );
-    render(<ForgotPasswordForm initialEmail="person@example.com" />);
+    renderWithEmail("person@example.com");
 
     await submit();
 
+    expect(screen.getByRole("alert")).toHaveTextContent("Errors.generic");
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    expect(toast.error).not.toHaveBeenCalled();
     await submit();
     expect(screen.getByRole("status")).toHaveTextContent("success");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("does not report success when CAPTCHA blocks the request", async () => {
     requestCaptchaMock.mockResolvedValueOnce(null);
-    render(<ForgotPasswordForm initialEmail="person@example.com" />);
+    renderWithEmail("person@example.com");
 
     await submit();
 
@@ -114,7 +187,7 @@ describe("SOK-1144 password reset feedback", () => {
   });
 
   it("clears the previous success when a new request fails", async () => {
-    render(<ForgotPasswordForm initialEmail="person@example.com" />);
+    renderWithEmail("person@example.com");
     await submit();
     expect(screen.getByRole("status")).toHaveTextContent("success");
     vi.mocked(requestPasswordReset).mockRejectedValueOnce(
@@ -124,6 +197,6 @@ describe("SOK-1144 password reset feedback", () => {
     await submit();
 
     expect(screen.getByRole("status")).toBeEmptyDOMElement();
-    expect(toast.error).not.toHaveBeenCalled();
+    expect(screen.getByRole("alert")).toHaveTextContent("Errors.generic");
   });
 });
