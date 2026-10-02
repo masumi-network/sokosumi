@@ -43,6 +43,3 @@ export const CORE_API_ERROR_KINDS = {
   WORKSPACE_HAS_DEPENDENTS: "workspace_has_dependents",
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
 } as const;
-
-export type CoreApiErrorKind =
-  (typeof CORE_API_ERROR_KINDS)[keyof typeof CORE_API_ERROR_KINDS];
