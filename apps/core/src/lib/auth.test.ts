@@ -1845,6 +1845,9 @@ describe("core auth config", () => {
           { error: "Email transport unavailable" },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(
+          "andreas@example.com",
+        );
       } finally {
         warn.mockRestore();
       }
