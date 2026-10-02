@@ -723,10 +723,3 @@ import SwiftUI
   #endif
 
 #endif
-
-func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  if case .case2 = message.sender {
-    return true
-  }
-  return false
-}

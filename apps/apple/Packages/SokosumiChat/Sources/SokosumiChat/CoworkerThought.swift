@@ -90,3 +90,19 @@ public func hasThoughtView(_ message: Components.Schemas.ChatRoomMessage) -> Boo
     return false
   }
 }
+
+/// Coworker sender, not a person, Soko Bot, or unknown.
+public func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  switch message.sender {
+  case .case2:
+    return true
+  case .case1, .case3, .case4:
+    return false
+  }
+}
+
+/// Direct-stream coworker overlay: `DirectStreamSession` prefixes the id `stream:`.
+/// The user turn of the same stream also uses that prefix.
+public func isCoworkerStreamOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  message.id.hasPrefix("stream:") && isCoworkerSender(message)
+}

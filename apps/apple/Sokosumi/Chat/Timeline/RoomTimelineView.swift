@@ -260,7 +260,7 @@ import SwiftUI
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  horizontalInset: 12,
-                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                 }
               }
@@ -445,9 +445,6 @@ import SwiftUI
       }
     }
 
-    private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-      message.id.hasPrefix("stream:") && isCoworkerMessage(message)
-    }
   }
 
 #endif
