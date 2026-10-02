@@ -11,10 +11,10 @@
   @MainActor struct PinnedMessageCardTests {
     @Test(arguments: [false, true])
     func previewsFitInspectorWithoutExpandingShortMessages(dark: Bool) async throws {
-      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                              unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-                                             userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+                                             userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
       let sources: [String?] = ["A short **pinned message**.",
                                 String(repeating: "A longer paragraph with **bold text** and `code`. ", count: 30), nil]
       let measurements = sources.map { _ in HeightMeasurement() }
@@ -83,10 +83,10 @@
 
     private func render(_ sources: [(content: String, quote: Components.Schemas.ChatRoomMessageQuote?)], width: CGFloat,
                         dark: Bool) async throws -> [HeightMeasurement] {
-      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
                                              unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-                                             userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+                                             userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
       let measurements = sources.map { _ in HeightMeasurement() }
       let items = try sources.enumerated().map { index, source in
         let message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: room.id, content: source.content, quote: source.quote,

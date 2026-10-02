@@ -85,11 +85,11 @@
 
     private static func room() -> Components.Schemas.ChatRoom {
       .init(
-        id: roomId, organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil,
+        id: roomId, organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, topic: nil,
         discoverability: ._private, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
         unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
         userMembers: members.map { .init(id: $0.id, name: $0.name, email: "\($0.id)@example.com", presence: .online) },
-        coworkerMembers: [], sokoBotMembers: []
+        formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
       )
     }
   }

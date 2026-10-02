@@ -20,11 +20,11 @@ struct RoomAttentionTests {
     channel: Int?, thread: Int = 0, mentions: Int = 0, marked: Bool = false, muted: Bool = false
   ) -> Components.Schemas.ChatRoom {
     .init(
-      id: "550e8400-e29b-41d4-a716-446655440700", name: "general", kind: kind, isSelfDirect: false, isGroupDirect: members > 2,
+      id: "550e8400-e29b-41d4-a716-446655440700", name: "general", kind: kind, isSelfDirect: false, isGroupDirect: members > 2, isReadOnly: false,
       discoverability: kind == .channel ? ._public : nil, createdByUserId: "user_1", createdAt: fixedDate, updatedAt: fixedDate,
       unreadCount: (channel ?? 0) + thread, channelUnreadCount: channel, threadUnreadCount: channel == nil ? nil : thread,
       unreadMentionCount: mentions, mutedAt: muted ? fixedDate : nil, markedUnread: marked, myAccess: .init(value1: .member, value2: "member"),
-      userMembers: (0 ..< members).map { member("user_\($0)") }, coworkerMembers: [], sokoBotMembers: []
+      userMembers: (0 ..< members).map { member("user_\($0)") }, formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 

@@ -10,13 +10,13 @@
     @MainActor struct GuestAccessSectionTests {
       private func externalRoom() -> Components.Schemas.ChatRoom {
         Components.Schemas.ChatRoom(
-          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+          id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
           discoverability: .external, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: [.init(id: "me", name: "Alex Morgan", email: "alex@example.com", presence: .online, access: .member),
                         .init(id: "guest", name: "Priya Natarajan", email: "priya@agency-partners-worldwide.example", presence: .offline, access: .guest)],
-          coworkerMembers: [.init(id: "agent", name: "Research assistant", slug: "research", caption: nil, image: nil, presence: .online)],
+          formerUserMembers: [], coworkerMembers: [.init(id: "agent", name: "Research assistant", slug: "research", caption: nil, image: nil, presence: .online)],
           sokoBotMembers: []
         )
       }

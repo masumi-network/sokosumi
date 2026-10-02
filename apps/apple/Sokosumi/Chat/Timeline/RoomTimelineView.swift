@@ -67,7 +67,7 @@ import SwiftUI
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message) else { return nil }
+      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
@@ -96,12 +96,16 @@ import SwiftUI
       transcriptBody
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          ChatComposerView(
-            userId: workspaces.currentUserId,
-            organizationId: workspaces.selection?.workspace.organizationId,
-            roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
-          )
-          .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          if let notice = ReadOnlyDirectNotice(room: room) {
+            ReadOnlyDirectNoticeView(notice: notice, horizontalInset: 20)
+          } else {
+            ChatComposerView(
+              userId: workspaces.currentUserId,
+              organizationId: workspaces.selection?.workspace.organizationId,
+              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+            )
+            .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          }
         }
         .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
         .task(id: workspaces.messageJump) {
@@ -234,10 +238,13 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
-                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`),
+                                 // and in a Read-only Direct on a message with no replies yet (`canOpenThread`).
                                  onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
+                                   && canOpenThread(message, in: transcriptRoom)
                                    ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                 // Quoting fills the composer, which a Read-only Direct lacks.
+                                 onQuote: canQuoteMessage(message) && roomTakesNewMessages(transcriptRoom) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
