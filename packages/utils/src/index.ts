@@ -22,6 +22,7 @@ export {
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
 } from "./better-auth-client-schema.js";
 export {
   resolveBetterAuthCookieName,

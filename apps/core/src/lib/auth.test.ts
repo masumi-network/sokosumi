@@ -668,7 +668,18 @@ describe("core auth config", () => {
 
     expect(lastLoginMethodPluginMock).toHaveBeenCalledWith({
       cookieName: "sokosumi.last_used_login_method",
+      customResolveMethod: expect.any(Function),
     });
+    // A password sign-up goes through the email code, and is still `email`.
+    const [[options]] = lastLoginMethodPluginMock.mock.calls as Array<
+      [{ customResolveMethod: (ctx: unknown) => string | null }]
+    >;
+    expect(
+      options.customResolveMethod({
+        path: "/sign-in/email-otp",
+        body: { password: "Password123!" },
+      }),
+    ).toBe("email");
   });
 
   it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
@@ -1025,6 +1036,7 @@ describe("core auth config", () => {
         "oauth-provider-plugin",
         "oauth-proxy-plugin",
         "stripe-plugin",
+        expect.objectContaining({ id: "email-code-sign-in" }),
       ]),
     );
     expect(apiKeyPluginMock).toHaveBeenCalledWith(
@@ -1278,6 +1290,18 @@ describe("core auth config", () => {
     expect(config.disabledPaths).not.toContain(
       "/email-otp/send-verification-otp",
     );
+  });
+
+  // Password sign-up sends the password with the email code instead, so no
+  // new account starts with an unproven address.
+  it("closes password sign-up without an email code", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ disabledPaths: string[] }]
+    >;
+
+    expect(config.disabledPaths).toContain("/sign-up/email");
   });
 
   it("uses the canonical production URL for the OAuth proxy", async () => {
@@ -2590,63 +2614,6 @@ describe("core auth config", () => {
     });
   });
 
-  it("rejects email sign-up when terms are not accepted", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({ body: {}, path: "/sign-up/email" }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: { code: "TERMS_NOT_ACCEPTED" },
-    });
-  });
-
-  it("allows email sign-up when terms are accepted", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<unknown>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({
-        body: { termsAccepted: true, firstName: "Ada", lastName: "Lovelace" },
-        path: "/sign-up/email",
-      }),
-    ).resolves.toEqual({
-      context: {
-        body: {
-          termsAccepted: true,
-          firstName: "Ada",
-          lastName: "Lovelace",
-          name: "Ada Lovelace",
-        },
-      },
-    });
-  });
-
   it.each(["email-verification", "forget-password"])(
     "refuses to send an email code for %s",
     async (type) => {
@@ -2710,6 +2677,61 @@ describe("core auth config", () => {
           name: "Ada Lovelace",
         },
       },
+    });
+  });
+
+  // A password sign-up goes through the email code, and keeps the checks
+  // `/sign-up/email` made.
+  describe("password sign-up through the email code", () => {
+    async function before(body: Record<string, unknown>) {
+      await import("./auth");
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            hooks: {
+              before: (ctx: {
+                body?: Record<string, unknown>;
+                path: string;
+              }) => Promise<unknown>;
+            };
+          },
+        ]
+      >;
+      return config.hooks.before({
+        body: { email: "ada@example.com", otp: "042917", ...body },
+        path: "/sign-in/email-otp",
+      });
+    }
+
+    it("refuses it when the terms are not accepted", async () => {
+      await expect(
+        before({ password: "Password123!", firstName: "Ada", lastName: "L" }),
+      ).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+        body: { code: "TERMS_NOT_ACCEPTED" },
+      });
+    });
+
+    it("refuses it without the names", async () => {
+      await expect(
+        before({ password: "Password123!", termsAccepted: true }),
+      ).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+        body: { code: "NAME_REQUIRED" },
+      });
+    });
+
+    it("names the account from the two parts", async () => {
+      await expect(
+        before({
+          password: "Password123!",
+          termsAccepted: true,
+          firstName: "Ada",
+          lastName: "Lovelace",
+        }),
+      ).resolves.toMatchObject({
+        context: { body: { name: "Ada Lovelace", password: "Password123!" } },
+      });
     });
   });
 

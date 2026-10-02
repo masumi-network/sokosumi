@@ -1261,7 +1261,8 @@
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "error": "Error al registrarse",
+          "addPassword": "Establecer también una contraseña",
+          "removePassword": "Registrarse sin contraseña",
           "Fields": {
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -1344,6 +1345,12 @@
       "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
       "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo."
+    },
+    "SignInMethodsRemoved": {
+      "title": "Hemos eliminado tus métodos de inicio de sesión anteriores",
+      "description": "Iniciaste sesión con un código, así que por seguridad eliminamos tu contraseña anterior y tus vínculos con Google/Microsoft. Establece una nueva contraseña en tu cuenta.",
+      "setPassword": "Establecer una nueva contraseña",
+      "continue": "Continuar"
     }
   },
   "App": {

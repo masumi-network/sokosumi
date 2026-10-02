@@ -219,10 +219,7 @@ describe("SignUpFlow", () => {
     });
 
     expect(signUpFormMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        email: "ada@example.com",
-        returnUrl: "/agents",
-      }),
+      expect.objectContaining({ email: "ada@example.com" }),
     );
     // The confirmed address stands where the email field was, under its label.
     expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(

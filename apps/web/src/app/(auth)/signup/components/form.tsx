@@ -1,19 +1,19 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { joinFirstAndLastName } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
+import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import {
   signUpMarketingFormData,
@@ -25,18 +25,11 @@ import {
   useDescribeEmailCodeError,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
-import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
-import { signUp } from "@/lib/auth/auth.client";
-import {
-  buildOAuthResumeUrlFromSearchParams,
-  isRejectedOAuthRequestError,
-} from "@/lib/auth/auth.utils";
+import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
-import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { signUpFormSchema } from "@/lib/schemas/auth";
 
 import { useSignInHref } from "./sign-in-link";
@@ -44,7 +37,6 @@ import { useSignInHref } from "./sign-in-link";
 interface SignUpFormProps {
   /** Confirmed on the step before this one. */
   email: string;
-  returnUrl?: string | undefined;
   /** The code step 1 sent to `email`, if it went out. */
   emailCode: EmailCode;
   onFormStart: () => void;
@@ -53,12 +45,12 @@ interface SignUpFormProps {
 
 /**
  * Second sign-up step. Step 1 has emailed a code, so this asks for the name
- * and that code, with one Register. A password is a deliberate switch, and
- * the step opens on it when no code went out.
+ * and that code, with one Register. A password is a deliberate addition, sent
+ * with the code: the code proves the address, so no account starts with an
+ * unproven one. When the first code did not go out, the field sends another.
  */
 export default function SignUpForm({
   email,
-  returnUrl,
   emailCode,
   onFormStart,
   onPendingChange,
@@ -71,41 +63,29 @@ export default function SignUpForm({
   const [isLeaving, setIsLeaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const completedCodeRef = useRef("");
-  const [prefersPassword, setPrefersPassword] = useState(false);
+  const [withPassword, setWithPassword] = useState(false);
   const [refusedCode, setRefusedCode] = useState(0);
   // Step 1 found no account, but one can appear since, e.g. through Google
   // in another tab.
   const [accountExists, setAccountExists] = useState(false);
   const signInHref = useSignInHref();
-  const {
-    widget: captcha,
-    runWithCaptcha,
-    getErrorMessage,
-  } = useAuthCaptcha("signup");
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
 
-  const wasCodeSent = emailCode.sentTo === email;
-  const isCodeStep = wasCodeSent && !prefersPassword;
   // Read by the resolver, which validates whichever way the step finishes.
-  const isCodeStepRef = useRef(isCodeStep);
-  isCodeStepRef.current = isCodeStep;
+  const withPasswordRef = useRef(withPassword);
+  withPasswordRef.current = withPassword;
 
-  const passwordStepSchema = signUpFormSchema(schemaT).safeExtend({
-    code: z.string(),
-  });
-  const codeStepSchema = signUpFormSchema(schemaT).safeExtend({
+  const code = z
+    .string()
+    .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") });
+  const passwordSchema = signUpFormSchema(schemaT).safeExtend({ code });
+  const codeOnlySchema = signUpFormSchema(schemaT).safeExtend({
     password: z.string(),
-    code: z
-      .string()
-      .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") }),
+    code,
   });
-  const form = useForm<z.infer<typeof passwordStepSchema>>({
+  const form = useForm<z.infer<typeof passwordSchema>>({
     resolver: (values, context, options) =>
-      zodResolver(isCodeStepRef.current ? codeStepSchema : passwordStepSchema)(
+      zodResolver(withPasswordRef.current ? passwordSchema : codeOnlySchema)(
         values,
         context,
         options,
@@ -124,101 +104,45 @@ export default function SignUpForm({
     form.setFocus("firstName");
   });
 
-  const handleCodeSubmit = async (
-    values: z.infer<typeof passwordStepSchema>,
-  ) => {
-    track("Sign Up", { provider: "email-otp" });
+  const handleSubmit = async (values: z.infer<typeof passwordSchema>) => {
+    track("Sign Up", { provider: withPassword ? "credential" : "email-otp" });
     setAccountExists(false);
+    // The address stays fixed while the account is being created.
+    onPendingChange(true);
     const error = await emailCode.signInWithCode(email, values.code, {
       firstName: values.firstName,
       lastName: values.lastName,
       // Unset is a no; Better Auth's own default would be yes.
       marketingOptIn: values.marketingOptIn ?? false,
       termsAccepted: true,
+      ...(withPassword ? { password: values.password } : {}),
     });
     if (error) {
+      onPendingChange(false);
+      if (isRejectedOAuthRequestError(error)) {
+        toast.error(oauthT("errorDescription"));
+        return;
+      }
+      // Core refused these before spending the code.
+      if (error.code === AuthErrorCode.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL) {
+        setAccountExists(true);
+        return;
+      }
+      if (error.code === "PASSWORD_TOO_SHORT") {
+        form.setError("password", { message: schemaT("Password.min") });
+        return;
+      }
       form.setError("code", { message: describeCodeError(error) });
       setRefusedCode((count) => count + 1);
       return;
     }
     // The page is leaving; keep the step locked until it has.
     setIsLeaving(true);
-    onPendingChange(true);
   };
 
-  const handlePasswordSubmit = async (
-    values: z.infer<typeof passwordStepSchema>,
-  ) => {
-    track("Sign Up", { provider: "credential" });
-
-    setAccountExists(false);
-    onPendingChange(true);
-    let willLeave = false;
-    try {
-      await runWithCaptcha(async (fetchOptions) => {
-        const result = await signUp.email({
-          fetchOptions,
-          email,
-          firstName: values.firstName,
-          lastName: values.lastName,
-          // Core derives the display name from the two parts; the client type
-          // still asks for one.
-          name: joinFirstAndLastName(values.firstName, values.lastName),
-          password: values.password,
-          // Creating the account is the acceptance; the page says so.
-          termsAccepted: true,
-          marketingOptIn: values.marketingOptIn,
-        });
-
-        if (result.error) {
-          if (isRejectedOAuthRequestError(result.error)) {
-            toast.error(oauthT("errorDescription"));
-            return;
-          }
-
-          const errorCode =
-            "code" in result.error ? result.error.code : undefined;
-
-          if (
-            errorCode === AuthErrorCode.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL
-          ) {
-            setAccountExists(true);
-            return;
-          }
-
-          toast.error(
-            getErrorMessage(result.error, result.error.message ?? t("error")),
-          );
-          return;
-        }
-
-        // No `callbackURL`: Better Auth would hard-redirect and every line
-        // here would be racing the unload, which is how the credential
-        // `sign_up` event went missing. See apps/web/TRACKING.md. It also
-        // feeds the verification email's post-verify destination, so Core
-        // anchors that to the web app (lib/verification-email-callback.ts)
-        // rather than trusting whatever the client sent.
-        willLeave = true;
-        setIsLeaving(true);
-        await finishAuthInPlace({
-          eventType: "signUp",
-          provider: "credential",
-          returnUrl: effectiveReturnUrl,
-          result: result.data,
-          // Record UTM attribution for every successful signup, including one
-          // that carries an OAuth request.
-          beforeLeaving: handleUtmConversion,
-        });
-      });
-    } finally {
-      // Keep the flow locked after success until the page navigates away.
-      if (!willLeave) onPendingChange(false);
-    }
-  };
-
-  const switchTo = (method: "password" | "code") => {
-    form.clearErrors(method === "code" ? "password" : "code");
-    setPrefersPassword(method === "password");
+  const togglePassword = () => {
+    form.clearErrors("password");
+    setWithPassword((current) => !current);
   };
 
   const { isSubmitting } = form.formState;
@@ -236,7 +160,7 @@ export default function SignUpForm({
       form={form}
       formRef={formRef}
       disabled={isLeaving}
-      onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
+      onSubmit={handleSubmit}
       onChange={onFormStart}
     >
       {/* Password managers pair the new password with this address. */}
@@ -255,44 +179,41 @@ export default function SignUpForm({
         control={form.control}
         testIdPrefix="auth-field"
       />
-      {isCodeStep ? (
-        <Controller
-          control={form.control}
-          name="code"
-          render={({ field, fieldState }) => (
-            <EmailCodeField
-              inputRef={field.ref}
-              value={field.value}
-              completedCodeRef={completedCodeRef}
-              onChange={field.onChange}
-              onComplete={() => {
-                // Only when Register would go through: a code typed before
-                // the names waits for the button, with nothing new marked.
-                if (
-                  !isPending &&
-                  codeStepSchema.safeParse(form.getValues()).success
-                ) {
-                  formRef.current?.requestSubmit();
-                }
-              }}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              sentAt={emailCode.sentAt}
-              onResend={() => {
-                void emailCode.sendCode(email);
-              }}
-              isResending={emailCode.isSending}
-              disabled={isPending}
-            />
-          )}
-        />
-      ) : (
+      {withPassword ? (
         <FormFields
           form={form}
           formData={signUpPasswordFormData}
           namespace="Auth.Pages.SignUp.Form"
         />
-      )}
+      ) : null}
+      <Controller
+        control={form.control}
+        name="code"
+        render={({ field, fieldState }) => (
+          <EmailCodeField
+            inputRef={field.ref}
+            value={field.value}
+            completedCodeRef={completedCodeRef}
+            onChange={field.onChange}
+            onComplete={() => {
+              // Only when Register would go through: a code typed before
+              // the names waits for the button, with nothing new marked.
+              const schema = withPassword ? passwordSchema : codeOnlySchema;
+              if (!isPending && schema.safeParse(form.getValues()).success) {
+                formRef.current?.requestSubmit();
+              }
+            }}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            sentAt={emailCode.sentAt}
+            onResend={() => {
+              void emailCode.sendCode(email);
+            }}
+            isResending={emailCode.isSending}
+            disabled={isPending}
+          />
+        )}
+      />
       <FormFields
         form={form}
         formData={signUpMarketingFormData}
@@ -322,7 +243,7 @@ export default function SignUpForm({
         </Alert>
       ) : null}
       <div className="flex flex-col gap-4">
-        {isCodeStep ? emailCode.captcha : captcha}
+        {emailCode.captcha}
         <SubmitButton
           isSubmitting={isPending}
           spinnerPosition="start"
@@ -330,12 +251,17 @@ export default function SignUpForm({
           className="w-full"
         />
       </div>
-      <EmailCodeSwitch
-        email={email}
-        emailCode={emailCode}
-        isCodeStep={isCodeStep}
-        onSwitch={switchTo}
-      />
+      <div className="text-center">
+        <button
+          type="button"
+          className={STEP_LINK_BUTTON_CLASS}
+          disabled={isPending}
+          onClick={togglePassword}
+        >
+          {withPassword ? t("removePassword") : t("addPassword")}
+        </button>
+      </div>
+      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
     </BaseForm>
   );
 }

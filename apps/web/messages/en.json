@@ -1261,7 +1261,8 @@
             "description": "Log in with this email, or enter a different one to register.",
             "logIn": "Log in"
           },
-          "error": "Register failed",
+          "addPassword": "Also set a password",
+          "removePassword": "Sign up without a password",
           "Fields": {
             "MarketingOptIn": {
               "label": "I would like to receive updates and news"
@@ -1344,6 +1345,12 @@
       "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or an email code first, then connect Google or Microsoft under Connections.",
       "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
       "generic": "We could not sign you in. Please try again."
+    },
+    "SignInMethodsRemoved": {
+      "title": "Your old sign-in methods were removed",
+      "description": "You signed in with a code, so we removed your old password and Google/Microsoft links for security. Set a new password in your account.",
+      "setPassword": "Set a new password",
+      "continue": "Continue"
     }
   },
   "App": {

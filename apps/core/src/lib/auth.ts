@@ -77,6 +77,10 @@ import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
+  emailCodeSignIn,
+  resolveEmailCodeSignUpLoginMethod,
+} from "./auth-email-code-sign-in";
+import {
   acceptCmoPreviewCallback,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
@@ -408,6 +412,9 @@ export const auth = betterAuth({
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [
+    // Password sign-up sends the password with an email code instead, so no
+    // new account starts with an unproven address (`auth-email-code-sign-in`).
+    "/sign-up/email",
     "/email-otp/check-verification-otp",
     "/email-otp/verify-email",
     "/email-otp/request-password-reset",
@@ -441,15 +448,6 @@ export const auth = betterAuth({
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
       switch (ctx.path) {
-        case "/sign-up/email": {
-          if (!ctx.body?.termsAccepted) {
-            throw new APIError("BAD_REQUEST", {
-              code: "TERMS_NOT_ACCEPTED",
-            });
-          }
-
-          return { context: { body: resolveSignUpNameBody(ctx.body) } };
-        }
         case "/email-otp/send-verification-otp": {
           // Codes only sign people in. Password resets and email
           // verification keep their links.
@@ -461,6 +459,16 @@ export const auth = betterAuth({
           break;
         }
         case "/sign-in/email-otp": {
+          // A password sign-up (see `auth-email-code-sign-in`) keeps the
+          // checks `/sign-up/email` made before it was closed.
+          if (ctx.body?.password !== undefined) {
+            if (!ctx.body.termsAccepted) {
+              throw new APIError("BAD_REQUEST", {
+                code: "TERMS_NOT_ACCEPTED",
+              });
+            }
+            return { context: { body: resolveSignUpNameBody(ctx.body) } };
+          }
           return {
             context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
           };
@@ -651,6 +659,7 @@ export const auth = betterAuth({
         );
       },
     }),
+    emailCodeSignIn(),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
@@ -691,6 +700,7 @@ export const auth = betterAuth({
         betterAuthCookiePrefixParams,
         "last_used_login_method",
       ),
+      customResolveMethod: resolveEmailCodeSignUpLoginMethod,
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
