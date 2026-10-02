@@ -70,6 +70,10 @@ interface EmailStepProps {
   onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
+  /** Another sign-in is starting, e.g. with Google; the step waits. */
+  disabled?: boolean | undefined;
+  /** Whether Continue, or following the detour, is still running. */
+  onPendingChange?: ((pending: boolean) => void) | undefined;
 }
 
 /**
@@ -93,6 +97,8 @@ export function EmailStep({
   onEmailChange,
   onContinue,
   continueCaptcha,
+  disabled = false,
+  onPendingChange,
 }: EmailStepProps) {
   const t = useTranslations("Auth.Email.Form");
   const oauthT = useTranslations("Auth.OAuthHandBack");
@@ -147,6 +153,13 @@ export function EmailStep({
   });
 
   const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isFollowing;
+
+  // Unmounting mid-run (Continue opens the next step) is no longer pending.
+  useEffect(() => {
+    onPendingChange?.(isPending);
+    return () => onPendingChange?.(false);
+  }, [isPending, onPendingChange]);
 
   // The pressed button went inert, so focus moves to the one that took its
   // place. A submitting fieldset cannot receive focus; wait until it is
@@ -219,6 +232,7 @@ export function EmailStep({
     <BaseForm
       form={form}
       onSubmit={handleSubmit}
+      disabled={disabled}
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;
@@ -297,7 +311,7 @@ export function EmailStep({
               <Link
                 ref={detourLinkRef}
                 href={detour.href}
-                inert={!isDetoured}
+                inert={!isDetoured || disabled}
                 aria-describedby={isDetoured ? noticeId : undefined}
                 aria-busy={isFollowing || undefined}
                 aria-disabled={isFollowing || undefined}

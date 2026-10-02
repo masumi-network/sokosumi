@@ -460,6 +460,32 @@ describe("SocialButtons", () => {
     expect(passkey).toBeEnabled();
   });
 
+  it("waits while another sign-in on the page starts", async () => {
+    render(<SocialButtons showPasskey disabled />);
+    const { google, microsoft, passkey } = getButtons();
+
+    expect(google).toBeDisabled();
+    expect(microsoft).toBeDisabled();
+    expect(passkey).toBeDisabled();
+    await act(async () => google.click());
+    expect(mockSocialSignIn).not.toHaveBeenCalled();
+    expect(google.querySelector("svg")).toBeNull();
+  });
+
+  it("reports while a sign-in started here is running", async () => {
+    const onPendingChange = vi.fn();
+    mockSocialSignIn.mockResolvedValue({ error: {} });
+    render(<SocialButtons onPendingChange={onPendingChange} />);
+    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+
+    await clickGoogleButton();
+
+    expect(onPendingChange).toHaveBeenCalledWith(true);
+    await waitFor(() =>
+      expect(onPendingChange).toHaveBeenLastCalledWith(false),
+    );
+  });
+
   it("renders the passkey button after Microsoft", () => {
     render(<SocialButtons showPasskey />);
 

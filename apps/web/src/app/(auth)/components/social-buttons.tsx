@@ -36,6 +36,10 @@ interface SocialButtonsProps {
   showPasskey?: boolean;
   /** Which intent the provider buttons report to Vercel Analytics. */
   eventType?: "signIn" | "signUp";
+  /** Another sign-in is starting, e.g. with the email; every button waits. */
+  disabled?: boolean;
+  /** Whether a sign-in started here is still running. */
+  onPendingChange?: (pending: boolean) => void;
 }
 
 /** Stands in for the provider's logo while its sign-in starts, at the logo's size. */
@@ -76,6 +80,8 @@ export default function SocialButtons({
   lastUsedMethod = null,
   showPasskey = false,
   eventType = "signIn",
+  disabled = false,
+  onPendingChange,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
@@ -87,6 +93,15 @@ export default function SocialButtons({
   const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
     null,
   );
+
+  const isPending = pendingMethod !== null;
+  const isWaiting = isPending || disabled;
+
+  // Unmounting mid-run (Continue opens the next step) is no longer pending.
+  useEffect(() => {
+    onPendingChange?.(isPending);
+    return () => onPendingChange?.(false);
+  }, [isPending, onPendingChange]);
 
   // Back from the provider restores this page as it was left, mid sign-in.
   useEffect(() => {
@@ -190,7 +205,7 @@ export default function SocialButtons({
   }, [finishPasskeySignIn, showPasskey]);
 
   const handleClick = async (key: SocialButtonProviderId) => {
-    if (pendingMethod) return;
+    if (isWaiting) return;
     setPendingMethod(key);
     track(eventType === "signUp" ? "Sign Up" : "Sign In", {
       provider: key,
@@ -238,7 +253,7 @@ export default function SocialButtons({
             )}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
-              disabled={pendingMethod !== null}
+              disabled={isWaiting}
               {...(pendingMethod === socialButton.key && {
                 icon: SocialButtonSpinner,
               })}
@@ -273,7 +288,7 @@ export default function SocialButtons({
                 ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
-            disabled={pendingMethod !== null}
+            disabled={isWaiting}
             onClick={() => {
               void handlePasskeySignIn();
             }}

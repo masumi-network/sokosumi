@@ -168,8 +168,29 @@ describe("SignUpFlow", () => {
       returnUrl: "/agents",
       lastUsedMethod: "google",
       eventType: "signUp",
+      disabled: false,
+      onPendingChange: expect.any(Function),
     });
     expect(signUpFormMock).not.toHaveBeenCalled();
+  });
+
+  it("does not email a sign-up code while a provider sign-up starts", async () => {
+    const user = userEvent.setup();
+    render(<SignUpFlow lastUsedMethod={null} />);
+    await user.type(emailField(), "ada@example.com");
+
+    const { onPendingChange } = socialButtonsMock.mock.lastCall?.[0] as {
+      onPendingChange: (pending: boolean) => void;
+    };
+    act(() => onPendingChange(true));
+
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeDisabled();
+    fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+    await act(async () => {});
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
   it("stays on the email step while the address is invalid", async () => {

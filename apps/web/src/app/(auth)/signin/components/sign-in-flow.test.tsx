@@ -566,4 +566,67 @@ describe("SignInFlow", () => {
     expect(screen.queryByText("why-you-are-back")).not.toBeInTheDocument();
     expect(screen.getByText("terms")).toBeInTheDocument();
   });
+
+  function lastSocialProps() {
+    return socialButtonsMock.mock.lastCall?.[0] as {
+      disabled: boolean;
+      onPendingChange: (pending: boolean) => void;
+    };
+  }
+
+  it("holds the providers while Continue checks the address", async () => {
+    const user = userEvent.setup();
+    let answer: (value: unknown) => void = () => {};
+    emailStatusMock.mockReturnValue(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    render(<SignInFlow lastUsedMethod={null} />);
+    expect(lastSocialProps().disabled).toBe(false);
+
+    await continueWith(user, "ada@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () =>
+      answer({ data: null, error: { message: "Core is down" } }),
+    );
+    expect(lastSocialProps().disabled).toBe(false);
+  });
+
+  it("frees the providers again when the person changes the address", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+    socialButtonsMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+
+    expect(socialButtonsMock).toHaveBeenCalled();
+    for (const [props] of socialButtonsMock.mock.calls) {
+      expect((props as { disabled: boolean }).disabled).toBe(false);
+    }
+  });
+
+  it("holds the email while a provider sign-in starts", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+    await user.type(emailField(), "ada@example.com");
+    const continueButton = screen.getByRole("button", {
+      name: "continueWithEmail",
+    });
+
+    act(() => lastSocialProps().onPendingChange(true));
+
+    expect(continueButton).toBeDisabled();
+    expect(emailField()).toBeDisabled();
+    // Enter in the field would submit; nothing may reach Core or send a code.
+    fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+    await act(async () => {});
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+
+    act(() => lastSocialProps().onPendingChange(false));
+    expect(continueButton).toBeEnabled();
+    expect(emailField()).toBeEnabled();
+  });
 });
