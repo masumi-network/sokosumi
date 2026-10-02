@@ -23,7 +23,14 @@ describe("TaskRelationRow", () => {
 
     const link = screen.getByRole("link", { name: /Dependency cleanup/i });
     expect(link).toHaveAttribute("href", "/tasks/task-2");
-    expect(link).toHaveClass("h-8", "gap-2", "text-sm");
+    expect(link).toHaveClass(
+      "h-8",
+      "w-[calc(100%+1rem)]",
+      "-mx-2",
+      "px-2",
+      "gap-2",
+      "text-sm",
+    );
     expect(link.firstElementChild).toHaveClass(
       "flex",
       "size-5",

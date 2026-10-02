@@ -4,7 +4,6 @@ import type { VisibleTaskLink } from "./task-detail-api-types";
 import { TaskRelationRow } from "./task-relation-row";
 
 interface TaskRelatedTasksProps {
-  title: string;
   tasks: VisibleTaskLink[];
   relationLabels: Record<TaskLinkRelation, string>;
   statusLabels: Record<TaskStatus, string>;
@@ -22,7 +21,6 @@ const RELATION_ORDER: readonly TaskLinkRelation[] = [
 ];
 
 export function TaskRelatedTasks({
-  title,
   tasks,
   relationLabels,
   statusLabels,
@@ -41,22 +39,22 @@ export function TaskRelatedTasks({
   }
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
+    <div className="space-y-6">
       {RELATION_ORDER.map((relation) => {
         const group = groups.get(relation);
         if (!group?.length) return null;
+        const label = relationLabels[relation];
         return (
-          <div
+          <section
             key={relation}
             role="group"
-            aria-label={relationLabels[relation]}
-            className="space-y-1"
+            aria-label={label}
+            className="space-y-3"
           >
-            <h3 className="text-muted-foreground text-xs">
-              {relationLabels[relation]}
-            </h3>
-            <ul>
+            <h2 className="text-muted-foreground text-xs font-medium">
+              {label}
+            </h2>
+            <ul className="space-y-1">
               {group.map((task) => (
                 <li key={task.id}>
                   <TaskRelationRow
@@ -70,9 +68,9 @@ export function TaskRelatedTasks({
                 </li>
               ))}
             </ul>
-          </div>
+          </section>
         );
       })}
-    </section>
+    </div>
   );
 }

@@ -74,6 +74,17 @@ describe("task detail layout contract", () => {
     );
   });
 
+  it("spaces sidebar sections with real boxes so space-y reaches every section", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+    const related = readTasks("components/task-related-tasks.tsx");
+
+    expect(view).not.toContain('className="contents"');
+    expect(view).toContain('<div className="space-y-6">');
+    expect(related).toContain('className="space-y-6"');
+    expect(related).toContain("text-muted-foreground text-xs font-medium");
+    expect(related).not.toContain("<h3");
+  });
+
   it("sidebar lists Properties first and the tags section below it", () => {
     const view = readTasks("components/task-detail-view.tsx");
 
