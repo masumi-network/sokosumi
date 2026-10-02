@@ -251,23 +251,35 @@ export function getAuth(): CmoAuth {
   return auth;
 }
 
+/** Where sign in goes when it cannot start; the signed-out page explains. */
+const SIGN_IN_UNAVAILABLE_PATH = "/?error=unavailable";
+
 /**
  * Starts Sign in with Sokosumi: Core's authorize URL, and the `Set-Cookie`
  * headers that carry CMO's OAuth state. A server action gets those cookies
  * through `nextCookies`; a route handler sends them on its own response.
+ * When Core is down or its discovery failed, the URL is the signed-out page,
+ * which says so, and there are no cookies.
  */
 export async function startSokosumiSignIn(
   auth: CmoAuth,
   headers: Headers,
   options: SokosumiSignInOptions,
 ): Promise<{ url: string; setCookies: string[] }> {
-  const { headers: responseHeaders, response } = await auth.api.signInSocial({
-    body: sokosumiSignInBody(options),
-    headers,
-    returnHeaders: true,
-  });
-  if (!response.url) throw new Error("Sign in with Sokosumi returned no URL");
-  return { url: response.url, setCookies: responseHeaders.getSetCookie() };
+  try {
+    const { headers: responseHeaders, response } = await auth.api.signInSocial({
+      body: sokosumiSignInBody(options),
+      headers,
+      returnHeaders: true,
+    });
+    if (!response.url) throw new Error("Sign in with Sokosumi returned no URL");
+    return { url: response.url, setCookies: responseHeaders.getSetCookie() };
+  } catch (error) {
+    // Preserve Next's control flow and request-time rendering signals.
+    unstable_rethrow(error);
+    console.error("Starting Sign in with Sokosumi failed", error);
+    return { url: SIGN_IN_UNAVAILABLE_PATH, setCookies: [] };
+  }
 }
 
 /**
@@ -292,38 +304,24 @@ export async function sokosumiSignInRedirect(
     headers.delete("location");
     return new Response(null, { status: 403, headers });
   }
-  try {
-    if (!(await auth.api.getSession({ headers: request.headers }))) {
-      const { url, setCookies } = await startSokosumiSignIn(
-        auth,
-        request.headers,
-        options,
-      );
-      headers.set("location", url);
-      for (const cookie of setCookies) headers.append("set-cookie", cookie);
-    }
-    return new Response(null, { status: 302, headers });
-  } catch (error) {
-    // Preserve Next's request-time rendering signals from headers/cookies.
-    unstable_rethrow(error);
-    console.error("Starting Sign in with Sokosumi failed", error);
-    headers.delete("location");
-    return new Response("CMO is temporarily unavailable. Try again.", {
-      status: 503,
-      headers,
-    });
+  if (!(await auth.api.getSession({ headers: request.headers }))) {
+    const { url, setCookies } = await startSokosumiSignIn(
+      auth,
+      request.headers,
+      options,
+    );
+    headers.set("location", url);
+    for (const cookie of setCookies) headers.append("set-cookie", cookie);
   }
+  return new Response(null, { status: 302, headers });
 }
 
-function withSetCookies(from: Response): Response {
+function withSetCookies(from: Response, status: number): Response {
   const headers = new Headers();
   for (const cookie of from.headers.getSetCookie()) {
     headers.append("set-cookie", cookie);
   }
-  return new Response(null, {
-    status: from.status === 503 ? 503 : 204,
-    headers,
-  });
+  return new Response(null, { status, headers });
 }
 
 // ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
@@ -333,7 +331,9 @@ const renewalsByAuth = new WeakMap<CmoAuth, Map<string, Promise<Response>>>();
 /**
  * Keeps a page request's Sokosumi access fresh. Returns an empty response
  * whose `Set-Cookie` headers the caller forwards: renewed token cookies after
- * a silent refresh, cleared cookies when renewal fails, none otherwise.
+ * a silent refresh, cleared cookies when renewal fails, none otherwise. Its
+ * status is 401 when renewal signed the person out, 503 while Core cannot
+ * check them, and 204 otherwise.
  */
 export function renewSession(
   auth: CmoAuth,
@@ -404,7 +404,7 @@ async function renewSessionOnce(
   );
   // 401: nobody is signed in.
   if (renewed.ok || renewed.status === 401 || renewed.status === 503) {
-    return withSetCookies(renewed);
+    return withSetCookies(renewed, renewed.status === 503 ? 503 : 204);
   }
 
   // The access check may reject a user after refresh has rotated the token.
@@ -416,5 +416,5 @@ async function renewSessionOnce(
       body: "{}",
     }),
   );
-  return withSetCookies(signedOut);
+  return withSetCookies(signedOut, 401);
 }
