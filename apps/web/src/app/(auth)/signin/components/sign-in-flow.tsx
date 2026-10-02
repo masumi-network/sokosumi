@@ -95,6 +95,9 @@ export default function SignInFlow({
   const [step, setStep] = useState<"email" | "method">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isMethodPending, setIsMethodPending] = useState(false);
+  // Step 1 starts one sign-in at a time: the email or a provider.
+  const [isEmailPending, setIsEmailPending] = useState(false);
+  const [isProviderPending, setIsProviderPending] = useState(false);
   const formStarted = useRef(false);
 
   // when user first sees the login area
@@ -183,12 +186,16 @@ export default function SignInFlow({
             }
             if (!signal.aborted) setStep("method");
           }}
+          disabled={isProviderPending}
+          onPendingChange={setIsEmailPending}
         />
         <Divider />
         <SocialButtons
           returnUrl={returnUrl}
           lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
           showPasskey
+          disabled={isEmailPending}
+          onPendingChange={setIsProviderPending}
         />
         <div className="flex flex-row items-center gap-2">
           <span className="text-muted-foreground text-sm">
