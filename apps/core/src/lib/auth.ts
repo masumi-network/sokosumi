@@ -369,8 +369,6 @@ export const auth = betterAuth({
                   },
                   extra: {
                     userId: user.id,
-                    email: user.email,
-                    name: user.name,
                   },
                 });
               }),
