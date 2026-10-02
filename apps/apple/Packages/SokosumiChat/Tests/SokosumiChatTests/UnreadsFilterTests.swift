@@ -25,7 +25,7 @@ struct UnreadsFilterTests {
               unreadReplyCount: 1, unreadMentionCount: 0)
       },
       unreadMentionCount: mentions, starredAt: pinnedAt.map { fixedDate.addingTimeInterval(Double($0)) },
-      mutedAt: muted ? fixedDate : nil, markedUnread: marked, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      mutedAt: muted ? fixedDate : nil, markedUnread: marked, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 

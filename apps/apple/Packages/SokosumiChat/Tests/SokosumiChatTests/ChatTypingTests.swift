@@ -29,7 +29,7 @@ private func room(_ members: [(id: String, name: String)]) -> Components.Schemas
   .init(
     id: "room", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil,
     discoverability: ._private, createdByUserId: reader, createdAt: .distantPast, updatedAt: .distantPast,
-    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
     userMembers: members.map { .init(id: $0.id, name: $0.name, email: "\($0.id)@example.com", presence: .online) },
     coworkerMembers: [.init(id: "agent", name: "Agent", slug: "agent", caption: nil, image: nil, presence: .online)],
     sokoBotMembers: []

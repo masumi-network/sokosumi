@@ -20,7 +20,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
 - `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.
-- `Chat/Details/`: room details/roster inspector, channel settings sheet, lifecycle confirmations and the host-side guest access section; guest state and networking stay in the shared packages.
+- `Chat/Details/`: room details/members inspector (add, remove, leave), its Add picker with the host-side guest access tab, the admin-only channel settings sheet and lifecycle confirmations; membership rules, guest state and networking stay in the shared packages.
 - `Chat/Invitations/`: channel invitation and guest join-link sheets; invitation state and networking stay in the shared packages.
 - `Chat/Composer/`: draft-owning rich composer, the Typing line under the room composer (`RoomTypingLine`), Drive picker (`DriveFilePickerView`) and isolated native text input. Typing state and its channel stay in the shared packages.
 - `Chat/Rendering/`: Markdown, code, expansion, coworker thought, and attachment chips/previews (`MessageAttachmentView`, `MessageImageViewer`, `DocumentAttachmentPreview`, `NativeOfficePreview`).

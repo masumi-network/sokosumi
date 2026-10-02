@@ -22,7 +22,7 @@
           id: "room-\(name)", name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, discoverability: ._public,
           createdByUserId: "user_1", createdAt: fixedDate, updatedAt: fixedDate,
           unreadCount: channel, channelUnreadCount: channel, threadUnreadCount: 0, unreadThreadCount: 0, unreadThreads: [],
-          unreadMentionCount: 0, starredAt: nil, mutedAt: nil, markedUnread: false, myAccess: .member,
+          unreadMentionCount: 0, starredAt: nil, mutedAt: nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }

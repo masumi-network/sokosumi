@@ -35,7 +35,7 @@
       let room = Components.Schemas.ChatRoom(
         id: "fixture", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, groupName: "Launch crew",
         createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-        markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+        markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
       )
       let model = GroupNaming(room: room)
       let content = NameGroupView(room: room, model: model) { _ in

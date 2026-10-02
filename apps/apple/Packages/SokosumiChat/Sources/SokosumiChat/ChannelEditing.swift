@@ -2,9 +2,10 @@ import Combine
 import CoreAPI
 import Foundation
 
-/// Web `rooms-client.tsx`: host channel members rewrite the roster; guests and
-/// matched channels cannot. Name/topic/visibility need an organization owner
-/// or admin. Core enforces the same split; this only shapes the UI.
+/// Core `channel-membership.ts` (SOK-1258): any host member of an organization Channel that is not matched adds people,
+/// Coworkers and their own Soko Bots and removes Guests and Coworkers; guests and matched channels manage nobody.
+/// Name/topic/visibility, Archive and removing host members need an organization owner or admin. Core enforces the
+/// same matrix; this only hides what Core would reject.
 public struct ChannelEditPermissions: Equatable, Sendable {
   public let canEditMembers: Bool
   public let canManageSettings: Bool
@@ -20,25 +21,35 @@ public struct ChannelEditPermissions: Equatable, Sendable {
   }
 
   public static func isEditable(_ room: Components.Schemas.ChatRoom) -> Bool {
-    room.kind == .channel && room.organizationId != nil && room.myAccess != .guest && room.discoverability != .matched
+    room.kind == .channel && room.organizationId != nil && room.myAccess.value1 != .guest && room.discoverability != .matched
+  }
+
+  /// A row's Remove action. Nobody removes themselves (that is Leave); a Guest or Coworker needs any host member, a
+  /// host member needs an owner or admin, and a Soko Bot only its owner.
+  public func canRemove(_ member: DirectRecipient, in room: Components.Schemas.ChatRoom, currentUserId: String) -> Bool {
+    guard canEditMembers else { return false }
+    switch member {
+    case let .human(id):
+      guard id != currentUserId, let user = room.userMembers.first(where: { $0.id == id }) else { return false }
+      return user.access == .guest || canManageSettings
+    case let .coworker(id):
+      return room.coworkerMembers.contains { $0.id == id }
+    case let .sokoBot(id):
+      return room.sokoBotMembers.contains { $0.id == id && $0.ownerUserId == currentUserId }
+    }
   }
 }
 
+/// The admin-only settings sheet: name, topic and visibility. Membership lives in the members panel.
 public struct ChannelEditDraft: Equatable, Sendable {
   public private(set) var name: String
   public private(set) var topic: String
   public var visibility: ChannelDraft.Visibility
-  public var recipients: Set<DirectRecipient>
-  /// When People is unavailable, Save must preserve the latest room humans rather than this opening snapshot.
-  public fileprivate(set) var preservesRoomMembers = false
 
   public init(room: Components.Schemas.ChatRoom) {
     name = room.name
     topic = room.topic ?? ""
     visibility = ChannelDraft.Visibility(rawValue: room.discoverability?.rawValue ?? "") ?? .public
-    // Host-org roster only: guests are room-scoped and must never be sent as memberUserIds (web `hostRosterUserIds`).
-    let humans = room.userMembers.filter { $0.access?.value1 != .guest }.map { DirectRecipient.human($0.id) }
-    recipients = Set(humans + room.coworkerMembers.map { .coworker($0.id) } + room.sokoBotMembers.map { .sokoBot($0.id) })
   }
 
   public var isValid: Bool {
@@ -58,101 +69,31 @@ public struct ChannelEditDraft: Equatable, Sendable {
 public final class ChannelEditing: ObservableObject {
   @Published public private(set) var room: Components.Schemas.ChatRoom
   @Published public var draft: ChannelEditDraft
-  @Published public var query = ""
-  @Published public private(set) var roster: ChannelRoster?
-  @Published public private(set) var loading = false
   @Published public private(set) var saving = false
   @Published public private(set) var errorMessage: String?
-  private var loadGeneration = 0
 
   public init(room: Components.Schemas.ChatRoom) {
     self.room = room
     draft = ChannelEditDraft(room: room)
   }
 
-  /// Room updates can arrive from another window or a sidebar refresh. Keep agent edits, but adopt the
-  /// current human roster so a successful People retry cannot make an old snapshot authoritative again.
+  /// Room updates can arrive from another window or a sidebar refresh; the draft keeps the edits in progress.
   public func updateRoom(_ room: Components.Schemas.ChatRoom) {
     guard room.id == self.room.id, room != self.room else { return }
-    let currentHumans = ChannelEditDraft(room: room).recipients.filter {
-      if case .human = $0 {
-        return true
-      }
-      return false
-    }
-    let previousHumans = ChannelEditDraft(room: self.room).recipients.filter {
-      if case .human = $0 {
-        return true
-      }
-      return false
-    }
     self.room = room
-    guard currentHumans != previousHumans else { return }
-    draft.recipients = draft.recipients.filter {
-      if case .human = $0 {
-        return false
-      }
-      return true
-    }
-    draft.recipients.formUnion(ChannelEditDraft(room: room).recipients.filter {
-      if case .human = $0 {
-        return true
-      }
-      return false
-    })
   }
 
-  public var permissions: ChannelEditPermissions? {
-    roster.map { ChannelEditPermissions(room: room, isOwnerOrAdmin: $0.isOwnerOrAdmin) }
-  }
-
-  public var sections: [ChatRecipientSection] {
-    let sections = roster?.recipients.sections(query: query) ?? []
-    return [ChatRecipientSection.Kind.people, .coworkers, .assistant].compactMap { kind in sections.first { $0.id == kind } }
-  }
-
-  /// The organization member page failed while the rest of the roster loaded (web `membersLoadFailed`): only the
-  /// People section is missing, so coworkers and the assistant still toggle.
-  public var membersLoadFailed: Bool {
-    roster?.recipients.membersLoadFailed == true
-  }
-
-  /// A failed member page does not block Save, as on web: the draft's humans come from the room, never from the
-  /// organization list. The coordinator supplies the latest room so hidden members survive changes in other windows.
   public var canSave: Bool {
-    !loading && !saving && permissions?.canEditMembers == true && draft.isValid
+    !saving && ChannelEditPermissions.isEditable(room) && draft.isValid
   }
 
-  public func load(using fetch: () async throws -> ChannelRoster) async {
-    guard !saving else { return }
-    loadGeneration += 1
-    let attempt = loadGeneration
-    loading = true
-    errorMessage = nil
-    defer {
-      if attempt == loadGeneration {
-        loading = false
-      }
-    }
-    do {
-      let result = try await fetch()
-      guard attempt == loadGeneration, !Task.isCancelled else { return }
-      roster = result
-      draft.preservesRoomMembers = result.recipients.membersLoadFailed
-    } catch {
-      guard attempt == loadGeneration, !Task.isCancelled, !(error is CancellationError) else { return }
-      roster = nil
-      errorMessage = friendlyMessage(for: error, mode: .coreMessage)
-    }
-  }
-
-  public func save(using submit: (ChannelEditDraft, ChannelEditPermissions) async throws -> Bool) async -> Bool {
-    guard canSave, let permissions else { return false }
+  public func save(using submit: (ChannelEditDraft) async throws -> Bool) async -> Bool {
+    guard canSave else { return false }
     saving = true
     errorMessage = nil
     defer { saving = false }
     do {
-      let saved = try await submit(draft, permissions)
+      let saved = try await submit(draft)
       guard !Task.isCancelled else { return false }
       if !saved {
         errorMessage = "Couldn’t update the channel. Try again."

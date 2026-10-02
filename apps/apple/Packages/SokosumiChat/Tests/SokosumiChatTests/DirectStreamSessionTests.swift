@@ -26,7 +26,7 @@ struct DirectStreamSessionTests {
 
   private func room() -> Components.Schemas.ChatRoom {
     .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
-          unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+          unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
   }
 
@@ -238,7 +238,7 @@ struct DirectStreamSessionTests {
   @Test func onlyCoworkerOneToOneDirectsUseStream() {
     var candidate = room()
     #expect(DirectStreamSession.supports(candidate))
-    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", presence: .online)]
+    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", presence: .online)]
     #expect(!DirectStreamSession.supports(candidate))
     candidate.sokoBotMembers = []
     candidate.kind = .channel

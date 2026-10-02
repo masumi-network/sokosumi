@@ -4,7 +4,7 @@ import SokosumiChat
 import Testing
 
 private let coworkerSender = #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
-private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","presence":"online"}}"#
+private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
 
 private func shellRow(content: String = "", sender: String = coworkerSender, metadata: String?, deletedAt: String? = nil) -> String {
   testMessageJSON(id: "shell", content: content, sender: sender, deletedAt: deletedAt, metadata: metadata)

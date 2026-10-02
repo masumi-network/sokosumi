@@ -8,15 +8,16 @@
 
   extension NativeWindowTests {
     @MainActor struct GuestAccessSectionTests {
-      private func externalRoom(guestName: String, topic: String? = nil) throws -> Components.Schemas.ChatRoom {
-        try Components.Schemas.ChatRoom(
+      private func externalRoom() -> Components.Schemas.ChatRoom {
+        Components.Schemas.ChatRoom(
           id: "fixture", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false,
-          topic: topic, discoverability: .external, createdByUserId: "me",
+          discoverability: .external, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-          markedUnread: false, myAccess: .member,
-          userMembers: [.init(id: "me", name: "Alex Morgan", email: "alex@example.com", presence: .online, access: .init(value1: .member, value2: .init(unvalidatedValue: "member"))),
-                        .init(id: "guest", name: guestName, email: "priya@agency-partners-worldwide.example", presence: .offline, access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest")))],
-          coworkerMembers: [], sokoBotMembers: []
+          markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
+          userMembers: [.init(id: "me", name: "Alex Morgan", email: "alex@example.com", presence: .online, access: .member),
+                        .init(id: "guest", name: "Priya Natarajan", email: "priya@agency-partners-worldwide.example", presence: .offline, access: .guest)],
+          coworkerMembers: [.init(id: "agent", name: "Research assistant", slug: "research", caption: nil, image: nil, presence: .online)],
+          sokoBotMembers: []
         )
       }
 
@@ -33,38 +34,26 @@
         )
       }
 
-      /// The external-channel settings sheet: settings, roster, guest access and Manage channel scroll inside the
-      /// clamped sheet while Cancel/Save stay put; the guest section shows a pending invitation, live links with
-      /// their meta line and one guest.
+      /// The members panel's Add picker on an External channel (SOK-1258): it opens on the organization tab, loads the
+      /// roster once and lists only people and agents outside the Channel; the guest tab stays unloaded until chosen.
       @Test(arguments: [false, true])
-      func rendersGuestAccessInsideChannelSettings(dark: Bool) async throws {
-        let room = try externalRoom(guestName: "Priya Natarajan", topic: "Shared channel with our agency partners.")
-        let roster = ChannelRoster(recipients: .init(targets: [
-          .init(id: .human("me"), name: "Alex Morgan", detail: "alex@example.com"),
-          .init(id: .human("peer"), name: "Sam Rivera", detail: "sam@example.com")
-        ]), isOwnerOrAdmin: true)
-        let snapshot = try snapshot()
-        let editing = ChannelEditing(room: room)
+      func rendersAddPickerWithNonMembersOnly(dark: Bool) async throws {
+        let room = externalRoom()
+        let model = ChannelMemberAddition(room: room)
         var loads = 0
-        let actions = GuestAccessActions(load: {
+        let content = AddChannelMembersView(room: room, currentUserId: "me", model: model, load: {
           loads += 1
-          return snapshot
-        }, invite: { _ in
-          Issue.record("Rendering must not invite")
-          throw CancellationError()
-        }, revokeInvitation: { _ in Issue.record("Rendering must not revoke") }, createLink: { _ in
-          Issue.record("Rendering must not create links")
-          throw CancellationError()
-        }, revokeLink: { _ in Issue.record("Rendering must not revoke links") }, removeGuest: { _ in
-          Issue.record("Rendering must not remove guests")
+          return ChatRecipientRoster(targets: [
+            .init(id: .human("me"), name: "Alex Morgan", detail: "alex@example.com"),
+            .init(id: .human("peer"), name: "Sam Rivera", detail: "sam@example.com"),
+            .init(id: .coworker("agent"), name: "Research assistant"),
+            .init(id: .coworker("writer"), name: "Copywriter"),
+            .init(id: .sokoBot("bot"), name: "Personal assistant")
+          ])
+        }, add: { _ in
+          Issue.record("Rendering must not add")
           return false
-        })
-        let content = EditChannelView(room: room, currentUserId: "me", model: editing, load: { roster }, save: { _, _ in
-          Issue.record("Rendering must not save")
-          return false
-        }, requestLifecycle: { _ in
-          Issue.record("Rendering must not request leave or archive")
-        }, guestAccess: actions)
+        }, guestAccess: .unused)
           .background(.background)
           .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
@@ -73,26 +62,22 @@
         window.contentView = host
         window.orderFront(nil)
         defer { window.orderOut(nil) }
-        host.layoutSubtreeIfNeeded()
-        for _ in 0 ..< 100 where !(loads > 0 && !editing.loading) {
-          try await Task.sleep(for: .milliseconds(20))
+        _ = try await waitForView(in: host, timeoutMessage: "The roster load never settled") {
+          loads > 0 && !model.loading ? host : nil
         }
-        #expect(loads == 1 && !editing.loading)
-        #expect(ChannelEditPermissions.canInviteGuests(room))
-        try await Task.sleep(for: .milliseconds(100))
-        // Loaded, the sheet sizes to the content's ideal height, clamped like a scrolling web dialog.
-        let fitting = host.fittingSize
-        #expect(fitting.width == 480 && fitting.height == 760, "\(fitting)")
-        window.setContentSize(fitting)
+        #expect(loads == 1)
+        #expect(model.sections.flatMap(\.targets).map(\.id) == [.human("peer"), .coworker("writer"), .sokoBot("bot")])
+        #expect(!model.canAdd)
+        window.setContentSize(host.fittingSize)
         host.layoutSubtreeIfNeeded()
-        try await Task.sleep(for: .milliseconds(100))
+        #expect(host.fittingSize.width == 480, "\(host.fittingSize)")
       }
 
-      /// The section alone, loaded, at sheet width: long addresses and URLs truncate in the middle, the link meta line
-      /// follows web's copy and a named guest shows name plus email.
+      /// The section alone, loaded, at sheet width: long addresses and URLs truncate in the middle and the link meta
+      /// line follows web's copy. Current Guests live in the members panel, not here.
       @Test(arguments: [false, true])
       func rendersLoadedSection(dark: Bool) async throws {
-        let room = try externalRoom(guestName: "Priya Natarajan")
+        let room = externalRoom()
         let model = GuestAccess(room: room)
         let content = try GuestAccessSection(room: room, model: model, actions: .loading(snapshot()))
           .padding(20)
@@ -111,8 +96,35 @@
         try await Task.sleep(for: .milliseconds(100))
         window.setContentSize(host.fittingSize)
         host.layoutSubtreeIfNeeded()
-        #expect(model.invitations.count == 1 && model.links.count == 2 && model.guests.count == 1 && !model.loading)
+        #expect(model.invitations.count == 1 && model.links.count == 2 && !model.loading)
       }
+    }
+  }
+
+  extension GuestAccessActions {
+    /// The organization tab never mounts the guest section, so none of these may run.
+    static let unused = loading {
+      Issue.record("Guest access must not load")
+      return GuestAccessSnapshot(invitations: [], links: [])
+    }
+
+    static func loading(_ snapshot: GuestAccessSnapshot) -> GuestAccessActions {
+      loading { snapshot }
+    }
+
+    /// Rendering fixtures load once and never mutate.
+    static func loading(_ load: @escaping () async throws -> GuestAccessSnapshot) -> GuestAccessActions {
+      GuestAccessActions(load: load, invite: { _ in
+        Issue.record("Rendering must not invite")
+        throw CancellationError()
+      }, revokeInvitation: { _ in
+        Issue.record("Rendering must not revoke")
+      }, createLink: { _ in
+        Issue.record("Rendering must not create links")
+        throw CancellationError()
+      }, revokeLink: { _ in
+        Issue.record("Rendering must not revoke links")
+      })
     }
   }
 #endif

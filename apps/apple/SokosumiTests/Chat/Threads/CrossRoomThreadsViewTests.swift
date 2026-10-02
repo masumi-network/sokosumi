@@ -106,7 +106,7 @@
           id: id, name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, discoverability: ._public,
           createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0,
           unreadThreadCount: unreadThreads, unreadThreadMentionCount: mentions, unreadMentionCount: 0,
-          markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+          markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }
 

@@ -13,14 +13,28 @@ struct RoomDetailsView: View {
   @State private var directRequestId: UUID?
   @State private var selectedProfile: ChatParticipantProfile?
   @State private var editChannel: RoomEditPresentation?
+  @State private var addMembers: RoomEditPresentation?
   @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
+  @State private var removal: RoomRosterMember?
+
+  /// The members panel manages membership (SOK-1258); settings stay with organization owners and admins.
+  private var permissions: ChannelEditPermissions {
+    ChannelEditPermissions(room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin)
+  }
 
   var body: some View {
     VStack(spacing: 0) {
       HStack {
         Text("Members").font(.headline)
         Spacer()
+        if permissions.canEditMembers {
+          Button("Add members…", systemImage: "person.badge.plus") {
+            addMembers = .init(id: workspaces.compositionContext, roomId: room.id)
+          }
+          .labelStyle(.iconOnly).buttonStyle(.borderless).help("Add members")
+          .disabled(workspaces.roomMutationInFlight)
+        }
         Button("Close", systemImage: "xmark", action: close)
           .labelStyle(.iconOnly).buttonStyle(.borderless).help("Close members")
       }.padding()
@@ -32,12 +46,12 @@ struct RoomDetailsView: View {
             if let topic = room.topic?.trimmingCharacters(in: .whitespacesAndNewlines), !topic.isEmpty {
               Text(topic).textSelection(.enabled)
             }
-            if ChannelEditPermissions.isEditable(room) {
+            if permissions.canManageSettings {
               Button("Channel settings…") {
                 editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
               }
-            } else if ChannelEditPermissions.canLeave(room) {
-              // Guests and matched members cannot edit; web's dialog shrinks to Leave for them.
+            }
+            if ChannelEditPermissions.canLeave(room) {
               Button("Leave channel…") {
                 lifecycle = .init(context: workspaces.compositionContext, roomId: room.id, name: room.name, action: .leave)
               }
@@ -66,7 +80,15 @@ struct RoomDetailsView: View {
             Text("No members.").foregroundStyle(.secondary)
           }
           ForEach(members) { member in
-            memberRow(member)
+            managedRow(member)
+          }
+        }
+        let guests = RoomRoster.guests(in: room)
+        if !guests.isEmpty {
+          Section("Guests") {
+            ForEach(guests) { guest in
+              managedRow(guest)
+            }
           }
         }
       }.listStyle(.plain)
@@ -76,16 +98,29 @@ struct RoomDetailsView: View {
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
     .modifier(EditChannelSheet(presentation: $editChannel))
+    .modifier(AddChannelMembersSheet(presentation: $addMembers))
     .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
+    .alert(removalTitle, isPresented: Binding(get: { removal != nil }, set: {
+      if !$0 {
+        removal = nil
+      }
+    }), presenting: removal) { member in
+      Button("Cancel", role: .cancel) {}
+      Button("Remove", role: .destructive) { remove(member) }
+    } message: { _ in
+      Text("They lose access to this channel. Their personal assistant leaves with them.")
+    }
     .onDisappear { directRequestId = nil }
     .onChange(of: room.id) { _, _ in
       directRequestId = nil
       errorMessage = nil
       selectedProfile = nil
       editChannel = nil
+      addMembers = nil
       nameGroup = nil
       lifecycle = nil
+      removal = nil
     }
   }
 
@@ -140,6 +175,61 @@ struct RoomDetailsView: View {
         .accessibilityLabel("Message \(member.profile.name)")
       }
     }.padding(.vertical, 2)
+  }
+
+  /// Remove sits in the row's context menu on macOS and iOS, and in a trailing swipe on iOS.
+  private func managedRow(_ member: RoomRosterMember) -> some View {
+    memberRow(member)
+      .contextMenu { removeAction(member) }
+      #if os(iOS)
+        .swipeActions { removeAction(member) }
+      #endif
+  }
+
+  /// Shown only where Core would accept it; a person's removal asks first, a Coworker or own Soko Bot goes at once.
+  @ViewBuilder
+  private func removeAction(_ member: RoomRosterMember) -> some View {
+    if permissions.canRemove(member.id, in: room, currentUserId: workspaces.currentUserId) {
+      let title: LocalizedStringKey = isPerson(member) ? "Remove from channel…" : "Remove from channel"
+      Button(title, systemImage: "person.badge.minus", role: .destructive) {
+        guard !workspaces.roomMutationInFlight else { return }
+        if isPerson(member) {
+          removal = member
+        } else {
+          remove(member)
+        }
+      }
+      .disabled(workspaces.roomMutationInFlight)
+    }
+  }
+
+  private var removalTitle: String {
+    removal.map { "Remove \($0.profile.name) from \(room.name)?" } ?? ""
+  }
+
+  private func isPerson(_ member: RoomRosterMember) -> Bool {
+    if case .human = member.id {
+      return true
+    }
+    return false
+  }
+
+  private func remove(_ member: RoomRosterMember) {
+    errorMessage = nil
+    let context = workspaces.compositionContext
+    let roomId = room.id
+    Task { @MainActor in
+      do {
+        let removed = try await workspaces.removeChannelMember(member.id, roomId: roomId, context: context, auth: auth)
+        if !removed {
+          errorMessage = "Couldn’t remove \(member.profile.name). Try again."
+        }
+      } catch is CancellationError {
+        // The workspace changed underneath the request; nothing to report.
+      } catch {
+        errorMessage = friendlyMessage(for: error, mode: .coreMessage)
+      }
+    }
   }
 
   /// Web's roster badges beside the name; humans carry none.
