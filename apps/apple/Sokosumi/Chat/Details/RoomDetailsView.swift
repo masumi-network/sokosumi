@@ -17,6 +17,8 @@ struct RoomDetailsView: View {
   @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var removal: RoomRosterMember?
+  @State private var notice: ChannelMembershipNotice?
+  @State private var noticeSerial = 0
 
   /// The members panel manages membership (SOK-1258); settings stay with organization owners and admins.
   private var permissions: ChannelEditPermissions {
@@ -92,13 +94,17 @@ struct RoomDetailsView: View {
           }
         }
       }.listStyle(.plain)
+      if let notice {
+        ChannelMembershipNoticeBar(notice: notice, serial: noticeSerial, undoDisabled: workspaces.roomMutationInFlight,
+                                   undo: undo, dismiss: { self.notice = nil })
+      }
       if let errorMessage {
         Text(errorMessage).font(.callout).foregroundStyle(.red).padding()
       }
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
     .modifier(EditChannelSheet(presentation: $editChannel))
-    .modifier(AddChannelMembersSheet(presentation: $addMembers))
+    .modifier(AddChannelMembersSheet(presentation: $addMembers) { post(.added(count: $0)) })
     .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .alert(removalTitle, isPresented: Binding(get: { removal != nil }, set: {
@@ -107,7 +113,7 @@ struct RoomDetailsView: View {
       }
     }), presenting: removal) { member in
       Button("Cancel", role: .cancel) {}
-      Button("Remove", role: .destructive) { remove(member) }
+      Button("Remove from channel", role: .destructive) { remove(member) }
     } message: { member in
       Text("\(member.profile.name) will no longer see this channel or its messages.")
     }
@@ -121,6 +127,7 @@ struct RoomDetailsView: View {
       nameGroup = nil
       lifecycle = nil
       removal = nil
+      notice = nil
     }
   }
 
@@ -221,7 +228,9 @@ struct RoomDetailsView: View {
     Task { @MainActor in
       do {
         let removed = try await workspaces.removeChannelMember(member.id, roomId: roomId, context: context, auth: auth)
-        if !removed {
+        if removed {
+          post(.removed(member.id, name: member.profile.name))
+        } else {
           errorMessage = "Couldn’t remove \(member.profile.name). Try again."
         }
       } catch is CancellationError {
@@ -230,6 +239,30 @@ struct RoomDetailsView: View {
         errorMessage = friendlyMessage(for: error, mode: .coreMessage)
       }
     }
+  }
+
+  /// Web's Undo adds the Coworker or Soko Bot back and closes the toast; a failure shows Core's message.
+  private func undo(_ member: DirectRecipient) {
+    notice = nil
+    errorMessage = nil
+    let context = workspaces.compositionContext
+    let roomId = room.id
+    Task { @MainActor in
+      do {
+        if try await !workspaces.addChannelMembers([member], roomId: roomId, context: context, auth: auth) {
+          errorMessage = "Couldn’t undo. Try again."
+        }
+      } catch is CancellationError {
+        // The workspace changed underneath the request; nothing to report.
+      } catch {
+        errorMessage = friendlyMessage(for: error, mode: .coreMessage)
+      }
+    }
+  }
+
+  private func post(_ notice: ChannelMembershipNotice) {
+    self.notice = notice
+    noticeSerial += 1
   }
 
   /// Web's roster badges beside the name; humans carry none.

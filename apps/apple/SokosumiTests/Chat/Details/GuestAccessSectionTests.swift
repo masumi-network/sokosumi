@@ -71,6 +71,13 @@
         window.setContentSize(host.fittingSize)
         host.layoutSubtreeIfNeeded()
         #expect(host.fittingSize.width == 480, "\(host.fittingSize)")
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
+        host.cacheDisplay(in: host.bounds, to: bitmap)
+        if let lines = try CreateChannelGuidanceTests.recognizedLines(in: bitmap) {
+          let text = lines.joined(separator: " ")
+          #expect(["Add members", "your personal assistants to Partners.", "From your organization"].allSatisfy(text.contains), "Vision read \(lines)")
+        }
+        try Attachment.record(#require(bitmap.representation(using: .png, properties: [:])), named: "add-members-\(dark ? "dark" : "light").png")
       }
 
       /// The section alone, loaded, at sheet width: long addresses and URLs truncate in the middle and the link meta

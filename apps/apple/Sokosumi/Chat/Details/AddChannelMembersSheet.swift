@@ -7,6 +7,8 @@ import SwiftUI
 /// Wires the members panel's Add picker to `WorkspaceState`; a workspace switch closes it like the settings sheet.
 struct AddChannelMembersSheet: ViewModifier {
   @Binding var presentation: RoomEditPresentation?
+  /// How many were added, for the members panel's notice.
+  let onAdded: (Int) -> Void
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
 
@@ -16,8 +18,12 @@ struct AddChannelMembersSheet: ViewModifier {
         if let room = workspaces.rooms.first(where: { $0.id == presentation.roomId }) {
           AddChannelMembersView(room: room, currentUserId: workspaces.currentUserId, load: {
             try await workspaces.loadChannelRoster(context: presentation.id, auth: auth).recipients
-          }, add: {
-            try await workspaces.addChannelMembers($0, roomId: room.id, context: presentation.id, auth: auth)
+          }, add: { selection in
+            let added = try await workspaces.addChannelMembers(selection, roomId: room.id, context: presentation.id, auth: auth)
+            if added {
+              onAdded(selection.count)
+            }
+            return added
           }, guestAccess: guestAccess(roomId: room.id, context: presentation.id))
         } else {
           // Removed or archived while the sheet was open: never a blank modal.

@@ -70,6 +70,19 @@ struct ChannelMemberAdditionTests {
     #expect(!model.canAdd)
   }
 
+  /// Web's empty state needs a loaded roster with nobody left whatever the query; a failed member page may hide people.
+  @Test func nobodyToAddOnlyWhenTheWholeRosterIsInTheChannel() async {
+    let model = ChannelMemberAddition(room: room())
+    #expect(!model.nobodyToAdd, "Not loaded yet")
+    await model.load { roster }
+    model.query = "no such name"
+    #expect(model.sections.isEmpty && !model.nobodyToAdd, "A query that matches nobody is not an empty roster")
+    await model.load { .init(targets: [.init(id: .human("peer"), name: "Peer"), .init(id: .coworker("agent"), name: "Agent")]) }
+    #expect(model.nobodyToAdd)
+    await model.load { .init(targets: [.init(id: .coworker("agent"), name: "Agent")], membersLoadFailed: true) }
+    #expect(!model.nobodyToAdd)
+  }
+
   /// Someone added from another window leaves the list and the selection; a guest viewer can never add.
   @Test func roomUpdatesDropNewMembersAndGuestsCannotAdd() async {
     var current = room()

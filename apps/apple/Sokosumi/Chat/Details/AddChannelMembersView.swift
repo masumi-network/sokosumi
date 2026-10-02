@@ -34,10 +34,14 @@ struct AddChannelMembersView: View {
   var body: some View {
     let invitesGuests = ChannelEditPermissions.canInviteGuests(model.room)
     VStack(alignment: .leading, spacing: 16) {
-      Text("Add to \(model.room.name)").font(.title2).fontWeight(.semibold).lineLimit(1)
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Add members").font(.title2).fontWeight(.semibold)
+        Text("Add people, coworkers, and your personal assistants to \(model.room.name).").foregroundStyle(.secondary)
+          .fixedSize(horizontal: false, vertical: true)
+      }
       if invitesGuests {
         Picker("Add from", selection: $tab) {
-          Text("Your organization").tag(Tab.organization)
+          Text("From your organization").tag(Tab.organization)
           Text("Invite from outside").tag(Tab.outside)
         }
         .pickerStyle(.segmented)
@@ -85,6 +89,9 @@ struct AddChannelMembersView: View {
     } else if model.roster == nil {
       Text(model.errorMessage ?? "Couldn’t load participants.").foregroundStyle(.secondary)
       Button("Retry") { retry += 1 }
+    } else if model.nobodyToAdd {
+      Text("Everyone you can add is already in this channel.").foregroundStyle(.secondary)
+        .frame(maxWidth: .infinity, minHeight: 80)
     } else {
       RecipientSelectionList(sections: model.sections, currentUserId: currentUserId, query: $model.query, selection: $model.selection,
                              membersLoadFailed: model.membersLoadFailed, retryMembers: { retry += 1 }, note: nil)

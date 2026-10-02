@@ -42,6 +42,13 @@ public final class ChannelMemberAddition: ObservableObject {
     roster?.membersLoadFailed == true
   }
 
+  /// Web's "Everyone you can add is already in this channel": a loaded roster, whatever the query, offers nobody. A
+  /// failed member page is not that, since people may still be missing.
+  public var nobodyToAdd: Bool {
+    guard let roster, !roster.membersLoadFailed else { return false }
+    return roster.sections(query: "", excluding: Self.members(of: room)).isEmpty
+  }
+
   public var canAdd: Bool {
     !loading && !adding && roster != nil && !selection.isEmpty && ChannelEditPermissions.isEditable(room)
   }
