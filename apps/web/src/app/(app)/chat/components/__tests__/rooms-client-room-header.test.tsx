@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -80,7 +80,7 @@ vi.mock("../room-message-row", () => ({
   }: {
     message: ChatRoomMessage;
     onQuote?: unknown;
-    onOpenThread?: unknown;
+    onOpenThread?: (message: ChatRoomMessage) => void;
     onToggleReaction?: unknown;
     onStartEdit?: unknown;
   }) => (
@@ -92,12 +92,24 @@ vi.mock("../room-message-row", () => ({
       data-can-edit={String(Boolean(onStartEdit))}
     >
       {message.content}
+      {typeof onOpenThread === "function" ? (
+        <button
+          type="button"
+          aria-label={`open thread ${message.id}`}
+          onClick={() => onOpenThread(message)}
+        />
+      ) : null}
     </div>
   ),
 }));
 
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: () => <aside data-testid="thread-panel" />,
+  ThreadPanel: ({ onQuote }: { onQuote?: unknown }) => (
+    <aside
+      data-testid="thread-panel"
+      data-can-quote={String(Boolean(onQuote))}
+    />
+  ),
 }));
 
 vi.mock("../thread-list-panel", () => ({
@@ -373,12 +385,19 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(plain).toHaveAttribute("data-can-quote", "false");
     expect(plain).toHaveAttribute("data-can-react", "false");
     expect(plain).toHaveAttribute("data-can-open-thread", "false");
-    // Editing one's own message stays allowed.
+    // RoomsClient still hands over the edit handler; the row itself limits
+    // it to the viewer's own messages.
     expect(plain).toHaveAttribute("data-can-edit", "true");
-    // An existing Thread stays readable.
-    expect(rowFor("has replies")).toHaveAttribute(
-      "data-can-open-thread",
-      "true",
+
+    // An existing Thread stays readable, but nothing can be added to it.
+    const withReplies = rowFor("has replies");
+    expect(withReplies).toHaveAttribute("data-can-open-thread", "true");
+    expect(withReplies).toHaveAttribute("data-can-quote", "false");
+    expect(withReplies).toHaveAttribute("data-can-react", "false");
+    fireEvent.click(screen.getByLabelText("open thread msg-2"));
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-can-quote",
+      "false",
     );
   });
 
@@ -393,6 +412,11 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(row).toHaveAttribute("data-can-quote", "true");
     expect(row).toHaveAttribute("data-can-react", "true");
     expect(row).toHaveAttribute("data-can-open-thread", "true");
+    fireEvent.click(screen.getByLabelText("open thread msg-1"));
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-can-quote",
+      "true",
+    );
   });
 });
 
