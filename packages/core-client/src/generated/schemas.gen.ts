@@ -2349,6 +2349,11 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        ownerUserId: {
+            type: 'string',
+            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            example: 'user_123'
+        },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
         }
@@ -2359,6 +2364,7 @@ export const ChatRoomSokoBotParticipantSchema = {
         'caption',
         'image',
         'avatarSeed',
+        'ownerUserId',
         'presence'
     ]
 } as const;
@@ -2553,6 +2559,22 @@ export const ChatRoomMessageMembershipSchema = {
         },
         subject: {
             $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Who added or removed the subject. Absent when the subject joined or left on their own.'
         }
     },
     required: [
@@ -10608,42 +10630,6 @@ export const UpdateChatRoomRequestSchema = {
         discoverability: {
             $ref: '#/components/schemas/OrgChannelDiscoverability'
         },
-        memberUserIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 500,
-            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
-            example: [
-                'user_123',
-                'user_456'
-            ]
-        },
-        coworkerIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 50,
-            example: [
-                'cow_123'
-            ]
-        },
-        sokoBotIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            maxItems: 50,
-            description: 'Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.',
-            example: [
-                '01960001-0001-7001-8001-000000000099'
-            ]
-        },
         groupName: {
             type: [
                 'string',
@@ -10815,6 +10801,49 @@ export const LeftChatRoomSchema = {
         'id',
         'remainingUserMemberCount'
     ]
+} as const;
+
+export const AddChatRoomMembersRequestSchema = {
+    type: 'object',
+    properties: {
+        userIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Organization member user IDs to add to the room.',
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            description: 'Marketplace AI coworker IDs to add to the room.',
+            example: [
+                'cow_123'
+            ]
+        },
+        sokoBotIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
+            ]
+        }
+    }
 } as const;
 
 export const ChatRoomThreadSchema = {

@@ -40,6 +40,7 @@ function makeSokoBot(id: string, name: string) {
     caption: `${name} caption`,
     image: null as string | null,
     avatarSeed: null as string | null,
+    ownerUserId: "me",
     presence: "offline" as const,
   };
 }

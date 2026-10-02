@@ -78,6 +78,7 @@ import type {
   PostAgentsByIdRatingsData,
   PostChatsRoomsByIdFilesData,
   PostChatsRoomsByIdInviteLinksData,
+  PostChatsRoomsByIdMembersData,
   PostChatsRoomsByIdMessagesByMessageIdUnfurlsRemoveData,
   PostChatsRoomsByIdMessagesData,
   PostChatsRoomsData,
@@ -153,6 +154,7 @@ import {
   deleteAdminMatchedChannel as coreDeleteAdminMatchedChannel,
   deleteAdminSokoBot as coreDeleteAdminSokoBot,
   deleteChatsRoomsById as coreDeleteChatsRoomsById,
+  deleteChatsRoomsByIdCoworkersByCoworkerId as coreDeleteChatsRoomsByIdCoworkersByCoworkerId,
   deleteChatsRoomsByIdInvitationsByInvitationId as coreDeleteChatsRoomsByIdInvitationsByInvitationId,
   deleteChatsRoomsByIdInviteLinksByToken as coreDeleteChatsRoomsByIdInviteLinksByToken,
   deleteChatsRoomsByIdMembersByUserId as coreDeleteChatsRoomsByIdMembersByUserId,
@@ -161,6 +163,7 @@ import {
   deleteChatsRoomsByIdMessagesByMessageIdPin as coreDeleteChatsRoomsByIdMessagesByMessageIdPin,
   deleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji as coreDeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmoji,
   deleteChatsRoomsByIdMute as coreDeleteChatsRoomsByIdMute,
+  deleteChatsRoomsByIdSokoBotsBySokoBotId as coreDeleteChatsRoomsByIdSokoBotsBySokoBotId,
   deleteChatsRoomsByIdStar as coreDeleteChatsRoomsByIdStar,
   deleteChatsRoomsByIdThreadsByParentMessageIdMute as coreDeleteChatsRoomsByIdThreadsByParentMessageIdMute,
   deleteCoworkersById as coreDeleteCoworkersById,
@@ -365,6 +368,7 @@ import {
   postChatsRoomsByIdFiles as corePostChatsRoomsByIdFiles,
   postChatsRoomsByIdInvitations as corePostChatsRoomsByIdInvitations,
   postChatsRoomsByIdInviteLinks as corePostChatsRoomsByIdInviteLinks,
+  postChatsRoomsByIdMembers as corePostChatsRoomsByIdMembers,
   postChatsRoomsByIdMembersMe as corePostChatsRoomsByIdMembersMe,
   postChatsRoomsByIdMessages as corePostChatsRoomsByIdMessages,
   postChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry as corePostChatsRoomsByIdMessagesByMessageIdMentionsByMentionIdRetry,
@@ -900,7 +904,23 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
-  /** Host: remove an external guest from a room. */
+  async function addChatRoomMembers(
+    roomId: string,
+    body: NonNullable<PostChatsRoomsByIdMembersData["body"]>,
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostChatsRoomsByIdMembers({
+          client,
+          path: { id: roomId },
+          body,
+        }),
+      "Failed to add room members",
+    );
+  }
+
+  /** Remove a person from a Channel: a guest, or (owner/admin) a host member. */
   async function removeChatRoomMember(roomId: string, userId: string) {
     return executeCoreOperation(
       getClient,
@@ -910,6 +930,30 @@ export function createCoreClient(getClient: GetCoreClient) {
           path: { id: roomId, userId },
         }),
       "Failed to remove room member",
+    );
+  }
+
+  async function removeChatRoomCoworker(roomId: string, coworkerId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdCoworkersByCoworkerId({
+          client,
+          path: { id: roomId, coworkerId },
+        }),
+      "Failed to remove room coworker",
+    );
+  }
+
+  async function removeChatRoomSokoBot(roomId: string, sokoBotId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteChatsRoomsByIdSokoBotsBySokoBotId({
+          client,
+          path: { id: roomId, sokoBotId },
+        }),
+      "Failed to remove room Soko Bot",
     );
   }
 
@@ -5778,7 +5822,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteChatRoom,
     restoreChatRoom,
     leaveChatRoom,
+    addChatRoomMembers,
     removeChatRoomMember,
+    removeChatRoomCoworker,
+    removeChatRoomSokoBot,
     joinChatRoom,
     assignOrganizationSeat,
     createChatRoom,

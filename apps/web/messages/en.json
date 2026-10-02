@@ -5962,7 +5962,6 @@
       "Actions": {
         "more": "Message actions",
         "overflow": "More",
-        "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",
         "cancel": "Cancel",
@@ -5989,7 +5988,9 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
-        "actionFailed": "Could not update this chat. Try again."
+        "actionFailed": "Could not update this chat. Try again.",
+        "archiveHint": "Hides the channel for everyone. Restore it later from Archived in the sidebar.",
+        "archiveButton": "Archive"
       },
       "Metadata": {
         "title": "Chat",
@@ -6038,15 +6039,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Leave channel",
-        "actionsOnlyDescription": "Leave this channel when you no longer need it. Channel settings are managed by admins.",
+        "editTitle": "Channel settings",
         "name": "Name",
         "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "What is this channel for?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "You can't remove yourself",
@@ -6286,7 +6284,9 @@
         "publicHelp": "Anyone in the organization can find and join this channel.",
         "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
         "external": "External",
-        "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members."
+        "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members.",
+        "externalLocked": "Remove all guests in the members panel to make this channel public or private.",
+        "hasGuests": "Has guests"
       },
       "CreateWizard": {
         "title": "Create a channel",
@@ -6316,13 +6316,31 @@
         "open": "Members",
         "title": "Members",
         "humansTitle": "People",
+        "guestsTitle": "Guests",
         "agentsTitle": "Coworkers",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",
         "copy": "Copy {value}",
         "copySuccess": "Copied to clipboard",
-        "copyError": "Could not copy."
+        "copyError": "Could not copy.",
+        "add": "Add members",
+        "memberActions": "More actions for {name}",
+        "remove": "Remove from channel",
+        "removeConfirmTitle": "Remove {name} from this channel?",
+        "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
+        "removeSuccess": "Removed {name} from the channel.",
+        "undo": "Undo"
+      },
+      "AddMembers": {
+        "title": "Add members",
+        "description": "Add people, coworkers, and your personal assistants to {name}.",
+        "membersTab": "From your organization",
+        "guestsTab": "Invite from outside",
+        "submit": "Add",
+        "chooseSomeone": "Choose someone to add.",
+        "nobodyToAdd": "Everyone you can add is already in this channel.",
+        "success": "{count, plural, one {Added # member.} other {Added # members.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Seen by # person} other {Seen by # people}}",
@@ -6360,7 +6378,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} joined",
-        "left": "{name} left"
+        "left": "{name} left",
+        "added": "{actor} added {name}",
+        "removed": "{actor} removed {name}"
       },
       "GroupName": {
         "rename": "Rename",
@@ -6418,11 +6438,6 @@
         "revokeLink": "Revoke link",
         "revokeLinkAria": "Revoke invite link",
         "linkRevokeSuccess": "Invite link revoked.",
-        "guestsTitle": "Guests",
-        "guestsEmpty": "No guests yet.",
-        "removeGuest": "Remove guest",
-        "removeGuestAria": "Remove guest {name}",
-        "removeGuestSuccess": "Removed {name} from the channel.",
         "pendingTitle": "Pending invitations",
         "empty": "No pending invitations.",
         "loading": "Loading invitations…",
