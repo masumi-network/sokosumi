@@ -580,6 +580,25 @@ describe("SignUpFlow", () => {
       expect(takeAuthEmailHint()).toBe("ada@example.com");
     });
 
+    it("holds the providers while the Log in detour navigates", async () => {
+      await openNotice();
+      now += 401;
+
+      fireEvent.click(logInLink());
+
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: true }),
+      );
+      expect(logInLink()).toHaveAttribute("aria-busy", "true");
+      expect(fireEvent.click(logInLink())).toBe(false);
+
+      // Editing cancels this detour and makes another method available.
+      fireEvent.change(emailField(), { target: { value: "new@example.com" } });
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: false }),
+      );
+    });
+
     it("leaves no email behind when sign-in opens in another tab", async () => {
       await openNotice();
 
@@ -587,6 +606,9 @@ describe("SignUpFlow", () => {
       fireEvent.click(logInLink(), { ctrlKey: true });
 
       expect(takeAuthEmailHint()).toBeNull();
+      expect(socialButtonsMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ disabled: false }),
+      );
     });
 
     it("ignores the second click of a double-click on the button it replaced", async () => {

@@ -329,6 +329,10 @@ export function EmailStep({
                     return;
                   }
                   rememberAuthEmailHintOnClick(event, email);
+                  if (isSameTabClick(event)) {
+                    isFollowingRef.current = true;
+                    setIsFollowing(true);
+                  }
                 }}
               >
                 {isFollowing ? (
