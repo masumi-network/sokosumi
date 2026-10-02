@@ -635,6 +635,11 @@ export const auth = betterAuth({
         resendStrategy: "reuse",
         disableSignUp: false,
         sendVerificationOTP: async ({ email, otp }, ctx) => {
+          // Local Core has no working email key; sign-up needs the code
+          // (ADR 0050). Never outside development: the code signs in.
+          if (env.NODE_ENV === "development") {
+            console.info(`[email code] ${email}: ${otp}`);
+          }
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
             code: otp,

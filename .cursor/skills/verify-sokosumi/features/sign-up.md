@@ -1,6 +1,6 @@
 # Sign up
 
-Sign up creates an account from the emailed code, with an optional password ([ADR 0050](../../../../docs/adr/0050-password-sign-up-proves-the-address.md)). It needs the code, so it works only where Core can send email (a real `RESEND_API_KEY`) and you can read that inbox. Drive it only to test sign-up itself. To unlock other features, use fixture login on agent branches or vault login on a shared Neon; there is no API bootstrap.
+Sign up creates an account from the emailed code, with an optional password ([ADR 0050](../../../../docs/adr/0050-password-sign-up-proves-the-address.md)). It needs the code. Core in development prints each code to its console as `[email code] <address>: <code>`; elsewhere you need the inbox. Drive it only to test sign-up itself. To unlock other features, use fixture login on agent branches or vault login on a shared Neon; there is no API bootstrap.
 
 ## Sub-features
 
@@ -18,7 +18,7 @@ Sign up creates an account from the emailed code, with an optional password ([AD
 Preconditions:
 
 - `verify-sokosumi doctor` ok and `owned_by_verify=yes`.
-- Core can send email and you can read the code it sends to the address you choose.
+- Core runs in development (`NODE_ENV=development`) and you can read its console, or you can read the inbox of the address you choose.
 - Choose a unique email, e.g. `verify-$(date +%s)@sokosumi.test`, and a password meeting app rules (fixture-style `Password123!` is fine).
 
 - **Open form.** Run `agent-browser open $WEB_URL/signup`, wait until the snapshot shows the **Email** textbox and **Continue with Email** (a too-early snapshot can be empty or `about:blank` right after `close`). Google / Microsoft sit **below** the email step — ignore them.
@@ -39,7 +39,7 @@ Preconditions:
 - Already-authenticated sessions redirect `/signup` into the app (Welcome `/`). Clear cookies or sign out before driving the form.
 - New signups without a personal workspace often hit `/setup` after leaving `/` — that is auth success, not a failed landing.
 - The code proves the address; no separate verification email follows.
-- With placeholder credentials Core sends no email, so neither sign-up nor OAuth works.
+- With placeholder credentials Core sends no email; read the code from Core's console instead (development only). OAuth does not work.
 - Do not reuse an email that already exists; pick a fresh address per run.
 - On cloud-agent branches, prefer fixtures over signup unless testing signup itself. On a coworker / shared Neon, prefer the vault over creating another disposable user.
 - Origin must be `$WEB_URL` for Core auth API calls (`INVALID_ORIGIN` otherwise).

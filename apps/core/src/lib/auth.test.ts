@@ -1617,6 +1617,54 @@ describe("core auth config", () => {
     });
   });
 
+  // Local Core has no working email key, so the console is the inbox.
+  describe("email code in the console", () => {
+    async function sendCode() {
+      await import("./auth");
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+    }
+
+    it("prints the code in development, and still emails it", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+      await sendCode();
+
+      expect(info).toHaveBeenCalledWith(
+        "[email code] andreas@example.com: 042917",
+      );
+      expect(sendEmailMock).toHaveBeenCalledOnce();
+      info.mockRestore();
+    });
+
+    it("never prints it elsewhere", async () => {
+      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+
+      await sendCode();
+
+      expect(info).not.toHaveBeenCalledWith(expect.stringContaining("042917"));
+      info.mockRestore();
+    });
+  });
+
   describe("verification email", () => {
     type SendVerificationEmail = (
       data: { user: { id: string; email: string; name: string }; url: string },
