@@ -88,7 +88,6 @@ export function SokoBotConnectCard({
   onDismiss: () => void;
 }) {
   const t = useTranslations("App.Chat.SokoBot");
-  const [titleOpen, setTitleOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -117,34 +116,17 @@ export function SokoBotConnectCard({
       className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
     >
       <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
-      <Tooltip open={titleOpen} onOpenChange={setTitleOpen}>
-        <TooltipTrigger asChild>
-          <button
-            type="button"
-            onClick={(event) => {
-              event.preventDefault();
-              setTitleOpen(true);
-            }}
-            className="min-w-0 flex-1 rounded text-start text-xs leading-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <span className="block truncate">
-              <span className="font-medium">
-                {t("connectTitle", { bot: botName })}
-              </span>
-              <span className="text-muted-foreground max-sm:hidden">
-                {" · "}
-                {t("connectBody")}
-              </span>
-            </span>
-          </button>
-        </TooltipTrigger>
-        <TooltipContent
-          side="top"
-          className="max-w-xs [overflow-wrap:anywhere]"
-        >
+      {/* Wraps (up to three lines) rather than truncating: on a 320px phone one line
+          leaves "Give Jarvis y…", which drops what the logos are for. */}
+      <p className="line-clamp-3 min-w-0 flex-1 text-xs leading-5 [overflow-wrap:anywhere]">
+        <span className="font-medium">
           {t("connectTitle", { bot: botName })}
-        </TooltipContent>
-      </Tooltip>
+        </span>
+        <span className="text-muted-foreground max-sm:hidden">
+          {" · "}
+          {t("connectBody")}
+        </span>
+      </p>
       <div className="flex shrink-0 items-center gap-0.5">
         {offers.map((offer) => {
           const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];

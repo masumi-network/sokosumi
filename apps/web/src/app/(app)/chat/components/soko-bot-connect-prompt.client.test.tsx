@@ -72,17 +72,4 @@ describe("SokoBotConnectPrompt", () => {
       expect.objectContaining({ provider: "outlook" }),
     );
   });
-
-  it("reveals the full title on activation without starting OAuth", async () => {
-    render(<SokoBotConnectPrompt sokoBotId="bot-1" />);
-    await userEvent.click(
-      screen.getByRole("button", { name: /^connectTitle/ }),
-    );
-    expect(await screen.findByRole("tooltip")).toHaveTextContent(
-      "connectTitle",
-    );
-    expect(connectSokoBotIntegrationAction).not.toHaveBeenCalled();
-    await userEvent.keyboard("{Escape}");
-    expect(screen.queryByRole("tooltip")).toBeNull();
-  });
 });
