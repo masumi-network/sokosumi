@@ -1,6 +1,6 @@
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface AuthorizeReferenceConfig {
   subscription: {
@@ -1418,6 +1418,160 @@ describe("core auth config", () => {
     >;
 
     expect(config.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true);
+  });
+
+  describe("app tokens", () => {
+    const now = new Date("2026-10-02T12:00:00Z");
+    const updateMany = vi.fn();
+
+    function expectAppTokensRevokedFor(userId: string) {
+      const where = [
+        { field: "userId", value: userId },
+        { field: "revoked", operator: "eq", value: null },
+      ];
+      expect(updateMany).toHaveBeenCalledTimes(2);
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthAccessToken",
+        where,
+        update: { revoked: now },
+      });
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthRefreshToken",
+        where,
+        update: { revoked: now },
+      });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"], now });
+      updateMany.mockReset();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("revokes every app token when a password is reset", async () => {
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions: vi.fn() },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
+
+      expectAppTokensRevokedFor("user-1");
+    });
+
+    it("ends every session on a reset even when revoking app tokens fails", async () => {
+      // Better Auth deletes sessions only after this callback returns.
+      const deleteUserSessions = vi.fn();
+      updateMany.mockRejectedValue(new Error("database gone"));
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await expect(
+        config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } }),
+      ).rejects.toThrow("database gone");
+      expect(deleteUserSessions).toHaveBeenCalledWith("user-1");
+    });
+
+    async function runAfterHook(ctx: {
+      path: string;
+      body?: Record<string, unknown>;
+      returned: unknown;
+    }) {
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { after: (ctx: unknown) => Promise<void> } }]
+      >;
+
+      await config.hooks.after({
+        path: ctx.path,
+        body: ctx.body,
+        context: {
+          adapter: { updateMany },
+          returned: ctx.returned,
+          session: { user: { id: "user-1" } },
+        },
+      });
+    }
+
+    it.each([true, false])(
+      "revokes every app token when a password is changed (revokeOtherSessions: %s)",
+      async (revokeOtherSessions) => {
+        await runAfterHook({
+          path: "/change-password",
+          body: { revokeOtherSessions },
+          returned: { token: null, user: { id: "user-1" } },
+        });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it.each(["/revoke-sessions", "/revoke-other-sessions"])(
+      "revokes every app token on %s",
+      async (path) => {
+        await runAfterHook({ path, returned: { status: true } });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it("keeps app tokens when the person signs out of Sokosumi", async () => {
+      await runAfterHook({ path: "/sign-out", returned: { success: true } });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps app tokens when the current password is wrong", async () => {
+      const { APIError } = await import("better-auth/api");
+
+      await runAfterHook({
+        path: "/change-password",
+        body: { revokeOtherSessions: true },
+        returned: new APIError("BAD_REQUEST", { code: "INVALID_PASSWORD" }),
+      });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
   });
 
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
