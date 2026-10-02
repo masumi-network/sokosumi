@@ -977,7 +977,31 @@ function RoomView({
     }
   }
 
-  const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const pageRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const sidebarRoom = sidebarRooms.find((room) => room.id === pageRoom?.id);
+  // Prefer a page fetch to the sidebar roster already in memory. Later fetched
+  // rosters can learn exits and returns; local attention overlays keep these
+  // member arrays, so marking a room read cannot reopen an older roster.
+  const [pageRoomSnapshot, setPageRoomSnapshot] = useState({
+    room: pageRoom,
+    sidebarRoom,
+  });
+  if (pageRoom !== pageRoomSnapshot.room) {
+    setPageRoomSnapshot({ room: pageRoom, sidebarRoom });
+  }
+  const sidebarRosterChanged =
+    sidebarRoom != null &&
+    (sidebarRoom.userMembers !== pageRoomSnapshot.sidebarRoom?.userMembers ||
+      sidebarRoom.formerUserMembers !==
+        pageRoomSnapshot.sidebarRoom?.formerUserMembers ||
+      sidebarRoom.coworkerMembers !==
+        pageRoomSnapshot.sidebarRoom?.coworkerMembers ||
+      sidebarRoom.sokoBotMembers !==
+        pageRoomSnapshot.sidebarRoom?.sokoBotMembers);
+  const selectedRoom =
+    pageRoom?.kind === "direct" && sidebarRosterChanged
+      ? sidebarRoom
+      : pageRoom;
   // The dialog goes with the room. Losing the room takes it off screen, and a
   // reader who is let back in has not asked for it a second time.
   if (selectedRoom == null && editChannelOpen) {
