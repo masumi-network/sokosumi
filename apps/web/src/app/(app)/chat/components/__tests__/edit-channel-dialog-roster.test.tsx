@@ -88,6 +88,8 @@ function externalChannel(): ChatRoom {
     kind: "channel",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,
