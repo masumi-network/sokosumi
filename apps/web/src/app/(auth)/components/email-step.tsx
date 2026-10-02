@@ -232,7 +232,7 @@ export function EmailStep({
     <BaseForm
       form={form}
       onSubmit={handleSubmit}
-      disabled={disabled}
+      disabled={disabled || (isFollowing && (emailLocked || !detour.follow))}
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;

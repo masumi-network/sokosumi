@@ -592,10 +592,17 @@ describe("SignUpFlow", () => {
       expect(logInLink()).toHaveAttribute("aria-busy", "true");
       expect(fireEvent.click(logInLink())).toBe(false);
 
-      // Editing cancels this detour and makes another method available.
-      fireEvent.change(emailField(), { target: { value: "new@example.com" } });
+      // Link navigation cannot be aborted by editing the address.
+      expect(emailField()).toBeDisabled();
+      const user = userEvent.setup();
+      await user.type(emailField(), ".uk");
+      expect(emailField()).toHaveValue("ada@example.com");
+      fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+      await act(async () => {});
+      expect(emailStatusMock).toHaveBeenCalledTimes(1);
+      expect(sendEmailCodeMock).not.toHaveBeenCalled();
       expect(socialButtonsMock).toHaveBeenLastCalledWith(
-        expect.objectContaining({ disabled: false }),
+        expect.objectContaining({ disabled: true }),
       );
     });
 
