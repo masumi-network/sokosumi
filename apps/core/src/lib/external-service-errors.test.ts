@@ -288,6 +288,25 @@ describe("captureExternalServiceError", () => {
     withScopeMock.mockClear();
   });
 
+  it("preserves schema-drift suppression severity with a fixed message", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    try {
+      captureExternalServiceError(
+        Object.assign(new Error("andreas@example.com"), { code: "P2022" }),
+        { label: "private-operation", message: "Operation failed" },
+      );
+
+      expect(captureExceptionMock).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalledWith(
+        "[private-operation] suppressed external failure",
+        { error: "Operation failed" },
+      );
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
+
   it("applies top-level extra via scope and keeps sentry tags", () => {
     const error = new Error("permanent failure");
 

@@ -4953,11 +4953,11 @@ export type User = {
     updatedAt: Date;
     name: string;
     /**
-     * Null when never given, as for magic-link sign-up
+     * Null when never given: older accounts, or one an email code created without names
      */
     firstName: string | null;
     /**
-     * Null when never given, as for magic-link sign-up
+     * Null when never given: older accounts, or one an email code created without names
      */
     lastName: string | null;
     email: string;

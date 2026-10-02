@@ -16613,7 +16613,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'John'
         },
         lastName: {
@@ -16621,7 +16621,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'Doe'
         },
         email: {

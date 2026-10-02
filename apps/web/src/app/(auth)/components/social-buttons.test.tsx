@@ -582,6 +582,42 @@ describe("SocialButtons", () => {
     expect(mockLocationReplace).not.toHaveBeenCalled();
   });
 
+  // simplewebauthn's codes, which Better Auth passes on: a dismissed or
+  // timed-out prompt (NotAllowedError), and a prompt another ceremony replaced.
+  it.each(["ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY", "ERROR_CEREMONY_ABORTED"])(
+    "shows no error when the browser's passkey prompt ends with %s",
+    async (code) => {
+      const user = userEvent.setup();
+      mockPasskeySignIn.mockResolvedValue({ data: null, error: { code } });
+
+      render(<SocialButtons returnUrl="/jobs" showPasskey />);
+      const passkey = screen.getByRole("button", {
+        name: "continue-with-Passkey",
+      });
+      await user.click(passkey);
+
+      await waitFor(() => expect(passkey).toBeEnabled());
+      expect(mockToastError).not.toHaveBeenCalled();
+    },
+  );
+
+  it("still reports a passkey the authenticator could not use", async () => {
+    const user = userEvent.setup();
+    mockPasskeySignIn.mockResolvedValue({
+      data: null,
+      error: { code: "ERROR_AUTHENTICATOR_GENERAL_ERROR" },
+    });
+
+    render(<SocialButtons returnUrl="/jobs" showPasskey />);
+    await user.click(
+      screen.getByRole("button", { name: "continue-with-Passkey" }),
+    );
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith("passkeyError");
+    });
+  });
+
   it("passes unwrapped session data to waitForAuthSession", async () => {
     const user = userEvent.setup();
 
