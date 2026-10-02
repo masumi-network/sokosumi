@@ -476,7 +476,7 @@ describe("CMO auth handler", () => {
   );
 
   it.each(["/signup", "/signin"] as const)(
-    "returns an uncached retry response when Core discovery fails on %s",
+    "explains on the signed-out page when Core discovery fails on %s",
     async (path) => {
       core.discoveryDown = true;
       vi.mocked(getAuth).mockReturnValue(
@@ -493,16 +493,15 @@ describe("CMO auth handler", () => {
 
       const response = await followLink(jar, path);
 
-      expect(response.status).toBe(503);
+      expect(response.status).toBe(302);
       expect(logged).toHaveBeenCalledWith(
         "Starting Sign in with Sokosumi failed",
         expect.anything(),
       );
       logged.mockRestore();
       expect(response.headers.get("cache-control")).toBe("no-store");
-      expect(response.headers.has("location")).toBe(false);
+      expect(response.headers.get("location")).toBe("/?error=unavailable");
       expect(response.headers.getSetCookie()).toEqual([]);
-      expect(await response.text()).toContain("Try again");
     },
   );
 
@@ -529,7 +528,7 @@ describe("CMO auth handler", () => {
     expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
   });
 
-  it("returns an uncached error instead of redirecting when auth returns no URL", async () => {
+  it("explains on the signed-out page instead of redirecting to Core when auth returns no URL", async () => {
     const signInSocial = auth.api.signInSocial;
     vi.spyOn(auth.api, "signInSocial").mockImplementation(async (input) => {
       const result = await signInSocial(input);
@@ -544,11 +543,15 @@ describe("CMO auth handler", () => {
       return result;
     });
 
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
     const response = await followLink(jar, "/signin");
 
-    expect(response.status).toBe(503);
+    logged.mockRestore();
+    expect(response.status).toBe(302);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.has("location")).toBe(false);
+    expect(response.headers.get("location")).toBe("/?error=unavailable");
+    expect(response.headers.getSetCookie()).toEqual([]);
   });
 
   it("rejects a link callback when the browser drops its forwarded state cookie", async () => {
@@ -845,8 +848,10 @@ describe("CMO auth handler", () => {
     core.revokeAll();
 
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(auth, jar);
+    const response = await renew(auth, jar);
 
+    // 401 tells the proxy that CMO ended the session, not the person.
+    expect(response.status).toBe(401);
     expect(await sessionUser(auth, jar)).toBeNull();
     expect(jar.names()).toEqual([]);
   });
@@ -859,8 +864,9 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
 
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(auth, jar);
+    const response = await renew(auth, jar);
 
+    expect(response.status).toBe(401);
     expect(await sessionUser(auth, jar)).toBeNull();
     expect(jar.names()).toEqual([]);
     // Sign-out revokes the token the renewal just rotated in.
@@ -892,6 +898,7 @@ describe("CMO auth handler", () => {
   it("does nothing for a signed-out visitor", async () => {
     const response = await renew(auth, jar);
 
+    expect(response.status).toBe(204);
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 

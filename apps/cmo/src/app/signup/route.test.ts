@@ -1,4 +1,4 @@
-import { expect, it, vi } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 const CORE = "https://core.test";
 
@@ -24,6 +24,11 @@ vi.stubGlobal("fetch", async () =>
 );
 
 const { GET } = await import("./route");
+const { getAuth } = await import("../../lib/auth");
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 it("starts Create account at Core with CMO's state cookie, uncached", async () => {
   const response = await GET(new Request("https://app.cmo.xyz/signup"));
@@ -36,4 +41,18 @@ it("starts Create account at Core with CMO's state cookie, uncached", async () =
   );
   expect(location.searchParams.get("prompt")).toBe("create");
   expect(response.headers.getSetCookie().length).toBeGreaterThan(0);
+});
+
+it("sends Create account to the signed-out page when Core cannot be reached", async () => {
+  vi.spyOn(getAuth().api, "signInSocial").mockRejectedValue(
+    new TypeError("fetch failed"),
+  );
+  vi.spyOn(console, "error").mockImplementation(() => {});
+
+  const response = await GET(new Request("https://app.cmo.xyz/signup"));
+
+  expect(response.status).toBe(302);
+  expect(response.headers.get("location")).toBe("/?error=unavailable");
+  expect(response.headers.get("cache-control")).toBe("no-store");
+  expect(response.headers.getSetCookie()).toEqual([]);
 });
