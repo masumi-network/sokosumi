@@ -369,4 +369,27 @@ describe("ProjectForm", () => {
     await user.type(screen.getByLabelText("Identifier"), "2");
     expect(screen.queryByText("Identifier taken")).not.toBeInTheDocument();
   });
+
+  it("does not treat identifier_invalid as a taken identifier", async () => {
+    const user = userEvent.setup();
+    vi.mocked(updateProject).mockResolvedValue({
+      ok: false,
+      error: { kind: "identifier_invalid" },
+    });
+    render(
+      <ProjectForm
+        mode="edit"
+        projectId="project-1"
+        labels={baseLabels}
+        initialValues={{ name: "Old name", identifier: "OLD" }}
+        showCancel={false}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Save project" }));
+
+    expect(screen.queryByText("Identifier taken")).not.toBeInTheDocument();
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(pushMock).not.toHaveBeenCalled();
+  });
 });

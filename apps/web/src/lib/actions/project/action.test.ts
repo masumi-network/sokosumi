@@ -168,10 +168,10 @@ describe("project actions", () => {
 
     await expect(
       createProject({ name: "Launch plan", identifier: "1AB" }),
-    ).rejects.toThrow("Invalid project identifier");
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
     await expect(
       updateProject({ projectId: "project-1", name: "N", identifier: "A" }),
-    ).rejects.toThrow("Invalid project identifier");
+    ).resolves.toEqual({ ok: false, error: { kind: "identifier_invalid" } });
     expect(projectServiceMock.patchProject).not.toHaveBeenCalled();
   });
 

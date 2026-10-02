@@ -480,6 +480,18 @@ describe("TaskMetadata priority", () => {
     );
   });
 
+  it("shows a Priority tooltip on the editable row", async () => {
+    const user = userEvent.setup();
+    renderTaskMetadata({ task: createTask(), editable: true });
+
+    await user.hover(
+      screen.getByRole("combobox", { name: "Priority: No priority" }),
+    );
+    expect(
+      await screen.findByRole("tooltip", { name: "Priority: No priority" }),
+    ).toBeInTheDocument();
+  });
+
   it("offers the levels in order and saves the choice optimistically", async () => {
     const user = userEvent.setup();
     setTaskPriorityMock.mockResolvedValue({ ok: true, value: { taskId: "t" } });
