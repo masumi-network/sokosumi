@@ -21,6 +21,7 @@ private final class ScriptedTransport: ClientTransport {
   }
 
   var pauseDirect = false
+  var pauseList = false
   var pausePOST = false
   var pauseStream = false
   var pauseGET = false
@@ -40,6 +41,12 @@ private final class ScriptedTransport: ClientTransport {
 
   init(_ responses: [(Int, String)]) {
     self.responses = responses
+  }
+
+  /// Room-list and Direct-create pauses hold the whole response, not only message calls.
+  private func pausesWholeRequest(_ operationID: String) -> Bool {
+    (pauseList && operationID == "get/chats/rooms")
+      || (pauseDirect && ["post/chats/rooms", "post/chats/rooms/{id}/members/me", "post/chats/invitations/{id}/accept"].contains(operationID))
   }
 
   /// One pause flag per operation family; only message-scoped operations honour them.
@@ -76,7 +83,7 @@ private final class ScriptedTransport: ClientTransport {
     } else {
       bodies.append(Data())
     }
-    if pauseDirect, ["post/chats/rooms", "post/chats/rooms/{id}/members/me", "post/chats/invitations/{id}/accept"].contains(operationID) {
+    if pausesWholeRequest(operationID) {
       let next = responses.removeFirst()
       if !requestReleased {
         await withCheckedContinuation { pauseWaiters.append($0) }
@@ -290,68 +297,16 @@ struct WorkspaceStateTests {
     let room = try #require(state.rooms.first { $0.id == edited })
     var draft = ChannelEditDraft(room: room)
     draft.setName("Design renamed")
-    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: true)
     let context = state.compositionContext
-    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth))
+    #expect(try await state.updateChannel(draft, roomId: edited, context: context, auth: auth))
     #expect(!state.updatingRoom)
     #expect(state.transcriptRoomId == opened)
     #expect(state.rooms.count == 2)
     #expect(state.rooms.first { $0.id == edited }?.name == "Design renamed")
     #expect(state.rooms.first { $0.id == edited }?.unreadCount == 3)
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
-    #expect(try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: UUID(), auth: auth) == false)
+    #expect(try await state.updateChannel(draft, roomId: edited, context: UUID(), auth: auth) == false)
     #expect(transport.operationIDs.filter { $0 == "patch/chats/rooms/{id}" }.count == 1)
-  }
-
-  /// A second window or sidebar refresh can change the room while the People notice is visible.
-  @Test(arguments: [false, true])
-  func failedMemberSaveUsesCurrentRoomHumansAndRetryKeepsAgentEdits(managesSettings: Bool) async throws {
-    let edited = "550e8400-e29b-41d4-a716-446655440001"
-    let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
-      (200, roomsBody(names: ["general", "design"])),
-      (200, transcriptPageBody(messages: [], nextCursor: nil)),
-      (200, roomReadBody(id: edited, unread: 0)), (200, roomReadBody(id: edited, unread: 0))
-    ], visible: false)
-    await state.reload(auth: auth)
-    await waitForTranscriptIdle(state)
-    var room = try #require(state.rooms.first { $0.id == edited })
-    room.organizationId = "org_1"
-    room.userMembers = [.init(id: "user_1", name: "Me", email: "me@example.com", presence: .online),
-                        .init(id: "departed", name: "Departed", email: "departed@example.com", presence: .offline)]
-    let model = ChannelEditing(room: room)
-    let agents = [ChatRecipientTarget(id: .coworker("agent"), name: "Agent"), .init(id: .sokoBot("bot"), name: "Assistant")]
-    await model.load { .init(recipients: .init(targets: agents, membersLoadFailed: true), isOwnerOrAdmin: managesSettings) }
-    model.draft.recipients.insert(.sokoBot("bot"))
-    room.userMembers.removeAll { $0.id == "departed" }
-    room.userMembers.append(.init(id: "newcomer", name: "Newcomer", email: "newcomer@example.com", presence: .online))
-    try room.userMembers.append(.init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
-                                      access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest"))))
-    let index = try #require(state.rooms.firstIndex { $0.id == edited })
-    state.rooms[index] = room
-    let context = state.compositionContext
-    #expect(await model.save { draft, permissions in
-      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
-    })
-    let failedData = try #require(transport.bodies.last)
-    let failedBody = try #require(JSONSerialization.jsonObject(with: failedData) as? [String: Any])
-    #expect(failedBody["memberUserIds"] as? [String] == ["newcomer", "user_1"])
-    #expect((failedBody["coworkerIds"] as? [String])?.isEmpty == true)
-    #expect(failedBody["sokoBotIds"] as? [String] == ["bot"])
-    #expect((failedBody["name"] != nil) == managesSettings)
-    // The sheet adopts room updates before Retry, without resetting the assistant edit.
-    model.updateRoom(room)
-    await model.load { .init(recipients: .init(targets: agents + [.init(id: .human("selected"), name: "Selected")]), isOwnerOrAdmin: managesSettings) }
-    #expect(model.draft.recipients == [.human("user_1"), .human("newcomer"), .sokoBot("bot")])
-    model.draft.recipients = [.human("selected"), .sokoBot("bot")]
-    #expect(await model.save { draft, permissions in
-      try await state.updateChannel(draft, roomId: edited, permissions: permissions, context: context, auth: auth)
-    })
-    let recoveredData = try #require(transport.bodies.last)
-    let recoveredBody = try #require(JSONSerialization.jsonObject(with: recoveredData) as? [String: Any])
-    #expect(recoveredBody["memberUserIds"] as? [String] == ["selected", "user_1"])
-    #expect(recoveredBody["sokoBotIds"] as? [String] == ["bot"])
   }
 
   @Test func channelLifecycleMovesRoomsBetweenSidebarAndArchive() async throws {
@@ -1526,7 +1481,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1569,7 +1524,7 @@ struct WorkspaceStateTests {
     ]
     let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1607,7 +1562,7 @@ struct WorkspaceStateTests {
       ], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1646,7 +1601,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1754,7 +1709,7 @@ private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
   let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
   return .init(
     id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
-    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member, userMembers: [sender],
+    unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender],
     coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
   )
 }
@@ -1763,7 +1718,7 @@ private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
 private func generalChannel(id: String = "550e8400-e29b-41d4-a716-446655440000") -> Components.Schemas.ChatRoom {
   .init(
     id: id, name: "general", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "user_1",
-    createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+    createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
     userMembers: [], coworkerMembers: [], sokoBotMembers: []
   )
 }
@@ -2864,24 +2819,35 @@ extension WorkspaceStateTests {
   }
 }
 
-private func externalRoomsBody(general: String, partners: String) -> String {
-  let members = """
-  [{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online","access":"member"},{"id":"user_guest","name":"Guest","email":"guest@example.com","image":null,"presence":"offline","access":"guest"}]
+private let externalMembers = """
+[{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online","access":"member"},{"id":"user_guest","name":"Guest","email":"guest@example.com","image":null,"presence":"offline","access":"guest"}]
+"""
+
+/// The Guest's and the caller's Soko Bots; removing the Guest takes theirs along.
+private let externalSokoBots = """
+[{"id":"bot_guest","name":"Guest bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_guest","presence":"online"},{"id":"bot_me","name":"My bot","caption":null,"image":null,"avatarSeed":null,"ownerUserId":"user_1","presence":"online"}]
+"""
+
+private func externalRoomJSON(_ id: String, name: String, discoverability: String, members: String = "[]", coworkers: String = "[]", sokoBots: String = "[]") -> String {
   """
-  func room(_ id: String, name: String, discoverability: String, members: String) -> String {
-    """
-    {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":[],"sokoBotMembers":[]}
-    """
-  }
+  {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":\(coworkers),"sokoBotMembers":\(sokoBots)}
+  """
+}
+
+private func externalRoomsBody(general: String, partners: String) -> String {
+  let rooms = [
+    externalRoomJSON(general, name: "general", discoverability: "public"),
+    externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
+  ]
   return """
-  {"data":[\(room(general, name: "general", discoverability: "public", members: "[]")),\(room(partners, name: "partners", discoverability: "external", members: members))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":2,"nextCursor":null}}}
+  {"data":[\(rooms.joined(separator: ","))],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":2,"nextCursor":null}}}
   """
 }
 
 extension WorkspaceStateTests {
-  /// Web's guest section lives in the channel settings dialog: invitations and links are room sub-resources under the
-  /// organization header; removing a guest edits the room DTO in place without navigating.
-  @Test func guestAccessOperationsUseOrganizationAndRemoveGuestInPlace() async throws {
+  /// The members panel's Invite from outside tab: invitations and links are room sub-resources under the organization
+  /// header and never touch the room DTO.
+  @Test func guestAccessOperationsUseOrganization() async throws {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let invitation = invitationEnvelope(#"{"id":"inv-1","roomId":"\#(partners)","roomName":"partners","organizationId":"org_1","organizationName":"Acme","email":"guest2@example.com","status":"pending","inviter":{"id":"user_1","name":"Me"},"expiresAt":"\#(timestamp)","createdAt":"\#(timestamp)"}"#)
@@ -2895,8 +2861,7 @@ extension WorkspaceStateTests {
       (201, invitation),
       (204, ""),
       (201, link),
-      (200, invitationEnvelope(#"{"ok":true}"#)),
-      (200, invitationEnvelope(#"{"id":"\#(partners)","remainingUserMemberCount":1}"#))
+      (200, invitationEnvelope(#"{"ok":true}"#))
     ], visible: false)
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
@@ -2913,16 +2878,114 @@ extension WorkspaceStateTests {
     let linkBodyData = try #require(transport.bodies.last(where: { !$0.isEmpty }))
     let linkBody = try #require(JSONSerialization.jsonObject(with: linkBodyData) as? [String: Any])
     #expect(linkBody.count == 1 && linkBody["expiresInDays"] is NSNull)
-
-    #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: UUID(), auth: auth) == false)
-    #expect(try await state.removeGuest(roomId: partners, userId: "user_guest", context: context, auth: auth))
-    #expect(!state.updatingRoom && state.transcriptRoomId == general)
-    #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
-    #expect(transport.operationIDs.suffix(7) == [
+    #expect(transport.operationIDs.suffix(6) == [
       "get/chats/rooms/{id}/invitations", "get/chats/rooms/{id}/invite-links", "post/chats/rooms/{id}/invitations",
       "delete/chats/rooms/{id}/invitations/{invitationId}", "post/chats/rooms/{id}/invite-links",
-      "delete/chats/rooms/{id}/invite-links/{token}", "delete/chats/rooms/{id}/members/{userId}"
+      "delete/chats/rooms/{id}/invite-links/{token}"
     ])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// SOK-1258: the members panel adds and removes through the incremental routes, single-flight, without navigating.
+  /// Adding and removing a Coworker take Core's room; removing a person drops them and the Soko Bots they own locally.
+  @Test func channelMembershipChangesReconcileTheRoomInPlace() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let coworker = #"[{"id":"cow_1","name":"Helper","slug":"helper","caption":null,"image":null,"presence":"online"}]"#
+    let withCoworker = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, coworkers: coworker,
+                                        sokoBots: externalSokoBots)
+    let withoutCoworker = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, invitationEnvelope(withCoworker)),
+      (200, invitationEnvelope(withoutCoworker)),
+      (200, invitationEnvelope(#"{"id":"\#(partners)","remainingUserMemberCount":1}"#))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(state.transcriptRoomId == general)
+    let context = state.compositionContext
+
+    #expect(try await state.addChannelMembers([], roomId: partners, context: context, auth: auth) == false)
+    #expect(try await state.addChannelMembers([.coworker("cow_1")], roomId: partners, context: UUID(), auth: auth) == false)
+    #expect(try await state.addChannelMembers([.coworker("cow_1")], roomId: partners, context: context, auth: auth))
+    #expect(state.rooms.first { $0.id == partners }?.coworkerMembers.map(\.id) == ["cow_1"])
+    #expect(try await state.removeChannelMember(.coworker("cow_1"), roomId: partners, context: context, auth: auth))
+    #expect(state.rooms.first { $0.id == partners }?.coworkerMembers.isEmpty == true)
+    #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: UUID(), auth: auth) == false)
+    #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: context, auth: auth))
+    #expect(!state.updatingRoom && state.transcriptRoomId == general)
+    #expect(state.rooms.first { $0.id == partners }?.userMembers.map(\.id) == ["user_1"])
+    #expect(state.rooms.first { $0.id == partners }?.sokoBotMembers.map(\.id) == ["bot_me"])
+    #expect(transport.operationIDs.suffix(3) == [
+      "post/chats/rooms/{id}/members", "delete/chats/rooms/{id}/coworkers/{coworkerId}", "delete/chats/rooms/{id}/members/{userId}"
+    ])
+    let addData = try #require(transport.bodies.last(where: { !$0.isEmpty }))
+    let addBody = try #require(JSONSerialization.jsonObject(with: addData) as? [String: Any])
+    #expect(addBody.count == 1 && addBody["coworkerIds"] as? [String] == ["cow_1"])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// A room list that started before the removal must not put the person, or the Soko Bots that left with them, back.
+  @Test func memberRemovalBeatsAnInFlightRoomList() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, invitationEnvelope(#"{"id":"\#(partners)","remainingUserMemberCount":1}"#))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    transport.pauseList = true
+    let refresh = Task { await state.refreshRooms(auth: auth) }
+    for _ in 0 ..< 1000 where transport.operationIDs.filter({ $0 == "get/chats/rooms" }).count < 2 {
+      await Task.yield()
+    }
+    #expect(try await state.removeChannelMember(.human("user_guest"), roomId: partners, context: context, auth: auth))
+    transport.releasePausedRequest()
+    await refresh.value
+    let room = try #require(state.rooms.first { $0.id == partners })
+    #expect(room.userMembers.map(\.id) == ["user_1"])
+    #expect(room.sokoBotMembers.map(\.id) == ["bot_me"])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// The same race for a group rename: a room list that started first must not put the old name back.
+  @Test func groupRenameBeatsAnInFlightRoomList() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let renamed = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
+      .replacingOccurrences(of: #""groupName":null"#, with: #""groupName":"Launch crew""#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, #"{"data":\#(renamed),"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#)
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    var draft = try GroupNameDraft(room: #require(state.rooms.first { $0.id == partners }))
+    draft.setName("Launch crew")
+    transport.pauseList = true
+    let refresh = Task { await state.refreshRooms(auth: auth) }
+    for _ in 0 ..< 1000 where transport.operationIDs.filter({ $0 == "get/chats/rooms" }).count < 2 {
+      await Task.yield()
+    }
+    #expect(try await state.nameGroup(draft, roomId: partners, context: context, auth: auth))
+    transport.releasePausedRequest()
+    await refresh.value
+    #expect(state.rooms.first { $0.id == partners }?.groupName == "Launch crew")
     #expect(transport.remainingStubs == 0)
   }
 }

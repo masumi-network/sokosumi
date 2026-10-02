@@ -29,7 +29,7 @@ struct SidebarThreadRowsTests {
         .init(parentMessageId: $0.parent, firstUnreadReplyId: "\($0.parent)-reply", parentContent: $0.content,
               unreadReplyCount: $0.replies, unreadMentionCount: $0.mentions)
       },
-      unreadMentionCount: 0, mutedAt: muted ? fixedDate : nil, markedUnread: false, myAccess: .member,
+      unreadMentionCount: 0, mutedAt: muted ? fixedDate : nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
       userMembers: [.init(id: adaId, name: "Ada Lovelace", email: "ada@example.com", presence: .online)],
       coworkerMembers: [], sokoBotMembers: []
     )

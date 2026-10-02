@@ -35,7 +35,7 @@
           unreadThreadCount: thread == nil ? 0 : 1,
           unreadThreads: thread.map { [.init(parentMessageId: "\(id)-0", firstUnreadReplyId: "\(id)-0-reply", parentContent: $0,
                                              unreadReplyCount: 1, unreadMentionCount: 0)] } ?? [],
-          unreadMentionCount: 0, mutedAt: nil, markedUnread: false, myAccess: .member,
+          unreadMentionCount: 0, mutedAt: nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: kind == .direct ? [reader, ada] : [ada], coworkerMembers: [], sokoBotMembers: []
         )
         room.starredAt = pinned ? lastWeek.addingTimeInterval(Double(rank)) : nil

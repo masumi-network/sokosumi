@@ -40,7 +40,7 @@
             .init(parentMessageId: "\(id)-\(index)", firstUnreadReplyId: "\(id)-\(index)-reply", parentContent: thread.content,
                   unreadReplyCount: thread.replies, unreadMentionCount: thread.mentions)
           },
-          unreadMentionCount: 0, mutedAt: muted ? lastWeek : nil, markedUnread: false, myAccess: .member,
+          unreadMentionCount: 0, mutedAt: muted ? lastWeek : nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: kind == .direct ? [reader, ada] : [ada], coworkerMembers: [], sokoBotMembers: []
         )
         room.starredAt = pinned ? lastWeek.addingTimeInterval(Double(rank)) : nil

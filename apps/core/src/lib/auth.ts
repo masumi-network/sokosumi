@@ -80,6 +80,7 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
+import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
   jwtKeyStoreOptions,
@@ -409,6 +410,7 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
+  onAPIError: authErrorPageOptions(webAppBaseUrl),
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [
