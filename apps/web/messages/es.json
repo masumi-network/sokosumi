@@ -1293,8 +1293,13 @@
           "reset_password": "Restablecer contraseña",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             }
+          },
+          "linkExpired": "Ese enlace para restablecer la contraseña ha caducado o ya se usó. Solicita uno nuevo.",
+          "Errors": {
+            "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo.",
+            "generic": "No pudimos enviar el email para restablecer la contraseña. Vuelve a intentarlo."
           }
         }
       },
@@ -1308,15 +1313,18 @@
         "Form": {
           "submit": "Restablecer contraseña",
           "success": "Contraseña restablecida. Se ha cerrado tu sesión en todos los dispositivos.",
-          "error": "Error al restablecer la contraseña",
+          "error": "No pudimos restablecer tu contraseña. Puede que el enlace haya caducado o ya se haya usado.",
           "Fields": {
             "Password": {
-              "placeholder": "Nueva contraseña"
+              "label": "Nueva contraseña"
             },
             "ConfirmPassword": {
-              "placeholder": "Confirmar contraseña"
+              "label": "Confirmar contraseña"
             }
-          }
+          },
+          "requestNewLink": "Solicitar un enlace nuevo",
+          "signOutError": "Contraseña cambiada. No pudimos terminar de cerrar la sesión en este navegador. Vuelve a intentarlo para continuar al inicio de sesión.",
+          "continueToSignIn": "Continuar al inicio de sesión"
         }
       }
     },
@@ -4709,7 +4717,8 @@
         "revokeOtherSessionsHelp": "Finaliza todas las demás sesiones. Este dispositivo permanece conectado.",
         "submit": "Actualizar contraseña",
         "success": "Contraseña actualizada correctamente",
-        "error": "No se pudo actualizar la contraseña"
+        "error": "No se pudo actualizar la contraseña",
+        "forgotPassword": "¿Olvidaste tu contraseña?"
       },
       "NewPassword": {
         "title": "Establecer contraseña",

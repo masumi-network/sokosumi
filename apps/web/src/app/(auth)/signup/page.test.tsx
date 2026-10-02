@@ -24,6 +24,13 @@ const OAUTH_SEARCH_PARAMS = {
 const REQUEST_SIGNED_AT = NOW;
 const OAUTH_QUERY = `client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=${NOW / 1000 + 600}&sig=signed-value`;
 
+const getPendingInvitationMock = vi.fn();
+vi.mock("@/lib/services/organization.service", () => ({
+  organizationService: {
+    getPendingInvitation: (id: string) => getPendingInvitationMock(id),
+  },
+}));
+
 vi.mock("next/headers", () => ({
   cookies: () => cookiesMock(),
 }));
@@ -218,12 +225,15 @@ describe("SignUp page", () => {
 
   it("hands the invitation email and the last-used provider to the flow", async () => {
     getMock.mockReturnValue({ value: "google" });
+    getPendingInvitationMock.mockResolvedValue({
+      invitation: { id: "inv_1", email: "ada@example.com" },
+    });
     const { default: Page } = await import("./page");
 
     render(
       await Page({
         searchParams: Promise.resolve({
-          email: "ada@example.com",
+          email: "someone-else@example.com",
           invitationId: "inv_1",
           returnUrl: "/agents",
         }),
@@ -237,6 +247,21 @@ describe("SignUp page", () => {
       returnUrl: "/agents",
       lastUsedMethod: "google",
     });
+  });
+
+  it("signs up without a lock when the invitation is gone", async () => {
+    getPendingInvitationMock.mockResolvedValue({ error: "NOT_FOUND" });
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({ invitationId: "inv_1" }),
+      }),
+    );
+
+    expect(signUpFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prefilledEmail: undefined }),
+    );
   });
 
   it("says that creating an account accepts the terms", async () => {

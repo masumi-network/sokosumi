@@ -1293,8 +1293,13 @@
           "reset_password": "Passwort zurücksetzen",
           "Fields": {
             "Email": {
-              "placeholder": "E-Mail"
+              "label": "E-Mail"
             }
+          },
+          "linkExpired": "Dieser Link zum Zurücksetzen ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
+          "Errors": {
+            "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut.",
+            "generic": "Wir konnten die E-Mail zum Zurücksetzen nicht senden. Versuche es erneut."
           }
         }
       },
@@ -1308,15 +1313,18 @@
         "Form": {
           "submit": "Passwort zurücksetzen",
           "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
-          "error": "Passwort-Reset fehlgeschlagen",
+          "error": "Wir konnten dein Passwort nicht zurücksetzen. Der Link ist vielleicht abgelaufen oder wurde bereits verwendet.",
           "Fields": {
             "Password": {
-              "placeholder": "Neues Passwort"
+              "label": "Neues Passwort"
             },
             "ConfirmPassword": {
-              "placeholder": "Passwort bestätigen"
+              "label": "Passwort bestätigen"
             }
-          }
+          },
+          "requestNewLink": "Neuen Link anfordern",
+          "signOutError": "Passwort geändert. Wir konnten dich in diesem Browser nicht abmelden. Versuche es erneut, um zur Anmeldung zu gelangen.",
+          "continueToSignIn": "Weiter zur Anmeldung"
         }
       }
     },
@@ -4709,7 +4717,8 @@
         "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
-        "error": "Passwort konnte nicht aktualisiert werden"
+        "error": "Passwort konnte nicht aktualisiert werden",
+        "forgotPassword": "Passwort vergessen?"
       },
       "NewPassword": {
         "title": "Passwort festlegen",

@@ -253,8 +253,9 @@ describe("InvitationActions join-like layout", () => {
       "http://localhost",
     );
     expect(signin.pathname).toBe("/signin");
-    expect(signin.searchParams.get("email")).toBe("ada@example.com");
-    // So sign-in's Register link can keep the address fixed on sign-up.
+    // The address stays out of logs and analytics; sign-in looks it up from
+    // the invitation and keeps it fixed.
+    expect(signin.searchParams.has("email")).toBe(false);
     expect(signin.searchParams.get("invitationId")).toBe("inv_1");
     expect(signin.searchParams.get("returnUrl")).toBe(
       "/accept-invitation/inv_1",
@@ -268,7 +269,7 @@ describe("InvitationActions join-like layout", () => {
       "http://localhost",
     );
     expect(signup.pathname).toBe("/signup");
-    expect(signup.searchParams.get("email")).toBe("ada@example.com");
+    expect(signup.searchParams.has("email")).toBe(false);
     expect(signup.searchParams.get("invitationId")).toBe("inv_1");
     expect(signup.searchParams.get("returnUrl")).toBe(
       "/accept-invitation/inv_1",
