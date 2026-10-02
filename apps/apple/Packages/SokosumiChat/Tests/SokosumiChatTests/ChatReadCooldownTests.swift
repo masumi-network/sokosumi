@@ -185,7 +185,8 @@ struct ChatReadCooldownTests {
     #expect(clock.elapsed == (header ? 7 : 2))
   }
 
-  @Test func writesAndStreamStateBypassWait() async throws {
+  /// The invite page's single read is not a background reader on web, so it never waits.
+  @Test func writesStreamStateAndInvitePageBypassWait() async throws {
     let clock = CooldownTestClock()
     let cooldown = clock.cooldown()
     let scope = 0
@@ -193,7 +194,7 @@ struct ChatReadCooldownTests {
     await cooldown.note(delay: 300, scope: scope)
     let middleware = ChatReadCooldownMiddleware(cooldown: cooldown, currentScope: { scope })
     let url = try #require(URL(string: "https://example.com"))
-    for (method, operation) in [(HTTPRequest.Method.post, "post/chats/rooms/{id}/messages"), (.get, "get/chats/rooms/{id}/stream/active")] {
+    for (method, operation) in [(HTTPRequest.Method.post, "post/chats/rooms/{id}/messages"), (.get, "get/chats/rooms/{id}/stream/active"), (.get, "get/chats/invitations/{id}")] {
       _ = try await middleware.intercept(HTTPRequest(method: method, scheme: "https", authority: "example.com", path: "/"), body: nil, baseURL: url, operationID: operation) { _, _, _ in
         (HTTPResponse(status: .ok), nil)
       }
