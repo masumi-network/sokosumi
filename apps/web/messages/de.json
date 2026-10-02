@@ -6283,7 +6283,6 @@
         "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
         "external": "Extern",
         "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft.",
-        "manageGuests": "Gäste verwalten",
         "externalLocked": "Entferne alle Gäste im Mitgliederbereich, um diesen Kanal öffentlich oder privat zu machen.",
         "hasGuests": "Hat Gäste"
       },

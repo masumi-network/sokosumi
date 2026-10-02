@@ -66,10 +66,8 @@ export function EditChannelDialog({
   open,
   onOpenChange: setOpen,
   children,
-  onManageGuests,
 }: {
   channel: ChatRoom;
-  onManageGuests: () => void;
   /**
    * The room shell owns the flag, because the dialog has two ways in: the
    * title beside the room name, and a channel row's overflow menu, which
@@ -245,7 +243,14 @@ export function EditChannelDialog({
                         </span>
                         <span
                           id={`edit-channel-${value}-help`}
-                          className="text-foreground block text-xs"
+                          // Muted text falls under 4.5:1 on the selected
+                          // card's tint, so only that card's goes full.
+                          className={cn(
+                            "block text-xs",
+                            value === discoverability
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                          )}
                         >
                           {t(`Visibility.${value}Help`)}
                         </span>
@@ -255,25 +260,12 @@ export function EditChannelDialog({
                 })}
               </RadioGroup>
               {isVisibilityLocked ? (
-                <div className="space-y-2">
-                  <p
-                    id="edit-channel-visibility-locked"
-                    className="text-muted-foreground text-xs"
-                  >
-                    {t("Visibility.externalLocked")}
-                  </p>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    disabled={isPending}
-                    onClick={() => {
-                      setOpen(false);
-                      onManageGuests();
-                    }}
-                  >
-                    {t("Visibility.manageGuests")}
-                  </Button>
-                </div>
+                <p
+                  id="edit-channel-visibility-locked"
+                  className="text-muted-foreground text-xs"
+                >
+                  {t("Visibility.externalLocked")}
+                </p>
               ) : null}
             </fieldset>
             <DialogFooter>
