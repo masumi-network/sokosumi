@@ -7,11 +7,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TestQueryProvider } from "@/test/query-provider";
 import {
   channelRoom,
-  coworkerParticipant,
   type RoomsClientProps,
   renderRoomsClient,
   updateRoomAction,
-  userParticipant,
 } from "./rooms-client-harness";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -46,11 +44,6 @@ vi.mock("../thread-list-panel", () => ({
   ThreadListPanel: () => null,
 }));
 
-// External channels mount guest invites; their loads are not under test here.
-vi.mock("../guest-invite-section", () => ({
-  GuestInviteSection: () => null,
-}));
-
 /** The org roster failed to load: Core soft-fails it to an empty list. */
 function membersFailed(
   overrides: Partial<RoomsClientProps>,
@@ -58,7 +51,7 @@ function membersFailed(
   return { organizationMembers: [], membersLoadFailed: true, ...overrides };
 }
 
-async function openEditChannel() {
+async function openChannelTitle() {
   await userEvent.setup().click(screen.getByTestId("room-open-title"));
 }
 
@@ -66,7 +59,7 @@ function renderRoom(overrides: Partial<RoomsClientProps>) {
   return renderRoomsClient(overrides, { wrapper: TestQueryProvider });
 }
 
-describe("RoomsClient channel settings without the org roster", () => {
+describe("RoomsClient channel settings", () => {
   beforeEach(() => {
     updateRoomAction.mockReset();
     updateRoomAction.mockResolvedValue({ ok: true, value: channelRoom() });
@@ -74,15 +67,18 @@ describe("RoomsClient channel settings without the org roster", () => {
 
   it("gives an owner or admin name, topic, visibility and Archive when the roster failed", async () => {
     renderRoom(membersFailed({ isOrgOwnerOrAdmin: true }));
-    await openEditChannel();
+    await openChannelTitle();
 
     expect(screen.getByLabelText("Dialog.name")).toHaveValue("general");
     expect(screen.getByLabelText("Dialog.topic")).toBeInTheDocument();
     expect(screen.getByText("Visibility.label")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "archive" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "archiveButton" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("room-roster-panel")).toBeNull();
   });
 
-  it("saves name, topic and visibility for an owner or admin when the roster failed", async () => {
+  it("saves name, topic and visibility for an owner or admin, and no roster", async () => {
     const user = userEvent.setup();
     renderRoom(membersFailed({ isOrgOwnerOrAdmin: true }));
     await user.click(screen.getByTestId("room-open-title"));
@@ -98,56 +94,6 @@ describe("RoomsClient channel settings without the org roster", () => {
         name: "announcements",
         topic: "News",
         discoverability: "public",
-        memberUserIds: ["user-1"],
-        coworkerIds: [],
-        sokoBotIds: [],
-      });
-    });
-  });
-
-  // The picker list is empty, so the saved roster must come from the room
-  // itself: every host human, coworker and bot stays; guests are never sent.
-  it("keeps the room's participants when an owner or admin changes visibility with the roster failed", async () => {
-    const user = userEvent.setup();
-    renderRoom(
-      membersFailed({
-        isOrgOwnerOrAdmin: true,
-        rooms: [
-          channelRoom({
-            discoverability: "external",
-            userMembers: [
-              { ...userParticipant("user-1", "Ada"), access: "member" },
-              { ...userParticipant("user-2", "Bob"), access: "member" },
-              { ...userParticipant("guest-1", "Gus"), access: "guest" },
-            ],
-            coworkerMembers: [coworkerParticipant("cow-1", "Soupie")],
-            sokoBotMembers: [
-              {
-                id: "bot-1",
-                name: "Soko",
-                caption: null,
-                image: null,
-                avatarSeed: null,
-                presence: "online",
-              },
-            ],
-          }),
-        ],
-      }),
-    );
-    await user.click(screen.getByTestId("room-open-title"));
-
-    await user.click(screen.getByLabelText("Visibility.private"));
-    await user.click(screen.getByRole("button", { name: "Dialog.save" }));
-
-    await waitFor(() => {
-      expect(updateRoomAction).toHaveBeenCalledWith("room-channel", {
-        name: "general",
-        topic: "",
-        discoverability: "private",
-        memberUserIds: ["user-1", "user-2"],
-        coworkerIds: ["cow-1"],
-        sokoBotIds: ["bot-1"],
       });
     });
   });
@@ -159,36 +105,29 @@ describe("RoomsClient channel settings without the org roster", () => {
         /* roster never arrives */
       }),
     });
-    await openEditChannel();
+    await openChannelTitle();
 
     expect(screen.getByLabelText("Dialog.name")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "archive" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "archiveButton" }),
+    ).toBeInTheDocument();
   });
 
-  it("keeps a plain member to the roster and saves the roster only", async () => {
-    const user = userEvent.setup();
+  it("opens the members panel, with Add, for a plain member's title", async () => {
     renderRoom(membersFailed({ isOrgOwnerOrAdmin: false }));
-    await user.click(screen.getByTestId("room-open-title"));
+    await openChannelTitle();
 
+    expect(screen.getByTestId("room-roster-panel")).toBeInTheDocument();
+    expect(screen.getByTestId("room-roster-add")).toBeInTheDocument();
     expect(screen.queryByLabelText("Dialog.name")).toBeNull();
-    expect(screen.queryByText("Visibility.label")).toBeNull();
-    expect(screen.queryByRole("button", { name: "archive" })).toBeNull();
-
-    await user.click(screen.getByRole("button", { name: "Dialog.save" }));
-    await waitFor(() => {
-      expect(updateRoomAction).toHaveBeenCalledWith("room-channel", {
-        memberUserIds: ["user-1"],
-        coworkerIds: [],
-        sokoBotIds: [],
-      });
-    });
+    expect(screen.queryByRole("button", { name: "archiveButton" })).toBeNull();
   });
 
   it.each([
     ["a guest", { myAccess: "guest" as const }],
     ["a matched channel member", { discoverability: "matched" as const }],
   ])(
-    "never gives %s the settings, even as an org owner or admin",
+    "opens a read-only members panel for %s, even as an org owner or admin",
     async (_label, room) => {
       renderRoom(
         membersFailed({
@@ -196,10 +135,14 @@ describe("RoomsClient channel settings without the org roster", () => {
           rooms: [channelRoom(room)],
         }),
       );
-      await openEditChannel();
+      await openChannelTitle();
 
+      expect(screen.getByTestId("room-roster-panel")).toBeInTheDocument();
+      expect(screen.queryByTestId("room-roster-add")).toBeNull();
       expect(screen.queryByLabelText("Dialog.name")).toBeNull();
-      expect(screen.queryByRole("button", { name: "archive" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "archiveButton" }),
+      ).toBeNull();
     },
   );
 

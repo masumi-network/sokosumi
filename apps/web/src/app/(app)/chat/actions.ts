@@ -80,9 +80,6 @@ interface UpdateRoomInput {
   name?: string;
   topic?: string | null;
   discoverability?: ChannelDiscoverability;
-  memberUserIds?: string[];
-  coworkerIds?: string[];
-  sokoBotIds?: string[];
   /** Group Directs only; Core rejects it anywhere else. Blank clears it. */
   groupName?: string;
 }
@@ -401,15 +398,6 @@ export async function updateRoomAction(
     ...(input.discoverability !== undefined && {
       discoverability: cleanDiscoverability(input.discoverability),
     }),
-    ...(input.memberUserIds !== undefined && {
-      memberUserIds: cleanIds(input.memberUserIds),
-    }),
-    ...(input.coworkerIds !== undefined && {
-      coworkerIds: cleanIds(input.coworkerIds),
-    }),
-    ...(input.sokoBotIds !== undefined && {
-      sokoBotIds: cleanIds(input.sokoBotIds),
-    }),
     ...(input.groupName !== undefined && {
       groupName: cleanString(input.groupName),
     }),
@@ -708,8 +696,51 @@ export async function acceptRoomGuestInviteLinkAction(
   }
 }
 
-/** Host: remove a guest from an external channel. */
-export async function removeRoomGuestAction(
+/** Channel members to add; Core ignores anyone already in the room. */
+export interface AddRoomMembersInput {
+  userIds?: string[];
+  coworkerIds?: string[];
+  sokoBotIds?: string[];
+}
+
+/** Host member: add people, Coworkers and their own Soko Bots to a Channel. */
+export async function addRoomMembersAction(
+  roomId: string,
+  input: AddRoomMembersInput,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  const body = {
+    userIds: cleanIds(input.userIds),
+    coworkerIds: cleanIds(input.coworkerIds),
+    sokoBotIds: cleanIds(input.sokoBotIds),
+  };
+  if (
+    body.userIds.length === 0 &&
+    body.coworkerIds.length === 0 &&
+    body.sokoBotIds.length === 0
+  ) {
+    return roomFail("Choose someone to add.");
+  }
+
+  try {
+    const room = await chatRoomService.addMembers(cleanRoomId, body);
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not add members.");
+  }
+}
+
+/**
+ * Remove a person from a Channel: any host member may remove a guest; only an
+ * organization owner or admin may remove a host member.
+ */
+export async function removeRoomMemberAction(
   roomId: string,
   userId: string,
 ): Promise<RoomActionResult<null>> {
@@ -729,7 +760,57 @@ export async function removeRoomGuestAction(
     revalidatePath("/chat");
     return roomOk(null);
   } catch (error) {
-    return roomCatch(error, "Could not remove guest.");
+    return roomCatch(error, "Could not remove member.");
+  }
+}
+
+/** Host member: remove a Coworker from a Channel. */
+export async function removeRoomCoworkerAction(
+  roomId: string,
+  coworkerId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanCoworkerId = cleanString(coworkerId);
+  if (!cleanRoomId || !cleanCoworkerId) {
+    return roomFail("Room and coworker are required.");
+  }
+
+  try {
+    const room = await chatRoomService.removeCoworker(
+      cleanRoomId,
+      cleanCoworkerId,
+    );
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not remove coworker.");
+  }
+}
+
+/** Owner only: remove your own Soko Bot from a Channel. */
+export async function removeRoomSokoBotAction(
+  roomId: string,
+  sokoBotId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanSokoBotId = cleanString(sokoBotId);
+  if (!cleanRoomId || !cleanSokoBotId) {
+    return roomFail("Room and personal assistant are required.");
+  }
+
+  try {
+    const room = await chatRoomService.removeSokoBot(
+      cleanRoomId,
+      cleanSokoBotId,
+    );
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not remove personal assistant.");
   }
 }
 

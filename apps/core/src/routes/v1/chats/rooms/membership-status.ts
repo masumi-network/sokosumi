@@ -8,27 +8,32 @@ type ChatRoomMessageWithInclude = Prisma.ChatRoomMessageGetPayload<{
   include: typeof chatRoomMessageInclude;
 }>;
 
+/** The status row one membership change leaves in its room. */
+export type ChannelMembershipStatusMessage = ChatRoomMessageWithInclude;
+
 export type MembershipSubject =
   | { type: "user"; id: string; name: string }
   | { type: "coworker"; id: string; name: string }
   | { type: "sokoBot"; id: string; name: string };
 
+/** Type alias, not an interface: it is written into a Prisma `Json` column. */
+export type MembershipActor = { id: string; name: string };
+
 export type ChannelMembershipChange = {
   action: "joined" | "left";
   subject: MembershipSubject;
+  /**
+   * Who added or removed the subject. Absent when the subject joined or left
+   * on their own, so a removal never reads as leaving.
+   */
+  actor?: MembershipActor;
 };
-
-export interface ChannelRosterSnapshot {
-  users: ReadonlyArray<{ id: string; name: string }>;
-  coworkers: ReadonlyArray<{ id: string; name: string }>;
-  sokoBots?: ReadonlyArray<{ id: string; name: string }>;
-}
 
 export type GroupNameChange = {
   action: "named" | "cleared";
   /** The new Group name; null when cleared. */
   name: string | null;
-  actor: { id: string; name: string };
+  actor: MembershipActor;
 };
 
 export interface RecordChannelMembershipStatusArgs {
@@ -37,100 +42,16 @@ export interface RecordChannelMembershipStatusArgs {
   changes: readonly ChannelMembershipChange[];
 }
 
-/**
- * Pure set-diff of channel roster snapshots. Adds → joined, removes → left.
- * Stable order: user left, coworker left, user joined, coworker joined.
- */
-export function diffChannelMembershipRoster(args: {
-  prior: ChannelRosterSnapshot;
-  next: ChannelRosterSnapshot;
-}): ChannelMembershipChange[] {
-  const nextUserIds = new Set(args.next.users.map((user) => user.id));
-  const priorUserIds = new Set(args.prior.users.map((user) => user.id));
-  const nextCoworkerIds = new Set(
-    args.next.coworkers.map((coworker) => coworker.id),
-  );
-  const priorCoworkerIds = new Set(
-    args.prior.coworkers.map((coworker) => coworker.id),
-  );
-  const nextSokoBotIds = new Set(
-    (args.next.sokoBots ?? []).map((bot) => bot.id),
-  );
-  const priorSokoBotIds = new Set(
-    (args.prior.sokoBots ?? []).map((bot) => bot.id),
-  );
-
-  const changes: ChannelMembershipChange[] = [];
-
-  for (const user of args.prior.users) {
-    if (!nextUserIds.has(user.id)) {
-      changes.push({
-        action: "left",
-        subject: { type: "user", id: user.id, name: user.name },
-      });
-    }
-  }
-
-  for (const coworker of args.prior.coworkers) {
-    if (!nextCoworkerIds.has(coworker.id)) {
-      changes.push({
-        action: "left",
-        subject: { type: "coworker", id: coworker.id, name: coworker.name },
-      });
-    }
-  }
-
-  for (const sokoBot of args.prior.sokoBots ?? []) {
-    if (!nextSokoBotIds.has(sokoBot.id)) {
-      changes.push({
-        action: "left",
-        subject: {
-          type: "sokoBot",
-          id: sokoBot.id,
-          name: sokoBot.name,
-        },
-      });
-    }
-  }
-
-  for (const user of args.next.users) {
-    if (!priorUserIds.has(user.id)) {
-      changes.push({
-        action: "joined",
-        subject: { type: "user", id: user.id, name: user.name },
-      });
-    }
-  }
-
-  for (const coworker of args.next.coworkers) {
-    if (!priorCoworkerIds.has(coworker.id)) {
-      changes.push({
-        action: "joined",
-        subject: { type: "coworker", id: coworker.id, name: coworker.name },
-      });
-    }
-  }
-
-  for (const sokoBot of args.next.sokoBots ?? []) {
-    if (!priorSokoBotIds.has(sokoBot.id)) {
-      changes.push({
-        action: "joined",
-        subject: {
-          type: "sokoBot",
-          id: sokoBot.id,
-          name: sokoBot.name,
-        },
-      });
-    }
-  }
-
-  return changes;
-}
-
 function membershipStatusContent(change: ChannelMembershipChange): string {
+  const { actor, subject } = change;
+  if (actor) {
+    return change.action === "joined"
+      ? `${actor.name} added ${subject.name}`
+      : `${actor.name} removed ${subject.name}`;
+  }
   return change.action === "joined"
-    ? `${change.subject.name} joined`
-    : `${change.subject.name} left`;
+    ? `${subject.name} joined`
+    : `${subject.name} left`;
 }
 
 function membershipMetadata(
@@ -144,6 +65,9 @@ function membershipMetadata(
         id: change.subject.id,
         name: change.subject.name,
       },
+      ...(change.actor
+        ? { actor: { id: change.actor.id, name: change.actor.name } }
+        : {}),
     },
   };
 }
@@ -286,6 +210,7 @@ export function readMembershipFromMetadata(
   ) {
     return null;
   }
+  const actor = candidate.actor as Record<string, unknown> | null | undefined;
   return {
     action: candidate.action,
     subject: {
@@ -293,6 +218,9 @@ export function readMembershipFromMetadata(
       id: subject.id,
       name: subject.name,
     },
+    ...(actor && typeof actor.id === "string" && typeof actor.name === "string"
+      ? { actor: { id: actor.id, name: actor.name } }
+      : {}),
   };
 }
 

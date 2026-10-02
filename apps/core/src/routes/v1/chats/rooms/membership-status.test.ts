@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   assertChatRoomContentMessage,
-  diffChannelMembershipRoster,
   readMembershipFromMetadata,
   recordChannelMembershipStatus,
 } from "./membership-status";
@@ -51,56 +50,6 @@ function statusMessage(overrides: Record<string, unknown> = {}) {
 beforeEach(() => {
   vi.clearAllMocks();
   messageCreateMock.mockResolvedValue(statusMessage());
-});
-
-describe("diffChannelMembershipRoster", () => {
-  it("emits joined/left for user and coworker adds and removes", () => {
-    const changes = diffChannelMembershipRoster({
-      prior: {
-        users: [
-          { id: "user_a", name: "Ada" },
-          { id: "user_b", name: "Bob" },
-        ],
-        coworkers: [{ id: "cow_old", name: "OldBot" }],
-      },
-      next: {
-        users: [
-          { id: "user_a", name: "Ada" },
-          { id: "user_c", name: "Carol" },
-        ],
-        coworkers: [{ id: "cow_new", name: "NewBot" }],
-      },
-    });
-
-    expect(changes).toEqual([
-      {
-        action: "left",
-        subject: { type: "user", id: "user_b", name: "Bob" },
-      },
-      {
-        action: "left",
-        subject: { type: "coworker", id: "cow_old", name: "OldBot" },
-      },
-      {
-        action: "joined",
-        subject: { type: "user", id: "user_c", name: "Carol" },
-      },
-      {
-        action: "joined",
-        subject: { type: "coworker", id: "cow_new", name: "NewBot" },
-      },
-    ]);
-  });
-
-  it("returns empty when roster is unchanged", () => {
-    const roster = {
-      users: [{ id: "user_a", name: "Ada" }],
-      coworkers: [{ id: "cow_1", name: "Bot" }],
-    };
-    expect(
-      diffChannelMembershipRoster({ prior: roster, next: roster }),
-    ).toEqual([]);
-  });
 });
 
 describe("recordChannelMembershipStatus", () => {
@@ -153,6 +102,49 @@ describe("recordChannelMembershipStatus", () => {
       }),
     );
     expect(created).toHaveLength(2);
+  });
+
+  it("names the actor when someone else added or removed the subject", async () => {
+    await recordChannelMembershipStatus(tx as never, {
+      roomId: "550e8400-e29b-41d4-a716-446655440000",
+      roomKind: "channel",
+      changes: [
+        {
+          action: "joined",
+          subject: { type: "user", id: "user_maya", name: "Maya" },
+          actor: { id: "user_andreas", name: "Andreas" },
+        },
+        {
+          action: "left",
+          subject: { type: "user", id: "user_francis", name: "Francis" },
+          actor: { id: "user_andreas", name: "Andreas" },
+        },
+      ],
+    });
+
+    expect(messageCreateMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Andreas added Maya",
+          metadata: {
+            membership: {
+              action: "joined",
+              subject: { type: "user", id: "user_maya", name: "Maya" },
+              actor: { id: "user_andreas", name: "Andreas" },
+            },
+          },
+        }),
+      }),
+    );
+    expect(messageCreateMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        data: expect.objectContaining({
+          content: "Andreas removed Francis",
+        }),
+      }),
+    );
   });
 
   it("bumps the room updatedAt once with the messages", async () => {
@@ -217,6 +209,22 @@ describe("readMembershipFromMetadata", () => {
     ).toEqual({
       action: "left",
       subject: { type: "coworker", id: "cow_1", name: "Bot" },
+    });
+  });
+
+  it("keeps the actor of an add or a removal", () => {
+    expect(
+      readMembershipFromMetadata({
+        membership: {
+          action: "left",
+          subject: { type: "user", id: "user_francis", name: "Francis" },
+          actor: { id: "user_andreas", name: "Andreas" },
+        },
+      }),
+    ).toEqual({
+      action: "left",
+      subject: { type: "user", id: "user_francis", name: "Francis" },
+      actor: { id: "user_andreas", name: "Andreas" },
     });
   });
 

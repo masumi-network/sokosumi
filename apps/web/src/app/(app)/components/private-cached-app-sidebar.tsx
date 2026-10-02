@@ -80,7 +80,7 @@ async function PrivateCachedSidebarRooms({
   const chatRooms = chatListChrome.chatRoomsPage.rooms;
   const archivedChatRooms = chatListChrome.archivedChatRoomsPage.rooms;
 
-  const canDeleteArchivedRooms = Boolean(
+  const isOrgOwnerOrAdmin = Boolean(
     activeOrganizationId &&
       members.some(
         (membership) =>
@@ -96,7 +96,7 @@ async function PrivateCachedSidebarRooms({
       archivedRooms={archivedChatRooms}
       currentUserId={userId}
       organizationId={activeOrganizationId}
-      canDeleteArchivedRooms={canDeleteArchivedRooms}
+      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
     />
   );
 }

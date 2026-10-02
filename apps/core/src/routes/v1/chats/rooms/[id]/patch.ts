@@ -5,17 +5,11 @@ import {
   expireStalePendingInvitations,
   livePendingInvitationWhere,
 } from "@/helpers/chat-room-invitation";
-import {
-  failOpenChatRoomMentions,
-  publishChatRoomMentionStatuses,
-} from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
-import { publishChatMembershipRevokedToUsers } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import {
@@ -32,21 +26,12 @@ import {
   assertChatRoomPatchAuth,
   type ChatRoomWithMembers,
   chatRoomInclude,
-  filterOrganizationUserIds,
   isGroupDirectRoom,
   mapChatRoomWithSidebarFlags,
   membershipAccessForUser,
-  normalizeUniqueStrings,
   requireChatRoomUserAccess,
-  resolveWorkspaceIdForChatRoom,
-  validateChatCoworkerIds,
-  validateChatSokoBotIds,
 } from "../helpers";
-import {
-  diffChannelMembershipRoster,
-  recordChannelMembershipStatus,
-  recordGroupNameChange,
-} from "../membership-status";
+import { recordGroupNameChange } from "../membership-status";
 
 const ONLY_GROUP_DIRECTS_CAN_BE_NAMED = "Only group Directs can be named.";
 
@@ -82,8 +67,6 @@ async function updateGroupName(
   const unchanged = {
     room: existing,
     statusMessages: [],
-    removedUserIds: [],
-    mentionMessageIds: [],
   };
   if (next === existing.groupName) {
     return unchanged;
@@ -128,7 +111,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update an organization chat room and its roster. On a group Direct, only `groupName` is accepted.",
+      "Update a Channel's name, topic or discoverability (organization owner/admin), or a group Direct's `groupName`. Members are added and removed through `/members`, `/coworkers` and `/soko-bots`.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -162,11 +145,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Channel slug cannot be changed");
     }
 
-    // Serializable so a concurrent leave cannot commit under a stale roster
-    // snapshot that would re-create the leaver's membership (SSI → 409
-    // concurrency_conflict). Leave still uses FOR UPDATE on the room row.
-    const { room, statusMessages, removedUserIds, mentionMessageIds } =
-      await serializableTransaction(async (tx) => {
+    // Serializable so a concurrent edit of the same room fails as a retryable
+    // 409 concurrency_conflict instead of one change silently overwriting the
+    // other.
+    const { room, statusMessages } = await serializableTransaction(
+      async (tx) => {
         const existing = await requireChatRoomUserAccess(
           id,
           userContext.userId,
@@ -185,20 +168,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           throw badRequest("Channel rooms require an organization.");
         }
         const organizationId = existing.organizationId;
-        const mentionMessageIds: string[] = [];
 
-        // Guests may read/write messages but cannot manage settings or roster.
+        // Guests may read/write messages but cannot manage settings.
         // Fail before host-org role resolution so the message is guest-specific.
         const callerAccess = membershipAccessForUser(
           existing.userMembers,
           userContext.userId,
         );
         if (callerAccess === "guest") {
-          throw forbidden("Guests cannot update channel settings or roster.");
+          throw forbidden("Guests cannot update channel settings.");
         }
 
-        // Membership + host-org role: settings need OWNER/ADMIN; roster rewrite
-        // is open to any access=member channel participant. Assert before writes.
+        // Settings need OWNER/ADMIN. Assert before writes.
         const { role } = await resolveMemberOrganizationById({
           id: organizationId,
           userId: userContext.userId,
@@ -276,374 +257,20 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           updateData.discoverability = body.discoverability;
         }
 
-        // Roster rewrites only cover host-org members. Guests are room-scoped
-        // and must survive PATCH (web always sends memberUserIds on save).
-        let priorUsers =
-          body.memberUserIds !== undefined
-            ? existing.userMembers
-                .filter((member) => member.access !== "guest")
-                .map((member) => ({
-                  id: member.user.id,
-                  name: member.user.name,
-                }))
-            : [];
-        const priorCoworkers =
-          body.coworkerIds !== undefined
-            ? existing.coworkerMembers.map((member) => ({
-                id: member.coworker.id,
-                name: member.coworker.name,
-              }))
-            : [];
-        const priorSokoBots = existing.sokoBotMembers.map((member) => ({
-          id: member.sokoBot.id,
-          name: sokoBotDisplayName(member.sokoBot),
-        }));
-
-        let nextUsers = priorUsers;
-        let nextCoworkers = priorCoworkers;
-        let nextSokoBots = priorSokoBots;
-
-        if (body.memberUserIds !== undefined) {
-          // Host roster only. Guest ids echoed in memberUserIds are ignored
-          // (they are not org members); they must not 400 the rewrite.
-          const requestedUserIds = normalizeUniqueStrings([
-            userContext.userId,
-            ...body.memberUserIds,
-          ]);
-          const foundHostIds = await filterOrganizationUserIds(
-            organizationId,
-            requestedUserIds,
-            tx,
-          );
-          const guestIdsOnRoom = new Set(
-            existing.userMembers
-              .filter((member) => member.access === "guest")
-              .map((member) => member.userId),
-          );
-          const unexpected = requestedUserIds.filter(
-            (userId) =>
-              !foundHostIds.includes(userId) && !guestIdsOnRoom.has(userId),
-          );
-          if (unexpected.length > 0) {
-            throw badRequest(
-              "Room human members must belong to the organization",
-            );
-          }
-          const memberUserIds = foundHostIds;
-          const users = await tx.user.findMany({
-            where: { id: { in: memberUserIds } },
-            select: { id: true, name: true },
-          });
-          const nameById = new Map(users.map((user) => [user.id, user.name]));
-          nextUsers = memberUserIds.map((userId) => ({
-            id: userId,
-            name: nameById.get(userId) ?? userId,
-          }));
-
-          // Guests already in the room who appear on the host roster (e.g. they
-          // later joined the host org) count as already present for status diffs.
-          const memberIdSet = new Set(memberUserIds);
-          priorUsers = existing.userMembers
-            .filter(
-              (member) =>
-                member.access !== "guest" || memberIdSet.has(member.user.id),
-            )
-            .map((member) => ({
-              id: member.user.id,
-              name: member.user.name,
-            }));
-
-          const preservedGuestIds = existing.userMembers
-            .filter(
-              (member) =>
-                member.access === "guest" && !memberIdSet.has(member.userId),
-            )
-            .map((member) => member.userId);
-
-          // Rewrite only host members; never delete access=guest rows omitted
-          // from memberUserIds (silent guest eviction).
-          await tx.chatRoomUserMember.deleteMany({
-            where: { roomId: existing.id, access: "member" },
-          });
-          // Guest who is now on the host roster → upgrade in place (unique roomId+userId).
-          await tx.chatRoomUserMember.updateMany({
-            where: {
-              roomId: existing.id,
-              userId: { in: memberUserIds },
-              access: "guest",
-            },
-            data: { access: "member" },
-          });
-          const remainingAfterDelete = await tx.chatRoomUserMember.findMany({
-            where: { roomId: existing.id },
-            select: { userId: true },
-          });
-          const remainingIds = new Set(
-            remainingAfterDelete.map((row) => row.userId),
-          );
-          const membersToCreate = memberUserIds.filter(
-            (userId) => !remainingIds.has(userId),
-          );
-          if (membersToCreate.length > 0) {
-            await tx.chatRoomUserMember.createMany({
-              data: membersToCreate.map((memberUserId) => ({
-                roomId: existing.id,
-                userId: memberUserId,
-                access: "member",
-              })),
-            });
-          }
-
-          const keepUserIds = [...memberUserIds, ...preservedGuestIds];
-          await tx.chatRoomReadState.deleteMany({
-            where: {
-              roomId: existing.id,
-              userId: { notIn: keepUserIds },
-            },
-          });
-          await tx.chatRoomReadState.createMany({
-            data: memberUserIds.map((memberUserId) => ({
-              roomId: existing.id,
-              userId: memberUserId,
-            })),
-            skipDuplicates: true,
-          });
-        }
-
-        if (body.coworkerIds !== undefined) {
-          const workspaceId = await resolveWorkspaceIdForChatRoom({
-            organizationId,
-            personalUserId: userContext.userId,
-            tx,
-          });
-          const coworkerIds = await validateChatCoworkerIds(
-            body.coworkerIds,
-            workspaceId,
-            tx,
-          );
-          const coworkers = await tx.coworker.findMany({
-            where: { id: { in: coworkerIds } },
-            select: { id: true, name: true },
-          });
-          const nameById = new Map(
-            coworkers.map((coworker) => [coworker.id, coworker.name]),
-          );
-          nextCoworkers = coworkerIds.map((coworkerId) => ({
-            id: coworkerId,
-            name: nameById.get(coworkerId) ?? coworkerId,
-          }));
-
-          // Fail open mentions for coworkers dropped from the roster so a
-          // queued dispatch cannot post after eviction.
-          mentionMessageIds.push(
-            ...(await failOpenChatRoomMentions(
-              {
-                where: {
-                  coworkerId: { notIn: coworkerIds },
-                  message: { roomId: existing.id },
-                },
-                error: "Coworker is no longer a member of this room",
-              },
-              tx,
-            )),
-          );
-          await tx.chatRoomCoworkerMember.deleteMany({
-            where: { roomId: existing.id },
-          });
-          if (coworkerIds.length > 0) {
-            await tx.chatRoomCoworkerMember.createMany({
-              data: coworkerIds.map((coworkerId) => ({
-                roomId: existing.id,
-                coworkerId,
-              })),
-            });
-          }
-        }
-
-        if (body.sokoBotIds !== undefined) {
-          const workspaceId = await resolveWorkspaceIdForChatRoom({
-            organizationId,
-            personalUserId: userContext.userId,
-            tx,
-          });
-          const alreadyInRoom = existing.sokoBotMembers.map(
-            (member) => member.sokoBot.id,
-          );
-          const sokoBotIds = await validateChatSokoBotIds(
-            body.sokoBotIds,
-            workspaceId,
-            userContext.userId,
-            alreadyInRoom,
-            tx,
-          );
-          const bots = await tx.sokoBot.findMany({
-            where: { id: { in: sokoBotIds } },
-            select: {
-              id: true,
-              name: true,
-              user: { select: { name: true } },
-            },
-          });
-          const nameById = new Map(
-            bots.map((bot) => [bot.id, sokoBotDisplayName(bot)]),
-          );
-          nextSokoBots = sokoBotIds.map((sokoBotId) => ({
-            id: sokoBotId,
-            name: nameById.get(sokoBotId) ?? sokoBotId,
-          }));
-
-          mentionMessageIds.push(
-            ...(await failOpenChatRoomMentions(
-              {
-                where: {
-                  sokoBotId: { notIn: sokoBotIds },
-                  message: { roomId: existing.id },
-                },
-                error: "Personal assistant is no longer a member of this room",
-              },
-              tx,
-            )),
-          );
-          await tx.chatRoomSokoBotMember.deleteMany({
-            where: { roomId: existing.id },
-          });
-          if (sokoBotIds.length > 0) {
-            await tx.chatRoomSokoBotMember.createMany({
-              data: sokoBotIds.map((sokoBotId) => ({
-                roomId: existing.id,
-                sokoBotId: sokoBotId,
-              })),
-            });
-          }
-        }
-
-        // A channel must not keep a personal assistant whose owner has left.
-        // The ownership check that gates *adding* one skips assistants already
-        // in the room, so another host could drop the owner from the roster and
-        // leave the assistant behind — still mentionable by everyone, still
-        // spending the departed owner's credits. Directs are exempt: a
-        // colleague DM is deliberately the bot without its owner.
-        // Host roster starts empty when memberUserIds is omitted. Soko Bot
-        // roster starts as the live members so owner-removal can emit left.
-        const effectiveUserIds =
-          body.memberUserIds !== undefined
-            ? nextUsers.map((user) => user.id)
-            : existing.userMembers.map((member) => member.user.id);
-        const effectiveSokoBotIds =
-          body.sokoBotIds !== undefined
-            ? nextSokoBots.map((bot) => bot.id)
-            : existing.sokoBotMembers.map((member) => member.sokoBot.id);
-        if (existing.kind === "channel" && effectiveSokoBotIds.length > 0) {
-          const remainingUserIds = new Set(effectiveUserIds);
-          const owners = await tx.sokoBot.findMany({
-            where: { id: { in: effectiveSokoBotIds } },
-            select: { id: true, userId: true },
-          });
-          const ownerlessIds = owners
-            .filter((bot) => !remainingUserIds.has(bot.userId))
-            .map((bot) => bot.id);
-          if (ownerlessIds.length > 0) {
-            nextSokoBots = nextSokoBots.filter(
-              (bot) => !ownerlessIds.includes(bot.id),
-            );
-            mentionMessageIds.push(
-              ...(await failOpenChatRoomMentions(
-                {
-                  where: {
-                    sokoBotId: { in: ownerlessIds },
-                    message: { roomId: existing.id },
-                  },
-                  error:
-                    "Personal assistant is no longer a member of this room",
-                },
-                tx,
-              )),
-            );
-            await tx.chatRoomSokoBotMember.deleteMany({
-              where: {
-                roomId: existing.id,
-                sokoBotId: { in: ownerlessIds },
-              },
-            });
-          }
-        }
-
-        const changes = diffChannelMembershipRoster({
-          prior: {
-            users: priorUsers,
-            coworkers: priorCoworkers,
-            sokoBots: priorSokoBots,
-          },
-          next: {
-            users: nextUsers,
-            coworkers: nextCoworkers,
-            sokoBots: nextSokoBots,
-          },
-        });
         const room = await tx.chatRoom.update({
           where: { id: existing.id },
           data: updateData,
           include: chatRoomInclude,
         });
 
-        // After the settings update: the helper's own updatedAt bump must be
-        // the last write, so the room row reflects the membership messages.
-        const createdStatus = await recordChannelMembershipStatus(tx, {
-          roomId: existing.id,
-          roomKind: existing.kind,
-          changes,
-        });
+        return { room, statusMessages: [] };
+      },
+      "Chat room was modified concurrently; please retry.",
+    );
 
-        const removedUserIds = changes
-          .filter(
-            (change) =>
-              change.action === "left" && change.subject.type === "user",
-          )
-          .map((change) => change.subject.id);
-
-        return {
-          room:
-            createdStatus.length > 0
-              ? await tx.chatRoom.findUniqueOrThrow({
-                  where: { id: room.id },
-                  include: chatRoomInclude,
-                })
-              : room,
-          statusMessages: createdStatus,
-          removedUserIds,
-          mentionMessageIds,
-        };
-      }, "Chat room was modified concurrently; please retry.");
-
-    // Status timeline and revoke are independent: membership is already
-    // committed; a failed status publish must not skip cap revoke.
-    const [statusResults, revokeResult, mentionStatusResult] =
-      await Promise.allSettled([
-        Promise.all(
-          statusMessages.map((message) =>
-            publishChatRoomMembershipStatusMessagesBestEffort([message]),
-          ),
-        ),
-        publishChatMembershipRevokedToUsers(room.id, removedUserIds, "removed"),
-        publishChatRoomMentionStatuses(mentionMessageIds),
-      ]);
-    if (statusResults.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership status messages after roster patch",
-        statusResults.reason,
-      );
-    }
-    if (revokeResult.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership revoke after roster patch",
-        revokeResult.reason,
-      );
-    }
-    if (mentionStatusResult.status === "rejected") {
-      console.error(
-        "Failed to publish chat mention status after roster patch",
-        mentionStatusResult.reason,
-      );
+    // Only a group Direct's rename leaves a status row.
+    if (statusMessages.length > 0) {
+      await publishChatRoomMembershipStatusMessagesBestEffort(statusMessages);
     }
 
     return ok(
