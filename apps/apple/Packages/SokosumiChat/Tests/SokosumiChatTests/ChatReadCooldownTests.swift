@@ -42,6 +42,25 @@ struct ChatReadCooldownTests {
     #expect(transport.requests.map(\.operationID) == ["get/chats/rooms/{id}/messages", "get/chats/invitations"])
   }
 
+  /// The invite page's single read is not a background reader on web, so it never waits.
+  @Test func invitePageSkipsTheSharedCooldown() async throws {
+    let clock = CooldownTestClock()
+    let middleware = ChatReadCooldownMiddleware(cooldown: clock.cooldown(), currentScope: { 0 })
+    let invitation = #"{"id":"inv","roomId":"room","roomName":"Partners","organizationId":"org","organizationName":"Acme","email":"me@example.com","status":"pending","inviter":{"id":"host","name":"Hannah"},"expiresAt":"2026-01-01T00:00:00.000Z","createdAt":"2026-01-01T00:00:00.000Z"}"#
+    let transport = TestTransport([
+      (429, #"{"error":"Too Many Requests","message":"Wait","retryAfterSeconds":3,"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test","path":"/chats/rooms/room/messages","method":"GET"}}"#),
+      (200, #"{"data":\#(invitation),"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#)
+    ])
+    let url = try #require(URL(string: "https://example.com"))
+    let client = Client.connecting(to: url, transport: transport, middlewares: [middleware])
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 429, message: "Wait")) {
+      try await ChatService().listMessages(client: client, roomId: testRoomId, organizationSlug: nil)
+    }
+    #expect(try await ChatService().invitation(client: client, id: "inv", organizationSlug: nil).id == "inv")
+    #expect(clock.elapsed == 0)
+    #expect(transport.requests.map(\.operationID) == ["get/chats/rooms/{id}/messages", "get/chats/invitations/{id}"])
+  }
+
   @Test(arguments: [0.1, 1, 2.2, 300])
   func roundsPositiveDelaysUp(value: Double) {
     #expect(ChatReadCooldown.validDelay(value) == ceil(value))
@@ -185,8 +204,7 @@ struct ChatReadCooldownTests {
     #expect(clock.elapsed == (header ? 7 : 2))
   }
 
-  /// The invite page's single read is not a background reader on web, so it never waits.
-  @Test func writesStreamStateAndInvitePageBypassWait() async throws {
+  @Test func writesAndStreamStateBypassWait() async throws {
     let clock = CooldownTestClock()
     let cooldown = clock.cooldown()
     let scope = 0
@@ -194,7 +212,7 @@ struct ChatReadCooldownTests {
     await cooldown.note(delay: 300, scope: scope)
     let middleware = ChatReadCooldownMiddleware(cooldown: cooldown, currentScope: { scope })
     let url = try #require(URL(string: "https://example.com"))
-    for (method, operation) in [(HTTPRequest.Method.post, "post/chats/rooms/{id}/messages"), (.get, "get/chats/rooms/{id}/stream/active"), (.get, "get/chats/invitations/{id}")] {
+    for (method, operation) in [(HTTPRequest.Method.post, "post/chats/rooms/{id}/messages"), (.get, "get/chats/rooms/{id}/stream/active")] {
       _ = try await middleware.intercept(HTTPRequest(method: method, scheme: "https", authority: "example.com", path: "/"), body: nil, baseURL: url, operationID: operation) { _, _, _ in
         (HTTPResponse(status: .ok), nil)
       }
