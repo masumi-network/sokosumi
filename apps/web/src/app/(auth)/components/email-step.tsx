@@ -108,7 +108,10 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingState, setFollowingState] = useState<
+    "preparing" | "navigating" | null
+  >(null);
+  const isFollowing = followingState !== null;
   // Set at once, so a second click before the spinner renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
@@ -176,12 +179,15 @@ export function EmailStep({
     const controller = new AbortController();
     pending.current = controller;
     isFollowingRef.current = true;
-    setIsFollowing(true);
+    setFollowingState("preparing");
     await follow(email, controller.signal);
     // Done, the page is leaving; keep spinning until it has.
-    if (!controller.signal.aborted) return;
+    if (!controller.signal.aborted) {
+      if (mounted.current) setFollowingState("navigating");
+      return;
+    }
     isFollowingRef.current = false;
-    if (mounted.current) setIsFollowing(false);
+    if (mounted.current) setFollowingState(null);
   }
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
@@ -232,11 +238,11 @@ export function EmailStep({
     <BaseForm
       form={form}
       onSubmit={handleSubmit}
-      disabled={disabled || (isFollowing && (emailLocked || !detour.follow))}
+      disabled={disabled || followingState === "navigating"}
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;
-        setIsFollowing(false);
+        setFollowingState(null);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -331,7 +337,7 @@ export function EmailStep({
                   rememberAuthEmailHintOnClick(event, email);
                   if (isSameTabClick(event)) {
                     isFollowingRef.current = true;
-                    setIsFollowing(true);
+                    setFollowingState("navigating");
                   }
                 }}
               >

@@ -278,12 +278,20 @@ describe("SignInFlow", () => {
     );
     expect(createAccount).toHaveAttribute("aria-busy", "true");
     expect(pushMock).not.toHaveBeenCalled();
+    expect(emailField()).toBeEnabled();
+    expect(lastSocialProps().disabled).toBe(true);
 
     await act(async () => {
       finishSend({ data: { success: true }, error: null });
     });
 
     expect(pushMock).toHaveBeenCalledWith("/signup");
+    // Preparing the code is abortable; the dispatched navigation is not.
+    expect(emailField()).toBeDisabled();
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.type(emailField(), ".uk");
+    expect(emailField()).toHaveValue("new@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
     expect(takeSignUpHandover()).toEqual({
       email: "new@example.com",
       codeSentAt: expect.any(Number),
