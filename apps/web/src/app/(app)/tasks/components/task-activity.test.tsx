@@ -1,5 +1,5 @@
 import type { TaskEvent } from "@sokosumi/core-client";
-import { Channel, TaskStatus } from "@sokosumi/core-client";
+import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -229,7 +229,7 @@ function createEvent(
     transactionId = null,
   }: {
     createdAt: string;
-    status: TaskStatus | null;
+    status: TaskEventStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     channel?: Channel;
@@ -304,6 +304,7 @@ const baseProps = {
   actorSystemLabel: "System",
   actionCommentedLabel: "commented",
   actionUpdatedStatusLabel: "updated status",
+  actionCreatedTaskLabel: "created the task",
   events: [] as TaskEvent[],
   taskFiles: [],
   currentUser: {
@@ -732,6 +733,168 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("commented")).toBeInTheDocument();
     expect(screen.getByText("Shared update")).toBeInTheDocument();
     expect(screen.getByText("charged 2 credits")).toBeInTheDocument();
+  });
+
+  describe("task creation event", () => {
+    const owner = { name: "Ada Lovelace", image: null };
+
+    it("says the actor created the task, with their avatar and the origin", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          events={[
+            createEvent("created", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskEventStatus.CREATED,
+              channel: Channel.SLACK,
+              user: { id: "user-2", name: "Grace Hopper", image: null },
+              userId: "user-2",
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("Grace Hopper")).toBeInTheDocument();
+      expect(screen.getByText("created the task")).toBeInTheDocument();
+      expect(screen.getByText("from Slack")).toBeInTheDocument();
+      expect(screen.queryByText("updated status")).not.toBeInTheDocument();
+      // The actor's avatar (initials fallback), not a status dot.
+      expect(screen.getByText("GH")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("status-dot-created"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the assistant orb when an assistant created the task", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          events={[
+            createEvent("created", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskEventStatus.CREATED,
+              userId: null,
+              coworkerId: null,
+              sokoBotId: "orch-1",
+              sokoBot: {
+                id: "orch-1",
+                name: "Hermes",
+                avatarSeed: "orb:jewel-sky:user_123",
+                avatarImageUrl: null,
+                owner: { id: "user-1", name: "Ada Lovelace", image: null },
+              },
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("Hermes · Ada Lovelace")).toBeInTheDocument();
+      expect(screen.getByTestId("assistant-orb")).toHaveAttribute(
+        "data-seed",
+        "orb:jewel-sky:user_123",
+      );
+      expect(
+        screen.queryByTestId("status-dot-created"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("shows the task owner when the event has no actor", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          taskOwnerId="user-9"
+          userById={{ "user-9": owner }}
+          events={[
+            createEvent("created", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskEventStatus.CREATED,
+              userId: null,
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("Ada Lovelace")).toBeInTheDocument();
+      expect(screen.getByText("created the task")).toBeInTheDocument();
+      expect(screen.queryByText("System")).not.toBeInTheDocument();
+      // The owner's avatar stands in for the missing actor.
+      expect(screen.getByText("AL")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("status-dot-created"),
+      ).not.toBeInTheDocument();
+    });
+
+    it("keeps System for an actorless event that is not the creation", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          taskOwnerId="user-9"
+          userById={{ "user-9": owner }}
+          events={[
+            createEvent("later", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskStatus.RUNNING,
+              userId: null,
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getByText("System")).toBeInTheDocument();
+      expect(screen.queryByText("Ada Lovelace")).not.toBeInTheDocument();
+    });
+
+    it("shows the creation, then the initial status change, in order", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          events={[
+            createEvent("created", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskEventStatus.CREATED,
+            }),
+            createEvent("draft", {
+              createdAt: "2026-01-01T12:00:00.001Z",
+              status: TaskStatus.DRAFT,
+            }),
+          ]}
+        />,
+      );
+
+      const created = screen.getByText("created the task");
+      const changed = screen.getByText("updated status");
+      expect(screen.getByText("DRAFT")).toBeInTheDocument();
+      expect(
+        created.compareDocumentPosition(changed) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        screen.queryByTestId("status-dot-created"),
+      ).not.toBeInTheDocument();
+      expect(screen.getByTestId("status-dot-draft")).toBeInTheDocument();
+    });
+
+    it("still shows later status events as status changes", () => {
+      render(
+        <TaskActivitySection
+          {...baseProps}
+          events={[
+            createEvent("created", {
+              createdAt: "2026-01-01T12:00:00.000Z",
+              status: TaskEventStatus.CREATED,
+            }),
+            createEvent("later", {
+              createdAt: "2026-01-01T13:00:00.000Z",
+              status: TaskStatus.RUNNING,
+            }),
+          ]}
+        />,
+      );
+
+      expect(screen.getAllByText("created the task")).toHaveLength(1);
+      expect(screen.getAllByText("updated status")).toHaveLength(1);
+      expect(screen.getByText("RUNNING")).toBeInTheDocument();
+    });
   });
 
   it("shows soko bot actor name with owner and orb for soko bot-authored events", () => {
