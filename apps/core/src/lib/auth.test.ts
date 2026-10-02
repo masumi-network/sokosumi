@@ -1864,6 +1864,22 @@ describe("core auth config", () => {
         await expectCodeLine(false);
       },
     );
+
+    it("reports a failed send to Sentry without the address", async () => {
+      const failure = new Error("Resend rejected the request");
+      sendEmailMock.mockRejectedValueOnce(failure);
+
+      await sendCode();
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledOnce();
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(failure, {
+        tags: { context: "email_code_email" },
+      });
+      expect(
+        JSON.stringify(sentryCaptureExceptionMock.mock.calls),
+      ).not.toContain("andreas@example.com");
+    });
   });
 
   describe("verification email", () => {
