@@ -29,7 +29,7 @@ struct RoomHeaderIdentityTests {
       name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, groupName: groupName,
       topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
       createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
-      myAccess: access, userMembers: members, coworkerMembers: coworkers, sokoBotMembers: sokoBots
+      myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members, coworkerMembers: coworkers, sokoBotMembers: sokoBots
     )
   }
 
@@ -99,7 +99,7 @@ struct RoomHeaderIdentityTests {
       Self.room(kind: .direct, name: "group", groupName: "Launch crew",
                 members: [Self.person(Self.reader, "Me"), ada, Self.person("user_grace", "Grace")]),
       Self.room(kind: .direct, name: "assistant", members: [Self.person(Self.reader, "Me")],
-                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, presence: .online)]),
+                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: "user_1", presence: .online)]),
       Self.room(kind: .direct, name: "coworker", topic: "Ignored", members: [Self.person(Self.reader, "Me")],
                 coworkers: [.init(id: "cow_1", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)])
     ]

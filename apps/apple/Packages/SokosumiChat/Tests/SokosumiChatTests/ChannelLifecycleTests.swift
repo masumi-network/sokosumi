@@ -6,7 +6,7 @@ import Testing
 @MainActor
 struct ChannelLifecycleTests {
   private func member(_ id: String, _ access: Components.Schemas.ChatRoomAccess?) throws -> Components.Schemas.ChatRoomUserParticipant {
-    try .init(id: id, name: id, email: "\(id)@example.com", presence: .online, access: access.map { try .init(value1: $0, value2: .init(unvalidatedValue: $0.rawValue)) })
+    .init(id: id, name: id, email: "\(id)@example.com", presence: .online, access: access)
   }
 
   private func room(
@@ -20,7 +20,7 @@ struct ChannelLifecycleTests {
     .init(
       id: id, organizationId: "org", name: name, slug: id, kind: kind, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: discoverability,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: access, userMembers: members, coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members, coworkerMembers: [], sokoBotMembers: []
     )
   }
 

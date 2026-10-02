@@ -80,7 +80,7 @@ struct RoomTranscriptTests {
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440104", content: "a", sender: testUserSender(name: "Ada", email: "ada@example.com")),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440105", content: "b", sender: testUserSender(name: "", email: "nameless@example.com")),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440106", content: "c", sender: "{\"type\":\"coworker\",\"coworker\":{\"id\":\"cw_1\",\"name\":\"Helper\",\"slug\":\"helper\",\"presence\":\"online\"}}"),
-        testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440107", content: "d", sender: "{\"type\":\"sokoBot\",\"sokoBot\":{\"id\":\"bot_1\",\"name\":\"Soko\",\"presence\":\"online\"}}"),
+        testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440107", content: "d", sender: "{\"type\":\"sokoBot\",\"sokoBot\":{\"id\":\"bot_1\",\"name\":\"Soko\",\"ownerUserId\":\"user_1\",\"presence\":\"online\"}}"),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440108", content: "e", sender: "{\"type\":\"unknown\"}")
       ], nextCursor: nil))
     ])

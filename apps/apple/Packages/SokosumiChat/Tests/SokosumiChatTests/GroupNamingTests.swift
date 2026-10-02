@@ -14,7 +14,7 @@ struct GroupNamingTests {
     .init(
       id: "room", name: "Ann, Bob", kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, groupName: groupName,
       discoverability: nil, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
-      unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+      unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
       userMembers: [
         .init(id: "me", name: "Me", email: "me@example.com", presence: .online),
         .init(id: "ann", name: "Ann", email: "ann@example.com", presence: .online),

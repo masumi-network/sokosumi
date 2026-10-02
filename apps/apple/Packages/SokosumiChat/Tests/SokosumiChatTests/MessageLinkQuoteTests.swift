@@ -7,8 +7,7 @@ struct MessageLinkQuoteTests {
   private let base = URL(string: "https://app.sokosumi.com")!
 
   private func guest(_ id: String) throws -> Components.Schemas.ChatRoomUserParticipant {
-    try .init(id: id, name: id, email: "\(id)@example.com", image: nil, presence: .online,
-              access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest")))
+    .init(id: id, name: id, email: "\(id)@example.com", image: nil, presence: .online, access: .guest)
   }
 
   private func room(_ id: String, members: [String], guests: [Components.Schemas.ChatRoomUserParticipant] = [], organizationId: String? = "org",
@@ -16,7 +15,7 @@ struct MessageLinkQuoteTests {
     Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false,
                                 discoverability: discoverability, createdByUserId: "me",
                                 createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
-                                markedUnread: false, myAccess: .member,
+                                markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
                                 userMembers: members.map { .init(id: $0, name: $0, email: "\($0)@example.com", image: nil, presence: .online) }
                                   + guests,
                                 coworkerMembers: [], sokoBotMembers: [])

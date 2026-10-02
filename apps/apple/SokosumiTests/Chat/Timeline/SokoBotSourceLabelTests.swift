@@ -30,7 +30,7 @@
           deletedAt: deleted ? createdAt : nil,
           editedAt: nil,
           sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant",
-                                                               image: nil, avatarSeed: "orb:user_2", presence: .online))),
+                                                               image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online))),
           mentions: [],
           reactions: [],
           threadReplyCount: 0,

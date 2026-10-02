@@ -389,20 +389,21 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
-  /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
-  public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !roomMutationInFlight, let currentRoom = rooms.first(where: { $0.id == roomId }) else { return false }
+  /// Settings edits reconcile the room in place and never navigate: the sidebar row and any open transcript keep their identity.
+  public func updateChannel(_ draft: ChannelEditDraft, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard canStartMutation(context: context), draft.isValid, rooms.contains(where: { $0.id == roomId }) else { return false }
     updatingRoom = true
     defer {
       if context == compositionContext {
         updatingRoom = false
       }
     }
-    let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId, currentRoom: currentRoom)
+    let request = draft.updateRequest
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
     }
+    // A list read already in flight predates this settings edit.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }
@@ -422,6 +423,8 @@ public final class WorkspaceState: ObservableObject {
     let room = try await workspaceOperation(context: context, auth: auth) { client in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
+    // A list read already in flight predates this rename.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }

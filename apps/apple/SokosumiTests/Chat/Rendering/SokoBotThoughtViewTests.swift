@@ -18,7 +18,7 @@
       private static let beats = ["Finding Coworkers", "Creating a Task", "Assigning a Task"]
 
       private static let sokoBot = Components.Schemas.ChatRoomMessageSender.case3(.init(_type: .sokoBot, sokoBot: .init(
-        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", presence: .online
+        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online
       )))
       private static let coworker = Components.Schemas.ChatRoomMessageSender.case2(.init(_type: .coworker, coworker: .init(
         id: "cow_1", name: "Soko", slug: "soko", caption: nil, image: nil, presence: .online

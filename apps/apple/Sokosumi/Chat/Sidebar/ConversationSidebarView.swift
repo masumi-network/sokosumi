@@ -552,7 +552,7 @@ struct ConversationSidebarView: View {
             .lineLimit(1)
             .fontWeight(attention.bold ? .bold : .regular)
             .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
-          if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
+          if room.myAccess.value1 == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
               .foregroundStyle(.secondary)
@@ -762,7 +762,9 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
+    // Settings are for organization owners and admins; everyone else manages membership from the Members panel.
+    let managesSettings = ChannelEditPermissions(room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin).canManageSettings
+    if managesSettings || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
       Divider()
     }
     if GroupNameDraft.canName(room) {
@@ -773,7 +775,7 @@ struct ConversationSidebarView: View {
       }
       .disabled(workspaces.roomMutationInFlight)
     }
-    if ChannelEditPermissions.isEditable(room) {
+    if managesSettings {
       Button("Channel settings…", systemImage: "gearshape") {
         editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
       }
