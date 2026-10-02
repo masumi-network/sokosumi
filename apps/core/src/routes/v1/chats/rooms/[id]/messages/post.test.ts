@@ -249,6 +249,7 @@ const sokoBotAuthContext: AuthVariables["authContext"] = {
 function roomWithMembers(
   overrides: {
     kind?: "channel" | "direct";
+    directKey?: string | null;
     name?: string;
     userMembers?: Array<{
       userId: string;
@@ -281,7 +282,7 @@ function roomWithMembers(
     name: overrides.name ?? "general",
     slug: "general",
     kind: overrides.kind ?? "channel",
-    directKey: null,
+    directKey: overrides.directKey ?? null,
     topic: null,
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -580,6 +581,32 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
     expect(publishChatRoomMessageRealtime).toHaveBeenCalled();
   });
+
+  it.each([undefined, "11111111-1111-4111-8111-111111111111"])(
+    "refuses a room or thread message to a Direct whose peer has left (parent %s)",
+    async (parentMessageId) => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          directKey: `${USER_ID}:${ALICE_ID}`,
+          userMembers: [{ userId: USER_ID, user: { name: USER_ID } }],
+          coworkerMembers: [],
+          sokoBotMembers: [],
+        }),
+      );
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "Hello?", parentMessageId }),
+        },
+      );
+      expect(response.status).toBe(403);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+      expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
+    },
+  );
 
   it("publishes no invalidation when message creation rolls back", async () => {
     prismaTransactionMock.mockRejectedValueOnce(

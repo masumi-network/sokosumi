@@ -508,14 +508,6 @@ export function messageDayKey(value: Date | string): string {
   return new Date(value).toDateString();
 }
 
-export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
-  return (
-    room.userMembers.find((member) => member.id !== currentUserId) ??
-    room.userMembers[0] ??
-    null
-  );
-}
-
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -658,6 +650,11 @@ export function formatDirectParticipantNames(
   );
 }
 
+/** Former members of a Direct by the name each is shown under. */
+export function getFormerMemberNames(room: ChatRoom): string[] {
+  return room.formerUserMembers.map((member) => member.name || member.email);
+}
+
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
@@ -673,9 +670,11 @@ export function getRoomDisplayName(
   if (room.groupName) {
     return room.groupName;
   }
+  // With nobody else left, name it after who it was with (Former members),
+  // never the viewer.
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),
-    getDirectRoomTarget(room, currentUserId)?.name || room.name,
+    formatParticipantNameList(getFormerMemberNames(room)) || room.name,
   );
 }
 
