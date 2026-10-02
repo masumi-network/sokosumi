@@ -5988,7 +5988,9 @@
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
-        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
+        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "archiveHint": "Blendet den Kanal für alle aus. Später unter Archiviert in der Seitenleiste wiederherstellen.",
+        "archiveButton": "Archivieren"
       },
       "Metadata": {
         "title": "Chat",
@@ -6037,13 +6039,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Name, Thema und Sichtbarkeit des Kanals ändern.",
+        "editTitle": "Kanaleinstellungen",
         "name": "Name",
         "nameRequired": "Kanalname ist erforderlich.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "Wofür ist dieser Kanal?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
@@ -6282,7 +6283,8 @@
         "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
         "external": "Extern",
         "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft.",
-        "externalLocked": "Entferne alle Gäste im Mitgliederbereich, um diesen Kanal öffentlich oder privat zu machen."
+        "externalLocked": "Entferne alle Gäste im Mitgliederbereich, um diesen Kanal öffentlich oder privat zu machen.",
+        "hasGuests": "Hat Gäste"
       },
       "CreateWizard": {
         "title": "Kanal erstellen",

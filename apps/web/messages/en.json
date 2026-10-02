@@ -5988,7 +5988,9 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
-        "actionFailed": "Could not update this chat. Try again."
+        "actionFailed": "Could not update this chat. Try again.",
+        "archiveHint": "Hides the channel for everyone. Restore it later from Archived in the sidebar.",
+        "archiveButton": "Archive"
       },
       "Metadata": {
         "title": "Chat",
@@ -6037,13 +6039,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Update the channel's name, topic, and visibility.",
+        "editTitle": "Channel settings",
         "name": "Name",
         "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "What is this channel for?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "You can't remove yourself",
@@ -6282,7 +6283,8 @@
         "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
         "external": "External",
         "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members.",
-        "externalLocked": "Remove all guests in the members panel to make this channel public or private."
+        "externalLocked": "Remove all guests in the members panel to make this channel public or private.",
+        "hasGuests": "Has guests"
       },
       "CreateWizard": {
         "title": "Create a channel",

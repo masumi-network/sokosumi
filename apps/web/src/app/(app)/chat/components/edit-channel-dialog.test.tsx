@@ -102,7 +102,9 @@ describe("EditChannelDialog", () => {
     expect(screen.getByLabelText("Dialog.name")).toHaveValue("general");
     expect(screen.getByLabelText("Dialog.topic")).toBeInTheDocument();
     expect(screen.getByText("Visibility.label")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "archive" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "archiveButton" }),
+    ).toBeInTheDocument();
     expect(screen.queryByText("Dialog.participants")).toBeNull();
     expect(screen.queryByRole("button", { name: "leave" })).toBeNull();
   });
@@ -161,6 +163,7 @@ describe("EditChannelDialog", () => {
     expect(screen.getByLabelText("Visibility.private")).toBeDisabled();
     expect(screen.getByLabelText("Visibility.external")).toBeEnabled();
     expect(screen.getByText("Visibility.externalLocked")).toBeInTheDocument();
+    expect(screen.getAllByText("Visibility.hasGuests")).toHaveLength(2);
   });
 
   it("leaves visibility open on an External channel without guests", async () => {
