@@ -711,16 +711,14 @@ public final class WorkspaceState: ObservableObject {
 
   /// Wait for history/pagination before the recovery read. The scheduler's
   /// interval starts after the HTTP request and read-attention work finish.
+  /// The scheduler decides whether a read may start while no chat window is
+  /// active (row 07d); read attention keeps its own visibility gate.
   private func recoverTranscript(auth: AuthState, generation: Int) async {
     while generation == transcriptGeneration,
           let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
       await task.value
     }
     guard generation == transcriptGeneration else { return }
-    guard readAttention.isVisible else {
-      transcriptRecovery.requestRefresh()
-      return
-    }
     refreshTranscript(auth: auth)
     while generation == transcriptGeneration, let task = transcriptRefreshTask {
       await task.value
@@ -1381,9 +1379,6 @@ public final class WorkspaceState: ObservableObject {
         await roomsRefreshTask?.value
       }
       guard generation == sidebarRecoveryGeneration else { return }
-      guard readAttention.isVisible else { sidebarRecovery.requestRefresh([collection])
-        return
-      }
       switch collection {
       case .active: await refreshRooms(auth: auth)
       case .archived: await loadArchivedChannels(auth: auth)

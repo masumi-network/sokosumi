@@ -23,10 +23,6 @@ public extension WorkspaceState {
         await task.value
       }
       guard generation == thread.timeline.generation else { return }
-      guard readAttention.isVisible else {
-        thread.recovery.requestRefresh()
-        return
-      }
       loadThreadPage(thread.timeline.hasLoadedHistory ? .latest : .initial, auth: auth)
       await thread.loadTask?.value
     }
