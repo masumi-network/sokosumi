@@ -75,6 +75,9 @@ export default function SignUpFlow({
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isDetailsPending, setIsDetailsPending] = useState(false);
+  // Step 1 starts one sign-up at a time: the email or a provider.
+  const [isEmailPending, setIsEmailPending] = useState(false);
+  const [isProviderPending, setIsProviderPending] = useState(false);
   const formStarted = useRef(false);
 
   // Sign-in found no account and emailed the code, so step 2 opens at once.
@@ -160,12 +163,16 @@ export default function SignUpFlow({
             await emailCode.sendCode(confirmedEmail, { signal });
             if (!signal.aborted) setStep("details");
           }}
+          disabled={isProviderPending}
+          onPendingChange={setIsEmailPending}
         />
         <Divider />
         <SocialButtons
           returnUrl={returnUrl}
           lastUsedMethod={lastUsedMethod}
           eventType="signUp"
+          disabled={isEmailPending}
+          onPendingChange={setIsProviderPending}
         />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
