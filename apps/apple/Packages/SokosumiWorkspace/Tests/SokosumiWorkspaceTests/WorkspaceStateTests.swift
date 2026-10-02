@@ -2957,6 +2957,37 @@ extension WorkspaceStateTests {
     #expect(room.sokoBotMembers.map(\.id) == ["bot_me"])
     #expect(transport.remainingStubs == 0)
   }
+
+  /// The same race for a group rename: a room list that started first must not put the old name back.
+  @Test func groupRenameBeatsAnInFlightRoomList() async throws {
+    let general = "550e8400-e29b-41d4-a716-446655440000"
+    let partners = "550e8400-e29b-41d4-a716-446655440001"
+    let renamed = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
+      .replacingOccurrences(of: #""groupName":null"#, with: #""groupName":"Launch crew""#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, externalRoomsBody(general: general, partners: partners)),
+      (200, #"{"data":\#(renamed),"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#)
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    var draft = try GroupNameDraft(room: #require(state.rooms.first { $0.id == partners }))
+    draft.setName("Launch crew")
+    transport.pauseList = true
+    let refresh = Task { await state.refreshRooms(auth: auth) }
+    for _ in 0 ..< 1000 where transport.operationIDs.filter({ $0 == "get/chats/rooms" }).count < 2 {
+      await Task.yield()
+    }
+    #expect(try await state.nameGroup(draft, roomId: partners, context: context, auth: auth))
+    transport.releasePausedRequest()
+    await refresh.value
+    #expect(state.rooms.first { $0.id == partners }?.groupName == "Launch crew")
+    #expect(transport.remainingStubs == 0)
+  }
 }
 
 // MARK: - Coworker mention retry (slice 37)
