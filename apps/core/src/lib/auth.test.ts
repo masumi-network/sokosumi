@@ -1842,12 +1842,12 @@ describe("core auth config", () => {
         await expect(flushWaitUntil()).resolves.toBeUndefined();
         expect(warn).toHaveBeenCalledWith(
           "[email_code_email] suppressed external failure",
-          {
-            error: "Email transport unavailable",
-            email: "andreas@example.com",
-          },
+          { error: "Email transport unavailable" },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(
+          "andreas@example.com",
+        );
       } finally {
         warn.mockRestore();
       }
@@ -1864,6 +1864,22 @@ describe("core auth config", () => {
         await expectCodeLine(false);
       },
     );
+
+    it("reports a failed send to Sentry without the address", async () => {
+      const failure = new Error("Resend rejected the request");
+      sendEmailMock.mockRejectedValueOnce(failure);
+
+      await sendCode();
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledOnce();
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(failure, {
+        tags: { context: "email_code_email" },
+      });
+      expect(
+        JSON.stringify(sentryCaptureExceptionMock.mock.calls),
+      ).not.toContain("andreas@example.com");
+    });
   });
 
   describe("verification email", () => {
@@ -2377,7 +2393,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("reports Stripe customer creation failures to Sentry", async () => {
+  it("reports Stripe customer creation failures to Sentry without the address or name", async () => {
     stripeCreateUserCustomerMock.mockRejectedValueOnce(
       new Error("stripe failed"),
     );
@@ -2412,15 +2428,14 @@ describe("core auth config", () => {
     await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
+      extra: { userId: "user_123" },
       tags: {
         context: "stripe_user_customer_creation",
       },
     });
+    const report = JSON.stringify(sentryCaptureExceptionMock.mock.calls[0][1]);
+    expect(report).not.toContain("andreas@example.com");
+    expect(report).not.toContain("Andreas");
   });
 
   it("reports organization workspace creation failures to Sentry", async () => {

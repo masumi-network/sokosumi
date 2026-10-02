@@ -369,8 +369,6 @@ export const auth = betterAuth({
                   },
                   extra: {
                     userId: user.id,
-                    email: user.email,
-                    name: user.name,
                   },
                 });
               }),
@@ -697,9 +695,6 @@ export const auth = betterAuth({
                   tags: {
                     context: "email_code_email",
                   },
-                },
-                extra: {
-                  email,
                 },
               });
             }),
