@@ -66,14 +66,14 @@ private func memberFixture(id: String, name: String) -> String {
 
 private func editableRoomFixture() -> Components.Schemas.ChatRoom {
   Components.Schemas.ChatRoom(
-    id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+    id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
     discoverability: ._private, createdByUserId: "me", createdAt: Date(timeIntervalSince1970: 1_767_225_600), updatedAt: Date(timeIntervalSince1970: 1_767_225_600),
     unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
     userMembers: [.init(id: "me", name: "Me", email: "me@example.com", presence: .online),
                   .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .offline),
                   .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline,
                         access: .guest)],
-    coworkerMembers: [.init(id: "ai", name: "Helper", slug: "helper", presence: .online)], sokoBotMembers: []
+    formerUserMembers: [], coworkerMembers: [.init(id: "ai", name: "Helper", slug: "helper", presence: .online)], sokoBotMembers: []
   )
 }
 

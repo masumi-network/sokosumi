@@ -13,13 +13,13 @@ struct ChannelMemberAdditionTests {
 
   private func room(access: Components.Schemas.ChatRoomAccess = .member) -> Components.Schemas.ChatRoom {
     .init(
-      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
       discoverability: .external, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
       unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)),
       userMembers: [.init(id: "me", name: "Me", email: "me@example.com", presence: .online),
                     .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .online),
                     .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline, access: .guest)],
-      coworkerMembers: [.init(id: "agent", name: "Agent", slug: "agent", presence: .online)],
+      formerUserMembers: [], coworkerMembers: [.init(id: "agent", name: "Agent", slug: "agent", presence: .online)],
       sokoBotMembers: []
     )
   }
