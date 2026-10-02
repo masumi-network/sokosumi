@@ -1,3 +1,5 @@
+import { TaskEventStatus } from "@sokosumi/core-client";
+
 interface TaskEventChargePresentationInput {
   comment?: string | null;
   status?: string | null;
@@ -6,6 +8,7 @@ interface TaskEventChargePresentationInput {
 }
 
 export type TaskEventChargeActionKind =
+  | "createdTask"
   | "commented"
   | "updatedStatus"
   | "charged";
@@ -30,13 +33,16 @@ export function getTaskEventChargePresentation(
   const hasCharge = event.credits != null;
   const isAttemptedCharge = hasCharge && event.transactionId == null;
 
-  const actionKind: TaskEventChargeActionKind = hasComment
-    ? "commented"
-    : hasStatus
-      ? "updatedStatus"
-      : hasCharge
-        ? "charged"
-        : "updatedStatus";
+  const actionKind: TaskEventChargeActionKind =
+    event.status === TaskEventStatus.CREATED
+      ? "createdTask"
+      : hasComment
+        ? "commented"
+        : hasStatus
+          ? "updatedStatus"
+          : hasCharge
+            ? "charged"
+            : "updatedStatus";
 
   return {
     hasComment,
