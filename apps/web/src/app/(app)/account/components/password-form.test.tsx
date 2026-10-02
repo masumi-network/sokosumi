@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,7 @@ const translations: Record<string, string> = {
   "App.Account.Password.title": "Change password",
   "App.Account.Password.description": "Update your password",
   "App.Account.Password.currentPassword": "Current password",
+  "App.Account.Password.forgotPassword": "Forgot your password?",
   "App.Account.Password.newPassword": "New password",
   "App.Account.Password.confirmPassword": "Confirm new password",
   "App.Account.Password.revokeOtherSessionsLabel": "Sign out of other devices",
@@ -92,5 +93,18 @@ describe("PasswordForm", () => {
         revokeOtherSessions: false,
       });
     });
+  });
+
+  it("offers a reset for someone who does not know the current password", () => {
+    render(<PasswordForm email="ada@example.com" />);
+    const link = screen.getByRole("link", { name: "Forgot your password?" });
+
+    expect(link).toHaveAttribute("href", "/forgot-password");
+    window.sessionStorage.clear();
+    fireEvent.click(link);
+    // Handed over outside the URL, which reaches logs and analytics.
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(
+      "ada@example.com",
+    );
   });
 });

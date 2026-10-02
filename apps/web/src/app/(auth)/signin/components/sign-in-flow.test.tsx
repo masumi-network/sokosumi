@@ -607,7 +607,7 @@ describe("SignInFlow", () => {
       expect(takeAuthEmailHint()).toBeNull();
     });
 
-    it("keeps an invitation's address and id on the links to sign-up", async () => {
+    it("keeps an invitation, not its address, on the links to sign-up", async () => {
       const user = userEvent.setup();
       emailStatusMock.mockResolvedValue({
         data: { exists: false },
@@ -622,7 +622,7 @@ describe("SignInFlow", () => {
         />,
       );
       const href =
-        "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1";
+        "/signup?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1";
 
       expect(register()).toHaveAttribute("href", href);
       fireEvent.click(register());
