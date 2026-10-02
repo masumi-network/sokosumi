@@ -20,9 +20,18 @@ vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
-    $fetch: vi.fn().mockResolvedValue({ data: { exists: false }, error: null }),
+    $fetch: vi.fn().mockResolvedValue({
+      data: { exists: false, hasPassword: false },
+      error: null,
+    }),
+    emailOtp: {
+      sendVerificationOtp: vi
+        .fn()
+        .mockResolvedValue({ data: { success: true }, error: null }),
+    },
+    // A password sign-up goes through the email code.
+    signIn: { emailOtp: (...args: unknown[]) => signUpMock(...args) },
   },
-  signUp: { email: (...args: unknown[]) => signUpMock(...args) },
 }));
 vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
 vi.mock("@/lib/actions/auth/action", () => ({ handleUtmConversion: vi.fn() }));
@@ -41,12 +50,17 @@ async function submitDetails() {
   await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
   await user.type(await screen.findByLabelText("firstNameLabel"), "Ada");
   await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
+  await user.click(screen.getByRole("button", { name: "addPassword" }));
   await user.type(
     screen.getByLabelText("Fields.Password.label"),
     "password123",
   );
-  await user.click(screen.getByRole("button", { name: "submit" }));
-  await waitFor(() => expect(signUpMock).toHaveBeenCalledOnce());
+  await user.type(screen.getByRole("textbox", { name: "codeLabel" }), "042917");
+  await waitFor(() =>
+    expect(signUpMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({ otp: "042917", password: "password123" }),
+    ),
+  );
   return user;
 }
 

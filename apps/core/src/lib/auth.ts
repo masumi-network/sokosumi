@@ -76,6 +76,10 @@ import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import {
+  emailCodeSignIn,
+  resolveEmailCodeSignUpLoginMethod,
+} from "./auth-email-code-sign-in";
 import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
@@ -258,6 +262,7 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
+    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
@@ -410,6 +415,9 @@ export const auth = betterAuth({
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [
+    // Password sign-up sends the password with an email code instead, so no
+    // new account starts with an unproven address (`auth-email-code-sign-in`).
+    "/sign-up/email",
     "/email-otp/check-verification-otp",
     "/email-otp/verify-email",
     "/email-otp/request-password-reset",
@@ -443,15 +451,6 @@ export const auth = betterAuth({
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
       switch (ctx.path) {
-        case "/sign-up/email": {
-          if (!ctx.body?.termsAccepted) {
-            throw new APIError("BAD_REQUEST", {
-              code: "TERMS_NOT_ACCEPTED",
-            });
-          }
-
-          return { context: { body: resolveSignUpNameBody(ctx.body) } };
-        }
         case "/email-otp/send-verification-otp": {
           // Codes only sign people in. Password resets and email
           // verification keep their links.
@@ -463,6 +462,16 @@ export const auth = betterAuth({
           break;
         }
         case "/sign-in/email-otp": {
+          // A password sign-up (see `auth-email-code-sign-in`) keeps the
+          // checks `/sign-up/email` made before it was closed.
+          if (ctx.body?.password !== undefined) {
+            if (!ctx.body.termsAccepted) {
+              throw new APIError("BAD_REQUEST", {
+                code: "TERMS_NOT_ACCEPTED",
+              });
+            }
+            return { context: { body: resolveSignUpNameBody(ctx.body) } };
+          }
           return {
             context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
           };
@@ -614,45 +623,47 @@ export const auth = betterAuth({
     // A code, not a link: it goes back into the tab that asked for it, so a
     // sign-in for another app keeps that app's state, and a mail scanner
     // that opens links cannot use it up.
-    emailOTP({
-      otpLength: 6,
-      expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
-      allowedAttempts: 5,
-      // A resend repeats the code rather than replacing it, so whichever email
-      // arrives first works. Reuse needs the code recoverable, so it is stored
-      // encrypted with the auth secret instead of hashed.
-      storeOTP: "encrypted",
-      resendStrategy: "reuse",
-      disableSignUp: false,
-      sendVerificationOTP: async ({ email, otp }, ctx) => {
-        const renderedEmail = await renderEmailCodeEmail({
-          locale: getEmailLocale(ctx?.request, ctx?.headers),
-          code: otp,
-          expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
-        });
+    emailCodeSignIn(
+      emailOTP({
+        otpLength: 6,
+        expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
+        allowedAttempts: 5,
+        // A resend repeats the code rather than replacing it, so whichever email
+        // arrives first works. Reuse needs the code recoverable, so it is stored
+        // encrypted with the auth secret instead of hashed.
+        storeOTP: "encrypted",
+        resendStrategy: "reuse",
+        disableSignUp: false,
+        sendVerificationOTP: async ({ email, otp }, ctx) => {
+          const renderedEmail = await renderEmailCodeEmail({
+            locale: getEmailLocale(ctx?.request, ctx?.headers),
+            code: otp,
+            expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
+          });
 
-        waitUntil(
-          sendEmail({
-            to: email,
-            tag: "email-code",
-            subject: renderedEmail.subject,
-            html: renderedEmail.html,
-          }).catch((error) => {
-            captureExternalServiceError(error, {
-              label: "email_code_email",
-              sentry: {
-                tags: {
-                  context: "email_code_email",
+          waitUntil(
+            sendEmail({
+              to: email,
+              tag: "email-code",
+              subject: renderedEmail.subject,
+              html: renderedEmail.html,
+            }).catch((error) => {
+              captureExternalServiceError(error, {
+                label: "email_code_email",
+                sentry: {
+                  tags: {
+                    context: "email_code_email",
+                  },
                 },
-              },
-              extra: {
-                email,
-              },
-            });
-          }),
-        );
-      },
-    }),
+                extra: {
+                  email,
+                },
+              });
+            }),
+          );
+        },
+      }),
+    ),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
@@ -693,6 +704,7 @@ export const auth = betterAuth({
         betterAuthCookiePrefixParams,
         "last_used_login_method",
       ),
+      customResolveMethod: resolveEmailCodeSignUpLoginMethod,
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
