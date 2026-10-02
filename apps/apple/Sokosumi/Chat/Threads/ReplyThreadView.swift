@@ -67,8 +67,12 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
+    private var room: Components.Schemas.ChatRoom? {
+      workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message) else { return nil }
+      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
@@ -94,7 +98,8 @@ import SwiftUI
     }
 
     private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
-      guard canQuoteMessage(message) else { return nil }
+      // Quoting fills the composer, which a Read-only Direct lacks.
+      guard canQuoteMessage(message), roomTakesNewMessages(room) else { return nil }
       return {
         pendingQuote = messageQuote(from: message)
         quoteFocusRequest = UUID().uuidString
@@ -122,7 +127,7 @@ import SwiftUI
     @ViewBuilder private var content: some View {
       if let parent = messages.first {
         let jumpTarget = readyJump(in: messages)
-        let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+        let currentRoom = room
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
@@ -231,10 +236,14 @@ import SwiftUI
         }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
-                           roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
-                           onAccepted: { scrollIntent.followLatest() })
-            .id(parent.id)
+          if let notice = ReadOnlyDirectNotice(room: currentRoom) {
+            ReadOnlyDirectNoticeView(notice: notice)
+          } else {
+            ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
+                             roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
+                             onAccepted: { scrollIntent.followLatest() })
+              .id(parent.id)
+          }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
           if let failure = workspaces.thread.mute?.failure {

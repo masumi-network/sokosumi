@@ -12,13 +12,13 @@ struct MessageLinkQuoteTests {
 
   private func room(_ id: String, members: [String], guests: [Components.Schemas.ChatRoomUserParticipant] = [], organizationId: String? = "org",
                     discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = ._private) -> Components.Schemas.ChatRoom {
-    Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false,
+    Components.Schemas.ChatRoom(id: id, organizationId: organizationId, name: id, kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                 discoverability: discoverability, createdByUserId: "me",
                                 createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
                                 markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
                                 userMembers: members.map { .init(id: $0, name: $0, email: "\($0)@example.com", image: nil, presence: .online) }
                                   + guests,
-                                coworkerMembers: [], sokoBotMembers: [])
+                                formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
   }
 
   private func message(in roomId: String) -> Components.Schemas.ChatRoomMessage {

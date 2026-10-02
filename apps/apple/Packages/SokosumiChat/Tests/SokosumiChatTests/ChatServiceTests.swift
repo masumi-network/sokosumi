@@ -21,7 +21,7 @@ private func roomJSON(
   unreadMentionCount: Int
 ) -> String {
   """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -148,9 +148,9 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
     let currentRoom = Components.Schemas.ChatRoom(
-      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: ._private,
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
     var draft = ChannelEditDraft(room: currentRoom)
     draft.setName(" Renamed ")
@@ -221,9 +221,9 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(200, response), (200, response)])
     let client = try makeClient(transport)
     var draft = GroupNameDraft(room: .init(
-      id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, groupName: "Launch crew",
+      id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, isReadOnly: false, groupName: "Launch crew",
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     ))
     draft.setName(" Crew ")
     _ = try await ChatService().updateRoom(client: client, roomId: "direct", request: draft.updateRequest, organizationSlug: nil)

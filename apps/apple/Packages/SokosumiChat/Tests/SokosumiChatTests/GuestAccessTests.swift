@@ -8,7 +8,7 @@ struct GuestAccessTests {
   private func room(access: Components.Schemas.ChatRoomAccess = .member, discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = .external,
                     kind: Components.Schemas.ChatRoom.KindPayload = .channel) throws -> Components.Schemas.ChatRoom {
     .init(
-      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, isGroupDirect: false, topic: nil,
+      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, topic: nil,
       discoverability: discoverability, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
       unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)),
       userMembers: [
@@ -16,7 +16,7 @@ struct GuestAccessTests {
         .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline, access: .guest),
         .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .afk)
       ],
-      coworkerMembers: [], sokoBotMembers: []
+      formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 

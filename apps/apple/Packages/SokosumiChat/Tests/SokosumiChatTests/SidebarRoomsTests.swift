@@ -58,7 +58,7 @@ private func makeRoom(
   .init(
     id: id,
     name: name,
-    kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, groupName: groupName,
+    kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: isGroupDirect, isReadOnly: false, groupName: groupName,
     discoverability: kind == .channel ? discoverability : nil,
     createdByUserId: "user_1",
     createdAt: baseDate,
@@ -70,7 +70,7 @@ private func makeRoom(
     markedUnread: markedUnread,
     myAccess: .init(value1: myAccess, value2: .init(stringLiteral: myAccess.rawValue)),
     userMembers: peers,
-    coworkerMembers: coworkers,
+    formerUserMembers: [], coworkerMembers: coworkers,
     sokoBotMembers: sokoBots
   )
 }

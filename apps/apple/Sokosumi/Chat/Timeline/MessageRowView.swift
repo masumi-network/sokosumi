@@ -360,6 +360,11 @@ import SwiftUI
           quickReactions = ReactionEmojiHistory().quickReactions
         }
       }
+      .onChange(of: onToggleReaction != nil) { _, canReact in
+        if !canReact {
+          showsReactionPicker = false
+        }
+      }
       // Track the complete row, including its action overlay. The toolbar
       // must not change the hover region when it becomes interactive.
       .onContinuousHover { phase in

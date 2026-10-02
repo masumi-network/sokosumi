@@ -31,7 +31,7 @@
       ) -> Components.Schemas.ChatRoom {
         let id = "550e8400-e29b-41d4-a716-44665544090\(rank)"
         var room = Components.Schemas.ChatRoom(
-          id: id, name: name, kind: kind, isSelfDirect: false, isGroupDirect: false,
+          id: id, name: name, kind: kind, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
           discoverability: kind == .channel ? .external : nil, createdByUserId: "ada", createdAt: lastWeek,
           updatedAt: lastWeek.addingTimeInterval(Double(-rank * 60)),
           unreadCount: channel + listed.reduce(0) { $0 + $1.replies }, channelUnreadCount: channel,
@@ -41,7 +41,7 @@
                   unreadReplyCount: thread.replies, unreadMentionCount: thread.mentions)
           },
           unreadMentionCount: 0, mutedAt: muted ? lastWeek : nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-          userMembers: kind == .direct ? [reader, ada] : [ada], coworkerMembers: [], sokoBotMembers: []
+          userMembers: kind == .direct ? [reader, ada] : [ada], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
         room.starredAt = pinned ? lastWeek.addingTimeInterval(Double(rank)) : nil
         return room

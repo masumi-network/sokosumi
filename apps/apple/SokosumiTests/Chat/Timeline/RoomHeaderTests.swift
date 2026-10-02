@@ -20,7 +20,7 @@
         kind: Components.Schemas.ChatRoom.KindPayload = .channel
       ) -> Components.Schemas.ChatRoom {
         .init(
-          id: "550e8400-e29b-41d4-a716-446655440131", name: name, kind: kind, isSelfDirect: false, isGroupDirect: false,
+          id: "550e8400-e29b-41d4-a716-446655440131", name: name, kind: kind, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
           topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
           createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
           myAccess: .init(value1: .member, value2: "member"),
@@ -28,7 +28,7 @@
             .init(id: "user_reader", name: "Me", email: "me@example.com", image: nil, presence: .offline),
             .init(id: "user_ada", name: "Ada Lovelace", email: "ada@example.com", image: nil, presence: .offline)
           ],
-          coworkerMembers: [], sokoBotMembers: []
+          formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }
 

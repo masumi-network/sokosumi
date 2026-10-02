@@ -726,7 +726,7 @@ struct ConversationSidebarView: View {
   /// Web's 1:1 Direct row announces its one peer's availability; group rows
   /// leave that to the roster so the label is not read twice.
   private func directPresence(_ room: Components.Schemas.ChatRoom, showsDirectAvatars: Bool) -> Components.Schemas.ChatRoomPresence? {
-    guard showsDirectAvatars, !room.isSelfDirect else { return nil }
+    guard showsDirectAvatars, !room.isSelfDirect, !room.isReadOnly else { return nil }
     let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
     guard participants.count == 1, let peer = participants.first else { return nil }
     return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
@@ -876,6 +876,7 @@ private struct RoomLeadingIcon: View {
   let icon: String
   let showsDirectAvatars: Bool
   let showsPresence: Bool
+  let isReadOnly: Bool
   let participants: [DirectRoomAvatarParticipant]
   let livePresence: [String: Components.Schemas.ChatRoomPresence]
 
@@ -888,7 +889,9 @@ private struct RoomLeadingIcon: View {
   ) {
     self.icon = icon
     self.showsDirectAvatars = showsDirectAvatars
-    showsPresence = !room.isSelfDirect
+    // Former members are not here to be online, and their faces sit back.
+    showsPresence = !room.isSelfDirect && !room.isReadOnly
+    isReadOnly = room.isReadOnly
     participants = showsDirectAvatars
       ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
       : []
@@ -897,7 +900,7 @@ private struct RoomLeadingIcon: View {
 
   var body: some View {
     if showsDirectAvatars {
-      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, livePresence: livePresence)
+      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, isDimmed: isReadOnly, livePresence: livePresence)
     } else {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
@@ -913,8 +916,10 @@ struct DirectRoomAvatarStack: View {
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark.
+  /// Self Directs and Read-only Directs show no mark.
   var showsPresence = true
+  /// A Read-only Direct's Former members: web's `opacity-50 grayscale`.
+  var isDimmed = false
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
 
@@ -941,6 +946,8 @@ struct DirectRoomAvatarStack: View {
             Circle()
               .strokeBorder(.background, lineWidth: 1)
           }
+          .grayscale(isDimmed ? 1 : 0)
+          .opacity(isDimmed ? 0.5 : 1)
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
               PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)
