@@ -996,7 +996,8 @@ function MessageActionControls({
 }: {
   message: ChatRoomMessage;
   quickReactions: readonly string[];
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1034,50 +1035,56 @@ function MessageActionControls({
 
   return (
     <>
-      {quickReactions.map((emoji) => {
-        const shortcode = getEmojiShortcodeName(emoji);
-        const reacted = reactedEmojis.has(emoji);
+      {onToggleReaction ? (
+        <>
+          {quickReactions.map((emoji) => {
+            const shortcode = getEmojiShortcodeName(emoji);
+            const reacted = reactedEmojis.has(emoji);
 
-        return (
-          <Button
-            key={emoji}
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
-              reacted && "bg-primary-quinary hover:bg-primary-quaternary",
-            )}
-            title={
-              shortcode ? `:${shortcode}:` : t("Reactions.toggle", { emoji })
-            }
-            aria-label={t("Reactions.toggle", { emoji })}
-            aria-pressed={reacted}
-            onClick={() => {
+            return (
+              <Button
+                key={emoji}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
+                  reacted && "bg-primary-quinary hover:bg-primary-quaternary",
+                )}
+                title={
+                  shortcode
+                    ? `:${shortcode}:`
+                    : t("Reactions.toggle", { emoji })
+                }
+                aria-label={t("Reactions.toggle", { emoji })}
+                aria-pressed={reacted}
+                onClick={() => {
+                  onToggleReaction(message, emoji);
+                  onAfterAction?.();
+                }}
+              >
+                {/* Only the glyph grows, so the hover circle keeps its size. */}
+                <span
+                  aria-hidden
+                  className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
+                >
+                  {emoji}
+                </span>
+              </Button>
+            );
+          })}
+          <EmojiPicker
+            title={t("Reactions.add")}
+            ariaLabel={t("Reactions.add")}
+            align="end"
+            triggerClassName="size-9 rounded-full sm:size-7"
+            onPick={(emoji) => {
               onToggleReaction(message, emoji);
               onAfterAction?.();
             }}
-          >
-            {/* Only the glyph grows, so the hover circle keeps its size. */}
-            <span
-              aria-hidden
-              className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
-            >
-              {emoji}
-            </span>
-          </Button>
-        );
-      })}
-      <EmojiPicker
-        title={t("Reactions.add")}
-        ariaLabel={t("Reactions.add")}
-        align="end"
-        triggerClassName="size-9 rounded-full sm:size-7"
-        onPick={(emoji) => {
-          onToggleReaction(message, emoji);
-          onAfterAction?.();
-        }}
-      />
+          />
+        </>
+      ) : null}
       {showEditButton && onEdit ? (
         <Button
           type="button"
@@ -1316,7 +1323,7 @@ function MessageActions({
   isContinuation,
 }: {
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1556,7 +1563,7 @@ function TouchMessageActionsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1631,40 +1638,44 @@ function TouchMessageActionsSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
-          {quickReactions.map((emoji) => (
-            <Button
-              key={emoji}
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "size-11 rounded-full text-xl",
-                reactedEmojis.has(emoji) &&
-                  "bg-primary-quinary hover:bg-primary-quaternary",
-              )}
-              aria-label={t("Reactions.toggle", { emoji })}
-              aria-pressed={reactedEmojis.has(emoji)}
-              onClick={() => {
-                runAndClose(() => {
-                  onToggleReaction(message, emoji);
-                });
-              }}
-            >
-              <span aria-hidden>{emoji}</span>
-            </Button>
-          ))}
-          <EmojiPicker
-            title={t("Reactions.add")}
-            ariaLabel={t("Reactions.add")}
-            align="center"
-            triggerClassName="size-11 rounded-full"
-            portalContainer={portalHost}
-            onPick={(emoji) => {
-              runAndClose(() => {
-                onToggleReaction(message, emoji);
-              });
-            }}
-          />
+          {onToggleReaction ? (
+            <>
+              {quickReactions.map((emoji) => (
+                <Button
+                  key={emoji}
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "size-11 rounded-full text-xl",
+                    reactedEmojis.has(emoji) &&
+                      "bg-primary-quinary hover:bg-primary-quaternary",
+                  )}
+                  aria-label={t("Reactions.toggle", { emoji })}
+                  aria-pressed={reactedEmojis.has(emoji)}
+                  onClick={() => {
+                    runAndClose(() => {
+                      onToggleReaction(message, emoji);
+                    });
+                  }}
+                >
+                  <span aria-hidden>{emoji}</span>
+                </Button>
+              ))}
+              <EmojiPicker
+                title={t("Reactions.add")}
+                ariaLabel={t("Reactions.add")}
+                align="center"
+                triggerClassName="size-11 rounded-full"
+                portalContainer={portalHost}
+                onPick={(emoji) => {
+                  runAndClose(() => {
+                    onToggleReaction(message, emoji);
+                  });
+                }}
+              />
+            </>
+          ) : null}
           <SokoBotFeedbackButtons
             metadata={message.metadata}
             buttonClassName="size-11 rounded-full"
@@ -2240,7 +2251,7 @@ function MessageMetaFooter({
   isDeleted,
 }: {
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
@@ -2260,9 +2271,17 @@ function MessageMetaFooter({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => onToggleReaction(message, reaction.emoji)}
+                    onClick={
+                      onToggleReaction
+                        ? () => onToggleReaction(message, reaction.emoji)
+                        : undefined
+                    }
+                    // Still shows who reacted; a read-only Direct takes no
+                    // new reactions.
+                    aria-disabled={onToggleReaction ? undefined : true}
                     className={cn(
-                      "border-border bg-background press hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      "border-border bg-background inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      onToggleReaction && "press hover:bg-muted",
                       reaction.reactedByCurrentUser &&
                         "border-primary-tertiary bg-primary-quinary text-primary",
                     )}
@@ -2348,7 +2367,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -2585,21 +2605,23 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   // Every reaction path in the row (pill, sheet, picker, existing chips) lands
   // here, so adding one teaches the quick reactions. Removing one does not.
-  function handleToggleReaction(target: ChatRoomMessage, emoji: string) {
-    if (!readerReactedEmojis(target).has(emoji)) {
-      if (recordedUsesRef.current?.reactions !== target.reactions) {
-        recordedUsesRef.current = {
-          reactions: target.reactions,
-          emojis: new Set(),
-        };
+  const handleToggleReaction = onToggleReaction
+    ? (target: ChatRoomMessage, emoji: string) => {
+        if (!readerReactedEmojis(target).has(emoji)) {
+          if (recordedUsesRef.current?.reactions !== target.reactions) {
+            recordedUsesRef.current = {
+              reactions: target.reactions,
+              emojis: new Set(),
+            };
+          }
+          if (!recordedUsesRef.current.emojis.has(emoji)) {
+            recordedUsesRef.current.emojis.add(emoji);
+            recordEmojiUse(emoji);
+          }
+        }
+        onToggleReaction(target, emoji);
       }
-      if (!recordedUsesRef.current.emojis.has(emoji)) {
-        recordedUsesRef.current.emojis.add(emoji);
-        recordEmojiUse(emoji);
-      }
-    }
-    onToggleReaction(target, emoji);
-  }
+    : undefined;
 
   return (
     <article

@@ -1564,6 +1564,24 @@ export async function requireChatRoomUserWriteAccess(
 }
 
 /**
+ * Write access for adding to a room: a message, an upload, a Reaction. On top
+ * of {@link requireChatRoomUserWriteAccess}, a Read-only Direct refuses them,
+ * since nobody else is left to read them. Edits to one's own messages go
+ * through the plain write access and stay allowed.
+ */
+export async function requireWritableChatRoom(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<ChatRoomForWrite> {
+  const room = await requireChatRoomUserWriteAccess(roomId, userId, tx);
+  if (isReadOnlyDirectRoom(room)) {
+    throw forbidden("Everyone else has left this Direct, so it is read-only.");
+  }
+  return room;
+}
+
+/**
  * Resolve a thread parent for write paths. Nested reply ids collapse to the
  * top-level root so all siblings share one parentMessageId.
  */

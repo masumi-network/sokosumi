@@ -3121,7 +3121,11 @@ function RoomView({
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectKey}
-              onToggleReaction={stableMessageHandlers.onToggleReaction}
+              onToggleReaction={
+                room.isReadOnly
+                  ? undefined
+                  : stableMessageHandlers.onToggleReaction
+              }
               onOpenThread={
                 !isOutboundLocal &&
                 shouldShowChatRoomThreadButton({
@@ -3428,7 +3432,11 @@ function RoomView({
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}
-                onToggleReaction={stableMessageHandlers.onToggleReaction}
+                onToggleReaction={
+                  selectedRoom.isReadOnly
+                    ? undefined
+                    : stableMessageHandlers.onToggleReaction
+                }
                 onQuote={handleQuoteThreadMessage}
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
