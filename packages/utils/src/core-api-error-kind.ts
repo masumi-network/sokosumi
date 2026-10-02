@@ -44,6 +44,3 @@ export const CORE_API_ERROR_KINDS = {
   CHANNEL_SLUG_TAKEN: "channel_slug_taken",
   PROJECT_IDENTIFIER_TAKEN: "project_identifier_taken",
 } as const;
-
-export type CoreApiErrorKind =
-  (typeof CORE_API_ERROR_KINDS)[keyof typeof CORE_API_ERROR_KINDS];

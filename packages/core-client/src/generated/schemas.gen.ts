@@ -9718,6 +9718,11 @@ export const ChatRoomSchema = {
             description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
             example: false
         },
+        isReadOnly: {
+            type: 'boolean',
+            description: 'Whether this Direct takes no new messages because every other participant has left it (for example through Organization exit). Its history stays readable. Always false for Channels.',
+            example: false
+        },
         groupName: {
             type: [
                 'string',
@@ -9894,6 +9899,13 @@ export const ChatRoomSchema = {
                 $ref: '#/components/schemas/ChatRoomUserParticipant'
             }
         },
+        formerUserMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomFormerUserMember'
+            },
+            description: 'Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.'
+        },
         coworkerMembers: {
             type: 'array',
             items: {
@@ -9917,6 +9929,7 @@ export const ChatRoomSchema = {
         'isSelfDirect',
         'directKey',
         'isGroupDirect',
+        'isReadOnly',
         'groupName',
         'topic',
         'discoverability',
@@ -9930,8 +9943,40 @@ export const ChatRoomSchema = {
         'markedUnread',
         'myAccess',
         'userMembers',
+        'formerUserMembers',
         'coworkerMembers',
         'sokoBotMembers'
+    ]
+} as const;
+
+export const ChatRoomFormerUserMemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image'
     ]
 } as const;
 

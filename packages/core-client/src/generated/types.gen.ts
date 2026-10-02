@@ -2628,6 +2628,10 @@ export type ChatRoom = {
      */
     isGroupDirect: boolean;
     /**
+     * Whether this Direct takes no new messages because every other participant has left it (for example through Organization exit). Its history stays readable. Always false for Channels.
+     */
+    isReadOnly: boolean;
+    /**
      * Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.
      */
     groupName: string | null;
@@ -2704,8 +2708,19 @@ export type ChatRoom = {
      */
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
+    /**
+     * Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.
+     */
+    formerUserMembers: Array<ChatRoomFormerUserMember>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
     sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
+};
+
+export type ChatRoomFormerUserMember = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
 };
 
 /**

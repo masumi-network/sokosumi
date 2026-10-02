@@ -6091,6 +6091,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "readOnlyDirectNotice": "{members} left. You can still read past messages, but you can't send new ones.",
+      "readOnlyDirectNoticeUnnamed": "Everyone else left. You can still read past messages, but you can't send new ones.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",

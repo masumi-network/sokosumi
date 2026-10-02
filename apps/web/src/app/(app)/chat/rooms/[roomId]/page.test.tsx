@@ -84,6 +84,8 @@ function room(
     topic: null,
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     discoverability:

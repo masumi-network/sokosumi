@@ -389,7 +389,6 @@ export {
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
-  type SocialPostMediaRequirement,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMaxBytesForKind,
