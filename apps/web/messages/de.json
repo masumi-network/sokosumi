@@ -4,7 +4,8 @@
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
       "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
       "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
-      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut."
+      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+      "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut."
     },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
