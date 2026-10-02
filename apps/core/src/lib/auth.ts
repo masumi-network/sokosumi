@@ -82,6 +82,7 @@ import {
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
+  revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
@@ -224,6 +225,13 @@ async function reconcileAfterSubscriptionUpdate({
     });
   }
 }
+
+/** Session endpoints that also revoke every app token of the person. */
+const APP_TOKEN_REVOKING_PATHS = new Set([
+  "/change-password",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+]);
 
 export const auth = betterAuth({
   appName: "Sokosumi",
@@ -490,6 +498,21 @@ export const auth = betterAuth({
           );
         }
       }
+
+      // Signing out everywhere else, or changing the password (even when the
+      // person keeps their other sessions), is a compromise signal like a
+      // reset. Plain sign-out keeps app tokens (ADR 0046). After hooks also
+      // run when the endpoint threw.
+      if (
+        APP_TOKEN_REVOKING_PATHS.has(ctx.path) &&
+        ctx.context.session &&
+        !(ctx.context.returned instanceof APIError)
+      ) {
+        await revokeUserOAuthTokens(
+          ctx.context.adapter,
+          ctx.context.session.user.id,
+        );
+      }
     }),
   },
   emailAndPassword: {
@@ -501,6 +524,12 @@ export const auth = betterAuth({
     // A password reset is what someone does when they suspect their account is
     // compromised, so every existing session has to go with the old password.
     revokeSessionsOnPasswordReset: true,
+    // Sessions alone leave app tokens alive (see `revokeUserOAuthTokens`).
+    // A reset has no session, so the after hook cannot name the user; this
+    // callback is the one place that gets them.
+    onPasswordReset: async ({ user }) => {
+      await revokeUserOAuthTokens((await auth.$context).adapter, user.id);
+    },
     sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({
         locale: getEmailLocale(request),
