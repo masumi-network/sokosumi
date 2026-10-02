@@ -1,27 +1,24 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Check, X } from "lucide-react";
+import { Check, Inbox, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import { SOKO_BOT_PROVIDER_LOGOS } from "@/components/soko-bot/provider-logos";
 import { Button } from "@/components/ui/button";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { connectSokoBotIntegrationAction } from "@/lib/actions/soko-bot/action";
 import type {
   SokoBotConnectOffer,
   SokoBotConnectPromptState,
 } from "@/lib/soko-bot/connect-prompt";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
-
-import { SokoBotConnectPromptPrototype } from "./soko-bot-connect-prompt.prototype.client";
-
-/** The bot's face, for prompt designs that show who is asking. */
-export interface SokoBotConnectFace {
-  image: string | null;
-  avatarSeed: string | null;
-}
 
 const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
 
@@ -48,13 +45,7 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
  * Above the composer in the owner's own bot DM, while mail or calendar is
  * not connected: most of what the bot does on its own needs them.
  */
-export function SokoBotConnectPrompt({
-  sokoBotId,
-  face = null,
-}: {
-  sokoBotId: string;
-  face?: SokoBotConnectFace | null;
-}) {
+export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
   const { data } = useQuery({
     queryKey: ["soko-bot-connect-prompt"],
     queryFn: fetchPrompt,
@@ -78,17 +69,24 @@ export function SokoBotConnectPrompt({
   }
 
   return (
-    <SokoBotConnectPromptPrototype
+    <SokoBotConnectCard
       botName={data.botName}
-      face={face}
       offers={data.offers}
       onDismiss={dismiss}
     />
   );
 }
 
-/** Starts a provider's OAuth flow; `busy` names the provider in flight. */
-export function useConnectProvider() {
+/** The card itself, without the fetch, so it renders in tests and previews. */
+export function SokoBotConnectCard({
+  botName,
+  offers,
+  onDismiss,
+}: {
+  botName: string;
+  offers: SokoBotConnectOffer[];
+  onDismiss: () => void;
+}) {
   const t = useTranslations("App.Chat.SokoBot");
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -110,71 +108,74 @@ export function useConnectProvider() {
     });
   }
 
-  return { busy, connect };
-}
-
-/** The card itself, without the fetch, so it renders in tests and previews. */
-export function SokoBotConnectCard({
-  botName,
-  offers,
-  onDismiss,
-}: {
-  botName: string;
-  offers: SokoBotConnectOffer[];
-  onDismiss: () => void;
-}) {
-  const t = useTranslations("App.Chat.SokoBot");
-  const { busy, connect } = useConnectProvider();
-
+  // Inset like the composer form (`px-3 md:px-5`) plus one more step, so the
+  // tray sits on the composer as part of it rather than as a second card.
   return (
-    <section
-      data-testid="soko-bot-connect-prompt"
-      aria-label={t("connectTitle", { bot: botName })}
-      className="border-border bg-card-background relative mb-2 flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-center sm:gap-4"
-    >
-      <div className="min-w-0 flex-1 pr-6 sm:pr-0">
-        <p className="text-sm font-medium">
-          {t("connectTitle", { bot: botName })}
-        </p>
-        <p className="text-muted-foreground mt-0.5 text-xs">
-          {t("connectBody")}
-        </p>
-      </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {offers.map((offer) => {
-          const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
-          return (
-            <Button
-              key={offer.provider}
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={offer.connected || busy !== null}
-              aria-label={
-                offer.connected
-                  ? t("connectConnected", { name: offer.name })
-                  : t("connectProvider", { name: offer.name })
-              }
-              onClick={() => connect(offer.provider)}
-              className="gap-2"
-            >
-              {Logo ? <Logo className="size-4 shrink-0" /> : null}
-              <span>{offer.name}</span>
-              {offer.connected ? (
-                <Check aria-hidden className="text-semantic-success size-3.5" />
-              ) : null}
-            </Button>
-          );
-        })}
-      </div>
-      <button
-        type="button"
-        aria-label={t("connectDismiss")}
-        onClick={onDismiss}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground absolute top-2 right-2 rounded p-1 transition-colors sm:static"
+    <div className="px-3 md:px-5">
+      <section
+        data-testid="soko-bot-connect-prompt"
+        aria-label={t("connectTitle", { bot: botName })}
+        className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
       >
-        <X aria-hidden className="size-4" />
-      </button>
-    </section>
+        <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
+        <p className="min-w-0 flex-1 text-xs leading-5 text-pretty">
+          <span className="font-medium">
+            {t("connectTitle", { bot: botName })}
+          </span>
+          <span className="text-muted-foreground max-sm:hidden">
+            {" · "}
+            {t("connectBody")}
+          </span>
+        </p>
+        <div className="flex shrink-0 items-center gap-0.5">
+          {offers.map((offer) => {
+            const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
+            const label = offer.connected
+              ? t("connectConnected", { name: offer.name })
+              : t("connectProvider", { name: offer.name });
+            return (
+              <Tooltip key={offer.provider}>
+                <TooltipTrigger asChild>
+                  {/* aria-disabled, not disabled: a connected provider keeps
+                      its tooltip and stays reachable, it just does nothing. */}
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    aria-label={label}
+                    aria-disabled={offer.connected || busy !== null}
+                    onClick={() => {
+                      if (!offer.connected && busy === null)
+                        connect(offer.provider);
+                    }}
+                    className="relative size-7 aria-disabled:cursor-default"
+                  >
+                    {Logo ? <Logo className="size-4 shrink-0" /> : null}
+                    {offer.connected ? (
+                      <Check
+                        aria-hidden
+                        className="bg-background text-semantic-success absolute -end-0.5 -bottom-0.5 size-3 rounded-full"
+                      />
+                    ) : null}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">{label}</TooltipContent>
+              </Tooltip>
+            );
+          })}
+          <span aria-hidden className="bg-border mx-1 h-4 w-px" />
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            aria-label={t("connectDismiss")}
+            onClick={onDismiss}
+            className="text-muted-foreground size-7"
+          >
+            <X aria-hidden className="size-3.5" />
+          </Button>
+        </div>
+      </section>
+    </div>
   );
 }
