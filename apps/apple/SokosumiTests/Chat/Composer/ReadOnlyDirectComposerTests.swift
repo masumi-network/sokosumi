@@ -27,8 +27,8 @@
         ((view as? NSTextView).flatMap { $0.isEditable ? [$0] : nil } ?? []) + view.subviews.flatMap(editableTextViews)
       }
 
-      private static func host(thread: Bool, readOnly: Bool) async throws -> (NSHostingView<AnyView>, NSWindow) {
-        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
+      private static func host(thread: Bool, readOnly: Bool, state: WorkspaceState? = nil) async throws -> (NSHostingView<AnyView>, NSWindow) {
+        let state = try state ?? TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         state.rooms = [room(readOnly: readOnly)]
         let host = NSHostingView(rootView: AnyView(Group {
           if thread {
@@ -64,6 +64,40 @@
         let (host, window) = try await Self.host(thread: thread, readOnly: false)
         defer { window.orderOut(nil) }
         _ = try await waitForView(in: host, timeoutMessage: "The composer never mounted") { Self.editableTextViews(host).first }
+      }
+
+      private static func reactionMenus(_ view: NSView) -> [MessageContextMenuView] {
+        (view as? MessageContextMenuView).map { [$0] } ?? view.subviews.flatMap(reactionMenus)
+      }
+
+      @Test(arguments: [false, true])
+      func becomingReadOnlyDismissesAnOpenReactionPicker(thread: Bool) async throws {
+        let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
+        let (host, window) = try await Self.host(thread: thread, readOnly: false, state: state)
+        defer { window.orderOut(nil) }
+        window.center()
+        window.makeKeyAndOrderFront(nil)
+        let menu = try await waitForView(in: host, timeoutMessage: "A message with reactions never mounted") {
+          Self.reactionMenus(host).last { $0.availability.canReact && !$0.visibleRect.isEmpty }
+        }
+        let before = Set(NSApp.windows.map(ObjectIdentifier.init))
+        // Invoke the real row action through the existing native context-menu adapter.
+        menu.perform(.addReaction)
+        let picker = try await waitForView(in: host, timeoutMessage: "The reaction picker never opened") {
+          NSApp.windows.first {
+            !before.contains(ObjectIdentifier($0)) && $0.isVisible && String(describing: type(of: $0)).contains("Popover")
+          }?.contentView
+        }
+        let pickerWindow = try #require(picker.window)
+        defer { pickerWindow.orderOut(nil) }
+
+        state.rooms = [Self.room(readOnly: true)]
+        _ = try await waitForView(in: host, timeoutMessage: "Reaction access did not close") {
+          Self.reactionMenus(host).first { !$0.availability.canReact && $0.availability.canCopyLink }
+        }
+        // Allow the popover's dismissal animation to settle after the room refresh.
+        try await Task.sleep(for: .milliseconds(500))
+        #expect(!pickerWindow.isVisible, "An open reaction picker must close when the room becomes read-only")
       }
     }
   }
