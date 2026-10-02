@@ -1,6 +1,6 @@
 import "./rooms-client-harness";
 import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
-import { act, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +17,7 @@ import {
   mockSearchParams,
   organization,
   renderRoomsClient,
+  sampleMessage,
 } from "./rooms-client-harness";
 
 vi.mock("@/app/chat/components/room-search-panel", () => ({
@@ -70,13 +71,45 @@ vi.mock("../room-session-composer", () => ({
 }));
 
 vi.mock("../room-message-row", () => ({
-  ChatMessageRow: ({ message }: { message: ChatRoomMessage }) => (
-    <div data-testid="chat-message-row">{message.content}</div>
+  ChatMessageRow: ({
+    message,
+    onQuote,
+    onOpenThread,
+    onToggleReaction,
+    onStartEdit,
+  }: {
+    message: ChatRoomMessage;
+    onQuote?: unknown;
+    onOpenThread?: (message: ChatRoomMessage) => void;
+    onToggleReaction?: unknown;
+    onStartEdit?: unknown;
+  }) => (
+    <div
+      data-testid="chat-message-row"
+      data-can-quote={String(Boolean(onQuote))}
+      data-can-open-thread={String(Boolean(onOpenThread))}
+      data-can-react={String(Boolean(onToggleReaction))}
+      data-can-edit={String(Boolean(onStartEdit))}
+    >
+      {message.content}
+      {typeof onOpenThread === "function" ? (
+        <button
+          type="button"
+          aria-label={`open thread ${message.id}`}
+          onClick={() => onOpenThread(message)}
+        />
+      ) : null}
+    </div>
   ),
 }));
 
 vi.mock("../thread-panel", () => ({
-  ThreadPanel: () => <aside data-testid="thread-panel" />,
+  ThreadPanel: ({ onQuote }: { onQuote?: unknown }) => (
+    <aside
+      data-testid="thread-panel"
+      data-can-quote={String(Boolean(onQuote))}
+    />
+  ),
 }));
 
 vi.mock("../thread-list-panel", () => ({
@@ -186,10 +219,25 @@ function roomClientProps(room: ChatRoom, isOrgOwnerOrAdmin = false) {
   };
 }
 
-function renderRoom(room: ChatRoom, { isOrgOwnerOrAdmin = false } = {}) {
-  return renderRoomsClient(roomClientProps(room, isOrgOwnerOrAdmin), {
-    wrapper: TestQueryProvider,
-  });
+function renderRoom(
+  room: ChatRoom,
+  {
+    isOrgOwnerOrAdmin = false,
+    messages = [],
+  }: { isOrgOwnerOrAdmin?: boolean; messages?: ChatRoomMessage[] } = {},
+) {
+  return renderRoomsClient(
+    { ...roomClientProps(room, isOrgOwnerOrAdmin), messages },
+    { wrapper: TestQueryProvider },
+  );
+}
+
+function rowFor(content: string) {
+  const row = screen
+    .getAllByTestId("chat-message-row")
+    .find((element) => element.textContent === content);
+  if (!row) throw new Error(`No row for ${content}`);
+  return row;
 }
 
 describe("RoomsClient read-only Direct updates", () => {
@@ -310,6 +358,65 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(screen.queryByTestId("room-session-composer")).toBeNull();
     expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
     expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
+  });
+  it("offers no Quote, Reaction or new Thread on a read-only Direct", () => {
+    renderRoom(
+      {
+        ...humanDirectRoom(),
+        isReadOnly: true,
+        userMembers: [participant("user-1", "Ada")],
+        formerUserMembers: [
+          { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+        ],
+      },
+      {
+        messages: [
+          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+          {
+            ...sampleMessage("has replies", "msg-2"),
+            roomId: "room-direct",
+            threadReplyCount: 2,
+          },
+        ],
+      },
+    );
+
+    const plain = rowFor("no replies");
+    expect(plain).toHaveAttribute("data-can-quote", "false");
+    expect(plain).toHaveAttribute("data-can-react", "false");
+    expect(plain).toHaveAttribute("data-can-open-thread", "false");
+    // RoomsClient still hands over the edit handler; the row itself limits
+    // it to the viewer's own messages.
+    expect(plain).toHaveAttribute("data-can-edit", "true");
+
+    // An existing Thread stays readable, but nothing can be added to it.
+    const withReplies = rowFor("has replies");
+    expect(withReplies).toHaveAttribute("data-can-open-thread", "true");
+    expect(withReplies).toHaveAttribute("data-can-quote", "false");
+    expect(withReplies).toHaveAttribute("data-can-react", "false");
+    fireEvent.click(screen.getByLabelText("open thread msg-2"));
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-can-quote",
+      "false",
+    );
+  });
+
+  it("keeps Quote, Reactions and Threads on a writable Direct", () => {
+    renderRoom(humanDirectRoom(), {
+      messages: [
+        { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+      ],
+    });
+
+    const row = rowFor("no replies");
+    expect(row).toHaveAttribute("data-can-quote", "true");
+    expect(row).toHaveAttribute("data-can-react", "true");
+    expect(row).toHaveAttribute("data-can-open-thread", "true");
+    fireEvent.click(screen.getByLabelText("open thread msg-1"));
+    expect(screen.getByTestId("thread-panel")).toHaveAttribute(
+      "data-can-quote",
+      "true",
+    );
   });
 });
 

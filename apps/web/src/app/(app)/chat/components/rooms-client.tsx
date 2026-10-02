@@ -3060,6 +3060,16 @@ function RoomView({
         isPersistedMentionThoughtShell(message.metadata) ||
         isFailedMentionThoughtShell(message.metadata);
       const isOutboundLocal = isOutboundLocalMessage(message);
+      // A read-only Direct takes no replies, so only a Thread that already
+      // exists is worth opening.
+      const canOpenThread =
+        !isOutboundLocal &&
+        shouldShowChatRoomThreadButton({
+          room,
+          isStreamOverlay,
+          isThinkingShell,
+        }) &&
+        (!room.isReadOnly || message.threadReplyCount > 0);
       // Asked once: an empty answer means no trailing faces and no gutter.
       const seenByReaders = seenByReadersFor({
         readersAsOf: readReceipts.readersAsOf,
@@ -3102,17 +3112,13 @@ function RoomView({
                   : stableMessageHandlers.onToggleReaction
               }
               onOpenThread={
-                !isOutboundLocal &&
-                shouldShowChatRoomThreadButton({
-                  room,
-                  isStreamOverlay,
-                  isThinkingShell,
-                })
-                  ? stableMessageHandlers.onOpenThread
-                  : undefined
+                canOpenThread ? stableMessageHandlers.onOpenThread : undefined
               }
+              // Quoting fills the composer, which a read-only Direct lacks.
               onQuote={
-                isOutboundLocal ? undefined : stableMessageHandlers.onQuote
+                isOutboundLocal || room.isReadOnly
+                  ? undefined
+                  : stableMessageHandlers.onQuote
               }
               onPin={
                 !isDirectRoom && !isOutboundLocal
@@ -3162,14 +3168,7 @@ function RoomView({
               isSavingEdit={
                 isSavingEdit && editSession?.messageId === message.id
               }
-              showThreadButton={
-                !isOutboundLocal &&
-                shouldShowChatRoomThreadButton({
-                  room,
-                  isStreamOverlay,
-                  isThinkingShell,
-                })
-              }
+              showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
               isContinuation={
                 localCalendarReady &&
@@ -3415,7 +3414,9 @@ function RoomView({
                     ? undefined
                     : stableMessageHandlers.onToggleReaction
                 }
-                onQuote={handleQuoteThreadMessage}
+                onQuote={
+                  selectedRoom.isReadOnly ? undefined : handleQuoteThreadMessage
+                }
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
