@@ -697,13 +697,14 @@ export const auth = betterAuth({
             }).catch((error) => {
               captureExternalServiceError(error, {
                 label: "email_code_email",
+                message: "Email code delivery failed",
                 sentry: {
                   tags: {
                     context: "email_code_email",
                   },
                 },
-                // No address: it is personal data, and before sign-in there
-                // is no user id to stand for it.
+                // Provider errors can echo the address or code. Report only
+                // fixed text, without the original message, stack or cause.
               });
             }),
           );

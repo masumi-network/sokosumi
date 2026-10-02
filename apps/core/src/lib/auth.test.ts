@@ -1,3 +1,5 @@
+import { inspect } from "node:util";
+
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -1857,7 +1859,7 @@ describe("core auth config", () => {
         expect(warn).toHaveBeenCalledWith(
           "[email_code_email] suppressed external failure",
           {
-            error: "Email transport unavailable",
+            error: "Email code delivery failed",
           },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
@@ -1879,36 +1881,58 @@ describe("core auth config", () => {
     );
   });
 
-  it("keeps the address out of Sentry when the code email fails", async () => {
-    sendEmailMock.mockRejectedValueOnce(new Error("provider down"));
-    await import("./auth");
-
-    const [[config]] = emailOTPPluginMock.mock.calls as Array<
-      [
+  it.each([422, 503])(
+    "keeps recipient-bearing provider errors out of telemetry (%s)",
+    async (statusCode) => {
+      const failure = Object.assign(
+        new Error("Unable to send to andreas@example.com: 042917"),
         {
-          sendVerificationOTP: (data: {
-            email: string;
-            otp: string;
-            type: string;
-          }) => Promise<void>;
+          name: "application_error",
+          statusCode,
+          cause: { message: "andreas@example.com", code: "042917" },
         },
-      ]
-    >;
+      );
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await import("./auth");
 
-    await config.sendVerificationOTP({
-      email: "andreas@example.com",
-      otp: "042917",
-      type: "sign-in",
-    });
-    await flushWaitUntil();
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
 
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
-    const reported = JSON.stringify([
-      sentryCaptureExceptionMock.mock.calls,
-      sentrySetExtrasMock.mock.calls,
-    ]);
-    expect(reported).not.toContain("andreas@example.com");
-  });
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(
+        statusCode === 503 ? 0 : 1,
+      );
+      expect(warn).toHaveBeenCalledTimes(statusCode === 503 ? 1 : 0);
+      const reported = inspect(
+        [
+          sentryCaptureExceptionMock.mock.calls,
+          sentrySetExtrasMock.mock.calls,
+          warn.mock.calls,
+        ],
+        { depth: null },
+      );
+      expect(reported).not.toContain("andreas@example.com");
+      expect(reported).not.toContain("042917");
+      expect(reported).toContain("Email code delivery failed");
+      warn.mockRestore();
+    },
+  );
 
   describe("verification email", () => {
     type SendVerificationEmail = (
