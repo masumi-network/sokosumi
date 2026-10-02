@@ -402,6 +402,8 @@ public final class WorkspaceState: ObservableObject {
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
     }
+    // A list read already in flight predates this settings edit.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }
@@ -421,6 +423,8 @@ public final class WorkspaceState: ObservableObject {
     let room = try await workspaceOperation(context: context, auth: auth) { client in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
+    // A list read already in flight predates this rename.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }

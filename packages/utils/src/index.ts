@@ -360,6 +360,14 @@ export {
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
 export {
+  isValidProjectIdentifier,
+  PROJECT_IDENTIFIER_ERROR,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  PROJECT_IDENTIFIER_PATTERN,
+  projectIdentifierSchema,
+  sanitizeProjectIdentifier,
+} from "./project-identifier.js";
+export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
@@ -424,6 +432,11 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export {
+  formatTaskIdentifier,
+  parseTaskRef,
+  type TaskRef,
+} from "./task-identifier.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,

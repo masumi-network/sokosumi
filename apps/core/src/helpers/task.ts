@@ -3,6 +3,7 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   countSetAssignees,
+  formatTaskIdentifier,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
@@ -492,10 +493,13 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator.type === "sokoBot" ? creator.id : null,
     sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
+    number: task.number,
+    identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
     status: task.status,
+    priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
     visibility: task.visibility ?? TaskVisibility.PUBLIC,
     // Grant parking fields are intentional API surface while GRANT_PENDING so

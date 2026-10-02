@@ -1,5 +1,9 @@
 import type { Task } from "@sokosumi/core-client";
-import { TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
+import {
+  TaskLinkRelation,
+  TaskPriority,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/cache", () => ({
@@ -77,6 +81,7 @@ function buildTaskLink(
       name: string;
       status: TaskStatus;
       archivedAt: null;
+      identifier: null;
     };
   }>,
 ) {
@@ -89,6 +94,7 @@ function buildTaskLink(
       name: "Old parent",
       status: TaskStatus.READY,
       archivedAt: null,
+      identifier: null,
     },
     ...overrides,
   };
@@ -98,7 +104,13 @@ function buildTask(
   overrides?: Partial<
     Pick<
       Task,
-      "id" | "name" | "description" | "assigneeId" | "projectId" | "status"
+      | "id"
+      | "name"
+      | "description"
+      | "assigneeId"
+      | "projectId"
+      | "status"
+      | "identifier"
     >
   >,
 ): Task {
@@ -110,6 +122,7 @@ function buildTask(
     assigneeSokoBotId: null,
     assigneeUserId: null,
     status: TaskStatus.READY,
+    identifier: null,
     ...overrides,
   } as Task;
 }
@@ -146,6 +159,7 @@ describe("task link actions", () => {
           name: "New parent",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -451,6 +465,7 @@ describe("task link actions", () => {
           name: "Old parent 1",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
       buildTaskLink({
@@ -460,6 +475,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -591,6 +607,7 @@ describe("task link actions", () => {
           name: "Old parent 2",
           status: TaskStatus.READY,
           archivedAt: null,
+          identifier: null,
         },
       }),
     ]);
@@ -938,6 +955,22 @@ describe("setTaskStatusFromDrag", () => {
     });
   });
 
+  it("revalidates the task route rather than one concrete URL", async () => {
+    taskServiceMock.getTaskById.mockResolvedValue(
+      buildTask({ id: "task-1", status: TaskStatus.DRAFT }),
+    );
+
+    const { setTaskStatusFromDrag } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    await setTaskStatusFromDrag({
+      taskId: "task-1",
+      desiredStatus: TaskStatus.READY,
+    });
+
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks");
+    expect(revalidatePath).toHaveBeenCalledWith("/tasks/[taskId]", "page");
+  });
+
   it("includes a trimmed comment when reopening completed to ready", async () => {
     taskServiceMock.getTaskById.mockResolvedValue(
       buildTask({
@@ -1209,4 +1242,35 @@ describe("draft task tag actions", () => {
       );
     },
   );
+});
+
+describe("setTaskPriority", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    taskServiceMock.patchTask.mockReset();
+    taskServiceMock.patchTask.mockResolvedValue({});
+  });
+
+  it("patches only the priority", async () => {
+    const { setTaskPriority } = await import("./action");
+
+    const result = await setTaskPriority({
+      taskId: "task-1",
+      priority: TaskPriority.URGENT,
+    });
+
+    expect(taskServiceMock.patchTask).toHaveBeenCalledWith("task-1", {
+      priority: TaskPriority.URGENT,
+    });
+    expect(result).toEqual({ ok: true, value: { taskId: "task-1" } });
+  });
+
+  it("surfaces a Core failure instead of swallowing it", async () => {
+    taskServiceMock.patchTask.mockRejectedValue(new Error("Core down"));
+    const { setTaskPriority } = await import("./action");
+
+    await expect(
+      setTaskPriority({ taskId: "task-1", priority: TaskPriority.LOW }),
+    ).rejects.toThrow();
+  });
 });

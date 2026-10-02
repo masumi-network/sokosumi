@@ -23,6 +23,8 @@ public extension WorkspaceState {
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().addChannelMembers(client: client, roomId: roomId, recipients: recipients, organizationSlug: slug)
     }
+    // A list read already in flight predates this roster edit.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }
@@ -51,6 +53,8 @@ public extension WorkspaceState {
         return try await ChatService().removeSokoBot(client: client, roomId: roomId, sokoBotId: sokoBotId, organizationSlug: slug)
       }
     }
+    // A list read already in flight predates this roster edit.
+    sidebar.invalidateRefresh()
     guard let index = rooms.firstIndex(where: { $0.id == roomId }) else { return true }
     if let updated {
       rooms[index] = updated
