@@ -22,7 +22,6 @@ const SIGN_IN_ERROR_MESSAGE_KEYS = new Map<string, SignInErrorMessageKey>([
   ["state_mismatch", "expired"],
   ["state_not_found", "expired"],
   ["state_invalid", "expired"],
-  ["please_restart_the_process", "expired"],
   // Core refused an OAuth client's authorize request before it could trust
   // the client's redirect URI, so only the app's developer can fix it.
   ["invalid_client", "clientMisconfigured"],

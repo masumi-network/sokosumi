@@ -20,7 +20,6 @@ describe("SignInErrorNotice", () => {
     ["state_mismatch", "expired"],
     ["state_not_found", "expired"],
     ["state_invalid", "expired"],
-    ["please_restart_the_process", "expired"],
     ["invalid_client", "clientMisconfigured"],
     ["client_disabled", "clientMisconfigured"],
     ["unauthorized_client", "clientMisconfigured"],
