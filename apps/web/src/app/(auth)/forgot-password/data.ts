@@ -7,7 +7,7 @@ export const forgotPasswordFormData: FormData<
 > = [
   {
     name: "email",
-    placeholderKey: "Fields.Email.placeholder",
+    labelKey: "Fields.Email.label",
     type: "email",
     autoComplete: "email",
   },

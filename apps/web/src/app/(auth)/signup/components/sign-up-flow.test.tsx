@@ -841,7 +841,6 @@ describe("SignUpFlow", () => {
     emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
     mockSearchParams = new URLSearchParams({
       returnUrl: "/accept-invitation/inv_1",
-      email: "invited@example.com",
       invitationId: "inv_1",
     });
     render(
@@ -862,7 +861,7 @@ describe("SignUpFlow", () => {
     expect(screen.getByRole("status")).toHaveTextContent("AccountExists.title");
     expect(recoveryLink).toHaveAttribute(
       "href",
-      "/signin?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
+      "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
     );
   });
 

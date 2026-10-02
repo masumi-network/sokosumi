@@ -10,6 +10,7 @@ import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
 import TermsNotice from "@/auth/components/terms-notice";
 import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
+import { getInvitationEmail } from "@/lib/auth/invitation-email.server";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
 import {
   parseLastUsedAuthMethod,
@@ -32,7 +33,6 @@ export async function generateMetadata(): Promise<Metadata> {
 interface SignUpPageProps {
   searchParams: Promise<
     AuthRedirectSearchParams & {
-      email?: string;
       invitationId?: string;
       returnUrl?: string;
       error?: string;
@@ -42,7 +42,7 @@ interface SignUpPageProps {
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const env = getEnvSecrets();
-  const { email, invitationId, returnUrl, error } = await searchParams;
+  const { invitationId, returnUrl, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.hasExpired) {
     return <OAuthRequestError client={oauthRequest.client} />;
@@ -75,7 +75,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     <SignUpFlow
       invitationId={invitationId}
       client={oauthRequest?.client}
-      prefilledEmail={email}
+      prefilledEmail={await getInvitationEmail(invitationId)}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
       notice={<SignInErrorNotice error={error} />}
