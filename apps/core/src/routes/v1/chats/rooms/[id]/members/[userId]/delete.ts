@@ -4,7 +4,7 @@ import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -52,6 +52,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Concurrent membership change"),
       404: jsonErrorResponse("Room not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
@@ -68,7 +69,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const { result, statusMessages, mentionMessageIds } =
-      await prisma.$transaction(async (tx) => {
+      await serializableTransaction(async (tx) => {
         const { room, organizationId, actor } =
           await requireChannelRosterAccess(tx, roomId, userContext.userId);
 
@@ -131,7 +132,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           statusMessages,
           mentionMessageIds: bots.mentionMessageIds,
         };
-      });
+      }, "Channel membership changed concurrently. Please try again.");
 
     await publishChannelMembershipEffects({
       roomId: result.id,

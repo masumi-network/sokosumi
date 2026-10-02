@@ -220,6 +220,7 @@ export function RoomHeaderChrome({
             {canManageSettings ? (
               <EditChannelDialog
                 channel={room}
+                onManageGuests={onOpenRoster}
                 open={editOpen}
                 onOpenChange={onEditOpenChange}
               >

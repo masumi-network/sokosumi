@@ -66,8 +66,10 @@ export function EditChannelDialog({
   open,
   onOpenChange: setOpen,
   children,
+  onManageGuests,
 }: {
   channel: ChatRoom;
+  onManageGuests: () => void;
   /**
    * The room shell owns the flag, because the dialog has two ways in: the
    * title beside the room name, and a channel row's overflow menu, which
@@ -243,7 +245,7 @@ export function EditChannelDialog({
                         </span>
                         <span
                           id={`edit-channel-${value}-help`}
-                          className="text-muted-foreground block text-xs"
+                          className="text-foreground block text-xs"
                         >
                           {t(`Visibility.${value}Help`)}
                         </span>
@@ -253,12 +255,25 @@ export function EditChannelDialog({
                 })}
               </RadioGroup>
               {isVisibilityLocked ? (
-                <p
-                  id="edit-channel-visibility-locked"
-                  className="text-muted-foreground text-xs"
-                >
-                  {t("Visibility.externalLocked")}
-                </p>
+                <div className="space-y-2">
+                  <p
+                    id="edit-channel-visibility-locked"
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("Visibility.externalLocked")}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={isPending}
+                    onClick={() => {
+                      setOpen(false);
+                      onManageGuests();
+                    }}
+                  >
+                    {t("Visibility.manageGuests")}
+                  </Button>
+                </div>
               ) : null}
             </fieldset>
             <DialogFooter>

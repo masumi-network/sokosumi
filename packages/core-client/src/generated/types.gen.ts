@@ -19608,6 +19608,21 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19707,6 +19722,21 @@ export type PostChatsRoomsByIdMembersErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -19831,6 +19861,21 @@ export type DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19931,6 +19976,21 @@ export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors = {
      * Room or Soko Bot not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

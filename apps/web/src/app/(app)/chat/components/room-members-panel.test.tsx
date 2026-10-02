@@ -326,6 +326,8 @@ describe("RoomMembersPanel", () => {
     const [message, options] = toastMock.success.mock.calls[0];
     expect(message).toBe("RoomRoster.removeSuccess:Soupie");
     expect(options.action.label).toBe("RoomRoster.undo");
+    expect(options.duration).toBe(Infinity);
+    expect(options.closeButton).toBe(true);
 
     options.action.onClick();
 
@@ -384,5 +386,28 @@ describe("RoomMembersPanel", () => {
       expect(leaveRoomActionMock).toHaveBeenCalledWith("room-1");
     });
     expect(replaceMock).toHaveBeenCalledWith("/");
+  });
+
+  it("reports a failed Undo without claiming the member returned", async () => {
+    removeRoomCoworkerActionMock.mockResolvedValue({
+      ok: true,
+      value: externalChannel(),
+    });
+    addRoomMembersActionMock.mockResolvedValue({
+      ok: false,
+      error: { message: "Unable to restore. Try adding again." },
+    });
+    renderPanel(externalChannel());
+    await chooseRemove("Soupie");
+    await waitFor(() => expect(toastMock.success).toHaveBeenCalled());
+    refreshMock.mockClear();
+    const [, options] = toastMock.success.mock.calls[0];
+    options.action.onClick();
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith(
+        "Unable to restore. Try adding again.",
+      ),
+    );
+    expect(refreshMock).not.toHaveBeenCalled();
   });
 });

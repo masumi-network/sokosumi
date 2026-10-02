@@ -72,12 +72,17 @@ function channel(overrides: Partial<ChatRoom> = {}): ChatRoom {
 function ShellOwnedEditChannelDialog(
   props: Omit<
     ComponentProps<typeof EditChannelDialog>,
-    "open" | "onOpenChange" | "children"
-  >,
+    "open" | "onOpenChange" | "children" | "onManageGuests"
+  > & { onManageGuests?: () => void },
 ) {
   const [open, setOpen] = useState(false);
   return (
-    <EditChannelDialog {...props} open={open} onOpenChange={setOpen}>
+    <EditChannelDialog
+      {...props}
+      onManageGuests={props.onManageGuests ?? vi.fn()}
+      open={open}
+      onOpenChange={setOpen}
+    >
       <button type="button" aria-label="editChannel">
         general
       </button>
@@ -156,14 +161,25 @@ describe("EditChannelDialog", () => {
         },
       ],
     });
-    render(<ShellOwnedEditChannelDialog channel={room} />);
-    await openDialog();
+    const onManageGuests = vi.fn();
+    render(
+      <ShellOwnedEditChannelDialog
+        channel={room}
+        onManageGuests={onManageGuests}
+      />,
+    );
+    const user = await openDialog();
 
     expect(screen.getByLabelText("Visibility.public")).toBeDisabled();
     expect(screen.getByLabelText("Visibility.private")).toBeDisabled();
     expect(screen.getByLabelText("Visibility.external")).toBeEnabled();
     expect(screen.getByText("Visibility.externalLocked")).toBeInTheDocument();
     expect(screen.getAllByText("Visibility.hasGuests")).toHaveLength(2);
+    await user.click(
+      screen.getByRole("button", { name: "Visibility.manageGuests" }),
+    );
+    expect(onManageGuests).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
   it("leaves visibility open on an External channel without guests", async () => {

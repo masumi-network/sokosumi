@@ -6283,6 +6283,7 @@
         "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
         "external": "External",
         "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members.",
+        "manageGuests": "Manage guests",
         "externalLocked": "Remove all guests in the members panel to make this channel public or private.",
         "hasGuests": "Has guests"
       },

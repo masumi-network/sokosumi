@@ -38,9 +38,6 @@ import {
 } from "./room-helpers";
 import { RoomRosterPanel } from "./room-roster-panel";
 
-/** How long a removed Coworker or Soko Bot can be put back from its toast. */
-const UNDO_TOAST_DURATION_MS = 10_000;
-
 interface RoomMembersPanelProps {
   room: ChatRoom;
   currentUserId: string;
@@ -120,7 +117,8 @@ export function RoomMembersPanel({
     }
     router.refresh();
     toast.success(t("RoomRoster.removeSuccess", { name: participant.name }), {
-      duration: UNDO_TOAST_DURATION_MS,
+      duration: Infinity,
+      closeButton: true,
       action: {
         label: t("RoomRoster.undo"),
         onClick: () => void handleUndoRemoval(participant),
