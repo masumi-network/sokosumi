@@ -154,7 +154,7 @@ private func roomsBody(names: [String], pinned: Bool = false, members: [String: 
       """
     }.joined(separator: ",")
     return """
-    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
+    {"id":"550e8400-e29b-41d4-a716-44665544000\(index)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":\(starredAt),"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[\(roster)],"coworkerMembers":[],"sokoBotMembers":[]}
     """
   }.joined(separator: ",")
   return """
@@ -1474,7 +1474,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1517,7 +1517,7 @@ struct WorkspaceStateTests {
     ]
     let (state, auth, transport, _) = try ephemeralState(responses, visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1555,7 +1555,7 @@ struct WorkspaceStateTests {
       ], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1594,7 +1594,7 @@ struct WorkspaceStateTests {
       (200, transcriptPageBody(messages: [transcriptMessage(id: "persisted", roomId: roomId, content: "Answer")], nextCursor: nil))
     ], visible: false)
     let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
     state.timeline.reset(roomId: roomId)
     let client = try #require(state.clientResolver?())
     _ = try await state.timeline.loadPage(.initial, client: client, organizationSlug: nil, generation: state.timeline.generation)
@@ -1701,18 +1701,18 @@ private func waitWhile(_ condition: () -> Bool) async {
 private func coworkerDirect(roomId: String) -> Components.Schemas.ChatRoom {
   let sender = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", presence: .online)
   return .init(
-    id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+    id: roomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
     unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [sender],
-    coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
+    formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: []
   )
 }
 
 /// Same id `roomsBody(names: ["general"])` emits.
 private func generalChannel(id: String = "550e8400-e29b-41d4-a716-446655440000") -> Components.Schemas.ChatRoom {
   .init(
-    id: id, name: "general", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "user_1",
+    id: id, name: "general", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "user_1",
     createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-    userMembers: [], coworkerMembers: [], sokoBotMembers: []
+    userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
   )
 }
 
@@ -1752,7 +1752,7 @@ private func preparedCoworkerDirect(
 
 private func unreadRoomsBody(id: String, unread: Int) -> String {
   """
-  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
+  {"data":[{"id":"\(id)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1","pagination":{"cursor":null,"limit":100,"total":1,"nextCursor":null}}}
   """
 }
 
@@ -1795,7 +1795,7 @@ private func roomReadBody(
     "\"channelUnreadCount\":\($0.channel),\"threadUnreadCount\":\(unread - $0.channel),\"unreadThreadCount\":\($0.threads),"
   } ?? "") + (threads.map(unreadThreadsJSON) ?? "")
   let room = """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),\(halves)"unreadMentionCount":\(mentions),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unread),\(halves)"unreadMentionCount":\(mentions),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
   return """
   {"data":\(room),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
@@ -2823,7 +2823,7 @@ private let externalSokoBots = """
 
 private func externalRoomJSON(_ id: String, name: String, discoverability: String, members: String = "[]", coworkers: String = "[]", sokoBots: String = "[]") -> String {
   """
-  {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":\(coworkers),"sokoBotMembers":\(sokoBots)}
+  {"id":"\(id)","organizationId":"org_1","organizationName":"Acme","name":"\(name)","slug":"\(name)","kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":"\(discoverability)","createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":\(members),"coworkerMembers":\(coworkers),"sokoBotMembers":\(sokoBots)}
   """
 }
 
@@ -3094,6 +3094,22 @@ extension WorkspaceStateTests {
 }
 
 extension WorkspaceStateTests {
+  /// Core refuses uploads to a Read-only Direct, so every attachment ingress (drop, paste, pickers) closes there.
+  @Test func attachmentsCloseInAReadOnlyDirect() throws {
+    let (state, _, _, _) = try ephemeralState([])
+    defer { state.reset() }
+    let roomId = "550e8400-e29b-41d4-a716-446655440000"
+    var room = coworkerDirect(roomId: roomId)
+    state.rooms = [room]
+    state.timeline.reset(roomId: roomId)
+    // Settles the open room's load without a network page; the gate only asks that it is not loading.
+    state.timeline.failInitialLoad(message: "offline", generation: state.timeline.generation)
+    #expect(state.canAttachFiles(roomId: roomId))
+    room.isReadOnly = true
+    state.rooms = [room]
+    #expect(!state.canAttachFiles(roomId: roomId))
+  }
+
   @Test func canSendToSelfHidesInsideSelfDirectAndOnLocalRows() throws {
     let (state, _, _, _) = try ephemeralState([])
     defer { state.reset() }

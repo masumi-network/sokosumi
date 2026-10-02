@@ -15,9 +15,9 @@ struct ComposerChannelTests {
   }
 
   @Test func catalogRequiresChannelSlugAndLabelsExternalOrganization() {
-    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me",
+    var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me",
                                            createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0,
-                                           markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+                                           markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
     #expect(ComposerChannel.catalog(rooms: [room]).isEmpty)
     room.slug = "room"
     room.organizationName = "Partner"

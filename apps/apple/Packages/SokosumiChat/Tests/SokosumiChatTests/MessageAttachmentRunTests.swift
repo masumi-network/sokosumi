@@ -46,7 +46,7 @@ struct MessageAttachmentRunTests {
 
   @Test func textChunksKeepMentionAndChannelLinks() {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Anna", email: "anna@example.com", image: nil, presence: .online)
-    let room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "peer", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
+    let room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "peer", createdAt: Date(timeIntervalSince1970: 0), updatedAt: Date(timeIntervalSince1970: 0), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [user], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
     let channels = [ComposerChannel(id: "launch", name: "Launch", slug: "launch")]
     let document = MessageMarkdown("@peer:old " + link("a.png") + " #launch", mentions: MessageMentions(room: room), channels: channels)
     #expect(document.segments.count == 3)

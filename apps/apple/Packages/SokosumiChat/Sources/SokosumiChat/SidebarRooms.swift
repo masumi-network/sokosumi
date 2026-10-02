@@ -91,12 +91,20 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
 
 /// Faces for a Direct sidebar row. Empty means the row should show the
 /// message glyph (self-only Direct, or not a Direct). Caps at 3, same
-/// order as `roomDisplayName`.
+/// order as `roomDisplayName`. With every peer gone it shows the Former
+/// members, so the row still says who the Direct was with (web
+/// `getDirectParticipants`).
 public func directRoomAvatarParticipants(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
 ) -> [DirectRoomAvatarParticipant] {
-  Array(directRoomOtherParticipants(room, currentUserId: currentUserId).prefix(3))
+  let others = directRoomOtherParticipants(room, currentUserId: currentUserId)
+  if !others.isEmpty || room.kind != .direct {
+    return Array(others.prefix(3))
+  }
+  return room.formerUserMembers.prefix(3).map {
+    DirectRoomAvatarParticipant(id: $0.id, name: $0.name.isEmpty ? $0.email : $0.name, imageURL: $0.image)
+  }
 }
 
 /// Other humans (not you), then coworkers, then Soko Bots — the same
@@ -141,8 +149,9 @@ private func compareParticipants(
 /// external rooms use the stored name; a named group Direct shows its Group
 /// name (ADR-0040); other Directs list the participants with yourself
 /// excluded (humans by name-or-email, then coworkers, then bots).
-/// A self-only Direct falls back to the stored name — which is why several
-/// distinct self-note rooms can all read as your own name.
+/// A Self Direct shows your own name where web says "You" (row 27c, Todo).
+/// With nobody else left, a Direct is named after its Former members, never
+/// the reader, and finally the stored name.
 public func roomDisplayName(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
@@ -152,18 +161,14 @@ public func roomDisplayName(
     return groupName
   }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
-  if names.isEmpty {
-    let target = room.userMembers.first { $0.id != currentUserId }
-      ?? room.userMembers.first
-    if let target {
-      return target.name.isEmpty ? target.email : target.name
-    }
-    return room.name
+  if !names.isEmpty {
+    return participantNameList(names)
   }
-  if names.count <= 3 {
-    return names.joined(separator: ", ")
+  if room.isSelfDirect, let owner = room.userMembers.first {
+    return owner.name.isEmpty ? owner.email : owner.name
   }
-  return "\(names.prefix(3).joined(separator: ", ")) and \(names.count - 3) more"
+  let former = participantNameList(formerMemberNames(room))
+  return former.isEmpty ? room.name : former
 }
 
 private func compareNameThenId(_ lhs: (String, String), _ rhs: (String, String)) -> Bool {

@@ -26,10 +26,10 @@ struct RoomHeaderIdentityTests {
   ) -> Components.Schemas.ChatRoom {
     .init(
       id: "550e8400-e29b-41d4-a716-446655440031", organizationId: discoverability == .matched ? nil : "org_1",
-      name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, groupName: groupName,
+      name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, isReadOnly: false, groupName: groupName,
       topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
       createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
-      myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members, coworkerMembers: coworkers, sokoBotMembers: sokoBots
+      myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members, formerUserMembers: [], coworkerMembers: coworkers, sokoBotMembers: sokoBots
     )
   }
 
