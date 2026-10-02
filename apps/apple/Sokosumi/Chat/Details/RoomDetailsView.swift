@@ -181,9 +181,9 @@ struct RoomDetailsView: View {
   private func managedRow(_ member: RoomRosterMember) -> some View {
     memberRow(member)
       .contextMenu { removeAction(member) }
-      #if os(iOS)
-        .swipeActions { removeAction(member) }
-      #endif
+    #if os(iOS)
+      .swipeActions { removeAction(member) }
+    #endif
   }
 
   /// Shown only where Core would accept it; a person's removal asks first, a Coworker or own Soko Bot goes at once.

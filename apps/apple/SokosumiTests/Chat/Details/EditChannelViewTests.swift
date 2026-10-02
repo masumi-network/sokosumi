@@ -21,12 +21,13 @@
           coworkerMembers: [], sokoBotMembers: []
         )
         let model = ChannelEditing(room: room)
-        let content = EditChannelView(room: room, model: model, save: { _ in
+        let view = EditChannelView(room: room, model: model, save: { _ in
           Issue.record("Rendering must not save")
           return false
         }, requestArchive: {
           Issue.record("Rendering must not request archive")
         })
+        let content = view
           .background(.background)
           .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
