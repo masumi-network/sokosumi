@@ -36,6 +36,10 @@ interface SocialButtonsProps {
   showPasskey?: boolean;
   /** Which intent the provider buttons report to Vercel Analytics. */
   eventType?: "signIn" | "signUp";
+  /** Another sign-in is starting, e.g. with the email; every button waits. */
+  disabled?: boolean;
+  /** Whether a sign-in started here is still running. */
+  onPendingChange?: (pending: boolean) => void;
 }
 
 /** Stands in for the provider's logo while its sign-in starts, at the logo's size. */
@@ -76,6 +80,8 @@ export default function SocialButtons({
   lastUsedMethod = null,
   showPasskey = false,
   eventType = "signIn",
+  disabled = false,
+  onPendingChange,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
@@ -88,10 +94,18 @@ export default function SocialButtons({
     null,
   );
 
+  const isWaiting = pendingMethod !== null || disabled;
+
+  // Every change goes through here, so the parent hears it from the same event.
+  function changePendingMethod(method: ProviderAuthMethod | null) {
+    setPendingMethod(method);
+    onPendingChange?.(method !== null);
+  }
+
   // Back from the provider restores this page as it was left, mid sign-in.
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setPendingMethod(null);
+      if (event.persisted) changePendingMethod(null);
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => window.removeEventListener("pageshow", handlePageShow);
@@ -116,7 +130,7 @@ export default function SocialButtons({
 
     if (!autoFill) {
       track("Sign In", { provider: "passkey", direct_signup_link: false });
-      setPendingMethod("passkey");
+      changePendingMethod("passkey");
     }
 
     try {
@@ -141,7 +155,7 @@ export default function SocialButtons({
       }
     } finally {
       if (!autoFill) {
-        setPendingMethod(null);
+        changePendingMethod(null);
       }
     }
   };
@@ -190,8 +204,8 @@ export default function SocialButtons({
   }, [finishPasskeySignIn, showPasskey]);
 
   const handleClick = async (key: SocialButtonProviderId) => {
-    if (pendingMethod) return;
-    setPendingMethod(key);
+    if (isWaiting) return;
+    changePendingMethod(key);
     track(eventType === "signUp" ? "Sign Up" : "Sign In", {
       provider: key,
       direct_signup_link: false,
@@ -215,7 +229,7 @@ export default function SocialButtons({
       })
       .catch(() => ({ error: { message: undefined } }));
     if (result.error) {
-      setPendingMethod(null);
+      changePendingMethod(null);
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
     }
@@ -238,7 +252,7 @@ export default function SocialButtons({
             )}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
-              disabled={pendingMethod !== null}
+              disabled={isWaiting}
               {...(pendingMethod === socialButton.key && {
                 icon: SocialButtonSpinner,
               })}
@@ -273,7 +287,7 @@ export default function SocialButtons({
                 ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
-            disabled={pendingMethod !== null}
+            disabled={isWaiting}
             onClick={() => {
               void handlePasskeySignIn();
             }}

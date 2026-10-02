@@ -278,12 +278,20 @@ describe("SignInFlow", () => {
     );
     expect(createAccount).toHaveAttribute("aria-busy", "true");
     expect(pushMock).not.toHaveBeenCalled();
+    expect(emailField()).toBeEnabled();
+    expect(lastSocialProps().disabled).toBe(true);
 
     await act(async () => {
       finishSend({ data: { success: true }, error: null });
     });
 
     expect(pushMock).toHaveBeenCalledWith("/signup");
+    // Preparing the code is abortable; the dispatched navigation is not.
+    expect(emailField()).toBeDisabled();
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.type(emailField(), ".uk");
+    expect(emailField()).toHaveValue("new@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
     expect(takeSignUpHandover()).toEqual({
       email: "new@example.com",
       codeSentAt: expect.any(Number),
@@ -337,6 +345,40 @@ describe("SignInFlow", () => {
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(takeSignUpHandover()).toBeNull();
+  });
+
+  it("keeps a newer detour locked when an older cancelled send finishes", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    let finishFirst!: (result: { data: unknown; error: null }) => void;
+    let finishSecond!: (result: { data: unknown; error: null }) => void;
+    sendEmailCodeMock
+      .mockReturnValueOnce(new Promise((resolve) => (finishFirst = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (finishSecond = resolve)));
+
+    await user.click(createAccount);
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.clear(emailField());
+    await continueWith(user, "bob@example.com");
+    await waitFor(() => expect(detour()).toHaveAttribute("data-state", "open"));
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await user.click(createAccount);
+    expect(sendEmailCodeMock).toHaveBeenCalledTimes(2);
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () => {
+      finishFirst({ data: { success: true }, error: null });
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(createAccount).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      finishSecond({ data: { success: true }, error: null });
+    });
+    expect(pushMock).toHaveBeenCalledWith("/signup");
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(emailField()).toBeDisabled();
   });
 
   it("carries the OAuth request to sign-up", async () => {
@@ -565,5 +607,68 @@ describe("SignInFlow", () => {
 
     expect(screen.queryByText("why-you-are-back")).not.toBeInTheDocument();
     expect(screen.getByText("terms")).toBeInTheDocument();
+  });
+
+  function lastSocialProps() {
+    return socialButtonsMock.mock.lastCall?.[0] as {
+      disabled: boolean;
+      onPendingChange: (pending: boolean) => void;
+    };
+  }
+
+  it("holds the providers while Continue checks the address", async () => {
+    const user = userEvent.setup();
+    let answer: (value: unknown) => void = () => {};
+    emailStatusMock.mockReturnValue(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    render(<SignInFlow lastUsedMethod={null} />);
+    expect(lastSocialProps().disabled).toBe(false);
+
+    await continueWith(user, "ada@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () =>
+      answer({ data: null, error: { message: "Core is down" } }),
+    );
+    expect(lastSocialProps().disabled).toBe(false);
+  });
+
+  it("frees the providers again when the person changes the address", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+    socialButtonsMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+
+    expect(socialButtonsMock).toHaveBeenCalled();
+    for (const [props] of socialButtonsMock.mock.calls) {
+      expect((props as { disabled: boolean }).disabled).toBe(false);
+    }
+  });
+
+  it("holds the email while a provider sign-in starts", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+    await user.type(emailField(), "ada@example.com");
+    const continueButton = screen.getByRole("button", {
+      name: "continueWithEmail",
+    });
+
+    act(() => lastSocialProps().onPendingChange(true));
+
+    expect(continueButton).toBeDisabled();
+    expect(emailField()).toBeDisabled();
+    // Enter in the field would submit; nothing may reach Core or send a code.
+    fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+    await act(async () => {});
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+
+    act(() => lastSocialProps().onPendingChange(false));
+    expect(continueButton).toBeEnabled();
+    expect(emailField()).toBeEnabled();
   });
 });
