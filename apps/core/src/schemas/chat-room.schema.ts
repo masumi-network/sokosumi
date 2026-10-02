@@ -116,6 +116,19 @@ export const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+/** A human a Direct was started for who is no longer in it. Not a roster entry. */
+export const chatRoomFormerUserMemberSchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Jane Doe" }),
+    email: z.string().openapi({ example: "jane@example.com" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/avatar.png" }),
+  })
+  .openapi("ChatRoomFormerUserMember");
+
 export const chatRoomCoworkerParticipantSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
@@ -212,6 +225,11 @@ export const chatRoomSchema = z
         "Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.",
       example: false,
     }),
+    isReadOnly: z.boolean().openapi({
+      description:
+        "Whether this Direct takes no new messages because every other participant has left it (for example through Organization exit). Its history stays readable. Always false for Channels.",
+      example: false,
+    }),
     groupName: z.string().nullable().openapi({
       description:
         "Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.",
@@ -299,6 +317,10 @@ export const chatRoomSchema = z
       example: false,
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
+    formerUserMembers: z.array(chatRoomFormerUserMemberSchema).openapi({
+      description:
+        "Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.",
+    }),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
     sokoBotMembers: z.array(chatRoomSokoBotParticipantSchema),
   })

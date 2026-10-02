@@ -112,6 +112,8 @@ function coworkerDirectRoom(): ChatRoom {
     kind: "direct",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,

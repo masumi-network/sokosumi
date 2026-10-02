@@ -70,6 +70,8 @@ function makeDirectRoom(overrides: Partial<ChatRoom> = {}): ChatRoom {
     myAccess: "member",
     userMembers: [makeUser("me", "Me"), makeUser("patrick", "Patrick Tobler")],
     coworkerMembers: [],
+    formerUserMembers: [],
+    isReadOnly: false,
     ...overrides,
     sokoBotMembers: overrides.sokoBotMembers ?? [],
   };
@@ -282,5 +284,30 @@ describe("DirectRoomAvatarStack", () => {
     expect(
       screen.queryByTestId("dm-sidebar-avatar-me"),
     ).not.toBeInTheDocument();
+  });
+
+  it("shows who a Direct was with, dimmed and without presence, once they left", () => {
+    render(
+      <DirectRoomAvatarStack
+        room={makeDirectRoom({
+          userMembers: [makeUser("me", "Me")],
+          formerUserMembers: [
+            {
+              id: "sarthi",
+              name: "Sarthi",
+              email: "sarthi@example.com",
+              image: null,
+            },
+          ],
+          isReadOnly: true,
+        })}
+        currentUserId="me"
+      />,
+    );
+
+    const face = screen.getByTestId("dm-sidebar-avatar-sarthi");
+    expect(face.querySelector(".grayscale")).not.toBeNull();
+    expect(within(face).queryByText("Offline")).toBeNull();
+    expect(within(face).queryByText("Online")).toBeNull();
   });
 });
