@@ -3296,6 +3296,7 @@ function RoomView({
               {isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
                 <SokoBotConnectPrompt
                   sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                  face={selectedRoom.sokoBotMembers[0]!}
                 />
               ) : null}
               <RoomSessionComposer

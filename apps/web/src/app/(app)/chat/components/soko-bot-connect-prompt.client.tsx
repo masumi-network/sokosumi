@@ -15,6 +15,14 @@ import type {
 } from "@/lib/soko-bot/connect-prompt";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
 
+import { SokoBotConnectPromptPrototype } from "./soko-bot-connect-prompt.prototype.client";
+
+/** The bot's face, for prompt designs that show who is asking. */
+export interface SokoBotConnectFace {
+  image: string | null;
+  avatarSeed: string | null;
+}
+
 const DISMISSED_KEY = "soko-bot-connect-prompt-dismissed";
 
 function readDismissed(botId: string): boolean {
@@ -40,7 +48,13 @@ async function fetchPrompt(): Promise<SokoBotConnectPromptState | null> {
  * Above the composer in the owner's own bot DM, while mail or calendar is
  * not connected: most of what the bot does on its own needs them.
  */
-export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
+export function SokoBotConnectPrompt({
+  sokoBotId,
+  face = null,
+}: {
+  sokoBotId: string;
+  face?: SokoBotConnectFace | null;
+}) {
   const { data } = useQuery({
     queryKey: ["soko-bot-connect-prompt"],
     queryFn: fetchPrompt,
@@ -64,24 +78,17 @@ export function SokoBotConnectPrompt({ sokoBotId }: { sokoBotId: string }) {
   }
 
   return (
-    <SokoBotConnectCard
+    <SokoBotConnectPromptPrototype
       botName={data.botName}
+      face={face}
       offers={data.offers}
       onDismiss={dismiss}
     />
   );
 }
 
-/** The card itself, without the fetch, so it renders in tests and previews. */
-export function SokoBotConnectCard({
-  botName,
-  offers,
-  onDismiss,
-}: {
-  botName: string;
-  offers: SokoBotConnectOffer[];
-  onDismiss: () => void;
-}) {
+/** Starts a provider's OAuth flow; `busy` names the provider in flight. */
+export function useConnectProvider() {
   const t = useTranslations("App.Chat.SokoBot");
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -102,6 +109,22 @@ export function SokoBotConnectCard({
       window.location.assign(result.value.redirectUrl);
     });
   }
+
+  return { busy, connect };
+}
+
+/** The card itself, without the fetch, so it renders in tests and previews. */
+export function SokoBotConnectCard({
+  botName,
+  offers,
+  onDismiss,
+}: {
+  botName: string;
+  offers: SokoBotConnectOffer[];
+  onDismiss: () => void;
+}) {
+  const t = useTranslations("App.Chat.SokoBot");
+  const { busy, connect } = useConnectProvider();
 
   return (
     <section

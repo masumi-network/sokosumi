@@ -17,6 +17,10 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
+vi.mock("nuqs", () => ({
+  parseAsString: {},
+  useQueryState: () => ["current", vi.fn()],
+}));
 vi.mock("@/lib/actions/soko-bot/action", () => ({
   connectSokoBotIntegrationAction: vi.fn(),
 }));
