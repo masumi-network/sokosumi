@@ -347,6 +347,40 @@ describe("SignInFlow", () => {
     expect(takeSignUpHandover()).toBeNull();
   });
 
+  it("keeps a newer detour locked when an older cancelled send finishes", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    let finishFirst!: (result: { data: unknown; error: null }) => void;
+    let finishSecond!: (result: { data: unknown; error: null }) => void;
+    sendEmailCodeMock
+      .mockReturnValueOnce(new Promise((resolve) => (finishFirst = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (finishSecond = resolve)));
+
+    await user.click(createAccount);
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.clear(emailField());
+    await continueWith(user, "bob@example.com");
+    await waitFor(() => expect(detour()).toHaveAttribute("data-state", "open"));
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await user.click(createAccount);
+    expect(sendEmailCodeMock).toHaveBeenCalledTimes(2);
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () => {
+      finishFirst({ data: { success: true }, error: null });
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(createAccount).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      finishSecond({ data: { success: true }, error: null });
+    });
+    expect(pushMock).toHaveBeenCalledWith("/signup");
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(emailField()).toBeDisabled();
+  });
+
   it("carries the OAuth request to sign-up", async () => {
     const user = userEvent.setup();
     mockSearchParams = new URLSearchParams({

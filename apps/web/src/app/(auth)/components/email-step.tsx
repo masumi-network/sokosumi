@@ -181,6 +181,7 @@ export function EmailStep({
     isFollowingRef.current = true;
     setFollowingState("preparing");
     await follow(email, controller.signal);
+    if (pending.current !== controller) return;
     // Done, the page is leaving; keep spinning until it has.
     if (!controller.signal.aborted) {
       if (mounted.current) setFollowingState("navigating");
