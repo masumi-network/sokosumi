@@ -27,12 +27,13 @@ function createTestAuth() {
     }),
     emailAndPassword: { enabled: true, autoSignIn: true },
     plugins: [
-      emailOTP({
-        sendVerificationOTP: async ({ otp }) => {
-          emailCode = otp;
-        },
-      }),
-      emailCodeSignIn(),
+      emailCodeSignIn(
+        emailOTP({
+          sendVerificationOTP: async ({ otp }) => {
+            emailCode = otp;
+          },
+        }),
+      ),
       lastLoginMethod({
         cookieName: COOKIE_NAME,
         customResolveMethod: resolveEmailCodeSignUpLoginMethod,

@@ -59,6 +59,7 @@ async function createTestAuth(
   seed: { user?: Row[]; account?: Row[] } = {},
   /** Runs after the plugin's before hook, ahead of Better Auth's endpoint. */
   meanwhile?: (db: Record<string, Row[]>) => void,
+  refuseCredential?: () => boolean,
 ) {
   const codes = new Map<string, string>();
   // Read through `db`: the adapter swaps the arrays when a transaction commits.
@@ -75,13 +76,30 @@ async function createTestAuth(
     database: memoryAdapter(db),
     emailAndPassword: { enabled: true, minPasswordLength: 8 },
     user: { additionalFields: betterAuthUserAdditionalFields },
-    plugins: [
-      emailOTP({
-        sendVerificationOTP: async ({ email, otp }) => {
-          codes.set(email, otp);
+    databaseHooks: {
+      account: {
+        create: {
+          before: async (account) => {
+            if (account.providerId === "credential" && refuseCredential?.()) {
+              throw new APIError("INTERNAL_SERVER_ERROR", {
+                message: "Credential write failed",
+              });
+            }
+          },
         },
-      }),
-      emailCodeSignIn(),
+      },
+    },
+    plugins: [
+      emailCodeSignIn(
+        emailOTP({
+          storeOTP: "encrypted",
+          allowedAttempts: 5,
+          resendStrategy: "reuse",
+          sendVerificationOTP: async ({ email, otp }) => {
+            codes.set(email, otp);
+          },
+        }),
+      ),
       {
         id: "meanwhile",
         hooks: {
@@ -208,7 +226,7 @@ describe("password sign-up through an email code", () => {
   });
 
   // e.g. the person signed up with Google in another tab meanwhile.
-  it("adds no password to an account that appeared since the check", async () => {
+  it("refuses an account that appeared since the check without spending the code", async () => {
     const auth = await createTestAuth({}, (db) => {
       db.user?.push(userRow("user-1", "ada@example.com", true));
       db.account?.push(googleAccountRow("user-1"));
@@ -222,10 +240,62 @@ describe("password sign-up through an email code", () => {
       ...SIGN_UP,
     });
 
-    expect(signUp.status).toBe(200);
+    expect(signUp.status).toBe(422);
+    expect(await signUp.json()).toMatchObject({
+      code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+    });
+    expect(auth.db.session).toEqual([]);
     expect(auth.db.account).toEqual([
       expect.objectContaining({ providerId: "google" }),
     ]);
+    expect(auth.db.verification).toHaveLength(1);
+  });
+
+  it("rolls back user, session and OTP consumption when the credential write fails", async () => {
+    let fail = true;
+    const auth = await createTestAuth({}, undefined, () => fail);
+    const otp = await auth.sendCode("ada@example.com");
+    const body = {
+      email: "ada@example.com",
+      otp,
+      password: "correct horse battery",
+      ...SIGN_UP,
+    };
+
+    const refused = await auth.signInWithCode(body);
+
+    expect(refused.status).toBe(500);
+    expect(auth.db.user).toEqual([]);
+    expect(auth.db.account).toEqual([]);
+    expect(auth.db.session).toEqual([]);
+    expect(refused.headers.getSetCookie()).toEqual([]);
+    fail = false;
+    expect((await auth.signInWithCode(body)).status).toBe(200);
+    expect(
+      (await auth.signInWithPassword(body.email, body.password)).status,
+    ).toBe(200);
+  });
+
+  it("keeps wrong-code attempt limits when password signup runs in a transaction", async () => {
+    const auth = await createTestAuth();
+    const otp = await auth.sendCode("ada@example.com");
+    const body = {
+      email: "ada@example.com",
+      otp: otp === "000000" ? "111111" : "000000",
+      password: "correct horse battery",
+      ...SIGN_UP,
+    };
+
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const response = await auth.signInWithCode(body);
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({ code: "INVALID_OTP" });
+    }
+    const locked = await auth.signInWithCode({ ...body, otp });
+    expect(locked.status).toBe(403);
+    expect(await locked.json()).toMatchObject({ code: "TOO_MANY_ATTEMPTS" });
+    expect(auth.db.user).toEqual([]);
+    expect(auth.db.session).toEqual([]);
   });
 
   it.each([

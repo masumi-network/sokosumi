@@ -457,7 +457,16 @@ describe("core auth config", () => {
     getWebAppBaseUrlMock.mockReturnValue("https://preprod.sokosumi.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
-    emailOTPPluginMock.mockReturnValue("email-otp-plugin");
+    emailOTPPluginMock.mockReturnValue({
+      id: "email-otp",
+      endpoints: {
+        signInEmailOTP: {
+          path: "/sign-in/email-otp",
+          options: { method: "POST" },
+        },
+      },
+      hooks: { after: [] },
+    });
     oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
@@ -1022,12 +1031,15 @@ describe("core auth config", () => {
     >;
 
     expect(config.basePath).toBe("/auth");
+    expect(prismaAdapterMock).toHaveBeenCalledWith(expect.anything(), {
+      provider: "postgresql",
+      transaction: true,
+    });
     expect(config.plugins).toEqual(
       expect.arrayContaining([
         "admin-plugin",
         "api-key-plugin",
         "jwt-plugin",
-        "email-otp-plugin",
         "i18n-plugin",
         "openapi-plugin",
         "organization-plugin",

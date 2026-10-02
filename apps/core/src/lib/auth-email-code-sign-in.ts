@@ -1,6 +1,13 @@
+import { runWithTransaction } from "@better-auth/core/context";
 import { EMAIL_CODE_SIGN_IN_METHODS_REMOVED } from "@sokosumi/utils";
 import type { BetterAuthPlugin } from "better-auth";
-import { APIError, createAuthMiddleware } from "better-auth/api";
+import {
+  APIError,
+  createAuthEndpoint,
+  createAuthMiddleware,
+} from "better-auth/api";
+
+import type { emailOTP } from "better-auth/plugins/email-otp";
 
 const EMAIL_CODE_SIGN_IN_PATH = "/sign-in/email-otp";
 
@@ -39,8 +46,98 @@ export function resolveEmailCodeSignUpLoginMethod(ctx: {
  * and provider links (Better Auth's `revokeUnprovenAccountAccess`). That stays,
  * it protects against pre-hijacked accounts, but the response now says so.
  */
-export function emailCodeSignIn() {
+export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
+  const signInEmailOTP = emailCode.endpoints.signInEmailOTP;
   return {
+    ...emailCode,
+    endpoints: {
+      ...emailCode.endpoints,
+      signInEmailOTP: createAuthEndpoint(
+        signInEmailOTP.path,
+        signInEmailOTP.options,
+        async (ctx) => {
+          if (typeof ctx.body.password !== "string") {
+            const result = await signInEmailOTP({
+              ...ctx,
+              asResponse: false,
+              returnHeaders: true,
+            });
+            ctx.responseHeaders = result.headers;
+            return ctx.json(result.response);
+          }
+
+          // Hash before writes. The existing endpoint still owns OTP validation
+          // and atomic consumption; successful signup and its credential commit together.
+          const password = await ctx.context.password.hash(ctx.body.password);
+          const internalAdapter = ctx.context.internalAdapter;
+          try {
+            const result = await runWithTransaction(
+              ctx.context.adapter,
+              async () => {
+                ctx.context.internalAdapter = {
+                  ...internalAdapter,
+                  // The endpoint looks up the address again after consuming the code.
+                  // Refuse a signup collision instead of silently signing in without a password.
+                  findUserByEmail: async (...args) => {
+                    const found = await internalAdapter.findUserByEmail(
+                      ...args,
+                    );
+                    if (found) {
+                      throw new APIError("UNPROCESSABLE_ENTITY", {
+                        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+                        message: "User already exists. Use another email.",
+                      });
+                    }
+                    return found;
+                  },
+                };
+                const response = await signInEmailOTP({
+                  ...ctx,
+                  asResponse: false,
+                  returnHeaders: true,
+                }).catch((error: unknown) => {
+                  // Failed OTP attempts must commit their attempt counter. All later
+                  // failures roll back user/session creation and restore the code.
+                  if (
+                    error instanceof APIError &&
+                    [
+                      "INVALID_OTP",
+                      "OTP_EXPIRED",
+                      "TOO_MANY_ATTEMPTS",
+                    ].includes(error.body?.code ?? "")
+                  ) {
+                    return { error };
+                  }
+                  throw error;
+                });
+                if ("error" in response) return response;
+                const userId = response.response.user.id;
+                const account = await internalAdapter.linkAccount({
+                  userId,
+                  providerId: "credential",
+                  accountId: userId,
+                  password,
+                });
+                if (!account)
+                  throw new APIError("INTERNAL_SERVER_ERROR", {
+                    message: "Failed to create password account",
+                  });
+                return response;
+              },
+            );
+            if ("error" in result) throw result.error;
+            // Publish cookies only after the credential has committed.
+            ctx.responseHeaders = result.headers;
+            return ctx.json(result.response);
+          } catch (error) {
+            ctx.context.newSession = null;
+            throw error;
+          } finally {
+            ctx.context.internalAdapter = internalAdapter;
+          }
+        },
+      ),
+    },
     id: "email-code-sign-in",
     hooks: {
       before: [
@@ -98,6 +195,7 @@ export function emailCodeSignIn() {
         },
       ],
       after: [
+        ...emailCode.hooks.after,
         {
           matcher: isEmailCodeSignIn,
           handler: createAuthMiddleware(async (ctx) => {
@@ -111,23 +209,6 @@ export function emailCodeSignIn() {
               typeof returned !== "object" ||
               returned === null
             ) {
-              return;
-            }
-
-            const password: unknown = ctx.body?.password;
-            if (typeof password === "string") {
-              const userId = newSession.user.id;
-              // A code sign-up creates no account row. One that has rows was
-              // created meanwhile, e.g. through Google in another tab.
-              const accounts =
-                await ctx.context.internalAdapter.findAccounts(userId);
-              if (accounts.length > 0) return;
-              await ctx.context.internalAdapter.linkAccount({
-                userId,
-                providerId: "credential",
-                accountId: userId,
-                password: await ctx.context.password.hash(password),
-              });
               return;
             }
 

@@ -262,6 +262,7 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
+    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
@@ -622,46 +623,47 @@ export const auth = betterAuth({
     // A code, not a link: it goes back into the tab that asked for it, so a
     // sign-in for another app keeps that app's state, and a mail scanner
     // that opens links cannot use it up.
-    emailOTP({
-      otpLength: 6,
-      expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
-      allowedAttempts: 5,
-      // A resend repeats the code rather than replacing it, so whichever email
-      // arrives first works. Reuse needs the code recoverable, so it is stored
-      // encrypted with the auth secret instead of hashed.
-      storeOTP: "encrypted",
-      resendStrategy: "reuse",
-      disableSignUp: false,
-      sendVerificationOTP: async ({ email, otp }, ctx) => {
-        const renderedEmail = await renderEmailCodeEmail({
-          locale: getEmailLocale(ctx?.request, ctx?.headers),
-          code: otp,
-          expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
-        });
+    emailCodeSignIn(
+      emailOTP({
+        otpLength: 6,
+        expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
+        allowedAttempts: 5,
+        // A resend repeats the code rather than replacing it, so whichever email
+        // arrives first works. Reuse needs the code recoverable, so it is stored
+        // encrypted with the auth secret instead of hashed.
+        storeOTP: "encrypted",
+        resendStrategy: "reuse",
+        disableSignUp: false,
+        sendVerificationOTP: async ({ email, otp }, ctx) => {
+          const renderedEmail = await renderEmailCodeEmail({
+            locale: getEmailLocale(ctx?.request, ctx?.headers),
+            code: otp,
+            expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
+          });
 
-        waitUntil(
-          sendEmail({
-            to: email,
-            tag: "email-code",
-            subject: renderedEmail.subject,
-            html: renderedEmail.html,
-          }).catch((error) => {
-            captureExternalServiceError(error, {
-              label: "email_code_email",
-              sentry: {
-                tags: {
-                  context: "email_code_email",
+          waitUntil(
+            sendEmail({
+              to: email,
+              tag: "email-code",
+              subject: renderedEmail.subject,
+              html: renderedEmail.html,
+            }).catch((error) => {
+              captureExternalServiceError(error, {
+                label: "email_code_email",
+                sentry: {
+                  tags: {
+                    context: "email_code_email",
+                  },
                 },
-              },
-              extra: {
-                email,
-              },
-            });
-          }),
-        );
-      },
-    }),
-    emailCodeSignIn(),
+                extra: {
+                  email,
+                },
+              });
+            }),
+          );
+        },
+      }),
+    ),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
