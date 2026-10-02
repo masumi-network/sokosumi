@@ -24,9 +24,35 @@ function createTestAuth({ rateLimited = false } = {}) {
           createdAt: new Date(),
           updatedAt: new Date(),
         },
+        {
+          id: "user-2",
+          email: "grace@example.com",
+          name: "Grace Hopper",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
       ],
       session: [],
-      account: [],
+      account: [
+        {
+          id: "account-1",
+          userId: "user-2",
+          providerId: "credential",
+          accountId: "user-2",
+          password: "hashed-password",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+        {
+          id: "account-2",
+          userId: "user-1",
+          providerId: "google",
+          accountId: "google-1",
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
       verification: [],
     }),
     emailAndPassword: { enabled: true },
@@ -75,17 +101,32 @@ describe("sign-up email status", () => {
     const response = await ask({ email: "Ada@Example.com" });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: true });
+    expect(await response.json()).toEqual({ exists: true, hasPassword: false });
   });
 
-  it("says a free email does not exist", async () => {
+  // Sign-in opens on the password for it rather than emailing a code, which
+  // would remove the password of an account whose address is unproven.
+  it("says whether the account has a password", async () => {
     passCaptcha();
     const { ask } = createTestAuth();
 
     const response = await ask({ email: "grace@example.com" });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: false });
+    expect(await response.json()).toEqual({ exists: true, hasPassword: true });
+  });
+
+  it("says a free email does not exist", async () => {
+    passCaptcha();
+    const { ask } = createTestAuth();
+
+    const response = await ask({ email: "linus@example.com" });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      exists: false,
+      hasPassword: false,
+    });
   });
 
   it("accepts the OAuth request the auth client adds to every call", async () => {
@@ -98,7 +139,7 @@ describe("sign-up email status", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: true });
+    expect(await response.json()).toEqual({ exists: true, hasPassword: false });
   });
 
   it("answers nothing about the account beyond that", async () => {
@@ -107,7 +148,7 @@ describe("sign-up email status", () => {
 
     const body = await (await ask({ email: "ada@example.com" })).json();
 
-    expect(Object.keys(body)).toEqual(["exists"]);
+    expect(Object.keys(body)).toEqual(["exists", "hasPassword"]);
   });
 
   it.each([{}, { email: "not-an-email" }, { email: 1 }])(

@@ -15,6 +15,7 @@ import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import { signInRememberMeFormData } from "@/auth/signin/data";
 import {
@@ -309,6 +310,7 @@ export default function SignInForm({
         isCodeStep={isCodeStep}
         onSwitch={switchTo}
       />
+      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
     </BaseForm>
   );
 }

@@ -7,7 +7,7 @@ import { type ReactNode, useMemo, useRef, useState } from "react";
 
 import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
-import { EmailStep } from "@/auth/components/email-step";
+import { EmailStep, type EmailStepAccount } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -48,9 +48,24 @@ interface SignInFlowProps {
 }
 
 /**
+ * Where step 2 opens. A password person is not emailed a code they will not
+ * use. A code also removes the password of an account whose address is
+ * unproven (`revokeUnprovenAccountAccess`), so an account with a password
+ * always opens on it: the cookie belongs to the browser, not the account.
+ */
+function chooseInitialMethod(
+  lastUsedMethod: LastUsedAuthMethod | null,
+  account: EmailStepAccount,
+): SignInMethod {
+  return lastUsedMethod === "email" || account.hasPassword
+    ? "password"
+    : "code";
+}
+
+/**
  * Sign-in in two steps. The first asks for the email beside the providers
  * and checks that it has an account. The second asks for the emailed code or
- * the password, opening on the one this browser used last.
+ * the password, opening as `chooseInitialMethod` decides.
  */
 export default function SignInFlow({
   client,
@@ -84,9 +99,8 @@ export default function SignInFlow({
     eventType: "signIn",
     returnUrl: effectiveReturnUrl,
   });
-  // A password person is not emailed a code they will not use.
-  const initialMethod: SignInMethod =
-    lastUsedMethod === "email" ? "password" : "code";
+  // Set on Continue, from this browser and the account.
+  const [initialMethod, setInitialMethod] = useState<SignInMethod>("code");
   const isEmailLastUsed =
     lastUsedMethod === "email" || lastUsedMethod === "email-otp";
   const [email, setEmail] = useState(prefilledEmail ?? "");
@@ -178,10 +192,12 @@ export default function SignInFlow({
           onFormStart={handleFormStart}
           onEmailChange={setTypedEmail}
           continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail, signal) => {
+          onContinue={async (confirmedEmail, signal, account) => {
             setEmail(confirmedEmail);
+            const method = chooseInitialMethod(lastUsedMethod, account);
+            setInitialMethod(method);
             // A failed send has said so; step 2 then opens on the password.
-            if (initialMethod === "code") {
+            if (method === "code") {
               await emailCode.sendCode(confirmedEmail, { signal });
             }
             if (!signal.aborted) setStep("method");
