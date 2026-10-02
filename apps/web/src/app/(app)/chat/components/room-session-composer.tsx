@@ -15,6 +15,7 @@ import {
   type ClipboardEvent,
   type Dispatch,
   type FormEvent,
+  type ReactNode,
   type Ref,
   type SetStateAction,
   useCallback,
@@ -94,6 +95,7 @@ interface RoomSessionComposerProps {
   channels?: readonly ComposerChannelOption[];
   channelLinks?: readonly ChannelLinkTarget[];
   placeholder: string;
+  aboveCard?: ReactNode;
   pendingQuote: PendingRoomQuote | null;
   onClearPendingQuote?: () => void;
   onSetPendingQuote?: (quote: PendingRoomQuote) => void;
@@ -141,6 +143,7 @@ export function RoomSessionComposer({
   channels,
   channelLinks,
   placeholder,
+  aboveCard,
   pendingQuote,
   onClearPendingQuote,
   onSetPendingQuote,
@@ -390,6 +393,7 @@ export function RoomSessionComposer({
             <RoomTypingLine typistIds={typistIds} usersById={usersById} />
           ) : null
         }
+        aboveCard={aboveCard}
         roomId={roomId}
         value={composerValue}
         onValueChange={handleComposerValueChange}

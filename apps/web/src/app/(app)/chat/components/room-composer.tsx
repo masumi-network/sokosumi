@@ -350,6 +350,7 @@ export function RoomComposer({
   onValueChange,
   onEditorBlur,
   typingLine,
+  aboveCard,
   onToolbarInsert,
   mentions,
   usersById,
@@ -386,6 +387,7 @@ export function RoomComposer({
   onEditorBlur?: () => void;
   /** The Typing line, handed through to the composer chrome (ADR-0033). */
   typingLine?: ReactNode;
+  aboveCard?: ReactNode;
   /**
    * A toolbar control put text in the editor rather than the person typing it.
    * Fires just before the insertion, so the resulting change can be told apart
@@ -692,6 +694,7 @@ export function RoomComposer({
     <>
       <RoomMessageComposer
         typingLine={typingLine}
+        aboveCard={aboveCard}
         formRef={formRef}
         onSubmit={onSubmit}
         withOuterPadding={false}
