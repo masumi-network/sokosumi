@@ -1,4 +1,5 @@
 import { Mascot } from "./mascot";
+import { SubmitButton } from "./submit-button";
 
 interface SignedInProps {
   name: string;
@@ -19,10 +20,13 @@ export function SignedIn({ name, email, signOut }: SignedInProps) {
           <p className="account-name">{hasName ? name : email}</p>
           {hasName && <p className="note">{email}</p>}
         </div>
-        <form action={signOut}>
-          <button className="button button-secondary" type="submit">
+        <form>
+          <SubmitButton
+            className="button button-secondary"
+            formAction={signOut}
+          >
             Sign out
-          </button>
+          </SubmitButton>
         </form>
       </div>
       <Mascot className="hero-mascot" />
