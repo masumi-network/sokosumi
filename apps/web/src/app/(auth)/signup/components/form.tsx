@@ -128,8 +128,17 @@ export default function SignUpForm({
         setAccountExists(true);
         return;
       }
-      if (error.code === "PASSWORD_TOO_SHORT") {
-        form.setError("password", { message: schemaT("Password.min") });
+      if (
+        error.code === "PASSWORD_TOO_SHORT" ||
+        error.code === "PASSWORD_TOO_LONG"
+      ) {
+        form.setError("password", {
+          message: schemaT(
+            error.code === "PASSWORD_TOO_SHORT"
+              ? "Password.min"
+              : "Password.max",
+          ),
+        });
         return;
       }
       form.setError("code", { message: describeCodeError(error) });

@@ -65,7 +65,7 @@ function chooseInitialMethod(
 /**
  * Sign-in in two steps. The first asks for the email beside the providers
  * and checks that it has an account. The second asks for the emailed code or
- * the password, opening on the one this browser used last.
+ * the password, opening as `chooseInitialMethod` decides.
  */
 export default function SignInFlow({
   client,

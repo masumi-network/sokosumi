@@ -458,6 +458,32 @@ describe("SignUpForm with a password", () => {
     });
   });
 
+  // Core checks the length again before spending the code.
+  it.each([
+    ["PASSWORD_TOO_SHORT", "Password.min"],
+    ["PASSWORD_TOO_LONG", "Password.max"],
+  ])(
+    "marks a password Core refuses with %s on the password field",
+    async (code, message) => {
+      mockEmailCodeSignIn.mockResolvedValueOnce({
+        data: null,
+        error: { code, status: 400 },
+      });
+      renderForm();
+
+      await submitValidSignUpForm();
+
+      await waitFor(() =>
+        expect(
+          screen.getByLabelText("Fields.Password.label"),
+        ).toHaveAccessibleDescription(`Fields.Password.description ${message}`),
+      );
+      expect(
+        screen.getByRole("textbox", { name: "codeLabel" }),
+      ).not.toHaveAttribute("aria-invalid", "true");
+    },
+  );
+
   it("says to start again when the OAuth request has expired", async () => {
     mockEmailCodeSignIn.mockResolvedValueOnce({
       data: null,
