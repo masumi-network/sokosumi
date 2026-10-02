@@ -1842,10 +1842,7 @@ describe("core auth config", () => {
         await expect(flushWaitUntil()).resolves.toBeUndefined();
         expect(warn).toHaveBeenCalledWith(
           "[email_code_email] suppressed external failure",
-          {
-            error: "Email transport unavailable",
-            email: "andreas@example.com",
-          },
+          { error: "Email transport unavailable" },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
       } finally {
@@ -2377,7 +2374,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("reports Stripe customer creation failures to Sentry", async () => {
+  it("reports Stripe customer creation failures to Sentry without the address or name", async () => {
     stripeCreateUserCustomerMock.mockRejectedValueOnce(
       new Error("stripe failed"),
     );
@@ -2412,15 +2409,14 @@ describe("core auth config", () => {
     await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
+      extra: { userId: "user_123" },
       tags: {
         context: "stripe_user_customer_creation",
       },
     });
+    const report = JSON.stringify(sentryCaptureExceptionMock.mock.calls[0][1]);
+    expect(report).not.toContain("andreas@example.com");
+    expect(report).not.toContain("Andreas");
   });
 
   it("reports organization workspace creation failures to Sentry", async () => {
