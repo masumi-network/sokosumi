@@ -1,4 +1,4 @@
-import { type Task, TaskStatus } from "@sokosumi/database";
+import { type Task, TaskPriority, TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
@@ -35,6 +35,30 @@ describe("createTaskForActor", () => {
       message: "Private Tasks cannot be assigned to a human teammate",
     });
     expect(taskCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("persists the requested priority", async () => {
+    const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+    const tx = { task: { create: taskCreateMock } } as never;
+
+    await createTaskForActor(
+      {
+        actor: { kind: "user", userId: "user_123" },
+        ownerId: "user_123",
+        organizationId: "org_123",
+        workspaceId: "workspace_123",
+        name: "Urgent",
+        status: TaskStatus.DRAFT,
+        priority: TaskPriority.URGENT,
+      },
+      tx,
+    );
+
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
+      }),
+    );
   });
 });
 

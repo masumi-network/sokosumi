@@ -10,6 +10,10 @@ const notFoundMock = vi.fn();
 const taskDetailViewMock = vi.fn();
 const taskWorkspaceSwitchDialogMock = vi.fn();
 const projectScopeMarkerMock = vi.fn();
+const canonicalUrlMock = vi.fn();
+const markNotificationsReadMock = vi.fn();
+
+const TASK_UUID = "11111111-1111-7111-8111-111111111111";
 
 const sessionUser = {
   createdAt: "2025-01-01T00:00:00.000Z",
@@ -45,6 +49,20 @@ vi.mock("@/app/tasks/components/task-detail-view", () => ({
   TaskDetailView: (props: unknown) => {
     taskDetailViewMock(props);
     return <div data-testid="task-detail-view" />;
+  },
+}));
+
+vi.mock("@/app/tasks/components/task-canonical-url", () => ({
+  TaskCanonicalUrl: (props: unknown) => {
+    canonicalUrlMock(props);
+    return null;
+  },
+}));
+
+vi.mock("@/components/notifications/mark-notifications-read.client", () => ({
+  MarkNotificationsRead: (props: unknown) => {
+    markNotificationsReadMock(props);
+    return null;
   },
 }));
 
@@ -127,13 +145,13 @@ describe("TaskDetailPage", () => {
     render(
       await TaskDetailPage({
         params: Promise.resolve({
-          taskId: "task_1",
+          taskId: TASK_UUID,
         }),
       }),
     );
 
-    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
-    expect(getTaskWorkspaceMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
+    expect(getTaskWorkspaceMock).toHaveBeenCalledWith(TASK_UUID);
     expect(taskWorkspaceSwitchDialogMock).toHaveBeenCalledWith({
       currentAccountName: "Personal Account",
       currentOrganization: null,
@@ -168,12 +186,12 @@ describe("TaskDetailPage", () => {
     render(
       await TaskDetailPage({
         params: Promise.resolve({
-          taskId: "task_1",
+          taskId: TASK_UUID,
         }),
       }),
     );
 
-    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
     expect(getTaskWorkspaceMock).not.toHaveBeenCalled();
     expect(taskWorkspaceSwitchDialogMock).not.toHaveBeenCalled();
     expect(taskDetailViewMock).toHaveBeenCalledWith({
@@ -197,7 +215,7 @@ describe("TaskDetailPage", () => {
 
     const { default: TaskDetailPage } = await import("./page");
     render(
-      await TaskDetailPage({ params: Promise.resolve({ taskId: "task_1" }) }),
+      await TaskDetailPage({ params: Promise.resolve({ taskId: TASK_UUID }) }),
     );
 
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({
@@ -220,13 +238,13 @@ describe("TaskDetailPage", () => {
     await expect(
       TaskDetailPage({
         params: Promise.resolve({
-          taskId: "task_1",
+          taskId: TASK_UUID,
         }),
       }),
     ).rejects.toThrow("notFound");
 
-    expect(getTaskByIdMock).toHaveBeenCalledWith("task_1");
-    expect(getTaskWorkspaceMock).toHaveBeenCalledWith("task_1");
+    expect(getTaskByIdMock).toHaveBeenCalledWith(TASK_UUID);
+    expect(getTaskWorkspaceMock).toHaveBeenCalledWith(TASK_UUID);
   });
 
   it("returns not found when the active-workspace task read fails but the workspace already matches", async () => {
@@ -248,11 +266,59 @@ describe("TaskDetailPage", () => {
     await expect(
       TaskDetailPage({
         params: Promise.resolve({
-          taskId: "task_1",
+          taskId: TASK_UUID,
         }),
       }),
     ).rejects.toThrow("notFound");
 
     expect(taskWorkspaceSwitchDialogMock).not.toHaveBeenCalled();
+  });
+
+  it("hands Core the raw identifier-and-slug segment and canonicalises the URL", async () => {
+    const task = {
+      id: TASK_UUID,
+      identifier: "SOK-12",
+      name: "Fix login",
+      projectId: null,
+    };
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_workspace" },
+      user: sessionUser,
+    });
+    getTaskByIdMock.mockResolvedValue(task);
+
+    const { default: TaskDetailPage } = await import("./page");
+    render(
+      await TaskDetailPage({
+        params: Promise.resolve({ taskId: "sok-12-old-name" }),
+      }),
+    );
+
+    expect(getTaskByIdMock).toHaveBeenCalledWith("sok-12-old-name");
+    expect(canonicalUrlMock).toHaveBeenCalledWith({
+      href: "/tasks/SOK-12-fix-login",
+    });
+    // Notifications are keyed by the task uuid, never by the URL segment.
+    expect(markNotificationsReadMock).toHaveBeenCalledWith({
+      kind: "TASK",
+      referenceId: TASK_UUID,
+    });
+  });
+
+  it("does not probe other workspaces for an identifier ref that misses", async () => {
+    getTaskByIdMock.mockResolvedValue(null);
+    getSessionMock.mockResolvedValue({
+      session: { activeOrganizationId: "org_workspace" },
+      user: sessionUser,
+    });
+
+    const { default: TaskDetailPage } = await import("./page");
+
+    await expect(
+      TaskDetailPage({ params: Promise.resolve({ taskId: "SOK-99-gone" }) }),
+    ).rejects.toThrow("notFound");
+
+    expect(getTaskByIdMock).toHaveBeenCalledWith("SOK-99-gone");
+    expect(getTaskWorkspaceMock).not.toHaveBeenCalled();
   });
 });
