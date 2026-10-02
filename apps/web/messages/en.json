@@ -2562,6 +2562,7 @@
       "Detail": {
         "back": "Back to projects",
         "header": {
+          "identifier": "Identifier",
           "updated": "Updated",
           "created": "Created",
           "properties": "Properties",

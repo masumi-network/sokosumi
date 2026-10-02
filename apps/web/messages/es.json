@@ -2562,6 +2562,7 @@
       "Detail": {
         "back": "Volver a proyectos",
         "header": {
+          "identifier": "Identificador",
           "updated": "Actualizado",
           "created": "Creado",
           "properties": "Propiedades",
