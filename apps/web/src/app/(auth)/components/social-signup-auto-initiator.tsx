@@ -1,5 +1,6 @@
 "use client";
 
+import { isUrlString } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -58,8 +59,10 @@ export default function SocialSignupAutoInitiator({
           disableRedirect: true,
         });
 
-        if (result.data?.url) {
-          window.location.replace(result.data.url);
+        // The client checks the scheme before its own redirect; keep that.
+        const providerUrl = result.data?.url;
+        if (isUrlString(providerUrl)) {
+          window.location.replace(providerUrl);
         } else {
           const errorMessage =
             result.error?.message ?? t(`${providerName}.error`);

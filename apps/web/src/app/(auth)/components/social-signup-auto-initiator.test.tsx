@@ -192,4 +192,22 @@ describe("SocialSignupAutoInitiator", () => {
 
     expect(screen.getByRole("button", { name: "Google.retry" })).toBeVisible();
   });
+
+  // The Better Auth client checks the scheme before it redirects; leaving by
+  // hand keeps that check.
+  it("does not leave for a URL that is not a web page", async () => {
+    mockSocialSignIn.mockResolvedValue({
+      data: { url: "javascript:alert(1)", redirect: false },
+      error: null,
+    });
+
+    render(
+      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+    );
+
+    expect(
+      await screen.findByRole("button", { name: "Google.retry" }),
+    ).toBeVisible();
+    expect(mockLocationReplace).not.toHaveBeenCalled();
+  });
 });

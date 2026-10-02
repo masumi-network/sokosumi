@@ -1306,7 +1306,9 @@ describe("core auth config", () => {
     );
   });
 
-  it("lets ten email code requests a minute through from one address, so a shared office network still signs in", async () => {
+  // Better Auth keys the bucket by IP and path, and this plugin rule overrides
+  // its default three a minute for sending.
+  it("asks the email code plugin for ten requests a minute, so a shared office network still signs in", async () => {
     await import("./auth");
 
     expect(emailOTPPluginMock).toHaveBeenCalledWith(
