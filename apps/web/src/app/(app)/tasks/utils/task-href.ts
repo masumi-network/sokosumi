@@ -34,3 +34,16 @@ export function taskHref(task: TaskHrefInput): string {
     ? `/tasks/${task.identifier}-${slug}`
     : `/tasks/${task.identifier}`;
 }
+
+/**
+ * Workspace task links use the identifier URL. Admin and developer pages pass
+ * their own base path and link by id, because a short identifier only resolves
+ * in the viewer's active workspace.
+ */
+export function taskLinkHref(
+  task: TaskHrefInput,
+  hrefBasePath?: string,
+): string {
+  if (hrefBasePath) return `${hrefBasePath}/${task.id}`;
+  return taskHref(task);
+}

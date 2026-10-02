@@ -39,7 +39,7 @@ import { buildTaskActivityActors } from "@/app/tasks/utils/task-activity-actors"
 import { resolveTaskDetailViewerPlan } from "@/app/tasks/utils/task-activity-plan";
 import { listTaskAssigneeMemberOptions } from "@/app/tasks/utils/task-assignee-members";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
-import { taskHref } from "@/app/tasks/utils/task-href";
+import { taskLinkHref } from "@/app/tasks/utils/task-href";
 import {
   canCancelTaskForViewer,
   canCommentOnTaskForViewer,
@@ -164,11 +164,14 @@ export async function TaskDetailView({
                   {parentTask ? (
                     <p className="text-muted-foreground text-sm">
                       <Link
-                        href={taskHref({
-                          id: parentTask.id,
-                          identifier: parentTask.identifier,
-                          name: parentTask.name,
-                        })}
+                        href={taskLinkHref(
+                          {
+                            id: parentTask.id,
+                            identifier: parentTask.identifier,
+                            name: parentTask.name,
+                          },
+                          relatedTaskHrefBasePath,
+                        )}
                         className="text-primary hover:underline"
                       >
                         {t("clonedFrom", { name: parentTask.name })}

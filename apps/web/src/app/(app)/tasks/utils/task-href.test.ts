@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { taskHref } from "./task-href";
+import { taskHref, taskLinkHref } from "./task-href";
 
 const base = { id: "9c1f0000-0000-4000-8000-000000000001" };
 
@@ -65,5 +65,22 @@ describe("taskHref", () => {
     });
 
     expect(href).toBe(`/tasks/SOK-7-${"x".repeat(60)}`);
+  });
+});
+
+describe("taskLinkHref", () => {
+  it("uses the identifier URL on the workspace task surface", () => {
+    expect(
+      taskLinkHref({ ...base, identifier: "SOK-12", name: "Fix login" }),
+    ).toBe("/tasks/SOK-12-fix-login");
+  });
+
+  it("uses the id under an admin or developer base path", () => {
+    expect(
+      taskLinkHref(
+        { ...base, identifier: "SOK-12", name: "Fix login" },
+        "/admin/tasks",
+      ),
+    ).toBe(`/admin/tasks/${base.id}`);
   });
 });

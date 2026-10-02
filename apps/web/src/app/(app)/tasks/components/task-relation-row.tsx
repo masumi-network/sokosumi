@@ -1,6 +1,6 @@
 import { TaskStatus } from "@sokosumi/core-client";
 import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
-import { taskHref } from "@/app/tasks/utils/task-href";
+import { taskLinkHref } from "@/app/tasks/utils/task-href";
 import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 
 import { TaskDetailLink } from "./task-detail-link";
@@ -24,13 +24,14 @@ export function TaskRelationRow({
   hrefBasePath,
 }: TaskRelationRowProps) {
   const marker = getTaskStatusMarker(taskStatus);
-  const href = hrefBasePath
-    ? `${hrefBasePath}/${taskId}`
-    : taskHref({
-        id: taskId,
-        identifier: taskIdentifier,
-        name: taskName,
-      });
+  const href = taskLinkHref(
+    {
+      id: taskId,
+      identifier: taskIdentifier,
+      name: taskName,
+    },
+    hrefBasePath,
+  );
 
   return (
     <TaskDetailLink
