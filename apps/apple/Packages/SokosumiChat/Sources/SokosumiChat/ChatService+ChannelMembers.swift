@@ -6,23 +6,8 @@ import Foundation
 public extension ChatService {
   /// `POST /chats/rooms/{id}/members`: adds without removing; members already present are no-ops.
   func addChannelMembers(client: Client, roomId: String, recipients: Set<DirectRecipient>, organizationSlug: String) async throws -> Components.Schemas.ChatRoom {
-    var userIds: [String] = []
-    var coworkerIds: [String] = []
-    var sokoBotIds: [String] = []
-    for recipient in recipients {
-      switch recipient {
-      case let .human(id): userIds.append(id)
-      case let .coworker(id): coworkerIds.append(id)
-      case let .sokoBot(id): sokoBotIds.append(id)
-      }
-    }
-    let body = Components.Schemas.AddChatRoomMembersRequest(
-      userIds: userIds.isEmpty ? nil : userIds.sorted(),
-      coworkerIds: coworkerIds.isEmpty ? nil : coworkerIds.sorted(),
-      sokoBotIds: sokoBotIds.isEmpty ? nil : sokoBotIds.sorted()
-    )
     let response = try await client.postChatsRoomsIdMembers(.init(
-      path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug), body: .json(body)
+      path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug), body: .json(addMembersRequest(recipients))
     ))
     switch response {
     case let .ok(value): return try value.body.json.data
@@ -82,5 +67,24 @@ public extension ChatService {
     case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
+  }
+
+  /// One sorted id list per kind; a kind with nobody to add is left out of the body.
+  private func addMembersRequest(_ recipients: Set<DirectRecipient>) -> Components.Schemas.AddChatRoomMembersRequest {
+    var userIds: [String] = []
+    var coworkerIds: [String] = []
+    var sokoBotIds: [String] = []
+    for recipient in recipients {
+      switch recipient {
+      case let .human(id): userIds.append(id)
+      case let .coworker(id): coworkerIds.append(id)
+      case let .sokoBot(id): sokoBotIds.append(id)
+      }
+    }
+    return .init(
+      userIds: userIds.isEmpty ? nil : userIds.sorted(),
+      coworkerIds: coworkerIds.isEmpty ? nil : coworkerIds.sorted(),
+      sokoBotIds: sokoBotIds.isEmpty ? nil : sokoBotIds.sorted()
+    )
   }
 }

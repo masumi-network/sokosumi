@@ -165,7 +165,7 @@ struct ChatServiceTests {
     let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
     #expect(Set(body.keys) == ["name", "topic", "discoverability"])
     #expect(body["name"] as? String == "Renamed")
-    #expect(body["topic"] as? String == "")
+    #expect((body["topic"] as? String)?.isEmpty == true)
     #expect(body["discoverability"] as? String == "external")
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can update channel settings.")) {
       try await ChatService().updateRoom(client: client, roomId: "channel", request: draft.updateRequest, organizationSlug: "team")
