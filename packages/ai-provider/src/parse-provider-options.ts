@@ -36,9 +36,6 @@ export function parseSokosumiProviderOptions(
   const providerConversationId = pickString(raw.providerConversationId) ?? null;
   const imageGenerationModel = pickString(raw.imageGenerationModel) ?? null;
   const webSearchEnabled = raw.webSearchEnabled === true;
-  const webSearchParameters = isRecord(raw.webSearchParameters)
-    ? raw.webSearchParameters
-    : null;
 
   const onResponseStarted =
     typeof raw.onResponseStarted === "function"
@@ -104,7 +101,6 @@ export function parseSokosumiProviderOptions(
       ? imageGenerationModel.trim()
       : null,
     webSearchEnabled,
-    webSearchParameters,
     onResponseStarted,
     onResponseCompleted,
     onInvalidPreviousResponseId,
