@@ -655,16 +655,8 @@ export const taskScheduleTestPrisma = {
       },
     ),
   },
-  /** Releases mint Tasks; the legacy vendor layer reads them as templates. */
+  /** Releases mint Tasks. */
   task: {
-    findFirst: vi.fn(async ({ where }: { where: Where }) => {
-      const row = taskScheduleTestDb.tasks.find((r) => matchesRow(r, where));
-      if (!row) return null;
-      const vendor = row.assigneeId
-        ? taskScheduleTestDb.coworkers.get(row.assigneeId)
-        : undefined;
-      return { ...row, assignee: vendor ?? null };
-    }),
     create: vi.fn(
       async ({
         data: { events, ...data },
