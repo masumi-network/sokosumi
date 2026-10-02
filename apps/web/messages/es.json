@@ -6070,7 +6070,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
-      "readOnlyDirectNotice": "{members} salió del chat. Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos.",
+      "readOnlyDirectNotice": "{count, plural, one {{members} salió del chat.} other {{members} salieron del chat.}} Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos.",
+      "readOnlyDirectNoticeUnnamed": "Todos los demás salieron del chat. Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Añadir más personas",

@@ -62,8 +62,11 @@ BEGIN
   END IF;
 
   -- Exit deleted their read state, and no read state counts every message from
-  -- others as unread. A Read-only Direct took no messages while they were away,
-  -- so everything in it predates their exit: start them caught up.
+  -- others as unread. Set Room last-read to now: a 1:1 Direct was read-only
+  -- while they were away, and in a group anything sent then went to the people
+  -- who were members at the time, not to them. Thread Look markers
+  -- (`chat_room_thread_read_state`) are not touched, so a Thread they followed
+  -- before leaving can still show unread replies.
   INSERT INTO "chat_room_read_state" ("id", "roomId", "userId", "lastReadAt", "createdAt", "updatedAt")
   SELECT gen_random_uuid(), room_id, NEW."userId", CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
   FROM unnest(restored_room_ids) AS room_id

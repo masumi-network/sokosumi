@@ -196,7 +196,10 @@ import {
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
-import { ReadOnlyDirectNotice } from "./read-only-direct-notice";
+import {
+  ReadOnlyDirectNotice,
+  useReadOnlyDirectNotice,
+} from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -1035,6 +1038,7 @@ function RoomView({
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
     : "";
+  const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
   // Seen by. Seeded from the room payload, topped up by room read events; both
   // the header stack and the transcript line read it, so neither reaches for
@@ -3323,8 +3327,8 @@ function RoomView({
                   sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
                 />
               ) : null}
-              {selectedRoom.isReadOnly ? (
-                <ReadOnlyDirectNotice members={selectedRoomDisplayName} />
+              {readOnlyNotice ? (
+                <ReadOnlyDirectNotice message={readOnlyNotice} />
               ) : (
                 <RoomSessionComposer
                   ref={roomComposerRef}
@@ -3375,13 +3379,7 @@ function RoomView({
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
-                composerDisabledMessage={
-                  selectedRoom.isReadOnly
-                    ? t("readOnlyDirectNotice", {
-                        members: selectedRoomDisplayName,
-                      })
-                    : undefined
-                }
+                composerDisabledMessage={readOnlyNotice ?? undefined}
                 parentMessage={
                   displayThreadParentMessage ?? threadParentMessage
                 }

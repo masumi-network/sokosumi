@@ -407,7 +407,7 @@ A human a Direct was started for who is no longer in it, usually through Organiz
 _Avoid_: Ex-member, removed user (when meaning the Direct's view of them), treating the remaining reader as the Direct's other party
 
 **Read-only Direct**:
-A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, and clients show a notice in place of the composer. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in, caught up, and the Direct is writable again.
+A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, and clients show a notice in place of the composer. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in with their Room last-read set to that moment (Thread Look markers are kept), and the Direct is writable again.
 _Avoid_: Archived direct (archiving is a different, reversible action), locked chat
 
 ### Chat pins

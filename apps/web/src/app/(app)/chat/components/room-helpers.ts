@@ -650,6 +650,11 @@ export function formatDirectParticipantNames(
   );
 }
 
+/** Former members of a Direct by the name each is shown under. */
+export function getFormerMemberNames(room: ChatRoom): string[] {
+  return room.formerUserMembers.map((member) => member.name || member.email);
+}
+
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
@@ -669,9 +674,7 @@ export function getRoomDisplayName(
   // never the viewer.
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),
-    formatParticipantNameList(
-      room.formerUserMembers.map((member) => member.name || member.email),
-    ) || room.name,
+    formatParticipantNameList(getFormerMemberNames(room)) || room.name,
   );
 }
 
