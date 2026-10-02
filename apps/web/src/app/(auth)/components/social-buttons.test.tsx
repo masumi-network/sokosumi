@@ -102,13 +102,27 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 
 interface MockSocialButtonProps {
   className?: string;
+  disabled?: boolean;
+  icon?: React.ComponentType<{ size: string | number; color: string }>;
   onClick?: () => void;
   text?: string;
 }
 
-function MockSocialButton({ className, onClick, text }: MockSocialButtonProps) {
+function MockSocialButton({
+  className,
+  disabled,
+  icon: Icon,
+  onClick,
+  text,
+}: MockSocialButtonProps) {
   return (
-    <button type="button" className={className} onClick={onClick}>
+    <button
+      type="button"
+      className={className}
+      disabled={disabled}
+      onClick={onClick}
+    >
+      {Icon ? <Icon size="26px" color="" /> : null}
       {text}
     </button>
   );
@@ -343,6 +357,103 @@ describe("SocialButtons", () => {
       callbackReturnUrl: expectedReturnUrl,
       newUserCallbackReturnUrl: expectedReturnUrl,
     });
+  });
+
+  // happy-dom ignores `persisted` in the event init.
+  function pageShow(persisted: boolean) {
+    const event = new Event("pageshow");
+    Object.defineProperty(event, "persisted", { value: persisted });
+    return event;
+  }
+
+  function getButtons() {
+    return {
+      google: screen.getByRole("button", { name: "continue-with-Google" }),
+      microsoft: screen.getByRole("button", {
+        name: "continue-with-Microsoft",
+      }),
+      passkey: screen.getByRole("button", { name: "continue-with-Passkey" }),
+    };
+  }
+
+  it("keeps every button waiting while a social sign-in starts", async () => {
+    const pending = createDeferred<object>();
+    mockSocialSignIn.mockReturnValue(pending.promise);
+    render(<SocialButtons showPasskey />);
+    const { google, microsoft, passkey } = getButtons();
+
+    await clickGoogleButton();
+
+    expect(google).toBeDisabled();
+    expect(microsoft).toBeDisabled();
+    expect(passkey).toBeDisabled();
+    expect(google.querySelector("svg.animate-spin")).not.toBeNull();
+    expect(microsoft.querySelector("svg")).toBeNull();
+    expect(passkey.querySelector("svg.animate-spin")).toBeNull();
+
+    // Success means the browser is leaving for the provider: stay busy.
+    await act(async () => pending.resolve({}));
+    expect(google).toBeDisabled();
+    expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["an error", () => mockSocialSignIn.mockResolvedValue({ error: {} })],
+    ["a thrown request", () => mockSocialSignIn.mockRejectedValue(new Error())],
+  ])("frees the buttons again after %s", async (_case, arrange) => {
+    arrange();
+    render(<SocialButtons showPasskey />);
+    const { google, microsoft, passkey } = getButtons();
+
+    await clickGoogleButton();
+
+    await waitFor(() => expect(google).toBeEnabled());
+    expect(microsoft).toBeEnabled();
+    expect(passkey).toBeEnabled();
+    expect(google.querySelector("svg")).toBeNull();
+    expect(mockToastError).toHaveBeenCalledWith("error");
+  });
+
+  it("frees the buttons when Back restores the page mid sign-in", async () => {
+    mockSocialSignIn.mockReturnValue(createDeferred<object>().promise);
+    render(<SocialButtons showPasskey />);
+    const { google, microsoft } = getButtons();
+
+    await clickGoogleButton();
+    expect(google).toBeDisabled();
+
+    await act(async () => {
+      window.dispatchEvent(pageShow(false));
+    });
+    expect(google).toBeDisabled();
+
+    await act(async () => {
+      window.dispatchEvent(pageShow(true));
+    });
+    expect(google).toBeEnabled();
+    expect(microsoft).toBeEnabled();
+    expect(google.querySelector("svg")).toBeNull();
+  });
+
+  it("keeps the social buttons waiting while a passkey sign-in runs", async () => {
+    const user = userEvent.setup();
+    const pending = createDeferred<{ data: null; error: { code: string } }>();
+    mockPasskeySignIn.mockReturnValue(pending.promise);
+    render(<SocialButtons showPasskey />);
+    const { google, microsoft, passkey } = getButtons();
+
+    await user.click(passkey);
+
+    expect(passkey).toBeDisabled();
+    expect(google).toBeDisabled();
+    expect(microsoft).toBeDisabled();
+    expect(google.querySelector("svg")).toBeNull();
+
+    await act(async () =>
+      pending.resolve({ data: null, error: { code: "AUTH_CANCELLED" } }),
+    );
+    expect(google).toBeEnabled();
+    expect(passkey).toBeEnabled();
   });
 
   it("renders the passkey button after Microsoft", () => {
