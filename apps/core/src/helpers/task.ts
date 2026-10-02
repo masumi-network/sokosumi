@@ -158,13 +158,17 @@ export function taskAssigneeKind(task: {
 }
 
 /**
- * Status changes are free between any distinct statuses (SOK-1028).
+ * Status changes are free between any distinct statuses (SOK-1028), except
+ * into CREATED: that is only the first event of a Task, no actor can move to it.
  * Authorization, assignee rules, reopen comments, parked/seat gates live elsewhere.
  */
 export function validateStatusTransition(
   from: TaskStatus,
   to: TaskStatus,
 ): void {
+  if (to === TaskStatus.CREATED) {
+    throw unprocessableEntity("Invalid status transition: CREATED is reserved");
+  }
   if (from === to) {
     throw unprocessableEntity("Invalid status transition: same status");
   }
