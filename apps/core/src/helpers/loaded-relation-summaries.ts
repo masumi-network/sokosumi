@@ -13,6 +13,7 @@ export type OrganizationSummaryFields = {
 export type ProjectSummaryFields = {
   id: string;
   name: string;
+  identifier: string | null;
   logo: string | null;
 };
 
@@ -89,6 +90,7 @@ export function projectSummaryFromLoadedRelation(
   return {
     id: project.id,
     name: project.name,
+    identifier: project.identifier,
     logo: project.logo,
   };
 }

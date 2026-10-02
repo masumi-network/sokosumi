@@ -21,6 +21,7 @@ import options from "./list_image_options";
 import refine from "./refine_image";
 
 // These tools use only session identity and turn ID from the runtime context.
+// eve@0.68 ToolContext has no `messages` — do not add until eve is bumped.
 const ctx: Parameters<typeof generate.execute>[1] = {
   getSandbox: vi.fn(),
   getToken: vi.fn(),
