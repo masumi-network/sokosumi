@@ -30,6 +30,8 @@ extension ReadOnlyDirectNotice {
 /// participant has left, so nobody would read a new message; the history stays readable.
 struct ReadOnlyDirectNoticeView: View {
   let notice: ReadOnlyDirectNotice
+  /// Web `px-4 md:px-5`: 20 in the room, 16 in the narrower Thread panel (`px-4`).
+  var horizontalInset: CGFloat = 16
   @Environment(\.locale) private var locale
 
   var body: some View {
@@ -37,7 +39,7 @@ struct ReadOnlyDirectNoticeView: View {
     Text(notice.text(locale: locale))
       .foregroundStyle(.secondary)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .padding(.horizontal, 16)
+      .padding(.horizontal, horizontalInset)
       .padding(.vertical, 12)
       // The transcript scrolls under the inset, as under the composer.
       .background(.background)

@@ -97,7 +97,7 @@ import SwiftUI
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
           if let notice = ReadOnlyDirectNotice(room: room) {
-            ReadOnlyDirectNoticeView(notice: notice)
+            ReadOnlyDirectNoticeView(notice: notice, horizontalInset: 20)
           } else {
             ChatComposerView(
               userId: workspaces.currentUserId,

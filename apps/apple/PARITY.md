@@ -3537,8 +3537,8 @@ Audited current web and Core at `bfa85b8f2` (web #5632, #5648 and #5649 merged),
 
 ### Deviations from web (recorded)
 
+- **Notice inset.** Matches web's desktop width: 20 pt in the room (web `md:px-5`), 16 pt in the Thread (`px-4`); web's narrower-than-`md` 16 px room inset has no Mac counterpart. Changed after the review on 2026-10-02.
 - **Header.** Unchanged: the title bar draws the message glyph and the new name, as web's header does for a one-to-one Direct. A group Direct's rename stays offered on both clients (Core allows it).
-- **Notice inset.** 16 pt in both panes; web's room notice is 20 px from `md` up and its Thread notice 16 px.
 - **Self Direct.** Still named after the reader with the message glyph, where web says "You" and shows the owner's face; that is row 27c (Todo), not this slice.
 - **Chip trait.** The read-only chip carries no button trait; web keeps a `button` with `aria-disabled`.
 
