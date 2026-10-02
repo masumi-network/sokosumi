@@ -245,9 +245,11 @@ function renderRow({
   coworkersById = new Map(),
   usersById,
   isPinned,
+  canReact = true,
 }: {
   message?: ChatRoomMessage;
   isPinned?: boolean;
+  canReact?: boolean;
   isContinuation?: boolean;
   isFirstOfDay?: boolean;
   onQuote?: (message: ChatRoomMessage) => void;
@@ -279,7 +281,7 @@ function renderRow({
       coworkersBySlug={new Map()}
       usersById={usersById}
       currentUserId={currentUserId}
-      onToggleReaction={vi.fn()}
+      onToggleReaction={canReact ? vi.fn() : undefined}
       onQuote={onQuote}
       onPin={onPin}
       showPinButton={showPinButton}
@@ -656,6 +658,54 @@ describe("ChatMessageRow", () => {
       within(sheet).queryByRole("button", {
         name: "Copy.link",
       }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no reactions where the reader cannot react", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      canReact: false,
+      message: userMessage({
+        reactions: [
+          {
+            emoji: "👍",
+            count: 1,
+            reactedByCurrentUser: false,
+            reactors: [{ id: "user-1", name: "Ada" }],
+          },
+        ],
+      }),
+    });
+
+    // The existing Reaction still says who reacted, but cannot be toggled.
+    expect(
+      screen.getByRole("button", { name: "Reactions.toggle" }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    await user.click(screen.getByRole("button", { name: "Actions.more" }));
+    const sheet = screen.getByRole("dialog");
+    expect(
+      within(sheet).queryByRole("button", { name: "Reactions.toggle" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sheet).queryByRole("button", { name: "Reactions.add" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("offers no reactions on the hover pill where the reader cannot react", async () => {
+    const user = userEvent.setup();
+    renderRow({ canReact: false, message: userMessage({ content: "Hi" }) });
+    await user.hover(screen.getByRole("article"));
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    ) as HTMLElement;
+    expect(hoverActions).toBeTruthy();
+    expect(
+      within(hoverActions).queryByRole("button", { name: "Reactions.toggle" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(hoverActions).queryByRole("button", { name: "Reactions.add" }),
     ).not.toBeInTheDocument();
   });
 

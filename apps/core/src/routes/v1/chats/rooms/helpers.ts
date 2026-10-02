@@ -1171,7 +1171,8 @@ export function formerDirectUserIds(room: {
 
 /**
  * A Direct whose every other participant has left: nobody would read what is
- * sent, so it keeps its history but takes no new messages.
+ * added, so it keeps its history but takes no new messages, uploads or
+ * Reactions (see {@link requireWritableChatRoom}).
  */
 export function isReadOnlyDirectRoom(room: {
   kind: string;
@@ -1559,6 +1560,24 @@ export async function requireChatRoomUserWriteAccess(
     tx,
   );
 
+  return room;
+}
+
+/**
+ * Write access for adding to a room: a message, an upload, a Reaction. On top
+ * of {@link requireChatRoomUserWriteAccess}, a Read-only Direct refuses them,
+ * since nobody else is left to read them. Edits to one's own messages go
+ * through the plain write access and stay allowed.
+ */
+export async function requireWritableChatRoom(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<ChatRoomForWrite> {
+  const room = await requireChatRoomUserWriteAccess(roomId, userId, tx);
+  if (isReadOnlyDirectRoom(room)) {
+    throw forbidden("Everyone else has left this Direct, so it is read-only.");
+  }
   return room;
 }
 

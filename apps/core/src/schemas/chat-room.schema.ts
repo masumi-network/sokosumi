@@ -227,7 +227,7 @@ export const chatRoomSchema = z
     }),
     isReadOnly: z.boolean().openapi({
       description:
-        "Whether this Direct takes no new messages because every other participant has left it (for example through Organization exit). Its history stays readable. Always false for Channels.",
+        "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
       example: false,
     }),
     groupName: z.string().nullable().openapi({
