@@ -1169,7 +1169,8 @@ export function formerDirectUserIds(room: {
 
 /**
  * A Direct whose every other participant has left: nobody would read what is
- * sent, so it keeps its history but takes no new messages.
+ * added, so it keeps its history but takes no new messages, uploads or
+ * Reactions (see {@link requireWritableChatRoom}).
  */
 export function isReadOnlyDirectRoom(room: {
   kind: string;

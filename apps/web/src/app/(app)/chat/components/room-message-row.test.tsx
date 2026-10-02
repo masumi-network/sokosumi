@@ -691,6 +691,23 @@ describe("ChatMessageRow", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("offers no reactions on the hover pill where the reader cannot react", async () => {
+    const user = userEvent.setup();
+    renderRow({ canReact: false, message: userMessage({ content: "Hi" }) });
+    await user.hover(screen.getByRole("article"));
+
+    const hoverActions = document.querySelector(
+      '[data-message-actions="hover"]',
+    ) as HTMLElement;
+    expect(hoverActions).toBeTruthy();
+    expect(
+      within(hoverActions).queryByRole("button", { name: "Reactions.toggle" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(hoverActions).queryByRole("button", { name: "Reactions.add" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("sends a message to yourself from the sheet", async () => {
     const user = userEvent.setup();
     const onSendToSelf = vi.fn();
