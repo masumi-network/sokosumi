@@ -79,10 +79,12 @@ import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
+  guardOAuthTokenIssuance,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
+  revokePasswordResetCredentials,
   revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
@@ -266,6 +268,7 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
+    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
@@ -482,6 +485,16 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
+      if (
+        ctx.path === "/oauth2/token" &&
+        !(ctx.context.returned instanceof APIError)
+      ) {
+        await guardOAuthTokenIssuance(
+          ctx.context.adapter,
+          ctx.body,
+          ctx.context.returned,
+        );
+      }
       if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
@@ -530,7 +543,7 @@ export const auth = betterAuth({
     // A reset has no session, so the after hook cannot name the user; this
     // callback is the one place that gets them.
     onPasswordReset: async ({ user }) => {
-      await revokeUserOAuthTokens((await auth.$context).adapter, user.id);
+      await revokePasswordResetCredentials(await auth.$context, user.id);
     },
     sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({

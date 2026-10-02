@@ -1387,12 +1387,15 @@ describe("core auth config", () => {
   describe("app tokens", () => {
     const now = new Date("2026-10-02T12:00:00Z");
     const updateMany = vi.fn();
+    const deleteUserSessions = vi.fn();
+    const adapter = {
+      updateMany,
+      incrementOne: vi.fn(),
+      transaction: vi.fn(async (callback) => callback(adapter)),
+    };
 
     function expectAppTokensRevokedFor(userId: string) {
-      const where = [
-        { field: "userId", value: userId },
-        { field: "revoked", operator: "eq", value: null },
-      ];
+      const where = [{ field: "userId", value: userId }];
       expect(updateMany).toHaveBeenCalledTimes(2);
       expect(updateMany).toHaveBeenCalledWith({
         model: "oauthAccessToken",
@@ -1402,13 +1405,19 @@ describe("core auth config", () => {
       expect(updateMany).toHaveBeenCalledWith({
         model: "oauthRefreshToken",
         where,
-        update: { revoked: now },
+        update: {
+          revoked: now,
+          rotatedAt: null,
+          rotationReplayExpiresAt: null,
+          rotationReplayResponse: null,
+        },
       });
     }
 
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"], now });
       updateMany.mockReset();
+      deleteUserSessions.mockReset();
     });
 
     afterEach(() => {
@@ -1419,7 +1428,10 @@ describe("core auth config", () => {
       betterAuthMock.mockReturnValue({
         api: {},
         handler: vi.fn(),
-        $context: Promise.resolve({ adapter: { updateMany } }),
+        $context: Promise.resolve({
+          adapter,
+          internalAdapter: { deleteUserSessions },
+        }),
       });
       await import("./auth");
 
@@ -1438,6 +1450,7 @@ describe("core auth config", () => {
       await config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
 
       expectAppTokensRevokedFor("user-1");
+      expect(deleteUserSessions).toHaveBeenCalledWith("user-1");
     });
 
     async function runAfterHook(ctx: {
@@ -1455,7 +1468,7 @@ describe("core auth config", () => {
         path: ctx.path,
         body: ctx.body,
         context: {
-          adapter: { updateMany },
+          adapter,
           returned: ctx.returned,
           session: { user: { id: "user-1" } },
         },
