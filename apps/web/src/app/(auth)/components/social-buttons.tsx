@@ -227,11 +227,11 @@ export default function SocialButtons({
         const isLastUsed = lastUsedMethod === socialButton.key;
 
         return (
-          <div className="relative" key={socialButton.key}>
+          <div className="group/provider relative" key={socialButton.key}>
             {isLastUsed && (
               <span
                 aria-hidden="true"
-                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
               >
                 {t("lastUsed")}
               </span>
@@ -255,11 +255,11 @@ export default function SocialButtons({
         );
       })}
       {showPasskey && (
-        <div className="relative">
+        <div className="group/provider relative">
           {lastUsedMethod === "passkey" && (
             <span
               aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
             >
               {t("lastUsed")}
             </span>

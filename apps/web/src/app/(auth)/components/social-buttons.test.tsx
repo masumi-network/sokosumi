@@ -310,7 +310,11 @@ describe("SocialButtons", () => {
 
     expect(lastUsedLabel).toBeInTheDocument();
     expect(lastUsedLabel).toHaveClass("absolute", "top-1.5", "right-2");
-    expect(badgeContainer).toHaveClass("relative");
+    // The marker sits beside the button, so it fades with it on its own.
+    expect(lastUsedLabel).toHaveClass(
+      "group-has-[:disabled]/provider:opacity-50",
+    );
+    expect(badgeContainer).toHaveClass("group/provider", "relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
