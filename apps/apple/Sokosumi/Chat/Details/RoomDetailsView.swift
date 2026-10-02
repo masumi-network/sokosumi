@@ -108,8 +108,8 @@ struct RoomDetailsView: View {
     }), presenting: removal) { member in
       Button("Cancel", role: .cancel) {}
       Button("Remove", role: .destructive) { remove(member) }
-    } message: { _ in
-      Text("They lose access to this channel. Their personal assistant leaves with them.")
+    } message: { member in
+      Text("\(member.profile.name) will no longer see this channel or its messages.")
     }
     .onDisappear { directRequestId = nil }
     .onChange(of: room.id) { _, _ in
@@ -204,7 +204,7 @@ struct RoomDetailsView: View {
   }
 
   private var removalTitle: String {
-    removal.map { "Remove \($0.profile.name) from \(room.name)?" } ?? ""
+    removal.map { "Remove \($0.profile.name) from this channel?" } ?? ""
   }
 
   private func isPerson(_ member: RoomRosterMember) -> Bool {
