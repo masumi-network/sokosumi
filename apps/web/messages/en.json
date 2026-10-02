@@ -1321,7 +1321,9 @@
               "label": "Confirm password"
             }
           },
-          "requestNewLink": "Request a new link"
+          "requestNewLink": "Request a new link",
+          "signOutError": "Password changed. We could not finish signing out of this browser. Try again to continue to sign-in.",
+          "continueToSignIn": "Continue to sign-in"
         }
       }
     },

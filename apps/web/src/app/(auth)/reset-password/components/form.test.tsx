@@ -1,5 +1,13 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { oauthProviderClient } from "@better-auth/oauth-provider/client";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createAuthClient } from "better-auth/react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -88,14 +96,42 @@ describe("ResetPasswordForm", () => {
     await waitFor(() => expect(order).toEqual(["signOut", "push"]));
   });
 
-  it("still opens sign-in when there was no session to clear", async () => {
-    vi.mocked(signOut).mockRejectedValue(new Error("no session"));
-    render(<ResetPasswordForm />);
+  it.each(["network", "server"])(
+    "retries a failed %s sign-out without resetting the password again",
+    async (failure) => {
+      searchParams.current = new URLSearchParams(OAUTH_QUERY);
+      if (failure === "network") {
+        vi.mocked(signOut).mockRejectedValueOnce(
+          new Error("Network unavailable"),
+        );
+      } else {
+        vi.mocked(signOut).mockResolvedValueOnce({
+          data: null,
+          error: { status: 429, statusText: "Too Many Requests" },
+        });
+      }
+      render(<ResetPasswordForm />);
 
-    await submitNewPassword();
+      await submitNewPassword();
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/signin"));
-  });
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "signOutError",
+      );
+      expect(push).not.toHaveBeenCalled();
+      expect(
+        screen.queryByLabelText("Fields.Password.label"),
+      ).not.toBeInTheDocument();
+      await userEvent
+        .setup()
+        .click(screen.getByRole("button", { name: "continueToSignIn" }));
+
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
+      );
+      expect(resetPasswordWithToken).toHaveBeenCalledOnce();
+      expect(signOut).toHaveBeenCalledTimes(2);
+    },
+  );
 
   it("keeps where the person was going", async () => {
     searchParams.current = new URLSearchParams("returnUrl=/chat");
@@ -133,6 +169,86 @@ describe("ResetPasswordForm", () => {
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith(`/signin?${OAUTH_QUERY}`),
     );
+  });
+
+  it("clears the session even when the OAuth request expired during the reset", async () => {
+    const expiredQuery =
+      "client_id=cmo&exp=1&sig=expired&ba_param=client_id&ba_param=exp&ba_param=ba_param";
+    searchParams.current = new URLSearchParams(expiredQuery);
+    const originalUrl = window.location.href;
+    window.history.replaceState(null, "", `/reset-password?${expiredQuery}`);
+    const sentBodies: unknown[] = [];
+    const client = createAuthClient({
+      baseURL: `${window.location.origin}/auth`,
+      plugins: [oauthProviderClient()],
+      fetchOptions: {
+        customFetchImpl: async (_url, options) => {
+          const body = JSON.parse(String(options?.body));
+          sentBodies.push(body);
+          // Core's OAuth before hook rejects an expired query before sign-out
+          // can clear any cookies, even though the reset already succeeded.
+          return Response.json(
+            body.oauth_query
+              ? { error: "invalid_signature" }
+              : { success: true },
+            { status: body.oauth_query ? 400 : 200 },
+          );
+        },
+      },
+    });
+    vi.mocked(signOut).mockImplementation((options) => client.signOut(options));
+    try {
+      render(<ResetPasswordForm />);
+      await submitNewPassword();
+
+      await waitFor(() =>
+        expect(push).toHaveBeenCalledWith(`/signin?${expiredQuery}`),
+      );
+      expect(sentBodies).toEqual([{}]);
+    } finally {
+      window.history.replaceState(null, "", originalUrl);
+    }
+  });
+
+  it("makes a stalled sign-out retryable after eight seconds", async () => {
+    const client = createAuthClient({
+      baseURL: `${window.location.origin}/auth`,
+      fetchOptions: {
+        customFetchImpl: async (_url, options) =>
+          new Promise<Response>((_resolve, reject) => {
+            options?.signal?.addEventListener("abort", () =>
+              reject(new DOMException("Aborted", "AbortError")),
+            );
+          }),
+      },
+    });
+    vi.mocked(signOut).mockImplementation((options) => client.signOut(options));
+    render(<ResetPasswordForm />);
+    const user = userEvent.setup();
+    await user.type(
+      screen.getByLabelText("Fields.Password.label"),
+      "N3wPass!x",
+    );
+    await user.type(
+      screen.getByLabelText("Fields.ConfirmPassword.label"),
+      "N3wPass!x",
+    );
+    vi.useFakeTimers();
+    try {
+      fireEvent.click(screen.getByRole("button", { name: "submit" }));
+      await act(() => vi.advanceTimersByTimeAsync(7999));
+      expect(
+        screen.getByRole("button", { name: "continueToSignIn" }),
+      ).toBeDisabled();
+      await act(() => vi.advanceTimersByTimeAsync(1));
+      expect(screen.getByRole("alert")).toHaveTextContent("signOutError");
+      expect(
+        screen.getByRole("button", { name: "continueToSignIn" }),
+      ).toBeEnabled();
+      expect(push).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("offers a new link when the reset fails", async () => {

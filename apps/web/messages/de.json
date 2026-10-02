@@ -1321,7 +1321,9 @@
               "label": "Passwort bestätigen"
             }
           },
-          "requestNewLink": "Neuen Link anfordern"
+          "requestNewLink": "Neuen Link anfordern",
+          "signOutError": "Passwort geändert. Wir konnten dich in diesem Browser nicht abmelden. Versuche es erneut, um zur Anmeldung zu gelangen.",
+          "continueToSignIn": "Weiter zur Anmeldung"
         }
       }
     },

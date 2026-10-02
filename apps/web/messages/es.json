@@ -1321,7 +1321,9 @@
               "label": "Confirmar contraseña"
             }
           },
-          "requestNewLink": "Solicitar un enlace nuevo"
+          "requestNewLink": "Solicitar un enlace nuevo",
+          "signOutError": "Contraseña cambiada. No pudimos terminar de cerrar la sesión en este navegador. Vuelve a intentarlo para continuar al inicio de sesión.",
+          "continueToSignIn": "Continuar al inicio de sesión"
         }
       }
     },
