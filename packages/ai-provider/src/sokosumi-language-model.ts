@@ -196,9 +196,6 @@ async function streamOpenRouter(
   if (sokosumiOpts.webSearchEnabled) {
     tools.push({
       type: "openrouter:web_search",
-      ...(sokosumiOpts.webSearchParameters
-        ? { parameters: sokosumiOpts.webSearchParameters }
-        : {}),
     });
   }
   if (sokosumiOpts.imageGenerationModel) {
