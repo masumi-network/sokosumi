@@ -184,30 +184,33 @@ struct RoomDetailsView: View {
     }.padding(.vertical, 2)
   }
 
-  /// Remove sits in the row's context menu on macOS and iOS, and in a trailing swipe on iOS.
+  /// Remove sits in the row's context menu on macOS and iOS, and in a trailing swipe on iOS. A row Core would refuse
+  /// gets neither, so it never opens an empty menu.
+  @ViewBuilder
   private func managedRow(_ member: RoomRosterMember) -> some View {
-    memberRow(member)
-      .contextMenu { removeAction(member) }
-    #if os(iOS)
-      .swipeActions { removeAction(member) }
-    #endif
+    if permissions.canRemove(member.id, in: room, currentUserId: workspaces.currentUserId) {
+      memberRow(member)
+        .contextMenu { removeAction(member) }
+      #if os(iOS)
+        .swipeActions { removeAction(member) }
+      #endif
+    } else {
+      memberRow(member)
+    }
   }
 
-  /// Shown only where Core would accept it; a person's removal asks first, a Coworker or own Soko Bot goes at once.
-  @ViewBuilder
+  /// A person's removal asks first; a Coworker or own Soko Bot goes at once.
   private func removeAction(_ member: RoomRosterMember) -> some View {
-    if permissions.canRemove(member.id, in: room, currentUserId: workspaces.currentUserId) {
-      let title: LocalizedStringKey = isPerson(member) ? "Remove from channel…" : "Remove from channel"
-      Button(title, systemImage: "person.badge.minus", role: .destructive) {
-        guard !workspaces.roomMutationInFlight else { return }
-        if isPerson(member) {
-          removal = member
-        } else {
-          remove(member)
-        }
+    let title: LocalizedStringKey = isPerson(member) ? "Remove from channel…" : "Remove from channel"
+    return Button(title, systemImage: "person.badge.minus", role: .destructive) {
+      guard !workspaces.roomMutationInFlight else { return }
+      if isPerson(member) {
+        removal = member
+      } else {
+        remove(member)
       }
-      .disabled(workspaces.roomMutationInFlight)
     }
+    .disabled(workspaces.roomMutationInFlight)
   }
 
   private var removalTitle: String {
