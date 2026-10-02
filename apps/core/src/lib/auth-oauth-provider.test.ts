@@ -554,6 +554,13 @@ describe("user OAuth revocation", () => {
     await expect(
       guardOAuthTokenIssuance((await auth.$context).adapter, body, response),
     ).resolves.toBeUndefined();
+    // The provider may replay the original response after the successor has
+    // itself rotated. That is not an explicit user revocation.
+    db.oauthRefreshToken[1].revoked = NOW;
+    db.oauthRefreshToken[1].rotatedAt = NOW;
+    await expect(
+      guardOAuthTokenIssuance((await auth.$context).adapter, body, response),
+    ).resolves.toBeUndefined();
     db.oauthRefreshToken[0].rotatedAt = null;
     await expect(
       guardOAuthTokenIssuance((await auth.$context).adapter, body, response),

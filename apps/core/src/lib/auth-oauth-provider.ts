@@ -108,6 +108,7 @@ interface IssuedOAuthToken {
   userId: string | null;
   sessionId: string | null;
   revoked: Date | null;
+  rotatedAt?: Date | null;
 }
 
 interface RefreshRevocation {
@@ -166,7 +167,8 @@ export async function guardOAuthTokenIssuance(
       model: isJwt ? "oauthRefreshToken" : "oauthAccessToken",
       where: issuedWhere,
     });
-    let cancelled = !userId || !current || !!current.revoked;
+    const currentRevoked = !!current?.revoked && (!isJwt || !current.rotatedAt);
+    let cancelled = !userId || !current || currentRevoked;
     if (
       body.grant_type === "refresh_token" &&
       typeof body.refresh_token === "string"
