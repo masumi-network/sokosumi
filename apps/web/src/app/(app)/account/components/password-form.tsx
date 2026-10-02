@@ -28,12 +28,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { changePassword } from "@/lib/auth/auth.client";
+import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import {
   type PasswordFormType,
   passwordFormSchema,
 } from "@/lib/schemas/account";
 
-export function PasswordForm() {
+interface PasswordFormProps {
+  /** The signed-in address, handed to the reset form. */
+  email?: string | undefined;
+}
+
+export function PasswordForm({ email }: PasswordFormProps) {
   const t = useTranslations("App.Account.Password");
 
   const form = useForm<PasswordFormType>({
@@ -85,6 +91,9 @@ export function PasswordForm() {
                       <FormLabel>{t("currentPassword")}</FormLabel>
                       <Link
                         href="/forgot-password"
+                        onClick={(event) =>
+                          rememberAuthEmailHintOnClick(event, email ?? "")
+                        }
                         className="text-muted-foreground hover:text-foreground text-sm hover:underline"
                       >
                         {t("forgotPassword")}

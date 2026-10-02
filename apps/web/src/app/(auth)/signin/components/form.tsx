@@ -37,8 +37,8 @@ import { signIn } from "@/lib/auth/auth.client";
 import {
   buildAuthPageUrl,
   buildOAuthResumeUrlFromSearchParams,
-  buildSignedOAuthQueryFromSearchParams,
   isRejectedOAuthRequestError,
+  readAuthPageContext,
 } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -271,12 +271,10 @@ export default function SignInForm({
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                   <FormLabel>{t("Fields.Password.label")}</FormLabel>
                   <Link
-                    href={buildAuthPageUrl("/forgot-password", {
-                      returnUrl,
-                      oauthQuery: returnUrl
-                        ? undefined
-                        : buildSignedOAuthQueryFromSearchParams(searchParams),
-                    })}
+                    href={buildAuthPageUrl(
+                      "/forgot-password",
+                      readAuthPageContext(searchParams),
+                    )}
                     // The address stays out of the URL, which reaches logs.
                     onClick={(event) =>
                       rememberAuthEmailHintOnClick(event, email)

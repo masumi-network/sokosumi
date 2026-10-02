@@ -39,6 +39,26 @@ describe("ResetPasswordPage", () => {
     expect(redirectMock).not.toHaveBeenCalled();
   });
 
+  it("moves a token on the page URL to the exchange with its context", async () => {
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+    const { default: ResetPasswordPage } = await import("./page");
+
+    await expect(
+      ResetPasswordPage({
+        searchParams: Promise.resolve({
+          token: "reset_token_1",
+          returnUrl: "/chat",
+        }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/reset-password/exchange?returnUrl=%2Fchat&token=reset_token_1",
+    );
+  });
+
   // The token cookie lasts an hour; a later reload is a dead link too.
   it("sends a reset without a token to request a new link", async () => {
     getResetPasswordTokenMock.mockResolvedValue(null);

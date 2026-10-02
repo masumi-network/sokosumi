@@ -95,7 +95,8 @@ export default function ForgotPasswordForm({
 
   return (
     <>
-      {linkExpired ? (
+      {/* A new link replaces the dead one, so the notice goes with it. */}
+      {linkExpired && !isEmailSent ? (
         <Alert>
           <AlertDescription>{t("linkExpired")}</AlertDescription>
         </Alert>

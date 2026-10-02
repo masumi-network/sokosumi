@@ -9,6 +9,7 @@ const AUTH_ERROR_QUERY_KEYS = ["error", "error_description"];
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set([
   "returnUrl",
   "email",
+  "invitationId",
   ...AUTH_ERROR_QUERY_KEYS,
 ]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
@@ -132,9 +133,6 @@ export interface AuthPageContext {
   returnUrl?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;
-}
-
-interface BuildAuthPageUrlParams extends AuthPageContext {
   /** The invitation whose address the next page looks up and locks. */
   invitationId?: string | undefined;
 }
@@ -165,7 +163,10 @@ export async function getRedirectQueryString(
   return preservedSearchParams.toString();
 }
 
-/** The returnUrl, or else the signed OAuth request; each page passes it on. */
+/**
+ * The returnUrl, or else the signed OAuth request, and the invitation; each
+ * auth page passes them on to the next.
+ */
 export function readAuthPageContext(
   searchParams: URLSearchParams,
 ): AuthPageContext {
@@ -175,6 +176,7 @@ export function readAuthPageContext(
     oauthQuery: returnUrl
       ? undefined
       : buildSignedOAuthQueryFromSearchParams(searchParams),
+    invitationId: searchParams.get("invitationId") ?? undefined,
   };
 }
 
@@ -185,7 +187,7 @@ export function buildAuthPageUrl(
     | "/forgot-password"
     | "/reset-password"
     | "/reset-password/exchange",
-  { returnUrl, oauthQuery, invitationId }: BuildAuthPageUrlParams,
+  { returnUrl, oauthQuery, invitationId }: AuthPageContext,
 ): string {
   const searchParams = new URLSearchParams(oauthQuery);
 
@@ -208,22 +210,34 @@ export const INVALID_RESET_LINK_ERROR = "INVALID_TOKEN";
  * expired and keeps the sign-in it started from.
  */
 export function buildRequestNewResetLinkUrl(context: AuthPageContext): string {
-  const url = buildAuthPageUrl("/forgot-password", context);
-  return `${url}${url.includes("?") ? "&" : "?"}error=${INVALID_RESET_LINK_ERROR}`;
+  return appendQueryParam(
+    buildAuthPageUrl("/forgot-password", context),
+    "error",
+    INVALID_RESET_LINK_ERROR,
+  );
+}
+
+/**
+ * Adds one parameter to a built auth page URL without re-serializing the
+ * signed OAuth query already in it.
+ */
+export function appendQueryParam(
+  url: string,
+  name: string,
+  value: string,
+): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${name}=${encodeURIComponent(value)}`;
 }
 
 // Typed emails travel as editable session hints, never in the query, which
 // reaches server logs and analytics. An invitation travels as its id; each
 // page looks up the address and locks it.
-export function buildSignUpUrlFromSignIn(
-  params: BuildAuthPageUrlParams,
-): string {
+export function buildSignUpUrlFromSignIn(params: AuthPageContext): string {
   return buildAuthPageUrl("/signup", params);
 }
 
-export function buildSignInUrlFromSignUp(
-  params: BuildAuthPageUrlParams,
-): string {
+export function buildSignInUrlFromSignUp(params: AuthPageContext): string {
   return buildAuthPageUrl("/signin", params);
 }
 

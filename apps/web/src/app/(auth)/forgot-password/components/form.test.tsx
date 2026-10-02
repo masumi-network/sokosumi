@@ -107,10 +107,15 @@ describe("SOK-1144 password reset feedback", () => {
     );
   });
 
-  it("explains that the reset link it came from is dead", () => {
+  it("explains that the reset link it came from is dead until a new one is sent", async () => {
+    rememberAuthEmailHint("person@example.com");
     render(<ForgotPasswordForm linkExpired />);
-
     expect(screen.getByText("linkExpired")).toBeInTheDocument();
+
+    await submit();
+
+    expect(screen.getByRole("status")).toHaveTextContent("success");
+    expect(screen.queryByText("linkExpired")).not.toBeInTheDocument();
   });
 
   it("keeps success visible on the form without redirecting", async () => {

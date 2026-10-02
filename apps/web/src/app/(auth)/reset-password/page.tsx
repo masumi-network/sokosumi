@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import {
   type AuthRedirectSearchParams,
+  appendQueryParam,
+  buildAuthPageUrl,
   buildRequestNewResetLinkUrl,
   getRedirectQueryString,
   readAuthPageContext,
@@ -30,17 +32,23 @@ interface ResetPasswordPageProps {
 export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const { token } = await searchParams;
+  const query = new URLSearchParams(await getRedirectQueryString(searchParams));
+  const token = query.get("token");
+  query.delete("token");
+  const context = readAuthPageContext(query);
 
   if (token) {
-    redirect(`/reset-password/exchange?token=${encodeURIComponent(token)}`);
+    redirect(
+      appendQueryParam(
+        buildAuthPageUrl("/reset-password/exchange", context),
+        "token",
+        token,
+      ),
+    );
   }
 
   if (!(await getResetPasswordToken())) {
-    const query = new URLSearchParams(
-      await getRedirectQueryString(searchParams),
-    );
-    redirect(buildRequestNewResetLinkUrl(readAuthPageContext(query)));
+    redirect(buildRequestNewResetLinkUrl(context));
   }
 
   return (

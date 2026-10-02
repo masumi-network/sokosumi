@@ -108,6 +108,21 @@ describe("ResetPasswordForm", () => {
     );
   });
 
+  it("hands the invitation back to sign-in, which locks its address", async () => {
+    searchParams.current = new URLSearchParams(
+      "returnUrl=/accept-invitation/inv_1&invitationId=inv_1",
+    );
+    render(<ResetPasswordForm />);
+
+    await submitNewPassword();
+
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith(
+        "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
+      ),
+    );
+  });
+
   // A CMO sign-in started the reset; signing in again must lead back to CMO.
   it("hands the signed OAuth request back to sign-in", async () => {
     searchParams.current = new URLSearchParams(OAUTH_QUERY);

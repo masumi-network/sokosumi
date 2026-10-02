@@ -596,11 +596,27 @@ describe("SignInForm", () => {
     });
 
     it("keeps where the person was going on the password reset link", () => {
+      mockSearchParams = new URLSearchParams("returnUrl=/chat");
       renderForm({ returnUrl: "/chat" });
 
       expect(
         screen.getByRole("link", { name: "forgotPassword" }),
       ).toHaveAttribute("href", "/forgot-password?returnUrl=%2Fchat");
+    });
+
+    // Sign-in after the reset locks the invited address again.
+    it("keeps the invitation on the password reset link", () => {
+      mockSearchParams = new URLSearchParams(
+        "returnUrl=/accept-invitation/inv_1&invitationId=inv_1",
+      );
+      renderForm({ returnUrl: "/accept-invitation/inv_1" });
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute(
+        "href",
+        "/forgot-password?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
+      );
     });
 
     it("keeps the signed OAuth request on the password reset link", () => {

@@ -67,6 +67,18 @@ describe("reset password token exchange", () => {
     );
   });
 
+  it("keeps the invitation the reset started from", async () => {
+    const response = await GET(
+      new NextRequest(
+        "https://app.sokosumi.com/reset-password/exchange?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1&token=reset_token_1",
+      ),
+    );
+
+    expect(response.headers.get("location")).toBe(
+      "https://app.sokosumi.com/reset-password?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
+    );
+  });
+
   // A CMO sign-in sent the person here; the new password must lead back.
   it("keeps the signed OAuth request through both outcomes", async () => {
     const oauthQuery = "client_id=cmo&exp=1900000000&sig=abc%2B%2F%3D";
