@@ -3292,13 +3292,14 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
-              {/* The prompt checks the bot is the viewer's own before it shows. */}
-              {isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
-                <SokoBotConnectPrompt
-                  sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
-                />
-              ) : null}
               <RoomSessionComposer
+                aboveCard={
+                  isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                    <SokoBotConnectPrompt
+                      sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                    />
+                  ) : null
+                }
                 ref={roomComposerRef}
                 roomId={selectedRoom.id}
                 draftKey={composeDraftKey.room(selectedRoom.id)}

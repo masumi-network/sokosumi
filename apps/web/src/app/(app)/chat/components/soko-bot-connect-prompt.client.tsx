@@ -88,6 +88,7 @@ export function SokoBotConnectCard({
   onDismiss: () => void;
 }) {
   const t = useTranslations("App.Chat.SokoBot");
+  const [titleOpen, setTitleOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [, startTransition] = useTransition();
 
@@ -108,74 +109,90 @@ export function SokoBotConnectCard({
     });
   }
 
-  // Inset like the composer form (`px-3 md:px-5`) plus one more step, so the
-  // tray sits on the composer as part of it rather than as a second card.
+  // The composer owns the outer inset; the tray sits one step inside it.
   return (
-    <div className="px-3 md:px-5">
-      <section
-        data-testid="soko-bot-connect-prompt"
-        aria-label={t("connectTitle", { bot: botName })}
-        className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
-      >
-        <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
-        <p className="min-w-0 flex-1 text-xs leading-5 text-pretty">
-          <span className="font-medium">
-            {t("connectTitle", { bot: botName })}
-          </span>
-          <span className="text-muted-foreground max-sm:hidden">
-            {" · "}
-            {t("connectBody")}
-          </span>
-        </p>
-        <div className="flex shrink-0 items-center gap-0.5">
-          {offers.map((offer) => {
-            const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
-            const label = offer.connected
-              ? t("connectConnected", { name: offer.name })
-              : t("connectProvider", { name: offer.name });
-            return (
-              <Tooltip key={offer.provider}>
-                <TooltipTrigger asChild>
-                  {/* aria-disabled, not disabled: a connected provider keeps
-                      its tooltip and stays reachable, it just does nothing. */}
-                  <Button
-                    type="button"
-                    size="icon"
-                    variant="ghost"
-                    aria-label={label}
-                    aria-disabled={offer.connected || busy !== null}
-                    onClick={() => {
-                      if (!offer.connected && busy === null)
-                        connect(offer.provider);
-                    }}
-                    className="relative size-7 aria-disabled:cursor-default"
-                  >
-                    {Logo ? <Logo className="size-4 shrink-0" /> : null}
-                    {offer.connected ? (
-                      <Check
-                        aria-hidden
-                        className="bg-background text-semantic-success absolute -end-0.5 -bottom-0.5 size-3 rounded-full"
-                      />
-                    ) : null}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="top">{label}</TooltipContent>
-              </Tooltip>
-            );
-          })}
-          <span aria-hidden className="bg-border mx-1 h-4 w-px" />
-          <Button
+    <section
+      data-testid="soko-bot-connect-prompt"
+      aria-label={t("connectTitle", { bot: botName })}
+      className="border-border bg-background-muted mx-3 -mb-px flex items-center gap-3 rounded-t-lg border border-b-0 py-1.5 ps-3 pe-1.5"
+    >
+      <Inbox aria-hidden className="text-muted-foreground size-4 shrink-0" />
+      <Tooltip open={titleOpen} onOpenChange={setTitleOpen}>
+        <TooltipTrigger asChild>
+          <button
             type="button"
-            size="icon"
-            variant="ghost"
-            aria-label={t("connectDismiss")}
-            onClick={onDismiss}
-            className="text-muted-foreground size-7"
+            onClick={(event) => {
+              event.preventDefault();
+              setTitleOpen(true);
+            }}
+            className="min-w-0 flex-1 rounded text-start text-xs leading-5 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
-            <X aria-hidden className="size-3.5" />
-          </Button>
-        </div>
-      </section>
-    </div>
+            <span className="block truncate">
+              <span className="font-medium">
+                {t("connectTitle", { bot: botName })}
+              </span>
+              <span className="text-muted-foreground max-sm:hidden">
+                {" · "}
+                {t("connectBody")}
+              </span>
+            </span>
+          </button>
+        </TooltipTrigger>
+        <TooltipContent
+          side="top"
+          className="max-w-xs [overflow-wrap:anywhere]"
+        >
+          {t("connectTitle", { bot: botName })}
+        </TooltipContent>
+      </Tooltip>
+      <div className="flex shrink-0 items-center gap-0.5">
+        {offers.map((offer) => {
+          const Logo = SOKO_BOT_PROVIDER_LOGOS[offer.provider];
+          const label = offer.connected
+            ? t("connectConnected", { name: offer.name })
+            : t("connectProvider", { name: offer.name });
+          return (
+            <Tooltip key={offer.provider}>
+              <TooltipTrigger asChild>
+                {/* aria-disabled, not disabled: a connected provider keeps
+                      its tooltip and stays reachable, it just does nothing. */}
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="ghost"
+                  aria-label={label}
+                  aria-disabled={offer.connected || busy !== null}
+                  onClick={() => {
+                    if (!offer.connected && busy === null)
+                      connect(offer.provider);
+                  }}
+                  className="relative size-7 aria-disabled:cursor-default"
+                >
+                  {Logo ? <Logo className="size-4 shrink-0" /> : null}
+                  {offer.connected ? (
+                    <Check
+                      aria-hidden
+                      className="bg-background text-semantic-success absolute -end-0.5 -bottom-0.5 size-3 rounded-full"
+                    />
+                  ) : null}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top">{label}</TooltipContent>
+            </Tooltip>
+          );
+        })}
+        <span aria-hidden className="bg-border mx-1 h-4 w-px" />
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          aria-label={t("connectDismiss")}
+          onClick={onDismiss}
+          className="text-muted-foreground size-7"
+        >
+          <X aria-hidden className="size-3.5" />
+        </Button>
+      </div>
+    </section>
   );
 }
