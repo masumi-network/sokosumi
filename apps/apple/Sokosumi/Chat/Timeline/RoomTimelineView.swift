@@ -444,7 +444,6 @@ import SwiftUI
         Button("Retry", action: retry)
       }
     }
-
   }
 
 #endif

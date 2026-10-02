@@ -95,9 +95,9 @@ public func hasThoughtView(_ message: Components.Schemas.ChatRoomMessage) -> Boo
 public func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   switch message.sender {
   case .case2:
-    return true
+    true
   case .case1, .case3, .case4:
-    return false
+    false
   }
 }
 
