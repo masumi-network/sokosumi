@@ -5962,7 +5962,6 @@
       "Actions": {
         "more": "Message actions",
         "overflow": "More",
-        "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",
         "cancel": "Cancel",
@@ -6053,8 +6052,7 @@
         "personalAssistants": "Personal assistants",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes",
-        "manageGuests": "Manage guests"
+        "save": "Save changes"
       },
       "MentionStatus": {
         "failed": "Failed to reply",
@@ -6284,7 +6282,7 @@
         "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
         "external": "External",
         "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members.",
-        "externalLocked": "This channel has guests. Remove them before making it public or private."
+        "externalLocked": "Remove all guests in the members panel to make this channel public or private."
       },
       "CreateWizard": {
         "title": "Create a channel",

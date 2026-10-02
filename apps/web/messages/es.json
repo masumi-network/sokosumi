@@ -5962,7 +5962,6 @@
       "Actions": {
         "more": "Acciones del mensaje",
         "overflow": "Más",
-        "sectionTitle": "Gestionar canal",
         "leave": "Salir del canal",
         "archive": "Archivar canal",
         "cancel": "Cancelar",
@@ -6053,8 +6052,7 @@
         "personalAssistants": "Asistentes personales",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes",
-        "manageGuests": "Gestionar invitados"
+        "save": "Save changes"
       },
       "MentionStatus": {
         "failed": "No se pudo responder",
@@ -6284,7 +6282,7 @@
         "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse.",
         "external": "Externo",
         "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización.",
-        "externalLocked": "Este canal tiene invitados. Quítalos antes de hacerlo público o privado."
+        "externalLocked": "Quita a todos los invitados en el panel de miembros para hacer este canal público o privado."
       },
       "CreateWizard": {
         "title": "Crear un canal",

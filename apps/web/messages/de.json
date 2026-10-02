@@ -5962,7 +5962,6 @@
       "Actions": {
         "more": "Nachrichtenaktionen",
         "overflow": "Mehr",
-        "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",
         "cancel": "Abbrechen",
@@ -6053,8 +6052,7 @@
         "personalAssistants": "Persönliche Assistenten",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes",
-        "manageGuests": "Gäste verwalten"
+        "save": "Save changes"
       },
       "MentionStatus": {
         "failed": "Antwort fehlgeschlagen",
@@ -6284,7 +6282,7 @@
         "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
         "external": "Extern",
         "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft.",
-        "externalLocked": "Dieser Kanal hat Gäste. Entferne sie, bevor du ihn öffentlich oder privat machst."
+        "externalLocked": "Entferne alle Gäste im Mitgliederbereich, um diesen Kanal öffentlich oder privat zu machen."
       },
       "CreateWizard": {
         "title": "Kanal erstellen",

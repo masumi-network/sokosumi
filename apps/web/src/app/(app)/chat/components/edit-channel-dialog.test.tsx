@@ -93,12 +93,7 @@ async function openDialog() {
 
 describe("EditChannelDialog", () => {
   it("offers name, topic, visibility and Archive, and no roster", async () => {
-    render(
-      <ShellOwnedEditChannelDialog
-        channel={channel()}
-        onManageGuests={vi.fn()}
-      />,
-    );
+    render(<ShellOwnedEditChannelDialog channel={channel()} />);
     await openDialog();
 
     expect(
@@ -112,14 +107,23 @@ describe("EditChannelDialog", () => {
     expect(screen.queryByRole("button", { name: "leave" })).toBeNull();
   });
 
+  it("keeps Save off until something changes", async () => {
+    render(<ShellOwnedEditChannelDialog channel={channel()} />);
+    const user = await openDialog();
+
+    const save = screen.getByRole("button", { name: "Dialog.save" });
+    expect(save).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Dialog.topic"), "News");
+    expect(save).toBeEnabled();
+
+    await user.clear(screen.getByLabelText("Dialog.topic"));
+    expect(save).toBeDisabled();
+  });
+
   it("saves settings only", async () => {
     updateRoomActionMock.mockResolvedValue({ ok: true, value: channel() });
-    render(
-      <ShellOwnedEditChannelDialog
-        channel={channel()}
-        onManageGuests={vi.fn()}
-      />,
-    );
+    render(<ShellOwnedEditChannelDialog channel={channel()} />);
     const user = await openDialog();
 
     await user.type(screen.getByLabelText("Dialog.topic"), "News");
@@ -135,8 +139,7 @@ describe("EditChannelDialog", () => {
     });
   });
 
-  it("locks Public and Private on an External channel with guests, and sends the reader to them", async () => {
-    const onManageGuests = vi.fn();
+  it("locks Public and Private on an External channel with guests", async () => {
     const room = channel({
       discoverability: "external",
       userMembers: [
@@ -151,34 +154,19 @@ describe("EditChannelDialog", () => {
         },
       ],
     });
-    render(
-      <ShellOwnedEditChannelDialog
-        channel={room}
-        onManageGuests={onManageGuests}
-      />,
-    );
-    const user = await openDialog();
+    render(<ShellOwnedEditChannelDialog channel={room} />);
+    await openDialog();
 
     expect(screen.getByLabelText("Visibility.public")).toBeDisabled();
     expect(screen.getByLabelText("Visibility.private")).toBeDisabled();
     expect(screen.getByLabelText("Visibility.external")).toBeEnabled();
     expect(screen.getByText("Visibility.externalLocked")).toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "Dialog.manageGuests" }),
-    );
-
-    expect(onManageGuests).toHaveBeenCalledTimes(1);
-    await waitFor(() => {
-      expect(screen.queryByLabelText("Dialog.name")).toBeNull();
-    });
   });
 
   it("leaves visibility open on an External channel without guests", async () => {
     render(
       <ShellOwnedEditChannelDialog
         channel={channel({ discoverability: "external" })}
-        onManageGuests={vi.fn()}
       />,
     );
     await openDialog();

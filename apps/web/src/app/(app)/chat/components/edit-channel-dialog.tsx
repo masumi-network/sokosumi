@@ -62,7 +62,6 @@ export function EditChannelDialog({
   channel,
   open,
   onOpenChange: setOpen,
-  onManageGuests,
   children,
 }: {
   channel: ChatRoom;
@@ -73,8 +72,6 @@ export function EditChannelDialog({
    */
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Close settings and show the members panel, where guests are removed. */
-  onManageGuests: () => void;
   /** Single element for DialogTrigger asChild; must accept merged props and ref. */
   children: ReactElement;
 }) {
@@ -102,6 +99,12 @@ export function EditChannelDialog({
     setTopic(channel.topic ?? "");
     setDiscoverability(channelDiscoverability(channel.discoverability));
   }, [channel, open]);
+
+  const trimmedTopic = topic.trim();
+  const hasChanges =
+    name.trim() !== channel.name ||
+    trimmedTopic !== (channel.topic ?? "") ||
+    discoverability !== channelDiscoverability(channel.discoverability);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -148,11 +151,6 @@ export function EditChannelDialog({
     // (nested focus traps). Confirm stays mounted as a true Dialog sibling.
     setOpen(false);
     setArchiveConfirmOpen(true);
-  }
-
-  function handleManageGuests() {
-    setOpen(false);
-    onManageGuests();
   }
 
   return (
@@ -222,23 +220,12 @@ export function EditChannelDialog({
                   ))}
                 </RadioGroup>
                 {isVisibilityLocked ? (
-                  <div className="flex flex-col items-start gap-1">
-                    <p
-                      id="edit-channel-visibility-locked"
-                      className="text-muted-foreground text-xs"
-                    >
-                      {t("Visibility.externalLocked")}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0"
-                      onClick={handleManageGuests}
-                    >
-                      {t("Dialog.manageGuests")}
-                    </Button>
-                  </div>
+                  <p
+                    id="edit-channel-visibility-locked"
+                    className="text-muted-foreground text-xs"
+                  >
+                    {t("Visibility.externalLocked")}
+                  </p>
                 ) : (
                   <p className="text-muted-foreground text-xs">
                     {discoverability === "public"
@@ -250,8 +237,23 @@ export function EditChannelDialog({
                 )}
               </div>
             </div>
-            <DialogFooter>
-              <Button type="submit" variant="primary" disabled={isPending}>
+            {/* One row: the rare, destructive action on the start edge, away
+                from Save, so the two are never mistaken for each other. */}
+            <DialogFooter className="pt-2 sm:justify-between">
+              <Button
+                type="button"
+                variant="ghost"
+                className="text-semantic-destructive hover:text-semantic-destructive gap-2"
+                onClick={handleRequestArchive}
+              >
+                <ArchiveIcon className="size-4" aria-hidden />
+                {tActions("archive")}
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isPending || !hasChanges}
+              >
                 {isPending ? (
                   <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 ) : null}
@@ -259,18 +261,6 @@ export function EditChannelDialog({
               </Button>
             </DialogFooter>
           </form>
-          <div className="space-y-3 border-t pt-4">
-            <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
-            <Button
-              type="button"
-              variant="outline"
-              className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
-              onClick={handleRequestArchive}
-            >
-              <ArchiveIcon className="size-4" aria-hidden />
-              {tActions("archive")}
-            </Button>
-          </div>
         </DialogContent>
       </Dialog>
 

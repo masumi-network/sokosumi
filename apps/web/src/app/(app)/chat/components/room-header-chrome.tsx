@@ -222,7 +222,6 @@ export function RoomHeaderChrome({
                 channel={room}
                 open={editOpen}
                 onOpenChange={onEditOpenChange}
-                onManageGuests={onOpenRoster}
               >
                 <button
                   type="button"
