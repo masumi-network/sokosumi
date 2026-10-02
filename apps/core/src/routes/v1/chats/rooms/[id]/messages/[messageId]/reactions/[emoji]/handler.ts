@@ -11,7 +11,7 @@ import {
 import {
   chatRoomMessageInclude,
   mapChatRoomMessage,
-  requireChatRoomUserMembership,
+  requireWritableChatRoom,
 } from "../../../../../helpers";
 import { assertChatRoomContentMessage } from "../../../../../membership-status";
 
@@ -58,7 +58,7 @@ export async function setChatRoomMessageReaction(params: {
   const { roomId, messageId, userId, emoji, reacted } = params;
 
   const { message, changed } = await prisma.$transaction(async (tx) => {
-    await requireChatRoomUserMembership(roomId, userId, tx);
+    await requireWritableChatRoom(roomId, userId, tx);
 
     const target = await tx.chatRoomMessage.findFirst({
       where: { id: messageId, roomId },
