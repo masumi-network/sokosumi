@@ -51,6 +51,12 @@ export interface EmailStepDetour {
   follow?: (email: string, signal: AbortSignal) => Promise<void>;
 }
 
+/** What Core said about the address, for the step after Continue. */
+export interface EmailStepAccount {
+  /** Sign-in opens on it, since a code could remove an unproven password. */
+  hasPassword: boolean;
+}
+
 interface EmailStepProps {
   defaultEmail: string;
   /** An invitation fixes the address; the person can only confirm it. */
@@ -67,7 +73,11 @@ interface EmailStepProps {
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
-  onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
+  onContinue: (
+    email: string,
+    signal: AbortSignal,
+    account: EmailStepAccount,
+  ) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
   /** Another sign-in is starting, e.g. with Google; the step waits. */
@@ -206,10 +216,14 @@ export function EmailStep({
     try {
       await runWithCaptcha(async (fetchOptions) => {
         if (!isCurrent()) return;
-        const result = await authClient.$fetch<{ exists: boolean }>(
-          "/sign-up/email-status",
-          { method: "POST", body: { email }, headers: fetchOptions.headers },
-        );
+        const result = await authClient.$fetch<{
+          exists: boolean;
+          hasPassword: boolean;
+        }>("/sign-up/email-status", {
+          method: "POST",
+          body: { email },
+          headers: fetchOptions.headers,
+        });
 
         if (!isCurrent()) return;
         if (result.error) {
@@ -233,7 +247,9 @@ export function EmailStep({
           return;
         }
 
-        await onContinue(email, controller.signal);
+        await onContinue(email, controller.signal, {
+          hasPassword: result.data.hasPassword,
+        });
       });
     } finally {
       // Also after Continue has swapped this step out for the next one.

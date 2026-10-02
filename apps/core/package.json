@@ -41,6 +41,7 @@
   },
   "dependencies": {
     "@better-auth/api-key": "1.7.7",
+    "@better-auth/core": "1.7.7",
     "@better-auth/i18n": "1.7.7",
     "@better-auth/oauth-provider": "1.7.7",
     "@better-auth/passkey": "1.7.7",

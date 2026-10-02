@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 
 import type { EmailCode } from "./use-email-code";
 
-const LINK_CLASS =
+/** A text button under the second step, e.g. to switch the method. */
+export const STEP_LINK_BUTTON_CLASS =
   "text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed";
 
 interface EmailCodeSwitchProps {
@@ -36,7 +37,7 @@ export function EmailCodeSwitch({
         <button
           type="button"
           data-testid="auth-use-password"
-          className={LINK_CLASS}
+          className={STEP_LINK_BUTTON_CLASS}
           onClick={() => onSwitch("password")}
         >
           {t("usePasswordInstead")}
@@ -46,7 +47,7 @@ export function EmailCodeSwitch({
           {t("codeStillWorks")}{" "}
           <button
             type="button"
-            className={LINK_CLASS}
+            className={STEP_LINK_BUTTON_CLASS}
             onClick={() => onSwitch("code")}
           >
             {t("useCodeInstead")}
@@ -57,7 +58,7 @@ export function EmailCodeSwitch({
           {emailCode.captcha}
           <button
             type="button"
-            className={LINK_CLASS}
+            className={STEP_LINK_BUTTON_CLASS}
             disabled={emailCode.isSending}
             onClick={async () => {
               await emailCode.sendCode(email);
