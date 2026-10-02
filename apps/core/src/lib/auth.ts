@@ -270,6 +270,7 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
+    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
