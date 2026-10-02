@@ -48,7 +48,7 @@ async function ChatChatsListWithArchived({
   const { archivedChatRoomsPage, members } =
     await getPrivateCachedChatListArchivedAndMembers(cacheArgs);
 
-  const canDeleteArchivedRooms = Boolean(
+  const isOrgOwnerOrAdmin = Boolean(
     activeOrganizationId &&
       members.some(
         (membership) =>
@@ -64,7 +64,7 @@ async function ChatChatsListWithArchived({
       archivedRooms={archivedChatRoomsPage.rooms}
       currentUserId={currentUserId}
       organizationId={activeOrganizationId}
-      canDeleteArchivedRooms={canDeleteArchivedRooms}
+      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       dismissSheetOnNavigate={false}
     />
   );
@@ -126,7 +126,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
                 archivedRooms={[]}
                 currentUserId={currentUserId}
                 organizationId={activeOrganizationId}
-                canDeleteArchivedRooms={false}
+                isOrgOwnerOrAdmin={false}
                 dismissSheetOnNavigate={false}
               />
             }

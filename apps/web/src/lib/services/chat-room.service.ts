@@ -2,6 +2,7 @@ import "server-only";
 
 import type {
   AcceptChatRoomGuestInviteLink,
+  AddChatRoomMembersRequest,
   ChannelSlugAvailability,
   ChatEarlierThread,
   ChatRoom,
@@ -299,8 +300,35 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function addMembers(
+    roomId: string,
+    body: AddChatRoomMembersRequest,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.addChatRoomMembers(roomId, body);
+    return response.data;
+  }
+
   async function removeMember(roomId: string, userId: string) {
     const response = await coreClient.removeChatRoomMember(roomId, userId);
+    return response.data;
+  }
+
+  async function removeCoworker(
+    roomId: string,
+    coworkerId: string,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.removeChatRoomCoworker(
+      roomId,
+      coworkerId,
+    );
+    return response.data;
+  }
+
+  async function removeSokoBot(
+    roomId: string,
+    sokoBotId: string,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.removeChatRoomSokoBot(roomId, sokoBotId);
     return response.data;
   }
 
@@ -678,7 +706,10 @@ export const chatRoomService = (() => {
     getMessage,
     getThread,
     leaveRoom,
+    addMembers,
     removeMember,
+    removeCoworker,
+    removeSokoBot,
     markRead,
     markAllUnreadThreadsRead,
     markThreadRead,

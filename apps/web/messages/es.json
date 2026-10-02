@@ -5983,7 +5983,6 @@
       "Actions": {
         "more": "Acciones del mensaje",
         "overflow": "Más",
-        "sectionTitle": "Gestionar canal",
         "leave": "Salir del canal",
         "archive": "Archivar canal",
         "cancel": "Cancelar",
@@ -6010,7 +6009,9 @@
         "mute": "Silenciar",
         "unmute": "Dejar de silenciar",
         "roomMenu": "Acciones del chat para {name}",
-        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo."
+        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo.",
+        "archiveHint": "Oculta el canal para todos. Restáuralo más tarde desde Archivados en la barra lateral.",
+        "archiveButton": "Archivar"
       },
       "Metadata": {
         "title": "Chat",
@@ -6059,15 +6060,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Salir del canal",
-        "actionsOnlyDescription": "Sal de este canal cuando ya no lo necesites. La configuración del canal la gestionan los administradores.",
+        "editTitle": "Ajustes del canal",
         "name": "Name",
         "nameRequired": "El nombre del canal es obligatorio.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "¿Para qué es este canal?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "No puedes quitarte a ti mismo",
@@ -6307,7 +6305,9 @@
         "publicHelp": "Cualquiera en la organización puede encontrar y unirse a este canal.",
         "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse.",
         "external": "Externo",
-        "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización."
+        "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización.",
+        "externalLocked": "Quita a todos los invitados en el panel de miembros para hacer este canal público o privado.",
+        "hasGuests": "Tiene invitados"
       },
       "CreateWizard": {
         "title": "Crear un canal",
@@ -6337,13 +6337,31 @@
         "open": "Miembros",
         "title": "Miembros",
         "humansTitle": "Personas",
+        "guestsTitle": "Invitados",
         "agentsTitle": "Coworkers",
         "close": "Cerrar miembros",
         "empty": "No hay miembros.",
         "message": "Mensaje a {name}",
         "copy": "Copiar {value}",
         "copySuccess": "Copiado al portapapeles",
-        "copyError": "No se pudo copiar."
+        "copyError": "No se pudo copiar.",
+        "add": "Añadir miembros",
+        "memberActions": "Más acciones para {name}",
+        "remove": "Quitar del canal",
+        "removeConfirmTitle": "¿Quitar a {name} de este canal?",
+        "removeConfirmDescription": "{name} ya no verá este canal ni sus mensajes.",
+        "removeSuccess": "Se quitó a {name} del canal.",
+        "undo": "Deshacer"
+      },
+      "AddMembers": {
+        "title": "Añadir miembros",
+        "description": "Añade personas, coworkers y tus asistentes personales a {name}.",
+        "membersTab": "De tu organización",
+        "guestsTab": "Invitar desde fuera",
+        "submit": "Añadir",
+        "chooseSomeone": "Elige a quién añadir.",
+        "nobodyToAdd": "Todas las personas que puedes añadir ya están en este canal.",
+        "success": "{count, plural, one {Se añadió # miembro.} other {Se añadieron # miembros.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Leído por # persona} other {Leído por # personas}}",
@@ -6381,7 +6399,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} se unió",
-        "left": "{name} salió"
+        "left": "{name} salió",
+        "added": "{actor} añadió a {name}",
+        "removed": "{actor} quitó a {name}"
       },
       "GroupName": {
         "rename": "Cambiar nombre",
@@ -6412,11 +6432,6 @@
         "send": "Enviar invitación",
         "invalidEmail": "Introduce un correo válido.",
         "inviteSuccess": "Invitación enviada a {email}.",
-        "guestsTitle": "Invitados",
-        "guestsEmpty": "Aún no hay invitados.",
-        "removeGuest": "Quitar invitado",
-        "removeGuestAria": "Quitar invitado {name}",
-        "removeGuestSuccess": "Se quitó a {name} del canal.",
         "pendingTitle": "Invitaciones pendientes",
         "empty": "No hay invitaciones pendientes.",
         "loading": "Cargando invitaciones…",

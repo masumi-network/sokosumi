@@ -579,6 +579,10 @@ export type ChatRoomSokoBotParticipant = {
     caption: string | null;
     image: string | null;
     avatarSeed: string | null;
+    /**
+     * The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.
+     */
+    ownerUserId: string;
     presence: ChatRoomPresence;
 };
 
@@ -634,6 +638,13 @@ export type ChatRoomMessageQuoteAttachment = {
 export type ChatRoomMessageMembership = {
     action: 'joined' | 'left';
     subject: ChatRoomMessageMembershipSubject;
+    /**
+     * Who added or removed the subject. Absent when the subject joined or left on their own.
+     */
+    actor?: {
+        id: string;
+        name: string;
+    };
 } | null;
 
 export type ChatRoomMessageMembershipSubject = {
@@ -2935,15 +2946,6 @@ export type UpdateChatRoomRequest = {
     topic?: string | null;
     discoverability?: OrgChannelDiscoverability;
     /**
-     * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
-     */
-    memberUserIds?: Array<string>;
-    coworkerIds?: Array<string>;
-    /**
-     * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
-     */
-    sokoBotIds?: Array<string>;
-    /**
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
     groupName?: string | null;
@@ -2998,6 +3000,21 @@ export type LeftChatRoom = {
      * Human members left in the room after the caller leaves. Zero only for org-less matched channels, which auto-archive when the last member leaves. Organization rooms keep the last member (archive instead).
      */
     remainingUserMemberCount: number;
+};
+
+export type AddChatRoomMembersRequest = {
+    /**
+     * Organization member user IDs to add to the room.
+     */
+    userIds?: Array<string>;
+    /**
+     * Marketplace AI coworker IDs to add to the room.
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    sokoBotIds?: Array<string>;
 };
 
 export type ChatRoomThread = {
@@ -19660,6 +19677,21 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19680,7 +19712,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdError = DeleteChatsRoomsByIdMembe
 
 export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
     /**
-     * Guest removed
+     * Member removed
      */
     200: {
         data: LeftChatRoom;
@@ -19693,6 +19725,386 @@ export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
 };
 
 export type DeleteChatsRoomsByIdMembersByUserIdResponse = DeleteChatsRoomsByIdMembersByUserIdResponses[keyof DeleteChatsRoomsByIdMembersByUserIdResponses];
+
+export type PostChatsRoomsByIdMembersData = {
+    body?: AddChatRoomMembersRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/members';
+};
+
+export type PostChatsRoomsByIdMembersErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersError = PostChatsRoomsByIdMembersErrors[keyof PostChatsRoomsByIdMembersErrors];
+
+export type PostChatsRoomsByIdMembersResponses = {
+    /**
+     * Members added
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersResponse = PostChatsRoomsByIdMembersResponses[keyof PostChatsRoomsByIdMembersResponses];
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        coworkerId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/coworkers/{coworkerId}';
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or Coworker not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdError = DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors[keyof DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors];
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses = {
+    /**
+     * Coworker removed
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdResponse = DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses[keyof DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses];
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/soko-bots/{sokoBotId}';
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or Soko Bot not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdError = DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors[keyof DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors];
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses = {
+    /**
+     * Soko Bot removed
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponse = DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses[keyof DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses];
 
 export type PostChatsRoomsByIdReadData = {
     body?: never;
