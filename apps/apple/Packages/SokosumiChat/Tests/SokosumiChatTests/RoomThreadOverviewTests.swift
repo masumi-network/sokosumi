@@ -227,9 +227,9 @@ struct RoomThreadOverviewTests {
 
   @Test func markAllReadReloadPreservesResolvedMentionPreview() async throws {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", name: "Anna Smith", email: "anna@example.com", presence: .online)
-    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
+    let room = Components.Schemas.ChatRoom(id: testRoomId, name: "Room", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "AbCdEfGhIjKlMnOpQrStUvWxYz012345", createdAt: Date(), updatedAt: Date(),
                                            unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-                                           userMembers: [user], coworkerMembers: [], sokoBotMembers: [])
+                                           userMembers: [user], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
     let transport = TestTransport([
       (200, testMessagesPageBody(messages: [threadJSON(id: "parent", unread: 2, content: "**Hello** @AbCdEfGhIjKlMnOpQrStUvWxYz012345")], nextCursor: nil)),
       (200, #"{"data":{"markedCount":1},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"test"}}"#),

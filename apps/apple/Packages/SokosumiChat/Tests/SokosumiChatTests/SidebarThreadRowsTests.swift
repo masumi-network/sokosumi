@@ -22,7 +22,7 @@ struct SidebarThreadRowsTests {
     _ listed: [Listed]?, threadCount: Int? = nil, muted: Bool = false, id: String = roomId
   ) -> Components.Schemas.ChatRoom {
     .init(
-      id: id, name: "product-launch", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      id: id, name: "product-launch", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
       discoverability: ._public, createdByUserId: "user_1", createdAt: fixedDate, updatedAt: fixedDate,
       unreadCount: 5, channelUnreadCount: 1, threadUnreadCount: 4, unreadThreadCount: threadCount,
       unreadThreads: listed?.map {
@@ -31,7 +31,7 @@ struct SidebarThreadRowsTests {
       },
       unreadMentionCount: 0, mutedAt: muted ? fixedDate : nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
       userMembers: [.init(id: adaId, name: "Ada Lovelace", email: "ada@example.com", presence: .online)],
-      coworkerMembers: [], sokoBotMembers: []
+      formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 

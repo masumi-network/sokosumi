@@ -13,12 +13,12 @@
       @Test(arguments: [false, true])
       func rendersSettingsWithoutRoster(dark: Bool) async throws {
         let room = Components.Schemas.ChatRoom(
-          id: "fixture", organizationId: "org", name: "Design", slug: "design", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+          id: "fixture", organizationId: "org", name: "Design", slug: "design", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
           topic: "Discuss designs and share feedback with the team.", discoverability: ._private, createdByUserId: "me",
           createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
           markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
           userMembers: [.init(id: "me", name: "Alex Morgan", email: "alex@example.com", presence: .online, access: .member)],
-          coworkerMembers: [], sokoBotMembers: []
+          formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
         let model = ChannelEditing(room: room)
         let view = EditChannelView(room: room, model: model, save: { _ in

@@ -34,11 +34,11 @@
       ) -> Components.Schemas.ChatRoom {
         let updated = lastWeek.addingTimeInterval(Double(-rank * 60))
         return .init(
-          id: "550e8400-e29b-41d4-a716-44665544080\(rank)", name: name, kind: kind, isSelfDirect: false, isGroupDirect: members.count > 2,
+          id: "550e8400-e29b-41d4-a716-44665544080\(rank)", name: name, kind: kind, isSelfDirect: false, isGroupDirect: members.count > 2, isReadOnly: false,
           discoverability: kind == .channel ? .external : nil, createdByUserId: "ada", createdAt: lastWeek, updatedAt: updated,
           unreadCount: channel + thread, channelUnreadCount: channel, threadUnreadCount: thread, unreadThreadCount: threads,
           unreadThreadMentionCount: threadMentions, unreadMentionCount: mentions, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
-          userMembers: members, coworkerMembers: [], sokoBotMembers: []
+          userMembers: members, formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }
 
