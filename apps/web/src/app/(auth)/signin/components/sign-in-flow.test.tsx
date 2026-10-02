@@ -106,7 +106,10 @@ describe("SignInFlow", () => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
     mockSearchParams = new URLSearchParams();
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: false },
+      error: null,
+    });
     sendEmailCodeMock.mockResolvedValue({
       data: { success: true },
       error: null,
@@ -169,6 +172,73 @@ describe("SignInFlow", () => {
         emailCode: expect.objectContaining({ sentTo: null }),
       }),
     );
+  });
+
+  // A code sign-in to an account whose address is unproven removes its
+  // password, so a new browser asks for the password instead.
+  it("opens on the password without emailing a code when the account has one", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signInFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        initialMethod: "password",
+        emailCode: expect.objectContaining({ sentTo: null }),
+      }),
+    );
+  });
+
+  it("asks again after the address changes to one without a password", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValueOnce({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.clear(emailField());
+    await continueWith(user, "grace@example.com");
+
+    await waitFor(() =>
+      expect(signInFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          email: "grace@example.com",
+          initialMethod: "code",
+        }),
+      ),
+    );
+    expect(sendEmailCodeMock).toHaveBeenCalledOnce();
+  });
+
+  // The cookie belongs to the browser, not the account: on a shared browser it
+  // can name another person's code sign-in.
+  it("opens on the password for an account with one, even when the code was used last", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod="email-otp" />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() =>
+      expect(signInFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialMethod: "password" }),
+      ),
+    );
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
   it("emails a code when the code was used last, and marks Continue", async () => {

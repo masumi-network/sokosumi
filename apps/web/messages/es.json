@@ -1261,7 +1261,8 @@
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "error": "Error al registrarse",
+          "addPassword": "Establecer también una contraseña",
+          "removePassword": "Registrarse sin contraseña",
           "Fields": {
             "MarketingOptIn": {
               "label": "Quiero recibir actualizaciones y novedades"
@@ -1350,6 +1351,12 @@
       "code": "Código de error: {code}",
       "description": "Detalles: {description}",
       "backToSignIn": "Volver al inicio de sesión"
+    },
+    "SignInMethodsRemoved": {
+      "title": "Hemos eliminado tus métodos de inicio de sesión anteriores",
+      "description": "Iniciaste sesión con un código, así que por seguridad eliminamos tu contraseña anterior y tus vínculos con Google/Microsoft. Establece una nueva contraseña en tu cuenta.",
+      "setPassword": "Establecer una nueva contraseña",
+      "continue": "Continuar"
     }
   },
   "App": {

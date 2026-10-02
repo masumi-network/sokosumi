@@ -59,8 +59,14 @@ vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     $fetch: (...args: unknown[]) => emailStatusMock(...args),
     getSession: vi.fn(),
+    emailOtp: {
+      sendVerificationOtp: vi
+        .fn()
+        .mockResolvedValue({ data: { success: true }, error: null }),
+    },
+    // A password sign-up goes through the email code.
+    signIn: { emailOtp: (...args: unknown[]) => signUpEmailMock(...args) },
   },
-  signUp: { email: (...args: unknown[]) => signUpEmailMock(...args) },
 }));
 
 vi.mock("@/lib/gtm-events", () => ({
@@ -102,7 +108,10 @@ describe("stepped sign-up with an OAuth request", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, hasPassword: false },
+      error: null,
+    });
   });
 
   it("reaches the second step without navigating, then leaves the redirect to the provider", async () => {
@@ -135,11 +144,15 @@ describe("stepped sign-up with an OAuth request", () => {
     expect(window.location.search).toBe(`?${OAUTH_SEARCH}`);
 
     await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
+    await user.click(screen.getByRole("button", { name: "addPassword" }));
     await user.type(
       screen.getByLabelText("Fields.Password.label"),
       "Passw0rd!",
     );
-    await user.click(screen.getByRole("button", { name: "submit" }));
+    await user.type(
+      screen.getByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
 
     await waitFor(() => {
       expect(signUpEmailMock).toHaveBeenCalledTimes(1);
@@ -149,7 +162,8 @@ describe("stepped sign-up with an OAuth request", () => {
         email: "ada@example.com",
         firstName: "Ada",
         lastName: "Lovelace",
-        name: "Ada Lovelace",
+        otp: "042917",
+        password: "Passw0rd!",
         termsAccepted: true,
       }),
     );
