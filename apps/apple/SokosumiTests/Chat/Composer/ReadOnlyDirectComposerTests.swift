@@ -95,8 +95,11 @@
         _ = try await waitForView(in: host, timeoutMessage: "Reaction access did not close") {
           Self.reactionMenus(host).first { !$0.availability.canReact && $0.availability.canCopyLink }
         }
-        // Allow the popover's dismissal animation to settle after the room refresh.
-        try await Task.sleep(for: .milliseconds(500))
+        // Poll rather than sleep a fixed time: the popover's dismissal animation runs late on a loaded runner.
+        let deadline = ContinuousClock.now.advanced(by: .seconds(10))
+        while pickerWindow.isVisible, ContinuousClock.now < deadline {
+          try await Task.sleep(for: .milliseconds(20))
+        }
         #expect(!pickerWindow.isVisible, "An open reaction picker must close when the room becomes read-only")
       }
     }
