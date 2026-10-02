@@ -29,7 +29,6 @@ function renderRelated(
 ) {
   return render(
     <TaskRelatedTasks
-      title="Linked tasks"
       tasks={tasks}
       relationLabels={relationLabels}
       statusLabels={statusLabels}
@@ -92,11 +91,11 @@ describe("TaskRelatedTasks", () => {
     ]);
 
     expect(
-      screen.getByRole("heading", { level: 2, name: "Linked tasks" }),
-    ).toBeInTheDocument();
+      screen.queryByRole("heading", { name: "Linked tasks" }),
+    ).not.toBeInTheDocument();
     expect(
       screen
-        .getAllByRole("heading", { level: 3 })
+        .getAllByRole("heading", { level: 2 })
         .map((heading) => heading.textContent),
     ).toEqual([
       "Blocked by",
@@ -177,7 +176,7 @@ describe("TaskRelatedTasks", () => {
       },
     ]);
 
-    expect(screen.getAllByRole("heading", { level: 3 })).toHaveLength(1);
+    expect(screen.getAllByRole("heading", { level: 2 })).toHaveLength(1);
     expect(screen.queryByText("Blocking")).not.toBeInTheDocument();
   });
 });

@@ -1695,7 +1695,6 @@
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
-        "linkedTasksTitle": "Linked tasks",
         "copyIdentifier": "Copy task ID",
         "identifierCopied": "Copied {identifier}",
         "identifierCopyError": "Could not copy the task ID",

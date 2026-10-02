@@ -243,7 +243,6 @@ export async function TaskDetailView({
                 />
               </Suspense>
               <TaskRelatedTasks
-                title={t("linkedTasksTitle")}
                 tasks={linkedTasks}
                 relationLabels={{
                   related: t("actions.relations.related"),
@@ -493,7 +492,7 @@ async function TaskMetadataSection({
   });
 
   return (
-    <div className="contents">
+    <div className="space-y-6">
       <TaskMetadata
         title={t("properties")}
         taskId={task.id}

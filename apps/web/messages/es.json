@@ -1694,7 +1694,6 @@
         "updated": "Actualizado",
         "description": "Descripción",
         "context": "Contexto",
-        "linkedTasksTitle": "Tareas vinculadas",
         "copyIdentifier": "Copiar ID de la tarea",
         "identifierCopied": "{identifier} copiado",
         "identifierCopyError": "No se pudo copiar el ID de la tarea",
