@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { OAuthOptions } from "@better-auth/oauth-provider";
+import type { DBAdapter } from "better-auth";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
@@ -16,6 +17,29 @@ export const oauthRefreshTokenOptions = {
   // response instead of signing the person out (default: 0, off).
   refreshTokenReuseInterval: 30,
 } satisfies Partial<OAuthOptions>;
+
+/**
+ * Revokes every access and refresh token the OAuth provider holds for a user,
+ * across all clients. The provider's own logout path only revokes a session's
+ * tokens and keeps `offline_access` refresh tokens (OIDC Back-Channel Logout
+ * §2.7), so a client signed in with a stolen password would outlive the reset.
+ * Same write as that path: rows are marked `revoked`, which the refresh grant
+ * and Core's bearer check both refuse.
+ */
+export async function revokeUserOAuthTokens(
+  adapter: Pick<DBAdapter, "updateMany">,
+  userId: string,
+) {
+  const where = [
+    { field: "userId", value: userId },
+    { field: "revoked", operator: "eq" as const, value: null },
+  ];
+  const update = { revoked: new Date() };
+  await Promise.all([
+    adapter.updateMany({ model: "oauthAccessToken", where, update }),
+    adapter.updateMany({ model: "oauthRefreshToken", where, update }),
+  ]);
+}
 
 /** Production CMO's callback: marks the CMO client in a preview database. */
 const CMO_PRODUCTION_CALLBACK =
