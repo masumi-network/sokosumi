@@ -277,7 +277,7 @@ public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomK
     return .external
   }
   // Guests are always on external rooms (DB invariant); safety net.
-  if room.myAccess == .guest {
+  if room.myAccess.value1 == .guest {
     return .external
   }
   return room.kind == .channel ? .channel : .direct

@@ -38,7 +38,7 @@ private func makeRoom(id: String) -> Components.Schemas.ChatRoom {
     unreadCount: 0,
     unreadMentionCount: 0,
     markedUnread: false,
-    myAccess: .member,
+    myAccess: .init(value1: .member, value2: "member"),
     userMembers: [],
     coworkerMembers: [],
     sokoBotMembers: []

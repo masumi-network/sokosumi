@@ -3,10 +3,10 @@ import Foundation
 
 public struct ChannelRoster: Sendable {
   public let recipients: ChatRecipientRoster
-  /// Organization owner/admin: may create External channels and manage channel settings. False when the role could not be read.
+  /// Organization owner/admin: may create External channels. False when the role could not be read.
   public let isOwnerOrAdmin: Bool
   /// The caller's own membership could not be read (403, 500, an undocumented status or no response; web
-  /// `rooms/[roomId]/page.tsx`): editing falls back to a member's rights, and creating blocks as web's dialog does.
+  /// `rooms/[roomId]/page.tsx`): creating blocks as web's dialog does.
   public let roleLoadFailed: Bool
 
   public init(recipients: ChatRecipientRoster, isOwnerOrAdmin: Bool, roleLoadFailed: Bool = false) {

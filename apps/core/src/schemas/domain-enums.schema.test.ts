@@ -11,6 +11,7 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
+  TaskPriority,
   TaskScheduleEndsMode,
   TaskScheduleState,
   TaskStatus,
@@ -39,6 +40,7 @@ import {
   sokosumiJobStatusSchema,
   stripeSubscriptionStatusNullableSchema,
   stripeSubscriptionStatusSchema,
+  taskPrioritySchema,
   taskScheduleEndsModeSchema,
   taskScheduleStateSchema,
   taskStatusSchema,
@@ -60,6 +62,13 @@ describe("domain enum schemas", () => {
     expect([...taskVisibilitySchema.options].sort()).toEqual(
       Object.values(TaskVisibility).sort(),
     );
+  });
+
+  it("named TaskPriority schema values match Prisma, urgent first", () => {
+    expect([...taskPrioritySchema.options]).toEqual(
+      Object.values(TaskPriority),
+    );
+    expect(taskPrioritySchema.options[0]).toBe("URGENT");
   });
 
   it("named TaskScheduleState schema values match Prisma", () => {

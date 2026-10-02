@@ -14,7 +14,7 @@
       .init(
         id: id, name: name, kind: kind, isSelfDirect: false, isGroupDirect: false, discoverability: kind == .channel ? discoverability : nil,
         createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: unread, unreadMentionCount: mentions,
-        starredAt: seconds.map { Date(timeIntervalSince1970: $0) }, markedUnread: false, myAccess: .member, userMembers: peers, coworkerMembers: [], sokoBotMembers: []
+        starredAt: seconds.map { Date(timeIntervalSince1970: $0) }, markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: peers, coworkerMembers: [], sokoBotMembers: []
       )
     }
 

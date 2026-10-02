@@ -48,7 +48,7 @@ public struct RoomReadReceipts: Equatable, Sendable {
     }
     // Read times do not cross the organization boundary: Core already empties the payload for a guest, and
     // this keeps a live mark that reached one out too.
-    let isGuestViewer = room.myAccess == .guest
+    let isGuestViewer = room.myAccess.value1 == .guest
     var readers: [(order: Int, reader: RoomReader)] = []
     var nonReaders: [Participant] = []
     for (order, participant) in room.userMembers.enumerated() where participant.id != currentUserId {

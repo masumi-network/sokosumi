@@ -1134,6 +1134,28 @@ describe("core auth config", () => {
     ]);
   });
 
+  it("sends sign-in errors without a callback to the related web preview's error page", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "fix/web-preview-core-url",
+    });
+    getWebAppBaseUrlMock.mockReturnValue(
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com",
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ onAPIError: { errorURL: string } }]
+    >;
+
+    expect(config.onAPIError.errorURL).toBe(
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com/auth/error",
+    );
+  });
+
   it("uses uuid database ids and database-backed rate limits", async () => {
     await import("./auth");
 

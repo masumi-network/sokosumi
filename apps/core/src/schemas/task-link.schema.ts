@@ -9,6 +9,7 @@ const taskLinkPeerTaskExample = {
   name: "Review onboarding copy",
   status: TaskStatus.READY,
   archivedAt: null,
+  identifier: "SOK-12",
 } as const;
 
 const taskLinkResponseExample = {
@@ -37,6 +38,11 @@ export const taskLinkPeerTaskSchema = z
     name: z.string().openapi({ example: "Review onboarding copy" }),
     status: taskStatusSchema.openapi({ example: TaskStatus.READY }),
     archivedAt: dateTimeSchema.nullable().openapi({ example: null }),
+    identifier: z.string().nullable().openapi({
+      example: "SOK-12",
+      description:
+        "Project identifier and number, e.g. SOK-123. Null when the peer has no project.",
+    }),
   })
   .openapi("TaskLinkPeerTask");
 

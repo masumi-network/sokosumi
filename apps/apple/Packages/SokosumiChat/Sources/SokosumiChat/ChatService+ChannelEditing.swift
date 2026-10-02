@@ -2,37 +2,18 @@ import CoreAPI
 import Foundation
 
 public extension ChannelEditDraft {
-  /// PATCH rewrites the whole host roster; web sends the three id lists on every save and
-  /// the settings fields only when the caller may manage them (roster-only body otherwise).
-  func updateRequest(permissions: ChannelEditPermissions, currentUserId: String, currentRoom: Components.Schemas.ChatRoom) -> Components.Schemas.UpdateChatRoomRequest {
-    var humans = Set([currentUserId])
-    if preservesRoomMembers {
-      humans.formUnion(currentRoom.userMembers.filter { $0.access?.value1 != .guest }.map(\.id))
-    }
-    var coworkers = Set<String>()
-    var assistants = Set<String>()
-    for recipient in recipients {
-      switch recipient {
-      case let .human(id):
-        if !preservesRoomMembers {
-          humans.insert(id)
-        }
-      case let .coworker(id): coworkers.insert(id)
-      case let .sokoBot(id): assistants.insert(id)
-      }
-    }
-    var body = Components.Schemas.UpdateChatRoomRequest(memberUserIds: humans.sorted(), coworkerIds: coworkers.sorted(), sokoBotIds: assistants.sorted())
-    if permissions.canManageSettings {
-      body.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
-      body.topic = topic.trimmingCharacters(in: .whitespacesAndNewlines)
-      body.discoverability = .init(rawValue: visibility.rawValue)
-    }
-    return body
+  /// PATCH carries the settings only; membership changes go through the members endpoints (SOK-1258).
+  var updateRequest: Components.Schemas.UpdateChatRoomRequest {
+    .init(
+      name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+      topic: topic.trimmingCharacters(in: .whitespacesAndNewlines),
+      discoverability: .init(rawValue: visibility.rawValue)
+    )
   }
 }
 
 public extension ChatService {
-  /// Channel settings and roster, or a group Direct's Group name; a personal workspace Direct omits the slug.
+  /// Channel settings, or a group Direct's Group name; a personal workspace Direct omits the slug.
   func updateRoom(client: Client, roomId: String, request: Components.Schemas.UpdateChatRoomRequest, organizationSlug: String?) async throws -> Components.Schemas.ChatRoom {
     let response = try await client.patchChatsRoomsId(.init(path: .init(id: roomId), headers: .init(xOrganizationSlug: organizationSlug), body: .json(request)))
     switch response {

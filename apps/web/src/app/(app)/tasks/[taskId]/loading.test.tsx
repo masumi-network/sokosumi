@@ -8,7 +8,7 @@ describe("TaskDetailLoading", () => {
   it("relies on outer main padding on mobile and keeps md horizontal pad", () => {
     const { container } = render(<TaskDetailLoading />);
 
-    const shell = container.querySelector(".mx-auto.max-w-6xl");
+    const shell = container.querySelector(".mx-auto.w-full");
     expect(shell?.className).toBe(TASK_DETAIL_SHELL_CLASS);
     expect(shell?.className).toContain("pb-8");
     expect(shell?.className).toContain("md:px-4");

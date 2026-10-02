@@ -140,41 +140,79 @@ struct ChatServiceTests {
     }
   }
 
-  @Test(arguments: [false, true]) func channelUpdateSendsSettingsOnlyForManagers(managesSettings: Bool) async throws {
+  /// SOK-1258: the settings PATCH sends name, topic and visibility only; the roster moved to the members endpoints.
+  @Test func channelUpdateSendsSettingsWithoutRoster() async throws {
     let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
-    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
+    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Only an organization owner or admin can update channel settings.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
     let currentRoom = Components.Schemas.ChatRoom(
       id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
     var draft = ChannelEditDraft(room: currentRoom)
     draft.setName(" Renamed ")
     draft.setTopic("  ")
     draft.visibility = .external
-    draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
-    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
-    let update = draft.updateRequest(permissions: permissions, currentUserId: "me", currentRoom: currentRoom)
-    let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: draft.updateRequest, organizationSlug: "team")
     #expect(result.id == "channel")
     let request = try #require(transport.requests.first).request
     #expect(request.method == .patch)
     #expect(request.path == "/chats/rooms/channel")
     #expect(orgSlugHeader(request) == "team")
     let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
-    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
-    #expect(body["coworkerIds"] as? [String] == ["agent"])
-    #expect(body["sokoBotIds"] as? [String] == ["bot"])
-    #expect(body["name"] as? String == (managesSettings ? "Renamed" : nil))
-    #expect(body["topic"] as? String == (managesSettings ? "" : nil))
-    #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
-    #expect(body["slug"] == nil)
-    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
-      try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    #expect(Set(body.keys) == ["name", "topic", "discoverability"])
+    #expect(body["name"] as? String == "Renamed")
+    #expect((body["topic"] as? String)?.isEmpty == true)
+    #expect(body["discoverability"] as? String == "external")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can update channel settings.")) {
+      try await ChatService().updateRoom(client: client, roomId: "channel", request: draft.updateRequest, organizationSlug: "team")
     }
+  }
+
+  /// SOK-1258: incremental membership under the organization header. Adding groups ids by kind (sorted, empty kinds
+  /// omitted); person, Coworker and Soko Bot removals each hit their own route, and Core's rejections surface as-is.
+  @Test func channelMembershipUsesIncrementalRoutes() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    func failure(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"DELETE\"}}"
+    }
+    let transport = ScriptedTransport([
+      (200, response),
+      (200, "{\"data\":{\"id\":\"channel\",\"remainingUserMemberCount\":2},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"),
+      (403, failure("Forbidden", "Only an organization owner or admin can remove a channel member.")),
+      (200, response),
+      (200, response),
+      (403, failure("Forbidden", "Only its owner can remove this personal assistant."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    let added = try await service.addChannelMembers(client: client, roomId: "channel",
+                                                    recipients: [.human("zoe"), .human("amy"), .sokoBot("bot")], organizationSlug: "team")
+    #expect(added.id == "channel")
+    try await service.removeMember(client: client, roomId: "channel", userId: "guest", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can remove a channel member.")) {
+      try await service.removeMember(client: client, roomId: "channel", userId: "peer", organizationSlug: "team")
+    }
+    #expect(try await service.removeCoworker(client: client, roomId: "channel", coworkerId: "agent", organizationSlug: "team").id == "channel")
+    #expect(try await service.removeSokoBot(client: client, roomId: "channel", sokoBotId: "bot", organizationSlug: "team").id == "channel")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only its owner can remove this personal assistant.")) {
+      try await service.removeSokoBot(client: client, roomId: "channel", sokoBotId: "other", organizationSlug: "team")
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "POST /chats/rooms/channel/members", "DELETE /chats/rooms/channel/members/guest", "DELETE /chats/rooms/channel/members/peer",
+      "DELETE /chats/rooms/channel/coworkers/agent", "DELETE /chats/rooms/channel/soko-bots/bot", "DELETE /chats/rooms/channel/soko-bots/other"
+    ])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
+    let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }
+    #expect(bodies.count == 1)
+    #expect(Set(bodies[0].keys) == ["userIds", "sokoBotIds"])
+    #expect(bodies[0]["userIds"] as? [String] == ["amy", "zoe"])
+    #expect(bodies[0]["sokoBotIds"] as? [String] == ["bot"])
   }
 
   @Test func groupNameSendsOnlyGroupNameAndOmitsSlugForPersonalDirects() async throws {
@@ -185,7 +223,7 @@ struct ChatServiceTests {
     var draft = GroupNameDraft(room: .init(
       id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, groupName: "Launch crew",
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], coworkerMembers: [], sokoBotMembers: []
     ))
     draft.setName(" Crew ")
     _ = try await ChatService().updateRoom(client: client, roomId: "direct", request: draft.updateRequest, organizationSlug: nil)
@@ -880,9 +918,7 @@ extension ChatServiceTests {
       (201, guestEnvelope(invitation)),
       (409, guestError("Conflict", "A pending invitation already exists for this email in this room.")),
       (204, ""),
-      (404, guestError("Not Found", "Invitation not found")),
-      (200, guestEnvelope("{\"id\":\"room\",\"remainingUserMemberCount\":2}")),
-      (400, guestError("Bad Request", "Only guest members can be removed this way. Host members must leave themselves."))
+      (404, guestError("Not Found", "Invitation not found"))
     ])
     let client = try makeClient(transport)
     let service = ChatService()
@@ -895,15 +931,10 @@ extension ChatServiceTests {
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
       try await service.revokeInvitation(client: client, roomId: "room", invitationId: "inv", organizationSlug: "team")
     }
-    try await service.removeGuest(client: client, roomId: "room", userId: "guest", organizationSlug: "team")
-    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Only guest members can be removed this way. Host members must leave themselves.")) {
-      try await service.removeGuest(client: client, roomId: "room", userId: "me", organizationSlug: "team")
-    }
     let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
     #expect(routes == [
       "GET /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations",
-      "DELETE /chats/rooms/room/invitations/inv", "DELETE /chats/rooms/room/invitations/inv",
-      "DELETE /chats/rooms/room/members/guest", "DELETE /chats/rooms/room/members/me"
+      "DELETE /chats/rooms/room/invitations/inv", "DELETE /chats/rooms/room/invitations/inv"
     ])
     #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
     let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }

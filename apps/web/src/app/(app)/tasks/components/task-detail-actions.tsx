@@ -41,6 +41,7 @@ import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -1092,6 +1093,7 @@ export function TaskDetailActions({
                 value: {
                   taskId: result.value.createdTaskId,
                   name: result.value.name,
+                  identifier: result.value.identifier,
                 },
               };
             }}
@@ -1104,10 +1106,10 @@ export function TaskDetailActions({
               router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
             }}
-            onSuccess={(createdTaskId) => {
+            onSuccess={(createdTask) => {
               setIsCreateRelatedOpen(false);
               setSelectedCreateRelatedOption(null);
-              router.push(`/tasks/${createdTaskId}`);
+              router.push(taskHref(createdTask));
             }}
           />
         </TaskFormModal>

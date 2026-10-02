@@ -11,10 +11,16 @@ import type {
   SocialPost,
   SocialPostMediaRef,
 } from "@sokosumi/core-client";
-import { normalizeWebsiteUrl, SOCIAL_POST_MEDIA_MAX } from "@sokosumi/utils";
-import { err, ok } from "neverthrow";
+import {
+  CORE_API_ERROR_KINDS,
+  normalizeWebsiteUrl,
+  projectIdentifierSchema,
+  SOCIAL_POST_MEDIA_MAX,
+} from "@sokosumi/utils";
+import { err, ok, type Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
+
 import {
   type ActionResultDto,
   toActionResult,
@@ -35,6 +41,8 @@ import {
 
 interface CreateProjectParameters extends AuthenticatedRequest {
   name: string;
+  /** Task ID prefix. Omit to let Core derive one from the name. */
+  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
 }
@@ -42,6 +50,7 @@ interface CreateProjectParameters extends AuthenticatedRequest {
 interface UpdateProjectParameters extends AuthenticatedRequest {
   projectId: string;
   name: string;
+  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
@@ -185,6 +194,39 @@ function revalidateProjectSocialPostMutationRoutes(projectId: string) {
   revalidatePath("/calendar");
 }
 
+/** Project write failures the form shows on the identifier field. */
+type ProjectIdentifierError =
+  | { kind: "identifier_taken" }
+  | { kind: "identifier_invalid" };
+
+type ProjectMutationResult<T> = ActionResultDto<T, ProjectIdentifierError>;
+
+function isIdentifierTaken(error: unknown): boolean {
+  return (
+    error instanceof CoreApiRequestError &&
+    error.kind === CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN
+  );
+}
+
+function identifierTaken<T>(): ProjectMutationResult<T> {
+  return toActionResult(err({ kind: "identifier_taken" as const }));
+}
+
+function identifierInvalid<T>(): ProjectMutationResult<T> {
+  return toActionResult(err({ kind: "identifier_invalid" as const }));
+}
+
+function normalizeProjectIdentifier(
+  identifier?: string,
+): Result<string | undefined, "identifier_invalid"> {
+  const normalized = identifier?.trim().toUpperCase();
+  if (!normalized) return ok(undefined);
+  if (!projectIdentifierSchema.safeParse(normalized).success) {
+    return err("identifier_invalid");
+  }
+  return ok(normalized);
+}
+
 function throwCoreActionError(error: unknown, fallbackMessage: string): never {
   const { message } = toCoreApiActionError(error);
   throw new Error(message ?? fallbackMessage);
@@ -221,25 +263,32 @@ function parseProjectCloseRecoveryInput(input: RecoverProjectCloseParameters) {
 
 export const createProject = withSession<
   CreateProjectParameters,
-  { projectId: string; project: Project }
->(async ({ name, briefing, websiteUrl }) => {
+  ProjectMutationResult<{ projectId: string; project: Project }>
+>(async ({ name, identifier, briefing, websiteUrl }) => {
   const normalizedName = normalizeProjectName(name);
   if (!normalizedName) {
     throw new Error("Name required");
   }
 
   const normalizedWebsiteUrl = normalizeOptionalWebsiteUrl(websiteUrl);
+  const identifierResult = normalizeProjectIdentifier(identifier);
+  if (identifierResult.isErr()) {
+    return identifierInvalid();
+  }
+  const normalizedIdentifier = identifierResult.value;
 
   try {
     const project = await projectService.createProject({
       name: normalizedName,
+      ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
       briefing: normalizeProjectBriefing(briefing),
       websiteUrl: normalizedWebsiteUrl,
     });
 
     revalidatePath("/projects");
-    return { projectId: project.id, project };
+    return toActionResult(ok({ projectId: project.id, project }));
   } catch (error) {
+    if (isIdentifierTaken(error)) return identifierTaken();
     console.error("Failed to create project", error);
     throwCoreActionError(error, "Failed to create project");
   }
@@ -247,8 +296,8 @@ export const createProject = withSession<
 
 export const updateProject = withSession<
   UpdateProjectParameters,
-  { projectId: string }
->(async ({ projectId, name, briefing, websiteUrl, logo }) => {
+  ProjectMutationResult<{ projectId: string }>
+>(async ({ projectId, name, identifier, briefing, websiteUrl, logo }) => {
   const normalizedProjectId = projectId.trim();
   const normalizedName = normalizeProjectName(name);
   if (!normalizedProjectId) {
@@ -262,10 +311,16 @@ export const updateProject = withSession<
     websiteUrl !== undefined
       ? normalizeOptionalWebsiteUrl(websiteUrl)
       : undefined;
+  const identifierResult = normalizeProjectIdentifier(identifier);
+  if (identifierResult.isErr()) {
+    return identifierInvalid();
+  }
+  const normalizedIdentifier = identifierResult.value;
 
   try {
     await projectService.patchProject(normalizedProjectId, {
       name: normalizedName,
+      ...(normalizedIdentifier ? { identifier: normalizedIdentifier } : {}),
       ...(briefing !== undefined
         ? { briefing: normalizeProjectBriefing(briefing) }
         : {}),
@@ -276,8 +331,9 @@ export const updateProject = withSession<
     });
 
     revalidateProjectMutationRoutes(normalizedProjectId);
-    return { projectId: normalizedProjectId };
+    return toActionResult(ok({ projectId: normalizedProjectId }));
   } catch (error) {
+    if (isIdentifierTaken(error)) return identifierTaken();
     console.error("Failed to update project", error);
     throwCoreActionError(error, "Failed to update project");
   }

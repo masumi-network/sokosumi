@@ -24,6 +24,7 @@ const LABELS = {
   overview: "Overview",
   properties: {
     title: "Properties",
+    identifier: "Identifier",
     website: "Website",
     updated: "Updated",
     created: "Created",
@@ -34,6 +35,7 @@ function renderShell() {
   return render(
     <ProjectWorkspaceShell
       createdAt="Yesterday"
+      identifier="SOK"
       labels={LABELS}
       projectId="p1"
       projectName="Example project"
@@ -99,6 +101,8 @@ describe("the project detail layout", () => {
     expect(
       within(aside).getByRole("link", { name: /example\.com/ }),
     ).toBeInTheDocument();
+    expect(within(aside).getByText("SOK")).toBeInTheDocument();
+    expect(within(aside).getByText("Identifier")).toBeInTheDocument();
   });
 
   it("orders name, rail, tabs, content, so the tabs touch their content", () => {

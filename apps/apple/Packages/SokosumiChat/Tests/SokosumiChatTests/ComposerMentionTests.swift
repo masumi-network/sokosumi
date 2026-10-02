@@ -41,13 +41,13 @@ struct ComposerMentionTests {
     let user = Components.Schemas.ChatRoomUserParticipant(id: "me", name: "Me", email: "me@example.com", image: nil, presence: .online)
     let peer = Components.Schemas.ChatRoomUserParticipant(id: "peer", name: "Peer", email: "peer@example.com", image: nil, presence: .online)
     var room = Components.Schemas.ChatRoom(id: "room", name: "Room", kind: .channel, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me",
-                                           createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
+                                           createdAt: Date(), updatedAt: Date(), unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
                                            userMembers: [user, peer], coworkerMembers: [], sokoBotMembers: [])
     #expect(ComposerMention.catalog(room: room, currentUserId: "me").map(\.id) == ["all", "peer"])
     #expect(!DirectRecipient.human("me").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
     #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
     #expect(!DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: false))
-    room.myAccess = .guest
+    room.myAccess = .init(value1: .guest, value2: "guest")
     #expect(!DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: true))
     room.discoverability = .external
     #expect(DirectRecipient.human("peer").canOpen(from: room, currentUserId: "me", hasActiveOrganization: false))

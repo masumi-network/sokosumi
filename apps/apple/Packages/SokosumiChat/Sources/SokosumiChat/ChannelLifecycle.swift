@@ -27,8 +27,8 @@ public extension ChannelEditPermissions {
   /// a host-org channel keeps its last host member so the roster cannot empty before an archive.
   static func canLeave(_ room: Components.Schemas.ChatRoom) -> Bool {
     guard room.kind == .channel else { return false }
-    return room.myAccess == .guest || room.discoverability == .matched
-      || room.userMembers.count(where: { $0.access?.value1 == .member }) > 1
+    return room.myAccess.value1 == .guest || room.discoverability == .matched
+      || room.userMembers.count(where: { $0.access == .member }) > 1
   }
 }
 
