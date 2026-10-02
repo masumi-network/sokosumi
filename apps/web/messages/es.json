@@ -1343,7 +1343,13 @@
     "SignInError": {
       "accountNotLinked": "Este correo ya tiene una cuenta de Sokosumi. Inicia sesión primero con tu contraseña o con un código por correo y luego conecta Google o Microsoft en Conexiones.",
       "cancelled": "Se canceló el inicio de sesión. Elige cómo quieres continuar.",
-      "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo."
+      "generic": "No pudimos iniciar tu sesión. Inténtalo de nuevo.",
+      "expired": "Ese inicio de sesión tardó demasiado o se inició en otro navegador. Inténtalo de nuevo.",
+      "clientMisconfigured": "La solicitud de inicio de sesión de esta app no está bien configurada. Contacta con quien desarrolla la app y compártele el código de error.",
+      "title": "No se pudo iniciar sesión",
+      "code": "Código de error: {code}",
+      "description": "Detalles: {description}",
+      "backToSignIn": "Volver al inicio de sesión"
     }
   },
   "App": {
