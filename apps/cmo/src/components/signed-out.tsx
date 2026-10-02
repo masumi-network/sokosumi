@@ -1,4 +1,5 @@
 import { Mascot } from "./mascot";
+import { SubmitButton } from "./submit-button";
 
 interface SignedOutProps {
   /** The `error` query Sokosumi sent back, if sign in did not finish. */
@@ -43,18 +44,15 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
           ))}
         </ul>
         {error ? <p role="alert">{errorMessage(error)}</p> : null}
-        <div className="actions">
-          <form action={createAccount}>
-            <button className="button" type="submit">
-              Create account
-            </button>
-          </form>
-          <form action={signIn}>
-            <button className="button button-secondary" type="submit">
-              Sign in
-            </button>
-          </form>
-        </div>
+        {/* One form, so pressing either button disables both. */}
+        <form className="actions">
+          <SubmitButton className="button" formAction={createAccount}>
+            Create account
+          </SubmitButton>
+          <SubmitButton className="button button-secondary" formAction={signIn}>
+            Sign in
+          </SubmitButton>
+        </form>
         <p className="note">
           CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.
         </p>

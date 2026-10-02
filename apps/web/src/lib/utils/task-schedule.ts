@@ -5,7 +5,7 @@ import type {
 } from "@sokosumi/core-client";
 import { isTaskScheduleCronShape, isValidTimezone } from "@sokosumi/utils";
 import { CronExpressionParser as cronParser } from "cron-parser";
-import { DOW, parseCron } from "@/lib/schedules/cron";
+import { parseCron } from "@/lib/schedules/cron";
 import {
   endOfLocalDateInTimezone,
   parseDateTimeLocalParts,
@@ -23,14 +23,6 @@ function pad2(value: number): string {
 
 export function formatDateTimeLocalInput(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-}
-
-export function parseDateTimeLocalInput(
-  value: string | undefined,
-): Date | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function derivePresetFromCron(cron: string): {
@@ -452,5 +444,3 @@ export function hasTaskScheduleChanged(
   const currentSchedule = parseTaskScheduleSelection(current);
   return !areParsedSchedulesEqual(originalSchedule, currentSchedule);
 }
-
-export { DOW };
