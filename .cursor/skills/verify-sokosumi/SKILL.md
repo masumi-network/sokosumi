@@ -129,7 +129,7 @@ Credentials (pick **in this order** — do not skip to signup):
 | Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
 | Local signup | unique `*@sokosumi.test` via `/signup` | choose once | **Only** when testing signup itself — never as a computer-use fallback |
 
-OAuth, email code, and passkey do **not** work with placeholder credentials. Skip those paths.
+OAuth and passkey do **not** work with placeholder credentials. Skip those paths. Email codes do work in development: Core prints each one as `[email code] <address>: <code>`, in `.cursor/verify-sokosumi-artifacts/state/logs/core.log` (or `$VERIFY_SOKOSUMI_STATE_DIR/logs/core.log`) when the launch helper started it.
 
 API drive (secondary): `curl` against Core with session cookies from the browser when needed; public smoke is OpenAPI JSON only.
 

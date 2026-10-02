@@ -1771,6 +1771,101 @@ describe("core auth config", () => {
     });
   });
 
+  // Local Core has no working email key, so the console is the inbox.
+  describe("email code in the console", () => {
+    async function sendCode() {
+      await import("./auth");
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+    }
+
+    async function expectCodeLine(printed: boolean) {
+      const write = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(() => true);
+
+      try {
+        await sendCode();
+
+        if (printed) {
+          expect(write).toHaveBeenCalledWith(
+            "[email code] andreas@example.com: 042917\n",
+          );
+        } else {
+          expect(write).not.toHaveBeenCalledWith(
+            expect.stringContaining("042917"),
+          );
+        }
+        expect(sendEmailMock).toHaveBeenCalledOnce();
+      } finally {
+        write.mockRestore();
+      }
+    }
+
+    it("prints the code in development, and still emails it", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+
+      await expectCodeLine(true);
+    });
+
+    it("keeps the development code usable when email delivery fails", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+      const failure = Object.assign(new Error("Email transport unavailable"), {
+        name: "application_error",
+        statusCode: null,
+      });
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        await expectCodeLine(true);
+        await expect(flushWaitUntil()).resolves.toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(
+          "[email_code_email] suppressed external failure",
+          {
+            error: "Email transport unavailable",
+            email: "andreas@example.com",
+          },
+        );
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it.each(["production", "staging"])(
+      "never prints it when NODE_ENV is %s, and still emails it",
+      async (nodeEnv) => {
+        getEnvMock.mockReturnValue({
+          ...getDefaultEnv(),
+          NODE_ENV: nodeEnv,
+        });
+
+        await expectCodeLine(false);
+      },
+    );
+  });
+
   describe("verification email", () => {
     type SendVerificationEmail = (
       data: { user: { id: string; email: string; name: string }; url: string },
