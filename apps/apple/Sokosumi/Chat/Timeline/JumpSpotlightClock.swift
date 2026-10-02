@@ -3,9 +3,10 @@
   import SwiftUI
 
   /// One clock per message list for the jump spotlight (row 25b2): while the list holds a mark, every other
-  /// message row in it steps back (web's `chat-jump-dim` and `chat-jump-undim` in globals.css). The list ticks it
-  /// once a frame; each row reads it in a modifier of its own, so a frame re-evaluates those modifiers and never
-  /// a row's body, and the full-strength stretch, which does not change it, re-evaluates nothing.
+  /// message row in it steps back (web's `chat-jump-dim` and `chat-jump-undim` in globals.css). The list's one
+  /// timeline ticks it once a frame for as long as the mark holds; each row reads it in a modifier of its own, so a
+  /// changed value re-evaluates those modifiers and never a row's body. `show` writes only a changed value, so
+  /// while the value holds, as through the full-strength stretch, no row's modifier is invalidated.
   @MainActor @Observable final class JumpSpotlightClock {
     /// The mark the list holds. Its row stays out of the spotlight.
     fileprivate(set) var mark: JumpMark?

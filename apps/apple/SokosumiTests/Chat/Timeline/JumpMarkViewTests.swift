@@ -21,8 +21,10 @@
     /// globals.css) holds for 4.5 s, and a reader scroll at full strength fades it out over 320 ms. The test host
     /// builds no accessibility tree, so the room's mark is read from pixels and the thread's from its jump target.
     @MainActor struct JumpMarkViewTests {
-      /// The room transcript, or the thread holding fixture-2, with a jump to fixture-2 requested.
-      static func landing(thread: Bool) async throws -> JumpLanding {
+      /// The room transcript, or the thread holding fixture-2, with a jump to fixture-2 requested. With
+      /// `blocksHover`, a clear layer over everything takes the pointer's hover, so no row draws its hover wash
+      /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
+      static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
@@ -36,12 +38,20 @@
           } else {
             RoomTimelineView(roomId: "fixture")
           }
-        }.background(.background).environmentObject(state).environmentObject(auth)))
+        }
+        .background(.background)
+        .overlay {
+          if blocksHover {
+            Self.hoverBlocker
+          }
+        }
+        .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua)
         // A pointer resting over the window would draw a row's hover wash, which the pixel reads count.
         window.ignoresMouseEvents = true
         window.contentView = host
+        try keepPointerOff(window)
         window.orderFront(nil)
         let scroll = try await loadedTranscriptScrollView(in: host)
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land: \(TranscriptScrollingTests.distanceFromBottom(scroll)) pt from the bottom") {
@@ -84,7 +94,33 @@
         }
       }
 
+      /// A clear layer that is hit by the pointer, so the rows under it never hover.
+      private static var hoverBlocker: some View {
+        Color.clear.contentShape(.rect)
+      }
+
+      /// Moves `window` off the pointer. `ignoresMouseEvents` keeps clicks out, but SwiftUI still hovers the row a
+      /// scroll brings under the pointer, and with mouse events ignored no exit arrives when the pointer moves on: the
+      /// row's hover wash and toolbar stay and the pixel reads count them (CI run 37066842622, where GitHub's runner
+      /// leaves its pointer over the window). The window goes to the side of the pointer with more room; where that
+      /// side is narrower than the window it runs past the screen's edge, keeping a part on screen, rather than
+      /// shrinking, so the layout never changes mid-test.
+      static func keepPointerOff(_ window: NSWindow) throws {
+        // A pointer someone is moving can land on the new frame; a few tries outrun it.
+        for _ in 0 ..< 5 {
+          let pointer = NSEvent.mouseLocation
+          var frame = window.frame
+          guard frame.contains(pointer) else { return }
+          let screen = NSScreen.screens.first { $0.frame.contains(pointer) } ?? window.screen ?? NSScreen.main
+          let bounds = try #require(screen).visibleFrame
+          frame.origin.x = pointer.x - bounds.minX >= bounds.maxX - pointer.x ? pointer.x - 1 - frame.width : pointer.x + 1
+          window.setFrame(frame, display: true)
+        }
+        try #require(!window.frame.contains(NSEvent.mouseLocation), "The window \(window.frame) still holds the pointer at \(NSEvent.mouseLocation), so a scroll would hover a row under it.")
+      }
+
       static func wheel(_ scroll: NSScrollView, host: NSView) throws {
+        try keepPointerOff(#require(host.window))
         let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 40, wheel2: 0, wheel3: 0))
         event.setIntegerValueField(.scrollWheelEventScrollPhase, value: 1)
         try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
@@ -95,6 +131,9 @@
       static func poll(_ host: NSView, until done: () throws -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
         while try !done(), ContinuousClock.now < deadline {
+          if let window = host.window {
+            try keepPointerOff(window)
+          }
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
@@ -197,7 +236,7 @@
       /// Web keeps the mark when the scrollbar moves the list, which raises no wheel or touch event. Dragging the
       /// scroller's knob moves the thread and leaves its mark at full strength.
       @Test func aScrollerDragKeepsTheMark() async throws {
-        let landing = try await Self.landing(thread: true)
+        let landing = try await Self.landing(thread: true, blocksHover: false)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
         window.ignoresMouseEvents = false
@@ -264,6 +303,7 @@
         .padding(.vertical, 12)
         .frame(width: 520, alignment: .leading)
         .background(.background)
+        .overlay { Self.hoverBlocker }
         .environmentObject(WorkspaceState()).environmentObject(AuthState())
         .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
