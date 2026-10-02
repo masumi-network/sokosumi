@@ -476,7 +476,7 @@ describe("SocialButtons", () => {
     const onPendingChange = vi.fn();
     mockSocialSignIn.mockResolvedValue({ error: {} });
     render(<SocialButtons onPendingChange={onPendingChange} />);
-    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+    expect(onPendingChange).not.toHaveBeenCalled();
 
     await clickGoogleButton();
 

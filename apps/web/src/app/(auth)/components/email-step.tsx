@@ -156,13 +156,6 @@ export function EmailStep({
   });
 
   const { isSubmitting } = form.formState;
-  const isPending = isSubmitting || isFollowing;
-
-  // Unmounting mid-run (Continue opens the next step) is no longer pending.
-  useEffect(() => {
-    onPendingChange?.(isPending);
-    return () => onPendingChange?.(false);
-  }, [isPending, onPendingChange]);
 
   // The pressed button went inert, so focus moves to the one that took its
   // place. A submitting fieldset cannot receive focus; wait until it is
@@ -172,6 +165,13 @@ export function EmailStep({
     detourLinkRef.current?.focus();
   }, [isDetoured, isSubmitting]);
 
+  // Following the detour and Continue never overlap: the detour only shows
+  // once Continue is done. Each tells the parent from the event that changes it.
+  function changeFollowing(state: "preparing" | "navigating" | null) {
+    setFollowingState(state);
+    onPendingChange?.(state !== null);
+  }
+
   async function followDetour(
     email: string,
     follow: NonNullable<EmailStepDetour["follow"]>,
@@ -179,16 +179,16 @@ export function EmailStep({
     const controller = new AbortController();
     pending.current = controller;
     isFollowingRef.current = true;
-    setFollowingState("preparing");
+    changeFollowing("preparing");
     await follow(email, controller.signal);
     if (pending.current !== controller) return;
     // Done, the page is leaving; keep spinning until it has.
     if (!controller.signal.aborted) {
-      if (mounted.current) setFollowingState("navigating");
+      if (mounted.current) changeFollowing("navigating");
       return;
     }
     isFollowingRef.current = false;
-    if (mounted.current) setFollowingState(null);
+    if (mounted.current) changeFollowing(null);
   }
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
@@ -202,37 +202,43 @@ export function EmailStep({
         form.getValues("email").trim() === email
       );
     }
-    await runWithCaptcha(async (fetchOptions) => {
-      if (!isCurrent()) return;
-      const result = await authClient.$fetch<{ exists: boolean }>(
-        "/sign-up/email-status",
-        { method: "POST", body: { email }, headers: fetchOptions.headers },
-      );
+    onPendingChange?.(true);
+    try {
+      await runWithCaptcha(async (fetchOptions) => {
+        if (!isCurrent()) return;
+        const result = await authClient.$fetch<{ exists: boolean }>(
+          "/sign-up/email-status",
+          { method: "POST", body: { email }, headers: fetchOptions.headers },
+        );
 
-      if (!isCurrent()) return;
-      if (result.error) {
-        // The auth client adds the page's OAuth request to every call, this
-        // one included, and Core refuses the call when that request is stale.
-        if (isRejectedOAuthRequestError(result.error)) {
-          toast.error(oauthT("errorDescription"));
+        if (!isCurrent()) return;
+        if (result.error) {
+          // The auth client adds the page's OAuth request to every call, this
+          // one included, and Core refuses the call when that request is stale.
+          if (isRejectedOAuthRequestError(result.error)) {
+            toast.error(oauthT("errorDescription"));
+            return;
+          }
+
+          // Core puts the captcha's error code on the body; the client types
+          // only the transport fields.
+          const error: { code?: string; message?: string } = result.error;
+          toast.error(getErrorMessage(error, error.message ?? t("error")));
           return;
         }
 
-        // Core puts the captcha's error code on the body; the client types
-        // only the transport fields.
-        const error: { code?: string; message?: string } = result.error;
-        toast.error(getErrorMessage(error, error.message ?? t("error")));
-        return;
-      }
+        if (result.data.exists === (detour.when === "exists")) {
+          detouredSince.current = performance.now();
+          setIsDetoured(true);
+          return;
+        }
 
-      if (result.data.exists === (detour.when === "exists")) {
-        detouredSince.current = performance.now();
-        setIsDetoured(true);
-        return;
-      }
-
-      await onContinue(email, controller.signal);
-    });
+        await onContinue(email, controller.signal);
+      });
+    } finally {
+      // Also after Continue has swapped this step out for the next one.
+      onPendingChange?.(false);
+    }
   }
 
   return (
@@ -243,7 +249,7 @@ export function EmailStep({
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;
-        setFollowingState(null);
+        changeFollowing(null);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -338,7 +344,7 @@ export function EmailStep({
                   rememberAuthEmailHintOnClick(event, email);
                   if (isSameTabClick(event)) {
                     isFollowingRef.current = true;
-                    setFollowingState("navigating");
+                    changeFollowing("navigating");
                   }
                 }}
               >

@@ -94,19 +94,18 @@ export default function SocialButtons({
     null,
   );
 
-  const isPending = pendingMethod !== null;
-  const isWaiting = isPending || disabled;
+  const isWaiting = pendingMethod !== null || disabled;
 
-  // Unmounting mid-run (Continue opens the next step) is no longer pending.
-  useEffect(() => {
-    onPendingChange?.(isPending);
-    return () => onPendingChange?.(false);
-  }, [isPending, onPendingChange]);
+  // Every change goes through here, so the parent hears it from the same event.
+  function changePendingMethod(method: ProviderAuthMethod | null) {
+    setPendingMethod(method);
+    onPendingChange?.(method !== null);
+  }
 
   // Back from the provider restores this page as it was left, mid sign-in.
   useEffect(() => {
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted) setPendingMethod(null);
+      if (event.persisted) changePendingMethod(null);
     };
     window.addEventListener("pageshow", handlePageShow);
     return () => window.removeEventListener("pageshow", handlePageShow);
@@ -131,7 +130,7 @@ export default function SocialButtons({
 
     if (!autoFill) {
       track("Sign In", { provider: "passkey", direct_signup_link: false });
-      setPendingMethod("passkey");
+      changePendingMethod("passkey");
     }
 
     try {
@@ -156,7 +155,7 @@ export default function SocialButtons({
       }
     } finally {
       if (!autoFill) {
-        setPendingMethod(null);
+        changePendingMethod(null);
       }
     }
   };
@@ -206,7 +205,7 @@ export default function SocialButtons({
 
   const handleClick = async (key: SocialButtonProviderId) => {
     if (isWaiting) return;
-    setPendingMethod(key);
+    changePendingMethod(key);
     track(eventType === "signUp" ? "Sign Up" : "Sign In", {
       provider: key,
       direct_signup_link: false,
@@ -230,7 +229,7 @@ export default function SocialButtons({
       })
       .catch(() => ({ error: { message: undefined } }));
     if (result.error) {
-      setPendingMethod(null);
+      changePendingMethod(null);
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
     }
