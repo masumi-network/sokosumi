@@ -2562,6 +2562,7 @@
       "Detail": {
         "back": "Zurück zu Projekten",
         "header": {
+          "identifier": "Kennung",
           "updated": "Aktualisiert",
           "created": "Erstellt",
           "properties": "Eigenschaften",
