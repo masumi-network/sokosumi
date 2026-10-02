@@ -120,23 +120,51 @@ describe("signed-out page", () => {
     );
   });
 
-  it("says the sign in took too long when its state is gone", () => {
+  // One state cookie per browser: a second Sign in, in another tab or from
+  // the link again, replaces the first flow's state, as does waiting too long.
+  it.each(["state_mismatch", "state_invalid", "state_not_found"])(
+    "says the sign in expired or was started again when its state fails (%s)",
+    (error) => {
+      const html = renderToStaticMarkup(
+        <SignedOut error={error} {...actions} />,
+      );
+
+      expect(html).toContain(
+        '<p role="alert">That sign in expired or was started again somewhere else. Press Sign in again.</p>',
+      );
+    },
+  );
+
+  it("says Sokosumi is not reachable when sign in could not start", () => {
     const html = renderToStaticMarkup(
-      <SignedOut error="state_mismatch" {...actions} />,
+      <SignedOut error="unavailable" {...actions} />,
     );
 
     expect(html).toContain(
-      '<p role="alert">That sign in took too long. Press Sign in again.</p>',
+      '<p role="alert">Sokosumi is not reachable right now. Try again in a minute.</p>',
     );
   });
 
-  it("asks to try again when sign in failed for another reason", () => {
+  it("says the person was signed out when CMO ended the session", () => {
     const html = renderToStaticMarkup(
-      <SignedOut error="unable_to_get_user_info" {...actions} />,
+      <SignedOut error="signed_out" {...actions} />,
     );
 
     expect(html).toContain(
-      '<p role="alert">Sign in did not finish. Try again.</p>',
+      '<p role="alert">You were signed out. Sign in again.</p>',
     );
   });
+
+  it.each(["unable_to_get_user_info", "constructor"])(
+    "asks to try again when sign in failed for another reason (%s)",
+    (error) => {
+      const html = renderToStaticMarkup(
+        <SignedOut error={error} {...actions} />,
+      );
+
+      expect(html).toContain(
+        '<p role="alert">Sign in did not finish. Try again.</p>',
+      );
+    },
+  );
 });
