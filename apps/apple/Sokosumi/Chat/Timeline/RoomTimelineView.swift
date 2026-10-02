@@ -224,6 +224,7 @@ import SwiftUI
                 if let status = roomStatusText(message) {
                   RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
+                    .jumpSpotlightRow(messageId: message.id)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
@@ -269,6 +270,7 @@ import SwiftUI
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
+                    .jumpSpotlightRow(messageId: message.id)
                 }
               }
               .background {
@@ -290,6 +292,8 @@ import SwiftUI
           .scrollTargetLayout()
           .padding(.top, 8)
         }
+        // Row 25b2: the other rows step back while the mark holds.
+        .jumpSpotlight(for: jumpMark)
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.

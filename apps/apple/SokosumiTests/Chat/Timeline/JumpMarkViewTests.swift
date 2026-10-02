@@ -9,7 +9,7 @@
   import Testing
 
   /// A jump that has landed in a hosted transcript, and what the test drives it through.
-  private struct JumpLanding {
+  struct JumpLanding {
     let state: WorkspaceState
     let host: NSHostingView<AnyView>
     let window: NSWindow
@@ -22,7 +22,7 @@
     /// builds no accessibility tree, so the room's mark is read from pixels and the thread's from its jump target.
     @MainActor struct JumpMarkViewTests {
       /// The room transcript, or the thread holding fixture-2, with a jump to fixture-2 requested.
-      private static func landing(thread: Bool) async throws -> JumpLanding {
+      static func landing(thread: Bool) async throws -> JumpLanding {
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
@@ -61,18 +61,21 @@
         try columnDifferences(in: host, scroll: scroll, column: 6).max() ?? 0
       }
 
-      /// Each viewport row's colour difference, in `column` points, from the viewport's top row.
+      /// Each viewport row's colour difference, in `column` points, from the viewport's top row. Only a strip
+      /// around the column is drawn: drawing the whole window in software takes a fifth of a second once the
+      /// spotlight (row 25b2) blurs the other rows, which is longer than the leave fade these reads have to catch.
       private static func columnDifferences(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> [CGFloat] {
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
+        let strip = NSRect(x: column - 2, y: 0, width: 4, height: host.bounds.height)
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: strip))
+        host.cacheDisplay(in: strip, to: bitmap)
+        let scale = CGFloat(bitmap.pixelsHigh) / host.bounds.height
         var frame = scroll.convert(scroll.bounds, to: host)
         if !host.isFlipped {
           frame.origin.y = host.bounds.height - frame.maxY
         }
         let top = Int((frame.minY + 2) * scale), bottom = Int((frame.maxY - scroll.contentInsets.bottom - 2) * scale)
-        let pixelX = Int(column * scale)
+        let pixelX = Int(2 * scale)
         let reference = try #require(bitmap.colorAt(x: pixelX, y: top)?.usingColorSpace(.deviceRGB))
         return (top ..< bottom).map { pixelY in
           guard let color = bitmap.colorAt(x: pixelX, y: pixelY)?.usingColorSpace(.deviceRGB) else { return 0 }
@@ -81,7 +84,7 @@
         }
       }
 
-      private static func wheel(_ scroll: NSScrollView, host: NSView) throws {
+      static func wheel(_ scroll: NSScrollView, host: NSView) throws {
         let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 40, wheel2: 0, wheel3: 0))
         event.setIntegerValueField(.scrollWheelEventScrollPhase, value: 1)
         try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
@@ -89,7 +92,7 @@
       }
 
       /// Polls until `done` holds or ten seconds pass; a loaded runner can hold the main actor for a while.
-      private static func poll(_ host: NSView, until done: () throws -> Bool) async throws {
+      static func poll(_ host: NSView, until done: () throws -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
         while try !done(), ContinuousClock.now < deadline {
           host.layoutSubtreeIfNeeded()
@@ -226,8 +229,9 @@
         #expect(mark.leftAt == nil, "The mark stands.")
       }
 
-      /// The mark in both lights, drawn by the real row at full strength over the window background.
-      private static func render(dark: Bool) async throws -> NSBitmapImageRep {
+      /// Three real rows over the window background, with the middle one landed a second ago, so at full
+      /// strength. With `spotlight` they sit in a list that casts the jump spotlight (row 25b2), as both lists do.
+      static func render(dark: Bool, landed: Bool = true, spotlight: Bool = true) async throws -> NSBitmapImageRep {
         let messages = ["Ada", "Ben", "Grace"].enumerated().map { index, name in
           var message = chatRoomMessage(from: .init(
             clientTurnId: name, roomId: "room_1", content: "\(name) wrote a message the jump can land on, with a second sentence to wrap.",
@@ -238,11 +242,23 @@
           message.metadata = nil
           return message
         }
-        let content = VStack(alignment: .leading, spacing: 0) {
+        let mark = landed ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil
+        let rows = VStack(alignment: .leading, spacing: 0) {
           ForEach(messages, id: \.id) { message in
-            MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                           jumpMark: message.id == "Ben" ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil,
-                           horizontalInset: 12)
+            let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                     jumpMark: mark?.messageId == message.id ? mark : nil, horizontalInset: 12)
+            if spotlight {
+              row.jumpSpotlightRow(messageId: message.id)
+            } else {
+              row
+            }
+          }
+        }
+        let content = Group {
+          if spotlight {
+            rows.jumpSpotlight(for: mark)
+          } else {
+            rows
           }
         }
         .padding(.vertical, 12)
