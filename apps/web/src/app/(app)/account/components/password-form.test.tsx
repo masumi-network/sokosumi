@@ -10,6 +10,7 @@ const translations: Record<string, string> = {
   "App.Account.Password.title": "Change password",
   "App.Account.Password.description": "Update your password",
   "App.Account.Password.currentPassword": "Current password",
+  "App.Account.Password.forgotPassword": "Forgot your password?",
   "App.Account.Password.newPassword": "New password",
   "App.Account.Password.confirmPassword": "Confirm new password",
   "App.Account.Password.revokeOtherSessionsLabel": "Sign out of other devices",
@@ -92,5 +93,13 @@ describe("PasswordForm", () => {
         revokeOtherSessions: false,
       });
     });
+  });
+
+  it("offers a reset for someone who does not know the current password", () => {
+    render(<PasswordForm />);
+
+    expect(
+      screen.getByRole("link", { name: "Forgot your password?" }),
+    ).toHaveAttribute("href", "/forgot-password");
   });
 });

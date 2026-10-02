@@ -447,15 +447,14 @@ describe("buildSignUpUrlFromSignIn", () => {
 });
 
 describe("buildSignUpUrlFromSignIn with an invitation", () => {
-  it("keeps the invited address and its invitation, which sign-up locks", () => {
+  // Sign-up looks the address up and locks it; the URL reaches logs.
+  it("keeps the invitation without its address", () => {
     expect(
       buildSignUpUrlFromSignIn({
         returnUrl: "/accept-invitation/inv_1",
-        invitation: { id: "inv_1", email: "invited@example.com" },
+        invitationId: "inv_1",
       }),
-    ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1",
-    );
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1");
   });
 });
 
@@ -710,7 +709,7 @@ describe("auth page URL round trips", () => {
         buildUrl({
           oauthQuery,
           returnUrl,
-          invitation: { id: "inv_1", email: "ada+invite@example.com" },
+          invitationId: "inv_1",
         }),
         "https://sokosumi.test",
       );
@@ -721,7 +720,7 @@ describe("auth page URL round trips", () => {
         "client_id",
       ]);
       expect(url.searchParams.get("scope")).toBe("openid email");
-      expect(url.searchParams.get("email")).toBe("ada+invite@example.com");
+      expect(url.searchParams.has("email")).toBe(false);
       expect(url.searchParams.get("invitationId")).toBe("inv_1");
     },
   );

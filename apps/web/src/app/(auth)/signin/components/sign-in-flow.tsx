@@ -83,16 +83,15 @@ export default function SignInFlow({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const invitation =
-    invitationId && prefilledEmail
-      ? { id: invitationId, email: prefilledEmail }
-      : undefined;
+  // The invitation whose address this page locked; sign-up locks it too.
+  const lockedInvitationId =
+    invitationId && prefilledEmail ? invitationId : undefined;
   const signUpHref = buildSignUpUrlFromSignIn({
     returnUrl,
     oauthQuery: returnUrl
       ? undefined
       : buildSignedOAuthQueryFromSearchParams(searchParams),
-    invitation,
+    invitationId: lockedInvitationId,
   });
   // Lives here, not in step 2: Continue sends the code before step 2 opens.
   const emailCode = useEmailCode({
@@ -221,10 +220,13 @@ export default function SignInFlow({
             href={signUpHref}
             className="text-primary text-sm font-medium hover:underline"
             onAuxClick={() => takeAuthEmailHint()}
-            // A typed email stays out of the link, which would lock it on
-            // sign-up. Only an invitation's address belongs there.
+            // A typed email travels as an editable hint. Sign-up looks up an
+            // invitation's address itself.
             onClick={(event) => {
-              rememberAuthEmailHintOnClick(event, invitation ? "" : typedEmail);
+              rememberAuthEmailHintOnClick(
+                event,
+                lockedInvitationId ? "" : typedEmail,
+              );
             }}
           >
             {t("Register.link")}

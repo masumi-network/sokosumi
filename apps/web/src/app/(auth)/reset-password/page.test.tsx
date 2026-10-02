@@ -38,4 +38,23 @@ describe("ResetPasswordPage", () => {
     expect(container.querySelector("[data-sentry-block]")).not.toBeNull();
     expect(redirectMock).not.toHaveBeenCalled();
   });
+
+  // The token cookie lasts an hour; a later reload is a dead link too.
+  it("sends a reset without a token to request a new link", async () => {
+    getResetPasswordTokenMock.mockResolvedValue(null);
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+    const { default: ResetPasswordPage } = await import("./page");
+
+    await expect(
+      ResetPasswordPage({
+        searchParams: Promise.resolve({ returnUrl: "/chat" }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/forgot-password?returnUrl=%2Fchat&error=INVALID_TOKEN",
+    );
+  });
 });

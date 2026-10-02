@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -80,7 +81,15 @@ export function PasswordForm() {
                 name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("currentPassword")}</FormLabel>
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                      <FormLabel>{t("currentPassword")}</FormLabel>
+                      <Link
+                        href="/forgot-password"
+                        className="text-muted-foreground hover:text-foreground text-sm hover:underline"
+                      >
+                        {t("forgotPassword")}
+                      </Link>
+                    </div>
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>

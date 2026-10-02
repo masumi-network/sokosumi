@@ -583,15 +583,34 @@ describe("SignInForm", () => {
       );
     });
 
-    it("links to the password reset with the address", () => {
+    // The URL reaches server logs and analytics; the address goes through
+    // session storage instead.
+    it("hands the address to the password reset outside the URL", () => {
+      renderForm();
+      const link = screen.getByRole("link", { name: "forgotPassword" });
+
+      expect(link).toHaveAttribute("href", "/forgot-password");
+      window.sessionStorage.clear();
+      fireEvent.click(link);
+      expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
+    });
+
+    it("keeps where the person was going on the password reset link", () => {
+      renderForm({ returnUrl: "/chat" });
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute("href", "/forgot-password?returnUrl=%2Fchat");
+    });
+
+    it("keeps the signed OAuth request on the password reset link", () => {
+      const oauthQuery = "client_id=cmo&exp=1900000000&sig=abc%2B%2F%3D";
+      mockSearchParams = new URLSearchParams(oauthQuery);
       renderForm();
 
       expect(
         screen.getByRole("link", { name: "forgotPassword" }),
-      ).toHaveAttribute(
-        "href",
-        `/forgot-password?email=${encodeURIComponent(EMAIL)}`,
-      );
+      ).toHaveAttribute("href", `/forgot-password?${oauthQuery}`);
     });
 
     it("focuses the password when it is missing", async () => {

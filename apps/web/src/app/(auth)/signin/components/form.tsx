@@ -35,9 +35,12 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
+  buildAuthPageUrl,
   buildOAuthResumeUrlFromSearchParams,
+  buildSignedOAuthQueryFromSearchParams,
   isRejectedOAuthRequestError,
 } from "@/lib/auth/auth.utils";
+import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { signInFormSchema } from "@/lib/schemas/auth";
 
@@ -268,7 +271,16 @@ export default function SignInForm({
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                   <FormLabel>{t("Fields.Password.label")}</FormLabel>
                   <Link
-                    href={`/forgot-password?email=${encodeURIComponent(email)}`}
+                    href={buildAuthPageUrl("/forgot-password", {
+                      returnUrl,
+                      oauthQuery: returnUrl
+                        ? undefined
+                        : buildSignedOAuthQueryFromSearchParams(searchParams),
+                    })}
+                    // The address stays out of the URL, which reaches logs.
+                    onClick={(event) =>
+                      rememberAuthEmailHintOnClick(event, email)
+                    }
                     className="text-muted-foreground hover:text-foreground text-sm hover:underline"
                   >
                     {t("forgotPassword")}

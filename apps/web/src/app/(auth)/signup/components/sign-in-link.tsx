@@ -18,11 +18,8 @@ export function useSignInHref(): string {
     ? undefined
     : buildSignedOAuthQueryFromSearchParams(searchParams);
 
-  const invitationId = searchParams.get("invitationId");
-  const email = searchParams.get("email");
-  const invitation =
-    invitationId && email ? { id: invitationId, email } : undefined;
-  return buildSignInUrlFromSignUp({ returnUrl, oauthQuery, invitation });
+  const invitationId = searchParams.get("invitationId") ?? undefined;
+  return buildSignInUrlFromSignUp({ returnUrl, oauthQuery, invitationId });
 }
 
 export default function SignInLink() {

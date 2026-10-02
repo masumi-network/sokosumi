@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+import {
+  type AuthRedirectSearchParams,
+  buildRequestNewResetLinkUrl,
+  getRedirectQueryString,
+  readAuthPageContext,
+} from "@/lib/auth/auth.utils";
 import { getResetPasswordToken } from "@/lib/reset-password-token-cookie";
 
 import ResetPasswordForm from "./components/form";
@@ -18,7 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface ResetPasswordPageProps {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<AuthRedirectSearchParams & { token?: string }>;
 }
 
 export default async function ResetPasswordPage({
@@ -31,7 +37,10 @@ export default async function ResetPasswordPage({
   }
 
   if (!(await getResetPasswordToken())) {
-    redirect("/signin");
+    const query = new URLSearchParams(
+      await getRedirectQueryString(searchParams),
+    );
+    redirect(buildRequestNewResetLinkUrl(readAuthPageContext(query)));
   }
 
   return (
