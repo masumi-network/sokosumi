@@ -63,7 +63,7 @@ struct CoworkerThoughtTests {
 }
 
 private let coworkerSender = #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
-private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","presence":"online"}}"#
+private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
 
 private func decode(id: String, sender: String) async throws -> Components.Schemas.ChatRoomMessage {
   try #require(try await fetchTestMessages([testMessageJSON(id: id, content: "", sender: sender)]).first)
