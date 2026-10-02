@@ -70,7 +70,7 @@
     "pg": "8.23.1"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "24.19.1",
     "@types/pg": "8.23.1",
     "@typescript/typescript6": "6.0.2",
     "dotenv": "18.0.5",
