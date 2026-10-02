@@ -27,7 +27,7 @@ export function useDescribeEmailCodeError() {
   const t = useTranslations("Components.EmailCodeForm");
 
   return (answer: EmailCodeError): string => {
-    // Better Auth's rate limit (three tries a minute) can answer before the
+    // Better Auth's rate limit (ten tries a minute per IP) can answer before the
     // code's own five tries run out; waiting helps, a new code does not.
     if (answer.status === 429) {
       return t("rateLimited");

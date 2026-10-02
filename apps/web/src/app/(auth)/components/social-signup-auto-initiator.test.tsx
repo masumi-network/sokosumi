@@ -1,10 +1,11 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import { track } from "@vercel/analytics";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import SocialSignupAutoInitiator from "./social-signup-auto-initiator";
 
 const mockSocialSignIn = vi.fn();
+const mockLocationReplace = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
 
@@ -39,9 +40,17 @@ vi.mock("@/lib/auth/auth.client", () => ({
 describe("SocialSignupAutoInitiator", () => {
   beforeEach(() => {
     mockSocialSignIn.mockReset();
-    mockSocialSignIn.mockResolvedValue({});
+    mockSocialSignIn.mockResolvedValue({
+      data: { url: "https://accounts.google.com/o/oauth2", redirect: false },
+      error: null,
+    });
     vi.mocked(track).mockReset();
     mockSearchParams = new URLSearchParams();
+    mockLocationReplace.mockReset();
+    Object.defineProperty(window.location, "replace", {
+      configurable: true,
+      value: (...args: unknown[]) => mockLocationReplace(...args),
+    });
   });
 
   it("tracks a direct sign-up link as a sign-up", async () => {
@@ -149,5 +158,38 @@ describe("SocialSignupAutoInitiator", () => {
     } finally {
       window.history.replaceState(null, "", startPage);
     }
+  });
+
+  // Back from the provider would land here and start it again, or, restored
+  // from the back/forward cache, spin with nothing left to run.
+  it("replaces this page with the provider, so Back skips it", async () => {
+    render(
+      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+    );
+
+    await waitFor(() => {
+      expect(mockLocationReplace).toHaveBeenCalledWith(
+        "https://accounts.google.com/o/oauth2",
+      );
+    });
+    expect(mockSocialSignIn.mock.calls[0]?.[0]).toMatchObject({
+      disableRedirect: true,
+    });
+  });
+
+  it("offers to start again when the page comes back from the back/forward cache", async () => {
+    render(
+      <SocialSignupAutoInitiator provider="google" providerName="Google" />,
+    );
+    await waitFor(() => expect(mockLocationReplace).toHaveBeenCalled());
+    expect(screen.queryByRole("button", { name: "Google.retry" })).toBeNull();
+
+    const restored = new Event("pageshow");
+    Object.defineProperty(restored, "persisted", { value: true });
+    act(() => {
+      window.dispatchEvent(restored);
+    });
+
+    expect(screen.getByRole("button", { name: "Google.retry" })).toBeVisible();
   });
 });

@@ -49,6 +49,7 @@ const {
   renderVerificationEmailMock,
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
+  sentrySetExtrasMock,
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
@@ -167,6 +168,7 @@ const {
     renderVerificationEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
     sentryCaptureExceptionMock: vi.fn(),
+    sentrySetExtrasMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
@@ -281,6 +283,8 @@ vi.mock("better-auth/api", async (importOriginal) => {
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+  withScope: (callback: (scope: { setExtras: unknown }) => void) =>
+    callback({ setExtras: sentrySetExtrasMock }),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -1302,6 +1306,14 @@ describe("core auth config", () => {
     );
   });
 
+  it("lets ten email code requests a minute through from one address, so a shared office network still signs in", async () => {
+    await import("./auth");
+
+    expect(emailOTPPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({ rateLimit: { window: 60, max: 10 } }),
+    );
+  });
+
   it("closes the email code endpoints Sokosumi does not use", async () => {
     await import("./auth");
 
@@ -1844,7 +1856,6 @@ describe("core auth config", () => {
           "[email_code_email] suppressed external failure",
           {
             error: "Email transport unavailable",
-            email: "andreas@example.com",
           },
         );
         expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
@@ -1864,6 +1875,37 @@ describe("core auth config", () => {
         await expectCodeLine(false);
       },
     );
+  });
+
+  it("keeps the address out of Sentry when the code email fails", async () => {
+    sendEmailMock.mockRejectedValueOnce(new Error("provider down"));
+    await import("./auth");
+
+    const [[config]] = emailOTPPluginMock.mock.calls as Array<
+      [
+        {
+          sendVerificationOTP: (data: {
+            email: string;
+            otp: string;
+            type: string;
+          }) => Promise<void>;
+        },
+      ]
+    >;
+
+    await config.sendVerificationOTP({
+      email: "andreas@example.com",
+      otp: "042917",
+      type: "sign-in",
+    });
+    await flushWaitUntil();
+
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
+    const reported = JSON.stringify([
+      sentryCaptureExceptionMock.mock.calls,
+      sentrySetExtrasMock.mock.calls,
+    ]);
+    expect(reported).not.toContain("andreas@example.com");
   });
 
   describe("verification email", () => {

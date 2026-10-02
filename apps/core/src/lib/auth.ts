@@ -613,7 +613,6 @@ export const auth = betterAuth({
       );
     },
     sendOnSignUp: true,
-    sendOnSignIn: true,
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
@@ -664,6 +663,11 @@ export const auth = betterAuth({
         otpLength: 6,
         expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
         allowedAttempts: 5,
+        // Per IP, for sending and for signing in with a code. The default (3 a
+        // minute) turns away an office or event behind one address. Guessing
+        // stays capped by the five tries per code, and every send by the
+        // captcha.
+        rateLimit: { window: 60, max: 10 },
         // A resend repeats the code rather than replacing it, so whichever email
         // arrives first works. Reuse needs the code recoverable, so it is stored
         // encrypted with the auth secret instead of hashed.
@@ -698,9 +702,8 @@ export const auth = betterAuth({
                     context: "email_code_email",
                   },
                 },
-                extra: {
-                  email,
-                },
+                // No address: it is personal data, and before sign-in there
+                // is no user id to stand for it.
               });
             }),
           );

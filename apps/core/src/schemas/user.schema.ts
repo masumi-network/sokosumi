@@ -116,11 +116,11 @@ export const userSchema = z
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
     firstName: z.string().nullable().openapi({
-      description: "Null when never given, as for magic-link sign-up",
+      description: "Null when never given, as for an email-code sign-up",
       example: "John",
     }),
     lastName: z.string().nullable().openapi({
-      description: "Null when never given, as for magic-link sign-up",
+      description: "Null when never given, as for an email-code sign-up",
       example: "Doe",
     }),
     email: z.email().openapi({ example: "john.doe@example.com" }),

@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
@@ -52,11 +53,16 @@ export default function SocialSignupAutoInitiator({
           // Back to this page would start the sign-in again; /signup
           // explains the error and offers every method.
           errorCallbackURL: buildAuthErrorCallbackUrl("/signup"),
+          // Leave with `replace`, so Back from the provider skips this page
+          // instead of starting the sign-in again.
+          disableRedirect: true,
         });
 
-        if (result.error) {
+        if (result.data?.url) {
+          window.location.replace(result.data.url);
+        } else {
           const errorMessage =
-            result.error.message ?? t(`${providerName}.error`);
+            result.error?.message ?? t(`${providerName}.error`);
           setError(errorMessage);
           toast.error(errorMessage);
           setIsInitiating(false);
@@ -72,11 +78,27 @@ export default function SocialSignupAutoInitiator({
     initiateOAuth();
   }, [provider, providerName, effectiveReturnUrl, t]);
 
+  // A page restored from the back/forward cache does not run the effect
+  // again; offer the retry instead of a spinner with nothing behind it.
+  useMountEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setIsInitiating(false);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  });
+
   const handleRetry = () => {
     setError(null);
     setIsInitiating(true);
     window.location.reload();
   };
+
+  const retryButton = (
+    <Button onClick={handleRetry} variant="primary" className="w-full">
+      {t(`${providerName}.retry`)}
+    </Button>
+  );
 
   if (error) {
     return (
@@ -88,9 +110,7 @@ export default function SocialSignupAutoInitiator({
             </h1>
             <p className="text-muted-foreground">{error}</p>
           </div>
-          <Button onClick={handleRetry} variant="primary" className="w-full">
-            {t(`${providerName}.retry`)}
-          </Button>
+          {retryButton}
         </div>
       </div>
     );
@@ -107,10 +127,12 @@ export default function SocialSignupAutoInitiator({
             {t(`${providerName}.description`)}
           </p>
         </div>
-        {isInitiating && (
+        {isInitiating ? (
           <div className="flex justify-center">
             <div className="border-primary size-8 animate-spin motion-reduce:animate-pulse rounded-full border-4 border-t-transparent" />
           </div>
+        ) : (
+          retryButton
         )}
       </div>
     </div>
