@@ -21,5 +21,6 @@ Core keeps `requireEmailVerification: false`, so a password sign-up through `/si
 
 - `hasPassword` is one fact more than `exists` for anyone who knows an address. It narrows a password-guessing list; guessing still meets the captcha and the rate limits on both endpoints.
 - Accounts created before this change stay unproven until their owner signs in with a code or follows a verification link. The pull request carries a read-only count.
+- The notice reads the account before the code is checked. A verification or a new account landing in between can make it say too much or nothing. The window is the length of one request; the dialog is a courtesy, the removal itself is Better Auth's.
 - A Sign in with Sokosumi request (CMO) shows no dialog: Core's OAuth provider replaces the response with its redirect, and the auth client follows it at once. Opening on the password covers the common case there.
 - Core and Web ship together. A Web from before this change cannot sign up with a password against a Core that closed `/sign-up/email`. A Web from after it, against an older Core, reads no `hasPassword` and opens on the code, as before.
