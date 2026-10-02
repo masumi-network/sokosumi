@@ -1,6 +1,6 @@
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface AuthorizeReferenceConfig {
   subscription: {
@@ -1420,6 +1420,160 @@ describe("core auth config", () => {
     expect(config.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true);
   });
 
+  describe("app tokens", () => {
+    const now = new Date("2026-10-02T12:00:00Z");
+    const updateMany = vi.fn();
+
+    function expectAppTokensRevokedFor(userId: string) {
+      const where = [
+        { field: "userId", value: userId },
+        { field: "revoked", operator: "eq", value: null },
+      ];
+      expect(updateMany).toHaveBeenCalledTimes(2);
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthAccessToken",
+        where,
+        update: { revoked: now },
+      });
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthRefreshToken",
+        where,
+        update: { revoked: now },
+      });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"], now });
+      updateMany.mockReset();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("revokes every app token when a password is reset", async () => {
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions: vi.fn() },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
+
+      expectAppTokensRevokedFor("user-1");
+    });
+
+    it("ends every session on a reset even when revoking app tokens fails", async () => {
+      // Better Auth deletes sessions only after this callback returns.
+      const deleteUserSessions = vi.fn();
+      updateMany.mockRejectedValue(new Error("database gone"));
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await expect(
+        config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } }),
+      ).rejects.toThrow("database gone");
+      expect(deleteUserSessions).toHaveBeenCalledWith("user-1");
+    });
+
+    async function runAfterHook(ctx: {
+      path: string;
+      body?: Record<string, unknown>;
+      returned: unknown;
+    }) {
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { after: (ctx: unknown) => Promise<void> } }]
+      >;
+
+      await config.hooks.after({
+        path: ctx.path,
+        body: ctx.body,
+        context: {
+          adapter: { updateMany },
+          returned: ctx.returned,
+          session: { user: { id: "user-1" } },
+        },
+      });
+    }
+
+    it.each([true, false])(
+      "revokes every app token when a password is changed (revokeOtherSessions: %s)",
+      async (revokeOtherSessions) => {
+        await runAfterHook({
+          path: "/change-password",
+          body: { revokeOtherSessions },
+          returned: { token: null, user: { id: "user-1" } },
+        });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it.each(["/revoke-sessions", "/revoke-other-sessions"])(
+      "revokes every app token on %s",
+      async (path) => {
+        await runAfterHook({ path, returned: { status: true } });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it("keeps app tokens when the person signs out of Sokosumi", async () => {
+      await runAfterHook({ path: "/sign-out", returned: { success: true } });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps app tokens when the current password is wrong", async () => {
+      const { APIError } = await import("better-auth/api");
+
+      await runAfterHook({
+        path: "/change-password",
+        body: { revokeOtherSessions: true },
+        returned: new APIError("BAD_REQUEST", { code: "INVALID_PASSWORD" }),
+      });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+  });
+
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
@@ -1615,6 +1769,101 @@ describe("core auth config", () => {
       subject: "Your Sokosumi code: 042917",
       html: "<html>email code</html>",
     });
+  });
+
+  // Local Core has no working email key, so the console is the inbox.
+  describe("email code in the console", () => {
+    async function sendCode() {
+      await import("./auth");
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+    }
+
+    async function expectCodeLine(printed: boolean) {
+      const write = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(() => true);
+
+      try {
+        await sendCode();
+
+        if (printed) {
+          expect(write).toHaveBeenCalledWith(
+            "[email code] andreas@example.com: 042917\n",
+          );
+        } else {
+          expect(write).not.toHaveBeenCalledWith(
+            expect.stringContaining("042917"),
+          );
+        }
+        expect(sendEmailMock).toHaveBeenCalledOnce();
+      } finally {
+        write.mockRestore();
+      }
+    }
+
+    it("prints the code in development, and still emails it", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+
+      await expectCodeLine(true);
+    });
+
+    it("keeps the development code usable when email delivery fails", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+      const failure = Object.assign(new Error("Email transport unavailable"), {
+        name: "application_error",
+        statusCode: null,
+      });
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        await expectCodeLine(true);
+        await expect(flushWaitUntil()).resolves.toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(
+          "[email_code_email] suppressed external failure",
+          {
+            error: "Email transport unavailable",
+            email: "andreas@example.com",
+          },
+        );
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it.each(["production", "staging"])(
+      "never prints it when NODE_ENV is %s, and still emails it",
+      async (nodeEnv) => {
+        getEnvMock.mockReturnValue({
+          ...getDefaultEnv(),
+          NODE_ENV: nodeEnv,
+        });
+
+        await expectCodeLine(false);
+      },
+    );
   });
 
   describe("verification email", () => {
