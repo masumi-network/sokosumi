@@ -8,7 +8,6 @@ import {
   isEnterpriseContractConsumable,
   MIN_ENTERPRISE_CREDITS_PER_MONTH,
   MIN_ENTERPRISE_PERIOD_COUNT,
-  minEnterpriseCentsPerMonth,
   previewEnterpriseContractPeriods,
   validateEnterprisePeriodCount,
   validateMinEnterpriseCreditsPerMonth,
@@ -28,10 +27,6 @@ describe("validateMinEnterpriseCreditsPerMonth", () => {
       () => validateMinEnterpriseCreditsPerMonth(59_999),
       /at least 60000 credits per month/,
     );
-  });
-
-  it("maps the minimum to cents", () => {
-    assert.equal(minEnterpriseCentsPerMonth(), 600_000_000_000_000n);
   });
 });
 

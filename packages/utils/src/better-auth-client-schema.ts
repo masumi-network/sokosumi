@@ -71,6 +71,3 @@ export const betterAuthOrganizationAdditionalFields = {
     input: false,
   },
 } as const;
-
-export type BetterAuthOrganizationAdditionalFieldKey =
-  keyof typeof betterAuthOrganizationAdditionalFields;
