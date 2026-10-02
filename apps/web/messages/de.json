@@ -1343,7 +1343,13 @@
     "SignInError": {
       "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
-      "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut."
+      "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut.",
+      "expired": "Diese Anmeldung hat zu lange gedauert oder wurde in einem anderen Browser gestartet. Bitte versuche es erneut.",
+      "clientMisconfigured": "Die Anmeldeanfrage dieser App ist nicht richtig eingerichtet. Bitte wende dich an die Entwickler der App und nenne ihnen den Fehlercode.",
+      "title": "Anmeldung fehlgeschlagen",
+      "code": "Fehlercode: {code}",
+      "description": "Details: {description}",
+      "backToSignIn": "Zurück zur Anmeldung"
     }
   },
   "App": {
