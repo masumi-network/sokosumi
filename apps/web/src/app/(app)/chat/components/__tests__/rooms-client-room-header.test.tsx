@@ -4,6 +4,10 @@ import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  clearMembershipVisibleRoomsSnapshot,
+  publishMembershipVisibleRooms,
+} from "@/components/chat/membership-visible-rooms-store";
 import { TestQueryProvider } from "@/test/query-provider";
 import type { RoomComposerHandle } from "../room-composer";
 import { RoomsClient } from "../rooms-client";
@@ -117,6 +121,8 @@ function channelRoom(): ChatRoom {
     kind: "channel",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,
@@ -185,6 +191,127 @@ function renderRoom(room: ChatRoom, { isOrgOwnerOrAdmin = false } = {}) {
     wrapper: TestQueryProvider,
   });
 }
+
+describe("RoomsClient read-only Direct updates", () => {
+  afterEach(() => clearMembershipVisibleRoomsSnapshot());
+
+  it("replaces the composer when the sidebar refresh learns the peer left", async () => {
+    const room = humanDirectRoom();
+    renderRoom(room);
+    expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
+
+    act(() => {
+      publishMembershipVisibleRooms(
+        [
+          {
+            ...room,
+            isReadOnly: true,
+            userMembers: [participant("user-1", "Ada")],
+            formerUserMembers: [
+              {
+                id: "user-2",
+                name: "Bob",
+                email: "bob@example.com",
+                image: null,
+              },
+            ],
+          },
+        ],
+        organization.id,
+        "user-1",
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("room-session-composer")).toBeNull();
+      expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
+    });
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
+  });
+
+  it("restores the composer when a later room fetch includes the returning peer", async () => {
+    const room = humanDirectRoom();
+    renderRoom({
+      ...room,
+      isReadOnly: true,
+      userMembers: [participant("user-1", "Ada")],
+      formerUserMembers: [
+        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+      ],
+    });
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+
+    act(() => {
+      publishMembershipVisibleRooms([room], organization.id, "user-1");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
+      expect(screen.queryByText("readOnlyDirectNotice")).toBeNull();
+    });
+  });
+
+  it("uses a refreshed page roster ahead of a stale read-only sidebar snapshot", () => {
+    const room = humanDirectRoom();
+    const readOnlyRoom = {
+      ...room,
+      isReadOnly: true,
+      userMembers: [participant("user-1", "Ada")],
+      formerUserMembers: [
+        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+      ],
+    };
+    const view = renderRoom(readOnlyRoom);
+    act(() => {
+      publishMembershipVisibleRooms([readOnlyRoom], organization.id, "user-1");
+    });
+    view.rerender(<RoomsClient {...roomClientProps(room)} />);
+
+    expect(screen.getByTestId("room-session-composer")).toBeInTheDocument();
+    expect(screen.queryByText("readOnlyDirectNotice")).toBeNull();
+  });
+
+  it("ignores attention-only updates to the sidebar's older roster", () => {
+    const room = humanDirectRoom();
+    publishMembershipVisibleRooms([room], organization.id, "user-1");
+    renderRoom({
+      ...room,
+      isReadOnly: true,
+      userMembers: [participant("user-1", "Ada")],
+      formerUserMembers: [
+        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+      ],
+    });
+
+    act(() => {
+      publishMembershipVisibleRooms(
+        [{ ...room, unreadCount: 0, markedUnread: false }],
+        organization.id,
+        "user-1",
+      );
+    });
+
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
+  });
+
+  it("keeps a fresh read-only page disabled when the sidebar still has the old roster", () => {
+    const room = humanDirectRoom();
+    publishMembershipVisibleRooms([room], organization.id, "user-1");
+    renderRoom({
+      ...room,
+      isReadOnly: true,
+      userMembers: [participant("user-1", "Ada")],
+      formerUserMembers: [
+        { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
+      ],
+    });
+
+    expect(screen.queryByTestId("room-session-composer")).toBeNull();
+    expect(screen.getByText("readOnlyDirectNotice")).toBeInTheDocument();
+    expect(screen.getByTestId("room-open-title")).toHaveTextContent("Bob");
+  });
+});
 
 /** An organization owner or admin, whose channel title opens the settings. */
 const AS_ADMIN = { isOrgOwnerOrAdmin: true };

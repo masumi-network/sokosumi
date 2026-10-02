@@ -2606,6 +2606,10 @@ export type ChatRoom = {
      */
     isGroupDirect: boolean;
     /**
+     * Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.
+     */
+    isReadOnly: boolean;
+    /**
      * Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.
      */
     groupName: string | null;
@@ -2682,8 +2686,19 @@ export type ChatRoom = {
      */
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
+    /**
+     * Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.
+     */
+    formerUserMembers: Array<ChatRoomFormerUserMember>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
     sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
+};
+
+export type ChatRoomFormerUserMember = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
 };
 
 /**
@@ -19608,6 +19623,21 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19707,6 +19737,21 @@ export type PostChatsRoomsByIdMembersErrors = {
      * Room not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -19831,6 +19876,21 @@ export type DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -19931,6 +19991,21 @@ export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors = {
      * Room or Soko Bot not found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;

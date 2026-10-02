@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -37,7 +38,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 import type { Discoverability } from "./create-channel-wizard";
 
 function channelDiscoverability(
@@ -48,6 +49,8 @@ function channelDiscoverability(
   }
   return "public";
 }
+
+const VISIBILITY_OPTIONS = ["public", "private", "external"] as const;
 
 function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
@@ -62,7 +65,6 @@ export function EditChannelDialog({
   channel,
   open,
   onOpenChange: setOpen,
-  onManageGuests,
   children,
 }: {
   channel: ChatRoom;
@@ -73,8 +75,6 @@ export function EditChannelDialog({
    */
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** Close settings and show the members panel, where guests are removed. */
-  onManageGuests: () => void;
   /** Single element for DialogTrigger asChild; must accept merged props and ref. */
   children: ReactElement;
 }) {
@@ -102,6 +102,12 @@ export function EditChannelDialog({
     setTopic(channel.topic ?? "");
     setDiscoverability(channelDiscoverability(channel.discoverability));
   }, [channel, open]);
+
+  const trimmedTopic = topic.trim();
+  const hasChanges =
+    name.trim() !== channel.name ||
+    trimmedTopic !== (channel.topic ?? "") ||
+    discoverability !== channelDiscoverability(channel.discoverability);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -150,11 +156,6 @@ export function EditChannelDialog({
     setArchiveConfirmOpen(true);
   }
 
-  function handleManageGuests() {
-    setOpen(false);
-    onManageGuests();
-  }
-
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -162,96 +163,122 @@ export function EditChannelDialog({
         {/* Cap the dialog to the viewport and scroll the body, so a short
             phone still reaches the title, the close button and Save. */}
         <DialogContent className="app-scrollbar max-h-[calc(100dvh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-lg">
-          <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
+          <form className="min-w-0 space-y-5" onSubmit={handleSubmit}>
             <DialogHeader className="pr-6">
               <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
               <DialogDescription>
-                {t("Dialog.editDescription")}
+                {channel.slug ? `#${channel.slug}` : channel.name}
               </DialogDescription>
             </DialogHeader>
-            <div className="grid min-w-0 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
-                <Input
-                  id="edit-channel-name"
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
-                <Textarea
-                  id="edit-channel-topic"
-                  value={topic}
-                  onChange={(event) => setTopic(event.target.value)}
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("Visibility.label")}</Label>
-                <RadioGroup
-                  value={discoverability}
-                  onValueChange={(value) => {
-                    if (isDiscoverability(value)) {
-                      setDiscoverability(value);
-                    }
-                  }}
-                  aria-describedby={
-                    isVisibilityLocked
-                      ? "edit-channel-visibility-locked"
-                      : undefined
+            <div className="space-y-2">
+              <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
+              <Input
+                id="edit-channel-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
+              <Input
+                id="edit-channel-topic"
+                value={topic}
+                placeholder={t("Dialog.topicPlaceholder")}
+                onChange={(event) => setTopic(event.target.value)}
+              />
+            </div>
+            <fieldset className="min-w-0 space-y-2">
+              <legend className="mb-2 text-sm font-medium">
+                {t("Visibility.label")}
+              </legend>
+              <RadioGroup
+                value={discoverability}
+                onValueChange={(value) => {
+                  if (isDiscoverability(value)) {
+                    setDiscoverability(value);
                   }
-                  className="flex flex-wrap gap-4"
-                >
-                  {(["public", "private", "external"] as const).map((value) => (
-                    <div key={value} className="flex items-center gap-2">
+                }}
+                aria-describedby={
+                  isVisibilityLocked
+                    ? "edit-channel-visibility-locked"
+                    : undefined
+                }
+                className="gap-2"
+              >
+                {VISIBILITY_OPTIONS.map((value) => {
+                  const locked = isVisibilityLocked && value !== "external";
+                  return (
+                    <Label
+                      key={value}
+                      htmlFor={`edit-channel-${value}`}
+                      className={cn(
+                        "flex items-start gap-3 rounded-lg border p-3 font-normal",
+                        value === discoverability
+                          ? "border-primary bg-primary-quinary"
+                          : "border-border",
+                        locked
+                          ? "cursor-not-allowed opacity-60"
+                          : "cursor-pointer",
+                      )}
+                    >
                       <RadioGroupItem
-                        className="peer"
+                        className="mt-0.5"
                         value={value}
                         id={`edit-channel-${value}`}
-                        disabled={isVisibilityLocked && value !== "external"}
+                        disabled={locked}
+                        aria-labelledby={`edit-channel-${value}-title`}
+                        aria-describedby={`edit-channel-${value}-help`}
                       />
-                      <Label
-                        htmlFor={`edit-channel-${value}`}
-                        className="cursor-pointer font-normal"
-                      >
-                        {t(`Visibility.${value}`)}
-                      </Label>
-                    </div>
-                  ))}
-                </RadioGroup>
-                {isVisibilityLocked ? (
-                  <div className="flex flex-col items-start gap-1">
-                    <p
-                      id="edit-channel-visibility-locked"
-                      className="text-muted-foreground text-xs"
-                    >
-                      {t("Visibility.externalLocked")}
-                    </p>
-                    <Button
-                      type="button"
-                      variant="link"
-                      size="sm"
-                      className="h-auto p-0"
-                      onClick={handleManageGuests}
-                    >
-                      {t("Dialog.manageGuests")}
-                    </Button>
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-xs">
-                    {discoverability === "public"
-                      ? t("Visibility.publicHelp")
-                      : discoverability === "private"
-                        ? t("Visibility.privateHelp")
-                        : t("Visibility.externalHelp")}
-                  </p>
-                )}
-              </div>
-            </div>
+                      <span className="min-w-0 space-y-0.5">
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          <span id={`edit-channel-${value}-title`}>
+                            {t(`Visibility.${value}`)}
+                          </span>
+                          {locked ? (
+                            <span className="bg-semantic-warning-quinary text-semantic-warning-label rounded-full px-2 py-0.5 text-xs font-medium">
+                              {t("Visibility.hasGuests")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span
+                          id={`edit-channel-${value}-help`}
+                          // Muted text falls under 4.5:1 on the selected
+                          // card's tint, so only that card's goes full.
+                          className={cn(
+                            "block text-xs",
+                            value === discoverability
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {t(`Visibility.${value}Help`)}
+                        </span>
+                      </span>
+                    </Label>
+                  );
+                })}
+              </RadioGroup>
+              {isVisibilityLocked ? (
+                <p
+                  id="edit-channel-visibility-locked"
+                  className="text-muted-foreground text-xs"
+                >
+                  {t("Visibility.externalLocked")}
+                </p>
+              ) : null}
+            </fieldset>
             <DialogFooter>
-              <Button type="submit" variant="primary" disabled={isPending}>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {t("Dialog.cancel")}
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isPending || !hasChanges}
+              >
                 {isPending ? (
                   <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
                 ) : null}
@@ -259,18 +286,33 @@ export function EditChannelDialog({
               </Button>
             </DialogFooter>
           </form>
-          <div className="space-y-3 border-t pt-4">
-            <p className="text-sm font-medium">{tActions("sectionTitle")}</p>
+          {/* Its own bordered box, apart from the form: archiving is rare and
+              hides the channel for everyone, so it never sits beside Save. */}
+          <section
+            aria-labelledby="edit-channel-archive-title"
+            className="border-semantic-destructive-tertiary mt-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0 space-y-0.5">
+              <h3
+                id="edit-channel-archive-title"
+                className="text-sm font-medium"
+              >
+                {tActions("archive")}
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                {tActions("archiveHint")}
+              </p>
+            </div>
             <Button
               type="button"
               variant="outline"
-              className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
+              className="text-semantic-destructive hover:text-semantic-destructive border-semantic-destructive-tertiary shrink-0 gap-2"
               onClick={handleRequestArchive}
             >
               <ArchiveIcon className="size-4" aria-hidden />
-              {tActions("archive")}
+              {tActions("archiveButton")}
             </Button>
-          </div>
+          </section>
         </DialogContent>
       </Dialog>
 

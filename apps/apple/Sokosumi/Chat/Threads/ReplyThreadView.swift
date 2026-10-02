@@ -320,7 +320,7 @@ import SwiftUI
       return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
         let hasGap = gaps.contains(message.id)
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
-        let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+        let streaming = isCoworkerStreamOverlay(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }

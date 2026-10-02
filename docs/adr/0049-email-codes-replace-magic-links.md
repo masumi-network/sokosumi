@@ -1,4 +1,9 @@
-# Email codes replace Magic Links
+# ADR 0049: Email codes replace Magic Links
+
+- Status: Accepted
+- Date: 2026-10-01
+- Amends: [ADR 0025](0025-better-auth-1-7-account-identity.md)
+- Relates to: [ADR 0045](0045-cmo-signs-in-through-core-oauth-provider.md)
 
 Sokosumi's passwordless email sign-in sends a six-digit code that is typed back into the tab that asked for it, through Better Auth's `emailOTP` plugin. It replaces the Magic Link everywhere: the sign-in page, the sign-up page and the re-authentication dialog. A link signs in whichever browser opens it. That broke every sign-in for another app ([ADR 0045](0045-cmo-signs-in-through-core-oauth-provider.md)), because the app's OAuth `state` lives in the browser that started, and a phone often opens mail links in the mail app's own browser. Mail scanners that open links also spent the single-use token before the person could. A code keeps the person in the tab they started in, so the OAuth request, the gated action or the sign-up form carries on.
 

@@ -64,7 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { result, statusMessages } = await prisma.$transaction(async (tx) => {
       // Doubles as the membership check: it only resolves rooms the caller
       // actually belongs to, so leaving twice 404s.
-      const existing = await requireChatRoomUserAccess(
+      let existing = await requireChatRoomUserAccess(
         id,
         userContext.userId,
         tx,
@@ -96,6 +96,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (lockedRooms[0]?.archivedAt !== null) {
         throw notFound("Room not found");
       }
+
+      // The pre-lock roster can miss a bot added while this leave waited.
+      existing = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
       // Re-count under the lock — the earlier include snapshot can be stale
       // once a concurrent leave has already deleted its row.

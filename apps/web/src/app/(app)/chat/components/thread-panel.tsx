@@ -160,7 +160,8 @@ export function ThreadPanel({
   isSendingReply: boolean;
   onBack?: () => void;
   onClose: () => void;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
   canOpenHumanDirect?: boolean;

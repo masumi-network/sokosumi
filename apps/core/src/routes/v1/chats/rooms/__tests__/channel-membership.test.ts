@@ -23,6 +23,8 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const mocks = vi.hoisted(() => ({
+  transaction: vi.fn(),
+  queryRaw: vi.fn(),
   roomFindFirst: vi.fn(),
   roomFindUniqueOrThrow: vi.fn(),
   memberFindUnique: vi.fn(),
@@ -47,6 +49,7 @@ const mocks = vi.hoisted(() => ({
 }));
 
 const tx = {
+  $queryRaw: mocks.queryRaw,
   chatRoom: {
     findFirst: mocks.roomFindFirst,
     findUniqueOrThrow: mocks.roomFindUniqueOrThrow,
@@ -84,8 +87,7 @@ const tx = {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    $transaction: async (callback: (client: typeof tx) => unknown) =>
-      callback(tx),
+    $transaction: mocks.transaction,
     chatRoomUserMember: { findMany: vi.fn().mockResolvedValue([]) },
     chatRoomReadState: { findMany: vi.fn().mockResolvedValue([]) },
     chatRoomPinnedMessage: { groupBy: vi.fn().mockResolvedValue([]) },
@@ -223,6 +225,13 @@ function statusContents(): string[] {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mocks.transaction.mockImplementation(
+    async (callback: (client: typeof tx) => unknown) => callback(tx),
+  );
+  mocks.queryRaw.mockResolvedValue([{ id: ROOM_ID }]);
+  mocks.publishStatus.mockResolvedValue(undefined);
+  mocks.publishMentionStatuses.mockResolvedValue(undefined);
+  mocks.publishRevoked.mockResolvedValue(undefined);
   mocks.roomFindFirst.mockResolvedValue(channel());
   mocks.roomFindUniqueOrThrow.mockResolvedValue(channel());
   asRole("member");
@@ -457,4 +466,304 @@ describe("DELETE /chats/rooms/{id}/soko-bots/{sokoBotId}", () => {
     expect(response.status).toBe(403);
     expect(mocks.sokoBotMemberDeleteMany).not.toHaveBeenCalled();
   });
+});
+
+describe("channel membership authorization and concurrency", () => {
+  const mutations = [
+    { method: "POST", path: "/members", body: { userIds: [NEW_ID] } },
+    { method: "DELETE", path: `/members/${GUEST_ID}` },
+    { method: "DELETE", path: `/coworkers/${COWORKER_ID}` },
+    { method: "DELETE", path: `/soko-bots/${OWN_BOT_ID}` },
+  ] as const;
+
+  it.each(mutations)(
+    "rejects direct room $path",
+    async ({ method, path, ...rest }) => {
+      mocks.roomFindFirst.mockResolvedValue(channel({ kind: "direct" }));
+      const response = await request(
+        ADMIN_ID,
+        method,
+        path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(400);
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+      expect(mocks.publishStatus).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(mutations)(
+    "rejects matched channel $path",
+    async ({ method, path, ...rest }) => {
+      mocks.roomFindFirst.mockResolvedValue(
+        channel({ discoverability: "matched" }),
+      );
+      const response = await request(
+        ADMIN_ID,
+        method,
+        path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(400);
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(mutations)(
+    "revalidates archived or removed access under the lock for $path",
+    async ({ method, path, ...rest }) => {
+      // Model a leave/archive committing before this writer acquires the room.
+      mocks.queryRaw.mockImplementation(async () => {
+        mocks.roomFindFirst.mockResolvedValue(null);
+        return [{ id: ROOM_ID }];
+      });
+      const response = await request(
+        ADMIN_ID,
+        method,
+        path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(404);
+      expect(mocks.transaction).toHaveBeenCalledWith(expect.any(Function), {
+        isolationLevel: "Serializable",
+      });
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+      expect(mocks.userMemberCreateMany).not.toHaveBeenCalled();
+      expect(mocks.userMemberDeleteMany).not.toHaveBeenCalled();
+      expect(mocks.coworkerMemberDeleteMany).not.toHaveBeenCalled();
+      expect(mocks.sokoBotMemberDeleteMany).not.toHaveBeenCalled();
+      expect(mocks.publishStatus).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(mutations)(
+    "rejects callers outside the host organization for $path",
+    async ({ method, path, ...rest }) => {
+      mocks.memberFindUnique.mockResolvedValue(null);
+      const response = await request(
+        ADMIN_ID,
+        method,
+        path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(403);
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(mutations)(
+    "rejects Guests on $path",
+    async ({ method, path, ...rest }) => {
+      const response = await request(
+        GUEST_ID,
+        method,
+        path === `/members/${GUEST_ID}` ? `/members/${MEMBER_ID}` : path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(403);
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(mutations)(
+    "rejects missing membership or archived room on $path",
+    async ({ method, path, ...rest }) => {
+      mocks.roomFindFirst.mockResolvedValue(null);
+      const response = await request(
+        ADMIN_ID,
+        method,
+        path,
+        "body" in rest ? rest.body : undefined,
+      );
+      expect(response.status).toBe(404);
+      expect(mocks.roomFindFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: ROOM_ID,
+            archivedAt: null,
+            userMembers: { some: { userId: ADMIN_ID } },
+          },
+        }),
+      );
+      expect(mocks.messageCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps other after-commit effects independent when timeline publication fails", async () => {
+    asRole("admin");
+    mocks.publishStatus.mockRejectedValue(new Error("timeline unavailable"));
+    expect(
+      (await request(ADMIN_ID, "DELETE", `/members/${MEMBER_ID}`)).status,
+    ).toBe(200);
+    expect(mocks.publishRevoked).toHaveBeenCalledWith(
+      ROOM_ID,
+      [MEMBER_ID],
+      "removed",
+    );
+    expect(mocks.publishMentionStatuses).toHaveBeenCalled();
+  });
+
+  it("allows an organization owner to remove a host", async () => {
+    asRole("owner");
+    expect(
+      (await request(ADMIN_ID, "DELETE", `/members/${MEMBER_ID}`)).status,
+    ).toBe(200);
+  });
+
+  it("adds an owned bot and deduplicates its status", async () => {
+    mocks.roomFindFirst.mockResolvedValue(channel({ sokoBotMembers: [] }));
+    mocks.sokoBotFindMany.mockResolvedValue([
+      { id: OWN_BOT_ID, userId: ADMIN_ID, name: "Own bot" },
+    ]);
+    const response = await request(ADMIN_ID, "POST", "/members", {
+      sokoBotIds: [OWN_BOT_ID, OWN_BOT_ID],
+    });
+    expect(response.status).toBe(200);
+    expect(mocks.sokoBotMemberCreateMany).toHaveBeenCalledWith({
+      data: [{ roomId: ROOM_ID, sokoBotId: OWN_BOT_ID }],
+      skipDuplicates: true,
+    });
+    expect(statusContents()).toEqual(["Andreas added Own bot"]);
+  });
+
+  it("adds an eligible coworker", async () => {
+    mocks.roomFindFirst.mockResolvedValue(channel({ coworkerMembers: [] }));
+    mocks.coworkerFindMany.mockResolvedValue([
+      { id: COWORKER_ID, name: "Soupie", baseURL: "https://example.com" },
+    ]);
+    expect(
+      (
+        await request(MEMBER_ID, "POST", "/members", {
+          coworkerIds: [COWORKER_ID],
+        })
+      ).status,
+    ).toBe(200);
+    expect(statusContents()).toEqual(["Francis added Soupie"]);
+  });
+
+  it("rejects mixed valid and invalid people before writing", async () => {
+    expect(
+      (
+        await request(MEMBER_ID, "POST", "/members", {
+          userIds: [NEW_ID, "user_outsider"],
+        })
+      ).status,
+    ).toBe(400);
+    expect(mocks.userMemberCreateMany).not.toHaveBeenCalled();
+    expect(mocks.publishStatus).not.toHaveBeenCalled();
+  });
+
+  it("never publishes a mixed batch when a later bot validation fails", async () => {
+    mocks.roomFindFirst.mockResolvedValue(channel({ sokoBotMembers: [] }));
+    mocks.sokoBotFindMany.mockResolvedValue([]);
+    expect(
+      (
+        await request(ADMIN_ID, "POST", "/members", {
+          userIds: [NEW_ID],
+          sokoBotIds: [OWN_BOT_ID],
+        })
+      ).status,
+    ).toBe(400);
+    // The real transaction rolls back the earlier staged human insert.
+    expect(mocks.messageCreate).not.toHaveBeenCalled();
+    expect(mocks.publishStatus).not.toHaveBeenCalled();
+    expect(mocks.publishRevoked).not.toHaveBeenCalled();
+  });
+
+  it("does not publish effects if commit fails", async () => {
+    mocks.transaction.mockImplementation(
+      async (callback: (client: typeof tx) => unknown) => {
+        await callback(tx);
+        throw new Error("commit failed");
+      },
+    );
+    expect(
+      (await request(ADMIN_ID, "DELETE", `/coworkers/${COWORKER_ID}`)).status,
+    ).toBe(500);
+    expect(mocks.publishStatus).not.toHaveBeenCalled();
+    expect(mocks.publishMentionStatuses).not.toHaveBeenCalled();
+    expect(mocks.publishRevoked).not.toHaveBeenCalled();
+  });
+});
+
+it.each([
+  { coworkers: [] },
+  { coworkers: [{ id: COWORKER_ID, baseURL: " " }] },
+])(
+  "rejects unusable coworkers without publishing (%j)",
+  async ({ coworkers }) => {
+    mocks.roomFindFirst.mockResolvedValue(channel({ coworkerMembers: [] }));
+    mocks.coworkerFindMany.mockResolvedValue(coworkers);
+    expect(
+      (
+        await request(MEMBER_ID, "POST", "/members", {
+          coworkerIds: [COWORKER_ID],
+        })
+      ).status,
+    ).toBe(400);
+    expect(mocks.coworkerFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          archivedAt: null,
+          capabilities: { has: "chat" },
+          sokoBotId: null,
+        }),
+      }),
+    );
+    expect(mocks.coworkerMemberCreateMany).not.toHaveBeenCalled();
+    expect(mocks.publishStatus).not.toHaveBeenCalled();
+  },
+);
+
+it("scopes new bots to the active workspace and rejects unavailable bots", async () => {
+  mocks.roomFindFirst.mockResolvedValue(channel({ sokoBotMembers: [] }));
+  mocks.sokoBotFindMany.mockResolvedValue([]);
+  expect(
+    (await request(ADMIN_ID, "POST", "/members", { sokoBotIds: [OWN_BOT_ID] }))
+      .status,
+  ).toBe(400);
+  expect(mocks.sokoBotFindMany).toHaveBeenCalledWith({
+    where: {
+      id: { in: [OWN_BOT_ID] },
+      workspaceId: "ws_org_1",
+      archivedAt: null,
+      deletedAt: null,
+    },
+    select: { id: true, userId: true },
+  });
+  expect(mocks.sokoBotMemberCreateMany).not.toHaveBeenCalled();
+});
+
+it("locks actor and target organization membership before the room and eligibility read", async () => {
+  expect(
+    (await request(MEMBER_ID, "POST", "/members", { userIds: [NEW_ID] }))
+      .status,
+  ).toBe(200);
+  const [memberSql, roomId, userIds] = mocks.queryRaw.mock.calls[0];
+  expect(memberSql.join("?")).toContain('FOR SHARE OF "member"');
+  expect(memberSql.join("?")).toContain('JOIN "chat_room"');
+  expect(roomId).toBe(ROOM_ID);
+  expect(userIds).toEqual([MEMBER_ID, NEW_ID]);
+  expect(mocks.queryRaw.mock.calls[1][0].join("?")).toContain("FOR UPDATE");
+  expect(mocks.queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.roomFindFirst.mock.invocationCallOrder[0],
+  );
+  expect(mocks.queryRaw.mock.invocationCallOrder[0]).toBeLessThan(
+    mocks.memberFindMany.mock.invocationCallOrder[0],
+  );
+});
+
+it("rejects a target whose organization exit wins the membership lock", async () => {
+  mocks.queryRaw.mockImplementation(async (sql: TemplateStringsArray) => {
+    if (sql.join("?").includes('FOR SHARE OF "member"')) {
+      mocks.memberFindMany.mockResolvedValue([]);
+    }
+    return [{ id: ROOM_ID }];
+  });
+  expect(
+    (await request(MEMBER_ID, "POST", "/members", { userIds: [NEW_ID] }))
+      .status,
+  ).toBe(400);
+  expect(mocks.userMemberCreateMany).not.toHaveBeenCalled();
+  expect(mocks.publishStatus).not.toHaveBeenCalled();
 });

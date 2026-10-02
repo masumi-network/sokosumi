@@ -72,7 +72,9 @@ describe("RoomsClient channel settings", () => {
     expect(screen.getByLabelText("Dialog.name")).toHaveValue("general");
     expect(screen.getByLabelText("Dialog.topic")).toBeInTheDocument();
     expect(screen.getByText("Visibility.label")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "archive" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "archiveButton" }),
+    ).toBeInTheDocument();
     expect(screen.queryByTestId("room-roster-panel")).toBeNull();
   });
 
@@ -106,7 +108,9 @@ describe("RoomsClient channel settings", () => {
     await openChannelTitle();
 
     expect(screen.getByLabelText("Dialog.name")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "archive" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "archiveButton" }),
+    ).toBeInTheDocument();
   });
 
   it("opens the members panel, with Add, for a plain member's title", async () => {
@@ -116,7 +120,7 @@ describe("RoomsClient channel settings", () => {
     expect(screen.getByTestId("room-roster-panel")).toBeInTheDocument();
     expect(screen.getByTestId("room-roster-add")).toBeInTheDocument();
     expect(screen.queryByLabelText("Dialog.name")).toBeNull();
-    expect(screen.queryByRole("button", { name: "archive" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "archiveButton" })).toBeNull();
   });
 
   it.each([
@@ -136,7 +140,9 @@ describe("RoomsClient channel settings", () => {
       expect(screen.getByTestId("room-roster-panel")).toBeInTheDocument();
       expect(screen.queryByTestId("room-roster-add")).toBeNull();
       expect(screen.queryByLabelText("Dialog.name")).toBeNull();
-      expect(screen.queryByRole("button", { name: "archive" })).toBeNull();
+      expect(
+        screen.queryByRole("button", { name: "archiveButton" }),
+      ).toBeNull();
     },
   );
 

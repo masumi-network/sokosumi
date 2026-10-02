@@ -28,11 +28,32 @@ export async function requireChannelRosterAccess(
   tx: Prisma.TransactionClient,
   roomId: string,
   userId: string,
+  addedUserIds: readonly string[] = [],
 ): Promise<{
   room: ChatRoomWithMembers;
   organizationId: string;
   actor: MembershipActor;
 }> {
+  // Organization removal locks Member before room membership. Follow that
+  // order, and keep actor role and new targets eligible until commit. Room
+  // locking alone cannot fence a target not yet on the room's roster.
+  const userIds = [...new Set([userId, ...addedUserIds])];
+  await tx.$queryRaw`
+    SELECT "member"."id"
+    FROM "member"
+    JOIN "chat_room" ON "chat_room"."organizationId" = "member"."organizationId"
+    WHERE "chat_room"."id" = ${roomId}::uuid
+      AND "member"."userId" = ANY(${userIds}::text[])
+    ORDER BY "member"."id"
+    FOR SHARE OF "member"
+  `;
+  // Share the room lock with leave, archive, and guest invitation flows.
+  // Read membership and permissions only after a concurrent writer commits.
+  await tx.$queryRaw`
+    SELECT "id" FROM "chat_room"
+    WHERE "id" = ${roomId}::uuid
+    FOR UPDATE
+  `;
   const room = await requireChatRoomUserAccess(roomId, userId, tx);
   if (room.kind !== "channel") {
     throw badRequest("Only channel members can be managed.");

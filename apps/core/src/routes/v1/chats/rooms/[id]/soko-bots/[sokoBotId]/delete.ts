@@ -6,6 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { sokoBotDisplayName } from "@/helpers/soko-bot-display-name";
 import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -51,6 +52,7 @@ const route = withOrganizationSlugHeaderParameter(
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Concurrent membership change"),
       404: jsonErrorResponse("Room or Soko Bot not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
@@ -63,7 +65,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id, sokoBotId } = c.req.valid("param");
 
     const { room, statusMessages, mentionMessageIds } =
-      await prisma.$transaction(async (tx) => {
+      await serializableTransaction(async (tx) => {
         const { room: existing, actor } = await requireChannelRosterAccess(
           tx,
           id,
@@ -112,7 +114,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           statusMessages,
           mentionMessageIds,
         };
-      });
+      }, "Channel membership changed concurrently. Please try again.");
 
     await publishChannelMembershipEffects({
       roomId: room.id,

@@ -192,6 +192,58 @@ p {
   background: var(--surface);
 }
 
+.button[aria-busy="true"] {
+  position: relative;
+  cursor: progress;
+}
+
+/* The label keeps the button's width; after 300ms the spinner takes its place. */
+.button[aria-busy="true"] .button-label {
+  animation: button-wait-hide 0s 300ms forwards;
+}
+
+.button-spinner {
+  position: absolute;
+  inset: 0;
+  width: 20px;
+  height: 20px;
+  margin: auto;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0;
+  animation:
+    button-wait-show 0s 300ms forwards,
+    button-spin 700ms linear infinite;
+}
+
+/* High contrast would fill the gap, and a closed ring does not look like it turns. */
+@media (forced-colors: active) {
+  .button-spinner {
+    forced-color-adjust: none;
+    border-color: GrayText;
+    border-right-color: transparent;
+  }
+}
+
+@keyframes button-wait-hide {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes button-wait-show {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes button-spin {
+  to {
+    transform: rotate(1turn);
+  }
+}
+
 [role="alert"] {
   width: 100%;
   padding: 12px 16px;
@@ -277,5 +329,9 @@ p {
   .mascot-still,
   .mascot-stage {
     transition: none;
+  }
+
+  .button-spinner {
+    animation-duration: 0s, 2s;
   }
 }

@@ -5962,7 +5962,6 @@
       "Actions": {
         "more": "Acciones del mensaje",
         "overflow": "Más",
-        "sectionTitle": "Gestionar canal",
         "leave": "Salir del canal",
         "archive": "Archivar canal",
         "cancel": "Cancelar",
@@ -5989,7 +5988,9 @@
         "mute": "Silenciar",
         "unmute": "Dejar de silenciar",
         "roomMenu": "Acciones del chat para {name}",
-        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo."
+        "actionFailed": "No se pudo actualizar este chat. Inténtalo de nuevo.",
+        "archiveHint": "Oculta el canal para todos. Restáuralo más tarde desde Archivados en la barra lateral.",
+        "archiveButton": "Archivar"
       },
       "Metadata": {
         "title": "Chat",
@@ -6038,13 +6039,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Actualiza el nombre, el tema y la visibilidad del canal.",
+        "editTitle": "Ajustes del canal",
         "name": "Name",
         "nameRequired": "El nombre del canal es obligatorio.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "¿Para qué es este canal?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "No puedes quitarte a ti mismo",
@@ -6053,8 +6053,7 @@
         "personalAssistants": "Asistentes personales",
         "cancel": "Cancel",
         "create": "Create",
-        "save": "Save changes",
-        "manageGuests": "Gestionar invitados"
+        "save": "Save changes"
       },
       "MentionStatus": {
         "failed": "No se pudo responder",
@@ -6069,6 +6068,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "readOnlyDirectNotice": "{count, plural, one {{members} salió del chat.} other {{members} salieron del chat.}} Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos.",
+      "readOnlyDirectNoticeUnnamed": "Todos los demás salieron del chat. Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Añadir más personas",
@@ -6284,7 +6285,8 @@
         "privateHelp": "Solo los miembros invitados pueden ver este canal. Los propietarios y administradores de la organización aún pueden encontrarlo y unirse.",
         "external": "Externo",
         "externalHelp": "Cualquiera de la organización puede encontrar y unirse. Los externos solo entran por invitación por correo como invitados — no son miembros de la organización.",
-        "externalLocked": "Este canal tiene invitados. Quítalos antes de hacerlo público o privado."
+        "externalLocked": "Quita a todos los invitados en el panel de miembros para hacer este canal público o privado.",
+        "hasGuests": "Tiene invitados"
       },
       "CreateWizard": {
         "title": "Crear un canal",

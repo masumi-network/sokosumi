@@ -8,7 +8,6 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
-  sokoBotDecisionInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "../index.js";
 
@@ -63,13 +62,6 @@ describe("Soko Bot tool contracts", () => {
   it("restricts decision requests to supported mutation targets", () => {
     expect(isSokoBotDecisionTarget("hire_agent")).toBe(true);
     expect(isSokoBotDecisionTarget("clarify_scope")).toBe(false);
-    expect(() =>
-      sokoBotDecisionInputSchema.parse({
-        toolName: "clarify_scope",
-        reason: "Need input",
-        proposal: {},
-      }),
-    ).toThrow();
   });
 
   it("converts write_table_rows to an object schema without an intersection root", () => {

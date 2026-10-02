@@ -41,7 +41,7 @@ import {
   quotedMessageNotFound,
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireChatRoomUserWriteAccess,
+  requireWritableChatRoom,
   resolveCrossRoomQuoteSnapshot,
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
@@ -246,11 +246,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     let persisted;
     try {
       persisted = await prisma.$transaction(async (tx) => {
-        const room = await requireChatRoomUserWriteAccess(
-          id,
-          userContext.userId,
-          tx,
-        );
+        const room = await requireWritableChatRoom(id, userContext.userId, tx);
 
         if (clientId) {
           const existing = await tx.chatRoomMessage.findUnique({

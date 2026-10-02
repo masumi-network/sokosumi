@@ -15,8 +15,11 @@ import {
   chatRoomMessageInclude,
   contentIncludesRoomAllMention,
   findLiveDirectByParticipantKey,
+  formerDirectUserIds,
   getPeerInActiveOrganizationFlags,
   isJoinableChannelDiscoverability,
+  isReadOnlyDirectRoom,
+  loadFormerDirectUserMembers,
   mapChatRoom,
   mapChatRoomMessage,
   mergeChatRoomMessageMetadata,
@@ -1739,5 +1742,170 @@ describe("requireRoomMemberCanInviteGuests", () => {
       (error: unknown) =>
         error instanceof HTTPException && error.status === 404,
     );
+  });
+});
+
+describe("Former members of a Direct", () => {
+  function createDirect(
+    directKey: string,
+    memberUserIds: string[],
+    overrides: Record<string, unknown> = {},
+  ) {
+    return createExternalRoom(
+      memberUserIds.map((userId) => createRoomMembership(userId, "member")),
+      {
+        kind: "direct",
+        slug: null,
+        discoverability: null,
+        directKey,
+        ...overrides,
+      },
+    );
+  }
+
+  it("names the peer who left a 1:1 and makes it read-only", () => {
+    const room = createDirect("user_a:user_b", ["user_a"]);
+
+    expect(formerDirectUserIds(room)).toEqual(["user_b"]);
+    expect(isReadOnlyDirectRoom(room)).toBe(true);
+  });
+
+  it("keeps a 1:1 writable while both people are in it", () => {
+    const room = createDirect("user_a:user_b", ["user_a", "user_b"]);
+
+    expect(formerDirectUserIds(room)).toEqual([]);
+    expect(isReadOnlyDirectRoom(room)).toBe(false);
+  });
+
+  it("keeps a group writable while someone else is still in it", () => {
+    const room = createDirect("direct:v2:user:user_a:user:user_b:user:user_c", [
+      "user_a",
+      "user_c",
+    ]);
+
+    expect(formerDirectUserIds(room)).toEqual(["user_b"]);
+    expect(isReadOnlyDirectRoom(room)).toBe(false);
+  });
+
+  it("makes a group read-only once only the viewer is left", () => {
+    const room = createDirect("direct:v2:user:user_a:user:user_b:user:user_c", [
+      "user_a",
+    ]);
+
+    expect(formerDirectUserIds(room)).toEqual(["user_b", "user_c"]);
+    expect(isReadOnlyDirectRoom(room)).toBe(true);
+  });
+
+  it("keeps a group writable while a coworker is still in it", () => {
+    const room = createDirect(
+      "direct:v2:coworker:coworker_elena:user:user_a:user:user_b",
+      ["user_a"],
+      { coworkerMembers: [{ coworker: { id: "coworker_elena" } }] },
+    );
+
+    expect(formerDirectUserIds(room)).toEqual(["user_b"]);
+    expect(isReadOnlyDirectRoom(room)).toBe(false);
+  });
+
+  it("finds no former members in Self Directs, AI 1:1s or Channels", () => {
+    expect(
+      formerDirectUserIds(createDirect("direct:self:user_a", ["user_a"])),
+    ).toEqual([]);
+    expect(
+      formerDirectUserIds(
+        createDirect("coworker:user_a:coworker_elena", ["user_a"]),
+      ),
+    ).toEqual([]);
+    expect(
+      formerDirectUserIds(
+        createDirect("sokoBot:user_a:01960001-0001-7001-8001-000000000099", [
+          "user_a",
+        ]),
+      ),
+    ).toEqual([]);
+    const channel = createExternalRoom([
+      createRoomMembership(MEMBER_ID, "member"),
+    ]);
+    expect(formerDirectUserIds(channel)).toEqual([]);
+    expect(isReadOnlyDirectRoom(channel)).toBe(false);
+  });
+
+  it("maps former members and read-only onto the room", () => {
+    const room = createDirect("user_a:user_b", ["user_a"]);
+
+    const mapped = mapChatRoom(room as never, "user_a", {
+      formerUserMembers: [
+        {
+          id: "user_b",
+          name: "Sarthi",
+          email: "sarthi@example.com",
+          image: "https://example.com/sarthi.png",
+        },
+      ],
+    });
+
+    expect(mapped.isReadOnly).toBe(true);
+    expect(mapped.formerUserMembers).toEqual([
+      {
+        id: "user_b",
+        name: "Sarthi",
+        email: "sarthi@example.com",
+        image: "https://example.com/sarthi.png",
+      },
+    ]);
+  });
+
+  it("loads former member profiles once for many rooms", async () => {
+    const userFindManyMock = vi.fn().mockResolvedValue([
+      {
+        id: "user_b",
+        name: "Sarthi",
+        email: "sarthi@example.com",
+        image: null,
+      },
+    ]);
+    const tx = {
+      user: { findMany: userFindManyMock },
+    } as unknown as Prisma.TransactionClient;
+
+    const formerByRoom = await loadFormerDirectUserMembers(
+      [
+        createDirect("user_a:user_b", ["user_a"], { id: "room_1" }),
+        createDirect("user_b:user_c", ["user_c"], { id: "room_2" }),
+        createDirect("user_a:user_c", ["user_a", "user_c"], { id: "room_3" }),
+      ] as never,
+      tx,
+    );
+
+    expect(userFindManyMock).toHaveBeenCalledTimes(1);
+    expect(userFindManyMock).toHaveBeenCalledWith({
+      where: { id: { in: ["user_b"] } },
+      select: { id: true, name: true, email: true, image: true },
+    });
+    expect(formerByRoom.get("room_1")).toEqual([
+      {
+        id: "user_b",
+        name: "Sarthi",
+        email: "sarthi@example.com",
+        image: null,
+      },
+    ]);
+    expect(formerByRoom.get("room_2")).toHaveLength(1);
+    expect(formerByRoom.has("room_3")).toBe(false);
+  });
+
+  it("skips the lookup when no room has former members", async () => {
+    const userFindManyMock = vi.fn();
+    const tx = {
+      user: { findMany: userFindManyMock },
+    } as unknown as Prisma.TransactionClient;
+
+    const formerByRoom = await loadFormerDirectUserMembers(
+      [createDirect("user_a:user_b", ["user_a", "user_b"])] as never,
+      tx,
+    );
+
+    expect(formerByRoom.size).toBe(0);
+    expect(userFindManyMock).not.toHaveBeenCalled();
   });
 });
