@@ -1387,15 +1387,12 @@ describe("core auth config", () => {
   describe("app tokens", () => {
     const now = new Date("2026-10-02T12:00:00Z");
     const updateMany = vi.fn();
-    const deleteUserSessions = vi.fn();
-    const adapter = {
-      updateMany,
-      incrementOne: vi.fn(),
-      transaction: vi.fn(async (callback) => callback(adapter)),
-    };
 
     function expectAppTokensRevokedFor(userId: string) {
-      const where = [{ field: "userId", value: userId }];
+      const where = [
+        { field: "userId", value: userId },
+        { field: "revoked", operator: "eq", value: null },
+      ];
       expect(updateMany).toHaveBeenCalledTimes(2);
       expect(updateMany).toHaveBeenCalledWith({
         model: "oauthAccessToken",
@@ -1405,19 +1402,13 @@ describe("core auth config", () => {
       expect(updateMany).toHaveBeenCalledWith({
         model: "oauthRefreshToken",
         where,
-        update: {
-          revoked: now,
-          rotatedAt: null,
-          rotationReplayExpiresAt: null,
-          rotationReplayResponse: null,
-        },
+        update: { revoked: now },
       });
     }
 
     beforeEach(() => {
       vi.useFakeTimers({ toFake: ["Date"], now });
       updateMany.mockReset();
-      deleteUserSessions.mockReset();
     });
 
     afterEach(() => {
@@ -1429,8 +1420,8 @@ describe("core auth config", () => {
         api: {},
         handler: vi.fn(),
         $context: Promise.resolve({
-          adapter,
-          internalAdapter: { deleteUserSessions },
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions: vi.fn() },
         }),
       });
       await import("./auth");
@@ -1450,6 +1441,37 @@ describe("core auth config", () => {
       await config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
 
       expectAppTokensRevokedFor("user-1");
+    });
+
+    it("ends every session on a reset even when revoking app tokens fails", async () => {
+      // Better Auth deletes sessions only after this callback returns.
+      const deleteUserSessions = vi.fn();
+      updateMany.mockRejectedValue(new Error("database gone"));
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await expect(
+        config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } }),
+      ).rejects.toThrow("database gone");
       expect(deleteUserSessions).toHaveBeenCalledWith("user-1");
     });
 
@@ -1468,7 +1490,7 @@ describe("core auth config", () => {
         path: ctx.path,
         body: ctx.body,
         context: {
-          adapter,
+          adapter: { updateMany },
           returned: ctx.returned,
           session: { user: { id: "user-1" } },
         },

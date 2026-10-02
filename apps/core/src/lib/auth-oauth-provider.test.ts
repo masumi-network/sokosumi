@@ -1,23 +1,17 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
-import { prismaAdapter } from "@better-auth/prisma-adapter";
-import type { DBAdapter } from "better-auth";
 import { memoryAdapter } from "better-auth/adapters/memory";
-import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
 import {
   acceptCmoPreviewCallback,
-  guardOAuthTokenIssuance,
   handleOAuthRefreshTokenRequest,
   isRefreshTokenRotating,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
-  revokePasswordResetCredentials,
-  revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
@@ -83,17 +77,7 @@ function createDb(): MemoryDb {
 // token options.
 function createTestAuth(
   db: MemoryDb,
-  {
-    replayDelay = 0,
-    rateLimitEnabled = false,
-    beforeRefreshCreate,
-    tokenWriteFailure = false,
-  }: {
-    replayDelay?: number;
-    rateLimitEnabled?: boolean;
-    beforeRefreshCreate?: () => Promise<void>;
-    tokenWriteFailure?: boolean;
-  } = {},
+  { replayDelay = 0, rateLimitEnabled = false } = {},
 ) {
   const adapter = memoryAdapter(db);
   const delayedAdapter: typeof adapter = (options) => {
@@ -108,48 +92,13 @@ function createTestAuth(
       }
       return instance.update(input);
     };
-    const create: typeof instance.create = async (input) => {
-      if (input.model === "oauthRefreshToken") await beforeRefreshCreate?.();
-      return instance.create(input);
-    };
-    const updateMany: typeof instance.updateMany = async (input) => {
-      if (tokenWriteFailure && input.model === "oauthRefreshToken")
-        throw new Error("token write unavailable");
-      return instance.updateMany(input);
-    };
-    const customized = { ...instance, update, create, updateMany };
-    // memoryAdapter has no DB transaction/locking. Keep fault injection on
-    // the callback adapter; the separate Prisma adapter test proves wiring.
-    return {
-      ...customized,
-      transaction: async (callback) => callback(customized),
-    };
+    return { ...instance, update };
   };
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
     basePath: "/auth",
     secret: "test-secret-that-is-long-enough-for-better-auth",
     database: delayedAdapter,
-    emailAndPassword: {
-      enabled: true,
-      revokeSessionsOnPasswordReset: true,
-      onPasswordReset: async ({ user }): Promise<void> =>
-        revokePasswordResetCredentials(await auth.$context, user.id),
-    },
-    hooks: {
-      after: createAuthMiddleware(async (ctx) => {
-        if (
-          ctx.path === "/oauth2/token" &&
-          !(ctx.context.returned instanceof APIError)
-        ) {
-          await guardOAuthTokenIssuance(
-            ctx.context.adapter,
-            ctx.body,
-            ctx.context.returned,
-          );
-        }
-      }),
-    },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       oauthProvider({
@@ -212,7 +161,7 @@ function createTestAuth(
     };
   }
 
-  return { auth, refresh, retry };
+  return { refresh, retry };
 }
 
 describe("oauthRefreshTokenOptions", () => {
@@ -322,311 +271,6 @@ describe("oauthRefreshTokenOptions", () => {
     const afterReuse = await refresh(String(first.body.refresh_token));
     expect(afterReuse.status).toBe(400);
     expect(afterReuse.body.error).toBe("invalid_grant");
-  });
-});
-
-describe("user OAuth revocation", () => {
-  beforeEach(() => {
-    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
-  });
-  afterEach(() => vi.useRealTimers());
-
-  it("withdraws all clients' tokens, keeps another user's tokens, and disables rotation replay", async () => {
-    const db = createDb();
-    const { auth, refresh } = createTestAuth(db);
-    const first = await refresh(SEED_REFRESH_TOKEN);
-    expect(first.status).toBe(200);
-    db.oauthRefreshToken.push({
-      ...db.oauthRefreshToken[1],
-      id: "other-client",
-      clientId: "apple-client",
-    });
-    db.oauthRefreshToken.push({
-      ...db.oauthRefreshToken[1],
-      id: "other-user",
-      userId: "user-2",
-      token: "other-token",
-    });
-    db.oauthAccessToken.push({
-      ...db.oauthAccessToken[0],
-      id: "other-client-access",
-      clientId: "apple-client",
-    });
-    db.oauthAccessToken.push({
-      ...db.oauthAccessToken[0],
-      id: "other-user-access",
-      userId: "user-2",
-      token: "other-access",
-    });
-    await revokeUserOAuthTokens((await auth.$context).adapter, USER_ID);
-    for (const model of ["oauthAccessToken", "oauthRefreshToken"]) {
-      expect(
-        db[model]
-          .filter((row) => row.userId === USER_ID)
-          .every((row) => row.revoked),
-      ).toBe(true);
-      expect(
-        db[model].find((row) => row.userId === "user-2")?.revoked,
-      ).toBeFalsy();
-    }
-    const replay = await refresh(SEED_REFRESH_TOKEN);
-    expect(replay.status).toBe(400);
-    expect(replay.body.error).toBe("invalid_grant");
-    expect((await refresh(String(first.body.refresh_token))).status).toBe(400);
-  });
-
-  it("cancels a successor minted after the revocation sweep", async () => {
-    const db = createDb();
-    const reached = Promise.withResolvers<void>();
-    const resume = Promise.withResolvers<void>();
-    const { auth, refresh } = createTestAuth(db, {
-      beforeRefreshCreate: async () => {
-        reached.resolve();
-        await resume.promise;
-      },
-    });
-    const pending = refresh(SEED_REFRESH_TOKEN);
-    await reached.promise;
-    await revokeUserOAuthTokens((await auth.$context).adapter, USER_ID);
-    resume.resolve();
-    const result = await pending;
-    expect(result.status).toBe(400);
-    expect(result.body.error).toBe("invalid_grant");
-    expect(db.oauthRefreshToken.every((row) => row.revoked)).toBe(true);
-    expect(db.oauthAccessToken.every((row) => row.revoked)).toBe(true);
-    expect((await refresh(SEED_REFRESH_TOKEN)).status).toBe(400);
-  });
-
-  it("revokes a completed rotation before its successor can renew", async () => {
-    const db = createDb();
-    const { auth, refresh } = createTestAuth(db);
-    const issued = await refresh(SEED_REFRESH_TOKEN);
-    expect(issued.status).toBe(200);
-    await revokeUserOAuthTokens((await auth.$context).adapter, USER_ID);
-    expect((await refresh(String(issued.body.refresh_token))).status).toBe(400);
-    expect(db.oauthAccessToken.every((row) => row.revoked)).toBe(true);
-  });
-
-  it.each([null, "deleted-session"])(
-    "withdraws an in-flight code exchange after session deletion (%s)",
-    async (sessionId) => {
-      const db = createDb();
-      const { auth } = createTestAuth(db);
-      db.oauthAccessToken.push({
-        id: "late-access",
-        token: hashToken("late-access"),
-        userId: USER_ID,
-        sessionId,
-        revoked: null,
-      });
-      db.oauthRefreshToken.push({
-        id: "late-refresh",
-        token: hashToken("late-refresh"),
-        userId: USER_ID,
-        sessionId,
-        revoked: null,
-      });
-      await expect(
-        guardOAuthTokenIssuance(
-          (await auth.$context).adapter,
-          { grant_type: "authorization_code" },
-          {
-            access_token: "soko_access_token_late-access",
-            refresh_token: "soko_refresh_token_late-refresh",
-          },
-        ),
-      ).rejects.toMatchObject({ body: { error: "invalid_grant" } });
-      expect(db.oauthAccessToken[0].revoked).toEqual(NOW);
-      expect(db.oauthRefreshToken[1].revoked).toEqual(NOW);
-    },
-  );
-
-  it("allows a new code exchange from a preserved session", async () => {
-    const db = createDb();
-    const { auth } = createTestAuth(db);
-    db.session.push({ id: "kept-session", userId: USER_ID });
-    db.oauthAccessToken.push({
-      id: "fresh-access",
-      token: hashToken("fresh-access"),
-      userId: USER_ID,
-      sessionId: "kept-session",
-      revoked: null,
-    });
-    await expect(
-      guardOAuthTokenIssuance(
-        (await auth.$context).adapter,
-        { grant_type: "authorization_code" },
-        {
-          access_token: "fresh-access",
-        },
-      ),
-    ).resolves.toBeUndefined();
-    expect(db.oauthAccessToken[0].revoked).toBeNull();
-  });
-
-  it("deletes sessions despite reset revocation failure and cannot reuse the consumed link", async () => {
-    const db = createDb();
-    const { auth } = createTestAuth(db, { tokenWriteFailure: true });
-    const context = await auth.$context;
-    db.account.push({
-      id: "credential",
-      userId: USER_ID,
-      providerId: "credential",
-      accountId: USER_ID,
-      password: await context.password.hash("old-password-secure"),
-    });
-    db.session.push({
-      id: "session-1",
-      token: "attacker-session",
-      userId: USER_ID,
-      createdAt: NOW,
-      updatedAt: NOW,
-      expiresAt: new Date(NOW.getTime() + 86400000),
-    });
-    db.verification.push({
-      id: "reset-link",
-      identifier: "reset-password:reset-token",
-      value: USER_ID,
-      createdAt: NOW,
-      updatedAt: NOW,
-      expiresAt: new Date(NOW.getTime() + 86400000),
-    });
-    await expect(
-      auth.api.resetPassword({
-        body: { token: "reset-token", newPassword: "new-password-secure" },
-      }),
-    ).rejects.toThrow("token write unavailable");
-    expect(db.session).toEqual([]);
-    expect(
-      await context.password.verify({
-        hash: String(db.account[0].password),
-        password: "new-password-secure",
-      }),
-    ).toBe(true);
-    await expect(
-      auth.api.resetPassword({
-        body: { token: "reset-token", newPassword: "new-password-secure" },
-      }),
-    ).rejects.toMatchObject({ body: { code: "INVALID_TOKEN" } });
-  });
-
-  it("withdraws an orphan successor even if its access row disappeared", async () => {
-    const db = createDb();
-    const { auth } = createTestAuth(db);
-    db.oauthRefreshToken.push({
-      id: "orphan-refresh",
-      token: hashToken("orphan-refresh"),
-      userId: USER_ID,
-      revoked: null,
-    });
-    await expect(
-      guardOAuthTokenIssuance(
-        (await auth.$context).adapter,
-        { grant_type: "refresh_token", refresh_token: SEED_REFRESH_TOKEN },
-        {
-          access_token: "missing-access",
-          refresh_token: "orphan-refresh",
-        },
-      ),
-    ).rejects.toMatchObject({ body: { error: "invalid_grant" } });
-    expect(db.oauthRefreshToken[1].revoked).toEqual(NOW);
-  });
-
-  it("guards JWT resource refresh grants through the returned refresh row", async () => {
-    const db = createDb();
-    const { auth } = createTestAuth(db);
-    db.oauthRefreshToken[0].revoked = NOW;
-    db.oauthRefreshToken[0].rotatedAt = NOW;
-    db.oauthRefreshToken.push({
-      id: "jwt-refresh",
-      token: hashToken("jwt-refresh"),
-      userId: USER_ID,
-      revoked: null,
-    });
-    const body = {
-      grant_type: "refresh_token",
-      refresh_token: SEED_REFRESH_TOKEN,
-    };
-    const response = {
-      access_token: "header.payload.signature",
-      refresh_token: "jwt-refresh",
-    };
-    await expect(
-      guardOAuthTokenIssuance((await auth.$context).adapter, body, response),
-    ).resolves.toBeUndefined();
-    // The provider may replay the original response after the successor has
-    // itself rotated. That is not an explicit user revocation.
-    db.oauthRefreshToken[1].revoked = NOW;
-    db.oauthRefreshToken[1].rotatedAt = NOW;
-    await expect(
-      guardOAuthTokenIssuance((await auth.$context).adapter, body, response),
-    ).resolves.toBeUndefined();
-    db.oauthRefreshToken[0].rotatedAt = null;
-    await expect(
-      guardOAuthTokenIssuance((await auth.$context).adapter, body, response),
-    ).rejects.toMatchObject({ body: { error: "invalid_grant" } });
-    expect(db.oauthRefreshToken[1].revoked).toEqual(NOW);
-  });
-
-  it("still attempts token revocation if session deletion fails", async () => {
-    const deleteUserSessions = vi
-      .fn()
-      .mockRejectedValue(new Error("session write unavailable"));
-    const updateMany = vi.fn();
-    const tx = { updateMany, incrementOne: vi.fn(), findOne: vi.fn() };
-    await expect(
-      revokePasswordResetCredentials(
-        {
-          internalAdapter: { deleteUserSessions },
-          adapter: {
-            transaction: async (callback) => callback(tx),
-          },
-        },
-        USER_ID,
-      ),
-    ).rejects.toThrow("session write unavailable");
-    expect(updateMany).toHaveBeenCalledTimes(2);
-  });
-
-  it("uses the Prisma transaction adapter and a user-row write before both sweeps", async () => {
-    const calls: string[] = [];
-    const tx = {
-      user: {
-        update: vi.fn(async () => {
-          calls.push("user-lock");
-          return { id: USER_ID, updatedAt: NOW };
-        }),
-      },
-      oauthRefreshToken: {
-        updateMany: vi.fn(async () => {
-          calls.push("refresh-sweep");
-          return { count: 1 };
-        }),
-      },
-      oauthAccessToken: {
-        updateMany: vi.fn(async () => {
-          calls.push("access-sweep");
-          return { count: 1 };
-        }),
-      },
-    };
-    const prisma = {
-      $transaction: vi.fn(async (callback: (tx: unknown) => unknown) =>
-        callback(tx),
-      ),
-    };
-    const db = createDb();
-    const { auth } = createTestAuth(db);
-    const adapter: DBAdapter = prismaAdapter(prisma, {
-      provider: "postgresql",
-      transaction: true,
-    })((await auth.$context).options);
-    await revokeUserOAuthTokens(adapter, USER_ID);
-    expect(calls).toEqual(["user-lock", "refresh-sweep", "access-sweep"]);
-    expect(tx.user.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: { updatedAt: NOW } }),
-    );
-    expect(prisma.$transaction).toHaveBeenCalledTimes(1);
   });
 });
 

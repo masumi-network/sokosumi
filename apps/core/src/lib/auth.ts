@@ -79,12 +79,10 @@ import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
-  guardOAuthTokenIssuance,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
-  revokePasswordResetCredentials,
   revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
@@ -268,7 +266,6 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
-    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
@@ -485,16 +482,6 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (
-        ctx.path === "/oauth2/token" &&
-        !(ctx.context.returned instanceof APIError)
-      ) {
-        await guardOAuthTokenIssuance(
-          ctx.context.adapter,
-          ctx.body,
-          ctx.context.returned,
-        );
-      }
       if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
@@ -541,9 +528,16 @@ export const auth = betterAuth({
     revokeSessionsOnPasswordReset: true,
     // Sessions alone leave app tokens alive (see `revokeUserOAuthTokens`).
     // A reset has no session, so the after hook cannot name the user; this
-    // callback is the one place that gets them.
+    // callback is the one place that gets them. Better Auth ends sessions
+    // only after it returns, so a failed token write would keep them alive:
+    // end them here first, and attempt both whichever fails.
     onPasswordReset: async ({ user }) => {
-      await revokePasswordResetCredentials(await auth.$context, user.id);
+      const context = await auth.$context;
+      try {
+        await context.internalAdapter.deleteUserSessions(user.id);
+      } finally {
+        await revokeUserOAuthTokens(context.adapter, user.id);
+      }
     },
     sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({

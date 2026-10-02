@@ -2,20 +2,11 @@ import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import type { OAuthOptions } from "@better-auth/oauth-provider";
 import type { DBAdapter } from "better-auth";
-import { APIError } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
-
-interface OAuthTokenAdapter extends Pick<DBAdapter, "findOne"> {
-  transaction: <R>(
-    callback: (
-      tx: Pick<DBAdapter, "incrementOne" | "findOne" | "updateMany">,
-    ) => Promise<R>,
-  ) => Promise<R>;
-}
 
 export const oauthRefreshTokenOptions = {
   refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
@@ -36,191 +27,18 @@ export const oauthRefreshTokenOptions = {
  * and Core's bearer check both refuse.
  */
 export async function revokeUserOAuthTokens(
-  adapter: Pick<OAuthTokenAdapter, "transaction">,
+  adapter: Pick<DBAdapter, "updateMany">,
   userId: string,
 ) {
-  await adapter.transaction(async (tx) => {
-    await lockOAuthUser(tx, userId);
-    const where = [{ field: "userId", value: userId }];
-    const revoked = new Date();
-    // Rotated parents must also lose their replay and rotation marker. A
-    // refresh already past its guarded rotation can still insert a successor;
-    // the token after hook checks this marker under the same user lock.
-    await tx.updateMany({
-      model: "oauthRefreshToken",
-      where,
-      update: {
-        revoked,
-        rotatedAt: null,
-        rotationReplayExpiresAt: null,
-        rotationReplayResponse: null,
-      },
-    });
-    await tx.updateMany({
-      model: "oauthAccessToken",
-      where,
-      update: { revoked },
-    });
-  });
-}
-
-/** Better Auth consumes the reset link and writes the password before this. */
-export async function revokePasswordResetCredentials(
-  context: {
-    adapter: Pick<OAuthTokenAdapter, "transaction">;
-    internalAdapter: {
-      deleteUserSessions: (userId: string) => Promise<unknown>;
-    };
-  },
-  userId: string,
-) {
-  // Always attempt both. A failed token write must not leave sessions alive;
-  // deleted sessions also fence authorization-code exchanges still in flight.
-  try {
-    await context.internalAdapter.deleteUserSessions(userId);
-  } finally {
-    await revokeUserOAuthTokens(context.adapter, userId);
-  }
-}
-
-async function lockOAuthUser(
-  adapter: Pick<DBAdapter, "incrementOne">,
-  userId: string,
-) {
-  // Updating the timestamp locks the user until the transaction commits.
-  // Both the sweep and token finalization acquire this lock before reading
-  // token rows; a plain SELECT could see a pre-commit revocation under MVCC.
-  await adapter.incrementOne({
-    model: "user",
-    where: [{ field: "id", value: userId }],
-    increment: {},
-    set: { updatedAt: new Date() },
-  });
-}
-
-function storedOAuthToken(token: string, prefix: string) {
-  return createHash("sha256")
-    .update(token.startsWith(prefix) ? token.slice(prefix.length) : token)
-    .digest("base64url");
-}
-
-interface IssuedOAuthToken {
-  userId: string | null;
-  sessionId: string | null;
-  revoked: Date | null;
-  rotatedAt?: Date | null;
-}
-
-interface RefreshRevocation {
-  revoked: Date | null;
-  rotatedAt: Date | null;
-}
-
-/** Rejects and withdraws tokens minted concurrently with a user revocation. */
-export async function guardOAuthTokenIssuance(
-  adapter: OAuthTokenAdapter,
-  body: Record<string, unknown> | undefined,
-  returned: unknown,
-) {
-  if (
-    !body ||
-    !["refresh_token", "authorization_code"].includes(
-      String(body.grant_type),
-    ) ||
-    !returned ||
-    typeof returned !== "object" ||
-    !("access_token" in returned) ||
-    typeof returned.access_token !== "string"
-  )
-    return;
-  const accessToken = storedOAuthToken(
-    returned.access_token,
-    OAUTH_ACCESS_TOKEN_PREFIX,
-  );
-  const where = [{ field: "token", value: accessToken }];
-  const isJwt = returned.access_token.split(".").length === 3;
-  const refreshWhere =
-    "refresh_token" in returned && typeof returned.refresh_token === "string"
-      ? [
-          {
-            field: "token",
-            value: storedOAuthToken(
-              returned.refresh_token,
-              OAUTH_REFRESH_TOKEN_PREFIX,
-            ),
-          },
-        ]
-      : undefined;
-  // Resource JWTs have no access-token row. Their refresh grant still has a
-  // revocable row; identity-only JWTs without a refresh token are self-contained
-  // and cannot authenticate Core's /v1 bearer path.
-  if (isJwt && !refreshWhere) return;
-  const issuedWhere = (isJwt && refreshWhere) || where;
-  const issued = await adapter.findOne<IssuedOAuthToken>({
-    model: isJwt ? "oauthRefreshToken" : "oauthAccessToken",
-    where: issuedWhere,
-  });
-  const userId = issued?.userId;
-  const valid = await adapter.transaction(async (tx) => {
-    if (userId) await lockOAuthUser(tx, userId);
-    const current = await tx.findOne<IssuedOAuthToken>({
-      model: isJwt ? "oauthRefreshToken" : "oauthAccessToken",
-      where: issuedWhere,
-    });
-    const currentRevoked = !!current?.revoked && (!isJwt || !current.rotatedAt);
-    let cancelled = !userId || !current || currentRevoked;
-    if (
-      body.grant_type === "refresh_token" &&
-      typeof body.refresh_token === "string"
-    ) {
-      const parent = await tx.findOne<RefreshRevocation>({
-        model: "oauthRefreshToken",
-        where: [
-          {
-            field: "token",
-            value: storedOAuthToken(
-              body.refresh_token,
-              OAUTH_REFRESH_TOKEN_PREFIX,
-            ),
-          },
-        ],
-      });
-      cancelled ||= !parent || (!!parent.revoked && !parent.rotatedAt);
-    } else {
-      // Prisma clears sessionId when deletion wins before this hook reads it.
-      cancelled ||=
-        !current?.sessionId ||
-        !(await tx.findOne({
-          model: "session",
-          where: [{ field: "id", value: current.sessionId }],
-        }));
-    }
-    if (!cancelled) return true;
-    await tx.updateMany({
-      model: "oauthAccessToken",
-      where,
-      update: { revoked: new Date() },
-    });
-    if (refreshWhere) {
-      await tx.updateMany({
-        model: "oauthRefreshToken",
-        where: refreshWhere,
-        update: {
-          revoked: new Date(),
-          rotatedAt: null,
-          rotationReplayExpiresAt: null,
-          rotationReplayResponse: null,
-        },
-      });
-    }
-    return false;
-  });
-  // Throw after commit so cancellation writes are not rolled back.
-  if (!valid)
-    throw new APIError("BAD_REQUEST", {
-      error: "invalid_grant",
-      error_description: "grant revoked",
-    });
+  const where = [
+    { field: "userId", value: userId },
+    { field: "revoked", operator: "eq" as const, value: null },
+  ];
+  const update = { revoked: new Date() };
+  await Promise.all([
+    adapter.updateMany({ model: "oauthAccessToken", where, update }),
+    adapter.updateMany({ model: "oauthRefreshToken", where, update }),
+  ]);
 }
 
 /** Production CMO's callback: marks the CMO client in a preview database. */
@@ -313,7 +131,11 @@ export async function isRefreshTokenRotating(
   findRotation: (storedToken: string) => Promise<RefreshTokenRotation | null>,
 ): Promise<boolean> {
   if (!refreshToken.startsWith(prefix)) return false;
-  const rotation = await findRotation(storedOAuthToken(refreshToken, prefix));
+  const rotation = await findRotation(
+    createHash("sha256")
+      .update(refreshToken.slice(prefix.length))
+      .digest("base64url"),
+  );
   return (
     !!rotation?.rotatedAt &&
     !!rotation.rotationReplayExpiresAt &&
