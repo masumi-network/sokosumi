@@ -1639,30 +1639,49 @@ describe("core auth config", () => {
       });
     }
 
+    async function expectCodeLine(printed: boolean) {
+      const write = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(() => true);
+
+      try {
+        await sendCode();
+
+        if (printed) {
+          expect(write).toHaveBeenCalledWith(
+            "[email code] andreas@example.com: 042917\n",
+          );
+        } else {
+          expect(write).not.toHaveBeenCalledWith(
+            expect.stringContaining("042917"),
+          );
+        }
+        expect(sendEmailMock).toHaveBeenCalledOnce();
+      } finally {
+        write.mockRestore();
+      }
+    }
+
     it("prints the code in development, and still emails it", async () => {
       getEnvMock.mockReturnValue({
         ...getDefaultEnv(),
         NODE_ENV: "development",
       });
-      const info = vi.spyOn(console, "info").mockImplementation(() => {});
 
-      await sendCode();
-
-      expect(info).toHaveBeenCalledWith(
-        "[email code] andreas@example.com: 042917",
-      );
-      expect(sendEmailMock).toHaveBeenCalledOnce();
-      info.mockRestore();
+      await expectCodeLine(true);
     });
 
-    it("never prints it elsewhere", async () => {
-      const info = vi.spyOn(console, "info").mockImplementation(() => {});
+    it.each(["production", "staging"])(
+      "never prints it when NODE_ENV is %s, and still emails it",
+      async (nodeEnv) => {
+        getEnvMock.mockReturnValue({
+          ...getDefaultEnv(),
+          NODE_ENV: nodeEnv,
+        });
 
-      await sendCode();
-
-      expect(info).not.toHaveBeenCalledWith(expect.stringContaining("042917"));
-      info.mockRestore();
-    });
+        await expectCodeLine(false);
+      },
+    );
   });
 
   describe("verification email", () => {

@@ -637,8 +637,10 @@ export const auth = betterAuth({
         sendVerificationOTP: async ({ email, otp }, ctx) => {
           // Local Core has no working email key; sign-up needs the code
           // (ADR 0050). Never outside development: the code signs in.
+          // stdout, not console: Sentry's default console integration would
+          // keep this line as a breadcrumb on the send failure below.
           if (env.NODE_ENV === "development") {
-            console.info(`[email code] ${email}: ${otp}`);
+            process.stdout.write(`[email code] ${email}: ${otp}\n`);
           }
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
