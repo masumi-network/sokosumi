@@ -86,7 +86,7 @@ export function ChatChatsPageSkeletonHost() {
           archivedRooms={[]}
           currentUserId={snapshot.currentUserId}
           organizationId={snapshot.organizationId}
-          canDeleteArchivedRooms={false}
+          isOrgOwnerOrAdmin={false}
           dismissSheetOnNavigate={false}
           paintOnly
         />

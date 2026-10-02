@@ -191,13 +191,13 @@ function groupDirectRoom(): ChatRoom {
   };
 }
 
-function roomClientProps(room: ChatRoom) {
+function roomClientProps(room: ChatRoom, isOrgOwnerOrAdmin = false) {
   return {
     activeOrganization: organization,
     rooms: [room],
     organizationMembers: [] as [],
     currentUserId: "user-1",
-    isOrgOwnerOrAdmin: false,
+    isOrgOwnerOrAdmin,
     coworkers: [] as [],
     selectedRoomId: room.id,
     messageLoadFailed: false,
@@ -207,9 +207,15 @@ function roomClientProps(room: ChatRoom) {
   };
 }
 
-function renderRoom(room: ChatRoom, messages: ChatRoomMessage[] = []) {
+function renderRoom(
+  room: ChatRoom,
+  {
+    isOrgOwnerOrAdmin = false,
+    messages = [],
+  }: { isOrgOwnerOrAdmin?: boolean; messages?: ChatRoomMessage[] } = {},
+) {
   return renderRoomsClient(
-    { ...roomClientProps(room), messages },
+    { ...roomClientProps(room, isOrgOwnerOrAdmin), messages },
     { wrapper: TestQueryProvider },
   );
 }
@@ -351,14 +357,16 @@ describe("RoomsClient read-only Direct updates", () => {
           { id: "user-2", name: "Bob", email: "bob@example.com", image: null },
         ],
       },
-      [
-        { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-        {
-          ...sampleMessage("has replies", "msg-2"),
-          roomId: "room-direct",
-          threadReplyCount: 2,
-        },
-      ],
+      {
+        messages: [
+          { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+          {
+            ...sampleMessage("has replies", "msg-2"),
+            roomId: "room-direct",
+            threadReplyCount: 2,
+          },
+        ],
+      },
     );
 
     const plain = rowFor("no replies");
@@ -375,9 +383,11 @@ describe("RoomsClient read-only Direct updates", () => {
   });
 
   it("keeps Quote, Reactions and Threads on a writable Direct", () => {
-    renderRoom(humanDirectRoom(), [
-      { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
-    ]);
+    renderRoom(humanDirectRoom(), {
+      messages: [
+        { ...sampleMessage("no replies", "msg-1"), roomId: "room-direct" },
+      ],
+    });
 
     const row = rowFor("no replies");
     expect(row).toHaveAttribute("data-can-quote", "true");
@@ -385,6 +395,9 @@ describe("RoomsClient read-only Direct updates", () => {
     expect(row).toHaveAttribute("data-can-open-thread", "true");
   });
 });
+
+/** An organization owner or admin, whose channel title opens the settings. */
+const AS_ADMIN = { isOrgOwnerOrAdmin: true };
 
 describe("RoomsClient edit channel deep link", () => {
   it("labels Self Direct You and shows its private-notes empty state", () => {
@@ -418,7 +431,7 @@ describe("RoomsClient edit channel deep link", () => {
   it("opens the edit dialog the URL asks for", () => {
     mockSearchParams.mockReturnValueOnce(new URLSearchParams("edit=1"));
 
-    renderRoom(channelRoom());
+    renderRoom(channelRoom(), AS_ADMIN);
 
     expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
       "data-open",
@@ -426,8 +439,19 @@ describe("RoomsClient edit channel deep link", () => {
     );
   });
 
-  it("leaves the dialog shut when the URL asks for nothing", () => {
+  // Settings are an owner's or admin's; anyone else's ask gets the members
+  // panel, where they manage who is in the channel.
+  it("opens the members panel the URL asks for a reader who cannot change settings", async () => {
+    mockSearchParams.mockReturnValueOnce(new URLSearchParams("edit=1"));
+
     renderRoom(channelRoom());
+
+    expect(await screen.findByTestId("room-roster-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+  });
+
+  it("leaves the dialog shut when the URL asks for nothing", () => {
+    renderRoom(channelRoom(), AS_ADMIN);
 
     expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
       "data-open",
@@ -450,7 +474,7 @@ describe("RoomsClient edit channel deep link", () => {
 
 describe("RoomsClient room header chrome", () => {
   it("makes the channel title the settings trigger and keeps search with the right actions", () => {
-    renderRoom(channelRoom());
+    renderRoom(channelRoom(), AS_ADMIN);
 
     const title = screen.getByTestId("room-open-title");
     const search = screen.getByTestId("room-search-trigger");
@@ -472,8 +496,24 @@ describe("RoomsClient room header chrome", () => {
     expect(screen.queryByTestId("room-open-topic")).toBeNull();
   });
 
+  it("opens the members panel from a plain member's channel title", async () => {
+    const user = userEvent.setup();
+    renderRoom(channelRoom());
+
+    const title = screen.getByTestId("room-open-title");
+    expect(title.tagName).toBe("BUTTON");
+    expect(title).toHaveAttribute("title", "RoomRoster.open");
+    expect(title).toHaveAttribute("aria-controls", "room-roster-panel");
+    expect(screen.queryByTestId("edit-channel-dialog-probe")).toBeNull();
+
+    await user.click(title);
+
+    expect(screen.getByTestId("room-roster-panel")).toBeInTheDocument();
+    expect(title).toHaveAttribute("aria-expanded", "true");
+  });
+
   it("shows a Channel topic beside the title, not inside the edit trigger", () => {
-    renderRoom({ ...channelRoom(), topic: "Weekly launch planning" });
+    renderRoom({ ...channelRoom(), topic: "Weekly launch planning" }, AS_ADMIN);
 
     const title = screen.getByTestId("room-open-title");
     const topic = screen.getByTestId("room-open-topic");
