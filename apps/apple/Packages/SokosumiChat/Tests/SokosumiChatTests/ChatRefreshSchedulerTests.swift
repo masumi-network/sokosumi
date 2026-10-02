@@ -33,7 +33,9 @@ struct ChatRefreshSchedulerTests {
     #expect(clock.intervals.isEmpty)
   }
 
-  @Test func queuedReadDefersIfWindowBecomesHidden() async {
+  /// Web `use-chat-refresh-scheduler.test.ts` "runs a queued explicit request as soon as the in-flight read finishes,
+  /// even while hidden": a queued request stays explicit, and the return finds nothing stale.
+  @Test func queuedExplicitRequestRunsWhileHidden() async {
     let clock = RefreshClock()
     let scheduler = ChatRefreshScheduler(sleep: clock.sleep)
     var reads = 0
@@ -45,13 +47,64 @@ struct ChatRefreshSchedulerTests {
       }
     }
     await waitUntil { finish != nil }
-    scheduler.requestRefresh()
     scheduler.setForeground(false)
+    scheduler.requestRefresh()
+    #expect(reads == 1)
     finish?.resume()
+    await waitUntil { reads == 2 && clock.intervals.count == 1 }
+    scheduler.setForeground(true)
+    await Task.yield()
+    #expect(reads == 2)
+    scheduler.stop()
+    clock.fireAll()
+  }
+
+  /// Web "runs an explicit request while hidden/blur": an id envelope, lost continuity or an invalidation reads at
+  /// once while no chat window is active, and that read leaves nothing for the return to catch up.
+  @Test func explicitRequestReadsWhileHidden() async {
+    let clock = RefreshClock()
+    let scheduler = ChatRefreshScheduler(sleep: clock.sleep)
+    var reads = 0
+    scheduler.start(foreground: false, healthy: false) { reads += 1 }
+    await waitUntil { clock.intervals.count == 1 }
+    scheduler.requestRefresh()
+    await waitUntil { reads == 1 && clock.intervals.count == 2 }
+    scheduler.setForeground(true)
+    await Task.yield()
+    #expect(reads == 1)
+    scheduler.stop()
+    clock.fireAll()
+  }
+
+  /// Web "reads once on return when a timer elapsed after an explicit read while away": the explicit read re-arms the
+  /// timer, whose elapse while hidden is recorded as a need, not a read.
+  @Test func timerAfterHiddenExplicitReadWaitsForReturn() async {
+    let clock = RefreshClock()
+    let scheduler = ChatRefreshScheduler(sleep: clock.sleep)
+    var reads = 0
+    scheduler.start(foreground: false, healthy: true) { reads += 1 }
+    await waitUntil { clock.intervals.count == 1 }
+    scheduler.requestRefresh()
+    await waitUntil { reads == 1 && clock.intervals.count == 2 }
+    clock.fireAll()
     await Task.yield()
     #expect(reads == 1)
     scheduler.setForeground(true)
-    await waitUntil { reads == 2 && clock.intervals.count == 1 }
+    await waitUntil { reads == 2 }
+    scheduler.stop()
+    clock.fireAll()
+  }
+
+  /// Web runs the mount read (`run(true)`) and the recovery read (`requestRef.current()`) as explicit requests.
+  @Test func mountAndRecoveryReadsRunWhileHidden() async {
+    let clock = RefreshClock()
+    let scheduler = ChatRefreshScheduler(sleep: clock.sleep)
+    var reads = 0
+    scheduler.start(foreground: false, healthy: true, refreshOnMount: true, refreshOnRecovery: true) { reads += 1 }
+    await waitUntil { reads == 1 && !scheduler.isRefreshing }
+    scheduler.setHealthy(false)
+    scheduler.setHealthy(true)
+    await waitUntil { reads == 2 }
     scheduler.stop()
     clock.fireAll()
   }
@@ -80,17 +133,17 @@ struct ChatRefreshSchedulerTests {
     clock.fireAll()
   }
 
-  @Test func backgroundNeedsCollapseOnForegroundReturn() async {
+  /// Web "starts no timer read while hidden and reads once on return".
+  @Test func backgroundTimerNeedCollapsesOnForegroundReturn() async {
     let clock = RefreshClock()
     let scheduler = ChatRefreshScheduler(sleep: clock.sleep)
     var reads = 0
     scheduler.start(foreground: false, healthy: false) { reads += 1 }
     await waitUntil { clock.intervals.count == 1 }
     clock.fireAll()
-    scheduler.requestRefresh()
-    scheduler.requestRefresh()
     await Task.yield()
     #expect(reads == 0)
+    #expect(clock.intervals.count == 1)
     scheduler.setForeground(true)
     scheduler.setForeground(true)
     await waitUntil { reads == 1 && clock.intervals.count == 2 }
