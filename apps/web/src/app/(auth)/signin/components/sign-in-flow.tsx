@@ -34,7 +34,7 @@ import SignInHeader from "./header";
 interface SignInFlowProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
-  /** An address from the link, which the person cannot change. */
+  /** The invitation's address, read from Core by id; it cannot be changed. */
   prefilledEmail?: string | undefined;
   /** The invitation `prefilledEmail` belongs to; it stays fixed on sign-up. */
   invitationId?: string | undefined;
