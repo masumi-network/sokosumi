@@ -12,12 +12,10 @@ import * as z from "zod";
 
 import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
-import { FormFields } from "@/auth/components/form/form-fields";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
-import { signInRememberMeFormData } from "@/auth/signin/data";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
@@ -120,9 +118,6 @@ export default function SignInForm({
     defaultValues: {
       currentPassword: "",
       code: "",
-      // Persistent session cookie (Max-Age). false → Better Auth omits Max-Age;
-      // iOS then drops the cookie when it kills the PWA after backgrounding.
-      rememberMe: true,
     },
   });
 
@@ -155,7 +150,9 @@ export default function SignInForm({
           fetchOptions,
           email,
           password: values.currentPassword,
-          rememberMe: values.rememberMe,
+          // Persistent session cookie (Max-Age). false → Better Auth omits
+          // Max-Age; iOS then drops the cookie when it kills the PWA.
+          rememberMe: true,
         });
 
         if (result.error) {
@@ -262,47 +259,40 @@ export default function SignInForm({
           )}
         />
       ) : (
-        <>
-          <FormField
-            control={form.control}
-            name="currentPassword"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                  <FormLabel>{t("Fields.Password.label")}</FormLabel>
-                  <Link
-                    href={buildAuthPageUrl(
-                      "/forgot-password",
-                      readAuthPageContext(searchParams),
-                    )}
-                    // The address stays out of the URL, which reaches logs.
-                    onClick={(event) =>
-                      rememberAuthEmailHintOnClick(event, email)
-                    }
-                    className="text-muted-foreground hover:text-foreground text-sm hover:underline"
-                  >
-                    {t("forgotPassword")}
-                  </Link>
-                </div>
-                <FormControl>
-                  <PasswordInput
-                    data-testid="auth-field-currentPassword"
-                    autoComplete="current-password"
-                    showLabel={authT("PasswordToggle.show")}
-                    hideLabel={authT("PasswordToggle.hide")}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormFields
-            form={form}
-            formData={signInRememberMeFormData}
-            namespace="Auth.Pages.SignIn.Form"
-          />
-        </>
+        <FormField
+          control={form.control}
+          name="currentPassword"
+          render={({ field }) => (
+            <FormItem>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <FormLabel>{t("Fields.Password.label")}</FormLabel>
+                <Link
+                  href={buildAuthPageUrl(
+                    "/forgot-password",
+                    readAuthPageContext(searchParams),
+                  )}
+                  // The address stays out of the URL, which reaches logs.
+                  onClick={(event) =>
+                    rememberAuthEmailHintOnClick(event, email)
+                  }
+                  className="text-muted-foreground hover:text-foreground text-sm hover:underline"
+                >
+                  {t("forgotPassword")}
+                </Link>
+              </div>
+              <FormControl>
+                <PasswordInput
+                  data-testid="auth-field-currentPassword"
+                  autoComplete="current-password"
+                  showLabel={authT("PasswordToggle.show")}
+                  hideLabel={authT("PasswordToggle.hide")}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       )}
       <div className="flex flex-col gap-4">
         {isCodeStep ? emailCode.captcha : captcha}
