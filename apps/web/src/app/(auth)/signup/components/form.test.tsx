@@ -998,8 +998,21 @@ describe("SignUpForm email code", () => {
     await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
-    expect(code).toHaveFocus();
+    // The field takes six digits; the refused ones would block the next code.
+    expect(code).toHaveValue("");
+    await waitFor(() => expect(code).toHaveFocus());
     expect(mockLocationReplace).not.toHaveBeenCalled();
+
+    // Typing replaces the reason, without asking for the rest of the code.
+    await user.type(code, "0");
+    expect(code).not.toHaveAttribute("aria-invalid");
+
+    await user.type(code, "00000");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
+    expect(mockEmailCodeSignIn).toHaveBeenLastCalledWith(
+      expect.objectContaining({ otp: "000000" }),
+    );
   });
 
   it("drops the existing-account notice when the code is tried alone next", async () => {

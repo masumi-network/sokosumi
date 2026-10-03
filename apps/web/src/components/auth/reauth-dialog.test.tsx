@@ -312,7 +312,7 @@ describe("ReauthDialog", () => {
     await act(async () => {});
   });
 
-  it("announces a refused code and sends it again only once it changes", async () => {
+  it("announces a refused code, empties the field and sends the same code again", async () => {
     mockSignInEmailCode.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", message: "Invalid OTP" },
@@ -328,21 +328,15 @@ describe("ReauthDialog", () => {
     // description, which now names the refusal, is what gets read out.
     await waitFor(() => expect(code).toHaveFocus());
     expect(code).toBeEnabled();
+    expect(code).toHaveValue("");
     expect(code).toHaveAccessibleDescription(/invalid$/);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    // Taking a digit back and typing it again is still the refused code.
-    await user.type(code, "{Backspace}0");
-    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
 
-    // Confirm still sends the same code on purpose.
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
+    await user.type(code, "000000");
     await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
-
-    await user.type(code, "{Backspace}7");
-    await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(3));
     expect(mockSignInEmailCode).toHaveBeenLastCalledWith({
       email: "owner@example.com",
-      otp: "000007",
+      otp: "000000",
     });
   });
 
@@ -357,7 +351,6 @@ describe("ReauthDialog", () => {
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
     await user.type(code, "000000");
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
 
     await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
     expect(onReauthenticated).not.toHaveBeenCalled();
@@ -374,7 +367,6 @@ describe("ReauthDialog", () => {
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
     await user.type(code, "042917");
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
 
     await waitFor(() =>
       expect(code).toHaveAccessibleDescription(/termsNotAccepted$/),
