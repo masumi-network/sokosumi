@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { AUTH_STEP_LINK_CLASS } from "@/auth/components/auth-step-layout";
-
 import {
   buildSignInUrlFromSignUp,
   readAuthPageContext,
