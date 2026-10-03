@@ -80,7 +80,7 @@ struct MessageAttachmentRunTests {
   ])
   func aBodyEndingInTextDoesNot(source: String) {
     #expect(!MessageMarkdown.endsWithAttachmentRun(source))
-    #expect(MessageMarkdown(source).segments.last?.files.isEmpty != false, "Agrees with what the row draws")
+    #expect(MessageMarkdown(source).segments.last?.files.isEmpty == true, "Agrees with what the row draws")
   }
 
   @Test func codeStaysTextBesideAnAttachmentRun() {
