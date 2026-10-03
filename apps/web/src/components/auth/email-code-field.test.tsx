@@ -62,6 +62,20 @@ describe("EmailCodeField", () => {
     expect(slots()).toEqual(["", "", "", "", "", ""]);
   });
 
+  it("keeps the drawn slots out of the accessibility tree, so the code is read once", async () => {
+    const user = userEvent.setup();
+    render(<Field />);
+
+    await user.type(codeField(), "0429");
+
+    for (const slot of document.querySelectorAll(
+      '[data-slot="input-otp-slot"]',
+    )) {
+      expect(slot).toHaveAttribute("aria-hidden", "true");
+    }
+    expect(codeField()).toHaveValue("0429");
+  });
+
   it("shows each typed digit in its own slot and drops anything else", async () => {
     const user = userEvent.setup();
     render(<Field />);

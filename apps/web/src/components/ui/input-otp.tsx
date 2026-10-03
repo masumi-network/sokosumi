@@ -6,8 +6,9 @@ import { MinusIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-// The slots draw the field; the real input sits invisibly on top. The input's
-// `aria-invalid` reaches the slots through the container's `group/input-otp`.
+// One box styled like `Input`, the digits spaced inside it. The real input sits
+// invisibly on top; the box takes its focus from the active slot and its error
+// from the input's `aria-invalid`. Every slot style lives in this file.
 function InputOTP({
   className,
   containerClassName,
@@ -19,7 +20,9 @@ function InputOTP({
     <OTPInput
       data-slot="input-otp"
       containerClassName={cn(
-        "group/input-otp flex items-center gap-2 has-disabled:opacity-50",
+        "flex h-10 w-full min-w-0 items-center rounded-md border border-input bg-transparent px-1 transition-[color,box-shadow] has-disabled:opacity-50",
+        "has-[[data-active=true]]:border-ring has-[[data-active=true]]:ring-ring-halo has-[[data-active=true]]:ring-[3px]",
+        "has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:has-[[data-active=true]]:ring-destructive-halo",
         containerClassName
       )}
       className={cn("disabled:cursor-not-allowed", className)}
@@ -32,7 +35,7 @@ function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
       data-slot="input-otp-group"
-      className={cn("flex items-center", className)}
+      className={cn("flex h-full min-w-0 flex-1 items-center", className)}
       {...props}
     />
   )
@@ -52,10 +55,13 @@ function InputOTPSlot({
     <div
       data-slot="input-otp-slot"
       data-active={isActive}
+      data-empty={!char}
+      // The input carries the value; the slots only draw it.
+      aria-hidden
       className={cn(
-        "border-input relative flex size-10 items-center justify-center border-y border-r bg-transparent text-sm transition-[color,box-shadow] outline-none first:rounded-l-md first:border-l last:rounded-r-md",
-        "data-[active=true]:border-ring data-[active=true]:ring-ring-halo data-[active=true]:z-10 data-[active=true]:ring-[3px]",
-        "group-has-[[aria-invalid=true]]/input-otp:border-destructive data-[active=true]:group-has-[[aria-invalid=true]]/input-otp:ring-destructive-halo",
+        "relative flex h-full min-w-0 flex-1 items-center justify-center text-base font-medium tabular-nums",
+        // A dot marks each place still to fill, except the one being typed.
+        "after:text-muted-foreground data-[empty=true]:data-[active=false]:after:content-['·']",
         className
       )}
       {...props}
