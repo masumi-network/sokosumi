@@ -198,7 +198,8 @@ private func lifecycleFixture(general: String, design: String) throws -> (Worksp
 /// One fixture bundle per test; a struct would churn every call site.
 private func ephemeralState(
   _ responses: [(Int, String)],
-  visible: Bool = true
+  visible: Bool = true,
+  openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck()
 ) throws -> (WorkspaceState, AuthState, ScriptedTransport, UserDefaults) { // swiftlint:disable:this large_tuple
   let transport = ScriptedTransport(responses)
   // The app registers this middleware too; without it the create-link body cannot carry `expiresInDays`.
@@ -207,7 +208,8 @@ private func ephemeralState(
   let defaults = UserDefaults(suiteName: suite)!
   defaults.removePersistentDomain(forName: suite)
   let state = WorkspaceState(
-    savedRoom: SavedRoomSelection(defaults: defaults)
+    savedRoom: SavedRoomSelection(defaults: defaults),
+    openRoomUnreadRecheck: openRoomUnreadRecheck
   )
   state.readAttention.setVisible(visible, window: UUID())
   state.clientResolver = { client }
@@ -4369,5 +4371,157 @@ extension WorkspaceStateTests {
     #expect(shown.threadReplyCount == 4 && shown.threadRepliers?.count == 1)
     #expect(state.thread.parent?.threadReplyCount == 4)
     #expect(transport.remainingStubs == 0)
+  }
+}
+
+/// Row 07e: the open room is read again while the room list still counts it unread (web `useOpenRoomUnreadRecheck`).
+/// The recheck's wait is held by `RecheckClock`; Core is faked at the transport.
+extension WorkspaceStateTests {
+  private static let recheckRoomId = "550e8400-e29b-41d4-a716-446655440000"
+  private static let recheckFirst = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440701", roomId: recheckRoomId, content: "First")
+  private static let laterUpdate = "2026-01-01T00:01:00.000Z"
+
+  private static func recheckOpening(read: Bool) -> [(Int, String)] {
+    [
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, read ? roomsBody(names: ["general"]) : channelUnreadRoomsBody(id: recheckRoomId, channel: 1, updatedAt: timestamp)),
+      (200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))
+    ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [])
+  }
+
+  private static func roomGets(_ transport: ScriptedTransport) -> Int {
+    transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count
+  }
+
+  private static func roomReads(_ transport: ScriptedTransport) -> Int {
+    transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count
+  }
+
+  /// The case web wrote the hook for: the list counts a message the transcript never got. Four seconds on, the
+  /// latest page brings it, read attention reads it, and the room stops counting, so nothing waits again.
+  @Test func aMissedMessageComesBackAndIsRead() async throws {
+    let missed = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440702", roomId: Self.recheckRoomId, content: "Missed")
+    let clock = RecheckClock()
+    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+      (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate)),
+      (200, transcriptPageBody(messages: [Self.recheckFirst, missed], nextCursor: nil)),
+      (200, roomReadBody(id: Self.recheckRoomId, unread: 0))
+    ], openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    #expect(clock.intervals.isEmpty, "Read on open, the room counts nothing.")
+    await state.refreshRooms(auth: auth)
+    await waitWhile { clock.pending == 0 }
+    #expect(state.rooms.first?.channelUnreadCount == 1)
+    #expect(clock.intervals == [.seconds(4)])
+    #expect(Self.roomGets(transport) == 1 && Self.roomReads(transport) == 1)
+
+    clock.fireAll()
+    await waitWhile { state.transcriptRefreshTask == nil }
+    await waitForTranscriptIdle(state)
+    #expect(Self.roomGets(transport) == 2 && Self.roomReads(transport) == 2)
+    #expect(state.transcriptMessages.map(\.content) == ["First", "Missed"])
+    #expect((state.rooms.first?.channelUnreadCount ?? 0) == 0)
+    await waitWhile { clock.pending == 0 }
+    #expect(clock.intervals.count == 1, "The room stopped counting, so nothing waits again.")
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Web "does nothing when read attention clears the count in time": here the list stops counting before the wait ends.
+  @Test func aCountClearedInTimeReadsNothing() async throws {
+    let clock = RecheckClock()
+    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+      (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate)),
+      (200, roomsBody(names: ["general"]))
+    ], openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    await state.refreshRooms(auth: auth)
+    await waitWhile { clock.pending == 0 }
+    #expect(clock.intervals == [.seconds(4)])
+    await state.refreshRooms(auth: auth)
+    clock.fireAll()
+    await waitWhile { state.transcriptRefreshTask == nil }
+    await waitForTranscriptIdle(state)
+    #expect(Self.roomGets(transport) == 1)
+    #expect(clock.intervals.count == 1)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Behind the Threads view no room is on screen (web mounts none on `/chat/threads`); back in the room, the wait starts.
+  @Test func theThreadsViewHoldsTheRecheck() async throws {
+    let clock = RecheckClock()
+    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: true) + [
+      (200, channelUnreadRoomsBody(id: Self.recheckRoomId, channel: 1, updatedAt: Self.laterUpdate))
+    ], openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    state.showThreadsView()
+    await state.refreshRooms(auth: auth)
+    await waitWhile { clock.pending == 0 }
+    #expect(clock.intervals.isEmpty)
+    await state.showRoom(Self.recheckRoomId, auth: auth)
+    await waitWhile { clock.pending == 0 }
+    #expect(clock.intervals == [.seconds(4)])
+    #expect(Self.roomGets(transport) == 1)
+    #expect(transport.remainingStubs == 0)
+  }
+
+  /// Web's read also takes an open Thread's latest page. With the window hidden the read still runs (row 07d) and
+  /// marks nothing read.
+  @Test func theRecheckAlsoReadsAnOpenThread() async throws {
+    let clock = RecheckClock()
+    let empty = transcriptPageBody(messages: [], nextCursor: nil)
+    let (state, auth, transport, _) = try ephemeralState(Self.recheckOpening(read: false) + [
+      (200, empty), (200, empty), (200, empty)
+    ], visible: false, openRoomUnreadRecheck: OpenRoomUnreadRecheck(sleep: clock.sleep))
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    await waitWhile { clock.pending == 0 }
+    #expect(clock.intervals == [.seconds(4)])
+    #expect(Self.roomGets(transport) == 1 && transport.threadGets == 1)
+
+    clock.fireAll()
+    await waitWhile { Self.roomGets(transport) < 2 || transport.threadGets < 2 }
+    await waitForTranscriptIdle(state)
+    await state.thread.loadTask?.value
+    #expect(Self.roomGets(transport) == 2 && transport.threadGets == 2)
+    #expect(!transport.operationIDs.contains { $0.hasPrefix("post/") })
+    #expect(transport.remainingStubs == 0)
+    state.thread.close()
+  }
+}
+
+/// `unreadRoomsBody` with ADR 0037's Room half and a chosen `updatedAt`.
+private func channelUnreadRoomsBody(id: String, channel: Int, updatedAt: String) -> String {
+  unreadRoomsBody(id: id, unread: channel)
+    .replacingOccurrences(of: "\"unreadCount\":\(channel),", with: "\"unreadCount\":\(channel),\"channelUnreadCount\":\(channel),")
+    .replacingOccurrences(of: "\"updatedAt\":\"\(timestamp)\"", with: "\"updatedAt\":\"\(updatedAt)\"")
+}
+
+/// Records each recheck wait and holds it until the test fires it.
+@MainActor
+private final class RecheckClock {
+  var intervals: [Duration] = []
+  private var waiting: [CheckedContinuation<Void, Never>] = []
+
+  var pending: Int {
+    waiting.count
+  }
+
+  func sleep(_ duration: Duration) async throws {
+    intervals.append(duration)
+    await withCheckedContinuation { waiting.append($0) }
+  }
+
+  func fireAll() {
+    let callbacks = waiting
+    waiting = []
+    for callback in callbacks {
+      callback.resume()
+    }
   }
 }
