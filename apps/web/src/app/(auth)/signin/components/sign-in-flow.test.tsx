@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StrictMode } from "react";
+import { type ReactNode, StrictMode } from "react";
 import { toast } from "sonner";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -77,11 +77,21 @@ vi.mock("@/auth/components/social-buttons", () => ({
   },
 }));
 
+// Step 2 has its own tests; the real one runs in the code step's flow tests.
 vi.mock("./form", () => ({
   __esModule: true,
-  default: (props: { onPendingChange: (pending: boolean) => void }) => {
+  default: (props: { onChangeEmail?: () => void; children?: ReactNode }) => {
     signInFormMock(props);
-    return <div data-testid="sign-in-form" />;
+    return (
+      <div data-testid="sign-in-form">
+        {props.onChangeEmail ? (
+          <button type="button" onClick={props.onChangeEmail}>
+            changeEmail
+          </button>
+        ) : null}
+        {props.children}
+      </div>
+    );
   },
 }));
 
@@ -150,9 +160,6 @@ describe("SignInFlow", () => {
         initialMethod: "code",
         emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
       }),
-    );
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
-      "ada@example.com",
     );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
   });

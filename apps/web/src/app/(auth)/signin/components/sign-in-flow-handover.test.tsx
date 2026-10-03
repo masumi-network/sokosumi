@@ -66,14 +66,14 @@ describe("SignInFlow after Register handed over", () => {
     render(<SignInFlow lastUsedMethod={null} />);
 
     expect(codeField()).toBeVisible();
+    // On the notice line, between the chip and the digits.
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
     // Focus lands on the field, so the reason is read with it.
-    expect(codeField()).toHaveAccessibleDescription(
-      "Handover.codeSent sentNoAddress",
-    );
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+    expect(codeField()).toHaveAccessibleDescription("Handover.codeSent");
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "ada@example.com",
     );
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
     expect(
       screen.queryByRole("textbox", { name: "label" }),
     ).not.toBeInTheDocument();
@@ -112,13 +112,15 @@ describe("SignInFlow after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
-    expect(screen.getByText("Handover.codeNotSent")).toBeVisible();
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Handover.codeNotSent",
+    );
     expect(codeField()).toHaveAccessibleDescription(
       "Handover.codeNotSentNotice Handover.codeNotSent",
     );
-    // Nothing claims a code went out.
+    // The field holds nothing wrong yet.
+    expect(codeField()).not.toHaveAttribute("aria-invalid");
     expect(screen.queryByText("Handover.codeSent")).not.toBeInTheDocument();
-    expect(screen.queryByText("sentNoAddress")).not.toBeInTheDocument();
     const resend = screen.getByRole("button", { name: "resend" });
     expect(resend).toBeEnabled();
 
@@ -155,11 +157,13 @@ describe("SignInFlow after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+    // A static chip: no pencil, no way back.
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "invited@example.com",
     );
+    expect(screen.getByTestId("auth-email-chip").tagName).not.toBe("BUTTON");
     expect(
-      screen.queryByRole("button", { name: "changeEmail" }),
+      screen.queryByRole("button", { name: /changeEmail/ }),
     ).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: /resendIn/ })).toBeDisabled();
     expect(emailStatusMock).not.toHaveBeenCalled();

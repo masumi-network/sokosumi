@@ -3,7 +3,11 @@ import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
+import {
+  EmailCodeField,
+  EmailCodeInput,
+  useEmailCodeRefusal,
+} from "./email-code-field";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -25,18 +29,18 @@ function Field({
 }) {
   const [code, setCode] = useState(initialCode);
   return (
-    <EmailCodeField
-      value={code}
-      onChange={setCode}
-      onComplete={onComplete}
-      email="ada@example.com"
-      error={error}
-      sentAt={0}
-      onResend={vi.fn()}
-      isResending={false}
-      disabled={disabled}
-      inputRef={inputRef}
-    />
+    <>
+      <EmailCodeInput
+        value={code}
+        onChange={setCode}
+        onComplete={onComplete}
+        invalid={Boolean(error)}
+        describedBy={error ? "code-error" : undefined}
+        disabled={disabled}
+        inputRef={inputRef}
+      />
+      {error ? <p id="code-error">{error}</p> : null}
+    </>
   );
 }
 
@@ -51,23 +55,24 @@ function RefusingField({ onComplete }: { onComplete: (code: string) => void }) {
     focus: () => inputRef.current?.focus(),
   });
   return (
-    <EmailCodeField
-      inputRef={inputRef}
-      value={code}
-      completedCodeRef={refusal.completedCodeRef}
-      onChange={(next) => {
-        setCode(next);
-        setError(undefined);
-      }}
-      onComplete={(completed) => {
-        onComplete(completed);
-        setError(refusal.refuse({ code: "INVALID_OTP" }));
-      }}
-      error={error}
-      sentAt={0}
-      onResend={vi.fn()}
-      isResending={false}
-    />
+    <>
+      <EmailCodeInput
+        inputRef={inputRef}
+        value={code}
+        completedCodeRef={refusal.completedCodeRef}
+        onChange={(next) => {
+          setCode(next);
+          setError(undefined);
+        }}
+        onComplete={(completed) => {
+          onComplete(completed);
+          setError(refusal.refuse({ code: "INVALID_OTP" }));
+        }}
+        invalid={Boolean(error)}
+        describedBy={error ? "code-error" : undefined}
+      />
+      {error ? <p id="code-error">{error}</p> : null}
+    </>
   );
 }
 
@@ -82,7 +87,15 @@ function slots() {
   );
 }
 
-describe("EmailCodeField", () => {
+describe("EmailCodeInput", () => {
+  it("is named for a screen reader without a visible label", () => {
+    render(<Field />);
+
+    expect(codeField()).toBeVisible();
+    expect(screen.queryByText("codeLabel")).not.toBeInTheDocument();
+    expect(document.querySelector("label")).toBeNull();
+  });
+
   it("asks for six digits with the one-time-code keyboard", () => {
     render(<Field />);
 
@@ -207,34 +220,15 @@ describe("EmailCodeField", () => {
     expect(onComplete).not.toHaveBeenCalled();
   });
 
-  it("describes the field by where the code went, and by the error once there is one", () => {
+  it("is described by the page's reason once there is one", () => {
     const { rerender } = render(<Field />);
     expect(codeField()).not.toHaveAttribute("aria-invalid");
-    expect(codeField()).toHaveAccessibleDescription("sent");
+    expect(codeField()).not.toHaveAccessibleDescription();
 
     rerender(<Field error="That code is wrong." />);
 
     expect(codeField()).toHaveAttribute("aria-invalid", "true");
-    expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
-  });
-
-  it("still tells a screen reader a code was sent when the page shows no address", () => {
-    // Log in and sign-up show the address above the field, so the line is
-    // hidden from sight there, not from the field's description.
-    render(
-      <EmailCodeField
-        value=""
-        onChange={vi.fn()}
-        error="That code is wrong."
-        sentAt={0}
-        onResend={vi.fn()}
-        isResending={false}
-      />,
-    );
-
-    expect(codeField()).toHaveAccessibleDescription(
-      "sentNoAddress That code is wrong.",
-    );
+    expect(codeField()).toHaveAccessibleDescription("That code is wrong.");
   });
 
   it("hands its input to the page's ref, so the page can focus it again", () => {
@@ -264,5 +258,51 @@ describe("EmailCodeField", () => {
     await user.type(codeField(), "00000");
     expect(onComplete).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenLastCalledWith("000000");
+  });
+});
+
+describe("EmailCodeField", () => {
+  function renderField(props: { email?: string; error?: string } = {}) {
+    render(
+      <EmailCodeField
+        value=""
+        onChange={vi.fn()}
+        sentAt={0}
+        onResend={vi.fn()}
+        isResending={false}
+        {...props}
+      />,
+    );
+  }
+
+  it("labels the code and offers a new one beside it", () => {
+    renderField();
+
+    expect(screen.getByText("codeLabel")).toBeVisible();
+    expect(codeField()).toBeVisible();
+    expect(screen.getByRole("button", { name: "resend" })).toBeEnabled();
+  });
+
+  it("describes the field by where the code went, and by the error once there is one", () => {
+    renderField({ email: "ada@example.com" });
+    expect(codeField()).not.toHaveAttribute("aria-invalid");
+    expect(codeField()).toHaveAccessibleDescription("sent");
+  });
+
+  it("adds the error to where the code went", () => {
+    renderField({ email: "ada@example.com", error: "That code is wrong." });
+
+    expect(codeField()).toHaveAttribute("aria-invalid", "true");
+    expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
+  });
+
+  it("still tells a screen reader a code was sent when the page shows no address", () => {
+    // Sign-up shows the address above the field, so the line is hidden from
+    // sight there, not from the field's description.
+    renderField({ error: "That code is wrong." });
+
+    expect(codeField()).toHaveAccessibleDescription(
+      "sentNoAddress That code is wrong.",
+    );
   });
 });

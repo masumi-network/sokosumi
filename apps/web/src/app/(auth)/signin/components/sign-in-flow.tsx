@@ -11,7 +11,6 @@ import {
   useState,
 } from "react";
 
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
@@ -102,7 +101,6 @@ export default function SignInFlow({
   const [typedEmail, setTypedEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "method">("email");
   const [cameBack, setCameBack] = useState(false);
-  const [isMethodPending, setIsMethodPending] = useState(false);
   // Step 1 starts one sign-in at a time: the email or a provider.
   const [isEmailPending, setIsEmailPending] = useState(false);
   const [isProviderPending, setIsProviderPending] = useState(false);
@@ -149,35 +147,27 @@ export default function SignInFlow({
 
   if (step === "method") {
     return (
-      <div className="flex flex-1 flex-col">
-        <SignInHeader client={client} />
-        <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          <ConfirmedEmail
-            email={email}
-            onChange={
-              // An invitation fixes the address.
-              prefilledEmail
-                ? undefined
-                : () => {
-                    setCameBack(true);
-                    setHandedOver(false);
-                    setStep("email");
-                  }
-            }
-            changeDisabled={isMethodPending}
-          />
-          <SignInForm
-            email={email}
-            returnUrl={returnUrl}
-            initialMethod={initialMethod}
-            handedOver={handedOver}
-            emailCode={emailCode}
-            onFormStart={handleFormStart}
-            onPendingChange={setIsMethodPending}
-          />
-          {children}
-        </div>
-      </div>
+      <SignInForm
+        client={client}
+        email={email}
+        onChangeEmail={
+          // An invitation fixes the address.
+          prefilledEmail
+            ? undefined
+            : () => {
+                setCameBack(true);
+                setHandedOver(false);
+                setStep("email");
+              }
+        }
+        returnUrl={returnUrl}
+        initialMethod={initialMethod}
+        handedOver={handedOver}
+        emailCode={emailCode}
+        onFormStart={handleFormStart}
+      >
+        {children}
+      </SignInForm>
     );
   }
 

@@ -6,36 +6,60 @@ import { MinusIcon } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
-// One box styled like `Input`, the digits spaced inside it. The real input sits
-// invisibly on top; the box takes its focus from the active slot and its error
-// from the input's `aria-invalid`. Every slot style lives in this file.
+type InputOTPVariant = "boxed" | "underlined"
+
+const InputOTPVariantContext = React.createContext<InputOTPVariant>("boxed")
+
+// The real input sits invisibly on top of the drawn slots; they take focus from
+// the active slot and the error from the input's `aria-invalid`. Every slot
+// style lives in this file.
+//
+// - boxed: one box styled like `Input`, the digits spaced inside it.
+// - underlined: one underlined slot per digit, for the auth pages (ADR 0051).
+//   A refused code shakes the slots once as `aria-invalid` turns on.
 function InputOTP({
   className,
   containerClassName,
+  variant = "boxed",
   ...props
 }: React.ComponentProps<typeof OTPInput> & {
   containerClassName?: string
+  variant?: InputOTPVariant
 }) {
   return (
-    <OTPInput
-      data-slot="input-otp"
-      containerClassName={cn(
-        "flex h-10 w-full min-w-0 items-center rounded-md border border-input bg-transparent px-1 transition-[color,box-shadow] has-disabled:opacity-50",
-        "has-[[data-active=true]]:border-ring has-[[data-active=true]]:ring-ring-halo has-[[data-active=true]]:ring-[3px]",
-        "has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:has-[[data-active=true]]:ring-destructive-halo",
-        containerClassName
-      )}
-      className={cn("disabled:cursor-not-allowed", className)}
-      {...props}
-    />
+    <InputOTPVariantContext.Provider value={variant}>
+      <OTPInput
+        data-slot="input-otp"
+        containerClassName={cn(
+          "group/input-otp flex w-full min-w-0 items-center has-disabled:opacity-50",
+          variant === "boxed" && [
+            "h-10 rounded-md border border-input bg-transparent px-1 transition-[color,box-shadow]",
+            "has-[[data-active=true]]:border-ring has-[[data-active=true]]:ring-ring-halo has-[[data-active=true]]:ring-[3px]",
+            "has-[input[aria-invalid=true]]:border-destructive has-[input[aria-invalid=true]]:has-[[data-active=true]]:ring-destructive-halo",
+          ],
+          variant === "underlined" &&
+            "justify-center has-[input[aria-invalid=true]]:motion-safe:animate-shake",
+          containerClassName
+        )}
+        className={cn("disabled:cursor-not-allowed", className)}
+        {...props}
+      />
+    </InputOTPVariantContext.Provider>
   )
 }
 
 function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
+  const variant = React.useContext(InputOTPVariantContext)
+
   return (
     <div
       data-slot="input-otp-group"
-      className={cn("flex h-full min-w-0 flex-1 items-center", className)}
+      className={cn(
+        "flex h-full min-w-0 items-center",
+        // Underlined slots share the row and shrink when the type grows.
+        variant === "boxed" ? "flex-1" : "w-full justify-center gap-3",
+        className
+      )}
       {...props}
     />
   )
@@ -49,6 +73,7 @@ function InputOTPSlot({
   index: number
 }) {
   const inputOTPContext = React.useContext(OTPInputContext)
+  const variant = React.useContext(InputOTPVariantContext)
   const { char, hasFakeCaret, isActive } = inputOTPContext?.slots[index] ?? {}
 
   return (
@@ -59,9 +84,17 @@ function InputOTPSlot({
       // The input carries the value; the slots only draw it.
       aria-hidden
       className={cn(
-        "relative flex h-full min-w-0 flex-1 items-center justify-center text-base font-medium tabular-nums",
-        // A dot marks each place still to fill, except the one being typed.
-        "after:text-muted-foreground data-[empty=true]:data-[active=false]:after:content-['·']",
+        "relative flex min-w-0 items-center justify-center tabular-nums",
+        variant === "boxed" && [
+          "h-full flex-1 text-base font-medium",
+          // A dot marks each place still to fill, except the one being typed.
+          "after:text-muted-foreground data-[empty=true]:data-[active=false]:after:content-['·']",
+        ],
+        variant === "underlined" && [
+          "h-14 max-w-11 flex-1 border-b-2 border-input text-3xl font-light transition-colors",
+          "data-[active=true]:border-primary",
+          "group-has-[input[aria-invalid=true]]/input-otp:border-destructive",
+        ],
         className
       )}
       {...props}
@@ -69,7 +102,12 @@ function InputOTPSlot({
       {char}
       {hasFakeCaret && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <div className="motion-safe:animate-caret-blink bg-foreground h-4 w-px" />
+          <div
+            className={cn(
+              "motion-safe:animate-caret-blink bg-foreground w-px",
+              variant === "boxed" ? "h-4" : "h-8"
+            )}
+          />
         </div>
       )}
     </div>

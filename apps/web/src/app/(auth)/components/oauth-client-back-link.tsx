@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
+import { cn } from "@/lib/utils";
 
 /**
  * The row above the sign-in and sign-up title for a person sent here through
@@ -12,10 +13,13 @@ import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
  */
 interface OAuthClientBackLinkProps {
   client: OAuthRequestClient;
+  /** Places the row in a flex column, e.g. `self-center`; it starts left. */
+  className?: string | undefined;
 }
 
 export default function OAuthClientBackLink({
   client,
+  className,
 }: OAuthClientBackLinkProps) {
   const t = useTranslations("Auth.OAuthClient");
   // Unoptimized: a client row may name any host, which the image optimizer
@@ -33,12 +37,17 @@ export default function OAuthClientBackLink({
   ) : null;
 
   if (!client.uri) {
-    return logo ? <div className="mb-4 flex">{logo}</div> : null;
+    return logo ? (
+      <div className={cn("mb-4 flex self-start", className)}>{logo}</div>
+    ) : null;
   }
   return (
     <Link
       href={client.uri}
-      className="mb-4 inline-flex max-w-full items-center self-start gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground"
+      className={cn(
+        "mb-4 inline-flex max-w-full items-center self-start gap-2 rounded-md py-1 text-sm text-muted-foreground hover:text-foreground",
+        className,
+      )}
     >
       <ArrowLeft aria-hidden className="size-4 shrink-0" />
       {logo}

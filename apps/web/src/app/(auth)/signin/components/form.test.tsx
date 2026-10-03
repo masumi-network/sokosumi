@@ -103,6 +103,7 @@ function fakeEmailCode(overrides: Partial<EmailCode> = {}): EmailCode {
     sendCode: vi.fn().mockResolvedValue(Date.now()),
     adoptSentCode: vi.fn(),
     signInWithCode: vi.fn().mockResolvedValue(undefined),
+    isAccepted: false,
     removedSignInMethods: null,
     ...overrides,
   };
@@ -115,8 +116,8 @@ function renderForm(
     email: EMAIL,
     initialMethod: "password" as const,
     emailCode: fakeEmailCode({ sentTo: null }),
+    onChangeEmail: vi.fn(),
     onFormStart: vi.fn(),
-    onPendingChange: vi.fn(),
     ...props,
   };
   render(<SignInForm {...all} />);
@@ -135,7 +136,6 @@ function SignInCodeStep() {
       initialMethod="code"
       emailCode={emailCode}
       onFormStart={vi.fn()}
-      onPendingChange={vi.fn()}
     />
   );
 }
@@ -146,6 +146,14 @@ function passwordField() {
 
 function codeField() {
   return screen.getByRole("textbox", { name: "codeLabel" });
+}
+
+function statusLine() {
+  return screen.getByRole("status");
+}
+
+function changeEmail() {
+  return screen.getByRole("button", { name: /changeEmail/ });
 }
 
 async function submitPassword() {
@@ -196,32 +204,13 @@ describe("SignInForm", () => {
       ).not.toBeInTheDocument();
     });
 
-    it("signs in with the code and stays locked while the page leaves", async () => {
+    it("signs in as soon as the sixth digit is typed, with no button", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode();
-      const { onPendingChange } = renderForm({
-        initialMethod: "code",
-        emailCode,
-      });
+      renderForm({ initialMethod: "code", emailCode });
 
-      await user.type(codeField(), "042917");
-      await user.click(screen.getByRole("button", { name: "submit" }));
-
-      await waitFor(() =>
-        expect(emailCode.signInWithCode).toHaveBeenCalledWith(EMAIL, "042917"),
-      );
-      expect(onPendingChange).toHaveBeenCalledWith(true);
-      expect(screen.getByRole("button", { name: "submit" })).toBeDisabled();
-    });
-
-    it("signs in as soon as the sixth digit is typed, without the button", async () => {
-      const user = userEvent.setup();
-      const emailCode = fakeEmailCode();
-      const { onPendingChange } = renderForm({
-        initialMethod: "code",
-        emailCode,
-      });
-
+      expect(screen.queryByRole("button", { name: "submit" })).toBeNull();
+      expect(statusLine()).toBeEmptyDOMElement();
       await user.type(codeField(), "042917");
 
       await waitFor(() =>
@@ -231,7 +220,22 @@ describe("SignInForm", () => {
         ),
       );
       expect(track).toHaveBeenCalledWith("Sign In", { provider: "email-otp" });
-      expect(onPendingChange).toHaveBeenCalledWith(true);
+    });
+
+    it("says the code was accepted and stays locked while the page leaves", async () => {
+      const user = userEvent.setup();
+      renderForm({ initialMethod: "code", emailCode: fakeEmailCode() });
+
+      await user.type(codeField(), "042917");
+
+      await waitFor(() =>
+        expect(statusLine()).toHaveTextContent("CodeStep.accepted"),
+      );
+      expect(codeField()).toBeDisabled();
+      expect(changeEmail()).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "usePassword" }),
+      ).toBeDisabled();
     });
 
     it("signs in with a pasted code that carries a dash", async () => {
@@ -250,7 +254,7 @@ describe("SignInForm", () => {
       );
     });
 
-    it("shows the step as busy while the code is checked, and sends it once", async () => {
+    it("says the code is being checked, and sends it once", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi.fn(() => new Promise<undefined>(() => {})),
@@ -260,9 +264,10 @@ describe("SignInForm", () => {
       await user.type(codeField(), "042917");
 
       await waitFor(() =>
-        expect(screen.getByRole("button", { name: "submit" })).toBeDisabled(),
+        expect(statusLine()).toHaveTextContent("CodeStep.checking"),
       );
       expect(codeField()).toBeDisabled();
+      expect(changeEmail()).toBeDisabled();
       expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
     });
 
@@ -332,9 +337,7 @@ describe("SignInForm", () => {
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
-      await user.click(
-        screen.getByRole("button", { name: "usePasswordInstead" }),
-      );
+      await user.click(screen.getByRole("button", { name: "usePassword" }));
       await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
       expect(codeField()).toHaveValue("");
       await user.type(codeField(), "000000");
@@ -444,6 +447,20 @@ describe("SignInForm", () => {
       });
     });
 
+    it("takes back the accepted state when the page cannot leave", async () => {
+      mockWaitForAuthSession.mockRejectedValue(new Error("Core is down"));
+      render(<SignInCodeStep />);
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+      fireEvent.change(code, { target: { value: "042917" } });
+
+      await waitFor(() => expect(statusLine()).toHaveTextContent("generic"));
+      expect(statusLine()).not.toHaveTextContent("CodeStep.accepted");
+      expect(code).toBeEnabled();
+      expect(code).toHaveValue("");
+      expect(mockLocationReplace).not.toHaveBeenCalled();
+    });
+
     it("leaves without a notice when the code removed nothing", async () => {
       mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
       mockSendEmailCode.mockResolvedValue({
@@ -465,39 +482,34 @@ describe("SignInForm", () => {
       expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
     });
 
-    it("asks for all six digits before sending anything", async () => {
+    it("sends nothing for an unfinished code", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode();
       renderForm({ initialMethod: "code", emailCode });
 
-      await user.type(codeField(), "0429");
-      await user.click(screen.getByRole("button", { name: "submit" }));
+      await user.type(codeField(), "0429{Enter}");
+      await act(async () => {});
 
-      await waitFor(() =>
-        expect(codeField()).toHaveAccessibleDescription(/incomplete$/),
-      );
       expect(emailCode.signInWithCode).not.toHaveBeenCalled();
+      expect(statusLine()).toBeEmptyDOMElement();
     });
 
-    it("explains a refused code beside its field", async () => {
+    it("explains a refused code in the status line", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi
           .fn()
           .mockResolvedValue({ code: "INVALID_OTP", message: "Invalid OTP" }),
       });
-      const { onPendingChange } = renderForm({
-        initialMethod: "code",
-        emailCode,
-      });
+      renderForm({ initialMethod: "code", emailCode });
 
       await user.type(codeField(), "000000");
 
-      await waitFor(() =>
-        expect(codeField()).toHaveAccessibleDescription(/invalid$/),
-      );
+      await waitFor(() => expect(statusLine()).toHaveTextContent("invalid"));
+      expect(codeField()).toHaveAccessibleDescription("invalid");
+      expect(codeField()).toHaveAttribute("aria-invalid", "true");
       await waitFor(() => expect(codeField()).toHaveFocus());
-      expect(onPendingChange).not.toHaveBeenCalledWith(true);
+      expect(changeEmail()).toBeEnabled();
     });
 
     it("switches to the password and back without a new code", async () => {
@@ -505,15 +517,21 @@ describe("SignInForm", () => {
       const emailCode = fakeEmailCode();
       renderForm({ initialMethod: "code", emailCode });
 
-      await user.click(
-        screen.getByRole("button", { name: "usePasswordInstead" }),
-      );
+      await user.click(screen.getByRole("button", { name: "usePassword" }));
       expect(passwordField()).toBeInTheDocument();
       expect(screen.getByText(/codeStillWorks/)).toBeInTheDocument();
 
       await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
       expect(codeField()).toBeInTheDocument();
       expect(emailCode.sendCode).not.toHaveBeenCalled();
+    });
+
+    it("waits 30 seconds before offering a new code", () => {
+      renderForm({ initialMethod: "code", emailCode: fakeEmailCode() });
+
+      expect(
+        screen.getByRole("button", { name: "resendIn:30" }),
+      ).toBeDisabled();
     });
 
     it("resends the code to the confirmed address", async () => {
@@ -552,7 +570,6 @@ describe("SignInForm", () => {
           initialMethod="password"
           emailCode={emailCode}
           onFormStart={vi.fn()}
-          onPendingChange={vi.fn()}
         />,
       );
 
@@ -567,7 +584,6 @@ describe("SignInForm", () => {
           initialMethod="password"
           emailCode={{ ...emailCode, sentTo: EMAIL }}
           onFormStart={vi.fn()}
-          onPendingChange={vi.fn()}
         />,
       );
       expect(codeField()).toBeInTheDocument();
@@ -669,15 +685,15 @@ describe("SignInForm", () => {
     it("fires login in place once a session appears", async () => {
       mockSignInEmail.mockResolvedValue({ data: {}, error: null });
       mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
-      const { onPendingChange } = renderForm({ returnUrl: "/chat" });
+      renderForm({ returnUrl: "/chat" });
 
       await submitPassword();
 
       await waitFor(() =>
         expect(fireGTMEvent.signIn).toHaveBeenCalledWith("credential"),
       );
-      expect(onPendingChange).toHaveBeenCalledWith(true);
       expect(screen.getByRole("button", { name: "submit" })).toBeDisabled();
+      expect(changeEmail()).toBeDisabled();
     });
 
     it("leaves the navigation to the OAuth provider when the page carries an OAuth request", async () => {
@@ -742,7 +758,7 @@ describe("SignInForm", () => {
       };
       mockSignInEmail.mockResolvedValue({ data: null, error });
       captchaErrorMessageMock.mockReturnValue("Translated captcha error");
-      const { onPendingChange } = renderForm();
+      renderForm();
 
       await submitPassword();
 
@@ -755,8 +771,8 @@ describe("SignInForm", () => {
         error,
         error.message,
       );
-      expect(onPendingChange).toHaveBeenLastCalledWith(false);
       expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
+      expect(changeEmail()).toBeEnabled();
     });
 
     it("releases submit without signing in when the captcha is cancelled", async () => {

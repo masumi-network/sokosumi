@@ -104,15 +104,14 @@ export function useEmailCodeRefusal({
   return { completedCodeRef, refuse };
 }
 
-interface EmailCodeFieldProps {
+interface EmailCodeInputProps {
   value: string;
   onChange: (value: string) => void;
   /**
    * Called when the value becomes a whole code, typed, pasted or autofilled,
-   * so the page can spend it without the button. Not again for the code it
-   * last handed over, or the one the field opened on: sending that again is
-   * the button's, until `useEmailCodeRefusal` clears a refused one. Without
-   * it, only the button sends.
+   * so the page can spend it without a button. Not again for the code it
+   * last handed over, or the one the field opened on: sending that again
+   * waits until `useEmailCodeRefusal` clears a refused one.
    */
   onComplete?: (code: string) => void;
   /**
@@ -121,60 +120,129 @@ interface EmailCodeFieldProps {
    */
   completedCodeRef?: RefObject<string>;
   onBlur?: () => void;
-  /** Where the code went, when the page does not already show it. */
-  email?: string | undefined;
-  error?: string | undefined;
-  /** Why the field opened, shown above it and read with it. */
-  notice?: string | undefined;
-  /** No code went out, so the field does not say one did. */
-  unsent?: boolean | undefined;
-  sentAt: number;
-  onResend: () => void;
-  isResending: boolean;
-  disabled?: boolean;
-  autoFocus?: boolean;
+  /** The page refused the code, or asked for the rest of it. */
+  invalid?: boolean | undefined;
+  /** Ids of the page's lines that explain the field, in reading order. */
+  describedBy?: string | undefined;
+  disabled?: boolean | undefined;
+  autoFocus?: boolean | undefined;
   inputRef?: Ref<HTMLInputElement>;
+  id?: string | undefined;
+  /** Underlined on the auth pages (ADR 0051); boxed under a visible label. */
+  variant?: "boxed" | "underlined" | undefined;
 }
 
 /**
- * The field an emailed code goes into, one slot per digit, with "Send a new
- * code" beside its label. Only digits go in.
+ * The slots an emailed code goes into, one per digit. Only digits go in. It
+ * keeps its accessible name without a visible label; the page says where the
+ * code went and why it was refused.
  */
-export function EmailCodeField({
+export function EmailCodeInput({
   value,
   onChange,
   onComplete,
   completedCodeRef,
   onBlur,
-  email,
-  error,
-  notice,
-  unsent = false,
-  sentAt,
-  onResend,
-  isResending,
+  invalid,
+  describedBy,
   disabled,
   autoFocus,
   inputRef,
-}: EmailCodeFieldProps) {
+  id,
+  variant = "underlined",
+}: EmailCodeInputProps) {
   const t = useTranslations("Components.EmailCodeForm");
-  const fieldId = useId();
-  const hintId = useId();
-  const errorId = useId();
-  const noticeId = useId();
   const localCompletedCode = useRef(
     value.length === EMAIL_CODE_LENGTH ? value : "",
   );
   const completedCode = completedCodeRef ?? localCompletedCode;
 
   return (
+    <InputOTP
+      ref={inputRef}
+      id={id}
+      variant={variant}
+      aria-label={t("codeLabel")}
+      maxLength={EMAIL_CODE_LENGTH}
+      pattern={REGEXP_ONLY_DIGITS}
+      pasteTransformer={keepDigits}
+      inputMode="numeric"
+      autoComplete="one-time-code"
+      autoFocus={autoFocus}
+      value={value}
+      onChange={(code) => {
+        onChange(code);
+        if (
+          onComplete &&
+          code.length === EMAIL_CODE_LENGTH &&
+          code !== completedCode.current
+        ) {
+          completedCode.current = code;
+          onComplete(code);
+        }
+      }}
+      onPasteCapture={(event) => {
+        // InputOTP pastes at the caret, which sits on the last slot of a
+        // full field; a whole code replaces what is there instead.
+        const pasted = keepDigits(event.clipboardData.getData("text/plain"));
+        if (pasted.length >= EMAIL_CODE_LENGTH) {
+          event.currentTarget.setSelectionRange(0, value.length);
+        }
+      }}
+      onBlur={onBlur}
+      aria-invalid={invalid ? true : undefined}
+      aria-describedby={describedBy || undefined}
+      disabled={disabled}
+    >
+      <InputOTPGroup>
+        {CODE_SLOTS.map((index) => (
+          <InputOTPSlot key={index} index={index} />
+        ))}
+      </InputOTPGroup>
+    </InputOTP>
+  );
+}
+
+interface EmailCodeFieldProps
+  extends Pick<
+    EmailCodeInputProps,
+    | "value"
+    | "onChange"
+    | "onComplete"
+    | "completedCodeRef"
+    | "onBlur"
+    | "disabled"
+    | "autoFocus"
+    | "inputRef"
+  > {
+  /** Where the code went, when the page does not already show it. */
+  email?: string | undefined;
+  error?: string | undefined;
+  sentAt: number;
+  onResend: () => void;
+  isResending: boolean;
+}
+
+/**
+ * The code slots under a visible label, with "Send a new code" beside it and
+ * where the code went under it, for forms not yet on the auth step layout.
+ */
+export function EmailCodeField({
+  email,
+  error,
+  sentAt,
+  onResend,
+  isResending,
+  disabled,
+  ...input
+}: EmailCodeFieldProps) {
+  const t = useTranslations("Components.EmailCodeForm");
+  const fieldId = useId();
+  const hintId = useId();
+  const errorId = useId();
+
+  return (
     <div className="grid gap-2">
-      {notice ? (
-        // The grid's gap and this margin match the form's gap.
-        <p id={noticeId} className="text-muted-foreground mb-1 text-sm">
-          {notice}
-        </p>
-      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
         <ResendCodeButton
@@ -183,65 +251,23 @@ export function EmailCodeField({
           isSending={isResending || Boolean(disabled)}
         />
       </div>
-      <InputOTP
-        ref={inputRef}
+      <EmailCodeInput
+        {...input}
         id={fieldId}
-        maxLength={EMAIL_CODE_LENGTH}
-        pattern={REGEXP_ONLY_DIGITS}
-        pasteTransformer={keepDigits}
-        inputMode="numeric"
-        autoComplete="one-time-code"
-        autoFocus={autoFocus}
-        value={value}
-        onChange={(code) => {
-          onChange(code);
-          if (
-            onComplete &&
-            code.length === EMAIL_CODE_LENGTH &&
-            code !== completedCode.current
-          ) {
-            completedCode.current = code;
-            onComplete(code);
-          }
-        }}
-        onPasteCapture={(event) => {
-          // InputOTP pastes at the caret, which sits on the last slot of a
-          // full field; a whole code replaces what is there instead.
-          const pasted = keepDigits(event.clipboardData.getData("text/plain"));
-          if (pasted.length >= EMAIL_CODE_LENGTH) {
-            event.currentTarget.setSelectionRange(0, value.length);
-          }
-        }}
-        onBlur={onBlur}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={
-          [
-            notice ? noticeId : null,
-            unsent ? null : hintId,
-            error ? errorId : null,
-          ]
-            .filter(Boolean)
-            .join(" ") || undefined
-        }
+        variant="boxed"
+        invalid={Boolean(error)}
+        describedBy={[hintId, error ? errorId : null].filter(Boolean).join(" ")}
         disabled={disabled}
-      >
-        <InputOTPGroup>
-          {CODE_SLOTS.map((index) => (
-            <InputOTPSlot key={index} index={index} />
-          ))}
-        </InputOTPGroup>
-      </InputOTP>
+      />
       {/* Without an address the page shows it above the field, and the slots
           show the length, so the line only tells a screen reader a code went
           out. */}
-      {unsent ? null : (
-        <p
-          id={hintId}
-          className={email ? "text-muted-foreground text-sm" : "sr-only"}
-        >
-          {email ? t("sent", { email }) : t("sentNoAddress")}
-        </p>
-      )}
+      <p
+        id={hintId}
+        className={email ? "text-muted-foreground text-sm" : "sr-only"}
+      >
+        {email ? t("sent", { email }) : t("sentNoAddress")}
+      </p>
       {error ? (
         <p id={errorId} className="text-destructive text-sm">
           {error}

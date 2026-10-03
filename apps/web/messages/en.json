@@ -10,6 +10,7 @@
     "EmailCodeForm": {
       "sent": "We sent a 6-digit code to {email}.",
       "sentNoAddress": "We emailed you a 6-digit code.",
+      "sentTo": "We sent a 6-digit code to",
       "codeLabel": "Code from the email",
       "incomplete": "Enter the 6-digit code from the email.",
       "invalid": "That code is not right. Check the email and try again.",
@@ -1185,7 +1186,7 @@
         "continueWithEmail": "Continue with Email",
         "change": "Change",
         "changeEmail": "Change email",
-        "usePasswordInstead": "Use a password instead",
+        "usePassword": "Use a password",
         "emailCodeInstead": "Email me a code instead",
         "emailCodeSending": "Sending code...",
         "codeStillWorks": "The code we sent still works.",
@@ -1207,6 +1208,11 @@
         "Form": {
           "submit": "Log in",
           "lastUsed": "Last used",
+          "CodeStep": {
+            "title": "Check your email",
+            "checking": "Checking the code…",
+            "accepted": "Code accepted. Logging you in…"
+          },
           "error": "Invalid email or password",
           "Fields": {
             "Password": {

@@ -74,6 +74,8 @@ export function useEmailCode({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState(0);
   const [removed, setRemoved] = useState<RemovedSignInMethods | null>(null);
+  // Better Auth took the code; the page is on its way out.
+  const [isAccepted, setIsAccepted] = useState(false);
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
   // chose a code. The pages count the choice. Resolves to the send time, or
@@ -131,18 +133,32 @@ export function useEmailCode({
     if (result.error) {
       return result.error;
     }
+    setIsAccepted(true);
+    try {
+      await leaveAfterAcceptance(result.data, fields);
+    } catch (error) {
+      // Still here: the page could not leave, so nothing was accepted yet.
+      setIsAccepted(false);
+      throw error;
+    }
+    return undefined;
+  }
 
+  async function leaveAfterAcceptance(
+    data: unknown,
+    fields: EmailCodeSignUpFields | undefined,
+  ) {
     const finish = (destination: string | undefined) =>
       finishAuthInPlace({
         eventType,
         // A password sign-up counts as one, whichever request carried it.
         provider: fields?.password === undefined ? "email-otp" : "credential",
         returnUrl: destination,
-        result: result.data,
+        result: data,
         beforeLeaving,
       });
 
-    if (didRemoveSignInMethods(result.data)) {
+    if (didRemoveSignInMethods(data)) {
       // Settles once the page is leaving, so the step stays locked.
       await new Promise<void>((resolve, reject) => {
         let leaving = false;
@@ -157,11 +173,10 @@ export function useEmailCode({
           },
         });
       });
-      return undefined;
+      return;
     }
 
     await finish(returnUrl);
-    return undefined;
   }
 
   return {
@@ -172,6 +187,7 @@ export function useEmailCode({
     sendCode,
     adoptSentCode,
     signInWithCode,
+    isAccepted,
     removedSignInMethods: removed,
   };
 }
