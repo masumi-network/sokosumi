@@ -42,7 +42,7 @@ The Xcode navigator follows the physical source folders. Start with `Sokosumi/Ap
 | `Sokosumi/App` | Scenes, root navigation, environment configuration |
 | `Sokosumi/Authentication` | Sign-in UI, system-browser integration and Keychain adapter for `TokenStore` |
 | `Sokosumi/Chat/Sidebar` | Conversation list and account/workspace menus |
-| `Sokosumi/Chat/Timeline` | Scrolling, message rows, status rows, the mark a jump leaves, Seen by on the newest message (`SeenByButton`) and the room header (`RoomHeaderModifier`) |
+| `Sokosumi/Chat/Timeline` | Scrolling, message rows, status rows, the mark a jump leaves and the spotlight it casts (`JumpSpotlightClock`), Seen by on the newest message (`SeenByButton`) and the room header (`RoomHeaderModifier`) |
 | `Sokosumi/Chat/Threads` | Reply-thread presentation |
 | `Sokosumi/Chat/Details` | Room information and members inspector (add, remove, leave), its Add picker with the guest access tab, the admin-only channel settings sheet and the group Direct Name Group sheet |
 | `Sokosumi/Chat/Invitations` | Channel invitation and guest join-link sheets opened from in-app links |

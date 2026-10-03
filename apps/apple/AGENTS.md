@@ -16,7 +16,7 @@ The Xcode navigator mirrors the real folders under `Sokosumi/` using filesystem-
 - `Authentication/`: sign-in presentation, app OAuth configuration, system-browser adapter and Keychain adapter for `TokenStore`.
 - `Packages/SokosumiWorkspace/`: shared workspace, room and realtime coordination; thread orchestration is in `WorkspaceState+Threads.swift`.
 - `Chat/Sidebar/`: conversation sections, workspace/account menus and room labels.
-- `Chat/Timeline/`: room scrolling, message rows, timeline status rows, the jump mark's drawing (`JumpMarkBackground`), the Seen by faces and list on the newest message (`SeenByButton`) and the room header in the title bar (`RoomHeaderModifier`). The mark's clock is `JumpMark`, the header's mark, name and topic come from `RoomHeaderIdentity`, and who has read how far comes from `RoomReadReceipts`, all in `SokosumiChat`.
+- `Chat/Timeline/`: room scrolling, message rows, timeline status rows, the jump mark's drawing (`JumpMarkBackground`) and the spotlight it casts over the list's other rows (`JumpSpotlightClock`), the Seen by faces and list on the newest message (`SeenByButton`) and the room header in the title bar (`RoomHeaderModifier`). The mark's clock is `JumpMark` and the spotlight's step-back `JumpSpotlight`, the header's mark, name and topic come from `RoomHeaderIdentity`, and who has read how far comes from `RoomReadReceipts`, all in `SokosumiChat`.
 - `Chat/Threads/`: reply-thread presentation.
 - `Chat/Pins/`: pinned-message inspector and preview cards; pin state and networking stay in the shared packages.
 - `Chat/Search/`: Room Find toolbar, shared inspector presentation and search result rows.
