@@ -20,7 +20,7 @@ function renderForm(
 ) {
   const props = {
     email: "ada@example.com",
-    submitLabel: "Sign in",
+    submitLabel: "Log in",
     onSubmitCode: vi.fn().mockResolvedValue(undefined),
     onResend: vi.fn(),
     isResending: false,
@@ -50,7 +50,7 @@ describe("EmailCodeForm", () => {
 
     await user.click(screen.getByRole("textbox", { name: "codeLabel" }));
     await user.paste("042 917");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(onSubmitCode).toHaveBeenCalledWith("042917");
   });
@@ -91,7 +91,7 @@ describe("EmailCodeForm", () => {
     const { onSubmitCode } = renderForm();
 
     await user.type(screen.getByRole("textbox", { name: "codeLabel" }), "0429");
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(onSubmitCode).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "codeLabel" })).toHaveAttribute(
@@ -120,14 +120,14 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     const field = screen.getByRole("textbox", { name: "codeLabel" });
     await waitFor(() => expect(field).toHaveAttribute("aria-invalid", "true"));
     expect(field).toHaveAccessibleDescription(new RegExp(`${message}$`));
     // Submitting left focus on the button; it returns to what needs fixing.
     expect(field).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Log in" })).toBeEnabled();
   });
 
   it("asks to wait when Core's rate limit answers before the tries run out", async () => {
@@ -142,7 +142,7 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
       expect(
@@ -159,10 +159,10 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Sign in" })).toBeEnabled(),
+      expect(screen.getByRole("button", { name: "Log in" })).toBeEnabled(),
     );
     expect(
       screen.getByRole("textbox", { name: "codeLabel" }),
@@ -177,10 +177,10 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Sign in" }));
+    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Sign in" })).toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Log in" })).toBeDisabled(),
     );
   });
 

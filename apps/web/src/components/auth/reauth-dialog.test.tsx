@@ -166,7 +166,7 @@ describe("ReauthDialog", () => {
   });
 
   // SOK-1259: every log-in is persistent, so there is nothing to choose.
-  it("offers no Keep me signed in choice", () => {
+  it("offers no Keep me logged in choice", () => {
     renderDialog([passwordAccount]);
 
     expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();

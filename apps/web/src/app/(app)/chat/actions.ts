@@ -147,7 +147,7 @@ export async function loadChatComposeRosterAction(): Promise<
 > {
   const session = await getSession();
   if (!session) {
-    return roomFail("Sign in required.");
+    return roomFail("Log in required.");
   }
 
   const self = {
