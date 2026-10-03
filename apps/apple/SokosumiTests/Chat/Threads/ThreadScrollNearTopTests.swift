@@ -16,6 +16,8 @@
       @Test func aReaderScrollMovesTheContentByTheScrollWhileTheRowsAboveAreMeasured() async throws {
         LegacyScrollers.swap()
         defer { LegacyScrollers.swap() }
+        // A failed swizzle leaves overlay scrollers, and a plain 40 pt scroll still moves the pixels by 40.
+        #expect(NSScroller.preferredScrollerStyle == .legacy)
         let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
         let auth = AuthState()
         state.thread.requestJump(to: "fixture-2")
@@ -48,6 +50,11 @@
 
         let offsetAfter = scroll.contentView.bounds.minY
         let moved = try Self.contentShift(from: before, to: Self.bands(host: host, scroll: scroll))
+        // Overlay scrollers land this jump near 593 pt. Legacy scrollers land near 436, then measuring the
+        // parent pulls the offset down by about 269 pt (CI 436 to 167) while the pixels move only 40.
+        // `moved == 40` alone also passes when that measurement never happens.
+        #expect(offsetBefore < 520, "Legacy landing offset was \(offsetBefore) pt, not near 436.")
+        #expect(offsetBefore - offsetAfter > 200, "Offset \(offsetBefore) to \(offsetAfter) is a plain scroll, not the measurement correction.")
         #expect(moved == 40, "A 40 pt scroll moved the visible rows by \(moved) pt (offset \(offsetBefore) to \(offsetAfter)).")
       }
 
