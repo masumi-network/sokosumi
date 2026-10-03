@@ -60,6 +60,48 @@ describe("createTaskForActor", () => {
       }),
     );
   });
+
+  it("writes the creation event, then the initial status event", async () => {
+    const taskCreateMock = vi.fn().mockResolvedValue({ id: "tsk_123" });
+    const tx = { task: { create: taskCreateMock } } as never;
+
+    await createTaskForActor(
+      {
+        actor: { kind: "soko_bot", sokoBotId: "bot_123" },
+        ownerId: "user_123",
+        organizationId: "org_123",
+        workspaceId: "workspace_123",
+        name: "Bot Task",
+        status: TaskStatus.DRAFT,
+        effectEventId: "event_effect",
+      },
+      tx,
+    );
+
+    const [created, status] = taskCreateMock.mock.calls[0]![0].data.events
+      .create as {
+      id?: string;
+      status: TaskStatus | null;
+      comment: string | null;
+      sokoBotId: string;
+      createdAt: Date;
+    }[];
+    expect(created).toMatchObject({
+      status: TaskStatus.CREATED,
+      comment: null,
+      sokoBotId: "bot_123",
+    });
+    expect(created.id).toBeUndefined();
+    // The effect receipt points at the status event, not the creation event.
+    expect(status).toMatchObject({
+      id: "event_effect",
+      status: TaskStatus.DRAFT,
+      sokoBotId: "bot_123",
+    });
+    expect(created.createdAt.getTime()).toBeLessThan(
+      status.createdAt.getTime(),
+    );
+  });
 });
 
 describe("a Soko Bot archiving a Task", () => {

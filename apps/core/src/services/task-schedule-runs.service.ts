@@ -12,6 +12,7 @@ import {
 } from "@sokosumi/database";
 
 import { computeNextRun } from "@/helpers/cron";
+import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -424,13 +425,15 @@ function createTaskFromBlueprint(
       creatorSokoBotId: schedule.creatorSokoBotId,
       status: TaskStatus.READY,
       events: {
-        create: {
+        create: taskCreationEvents({
           status: TaskStatus.READY,
           channel: Channel.SOKOSUMI,
-          userId: schedule.creatorUserId,
-          coworkerId: schedule.creatorCoworkerId,
-          sokoBotId: schedule.creatorSokoBotId,
-        },
+          actorFields: {
+            userId: schedule.creatorUserId,
+            coworkerId: schedule.creatorCoworkerId,
+            sokoBotId: schedule.creatorSokoBotId,
+          },
+        }),
       },
     },
     select: { id: true, ownerId: true, assigneeUserId: true },

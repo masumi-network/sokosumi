@@ -661,12 +661,12 @@ export const taskScheduleTestPrisma = {
       async ({
         data: { events, ...data },
       }: {
-        data: Partial<Task> & { events?: { create: Partial<TaskEvent> } };
+        data: Partial<Task> & { events?: { create: Partial<TaskEvent>[] } };
       }) => {
         const row: StoredTask = {
           id: randomUUID(),
           ...data,
-          events: events ? [events.create] : [],
+          events: events?.create ?? [],
         };
         taskScheduleTestDb.tasks.push(row);
         return row;
