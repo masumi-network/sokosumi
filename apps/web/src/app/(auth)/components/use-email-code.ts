@@ -74,6 +74,8 @@ export function useEmailCode({
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState(0);
   const [removed, setRemoved] = useState<RemovedSignInMethods | null>(null);
+  // Better Auth took the code; the page is on its way out.
+  const [isAccepted, setIsAccepted] = useState(false);
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
   // chose a code. The pages count the choice. Resolves to the send time, or
@@ -131,6 +133,7 @@ export function useEmailCode({
     if (result.error) {
       return result.error;
     }
+    setIsAccepted(true);
 
     const finish = (destination: string | undefined) =>
       finishAuthInPlace({
@@ -172,6 +175,7 @@ export function useEmailCode({
     sendCode,
     adoptSentCode,
     signInWithCode,
+    isAccepted,
     removedSignInMethods: removed,
   };
 }
