@@ -278,7 +278,6 @@ export function ReauthDialog({
                     aria-label={t("passwordLabel")}
                     autoComplete="current-password"
                     data-testid="reauth-field-currentPassword"
-                    id="reauth-password"
                     onChange={(event) => setPassword(event.target.value)}
                     placeholder={t("passwordLabel")}
                     required

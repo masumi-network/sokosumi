@@ -50,6 +50,7 @@ describe("EmailCodeForm", () => {
     expect(code).toHaveAttribute("autocomplete", "one-time-code");
     expect(code).toHaveAttribute("inputmode", "numeric");
     expect(screen.queryByText("codeLabel")).toBeNull();
+    expect(screen.getByText("sent ada@example.com")).toBeVisible();
   });
 
   it("has no button to send the code: the sixth digit sends it", async () => {

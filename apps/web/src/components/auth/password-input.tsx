@@ -8,11 +8,9 @@ import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type PasswordInputProps = React.ComponentProps<typeof Input>;
-
 export const PasswordInput = React.forwardRef<
   HTMLInputElement,
-  PasswordInputProps
+  React.ComponentProps<typeof Input>
 >(function PasswordInput(
   { className, disabled, variant = "boxed", ...props },
   ref,

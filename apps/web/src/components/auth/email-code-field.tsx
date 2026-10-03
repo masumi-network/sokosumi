@@ -2,7 +2,14 @@
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
-import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
+import {
+  type ComponentProps,
+  type Ref,
+  type RefObject,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 
 import {
   InputOTP,
@@ -32,6 +39,13 @@ export interface EmailCodeError {
   message?: string;
   status?: number;
 }
+
+/**
+ * A check that never answered. It is refused like any unknown answer ("We
+ * could not check the code"), which clears the slots: with no button, the
+ * same code can only go again once they are empty.
+ */
+export const UNANSWERED_CODE_CHECK: EmailCodeError = {};
 
 /**
  * Says why Better Auth refused a code, in the page's language. Codes from
@@ -129,7 +143,7 @@ interface EmailCodeInputProps {
   inputRef?: Ref<HTMLInputElement>;
   id?: string | undefined;
   /** Underlined on the auth pages (ADR 0051); boxed under a visible label. */
-  variant?: "boxed" | "underlined" | undefined;
+  variant?: ComponentProps<typeof InputOTP>["variant"];
 }
 
 /**

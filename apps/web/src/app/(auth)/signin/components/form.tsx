@@ -25,6 +25,7 @@ import type { EmailCode } from "@/auth/components/use-email-code";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeInput,
+  UNANSWERED_CODE_CHECK,
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { PasswordInput } from "@/components/auth/password-input";
@@ -170,8 +171,7 @@ export default function SignInForm({
     try {
       error = await emailCode.signInWithCode(email, values.code);
     } catch {
-      // Nothing to press again: clear the field for the next code.
-      error = {};
+      error = UNANSWERED_CODE_CHECK;
     }
     if (error) {
       form.setError("code", { message: codeRefusal.refuse(error) });
@@ -197,16 +197,19 @@ export default function SignInForm({
       if (result.error) {
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
-        form.setError("currentPassword", {
-          message: isRejectedOAuthRequestError(result.error)
-            ? oauthT("errorDescription")
-            : errorCode === AuthErrorCode.TERMS_NOT_ACCEPTED
-              ? t("Errors.termsNotAccepted")
-              : getErrorMessage(
-                  result.error,
-                  result.error.message ?? t("error"),
-                ),
-        });
+        const message = isRejectedOAuthRequestError(result.error)
+          ? oauthT("errorDescription")
+          : errorCode === AuthErrorCode.TERMS_NOT_ACCEPTED
+            ? t("Errors.termsNotAccepted")
+            : getErrorMessage(result.error, result.error.message ?? t("error"));
+        // Only a wrong password is the field's; an expired request, the
+        // terms or the Security check share its line without marking it.
+        form.setError(
+          errorCode === AuthErrorCode.INVALID_EMAIL_OR_PASSWORD
+            ? "currentPassword"
+            : "root.submit",
+          { message },
+        );
         return;
       }
 
@@ -230,6 +233,8 @@ export default function SignInForm({
 
   const codeError = errors.code?.message;
   const passwordError = errors.currentPassword?.message;
+  const submitError = errors.root?.submit?.message;
+  const passwordLine = passwordError ?? submitError;
   const step = isCodeStep
     ? {
         title: t("CodeStep.title"),
@@ -373,6 +378,11 @@ export default function SignInForm({
               render={({ field }) => (
                 <PasswordInput
                   {...field}
+                  onChange={(event) => {
+                    // Typing replaces a refusal the field did not cause.
+                    form.clearErrors("root");
+                    field.onChange(event);
+                  }}
                   variant="underlined"
                   data-testid="auth-field-currentPassword"
                   autoComplete="current-password"
@@ -382,7 +392,7 @@ export default function SignInForm({
                   aria-describedby={
                     [
                       handoverNotice ? noticeId : null,
-                      passwordError ? passwordErrorId : null,
+                      passwordLine ? passwordErrorId : null,
                     ]
                       .filter(Boolean)
                       .join(" ") || undefined
@@ -390,14 +400,14 @@ export default function SignInForm({
                 />
               )}
             />
-            {passwordError ? (
+            {passwordLine ? (
               // Announced: a submit leaves focus on the disabled form.
               <p
                 id={passwordErrorId}
                 role="alert"
                 className="text-destructive text-center text-sm"
               >
-                {passwordError}
+                {passwordLine}
               </p>
             ) : null}
             <div className="mt-3 flex flex-col gap-4">

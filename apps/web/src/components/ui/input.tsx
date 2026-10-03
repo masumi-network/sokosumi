@@ -27,7 +27,9 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
         variant === "underlined"
           ? cn(
               "placeholder:text-muted-foreground selection:bg-primary-solid selection:text-primary-solid-foreground border-input flex h-14 w-full min-w-0 border-0 border-b-2 bg-transparent px-12 text-center text-xl font-light transition-colors outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-              "focus-visible:border-primary aria-invalid:border-destructive",
+              // A transparent outline only forced-colors mode shows, where
+              // the line's colour change is lost.
+              "focus-visible:border-primary focus-visible:outline-hidden aria-invalid:border-destructive",
               className,
             )
           : withEditableTextSize(

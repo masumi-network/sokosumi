@@ -10,6 +10,7 @@ import {
   EMAIL_CODE_LENGTH,
   type EmailCodeError,
   EmailCodeInput,
+  UNANSWERED_CODE_CHECK,
   useEmailCodeRefusal,
 } from "./email-code-field";
 import { ResendCodeButton } from "./resend-code-button";
@@ -71,9 +72,9 @@ export function EmailCodeForm({
     setIsVerifying(true);
     let accepted = false;
     try {
-      // A check that never answered is refused like a wrong code: with no
-      // button, the same code can only go again once the field is clear.
-      const answer = await onSubmitCode(submitted).catch(() => ({}));
+      const answer = await onSubmitCode(submitted).catch(
+        () => UNANSWERED_CODE_CHECK,
+      );
       if (answer) {
         setError(refusal.refuse(answer));
         return;
@@ -118,9 +119,14 @@ export function EmailCodeForm({
           .join(" ")}
         disabled={isLocked}
       />
-      {/* The slots show the length and the page shows the address, so the
-          line only tells a screen reader a code went out. */}
-      <p id={hintId} className="sr-only">
+      {/* Without an address the page shows it already, and the slots show
+          the length, so the line only tells a screen reader a code went out. */}
+      <p
+        id={hintId}
+        className={
+          email ? "text-muted-foreground mt-4 text-center text-sm" : "sr-only"
+        }
+      >
         {email ? t("sent", { email }) : t("sentNoAddress")}
       </p>
       {/* Always rendered, so a screen reader hears what appears in it. */}

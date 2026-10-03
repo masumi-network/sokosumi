@@ -55,7 +55,10 @@ vi.mock("next-intl", () => ({
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
-  AuthErrorCode: { TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED" },
+  AuthErrorCode: {
+    TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
+    INVALID_EMAIL_OR_PASSWORD: "INVALID_EMAIL_OR_PASSWORD",
+  },
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -554,6 +557,17 @@ describe("SignInForm", () => {
       expect(screen.queryByRole("alert")).toBeNull();
     });
 
+    it("keeps the Security check above the Log in button", () => {
+      renderForm();
+
+      expect(
+        screen
+          .getByTestId("auth-captcha-signin")
+          .compareDocumentPosition(screen.getByTestId("auth-submit")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
     it("keeps the ways out in one row: forgot password, then a code", () => {
       renderForm();
 
@@ -786,6 +800,9 @@ describe("SignInForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "errorDescription",
       );
+      // Not the password's fault, so the field is not marked.
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
+      expect(passwordField()).toHaveAccessibleDescription("errorDescription");
       expect(mockLocationReplace).not.toHaveBeenCalled();
     });
 
@@ -801,6 +818,7 @@ describe("SignInForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "Errors.termsNotAccepted",
       );
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
     });
 
     it("shows translated captcha errors from Core and releases the form", async () => {
@@ -817,6 +835,7 @@ describe("SignInForm", () => {
       expect(await screen.findByRole("alert")).toHaveTextContent(
         "Translated captcha error",
       );
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
       expect(captchaErrorMessageMock).toHaveBeenCalledWith(
         error,
         error.message,
