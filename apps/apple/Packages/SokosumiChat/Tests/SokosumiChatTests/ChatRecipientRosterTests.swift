@@ -272,11 +272,15 @@ struct ChatRecipientRosterTests {
       "getMySokoBot": (200, rosterEnvelope(#"{"sokoBot":\#(assistantFixture)}"#))
     ])
     let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
-    let roster = try await ChatService().directRecipients(client: client, currentUserId: "me", organizationId: "org", organizationSlug: "team")
-    #expect(roster.targets.map(\.id) == [.human("peer"), .coworker("usable"), .sokoBot("bot")])
-    #expect(roster.targets.first?.name == "peer@example.com")
+    let roster = try await ChatService().directRecipients(
+      client: client, yourself: .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: "https://example.com/ada.png"),
+      organizationId: "org", organizationSlug: "team"
+    )
+    #expect(roster.targets.map(\.id) == [.human("me"), .human("peer"), .coworker("usable"), .sokoBot("bot")])
+    #expect(roster.targets.dropFirst().first?.name == "peer@example.com")
     #expect(roster.targets.last?.name == "Personal assistant")
     #expect(!roster.membersLoadFailed)
+    #expect(!roster.recipientsLoadFailed)
     let requests = await transport.requests
     let header = try #require(HTTPField.Name("X-Organization-Slug"))
     #expect(requests.filter { $0.path?.contains("/organizations/") != true }.allSatisfy { $0.headerFields[header] == "team" })
@@ -294,26 +298,73 @@ struct ChatRecipientRosterTests {
       ])
       let roster = try await ChatService().directRecipients(
         client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
-        currentUserId: "me", organizationId: organization, organizationSlug: nil
+        yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
       )
-      #expect(roster.targets.map(\.id) == [.coworker("ai")])
+      // Message yourself needs no organization and no member list (web `create-direct-dialog.tsx`:53-64).
+      #expect(roster.targets.map(\.id) == [.human("me"), .coworker("ai")])
       #expect(roster.membersLoadFailed == (organization != nil))
+      #expect(!roster.recipientsLoadFailed)
       let requests = await transport.requests
       #expect(requests.count == (organization == nil ? 2 : 3))
       #expect(requests.allSatisfy { $0.headerFields[HTTPField.Name("X-Organization-Slug")!] == nil })
     }
   }
 
-  @Test func coworkersFailureIsNotAnEmptyRoster() async throws {
+  // MARK: Message yourself (row 27c)
+
+  /// Web lists Message yourself first among the people, named for the action, with "You · {name}" and the reader's
+  /// avatar; it is found by its name, "You" and the reader's name.
+  @Test func messageYourselfLeadsThePeopleAndIsFoundByNameYouAndTheReader() async throws {
+    let transport = RosterTransport([
+      "get/coworkers": (200, rosterEnvelope("[\(coworkerFixture(id: "ai"))]")),
+      "get/organizations/{id}/members": (200, rosterEnvelope("[" + [memberFixture(id: "peer", name: "Francis"), memberFixture(id: "me", name: "Ada")]
+          .joined(separator: ",") + "]")),
+      "getMySokoBot": (503, #"{"message":"Unavailable"}"#)
+    ])
+    let roster = try await ChatService().directRecipients(
+      client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
+      yourself: .messageYourself(userId: "me", name: "Ada", imageURL: "https://example.com/ada.png"),
+      organizationId: "org", organizationSlug: "acme"
+    )
+    let yourself = ChatRecipientTarget(id: .human("me"), name: "Message yourself", detail: "You · Ada", imageURL: "https://example.com/ada.png")
+    #expect(ChatRecipientTarget.messageYourself(userId: "me", name: "Ada", imageURL: "https://example.com/ada.png") == yourself)
+    let people = try #require(roster.sections(query: "").first { $0.id == .people })
+    #expect(people.targets == [yourself, .init(id: .human("peer"), name: "Francis", detail: "peer@example.com")])
+    for query in ["Message yourself", "you", "Ada"] {
+      #expect(roster.sections(query: query).flatMap(\.targets).map(\.id) == [.human("me")], "\(query)")
+    }
+  }
+
+  /// Web's roster action catches every recipient failure and still offers Message yourself
+  /// (`actions.ts`:211-224); the coworker list failing used to fail the whole picker.
+  @Test(arguments: [nil, "org"])
+  func aRecipientFailureStillOffersMessageYourself(organization: String?) async throws {
     let transport = RosterTransport(["get/coworkers": (503, #"{"message":"Try again"}"#)])
-    do {
-      _ = try await ChatService().directRecipients(
-        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
-        currentUserId: "me", organizationId: nil, organizationSlug: nil
+    let roster = try await ChatService().directRecipients(
+      client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport),
+      yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: organization, organizationSlug: nil
+    )
+    #expect(roster.targets == [.messageYourself(userId: "me", name: "Ada", imageURL: nil)])
+    #expect(roster.recipientsLoadFailed)
+    #expect(roster.membersLoadFailed)
+  }
+
+  /// Without a reader there is nothing to offer, so the failure stays a failure; a 401 always does, so the
+  /// coordinator signs out.
+  @Test func anUnreadableRosterStillFailsWithoutAReaderOrOnA401() async throws {
+    let unavailable = RosterTransport(["get/coworkers": (503, #"{"message":"Try again"}"#)])
+    await #expect(throws: ChatServiceError.self) {
+      try await ChatService().directRecipients(
+        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: unavailable),
+        yourself: nil, organizationId: nil, organizationSlug: nil
       )
-      Issue.record("Expected failure")
-    } catch {
-      #expect(error is ChatServiceError)
+    }
+    let expired = RosterTransport(["get/coworkers": (401, errorEnvelope("Unauthorized", message: "Session expired"))])
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      try await ChatService().directRecipients(
+        client: Client.connecting(to: #require(URL(string: "https://example.com")), transport: expired),
+        yourself: .messageYourself(userId: "me", name: "Ada", imageURL: nil), organizationId: nil, organizationSlug: nil
+      )
     }
   }
 }

@@ -128,7 +128,7 @@ struct ConversationSidebarView: View {
       meSection
     }
     .sheet(item: $startDirect) { presentation in
-      StartDirectView(hasOrganization: presentation.hasOrganization, load: {
+      StartDirectView(hasOrganization: presentation.hasOrganization, currentUserId: workspaces.currentUserId, load: {
         try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
       }, open: {
         try await workspaces.openDirect($0, context: presentation.id, auth: auth)

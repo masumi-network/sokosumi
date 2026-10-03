@@ -156,6 +156,14 @@ import SwiftUI
       } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
+        } else if room?.isSelfDirect == true {
+          // Web's private-notes empty state (`rooms-client.tsx`:3219-3230).
+          ContentUnavailableView(
+            "Message yourself",
+            systemImage: "bubble.left",
+            description: Text("Send yourself notes and to-dos. Only you can see them.")
+          )
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ContentUnavailableView(
             "No messages yet",
