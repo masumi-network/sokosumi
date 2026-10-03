@@ -5,7 +5,7 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -19,7 +19,7 @@ import type { EmailCode } from "@/auth/components/use-email-code";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
-  useDescribeEmailCodeError,
+  useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import {
@@ -80,14 +80,11 @@ export default function SignInForm({
   const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
-  const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const completedCodeRef = useRef("");
   const [prefersPassword, setPrefersPassword] = useState(
     initialMethod === "password",
   );
-  const [refusedCode, setRefusedCode] = useState(0);
   const {
     widget: captcha,
     runWithCaptcha,
@@ -140,6 +137,15 @@ export default function SignInForm({
     },
   });
 
+  const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isLeaving;
+  const codeRefusal = useEmailCodeRefusal({
+    clear: () => form.setValue("code", ""),
+    focus: () => form.setFocus("code"),
+    // A submitting fieldset cannot receive focus.
+    isLocked: isSubmitting,
+  });
+
   // The step replaced the one the person was typing in, so focus follows.
   useMountEffect(() => {
     form.setFocus(isCodeStep ? "code" : "currentPassword");
@@ -149,8 +155,7 @@ export default function SignInForm({
     track("Sign In", { provider: "email-otp" });
     const error = await emailCode.signInWithCode(email, values.code);
     if (error) {
-      form.setError("code", { message: describeCodeError(error) });
-      setRefusedCode((count) => count + 1);
+      form.setError("code", { message: codeRefusal.refuse(error) });
       return;
     }
     // The page is leaving; keep the step locked until it has.
@@ -222,16 +227,6 @@ export default function SignInForm({
     setPrefersPassword(method === "password");
   };
 
-  const { isSubmitting } = form.formState;
-  const isPending = isSubmitting || isLeaving;
-
-  // A refused code sends focus back to its field. A submitting fieldset
-  // cannot receive focus; wait until it is enabled again.
-  useEffect(() => {
-    if (refusedCode === 0 || isSubmitting) return;
-    form.setFocus("code");
-  }, [refusedCode, isSubmitting, form]);
-
   return (
     <BaseForm
       form={form}
@@ -261,8 +256,13 @@ export default function SignInForm({
             <EmailCodeField
               inputRef={field.ref}
               value={field.value}
-              completedCodeRef={completedCodeRef}
-              onChange={field.onChange}
+              completedCodeRef={codeRefusal.completedCodeRef}
+              onChange={(code) => {
+                // Typing replaces the reason; checking for a whole code
+                // while it is typed would only say it is not yet one.
+                form.clearErrors("code");
+                form.setValue("code", code);
+              }}
               onComplete={() => {
                 if (!isPending) formRef.current?.requestSubmit();
               }}

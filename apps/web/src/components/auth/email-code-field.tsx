@@ -2,7 +2,7 @@
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
-import { type Ref, type RefObject, useId, useRef } from "react";
+import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
 
 import {
   InputOTP,
@@ -38,7 +38,7 @@ export interface EmailCodeError {
  * Better Auth's `EMAIL_OTP_ERROR_CODES`, and Core's terms check on every
  * `/sign-in*`. Their messages are English, so none is shown.
  */
-export function useDescribeEmailCodeError() {
+function useDescribeEmailCodeError() {
   const t = useTranslations("Components.EmailCodeForm");
 
   return (answer: EmailCodeError): string => {
@@ -62,17 +62,63 @@ export function useDescribeEmailCodeError() {
   };
 }
 
+interface EmailCodeRefusalOptions {
+  /** Empties the field's value, leaving its error as it is. */
+  clear: () => void;
+  focus: () => void;
+  /** While the code is checked; focus waits until the field is enabled. */
+  isLocked: boolean;
+}
+
+/**
+ * What a page does when Better Auth refuses a code. The field holds six
+ * digits at most, so the refused ones are cleared for the next code, and the
+ * same code typed again is handed over again. Focus returns to the field, which
+ * reads the reason out; the page keeps it until the person types.
+ */
+export function useEmailCodeRefusal({
+  clear,
+  focus,
+  isLocked,
+}: EmailCodeRefusalOptions) {
+  const describe = useDescribeEmailCodeError();
+  // Pass to the field, so its handed-over code survives a remount.
+  const completedCodeRef = useRef("");
+  const focusPending = useRef(false);
+
+  // Runs after every render, and focuses once per refusal when unlocked.
+  useEffect(() => {
+    if (!focusPending.current || isLocked) return;
+    focusPending.current = false;
+    focus();
+  });
+
+  /** Clears the field and returns the reason to show beside it. */
+  const refuse = (answer: EmailCodeError): string => {
+    completedCodeRef.current = "";
+    focusPending.current = true;
+    clear();
+    return describe(answer);
+  };
+
+  return { completedCodeRef, refuse };
+}
+
 interface EmailCodeFieldProps {
   value: string;
   onChange: (value: string) => void;
   /**
    * Called when the value becomes a whole code, typed, pasted or autofilled,
    * so the page can spend it without the button. Not again for the code it
-   * last handed over, or the one the field opened on: sending that again,
-   * refused or declined, is the button's. Without it, only the button sends.
+   * last handed over, or the one the field opened on: sending that again is
+   * the button's, until `useEmailCodeRefusal` clears a refused one. Without
+   * it, only the button sends.
    */
   onComplete?: (code: string) => void;
-  /** Preserve completion history when a method switch remounts this field. */
+  /**
+   * Preserve completion history when a method switch remounts this field;
+   * `useEmailCodeRefusal` gives one.
+   */
   completedCodeRef?: RefObject<string>;
   onBlur?: () => void;
   /** Where the code went, when the page does not already show it. */
