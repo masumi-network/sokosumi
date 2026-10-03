@@ -18,7 +18,7 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
-      "termsNotAccepted": "Accept the updated terms before signing in again.",
+      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again."
     },
     "EmergencyDialog": {
@@ -48,18 +48,18 @@
       "continueWithEmail": "Email me a code",
       "continueWithGoogle": "Continue with Google",
       "continueWithMicrosoft": "Continue with Microsoft",
-      "description": "Your session is too old for this change. Sign in again to continue.",
+      "description": "Your session is too old for this change. Log in again to continue.",
       "emailCodeError": "We could not send the code. Try again.",
       "noMethod": "Confirm your email address first, then try again.",
-      "orEmail": "Or sign in by email:",
+      "orEmail": "Or log in by email:",
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
-      "rememberMe": "Keep me signed in",
-      "retryPrompt": "You are signed in again. Try that again now.",
-      "sessionLost": "Open the sign-in page and sign in again.",
+      "rememberMe": "Keep me logged in",
+      "retryPrompt": "You are logged in again. Try that again now.",
+      "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
-      "termsNotAccepted": "Accept the updated terms before signing in again.",
+      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "title": "Confirm it is you"
     },
     "ShareButton": {
@@ -107,8 +107,8 @@
         "customerReviews": "Customer Reviews",
         "noReviewsYet": "No reviews yet",
         "beFirstToReview": "Be the first to write a review!",
-        "signInToReview": "Sign in to write a review",
-        "signIn": "Sign in",
+        "signInToReview": "Log in to write a review",
+        "signIn": "Log in",
         "readMore": "Read more",
         "showLess": "Show less",
         "Pagination": {
@@ -256,7 +256,7 @@
             "unassignSeat": "Failed to remove seat"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           }
         }
       },
@@ -271,7 +271,7 @@
           "success": "Invitation canceled successfully",
           "error": "Failed to cancel invitation",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           }
         },
         "resendSuccess": "Invitation resent successfully",
@@ -399,7 +399,7 @@
             "error": "Failed to update job name",
             "Errors": {
               "unauthenticated": "You must be logged in to update job name.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "unauthorized": "You are not the owner of this job."
             }
@@ -450,7 +450,7 @@
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "jobShareNotFound": "Job Share not found",
               "unauthorized": "You are not the owner of this job."
@@ -522,7 +522,7 @@
             },
             "Errors": {
               "unauthenticated": "You must be logged in to request a refund.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "unauthorized": "You must be job owner to request a refund"
             }
@@ -593,7 +593,7 @@
             "edit": "Failed to update organization"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           },
           "Fields": {
             "Name": {
@@ -698,7 +698,7 @@
         },
         "Errors": {
           "createFailed": "Failed to create organization",
-          "unauthorizedAction": "Login"
+          "unauthorizedAction": "Log in"
         }
       },
       "RemoveModal": {
@@ -717,7 +717,7 @@
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
-          "unauthorizedAction": "Login",
+          "unauthorizedAction": "Log in",
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "enterpriseContractActive": "This organization has an active enterprise contract and cannot be deleted.",
           "billingLink": "Go to billing",
@@ -751,7 +751,7 @@
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           },
           "Fields": {
             "Email": {
@@ -1021,10 +1021,10 @@
     "join": "Join {organization}",
     "joining": "Joining…",
     "linkHintOwner": "Anyone with this link can join as a member.",
-    "signedOutHint": "Sign in or create an account to accept this invite.",
+    "signedOutHint": "Log in or create an account to accept this invite.",
     "haveAccount": "Already have an account?",
     "noAccount": "New to Sokosumi?",
-    "signIn": "Sign in to join",
+    "signIn": "Log in to join",
     "register": "Create an account",
     "decline": "Decline",
     "activateRetry": "Try switching again",
@@ -1032,7 +1032,7 @@
       "joinFailed": "Failed to join the organization",
       "declineFailed": "We could not decline this invite.",
       "activateFailed": "We could not switch you into that organization. Try again before continuing.",
-      "unauthorizedAction": "Login"
+      "unauthorizedAction": "Log in"
     },
     "Invalid": {
       "title": "This invite link isn't available",
@@ -1061,8 +1061,8 @@
         "ignore": "Ignore",
         "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
-        "signedOutHint": "Sign in or create an account to accept this invite.",
-        "signIn": "Sign in to join",
+        "signedOutHint": "Log in or create an account to accept this invite.",
+        "signIn": "Log in to join",
         "register": "Create an account",
         "Success": {
           "accept": "Invitation accepted successfully",
@@ -1074,7 +1074,7 @@
           "activate": "We could not switch you into that organization. Try again before continuing."
         },
         "Errors": {
-          "unauthorizedAction": "Login"
+          "unauthorizedAction": "Log in"
         }
       }
     },
@@ -1105,7 +1105,7 @@
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
       "errorId": "Error ID: {errorId}",
       "tryAgain": "Try Again",
-      "goLogin": "Go to Login"
+      "goLogin": "Log in"
     },
     "Footer": {
       "termsOfServices": "Terms of Service",
@@ -1158,7 +1158,7 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Login / Register",
+        "default": "Sokosumi - Log in / Register",
         "template": "Sokosumi - %s"
       },
       "description": "Use AI coworkers to finish your most time-consuming tasks"
@@ -1171,7 +1171,7 @@
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
-      "passkeyError": "We could not sign you in with a passkey. Please try again."
+      "passkeyError": "We could not log you in with a passkey. Please try again."
     },
     "Words": {
       "signUp": "Register"
@@ -1197,16 +1197,16 @@
     "Pages": {
       "SignIn": {
         "Metadata": {
-          "title": "Login",
+          "title": "Log in",
           "description": "Use AI coworkers to finish your most time-consuming tasks"
         },
         "Header": {
-          "title": "Login",
+          "title": "Log in",
           "description": "Hire agents on our platform",
-          "descriptionFor": "Sign in with your Sokosumi account to continue to {client}"
+          "descriptionFor": "Log in with your Sokosumi account to continue to {client}"
         },
         "Form": {
-          "submit": "Login",
+          "submit": "Log in",
           "lastUsed": "Last used",
           "error": "Invalid email or password",
           "Fields": {
@@ -1214,7 +1214,7 @@
               "label": "Password"
             },
             "RememberMe": {
-              "label": "Keep me signed in"
+              "label": "Keep me logged in"
             }
           },
           "forgotPassword": "Forgot password?",
@@ -1223,11 +1223,11 @@
             "link": "Register"
           },
           "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to login"
+            "termsNotAccepted": "You must accept the terms and conditions to log in"
           },
           "NoAccount": {
             "title": "No account for this address",
-            "description": "Create one with this email now.",
+            "description": "Check it for typos, or create one now.",
             "createAccount": "Create account"
           }
         }
@@ -1250,7 +1250,7 @@
           "retry": "Try Again"
         },
         "Header": {
-          "title": "Register",
+          "title": "Create your account",
           "viaInvitation": "(via invitation)",
           "description": "Hire agents on our platform",
           "descriptionFor": "Create your Sokosumi account to continue to {client}"
@@ -1275,7 +1275,7 @@
           },
           "Login": {
             "message": "Already have an account?",
-            "link": "Login"
+            "link": "Log in"
           }
         }
       },
@@ -1341,7 +1341,7 @@
       "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again.",
       "chooseAccountTitle": "Choose an account",
       "chooseAccountTitleFor": "Choose an account for {client}",
-      "signedInAs": "Signed in to Sokosumi as <account>{email}</account>",
+      "signedInAs": "Logged in to Sokosumi as <account>{email}</account>",
       "continueAs": "Continue as {account}",
       "useAnotherAccount": "Use another account",
       "accountCheckError": "Could not check your account. Try again.",
@@ -1351,9 +1351,9 @@
       "backTo": "Back to {client}"
     },
     "SignInError": {
-      "accountNotLinked": "This email already has a Sokosumi account. Sign in with your password or an email code first, then connect Google or Microsoft under Connections.",
+      "accountNotLinked": "This email already has a Sokosumi account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
       "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
-      "generic": "We could not sign you in. Please try again.",
+      "generic": "We could not log you in. Please try again.",
       "expired": "That sign-in took too long or was started in another browser. Please try again.",
       "clientMisconfigured": "This app's sign-in request is not set up correctly. Please contact the app's developer and share the error code with them.",
       "title": "Sign-in did not work",
@@ -1363,7 +1363,7 @@
     },
     "SignInMethodsRemoved": {
       "title": "Your old sign-in methods were removed",
-      "description": "You signed in with a code, so we removed your old password and Google/Microsoft links for security. Set a new password in your account.",
+      "description": "You logged in with a code, so we removed your old password and Google/Microsoft links for security. Set a new password in your account.",
       "setPassword": "Set a new password",
       "continue": "Continue"
     }
@@ -1854,8 +1854,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Please log in to manage task sharing",
+            "unauthenticatedAction": "Log in",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }
@@ -2535,8 +2535,8 @@
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
-          "unauthenticated": "Please sign in to continue.",
-          "unauthenticatedAction": "Sign in",
+          "unauthenticated": "Please log in to continue.",
+          "unauthenticatedAction": "Log in",
           "published": "Post published.",
           "publishFailed": "Publishing failed: {error}",
           "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
@@ -3121,8 +3121,8 @@
         }
       },
       "Errors": {
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "badInput": "Invalid plan selection",
         "general": "Something went wrong. Please try again."
       },
@@ -3508,7 +3508,7 @@
           "resolveConfirmDescription": "Use only for a wedged payment after its authorization-risk window has expired. This creates a compensating credit transaction.",
           "refundSuccess": "Payment refunded.",
           "resolveSuccess": "Payment resolved.",
-          "actionFailed": "Action failed. Refresh the page, sign in again, and retry."
+          "actionFailed": "Action failed. Refresh the page, log in again, and retry."
         },
         "Reasons": {
           "agent_output_quality": "Agent output quality",
@@ -4651,8 +4651,8 @@
         "contactUsCta": "Contact us"
       },
       "Errors": {
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "unauthorized": "You are not authorized to access this billing area",
         "general": "Something went wrong. Please try again."
       },
@@ -4711,8 +4711,8 @@
         "invalidInput": "Please enter either a credit amount or a coupon code",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid coupon",
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
@@ -4750,7 +4750,7 @@
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
         "revokeOtherSessionsLabel": "Sign out of other devices",
-        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
+        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays logged in.",
         "submit": "Update password",
         "success": "Password updated successfully",
         "error": "Failed to update password",
@@ -5176,7 +5176,7 @@
           "denyError": "Failed to deny application"
         },
         "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
-        "offlineAccessNotice": "This app can stay signed in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
+        "offlineAccessNotice": "This app can stay logged in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
         "title": "OAuth Clients",
@@ -6458,7 +6458,7 @@
         "invalidEmail": "Enter a valid email address.",
         "inviteSuccess": "Invitation sent to {email}.",
         "linksTitle": "Shareable link",
-        "linksDescription": "Create a link anyone signed in outside your organization can open to join as a guest. No email needed up front.",
+        "linksDescription": "Create a link anyone logged in outside your organization can open to join as a guest. No email needed up front.",
         "linksEmpty": "No shareable links yet.",
         "linkExpiryLabel": "Expires",
         "linkExpiryDays": "{days, plural, one {# day} other {# days}}",
@@ -6499,8 +6499,8 @@
         "joining": "Joining…",
         "joined": "You joined #{room}.",
         "alreadyGuest": "You're already in #{room}.",
-        "signedOutHint": "Sign in or create an account to join this channel as a guest.",
-        "signIn": "Sign in",
+        "signedOutHint": "Log in or create an account to join this channel as a guest.",
+        "signIn": "Log in",
         "register": "Create account",
         "Error": {
           "joinFailed": "Could not join this channel."
@@ -6868,7 +6868,7 @@
         "connectError": "Could not start the connection.",
         "disconnectError": "Could not disconnect.",
         "unavailable": "Integrations are not enabled on this environment.",
-        "pending": "Waiting for you to finish signing in…",
+        "pending": "Waiting for you to finish logging in…",
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",
         "lastChecked": "Connected · checked {when}",
@@ -7567,7 +7567,7 @@
   },
   "AppleAppCallback": {
     "title": "Return to the Sokosumi app",
-    "message": "Sign-in did not finish in the app. Close this window, open the Sokosumi app and sign in again."
+    "message": "Sign-in did not finish in the app. Close this window, open the Sokosumi app and log in again."
   },
   "Library": {
     "Auth": {
@@ -7761,7 +7761,7 @@
     "necessaryTitle": "Strictly necessary",
     "necessaryBody": "Required for the product to work — security, and remembering this choice. Always on.",
     "analyticsTitle": "Analytics",
-    "analyticsBody": "Usage measurement with Google Analytics. While you are signed in, a pseudonymous account ID links your visits — never your name or email.",
+    "analyticsBody": "Usage measurement with Google Analytics. While you are logged in, a pseudonymous account ID links your visits — never your name or email.",
     "marketingTitle": "Marketing",
     "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
     "settings": "Cookie settings"
@@ -7779,7 +7779,7 @@
     "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
-    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
+    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and log back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
       "choiceLabel": "How do you want to work?",

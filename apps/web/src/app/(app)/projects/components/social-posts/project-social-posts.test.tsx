@@ -187,8 +187,8 @@ const MESSAGES: Record<string, string> = {
   dateSelected: "Date: {date}",
   timeSelected: "Time: {time}",
   times: "Times",
-  "toasts.unauthenticated": "Please sign in to continue.",
-  "toasts.unauthenticatedAction": "Sign in",
+  "toasts.unauthenticated": "Please log in to continue.",
+  "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
@@ -2314,7 +2314,7 @@ describe("ProjectSocialPosts", () => {
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Please sign in to continue.",
+        "Please log in to continue.",
         expect.objectContaining({ action: expect.any(Object) }),
       ),
     );
