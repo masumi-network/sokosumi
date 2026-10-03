@@ -70,11 +70,11 @@ const messages = {
   Join: {
     join: "Join {organization}",
     joining: "Joining",
-    signIn: "Sign in",
+    signIn: "Log in",
     register: "Register",
     decline: "Decline",
     activateRetry: "Try switching again",
-    signedOutHint: "Sign in to join",
+    signedOutHint: "Log in to join",
     Error: {
       joinFailed: "Join failed",
       declineFailed: "Decline failed",

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -56,9 +56,20 @@ async function submitDetails() {
     "password123",
   );
   await user.type(screen.getByRole("textbox", { name: "codeLabel" }), "042917");
+  // The code waits for Register, so the updates checkbox after it counts.
+  await act(async () => {});
+  expect(signUpMock).not.toHaveBeenCalled();
+  await user.click(
+    screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+  );
+  await user.click(screen.getByRole("button", { name: "submit" }));
   await waitFor(() =>
     expect(signUpMock).toHaveBeenCalledExactlyOnceWith(
-      expect.objectContaining({ otp: "042917", password: "password123" }),
+      expect.objectContaining({
+        otp: "042917",
+        password: "password123",
+        marketingOptIn: true,
+      }),
     ),
   );
   return user;
