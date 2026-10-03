@@ -29,7 +29,7 @@ public extension ChatService {
         throw CancellationError()
       }
       if clientError?.response?.status.code == 401 {
-        throw unauthorized("Sign in required.")
+        throw unauthorized("Log in required.")
       }
       return nil
     }

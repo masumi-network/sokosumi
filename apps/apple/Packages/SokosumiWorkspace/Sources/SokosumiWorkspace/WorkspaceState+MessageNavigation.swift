@@ -102,7 +102,7 @@ public extension WorkspaceState {
   private func navigateReply(_ hit: Components.Schemas.ChatRoomMessage, request: UUID, auth: AuthState) async throws -> MessageNavigationResult {
     guard hit.roomId == transcriptRoomId, let parentId = hit.parentMessageId else { return .unavailable }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to view this reply.")
+      throw ChatServiceError.unauthorized("Log in to view this reply.")
     }
     let initialThreadGeneration = thread.timeline.generation
     let generation = timeline.generation
