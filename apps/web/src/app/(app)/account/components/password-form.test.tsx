@@ -15,7 +15,7 @@ const translations: Record<string, string> = {
   "App.Account.Password.confirmPassword": "Confirm new password",
   "App.Account.Password.revokeOtherSessionsLabel": "Sign out of other devices",
   "App.Account.Password.revokeOtherSessionsHelp":
-    "Ends every other session. The device you are using now stays signed in.",
+    "Ends every other session. The device you are using now stays logged in.",
   "App.Account.Password.submit": "Update password",
   "App.Account.Password.success": "Password updated successfully",
   "App.Account.Password.error": "Failed to update password",

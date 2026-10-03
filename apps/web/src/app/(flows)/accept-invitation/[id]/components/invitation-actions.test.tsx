@@ -75,8 +75,8 @@ const messages = {
         joining: "Joining…",
         decline: "Decline",
         activateRetry: "Try switching again",
-        signedOutHint: "Sign in or create an account to accept this invite.",
-        signIn: "Sign in to join",
+        signedOutHint: "Log in or create an account to accept this invite.",
+        signIn: "Log in to join",
         register: "Create an account",
         emailMismatch: "You are not the invited user.",
         logout: "Logout",
@@ -87,7 +87,7 @@ const messages = {
           decline: "Decline failed",
           activate: "Activate failed",
         },
-        Errors: { unauthorizedAction: "Login" },
+        Errors: { unauthorizedAction: "Log in" },
       },
     },
   },
@@ -241,13 +241,13 @@ describe("InvitationActions join-like layout", () => {
     renderActions(null);
 
     expect(
-      screen.getByText("Sign in or create an account to accept this invite."),
+      screen.getByText("Log in or create an account to accept this invite."),
     ).toBeVisible();
     expect(
       screen.queryByText(/If you already have an account/i),
     ).not.toBeInTheDocument();
 
-    await actor.click(screen.getByRole("button", { name: "Sign in to join" }));
+    await actor.click(screen.getByRole("button", { name: "Log in to join" }));
     const signin = new URL(
       String(routerPushMock.mock.calls.at(-1)?.[0]),
       "http://localhost",
