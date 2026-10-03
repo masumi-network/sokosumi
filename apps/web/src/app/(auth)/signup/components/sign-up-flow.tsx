@@ -50,8 +50,8 @@ interface SignUpFlowProps {
 /**
  * Sign-up in two steps. The first asks for the email beside the providers
  * and, for a new address, emails a code right away. The second asks for the
- * name and that code, or the name and a password instead. An address that
- * has an account goes to Log in's second step.
+ * name and that code, with a password as an optional addition. An address
+ * that has an account goes to Log in's second step.
  */
 export default function SignUpFlow({
   invitationId,
@@ -186,7 +186,8 @@ export default function SignUpFlow({
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal) => {
             setEmail(confirmedEmail);
-            // A failed send has said so; step 2 then opens on the password.
+            // A failed send has said so; step 2 then opens with the code
+            // unsent and a new one a click away.
             await emailCode.sendCode(confirmedEmail, { signal });
             if (!signal.aborted) setStep("details");
           }}

@@ -131,7 +131,6 @@ interface EmailCodeInputProps {
   disabled?: boolean | undefined;
   autoFocus?: boolean | undefined;
   inputRef?: Ref<HTMLInputElement>;
-  id?: string | undefined;
 }
 
 /**
@@ -150,7 +149,6 @@ export function EmailCodeInput({
   disabled,
   autoFocus,
   inputRef,
-  id,
 }: EmailCodeInputProps) {
   const t = useTranslations("Components.EmailCodeForm");
   const localCompletedCode = useRef(
@@ -161,7 +159,6 @@ export function EmailCodeInput({
   return (
     <InputOTP
       ref={inputRef}
-      id={id}
       aria-label={t("codeLabel")}
       maxLength={EMAIL_CODE_LENGTH}
       pattern={REGEXP_ONLY_DIGITS}
