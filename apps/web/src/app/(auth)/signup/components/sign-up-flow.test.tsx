@@ -814,33 +814,87 @@ describe("SignUpFlow", () => {
     ).toBeInTheDocument();
   });
 
-  it("focuses the recovery link when an invitation email already exists", async () => {
-    const user = userEvent.setup();
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
-    mockSearchParams = new URLSearchParams({
-      returnUrl: "/accept-invitation/inv_1",
-      invitationId: "inv_1",
+  describe("an invited address that has an account", () => {
+    beforeEach(() => {
+      emailStatusMock.mockResolvedValue({
+        data: { exists: true, hasPassword: false },
+        error: null,
+      });
+      mockSearchParams = new URLSearchParams({
+        returnUrl: "/accept-invitation/inv_1",
+        invitationId: "inv_1",
+      });
     });
-    render(
-      <SignUpFlow
-        lastUsedMethod={null}
-        prefilledEmail="invited@example.com"
-        invitationId="inv_1"
-      />,
-    );
 
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    it("emails a code and hands the address to Log in, keeping the invitation", async () => {
+      const user = userEvent.setup();
+      render(
+        <SignUpFlow
+          lastUsedMethod={null}
+          prefilledEmail="invited@example.com"
+          invitationId="inv_1"
+        />,
+      );
 
-    const recoveryLink = await screen.findByRole("link", {
-      name: "AccountExists.logIn",
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+
+      await waitFor(() =>
+        expect(pushMock).toHaveBeenCalledWith(
+          "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
+        ),
+      );
+      expect(sendEmailCodeMock).toHaveBeenCalledWith({
+        fetchOptions: captchaFetchOptions,
+        email: "invited@example.com",
+        type: "sign-in",
+      });
+      expect(takeSignInHandover()).toEqual({
+        email: "invited@example.com",
+        method: "code",
+        codeSentAt: expect.any(Number),
+      });
+      // No notice and no second click: Continue itself goes to Log in.
+      expect(screen.getByTestId("email-step-detour")).toHaveAttribute(
+        "data-state",
+        "closed",
+      );
+      expect(
+        screen.queryByRole("link", { name: "AccountExists.logIn" }),
+      ).not.toBeInTheDocument();
+      expect(signUpFormMock).not.toHaveBeenCalled();
     });
-    await waitFor(() => expect(recoveryLink).toHaveFocus());
-    expect(emailField()).toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("AccountExists.title");
-    expect(recoveryLink).toHaveAttribute(
-      "href",
-      "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
-    );
+
+    it("sends no code to an invited account with a password", async () => {
+      const user = userEvent.setup();
+      emailStatusMock.mockResolvedValue({
+        data: { exists: true, hasPassword: true },
+        error: null,
+      });
+      render(
+        <SignUpFlow
+          lastUsedMethod={null}
+          prefilledEmail="invited@example.com"
+          invitationId="inv_1"
+        />,
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+
+      await waitFor(() =>
+        expect(pushMock).toHaveBeenCalledWith(
+          "/signin?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
+        ),
+      );
+      expect(sendEmailCodeMock).not.toHaveBeenCalled();
+      expect(takeSignInHandover()).toEqual({
+        email: "invited@example.com",
+        method: "password",
+      });
+    });
   });
 
   it("counts the register view once and the form start once across steps", async () => {

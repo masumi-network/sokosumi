@@ -112,15 +112,22 @@ export default function SignInFlow({
 
   // Register found an account and chose the method as Continue here would,
   // so step 2 opens at once. A layout effect: after a client navigation the
-  // email step never paints.
+  // email step never paints. An invitation fixes the address, so only a
+  // hand-over for that address counts; any other is discarded.
   useLayoutEffect(() => {
-    if (prefilledEmail) return;
     const handover = takeSignInHandover();
     if (!handover) return;
-    setEmail(handover.email);
+    if (
+      prefilledEmail &&
+      handover.email.toLowerCase() !== prefilledEmail.toLowerCase()
+    ) {
+      return;
+    }
+    const handedOverEmail = prefilledEmail ?? handover.email;
+    setEmail(handedOverEmail);
     setInitialMethod(handover.method);
     if (handover.method === "code" && handover.codeSentAt !== null) {
-      emailCode.adoptSentCode(handover.email, handover.codeSentAt);
+      emailCode.adoptSentCode(handedOverEmail, handover.codeSentAt);
     }
     setHandedOver(true);
     setStep("method");
