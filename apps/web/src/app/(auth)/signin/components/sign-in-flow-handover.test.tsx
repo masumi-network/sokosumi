@@ -67,6 +67,10 @@ describe("SignInFlow after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
+    // Focus lands on the field, so the reason is read with it.
+    expect(codeField()).toHaveAccessibleDescription(
+      "Handover.codeSent sentNoAddress",
+    );
     expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
       "ada@example.com",
     );
@@ -90,6 +94,9 @@ describe("SignInFlow after Register handed over", () => {
     expect(screen.getByLabelText("Fields.Password.label")).toBeVisible();
     expect(screen.getByText("Handover.password")).toBeVisible();
     expect(
+      screen.getByLabelText("Fields.Password.label"),
+    ).toHaveAccessibleDescription("Handover.password");
+    expect(
       screen.queryByRole("textbox", { name: "codeLabel" }),
     ).not.toBeInTheDocument();
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
@@ -106,6 +113,9 @@ describe("SignInFlow after Register handed over", () => {
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
     expect(screen.getByText("Handover.codeNotSent")).toBeVisible();
+    expect(codeField()).toHaveAccessibleDescription(
+      "Handover.codeNotSentNotice Handover.codeNotSent",
+    );
     // Nothing claims a code went out.
     expect(screen.queryByText("Handover.codeSent")).not.toBeInTheDocument();
     expect(screen.queryByText("sentNoAddress")).not.toBeInTheDocument();

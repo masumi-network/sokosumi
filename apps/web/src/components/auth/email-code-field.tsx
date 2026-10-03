@@ -63,6 +63,8 @@ interface EmailCodeFieldProps {
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
   error?: string | undefined;
+  /** Why the field opened, shown above it and read with it. */
+  notice?: string | undefined;
   /** No code went out, so the field does not say one did. */
   unsent?: boolean | undefined;
   sentAt: number;
@@ -85,6 +87,7 @@ export function EmailCodeField({
   onBlur,
   email,
   error,
+  notice,
   unsent = false,
   sentAt,
   onResend,
@@ -97,6 +100,7 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
+  const noticeId = useId();
   const localCompletedCode = useRef(
     value.length === EMAIL_CODE_LENGTH ? value : "",
   );
@@ -104,6 +108,12 @@ export function EmailCodeField({
 
   return (
     <div className="grid gap-2">
+      {notice ? (
+        // The grid's gap and this margin match the form's gap.
+        <p id={noticeId} className="text-muted-foreground mb-1 text-sm">
+          {notice}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
         <ResendCodeButton
@@ -139,7 +149,11 @@ export function EmailCodeField({
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}
         aria-describedby={
-          [unsent ? null : hintId, error ? errorId : null]
+          [
+            notice ? noticeId : null,
+            unsent ? null : hintId,
+            error ? errorId : null,
+          ]
             .filter(Boolean)
             .join(" ") || undefined
         }

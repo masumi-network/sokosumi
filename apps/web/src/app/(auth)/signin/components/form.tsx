@@ -26,6 +26,7 @@ import {
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -104,6 +105,16 @@ export default function SignInForm({
   const isCodeStep = (wasCodeSent || handedOver) && !prefersPassword;
   // Register's send failed: the field says so, and the resend is ready.
   const isCodeUnsent = isCodeStep && !wasCodeSent;
+  // Why the step opened here; each field is described by it.
+  const handoverNotice = handedOver
+    ? t(
+        isCodeUnsent
+          ? "Handover.codeNotSentNotice"
+          : isCodeStep
+            ? "Handover.codeSent"
+            : "Handover.password",
+      )
+    : undefined;
   // Read by the resolver, which validates whichever way the step finishes.
   const isCodeStepRef = useRef(isCodeStep);
   isCodeStepRef.current = isCodeStep;
@@ -245,17 +256,6 @@ export default function SignInForm({
         aria-hidden="true"
         className="sr-only"
       />
-      {handedOver ? (
-        <p className="text-muted-foreground text-sm">
-          {t(
-            isCodeUnsent
-              ? "Handover.codeNotSentNotice"
-              : isCodeStep
-                ? "Handover.codeSent"
-                : "Handover.password",
-          )}
-        </p>
-      ) : null}
       {isCodeStep ? (
         <Controller
           control={form.control}
@@ -274,6 +274,7 @@ export default function SignInForm({
                 fieldState.error?.message ??
                 (isCodeUnsent ? t("Handover.codeNotSent") : undefined)
               }
+              notice={handoverNotice}
               unsent={isCodeUnsent}
               sentAt={emailCode.sentAt}
               onResend={() => {
@@ -291,6 +292,12 @@ export default function SignInForm({
             name="currentPassword"
             render={({ field }) => (
               <FormItem>
+                {handoverNotice ? (
+                  // The item's gap and this margin match the form's gap.
+                  <FormDescription className="mb-1">
+                    {handoverNotice}
+                  </FormDescription>
+                ) : null}
                 <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
                   <FormLabel>{t("Fields.Password.label")}</FormLabel>
                   <Link
