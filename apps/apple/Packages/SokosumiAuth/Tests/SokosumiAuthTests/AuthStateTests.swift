@@ -169,7 +169,7 @@ struct AuthStateTests {
     try browser.complete()
     await operation.value
     #expect(!state.isSignedIn)
-    #expect(state.status == .signedOut(message: "Signed in, but your session could not be saved on this device. Try again."))
+    #expect(state.status == .signedOut(message: "Logged in, but your session could not be saved on this device. Try again."))
   }
 
   @Test func failedSignOutDoesNotClaimTokensAreGone() async throws {
