@@ -68,23 +68,16 @@ public func liveThreadReplyCount(_ messages: [Components.Schemas.ChatRoomMessage
 }
 
 /// A persisted row stays in a transcript only with a visible body, a quote, as a
-/// room status row, or as a coworker mention shell. Core blanks all of these on delete,
-/// so a deleted message leaves the room transcript and thread replies, and so
-/// does a bodiless Soko Bot shell. State keeps the row; only display drops it,
-/// so realtime patches and reply counts keep addressing it. A thread root is
-/// not filtered and keeps its "This message was deleted" tombstone.
+/// room status row, or as a coworker's or Soko Bot's mention shell, thinking or failed
+/// (web `isMentionThoughtShell`, `merge-room-messages.ts`). Core blanks all of these on
+/// delete, so a deleted message leaves the room transcript and thread replies. State
+/// keeps the row; only display drops it, so realtime patches and reply counts keep
+/// addressing it. A thread root is not filtered and keeps its "This message was deleted" tombstone.
 public func shouldKeepPersistedMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   isRoomStatusMessage(message)
     || !message.content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     || message.quote != nil
-    || isCoworkerMentionShell(message)
-}
-
-/// Web `isMentionCoworkerShell` (`merge-room-messages.ts`): only a coworker's
-/// bodiless shell stays; a Soko Bot's, which the row could draw, is dropped.
-private func isCoworkerMentionShell(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  guard isCoworkerSender(message) else { return false }
-  return MentionThoughtShell(message: message) != nil
+    || MentionThoughtShell(message: message) != nil
 }
 
 /// Persisted rows the transcript shows (`shouldKeepPersistedMessage`), then the local outbound shells.

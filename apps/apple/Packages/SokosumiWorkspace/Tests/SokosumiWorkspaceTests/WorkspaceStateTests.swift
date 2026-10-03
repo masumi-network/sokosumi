@@ -3036,16 +3036,36 @@ extension WorkspaceStateTests {
 private let mentionRoomId = "550e8400-e29b-41d4-a716-446655440000"
 private let mentionRetryOperation = "post/chats/rooms/{id}/messages/{messageId}/mentions/{mentionId}/retry"
 
-private func mentionSourceJSON(id: String, senderId: String, status: String = "failed") -> String {
+/// Who an @mention named: the coworker Elena, or Soko, the reader's Soko Bot (row 38d).
+private enum MentionTarget {
+  case coworker
+  case sokoBot
+
+  var mentionIds: String {
+    switch self {
+    case .coworker: #""coworkerId":"cow_1","sokoBotId":null"#
+    case .sokoBot: #""coworkerId":null,"sokoBotId":"bot_1""#
+    }
+  }
+
+  var senderJSON: String {
+    switch self {
+    case .coworker: #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
+    case .sokoBot: #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_1","ownerUserId":"user_1","presence":"online"}}"#
+    }
+  }
+}
+
+private func mentionSourceJSON(id: String, senderId: String, status: String = "failed", target: MentionTarget = .coworker) -> String {
   """
-  {"id":"\(id)","roomId":"\(mentionRoomId)","parentMessageId":null,"content":"@Elena hi","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"\(senderId)","name":"Me","email":"me@example.com","presence":"offline"}},"mentions":[{"id":"mention_1","coworkerId":"cow_1","sokoBotId":null,"status":"\(status)","responseMessageId":"shell"}],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
+  {"id":"\(id)","roomId":"\(mentionRoomId)","parentMessageId":null,"content":"@Elena hi","createdAt":"\(timestamp)","deletedAt":null,"editedAt":null,"sender":{"type":"user","user":{"id":"\(senderId)","name":"Me","email":"me@example.com","presence":"offline"}},"mentions":[{"id":"mention_1",\(target.mentionIds),"status":"\(status)","responseMessageId":"shell"}],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":null,"quote":null,"membership":null,"unfurls":null}
   """
 }
 
-private func mentionShellJSON(id: String, parentMessageId: String?, metadata: String) -> String {
+private func mentionShellJSON(id: String, parentMessageId: String?, metadata: String, target: MentionTarget = .coworker) -> String {
   let parentJSON = parentMessageId.map { "\"\($0)\"" } ?? "null"
   return """
-  {"id":"\(id)","roomId":"\(mentionRoomId)","parentMessageId":\(parentJSON),"content":"","createdAt":"2026-01-01T00:00:01.000Z","deletedAt":null,"editedAt":null,"sender":{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}},"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadata),"quote":null,"membership":null,"unfurls":null}
+  {"id":"\(id)","roomId":"\(mentionRoomId)","parentMessageId":\(parentJSON),"content":"","createdAt":"2026-01-01T00:00:01.000Z","deletedAt":null,"editedAt":null,"sender":\(target.senderJSON),"mentions":[],"reactions":[],"threadReplyCount":0,"threadLastReplyAt":null,"metadata":\(metadata),"quote":null,"membership":null,"unfurls":null}
   """
 }
 
@@ -3061,12 +3081,15 @@ private func envelope(_ data: String) -> String {
 
 /// Signed-in personal workspace with `general` open on `[source, shell]`, plus the retry replies.
 @MainActor
-private func mentionRetryFixture(sourceSenderId: String = "user_1", retryResponses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
+private func mentionRetryFixture(sourceSenderId: String = "user_1", target: MentionTarget = .coworker, retryResponses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
   let (state, auth, transport, _) = try ephemeralState([
     (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
     (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
     (200, roomsBody(names: ["general"])),
-    (200, transcriptPageBody(messages: [mentionSourceJSON(id: "source", senderId: sourceSenderId), mentionShellJSON(id: "shell", parentMessageId: nil, metadata: failedShellMetadata)], nextCursor: nil))
+    (200, transcriptPageBody(messages: [
+      mentionSourceJSON(id: "source", senderId: sourceSenderId, target: target),
+      mentionShellJSON(id: "shell", parentMessageId: nil, metadata: failedShellMetadata, target: target)
+    ], nextCursor: nil))
   ] + retryResponses, visible: false)
   await state.reload(auth: auth)
   await waitForTranscriptIdle(state)
@@ -3186,6 +3209,32 @@ extension WorkspaceStateTests {
     #expect(state.timeline.messages.isEmpty)
     #expect(state.pendingMentionRetries.isEmpty)
     #expect(!state.canRetryMention(shell))
+  }
+
+  /// Row 38d: a Soko Bot's failed shell stays in the room's transcript like a coworker's (web #5617), offers
+  /// the mentioner the same Retry, and keeps its row while the retry flips it back to Thinking.
+  @Test func aSokoBotShellStaysDisplayedThroughItsRetry() async throws {
+    let (state, auth, transport) = try await mentionRetryFixture(target: .sokoBot, retryResponses: [
+      (200, envelope(mentionSourceJSON(id: "source", senderId: "user_1", status: "pending", target: .sokoBot)))
+    ])
+    defer { state.reset() }
+    let shell = try #require(state.timeline.messages.last)
+    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(state.canRetryMention(shell))
+
+    transport.pauseMentionRetry = true
+    let now = Date(timeIntervalSince1970: 1_700_000_123.456)
+    let retry = Task { try await state.retryMention(shell, auth: auth, now: now) }
+    while !transport.operationIDs.contains(mentionRetryOperation) {
+      await Task.yield()
+    }
+    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(try MentionThoughtShell(message: #require(state.displayedTranscript.last)) == .thinking(startedAt: now))
+    transport.releasePausedRequest()
+    try await retry.value
+    #expect(state.displayedTranscript.map(\.id) == ["source", "shell"])
+    #expect(state.timeline.messages.first?.mentions.first?.status == .pending)
+    #expect(transport.remainingStubs == 0)
   }
 
   @Test func retryIsHiddenFromOtherMembers() async throws {
