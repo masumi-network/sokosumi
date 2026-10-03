@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   afterAll,
@@ -153,6 +153,9 @@ describe("stepped sign-up with an OAuth request", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    // The code waits for Register.
+    await act(async () => {});
+    expect(signUpEmailMock).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
