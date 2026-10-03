@@ -55,7 +55,6 @@
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
-      "rememberMe": "Keep me logged in",
       "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
@@ -1212,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Password"
-            },
-            "RememberMe": {
-              "label": "Keep me logged in"
             }
           },
           "forgotPassword": "Forgot password?",
