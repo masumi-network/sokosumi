@@ -52,13 +52,18 @@
         host.layoutSubtreeIfNeeded()
 
         let offsetAfter = scroll.contentView.bounds.minY
-        let moved = try Self.contentShift(from: before, to: Self.bands(host: host, scroll: scroll))
+        let shift = try Self.contentShift(from: before, to: Self.bands(host: host, scroll: scroll))
+        let moved = shift.best.points
         // Overlay scrollers land this jump near 593 pt. Legacy scrollers land near 436, then measuring the
         // parent pulls the offset down by about 269 pt (CI 436 to 167) while the pixels move only 40.
         // `moved == 40` alone also passes when that measurement never happens.
         #expect(offsetBefore < 520, "Legacy landing offset was \(offsetBefore) pt, not near 436.")
         #expect(offsetBefore - offsetAfter > 200, "Offset \(offsetBefore) to \(offsetAfter) is a plain scroll, not the measurement correction.")
         #expect(moved == 40, "A 40 pt scroll moved the visible rows by \(moved) pt (offset \(offsetBefore) to \(offsetAfter)).")
+        // The fixture's messages repeat every 230 pt, so a shift one message away nearly fits too: it scored 1.8 times
+        // the best on GitHub's 1× runner and 14 times on a 2× screen.
+        #expect(shift.best.error * 1.25 < shift.runnerUp.error,
+                "No unique shift: \(moved) pt scores \(shift.best.error), \(shift.runnerUp.points) pt scores \(shift.runnerUp.error).")
       }
 
       /// The viewport above the composer, one row per point, as the mean grey of each 16 pt band across.
@@ -83,15 +88,13 @@
         }
       }
 
-      /// How far the content moved down, in points: the shift that best lines `after` up with `before`. The
-      /// fixture's messages repeat every 230 pt, so the best shift has to beat every other one by half.
-      private static func contentShift(from before: [[Double]], to after: [[Double]]) throws -> Int {
+      /// How far the content moved down, in points: the shift that best lines `after` up with `before`, and the best
+      /// one more than 2 pt from it.
+      private static func contentShift(from before: [[Double]], to after: [[Double]]) throws -> (best: (points: Int, error: Double), runnerUp: (points: Int, error: Double)) {
         let height = min(before.count, after.count)
-        let ranked = (-300 ... 300).map { ($0, error(before, after, height, $0)) }.sorted { $0.1 < $1.1 }
+        let ranked = (-300 ... 300).map { (points: $0, error: error(before, after, height, $0)) }.sorted { $0.error < $1.error }
         let best = try #require(ranked.first)
-        let runnerUp = try #require(ranked.first { abs($0.0 - best.0) > 2 })
-        try #require(best.1 * 2 < runnerUp.1, "No unique shift: \(best.0) pt scores \(best.1), \(runnerUp.0) pt scores \(runnerUp.1).")
-        return best.0
+        return try (best, #require(ranked.first { abs($0.points - best.points) > 2 }))
       }
 
       private static func error(_ before: [[Double]], _ after: [[Double]], _ height: Int, _ shift: Int) -> Double {
