@@ -176,6 +176,25 @@ describe("EmailCodeForm", () => {
     expect(screen.getByRole("textbox", { name: "codeLabel" })).toHaveValue("");
   });
 
+  it("keeps the digits when the check fails without an answer, so the button can send them again", async () => {
+    const user = userEvent.setup();
+    const { onSubmitCode } = renderForm({
+      onSubmitCode: vi.fn().mockRejectedValue(new TypeError("Failed to fetch")),
+    });
+    const field = screen.getByRole("textbox", { name: "codeLabel" });
+
+    await user.type(field, "042917");
+
+    await waitFor(() => expect(field).toHaveAccessibleDescription(/generic$/));
+    // Nothing refused the code; it was never checked.
+    expect(field).toHaveValue("042917");
+    expect(field).toHaveFocus();
+
+    await user.click(screen.getByRole("button", { name: "Log in" }));
+    await waitFor(() => expect(onSubmitCode).toHaveBeenCalledTimes(2));
+    expect(onSubmitCode).toHaveBeenLastCalledWith("042917");
+  });
+
   it("shows nothing and unlocks when the page declines to send the code", async () => {
     const user = userEvent.setup();
     renderForm({ onSubmitCode: vi.fn().mockResolvedValue(false) });
