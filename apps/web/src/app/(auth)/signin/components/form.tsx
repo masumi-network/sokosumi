@@ -400,16 +400,20 @@ export default function SignInForm({
                 />
               )}
             />
-            {passwordLine ? (
-              // Announced: a submit leaves focus on the disabled form.
-              <p
-                id={passwordErrorId}
-                role="alert"
-                className="text-destructive text-center text-sm"
-              >
-                {passwordLine}
-              </p>
-            ) : null}
+            {/* Always rendered, so a screen reader hears what appears in it: a
+                submit leaves focus on the disabled form. Out of the flow, so
+                it takes no space, until there is an error. */}
+            <p
+              id={passwordErrorId}
+              role="alert"
+              className={
+                passwordLine
+                  ? "text-destructive text-center text-sm"
+                  : "sr-only"
+              }
+            >
+              {passwordLine}
+            </p>
             <div className="mt-3 flex flex-col gap-4">
               {captcha}
               <SubmitButton

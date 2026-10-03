@@ -207,6 +207,13 @@ describe("ReauthDialog", () => {
       screen.getByTestId("reauth-field-currentPassword"),
     ).toHaveAccessibleDescription("Invalid password");
     expect(onReauthenticated).not.toHaveBeenCalled();
+
+    // Typing replaces the reason, as on Log in's password step.
+    await user.type(screen.getByTestId("reauth-field-currentPassword"), "!");
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("never marks the password invalid for another path's failure", async () => {

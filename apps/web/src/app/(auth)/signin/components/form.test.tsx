@@ -554,7 +554,7 @@ describe("SignInForm", () => {
         "Fields.Password.label",
       );
       expect(screen.queryByText("Fields.Password.label")).toBeNull();
-      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByRole("alert")).toBeEmptyDOMElement();
     });
 
     it("keeps the Security check above the Log in button", () => {
@@ -610,7 +610,7 @@ describe("SignInForm", () => {
       ).toBeTruthy();
 
       await user.type(passwordField(), "x");
-      expect(screen.queryByRole("alert")).toBeNull();
+      expect(screen.getByRole("alert")).toBeEmptyDOMElement();
       expect(passwordField()).not.toHaveAttribute("aria-invalid");
     });
 
