@@ -89,7 +89,7 @@ struct GuestAccessSection: View {
     GroupBox {
       VStack(alignment: .leading, spacing: 8) {
         Label("Shareable link", systemImage: "link").fontWeight(.medium)
-        Text("Create a link anyone signed in outside your organization can open to join as a guest. No email needed up front.")
+        Text("Create a link anyone logged in outside your organization can open to join as a guest. No email needed up front.")
           .font(.caption).foregroundStyle(.secondary)
         HStack {
           Picker("Expires", selection: $model.linkOptions.expiresInDays) {

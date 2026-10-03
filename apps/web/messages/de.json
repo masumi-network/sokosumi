@@ -55,7 +55,6 @@
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
-      "rememberMe": "Angemeldet bleiben",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1212,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Passwort"
-            },
-            "RememberMe": {
-              "label": "Angemeldet bleiben"
             }
           },
           "forgotPassword": "Passwort vergessen?",
