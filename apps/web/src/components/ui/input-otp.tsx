@@ -56,7 +56,8 @@ function InputOTPGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="input-otp-group"
       className={cn(
         "flex h-full min-w-0 items-center",
-        variant === "boxed" ? "flex-1" : "gap-3",
+        // Underlined slots share the row and shrink when the type grows.
+        variant === "boxed" ? "flex-1" : "w-full justify-center gap-3",
         className
       )}
       {...props}
@@ -90,7 +91,7 @@ function InputOTPSlot({
           "after:text-muted-foreground data-[empty=true]:data-[active=false]:after:content-['·']",
         ],
         variant === "underlined" && [
-          "h-14 w-11 border-b-2 border-input text-3xl font-light transition-colors",
+          "h-14 max-w-11 flex-1 border-b-2 border-input text-3xl font-light transition-colors",
           "data-[active=true]:border-primary",
           "group-has-[input[aria-invalid=true]]/input-otp:border-destructive",
         ],
