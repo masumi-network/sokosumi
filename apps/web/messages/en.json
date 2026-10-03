@@ -55,8 +55,8 @@
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
-      "rememberMe": "Keep me signed in",
-      "retryPrompt": "You are signed in again. Try that again now.",
+      "rememberMe": "Keep me logged in",
+      "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
       "termsNotAccepted": "Accept the updated terms before logging in again.",
@@ -1171,7 +1171,7 @@
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
-      "passkeyError": "We could not sign you in with a passkey. Please try again."
+      "passkeyError": "We could not log you in with a passkey. Please try again."
     },
     "Words": {
       "signUp": "Register"
