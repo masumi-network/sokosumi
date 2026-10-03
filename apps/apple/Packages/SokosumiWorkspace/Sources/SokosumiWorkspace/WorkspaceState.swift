@@ -230,6 +230,8 @@ public final class WorkspaceState: ObservableObject {
 
   let transcriptRecovery = ChatRefreshScheduler()
   let sidebarRecovery = SidebarCollectionsRecovery()
+  /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
+  let openRoomUnreadRecheck: OpenRoomUnreadRecheck
   private var connectionHealthy = false
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
@@ -251,9 +253,11 @@ public final class WorkspaceState: ObservableObject {
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
-    unreadsFilter: UnreadsFilterPreference = .transient
+    unreadsFilter: UnreadsFilterPreference = .transient,
+    openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck()
   ) {
     self.clientProvider = clientProvider
+    self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
     for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
@@ -280,6 +284,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceObservation = workspaceSession.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
+    watchOpenRoomUnread()
   }
 
   private let clientProvider: (AuthState) -> Client?
