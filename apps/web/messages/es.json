@@ -1262,7 +1262,7 @@
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "addPassword": "Establecer también una contraseña",
+          "addPassword": "Añadir una contraseña para futuros inicios de sesión",
           "removePassword": "Registrarse sin contraseña",
           "Fields": {
             "MarketingOptIn": {
