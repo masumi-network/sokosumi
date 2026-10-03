@@ -245,9 +245,15 @@ export default function SignInForm({
         aria-hidden="true"
         className="sr-only"
       />
-      {handedOver && !isCodeUnsent ? (
+      {handedOver ? (
         <p className="text-muted-foreground text-sm">
-          {t(isCodeStep ? "Handover.codeSent" : "Handover.password")}
+          {t(
+            isCodeUnsent
+              ? "Handover.codeNotSentNotice"
+              : isCodeStep
+                ? "Handover.codeSent"
+                : "Handover.password",
+          )}
         </p>
       ) : null}
       {isCodeStep ? (

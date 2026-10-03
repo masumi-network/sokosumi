@@ -1233,6 +1233,7 @@
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
             "password": "Ya tienes una cuenta. Introduce tu contraseña para iniciar sesión.",
+            "codeNotSentNotice": "Ya tienes una cuenta.",
             "codeNotSent": "No pudimos enviar un código. Inténtalo de nuevo."
           }
         }

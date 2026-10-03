@@ -104,6 +104,7 @@ describe("SignInFlow after Register handed over", () => {
     render(<SignInFlow lastUsedMethod={null} />);
 
     expect(codeField()).toBeVisible();
+    expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
     expect(screen.getByText("Handover.codeNotSent")).toBeVisible();
     // Nothing claims a code went out.
     expect(screen.queryByText("Handover.codeSent")).not.toBeInTheDocument();

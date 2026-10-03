@@ -1233,6 +1233,7 @@
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
             "password": "You already have an account. Enter your password to log in.",
+            "codeNotSentNotice": "You already have an account.",
             "codeNotSent": "We could not send a code. Try again."
           }
         }
