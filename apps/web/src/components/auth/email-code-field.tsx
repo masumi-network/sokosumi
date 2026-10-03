@@ -1,15 +1,30 @@
 "use client";
 
+import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
 import { type Ref, type RefObject, useId, useRef } from "react";
 
-import { Input } from "@/components/ui/input";
+import {
+  InputOTP,
+  InputOTPGroup,
+  InputOTPSlot,
+} from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
 
 import { ResendCodeButton } from "./resend-code-button";
 
 // Core's `otpLength`.
 export const EMAIL_CODE_LENGTH = 6;
+
+const CODE_SLOTS = Array.from(
+  { length: EMAIL_CODE_LENGTH },
+  (_, index) => index,
+);
+
+/** Pasted codes arrive with spaces or dashes; only digits are kept. */
+function keepDigits(pasted: string): string {
+  return pasted.replace(/\D/g, "");
+}
 
 /** What Better Auth answers when it refuses a code. */
 export interface EmailCodeError {
@@ -72,8 +87,8 @@ interface EmailCodeFieldProps {
 }
 
 /**
- * The field an emailed code goes into, with "Send a new code" beside its
- * label. Pasted codes arrive with spaces or dashes; only digits are kept.
+ * The field an emailed code goes into, one slot per digit, with "Send a new
+ * code" beside its label. Only digits go in.
  */
 export function EmailCodeField({
   value,
@@ -109,21 +124,17 @@ export function EmailCodeField({
           isSending={isResending || Boolean(disabled)}
         />
       </div>
-      <Input
+      <InputOTP
         ref={inputRef}
         id={fieldId}
-        type="text"
+        maxLength={EMAIL_CODE_LENGTH}
+        pattern={REGEXP_ONLY_DIGITS}
+        pasteTransformer={keepDigits}
         inputMode="numeric"
         autoComplete="one-time-code"
         autoFocus={autoFocus}
-        // The format, not a label: six digits.
-        placeholder="000000"
-        className="text-center font-mono tracking-[0.3em]"
         value={value}
-        onChange={(event) => {
-          const code = event.target.value
-            .replace(/\D/g, "")
-            .slice(0, EMAIL_CODE_LENGTH);
+        onChange={(code) => {
           onChange(code);
           if (
             code.length === EMAIL_CODE_LENGTH &&
@@ -133,11 +144,25 @@ export function EmailCodeField({
             onComplete(code);
           }
         }}
+        onPasteCapture={(event) => {
+          // InputOTP pastes at the caret, which sits on the last slot of a
+          // full field; a whole code replaces what is there instead.
+          const pasted = keepDigits(event.clipboardData.getData("text/plain"));
+          if (pasted.length >= EMAIL_CODE_LENGTH) {
+            event.currentTarget.setSelectionRange(0, value.length);
+          }
+        }}
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${hintId} ${errorId}` : hintId}
         disabled={disabled}
-      />
+      >
+        <InputOTPGroup>
+          {CODE_SLOTS.map((index) => (
+            <InputOTPSlot key={index} index={index} />
+          ))}
+        </InputOTPGroup>
+      </InputOTP>
       <p id={hintId} className="text-muted-foreground text-sm">
         {email ? t("sent", { email }) : t("sentNoAddress")}
       </p>

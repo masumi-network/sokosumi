@@ -344,12 +344,14 @@ describe("SignInForm", () => {
     });
 
     it.each(["042 917", "042-917", "042917"])(
-      "finishes automatic sign-in through the real code hook for %s",
+      "finishes automatic sign-in through the real code hook for a pasted %s",
       async (entered) => {
+        const user = userEvent.setup();
         mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
         render(<SignInCodeStep />);
         const code = await screen.findByRole("textbox", { name: "codeLabel" });
-        fireEvent.change(code, { target: { value: entered } });
+        await user.click(code);
+        await user.paste(entered);
         await waitFor(() =>
           expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
         );

@@ -155,6 +155,20 @@
   /* Classic outbound pending: slow dual-arc ring in the timestamp slot. */
   --animate-outbound-pending-spin: outbound-pending-spin 1.4s linear infinite;
   --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
+  /* The drawn caret in an InputOTP slot. */
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
+  }
 
   @keyframes bui-shimmer-text {
     0% {
