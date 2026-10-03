@@ -11,6 +11,10 @@ import {
   useState,
 } from "react";
 
+import {
+  AUTH_STEP_LINK_CLASS,
+  AuthStepLayout,
+} from "@/auth/components/auth-step-layout";
 import Divider from "@/auth/components/divider";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
@@ -37,7 +41,6 @@ import {
 } from "@/lib/utils/last-used-auth-method";
 
 import SignInForm from "./form";
-import SignInHeader from "./header";
 
 interface SignInFlowProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
@@ -71,6 +74,8 @@ export default function SignInFlow({
   children,
 }: SignInFlowProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const headerT = useTranslations("Auth.Pages.SignIn.Header");
+  const emailT = useTranslations("Auth.Email.Form");
   const searchParams = useSearchParams();
   const router = useRouter();
   const effectiveReturnUrl = useMemo(
@@ -172,10 +177,41 @@ export default function SignInFlow({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <SignInHeader client={client} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {notice}
+    <AuthStepLayout
+      client={client}
+      title={headerT("title")}
+      subtitle={
+        // Whatever locks the field explains why.
+        prefilledEmail
+          ? emailT("invitation")
+          : client
+            ? headerT("descriptionFor", { client: client.name })
+            : headerT("description")
+      }
+      notice={notice}
+      links={
+        <span>
+          {t("Register.message")}{" "}
+          <Link
+            href={signUpHref}
+            className={AUTH_STEP_LINK_CLASS}
+            onAuxClick={() => takeAuthEmailHint()}
+            // A typed email travels as an editable hint. Sign-up looks up an
+            // invitation's address itself.
+            onClick={(event) => {
+              rememberAuthEmailHintOnClick(
+                event,
+                lockedInvitationId ? "" : typedEmail,
+              );
+            }}
+          >
+            {t("Register.link")}
+          </Link>
+        </span>
+      }
+      footer={children}
+    >
+      <div className="flex w-full flex-col gap-6">
         <EmailStep
           defaultEmail={email}
           emailLocked={Boolean(prefilledEmail)}
@@ -224,28 +260,7 @@ export default function SignInFlow({
           disabled={isEmailPending}
           onPendingChange={setIsProviderPending}
         />
-        <div className="flex flex-row items-center gap-2">
-          <span className="text-muted-foreground text-sm">
-            {t("Register.message")}
-          </span>
-          <Link
-            href={signUpHref}
-            className="text-primary text-sm font-medium hover:underline"
-            onAuxClick={() => takeAuthEmailHint()}
-            // A typed email travels as an editable hint. Sign-up looks up an
-            // invitation's address itself.
-            onClick={(event) => {
-              rememberAuthEmailHintOnClick(
-                event,
-                lockedInvitationId ? "" : typedEmail,
-              );
-            }}
-          >
-            {t("Register.link")}
-          </Link>
-        </div>
-        {children}
       </div>
-    </div>
+    </AuthStepLayout>
   );
 }

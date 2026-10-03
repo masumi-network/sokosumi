@@ -73,7 +73,7 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
       invitationId={invitationId}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
-      notice={<SignInErrorNotice error={error} />}
+      notice={error ? <SignInErrorNotice error={error} /> : undefined}
     >
       <TermsNotice />
     </SignInFlow>

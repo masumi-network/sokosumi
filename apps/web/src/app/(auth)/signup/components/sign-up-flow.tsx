@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 
+import { AuthStepLayout } from "@/auth/components/auth-step-layout";
 import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
 import { EmailStep } from "@/auth/components/email-step";
@@ -64,6 +65,8 @@ export default function SignUpFlow({
   children,
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const headerT = useTranslations("Auth.Pages.SignUp.Header");
+  const emailT = useTranslations("Auth.Email.Form");
   const searchParams = useSearchParams();
   const router = useRouter();
   const signInHref = useSignInHref();
@@ -120,7 +123,7 @@ export default function SignUpFlow({
   if (step === "details") {
     return (
       <div className="flex flex-1 flex-col">
-        <SignUpHeader invitationId={invitationId} client={client} />
+        <SignUpHeader invited={emailLocked} client={client} />
         <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
           <ConfirmedEmail
             email={email}
@@ -147,10 +150,25 @@ export default function SignUpFlow({
   }
 
   return (
-    <div className="flex flex-1 flex-col">
-      <SignUpHeader invitationId={invitationId} client={client} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {notice}
+    <AuthStepLayout
+      client={client}
+      title={headerT("title")}
+      subtitle={
+        emailLocked
+          ? emailT("invitation")
+          : client
+            ? headerT("descriptionFor", { client: client.name })
+            : headerT("description")
+      }
+      notice={notice}
+      links={
+        <span>
+          {t("Login.message")} <SignInLink />
+        </span>
+      }
+      footer={children}
+    >
+      <div className="flex w-full flex-col gap-6">
         <EmailStep
           defaultEmail={email}
           emailLocked={emailLocked}
@@ -193,14 +211,7 @@ export default function SignUpFlow({
           disabled={isEmailPending}
           onPendingChange={setIsProviderPending}
         />
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
-          <span className="text-muted-foreground text-sm">
-            {t("Login.message")}
-          </span>
-          <SignInLink />
-        </div>
-        {children}
       </div>
-    </div>
+    </AuthStepLayout>
   );
 }

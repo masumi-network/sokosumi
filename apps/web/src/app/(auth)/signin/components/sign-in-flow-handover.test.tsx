@@ -207,7 +207,7 @@ describe("SignInFlow after Register handed over", () => {
     await act(async () => {});
 
     expect(screen.getByLabelText("label")).toHaveValue("invited@example.com");
-    expect(screen.getByLabelText("label")).toBeDisabled();
+    expect(screen.getByLabelText("label")).toHaveAttribute("readonly");
     expect(
       screen.queryByRole("textbox", { name: "codeLabel" }),
     ).not.toBeInTheDocument();

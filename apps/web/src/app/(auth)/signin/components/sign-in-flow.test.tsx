@@ -137,6 +137,94 @@ describe("SignInFlow", () => {
     expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
   });
 
+  describe("step 1", () => {
+    const CMO = { name: "CMO", uri: "https://cmo.xyz", logoUri: undefined };
+
+    it("asks for the email in one field named by its placeholder, with Register in the links row", () => {
+      render(<SignInFlow lastUsedMethod={null} />);
+
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        "title",
+      );
+      expect(screen.getByText("description")).toBeInTheDocument();
+      const field = screen.getByTestId("auth-field-email");
+      expect(field).toBe(emailField());
+      expect(field).toHaveAttribute("placeholder", "label");
+      // No visible label: the placeholder names the field.
+      expect(screen.queryByText("label")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Register.message", { exact: false }),
+      ).toContainElement(screen.getByRole("link", { name: "Register.link" }));
+    });
+
+    it("leads with the way back to an outside product and names it", () => {
+      render(<SignInFlow lastUsedMethod={null} client={CMO} />);
+
+      const back = screen.getByRole("link", { name: "backTo:CMO" });
+      expect(back).toHaveAttribute("href", "https://cmo.xyz");
+      expect(
+        back.compareDocumentPosition(screen.getByRole("heading")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(screen.getByText("descriptionFor:CMO")).toBeInTheDocument();
+    });
+
+    it("says an invitation brought the person here and shows its address read-only", async () => {
+      const user = userEvent.setup();
+      render(
+        <SignInFlow
+          lastUsedMethod={null}
+          client={CMO}
+          prefilledEmail="invited@example.com"
+          invitationId="inv_1"
+        />,
+      );
+
+      expect(screen.getByText("invitation")).toBeInTheDocument();
+      expect(screen.queryByText("descriptionFor:CMO")).not.toBeInTheDocument();
+      await user.type(emailField(), "x");
+      expect(emailField()).toHaveValue("invited@example.com");
+      expect(emailField()).toHaveAttribute("readonly");
+    });
+
+    it("keeps the field's line neutral under the unknown-address notice, and clears the notice on an edit", async () => {
+      const user = userEvent.setup();
+      emailStatusMock.mockResolvedValue({
+        data: { exists: false },
+        error: null,
+      });
+      render(<SignInFlow lastUsedMethod={null} />);
+
+      await continueWith(user, "new@example.com");
+      await waitFor(() =>
+        expect(detour()).toHaveAttribute("data-state", "open"),
+      );
+      // The address is not wrong; it has no account.
+      expect(emailField()).not.toHaveAttribute("aria-invalid", "true");
+
+      await user.type(emailField(), "x");
+
+      expect(detour()).toHaveAttribute("data-state", "closed");
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      ).not.toHaveAttribute("inert");
+    });
+
+    it("explains an invalid address under the field", async () => {
+      const user = userEvent.setup();
+      render(<SignInFlow lastUsedMethod={null} />);
+
+      await continueWith(user, "not-an-address");
+
+      await waitFor(() =>
+        expect(emailField()).toHaveAttribute("aria-invalid", "true"),
+      );
+      expect(emailStatusMock).not.toHaveBeenCalled();
+      expect(emailField()).toHaveAccessibleDescription(/.+/);
+    });
+  });
+
   it("checks the address and emails a code on Continue when no method is remembered", async () => {
     const user = userEvent.setup();
     render(<SignInFlow lastUsedMethod={null} />);
@@ -529,7 +617,7 @@ describe("SignInFlow", () => {
     );
 
     expect(emailField()).toHaveValue("invited@example.com");
-    expect(emailField()).toBeDisabled();
+    expect(emailField()).toHaveAttribute("readonly");
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
 
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
@@ -544,7 +632,7 @@ describe("SignInFlow", () => {
     render(<SignInFlow lastUsedMethod={null} />);
 
     await waitFor(() => expect(emailField()).toHaveValue("ada@example.com"));
-    expect(emailField()).toBeEnabled();
+    expect(emailField()).not.toHaveAttribute("readonly");
     expect(takeAuthEmailHint()).toBeNull();
   });
 

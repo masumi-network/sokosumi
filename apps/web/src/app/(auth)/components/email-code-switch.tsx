@@ -2,11 +2,8 @@
 
 import { useTranslations } from "next-intl";
 
+import { AUTH_STEP_LINK_CLASS } from "./auth-step-layout";
 import type { EmailCode } from "./use-email-code";
-
-/** A text button under a step, e.g. to switch the method. */
-export const STEP_LINK_BUTTON_CLASS =
-  "text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed";
 
 interface EmailCodeSwitchProps {
   /** Confirmed on the email step. */
@@ -33,7 +30,7 @@ export function EmailCodeSwitch({
   return (
     <button
       type="button"
-      className={STEP_LINK_BUTTON_CLASS}
+      className={AUTH_STEP_LINK_CLASS}
       disabled={disabled || emailCode.isSending}
       onClick={async () => {
         if (!wasCodeSent) await emailCode.sendCode(email);

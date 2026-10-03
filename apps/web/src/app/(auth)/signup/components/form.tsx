@@ -8,7 +8,7 @@ import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/email-code-switch";
+import { AUTH_STEP_LINK_CLASS } from "@/auth/components/auth-step-layout";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
@@ -246,7 +246,7 @@ export default function SignUpForm({
       <div className="text-center">
         <button
           type="button"
-          className={STEP_LINK_BUTTON_CLASS}
+          className={AUTH_STEP_LINK_CLASS}
           disabled={isPending}
           onClick={togglePassword}
         >
