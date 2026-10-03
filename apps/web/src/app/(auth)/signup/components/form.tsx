@@ -44,9 +44,10 @@ interface SignUpFormProps {
 
 /**
  * Second sign-up step. Step 1 has emailed a code, so this asks for the name
- * and that code, with one Register. A password is a deliberate addition, sent
- * with the code: the code proves the address, so no account starts with an
- * unproven one. When the first code did not go out, the field sends another.
+ * and that code, with one Register; a whole code waits for it. A password is
+ * a deliberate addition, sent with the code: the code proves the address, so
+ * no account starts with an unproven one. When the first code did not go out,
+ * the field sends another.
  */
 export default function SignUpForm({
   email,
@@ -60,8 +61,6 @@ export default function SignUpForm({
   const oauthT = useTranslations("Auth.OAuthHandBack");
   const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-  const completedCodeRef = useRef("");
   const [withPassword, setWithPassword] = useState(false);
   const [refusedCode, setRefusedCode] = useState(0);
   // Step 1 found no account, but one can appear since, e.g. through Google
@@ -165,7 +164,6 @@ export default function SignUpForm({
   return (
     <BaseForm
       form={form}
-      formRef={formRef}
       disabled={isLeaving}
       onSubmit={handleSubmit}
       onChange={onFormStart}
@@ -200,16 +198,9 @@ export default function SignUpForm({
           <EmailCodeField
             inputRef={field.ref}
             value={field.value}
-            completedCodeRef={completedCodeRef}
+            // No onComplete: the updates checkbox comes after the code,
+            // so only Register sends it.
             onChange={field.onChange}
-            onComplete={() => {
-              // Only when Register would go through: a code typed before
-              // the names waits for the button, with nothing new marked.
-              const schema = withPassword ? passwordSchema : codeOnlySchema;
-              if (!isPending && schema.safeParse(form.getValues()).success) {
-                formRef.current?.requestSubmit();
-              }
-            }}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             sentAt={emailCode.sentAt}
