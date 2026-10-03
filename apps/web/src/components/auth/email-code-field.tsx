@@ -78,6 +78,10 @@ interface EmailCodeFieldProps {
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
   error?: string | undefined;
+  /** Why the field opened, shown above it and read with it. */
+  notice?: string | undefined;
+  /** No code went out, so the field does not say one did. */
+  unsent?: boolean | undefined;
   sentAt: number;
   onResend: () => void;
   isResending: boolean;
@@ -98,6 +102,8 @@ export function EmailCodeField({
   onBlur,
   email,
   error,
+  notice,
+  unsent = false,
   sentAt,
   onResend,
   isResending,
@@ -109,6 +115,7 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
+  const noticeId = useId();
   const localCompletedCode = useRef(
     value.length === EMAIL_CODE_LENGTH ? value : "",
   );
@@ -116,6 +123,12 @@ export function EmailCodeField({
 
   return (
     <div className="grid gap-2">
+      {notice ? (
+        // The grid's gap and this margin match the form's gap.
+        <p id={noticeId} className="text-muted-foreground mb-1 text-sm">
+          {notice}
+        </p>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
         <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
         <ResendCodeButton
@@ -155,7 +168,15 @@ export function EmailCodeField({
         }}
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+        aria-describedby={
+          [
+            notice ? noticeId : null,
+            unsent ? null : hintId,
+            error ? errorId : null,
+          ]
+            .filter(Boolean)
+            .join(" ") || undefined
+        }
         disabled={disabled}
       >
         <InputOTPGroup>
@@ -167,12 +188,14 @@ export function EmailCodeField({
       {/* Without an address the page shows it above the field, and the slots
           show the length, so the line only tells a screen reader a code went
           out. */}
-      <p
-        id={hintId}
-        className={email ? "text-muted-foreground text-sm" : "sr-only"}
-      >
-        {email ? t("sent", { email }) : t("sentNoAddress")}
-      </p>
+      {unsent ? null : (
+        <p
+          id={hintId}
+          className={email ? "text-muted-foreground text-sm" : "sr-only"}
+        >
+          {email ? t("sent", { email }) : t("sentNoAddress")}
+        </p>
+      )}
       {error ? (
         <p id={errorId} className="text-destructive text-sm">
           {error}
