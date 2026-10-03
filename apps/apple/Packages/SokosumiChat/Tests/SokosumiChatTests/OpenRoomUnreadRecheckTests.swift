@@ -123,21 +123,19 @@ struct OpenRoomUnreadRecheckTests {
     let clock = RecheckClock()
     let recheck = OpenRoomUnreadRecheck(sleep: clock.sleep)
     let changes = PassthroughSubject<Void, Never>()
-    var unread = 0
-    var reads = 0
-    var requests = 0
+    let room = WatchedRoom()
     recheck.watch(changes, signal: {
-      reads += 1
-      return Self.signal(unread)
-    }, request: { requests += 1 })
+      room.reads += 1
+      return Self.signal(room.unread)
+    }, request: { room.requests += 1 })
     changes.send()
-    unread = 1
+    room.unread = 1
     changes.send()
     changes.send()
     await waitUntil { clock.pending == 1 }
-    #expect(reads == 1)
+    #expect(room.reads == 1)
     clock.fireAll()
-    await waitUntil { requests == 1 }
+    await waitUntil { room.requests == 1 }
   }
 
   private func waitUntil(_ condition: () -> Bool) async {
@@ -155,6 +153,14 @@ struct OpenRoomUnreadRecheckTests {
       await Task.yield()
     }
   }
+}
+
+/// What `watch` sees and does: the room's count, how often the signal was read, how often a read was asked for.
+@MainActor
+private final class WatchedRoom {
+  var unread = 0
+  var reads = 0
+  var requests = 0
 }
 
 /// Records each wait and holds it until the test fires it, so no test depends on wall time.
