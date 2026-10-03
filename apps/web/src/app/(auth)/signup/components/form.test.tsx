@@ -996,7 +996,7 @@ describe("SignUpForm email code", () => {
     expect(code).toHaveAccessibleDescription(/incomplete$/);
   });
 
-  it("explains a wrong code beside the field and returns focus to it", async () => {
+  it("explains a wrong code in the error line and returns focus to it", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
@@ -1097,6 +1097,40 @@ describe("SignUpForm email code", () => {
       expect.objectContaining({ email: EMAIL, type: "sign-in" }),
     );
     await waitFor(() => expect(errorLine()).toBeEmptyDOMElement());
+  });
+
+  it("focuses the field the error line explains, a password added after the code included", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.click(screen.getByRole("button", { name: "addPassword" }));
+    const password = screen.getByLabelText("Fields.Password.label");
+    await user.type(password, "abc");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => expect(errorLine()).toHaveTextContent("Password.min"));
+    await waitFor(() => expect(password).toHaveFocus());
+    expect(password).toHaveAccessibleDescription(
+      "Fields.Password.description Password.min",
+    );
+    // The code is refused too, but the line is not about it yet.
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).not.toHaveAccessibleDescription();
+  });
+
+  it("describes an unsent code by the error line only while the line is about it", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+    const code = screen.getByRole("textbox", { name: "codeLabel" });
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("FirstName.required"),
+    );
+    expect(code).not.toHaveAccessibleDescription();
   });
 
   it("puts the updates checkbox under Register, and resend and the password switch in the links row after both", async () => {

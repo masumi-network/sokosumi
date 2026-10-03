@@ -39,6 +39,9 @@ import { cn } from "@/lib/utils";
 
 import { useSignInHref } from "./sign-in-link";
 
+/** The fields the error line explains, in the order they appear. */
+const ERROR_LINE_ORDER = ["firstName", "lastName", "password", "code"] as const;
+
 interface SignUpFormProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
@@ -111,6 +114,9 @@ export default function SignUpForm({
       code: "",
       marketingOptIn: false,
     },
+    // React Hook Form would focus in the order fields mounted, which puts a
+    // password added later after the code; focus follows the error line.
+    shouldFocusError: false,
   });
 
   const { isSubmitting } = form.formState;
@@ -174,13 +180,12 @@ export default function SignUpForm({
   };
 
   const { errors } = form.formState;
-  const fieldError =
-    errors.firstName?.message ??
-    errors.lastName?.message ??
-    errors.password?.message ??
-    errors.code?.message;
+  // The field the error line explains: the first refused one on screen.
+  const lineField = ERROR_LINE_ORDER.find((name) => errors[name]);
+  const fieldError = lineField ? errors[lineField]?.message : undefined;
   // Step 1 said so already when the send failed; resend works at once.
   const isCodeUnsent = emailCode.sentTo !== email && !emailCode.isSending;
+  const isLineAboutUnsentCode = !lineField && !accountExists && isCodeUnsent;
   const errorLine =
     fieldError ??
     (accountExists ? (
@@ -211,7 +216,9 @@ export default function SignUpForm({
         <EmailChip
           email={email}
           onChange={onChangeEmail}
-          disabled={isPending}
+          // A late reply for this address would mark the next one's code
+          // as unsent.
+          disabled={isPending || emailCode.isSending}
         />
       }
       links={
@@ -240,6 +247,11 @@ export default function SignUpForm({
         form={form}
         disabled={isLeaving}
         onSubmit={handleSubmit}
+        onInvalid={(refused) => {
+          const first = ERROR_LINE_ORDER.find((name) => refused[name]);
+          // After the submit unlocks the fieldset, as React Hook Form does.
+          if (first) setTimeout(() => form.setFocus(first));
+        }}
         onChange={onFormStart}
         className="w-full"
       >
@@ -259,13 +271,19 @@ export default function SignUpForm({
           control={form.control}
           testIdPrefix="auth-field"
           variant="underlined"
-          describedBy={errorLineId}
+          // The names sit together, so both point at the line while it
+          // explains either.
+          describedBy={
+            lineField === "firstName" || lineField === "lastName"
+              ? errorLineId
+              : undefined
+          }
         />
         {withPassword ? (
           <FormField
             control={form.control}
             name="password"
-            render={({ field, fieldState }) => (
+            render={({ field }) => (
               <FormItem>
                 <FormControl>
                   <PasswordInput
@@ -277,7 +295,7 @@ export default function SignUpForm({
                     aria-label={t("Fields.Password.label")}
                     aria-describedby={[
                       passwordHintId,
-                      fieldState.error ? errorLineId : null,
+                      lineField === "password" ? errorLineId : null,
                     ]
                       .filter(Boolean)
                       .join(" ")}
@@ -313,7 +331,9 @@ export default function SignUpForm({
                 onBlur={field.onBlur}
                 invalid={Boolean(fieldState.error)}
                 describedBy={
-                  fieldState.error || isCodeUnsent ? errorLineId : undefined
+                  lineField === "code" || isLineAboutUnsentCode
+                    ? errorLineId
+                    : undefined
                 }
                 disabled={isPending}
               />
