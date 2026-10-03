@@ -11,6 +11,7 @@
       "sent": "We sent a 6-digit code to {email}.",
       "sentNoAddress": "We emailed you a 6-digit code.",
       "sentTo": "We sent a 6-digit code to",
+      "checking": "Checking the code…",
       "codeLabel": "Code from the email",
       "incomplete": "Enter the 6-digit code from the email.",
       "invalid": "That code is not right. Check the email and try again.",
@@ -21,6 +22,10 @@
       "resendIn": "Send a new code in {seconds}s",
       "termsNotAccepted": "Accept the updated terms before logging in again.",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again."
+    },
+    "PasswordToggle": {
+      "show": "Show password",
+      "hide": "Hide password"
     },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -45,7 +50,6 @@
     },
     "ReauthDialog": {
       "confirm": "Confirm",
-      "confirmCode": "Confirm with code",
       "continueWithEmail": "Email me a code",
       "continueWithGoogle": "Continue with Google",
       "continueWithMicrosoft": "Continue with Microsoft",
@@ -1176,10 +1180,6 @@
     "Words": {
       "signUp": "Register"
     },
-    "PasswordToggle": {
-      "show": "Show password",
-      "hide": "Hide password"
-    },
     "Email": {
       "Form": {
         "label": "Email",
@@ -1187,10 +1187,9 @@
         "change": "Change",
         "changeEmail": "Change email",
         "usePassword": "Use a password",
-        "emailCodeInstead": "Email me a code instead",
+        "emailCode": "Email me a code",
         "emailCodeSending": "Sending code...",
-        "codeStillWorks": "The code we sent still works.",
-        "useCodeInstead": "Use the code instead",
+        "useCode": "Use the code",
         "error": "We could not check this email. Please try again."
       }
     },
@@ -1210,8 +1209,11 @@
           "lastUsed": "Last used",
           "CodeStep": {
             "title": "Check your email",
-            "checking": "Checking the code…",
             "accepted": "Code accepted. Logging you in…"
+          },
+          "PasswordStep": {
+            "title": "Enter your password",
+            "subtitle": "Logging in as"
           },
           "error": "Invalid email or password",
           "Fields": {

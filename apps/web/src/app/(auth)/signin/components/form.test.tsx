@@ -7,7 +7,6 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { track } from "@vercel/analytics";
-import { toast } from "sonner";
 import {
   afterAll,
   beforeAll,
@@ -55,12 +54,11 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 
-vi.mock("sonner", () => ({
-  toast: { success: vi.fn(), error: vi.fn() },
-}));
-
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
-  AuthErrorCode: { TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED" },
+  AuthErrorCode: {
+    TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
+    INVALID_EMAIL_OR_PASSWORD: "INVALID_EMAIL_OR_PASSWORD",
+  },
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -263,9 +261,7 @@ describe("SignInForm", () => {
 
       await user.type(codeField(), "042917");
 
-      await waitFor(() =>
-        expect(statusLine()).toHaveTextContent("CodeStep.checking"),
-      );
+      await waitFor(() => expect(statusLine()).toHaveTextContent("checking"));
       expect(codeField()).toBeDisabled();
       expect(changeEmail()).toBeDisabled();
       expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
@@ -338,7 +334,7 @@ describe("SignInForm", () => {
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
       await user.click(screen.getByRole("button", { name: "usePassword" }));
-      await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+      await user.click(screen.getByRole("button", { name: "useCode" }));
       expect(codeField()).toHaveValue("");
       await user.type(codeField(), "000000");
       await waitFor(() =>
@@ -519,9 +515,8 @@ describe("SignInForm", () => {
 
       await user.click(screen.getByRole("button", { name: "usePassword" }));
       expect(passwordField()).toBeInTheDocument();
-      expect(screen.getByText(/codeStillWorks/)).toBeInTheDocument();
 
-      await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
+      await user.click(screen.getByRole("button", { name: "useCode" }));
       expect(codeField()).toBeInTheDocument();
       expect(emailCode.sendCode).not.toHaveBeenCalled();
     });
@@ -546,6 +541,79 @@ describe("SignInForm", () => {
   });
 
   describe("with the password", () => {
+    it("asks for the password under the address, with no visible label", () => {
+      renderForm();
+
+      expect(
+        screen.getByRole("heading", { name: "PasswordStep.title" }),
+      ).toBeVisible();
+      expect(screen.getByText("PasswordStep.subtitle")).toBeVisible();
+      expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(EMAIL);
+      expect(passwordField()).toHaveAttribute(
+        "placeholder",
+        "Fields.Password.label",
+      );
+      expect(screen.queryByText("Fields.Password.label")).toBeNull();
+      expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+    });
+
+    it("keeps the Security check above the Log in button", () => {
+      renderForm();
+
+      expect(
+        screen
+          .getByTestId("auth-captcha-signin")
+          .compareDocumentPosition(screen.getByTestId("auth-submit")) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("keeps the ways out in one row: forgot password, then a code", () => {
+      renderForm();
+
+      const forgot = screen.getByRole("link", { name: "forgotPassword" });
+      const code = screen.getByRole("button", { name: "emailCode" });
+      expect(forgot.parentElement).toBe(code.parentElement);
+      expect(
+        forgot.compareDocumentPosition(code) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      // Below the Log in button, not beside the field's label.
+      expect(
+        screen
+          .getByRole("button", { name: "submit" })
+          .compareDocumentPosition(forgot) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
+    it("says a wrong password between the field and the button, until the person types", async () => {
+      const user = userEvent.setup();
+      mockSignInEmail.mockResolvedValue({
+        data: null,
+        error: { code: "INVALID_EMAIL_OR_PASSWORD", message: undefined },
+      });
+      renderForm();
+
+      await submitPassword();
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent("error");
+      expect(passwordField()).toHaveAttribute("aria-invalid", "true");
+      expect(passwordField()).toHaveAccessibleDescription("error");
+      expect(
+        passwordField().compareDocumentPosition(alert) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        alert.compareDocumentPosition(
+          screen.getByRole("button", { name: "submit" }),
+        ) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+
+      await user.type(passwordField(), "x");
+      expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
+    });
+
     it("opens on the password when that was used last", async () => {
       renderForm();
 
@@ -573,9 +641,7 @@ describe("SignInForm", () => {
         />,
       );
 
-      await user.click(
-        screen.getByRole("button", { name: "emailCodeInstead" }),
-      );
+      await user.click(screen.getByRole("button", { name: "emailCode" }));
       expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL);
 
       rerender(
@@ -731,9 +797,12 @@ describe("SignInForm", () => {
 
       await submitPassword();
 
-      await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith("errorDescription"),
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "errorDescription",
       );
+      // Not the password's fault, so the field is not marked.
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
+      expect(passwordField()).toHaveAccessibleDescription("errorDescription");
       expect(mockLocationReplace).not.toHaveBeenCalled();
     });
 
@@ -746,9 +815,10 @@ describe("SignInForm", () => {
 
       await submitPassword();
 
-      await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith("Errors.termsNotAccepted"),
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Errors.termsNotAccepted",
       );
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
     });
 
     it("shows translated captcha errors from Core and releases the form", async () => {
@@ -762,11 +832,10 @@ describe("SignInForm", () => {
 
       await submitPassword();
 
-      await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith(
-          "Translated captcha error",
-        ),
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "Translated captcha error",
       );
+      expect(passwordField()).not.toHaveAttribute("aria-invalid");
       expect(captchaErrorMessageMock).toHaveBeenCalledWith(
         error,
         error.message,

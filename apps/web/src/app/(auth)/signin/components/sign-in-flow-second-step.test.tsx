@@ -18,6 +18,7 @@ import SignInFlow from "./sign-in-flow";
 const emailStatusMock = vi.fn();
 const sendEmailCodeMock = vi.fn();
 const signInEmailCodeMock = vi.fn();
+const signInPasswordMock = vi.fn();
 const locationReplaceMock = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -44,7 +45,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
       emailOtp: (...args: unknown[]) => signInEmailCodeMock(...args),
     },
   },
-  signIn: { email: vi.fn() },
+  signIn: {
+    email: (...args: unknown[]) => signInPasswordMock(...args),
+  },
 }));
 vi.mock("@/lib/auth/auth.utils", async () => {
   const actual = await vi.importActual<typeof import("@/lib/auth/auth.utils")>(
@@ -89,8 +92,8 @@ async function reachCodeStep(user: ReturnType<typeof userEvent.setup>) {
   return screen.findByRole("textbox", { name: "codeLabel" });
 }
 
-// Log in's code step on the shared step layout, driven through the real form.
-describe("SignInFlow code step", () => {
+// Log in's second step on the shared step layout, driven through the real form.
+describe("SignInFlow second step", () => {
   const originalLocation = window.location;
 
   beforeAll(() => {
@@ -175,7 +178,7 @@ describe("SignInFlow code step", () => {
       email: "ada@example.com",
       otp: "042917",
     });
-    expect(screen.getByRole("status")).toHaveTextContent("CodeStep.checking");
+    expect(screen.getByRole("status")).toHaveTextContent("checking");
     expect(codeField()).toBeDisabled();
     expect(chip()).toBeDisabled();
 
@@ -261,5 +264,87 @@ describe("SignInFlow code step", () => {
       "href",
       "https://cmo.xyz",
     );
+  });
+
+  describe("on the password", () => {
+    async function reachPasswordStep(user: ReturnType<typeof userEvent.setup>) {
+      emailStatusMock.mockResolvedValue({
+        data: { exists: true, hasPassword: true },
+        error: null,
+      });
+      await user.type(emailField(), "ada@example.com");
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+      return screen.findByTestId("auth-field-currentPassword");
+    }
+
+    it("asks for the password under the address chip, with the ways out underneath", async () => {
+      const user = userEvent.setup();
+      render(<SignInFlow lastUsedMethod={null} />);
+
+      const password = await reachPasswordStep(user);
+
+      expect(
+        screen.getByRole("heading", { name: "PasswordStep.title" }),
+      ).toBeVisible();
+      expect(screen.getByText("PasswordStep.subtitle")).toBeVisible();
+      expect(chip()).toHaveTextContent("ada@example.com");
+      expect(password).toHaveAccessibleName("Fields.Password.label");
+      expect(screen.getByTestId("auth-submit")).toHaveAccessibleName("submit");
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toBeVisible();
+      expect(screen.getByRole("button", { name: "emailCode" })).toBeVisible();
+      expect(sendEmailCodeMock).not.toHaveBeenCalled();
+      await waitFor(() => expect(password).toHaveFocus());
+    });
+
+    it("logs in with the password and keeps Log in busy while the page leaves", async () => {
+      const user = userEvent.setup();
+      signInPasswordMock.mockResolvedValue({ data: {}, error: null });
+      render(<SignInFlow lastUsedMethod={null} returnUrl="/agents" />);
+      const password = await reachPasswordStep(user);
+
+      await user.type(password, "Passw0rd!{Enter}");
+
+      await waitFor(() =>
+        expect(locationReplaceMock).toHaveBeenCalledWith("/agents"),
+      );
+      expect(signInPasswordMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          email: "ada@example.com",
+          password: "Passw0rd!",
+        }),
+      );
+      expect(screen.getByTestId("auth-submit")).toBeDisabled();
+      expect(chip()).toBeDisabled();
+    });
+
+    it("emails a code from the links row and moves to it in place", async () => {
+      const user = userEvent.setup();
+      render(<SignInFlow lastUsedMethod={null} />);
+      await reachPasswordStep(user);
+
+      await user.click(screen.getByRole("button", { name: "emailCode" }));
+
+      expect(
+        await screen.findByRole("textbox", { name: "codeLabel" }),
+      ).toBeVisible();
+      expect(sendEmailCodeMock).toHaveBeenCalledOnce();
+      expect(
+        screen.getByRole("heading", { name: "CodeStep.title" }),
+      ).toBeVisible();
+    });
+
+    it("goes back to step 1 from the chip", async () => {
+      const user = userEvent.setup();
+      render(<SignInFlow lastUsedMethod={null} />);
+      await reachPasswordStep(user);
+
+      await user.click(chip());
+
+      expect(emailField()).toHaveValue("ada@example.com");
+    });
   });
 });

@@ -11,6 +11,7 @@
       "sent": "Enviamos un código de 6 dígitos a {email}.",
       "sentNoAddress": "Te enviamos un código de 6 dígitos por correo.",
       "sentTo": "Enviamos un código de 6 dígitos a",
+      "checking": "Comprobando el código…",
       "codeLabel": "Código del correo",
       "incomplete": "Introduce el código de 6 dígitos del correo.",
       "invalid": "Ese código no es correcto. Revisa el correo e inténtalo de nuevo.",
@@ -21,6 +22,10 @@
       "resendIn": "Nuevo código en {seconds} s",
       "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
       "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."
+    },
+    "PasswordToggle": {
+      "show": "Mostrar contraseña",
+      "hide": "Ocultar contraseña"
     },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
@@ -45,7 +50,6 @@
     },
     "ReauthDialog": {
       "confirm": "Confirmar",
-      "confirmCode": "Confirmar con código",
       "continueWithEmail": "Envíame un código",
       "continueWithGoogle": "Continuar con Google",
       "continueWithMicrosoft": "Continuar con Microsoft",
@@ -1176,10 +1180,6 @@
     "Words": {
       "signUp": "Registrarse"
     },
-    "PasswordToggle": {
-      "show": "Mostrar contraseña",
-      "hide": "Ocultar contraseña"
-    },
     "Email": {
       "Form": {
         "label": "Email",
@@ -1187,10 +1187,9 @@
         "change": "Cambiar",
         "changeEmail": "Cambiar email",
         "usePassword": "Usar una contraseña",
-        "emailCodeInstead": "Envíame un código en su lugar",
+        "emailCode": "Envíame un código",
         "emailCodeSending": "Enviando código...",
-        "codeStillWorks": "El código que enviamos sigue siendo válido.",
-        "useCodeInstead": "Usar el código en su lugar",
+        "useCode": "Usar el código",
         "error": "No pudimos comprobar este email. Inténtalo de nuevo."
       }
     },
@@ -1210,8 +1209,11 @@
           "lastUsed": "Usado por última vez",
           "CodeStep": {
             "title": "Revisa tu correo",
-            "checking": "Comprobando el código…",
             "accepted": "Código aceptado. Iniciando sesión…"
+          },
+          "PasswordStep": {
+            "title": "Introduce tu contraseña",
+            "subtitle": "Iniciando sesión como"
           },
           "error": "Email o contraseña incorrectos",
           "Fields": {

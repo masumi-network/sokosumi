@@ -126,6 +126,18 @@ describe("ReauthDialog", () => {
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
   });
 
+  it("names the password by its placeholder, with a way to show it", async () => {
+    renderDialog([passwordAccount]);
+    const user = userEvent.setup();
+    const field = screen.getByTestId("reauth-field-currentPassword");
+
+    expect(field).toHaveAccessibleName("passwordLabel");
+    expect(field).toHaveAttribute("placeholder", "passwordLabel");
+    expect(screen.queryByText("passwordLabel")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "show" }));
+    expect(field).toHaveAttribute("type", "text");
+  });
+
   it("signs in with the password and reports success once", async () => {
     const { onOpenChange, onReauthenticated } = renderDialog([passwordAccount]);
 
@@ -195,6 +207,13 @@ describe("ReauthDialog", () => {
       screen.getByTestId("reauth-field-currentPassword"),
     ).toHaveAccessibleDescription("Invalid password");
     expect(onReauthenticated).not.toHaveBeenCalled();
+
+    // Typing replaces the reason, as on Log in's password step.
+    await user.type(screen.getByTestId("reauth-field-currentPassword"), "!");
+    expect(
+      screen.getByTestId("reauth-field-currentPassword"),
+    ).not.toHaveAttribute("aria-invalid");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 
   it("never marks the password invalid for another path's failure", async () => {
@@ -270,7 +289,7 @@ describe("ReauthDialog", () => {
     expect(mockDiscardRetiredAblyRealtimeClient).toHaveBeenCalled();
   });
 
-  it("checks a typed code once, with Confirm busy meanwhile", async () => {
+  it("checks a typed code once, saying so meanwhile", async () => {
     mockSignInEmailCode.mockReturnValue(new Promise(() => {}));
     renderDialog([]);
     const user = userEvent.setup();
@@ -280,10 +299,10 @@ describe("ReauthDialog", () => {
     await user.type(code, "042917");
 
     await waitFor(() =>
-      expect(
-        screen.getByRole("button", { name: "confirmCode" }),
-      ).toBeDisabled(),
+      expect(screen.getByRole("status")).toHaveTextContent("checking"),
     );
+    // The digits send the code; there is no button for it.
+    expect(screen.queryByRole("button", { name: "confirmCode" })).toBeNull();
     // Like the sign-in step: nothing changes the code while it is checked.
     expect(code).toBeDisabled();
     expect(mockSignInEmailCode).toHaveBeenCalledOnce();

@@ -1,4 +1,5 @@
 import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
+import { createElement } from "react";
 import { beforeEach, vi } from "vitest";
 
 import type {
@@ -15,9 +16,10 @@ export const captchaFetchOptions: CaptchaFetchOptions = {
   headers: { [AUTH_CAPTCHA_HEADER]: "verified-token" },
 };
 
-export function useAuthCaptcha(_entry: AuthCaptchaEntry): AuthCaptcha {
+export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
   return {
-    widget: null,
+    // Marks where the page puts its Security check.
+    widget: createElement("div", { "data-testid": `auth-captcha-${entry}` }),
     async runWithCaptcha(action) {
       const options = await requestCaptchaMock();
       return options ? action(options) : null;
