@@ -1,9 +1,9 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { createRef, type Ref, useState } from "react";
+import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import { EmailCodeField } from "./email-code-field";
+import { EmailCodeField, useEmailCodeRefusal } from "./email-code-field";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -36,6 +36,37 @@ function Field({
       isResending={false}
       disabled={disabled}
       inputRef={inputRef}
+    />
+  );
+}
+
+/** A page that refuses every code it is handed, as Better Auth can. */
+function RefusingField({ onComplete }: { onComplete: (code: string) => void }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string>();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const refusal = useEmailCodeRefusal({
+    isLocked: false,
+    clear: () => setCode(""),
+    focus: () => inputRef.current?.focus(),
+  });
+  return (
+    <EmailCodeField
+      inputRef={inputRef}
+      value={code}
+      completedCodeRef={refusal.completedCodeRef}
+      onChange={(next) => {
+        setCode(next);
+        setError(undefined);
+      }}
+      onComplete={(completed) => {
+        onComplete(completed);
+        setError(refusal.refuse({ code: "INVALID_OTP" }));
+      }}
+      error={error}
+      sentAt={0}
+      onResend={vi.fn()}
+      isResending={false}
     />
   );
 }
@@ -194,5 +225,25 @@ describe("EmailCodeField", () => {
     ref.current?.focus();
 
     expect(codeField()).toHaveFocus();
+  });
+
+  it("empties itself after a refused code and hands the same code over again", async () => {
+    const user = userEvent.setup();
+    const onComplete = vi.fn();
+    render(<RefusingField onComplete={onComplete} />);
+
+    await user.type(codeField(), "000000");
+
+    expect(onComplete).toHaveBeenCalledExactlyOnceWith("000000");
+    expect(codeField()).toHaveValue("");
+    expect(codeField()).toHaveAccessibleDescription(/invalid$/);
+
+    // The reason stays until the next code is typed.
+    await user.type(codeField(), "0");
+    expect(codeField()).not.toHaveAttribute("aria-invalid");
+
+    await user.type(codeField(), "00000");
+    expect(onComplete).toHaveBeenCalledTimes(2);
+    expect(onComplete).toHaveBeenLastCalledWith("000000");
   });
 });

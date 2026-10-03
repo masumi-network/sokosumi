@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -21,7 +21,7 @@ import {
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
-  useDescribeEmailCodeError,
+  useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -59,10 +59,8 @@ export default function SignUpForm({
   const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
-  const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
   const [withPassword, setWithPassword] = useState(false);
-  const [refusedCode, setRefusedCode] = useState(0);
   // Step 1 found no account, but one can appear since, e.g. through Google
   // in another tab.
   const [accountExists, setAccountExists] = useState(false);
@@ -94,6 +92,15 @@ export default function SignUpForm({
       code: "",
       marketingOptIn: false,
     },
+  });
+
+  const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isLeaving;
+  const codeRefusal = useEmailCodeRefusal({
+    clear: () => form.setValue("code", ""),
+    focus: () => form.setFocus("code"),
+    // A submitting fieldset cannot receive focus.
+    isLocked: isSubmitting,
   });
 
   // The step replaced the one the user was typing in, so focus follows.
@@ -138,8 +145,7 @@ export default function SignUpForm({
         });
         return;
       }
-      form.setError("code", { message: describeCodeError(error) });
-      setRefusedCode((count) => count + 1);
+      form.setError("code", { message: codeRefusal.refuse(error) });
       return;
     }
     // The page is leaving; keep the step locked until it has.
@@ -150,16 +156,6 @@ export default function SignUpForm({
     form.clearErrors("password");
     setWithPassword((current) => !current);
   };
-
-  const { isSubmitting } = form.formState;
-  const isPending = isSubmitting || isLeaving;
-
-  // A refused code sends focus back to its field. A submitting fieldset
-  // cannot receive focus; wait until it is enabled again.
-  useEffect(() => {
-    if (refusedCode === 0 || isSubmitting) return;
-    form.setFocus("code");
-  }, [refusedCode, isSubmitting, form]);
 
   return (
     <BaseForm
@@ -200,7 +196,12 @@ export default function SignUpForm({
             value={field.value}
             // No onComplete: the updates checkbox comes after the code,
             // so only Register sends it.
-            onChange={field.onChange}
+            onChange={(code) => {
+              // Typing replaces the reason; checking for a whole code while
+              // it is typed would only say it is not yet one.
+              form.clearErrors("code");
+              form.setValue("code", code);
+            }}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
             sentAt={emailCode.sentAt}

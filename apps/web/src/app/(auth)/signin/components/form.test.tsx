@@ -266,7 +266,7 @@ describe("SignInForm", () => {
       expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
     });
 
-    it("does not send a refused code again until it changes", async () => {
+    it("empties a refused code's field, keeps the reason until typing, and sends the same code again", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi
@@ -279,20 +279,22 @@ describe("SignInForm", () => {
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
+      // The field takes six digits; the refused ones would block the next code.
+      expect(codeField()).toHaveValue("");
       await waitFor(() => expect(codeField()).toHaveFocus());
 
-      // Taking a digit back and typing it again is still the refused code.
-      await user.type(codeField(), "{Backspace}0");
-      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+      // Typing replaces the reason, without asking for the rest of the code.
+      await user.type(codeField(), "0");
+      expect(codeField()).not.toHaveAttribute("aria-invalid");
 
-      await user.type(codeField(), "{Backspace}7");
+      await user.type(codeField(), "00000");
       await waitFor(() =>
-        expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
-          EMAIL,
-          "000007",
-        ),
+        expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2),
       );
-      expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2);
+      expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
+        EMAIL,
+        "000000",
+      );
     });
 
     it("shares a synchronous lock between completion and manual submit", async () => {
@@ -320,7 +322,7 @@ describe("SignInForm", () => {
       expect(code).toBeDisabled();
     });
 
-    it("remembers a refused code through a partial-value method switch", async () => {
+    it("sends a refused code again when it is typed after a method switch", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi.fn().mockResolvedValue({ code: "INVALID_OTP" }),
@@ -330,14 +332,12 @@ describe("SignInForm", () => {
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
-      await user.type(codeField(), "{Backspace}");
       await user.click(
         screen.getByRole("button", { name: "usePasswordInstead" }),
       );
       await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
-      await user.type(codeField(), "0");
-      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
-      await user.type(codeField(), "{Backspace}7");
+      expect(codeField()).toHaveValue("");
+      await user.type(codeField(), "000000");
       await waitFor(() =>
         expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2),
       );
@@ -492,7 +492,6 @@ describe("SignInForm", () => {
       });
 
       await user.type(codeField(), "000000");
-      await user.click(screen.getByRole("button", { name: "submit" }));
 
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),

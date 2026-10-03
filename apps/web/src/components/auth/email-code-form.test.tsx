@@ -94,6 +94,10 @@ describe("EmailCodeForm", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     expect(onSubmitCode).not.toHaveBeenCalled();
+    // Not refused, only short: the digits stay.
+    expect(screen.getByRole("textbox", { name: "codeLabel" })).toHaveValue(
+      "0429",
+    );
     expect(screen.getByRole("textbox", { name: "codeLabel" })).toHaveAttribute(
       "aria-invalid",
       "true",
@@ -120,14 +124,35 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     const field = screen.getByRole("textbox", { name: "codeLabel" });
     await waitFor(() => expect(field).toHaveAttribute("aria-invalid", "true"));
     expect(field).toHaveAccessibleDescription(new RegExp(`${message}$`));
-    // Submitting left focus on the button; it returns to what needs fixing.
-    expect(field).toHaveFocus();
+    // The field takes six digits; the refused ones would block the next code.
+    expect(field).toHaveValue("");
+    // Checking the code disabled the field; focus returns to it.
+    await waitFor(() => expect(field).toHaveFocus());
     expect(screen.getByRole("button", { name: "Log in" })).toBeEnabled();
+  });
+
+  it("keeps a refused code's reason until the next one is typed, and takes the same code again", async () => {
+    const user = userEvent.setup();
+    const { onSubmitCode } = renderForm({
+      onSubmitCode: vi.fn().mockResolvedValue({ code: "INVALID_OTP" }),
+    });
+    const field = screen.getByRole("textbox", { name: "codeLabel" });
+
+    await user.type(field, "042917");
+    await waitFor(() => expect(field).toHaveAccessibleDescription(/invalid$/));
+    await waitFor(() => expect(field).toHaveFocus());
+
+    await user.type(field, "0");
+    expect(field).not.toHaveAttribute("aria-invalid");
+    expect(field).toHaveAccessibleDescription("sent ada@example.com");
+
+    await user.type(field, "42917");
+    await waitFor(() => expect(onSubmitCode).toHaveBeenCalledTimes(2));
+    expect(onSubmitCode).toHaveBeenLastCalledWith("042917");
   });
 
   it("asks to wait when Core's rate limit answers before the tries run out", async () => {
@@ -142,13 +167,13 @@ describe("EmailCodeForm", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
-    await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
       expect(
         screen.getByRole("textbox", { name: "codeLabel" }),
       ).toHaveAccessibleDescription(/rateLimited$/),
     );
+    expect(screen.getByRole("textbox", { name: "codeLabel" })).toHaveValue("");
   });
 
   it("shows nothing and unlocks when the page declines to send the code", async () => {
