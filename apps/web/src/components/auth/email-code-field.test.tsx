@@ -187,6 +187,25 @@ describe("EmailCodeField", () => {
     expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
   });
 
+  it("still tells a screen reader a code was sent when the page shows no address", () => {
+    // Log in and sign-up show the address above the field, so the line is
+    // hidden from sight there, not from the field's description.
+    render(
+      <EmailCodeField
+        value=""
+        onChange={vi.fn()}
+        error="That code is wrong."
+        sentAt={0}
+        onResend={vi.fn()}
+        isResending={false}
+      />,
+    );
+
+    expect(codeField()).toHaveAccessibleDescription(
+      "sentNoAddress That code is wrong.",
+    );
+  });
+
   it("hands its input to the page's ref, so the page can focus it again", () => {
     const ref = createRef<HTMLInputElement>();
     render(<Field inputRef={ref} />);

@@ -164,7 +164,13 @@ export function EmailCodeField({
           ))}
         </InputOTPGroup>
       </InputOTP>
-      <p id={hintId} className="text-muted-foreground text-sm">
+      {/* Without an address the page shows it above the field, and the slots
+          show the length, so the line only tells a screen reader a code went
+          out. */}
+      <p
+        id={hintId}
+        className={email ? "text-muted-foreground text-sm" : "sr-only"}
+      >
         {email ? t("sent", { email }) : t("sentNoAddress")}
       </p>
       {error ? (
