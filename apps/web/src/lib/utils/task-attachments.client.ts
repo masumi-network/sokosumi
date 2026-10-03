@@ -29,7 +29,7 @@ function toTaskAttachmentUploadError(error: unknown): UserFileUploadError {
     if (error.status === 401 || error.status === 403) {
       return new UserFileUploadError(
         "unauthorized",
-        "You need to sign in before uploading files.",
+        "You need to log in before uploading files.",
       );
     }
 
