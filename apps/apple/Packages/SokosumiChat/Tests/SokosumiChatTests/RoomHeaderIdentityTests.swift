@@ -91,11 +91,18 @@ struct RoomHeaderIdentityTests {
     #expect(RoomHeaderIdentity(room: Self.room(topic: example.0), currentUserId: Self.reader).topic == example.1)
   }
 
+  /// Web `RoomHeaderChrome` (`room-header-chrome.tsx`:183-216) draws a Self Direct's `DirectRoomAvatarStack`, the
+  /// reader's own face, and names it "You" (row 27c).
+  @Test func aSelfDirectDrawsTheReadersFaceAndIsYou() {
+    let room = Self.room(kind: .direct, name: "self", topic: "Ignored", isSelfDirect: true, members: [Self.person(Self.reader, "Me")])
+    let face = DirectRoomAvatarParticipant(id: Self.reader, name: "Me", imageURL: nil, presence: .offline)
+    #expect(RoomHeaderIdentity(room: room, currentUserId: Self.reader) == .init(mark: .selfDirect(face), title: "You", topic: nil))
+  }
+
   @Test func aDirectDrawsTheMessageGlyphAndNeverATopic() {
     let ada = Self.person("user_ada", "Ada")
     let rooms = [
       Self.room(kind: .direct, name: "dm", topic: "Ignored", members: [Self.person(Self.reader, "Me"), ada]),
-      Self.room(kind: .direct, name: "self", isSelfDirect: true, members: [Self.person(Self.reader, "Me")]),
       Self.room(kind: .direct, name: "group", groupName: "Launch crew",
                 members: [Self.person(Self.reader, "Me"), ada, Self.person("user_grace", "Grace")]),
       Self.room(kind: .direct, name: "assistant", members: [Self.person(Self.reader, "Me")],
@@ -105,7 +112,6 @@ struct RoomHeaderIdentityTests {
     ]
     #expect(rooms.map { RoomHeaderIdentity(room: $0, currentUserId: Self.reader) } == [
       .init(mark: .direct, title: "Ada", topic: nil),
-      .init(mark: .direct, title: "Me", topic: nil),
       .init(mark: .direct, title: "Launch crew", topic: nil),
       .init(mark: .direct, title: "Soko", topic: nil),
       .init(mark: .direct, title: "Helper", topic: nil)

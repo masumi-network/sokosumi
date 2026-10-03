@@ -447,7 +447,7 @@ struct WorkspaceStateTests {
     state.rooms[0].coworkerMembers = [.init(id: "peer", name: "Peer", slug: "peer", caption: nil, image: nil, presence: .online)]
     transport.pauseDirect = true
     let context = state.compositionContext
-    var recipients = DirectConversationSelection(hasOrganization: false)
+    var recipients = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
     recipients.add(.coworker("peer"))
     let request = Task {
       if fromPicker {
@@ -478,6 +478,48 @@ struct WorkspaceStateTests {
     #expect(transport.operationIDs.filter { $0 == "post/chats/rooms" }.count == 1)
   }
 
+  /// Row 27c: the New chat roster offers Message yourself from the signed-in reader even when every recipient
+  /// list fails (web `loadChatComposeRosterAction`), and choosing it sends Core the reader's own id alone; Core's
+  /// existing Self Direct (200) joins the sidebar once and opens.
+  @Test func messageYourselfOpensTheReadersSelfDirect() async throws {
+    let target = "550e8400-e29b-41d4-a716-446655440027"
+    let unavailable = #"{"message":"Unavailable"}"#
+    let selfDirect = roomReadBody(id: target, unread: 0, name: "Direct")
+      .replacingOccurrences(of: "\"kind\":\"channel\"", with: "\"kind\":\"direct\"")
+      .replacingOccurrences(of: "\"isSelfDirect\":false", with: "\"isSelfDirect\":true")
+      .replacingOccurrences(of: "\"userMembers\":[]",
+                            with: #""userMembers":[{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online"}]"#)
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
+      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      // The coworker list and the assistant, in either order.
+      (503, unavailable), (503, unavailable),
+      (200, selfDirect),
+      (200, transcriptPageBody(messages: [], nextCursor: nil))
+    ], visible: false)
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let context = state.compositionContext
+    let roster = try await state.loadDirectRecipients(context: context, auth: auth)
+    #expect(roster.targets == [.messageYourself(userId: "user_1", name: "Me", imageURL: nil)])
+    #expect(roster.recipientsLoadFailed)
+    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: state.currentUserId)
+    try selection.add(#require(roster.targets.first).id)
+    #expect(try await state.openDirect(selection, context: context, auth: auth))
+    await waitForTranscriptIdle(state)
+    let posted = try #require(zip(transport.operationIDs, transport.bodies).first { $0.0 == "post/chats/rooms" }?.1)
+    let body = try #require(JSONSerialization.jsonObject(with: posted) as? [String: Any])
+    #expect(body["kind"] as? String == "direct")
+    #expect(body["memberUserIds"] as? [String] == ["user_1"])
+    #expect(body.count == 2)
+    #expect(state.transcriptRoomId == target)
+    #expect(state.rooms.filter { $0.id == target }.count == 1)
+    #expect(state.rooms.first { $0.id == target }.map { roomDisplayName($0, currentUserId: state.currentUserId) } == "You")
+    #expect(transport.remainingStubs == 0)
+  }
+
   @Test func failedWorkspaceSwitchDiscardsPendingDirect() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
@@ -493,7 +535,7 @@ struct WorkspaceStateTests {
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
     let context = state.compositionContext
-    var selection = DirectConversationSelection(hasOrganization: false)
+    var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "user_1")
     selection.add(.coworker("peer"))
     transport.pauseDirect = true
     let request = Task { try await state.openDirect(selection, context: context, auth: auth) }

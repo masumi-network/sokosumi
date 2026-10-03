@@ -20,7 +20,8 @@ struct RoomHeaderModifier: ViewModifier {
   }
 }
 
-/// Web draws the Channel glyph (`ChannelDiscoverabilityIcon`) or a Direct's `MessageCircle`, muted.
+/// Web draws the Channel glyph (`ChannelDiscoverabilityIcon`), a Direct's `MessageCircle`, muted, or a Self Direct's
+/// own face without a presence mark (`DirectRoomAvatarStack`).
 struct RoomHeaderMark: View {
   let mark: RoomHeaderIdentity.Mark
 
@@ -30,6 +31,8 @@ struct RoomHeaderMark: View {
       Image(systemName: channel.systemImage)
         .foregroundStyle(.secondary)
         .accessibilityLabel(channel.channelDescription)
+    case let .selfDirect(owner):
+      DirectRoomAvatarStack(participants: [owner], showsPresence: false)
     case .direct:
       Image(systemName: "message")
         .foregroundStyle(.secondary)
