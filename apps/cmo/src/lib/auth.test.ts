@@ -165,7 +165,11 @@ async function createFakeCore(): Promise<FakeCore> {
           return json(
             {
               error:
-                fake.tokenFailure >= 500 ? "server_error" : "invalid_client",
+                fake.tokenFailure >= 500
+                  ? "server_error"
+                  : fake.tokenFailure === 400
+                    ? "invalid_grant"
+                    : "invalid_client",
             },
             fake.tokenFailure,
           );
@@ -919,7 +923,7 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
-  it.each(["network", 500, 502] as const)(
+  it.each(["network", 429, 500, 502] as const)(
     "keeps the session while Core's token endpoint fails (%s), then renews once Core is back",
     async (failure) => {
       await signIn(auth, jar, core);
@@ -972,7 +976,7 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
-  it.each([401, 403])(
+  it.each([400, 401, 403])(
     "signs out when Core's token endpoint refuses with %i",
     async (status) => {
       await signIn(auth, jar, core);
@@ -1014,6 +1018,20 @@ describe("CMO auth handler", () => {
 
     expect(response.status).toBe(204);
     expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("serves a valid access token while a new instance cannot discover Core", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+
+    const response = await renew(createCmoAuth(AUTH_CONFIG), jar);
+    logged.mockRestore();
+
+    expect(response.status).toBe(204);
+    expect(jar.header()).toBe(cookies);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
   it("does nothing for a signed-out visitor", async () => {

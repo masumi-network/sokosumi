@@ -44,19 +44,37 @@ const CLIENT_IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"];
 /** Core's refresh tokens last 90 days; the session never outlives them. */
 const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 
-/** Token endpoint answers that refuse a refresh (RFC 6749 section 5.2). */
-const REFRESH_REFUSED_STATUSES = new Set([400, 401, 403]);
+/** Better Auth refreshes an access token this close to its expiry. */
+const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5_000;
+
+/** Token endpoint statuses that mean Core could not answer, not "no". */
+const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
 
 /** Renewal requests whose refresh grant got no answer from Core. */
-const refreshesWithoutAnswer = new WeakSet<Request>();
+const unansweredRefreshes = new WeakSet<Request>();
+
+/** Whether a refresh failed without an answer from Core. */
+function isUnanswered(error: unknown): boolean {
+  // Fetch rejects with a TypeError when Core cannot be reached or times out.
+  if (error instanceof TypeError) return true;
+  // Better Fetch throws the token endpoint's error body with its status.
+  const status =
+    error && typeof error === "object" && "status" in error
+      ? error.status
+      : undefined;
+  return (
+    typeof status === "number" &&
+    (status >= 500 || CORE_UNAVAILABLE_STATUSES.has(status))
+  );
+}
 
 /**
  * Better Auth answers every failed refresh with the same 400. This records
  * the requests where Core gave no answer (a network error, a timeout, a 5xx)
  * rather than refusing, so renewal can keep the session through an outage.
  */
-const sokosumiRefreshOutcome = {
-  id: "cmo-sokosumi-refresh-outcome",
+const recordUnansweredRefreshes = {
+  id: "cmo-record-unanswered-refreshes",
   init(ctx) {
     const provider = ctx.socialProviders.find(
       ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
@@ -67,16 +85,8 @@ const sokosumiRefreshOutcome = {
       try {
         return await refresh(refreshToken, refreshCtx);
       } catch (error) {
-        // Better Fetch throws the token endpoint's error body with its status.
-        const status =
-          error && typeof error === "object" && "status" in error
-            ? error.status
-            : undefined;
-        if (
-          refreshCtx?.request &&
-          !(typeof status === "number" && REFRESH_REFUSED_STATUSES.has(status))
-        ) {
-          refreshesWithoutAnswer.add(refreshCtx.request);
+        if (refreshCtx?.request && isUnanswered(error)) {
+          unansweredRefreshes.add(refreshCtx.request);
         }
         throw error;
       }
@@ -168,6 +178,40 @@ export function createCmoAuth(config: CmoAuthConfig) {
     onAPIError: { errorURL: new URL("/", config.baseURL).href },
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
+        if (ctx.path === "/get-access-token") {
+          // Without discovery there is no provider, and Better Auth fails
+          // before it looks at the token. A valid token needs no provider.
+          if (
+            ctx.context.socialProviders.some(
+              ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
+            )
+          ) {
+            return;
+          }
+          const [session, account] = await Promise.all([
+            getSessionFromCtx(ctx),
+            getAccountCookie(ctx),
+          ]);
+          const expiresAt = account?.accessTokenExpiresAt
+            ? new Date(account.accessTokenExpiresAt)
+            : undefined;
+          if (
+            !session ||
+            !account?.accessToken ||
+            account.userId !== session.user.id ||
+            !expiresAt ||
+            expiresAt.getTime() - Date.now() < ACCESS_TOKEN_REFRESH_MARGIN_MS
+          ) {
+            return;
+          }
+          return ctx.json({
+            accessToken: await decryptOAuthToken(
+              account.accessToken,
+              ctx.context,
+            ),
+            accessTokenExpiresAt: expiresAt,
+          });
+        }
         if (ctx.path !== "/sign-out") return;
         const account = await getAccountCookie(ctx);
         if (!account?.refreshToken) return;
@@ -252,7 +296,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
           },
         ],
       }),
-      sokosumiRefreshOutcome,
+      recordUnansweredRefreshes,
       nextCookies(),
     ],
   });
@@ -368,8 +412,8 @@ function withSetCookies(from: Response, status: number): Response {
 
 // ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
 const RENEWAL_REPLAY_MS = 30_000;
-// Inside Core's 30s rotation replay, so a retry after a lost answer still
-// receives the rotated token instead of revoking the family.
+// Inside Core's 30s rotation replay, so the first retry after a lost answer
+// still receives the rotated token instead of revoking the family.
 const OUTAGE_BACKOFF_MS = 10_000;
 const renewalsByAuth = new WeakMap<CmoAuth, Map<string, Promise<Response>>>();
 
@@ -446,12 +490,12 @@ async function renewSessionOnce(
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  const renewal = new Request(`${origin}/api/auth/get-access-token`, {
+  const renewalRequest = new Request(`${origin}/api/auth/get-access-token`, {
     method: "POST",
     headers,
     body: JSON.stringify({ useAccountCookie: true }),
   });
-  const renewed = await auth.handler(renewal);
+  const renewed = await auth.handler(renewalRequest);
   // 401: nobody is signed in.
   if (renewed.ok || renewed.status === 401 || renewed.status === 503) {
     return withSetCookies(renewed, renewed.status === 503 ? 503 : 204);
@@ -460,7 +504,7 @@ async function renewSessionOnce(
   // so it has no provider: keep the session and try again later.
   const body: unknown = await renewed.json().catch(() => null);
   if (
-    refreshesWithoutAnswer.has(renewal) ||
+    unansweredRefreshes.has(renewalRequest) ||
     (body &&
       typeof body === "object" &&
       "code" in body &&
