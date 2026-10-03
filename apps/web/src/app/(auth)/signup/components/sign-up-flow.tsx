@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -18,10 +18,17 @@ import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
-import { takeSignUpHandover } from "@/lib/auth/auth-email-hint";
+import {
+  rememberAuthEmailHint,
+  takeSignUpHandover,
+} from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
+import {
+  chooseSignInMethod,
+  type LastUsedAuthMethod,
+  toProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
 import SignUpForm from "./form";
 import SignUpHeader from "./header";
@@ -33,7 +40,8 @@ interface SignUpFlowProps {
   client?: OAuthRequestClient | undefined;
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
-  lastUsedMethod: ProviderAuthMethod | null;
+  /** How this browser signed in or signed up last, from Better Auth's cookie. */
+  lastUsedMethod: LastUsedAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -43,7 +51,8 @@ interface SignUpFlowProps {
 /**
  * Sign-up in two steps. The first asks for the email beside the providers
  * and, for a new address, emails a code right away. The second asks for the
- * name and that code, or the name and a password instead.
+ * name and that code, or the name and a password instead. An address that
+ * has an account goes to Log in's second step.
  */
 export default function SignUpFlow({
   invitationId,
@@ -56,6 +65,7 @@ export default function SignUpFlow({
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const searchParams = useSearchParams();
+  const router = useRouter();
   const signInHref = useSignInHref();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
@@ -147,13 +157,36 @@ export default function SignUpFlow({
           autoFocus={cameBack}
           autoComplete="email"
           captchaEntry="signup"
-          detour={{
-            when: "exists",
-            title: t("AccountExists.title"),
-            description: t("AccountExists.description"),
-            label: t("AccountExists.logIn"),
-            href: signInHref,
-          }}
+          detour={
+            // Log in ignores a hand-over for an invitation's address, so the
+            // notice still leads there.
+            emailLocked
+              ? {
+                  when: "exists",
+                  title: t("AccountExists.title"),
+                  description: t("AccountExists.description"),
+                  label: t("AccountExists.logIn"),
+                  href: signInHref,
+                }
+              : {
+                  when: "exists",
+                  // Log in's first step would only ask Core again and send
+                  // this code, so it opens on its second step.
+                  handOver: async (knownEmail, signal, account) => {
+                    const method = chooseSignInMethod(lastUsedMethod, account);
+                    const codeSentAt =
+                      method === "code"
+                        ? await emailCode.sendCode(knownEmail, { signal })
+                        : null;
+                    if (signal.aborted) return;
+                    rememberAuthEmailHint(knownEmail, {
+                      signIn:
+                        method === "code" ? { method, codeSentAt } : { method },
+                    });
+                    router.push(signInHref);
+                  },
+                }
+          }
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal) => {
@@ -168,7 +201,7 @@ export default function SignUpFlow({
         <Divider />
         <SocialButtons
           returnUrl={returnUrl}
-          lastUsedMethod={lastUsedMethod}
+          lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
           eventType="signUp"
           disabled={isEmailPending}
           onPendingChange={setIsProviderPending}

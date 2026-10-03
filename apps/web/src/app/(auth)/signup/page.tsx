@@ -12,10 +12,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
 import { getInvitationEmail } from "@/lib/auth/invitation-email.server";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
-import {
-  parseLastUsedAuthMethod,
-  toProviderAuthMethod,
-} from "@/lib/utils/last-used-auth-method";
+import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
 import SignUpFlow from "./components/sign-up-flow";
 
@@ -65,10 +62,8 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     },
     "last_used_login_method",
   );
-  const lastUsedMethod = toProviderAuthMethod(
-    parseLastUsedAuthMethod(
-      cookieStore.get(lastUsedLoginMethodCookieName)?.value,
-    ),
+  const lastUsedMethod = parseLastUsedAuthMethod(
+    cookieStore.get(lastUsedLoginMethodCookieName)?.value,
   );
 
   return (
