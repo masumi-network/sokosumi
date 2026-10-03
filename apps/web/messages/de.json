@@ -11,6 +11,7 @@
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
       "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
       "sentTo": "Wir haben einen 6-stelligen Code gesendet an",
+      "notSent": "Wir konnten keinen Code senden. Versuche es erneut.",
       "checking": "Code wird geprüft…",
       "codeLabel": "Code aus der E-Mail",
       "incomplete": "Gib den 6-stelligen Code aus der E-Mail ein.",
@@ -1185,7 +1186,6 @@
         "label": "E-Mail",
         "continueWithEmail": "Weiter mit E-Mail",
         "invitation": "Du trittst über eine Einladung bei.",
-        "change": "Ändern",
         "changeEmail": "E-Mail ändern",
         "usePassword": "Ein Passwort verwenden",
         "emailCode": "Code per E-Mail senden",
@@ -1238,8 +1238,7 @@
           "Handover": {
             "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
             "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
-            "codeNotSentNotice": "Du hast bereits ein Konto.",
-            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
+            "codeNotSentNotice": "Du hast bereits ein Konto."
           }
         }
       },
@@ -1266,10 +1265,10 @@
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
         },
         "Form": {
+          "title": "Richte dein Konto ein",
           "submit": "Registrieren",
           "AccountExists": {
-            "title": "Du hast bereits ein Konto",
-            "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
+            "message": "Du hast bereits ein Konto mit dieser E-Mail.",
             "logIn": "Anmelden"
           },
           "addPassword": "Passwort für künftige Anmeldungen festlegen",

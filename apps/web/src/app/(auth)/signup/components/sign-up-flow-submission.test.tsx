@@ -79,6 +79,29 @@ async function submitDetails() {
 describe("SignUpFlow submission", () => {
   beforeEach(() => vi.clearAllMocks());
 
+  it("shows an invitation's address as a static chip on the details step", async () => {
+    const user = userEvent.setup();
+    render(
+      <SignUpFlow
+        lastUsedMethod={null}
+        invitationId="inv_1"
+        prefilledEmail="invited@example.com"
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const chip = await screen.findByTestId("auth-email-chip");
+    expect(chip).toHaveTextContent("invited@example.com");
+    expect(chip.tagName).toBe("DIV");
+    expect(
+      screen.queryByRole("button", { name: /changeEmail/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "title",
+    );
+  });
+
   it("keeps the confirmed email visible during signup, then unlocks change on rejection", async () => {
     const pending = Promise.withResolvers<{
       data: null;
@@ -86,8 +109,12 @@ describe("SignUpFlow submission", () => {
     }>();
     signUpMock.mockReturnValueOnce(pending.promise);
     const user = await submitDetails();
-    const changeEmail = screen.getByRole("button", { name: "changeEmail" });
+    const changeEmail = screen.getByRole("button", { name: /changeEmail/ });
 
+    // Register's spinner is the only sign of progress.
+    expect(screen.getByRole("button", { name: "submit" })).toBeDisabled();
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+    expect(screen.queryByText("checking")).not.toBeInTheDocument();
     expect(changeEmail).toBeDisabled();
     await user.click(changeEmail);
     expect(screen.getByLabelText("firstNameLabel")).toBeVisible();
@@ -116,11 +143,11 @@ describe("SignUpFlow submission", () => {
       error: null,
     });
     await waitFor(() => expect(finishAuthMock).toHaveBeenCalledOnce());
-    expect(screen.getByRole("button", { name: "changeEmail" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /changeEmail/ })).toBeDisabled();
     finishing.resolve();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "submit" })).toBeDisabled(),
     );
-    expect(screen.getByRole("button", { name: "changeEmail" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /changeEmail/ })).toBeDisabled();
   });
 });

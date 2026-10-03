@@ -11,6 +11,7 @@
       "sent": "We sent a 6-digit code to {email}.",
       "sentNoAddress": "We emailed you a 6-digit code.",
       "sentTo": "We sent a 6-digit code to",
+      "notSent": "We could not send a code. Try again.",
       "checking": "Checking the code…",
       "codeLabel": "Code from the email",
       "incomplete": "Enter the 6-digit code from the email.",
@@ -1185,7 +1186,6 @@
         "label": "Email",
         "continueWithEmail": "Continue with Email",
         "invitation": "You're joining through an invitation.",
-        "change": "Change",
         "changeEmail": "Change email",
         "usePassword": "Use a password",
         "emailCode": "Email me a code",
@@ -1238,8 +1238,7 @@
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
             "password": "You already have an account. Enter your password to log in.",
-            "codeNotSentNotice": "You already have an account.",
-            "codeNotSent": "We could not send a code. Try again."
+            "codeNotSentNotice": "You already have an account."
           }
         }
       },
@@ -1266,10 +1265,10 @@
           "descriptionFor": "Create your Sokosumi account to continue to {client}"
         },
         "Form": {
+          "title": "Set up your account",
           "submit": "Register",
           "AccountExists": {
-            "title": "You already have an account",
-            "description": "Log in with this email, or enter a different one to register.",
+            "message": "You already have an account with this email.",
             "logIn": "Log in"
           },
           "addPassword": "Add a password for future logins",

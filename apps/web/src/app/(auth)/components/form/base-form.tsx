@@ -1,7 +1,11 @@
 "use client";
 
 import { type FormEventHandler, type ReactNode, type Ref, useRef } from "react";
-import type { FieldValues, UseFormReturn } from "react-hook-form";
+import type {
+  FieldValues,
+  SubmitErrorHandler,
+  UseFormReturn,
+} from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
 import { cn } from "@/lib/utils";
@@ -9,6 +13,8 @@ import { cn } from "@/lib/utils";
 interface BaseFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   onSubmit: (values: T) => Promise<void>;
+  /** After the schema refused the values, e.g. to choose what gets focus. */
+  onInvalid?: SubmitErrorHandler<T>;
   children: ReactNode;
   className?: string;
   onChange?: FormEventHandler<HTMLFormElement>;
@@ -19,6 +25,7 @@ interface BaseFormProps<T extends FieldValues> {
 export function BaseForm<T extends FieldValues>({
   form,
   onSubmit,
+  onInvalid,
   children,
   className,
   onChange,
@@ -42,7 +49,7 @@ export function BaseForm<T extends FieldValues>({
           if (submitting.current || disabled) return;
           submitting.current = true;
           try {
-            await form.handleSubmit(onSubmit)(event);
+            await form.handleSubmit(onSubmit, onInvalid)(event);
           } finally {
             submitting.current = false;
           }

@@ -45,13 +45,13 @@ function SignUpStep({
     if (codeSent) void emailCode.sendCode(EMAIL);
   });
   return (
-    <SignUpForm
-      email={EMAIL}
-      emailCode={emailCode}
-      onFormStart={onFormStart}
-      onPendingChange={vi.fn()}
-    />
+    <SignUpForm email={EMAIL} emailCode={emailCode} onFormStart={onFormStart} />
   );
+}
+
+/** The step's one line for a refusal, between the code and Register. */
+function errorLine() {
+  return screen.getByRole("alert");
 }
 
 const mockReplace = vi.fn();
@@ -249,16 +249,6 @@ describe("SignUpForm with a password", () => {
     expect(username).toHaveAttribute("spellcheck", "false");
   });
 
-  it("stacks the name fields on a phone and pairs them from the sm breakpoint", () => {
-    renderForm();
-
-    const lastName = screen.getByLabelText("lastNameLabel");
-    let row = screen.getByLabelText("firstNameLabel").parentElement;
-    while (row && !row.contains(lastName)) row = row.parentElement;
-    expect(row).toHaveClass("grid", "sm:grid-cols-2");
-    expect(row).not.toHaveClass("grid-cols-2");
-  });
-
   it("moves focus to the first name when the step opens", async () => {
     renderForm();
 
@@ -392,9 +382,9 @@ describe("SignUpForm with a password", () => {
 
     await submitValidSignUpForm();
 
-    const notice = await screen.findByRole("alert");
-    expect(notice).toHaveTextContent("AccountExists.title");
-    expect(notice).toHaveTextContent("AccountExists.description");
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("AccountExists.message"),
+    );
     expect(toast.error).not.toHaveBeenCalled();
     // Core refused before spending the code, so it is not marked wrong.
     expect(
@@ -446,7 +436,7 @@ describe("SignUpForm with a password", () => {
     expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
   });
 
-  it("drops the notice when a later submit fails for another reason", async () => {
+  it("replaces the existing-account line when a later submit fails for another reason", async () => {
     mockEmailCodeSignIn
       .mockResolvedValueOnce(existingAccountError)
       .mockResolvedValueOnce({
@@ -456,7 +446,9 @@ describe("SignUpForm with a password", () => {
     renderForm();
 
     await submitValidSignUpForm();
-    await screen.findByRole("alert");
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("AccountExists.message"),
+    );
     await userEvent
       .setup()
       .click(screen.getByRole("button", { name: "submit" }));
@@ -464,9 +456,10 @@ describe("SignUpForm with a password", () => {
     await waitFor(() => {
       expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2);
     });
-    await waitFor(() => {
-      expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    });
+    await waitFor(() => expect(errorLine()).toHaveTextContent("invalid"));
+    expect(
+      screen.queryByRole("link", { name: "AccountExists.logIn" }),
+    ).not.toBeInTheDocument();
   });
 
   // Core checks the length again before spending the code.
@@ -828,11 +821,18 @@ describe("SignUpForm email code", () => {
     await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
   }
 
-  it("opens on the code that step 1 sent, without repeating the address", async () => {
+  it("opens on the code that step 1 sent, under the address it went to", async () => {
     render(<SignUpStep codeSent />);
 
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "title",
+    );
+    expect(screen.getByText("sentTo")).toBeVisible();
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(EMAIL);
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
-    expect(code).toHaveAccessibleDescription("sentNoAddress");
+    // Nothing is wrong yet, so the error line describes nothing.
+    expect(code).not.toHaveAttribute("aria-invalid");
+    expect(errorLine()).toBeEmptyDOMElement();
     expect(
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
@@ -965,7 +965,7 @@ describe("SignUpForm email code", () => {
     expect(emailedCodes[1]).toBe(emailedCodes[0]);
   });
 
-  it("asks for the names and the whole code before spending it", async () => {
+  it("marks the missing names and the short code, explaining one at a time in the error line", async () => {
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
@@ -973,18 +973,30 @@ describe("SignUpForm email code", () => {
 
     await user.click(screen.getByRole("button", { name: "submit" }));
 
-    await waitFor(() => {
-      expect(screen.getByLabelText("firstNameLabel")).toHaveAttribute(
-        "aria-invalid",
-        "true",
-      );
-    });
+    const firstName = screen.getByLabelText("firstNameLabel");
+    const lastName = screen.getByLabelText("lastNameLabel");
+    await waitFor(() =>
+      expect(firstName).toHaveAttribute("aria-invalid", "true"),
+    );
+    expect(lastName).toHaveAttribute("aria-invalid", "true");
     expect(code).toHaveAttribute("aria-invalid", "true");
-    expect(code).toHaveAccessibleDescription(/incomplete$/);
+    expect(errorLine()).toHaveTextContent("FirstName.required");
+    // Focus goes to the first refused field, which the line describes.
+    await waitFor(() => expect(firstName).toHaveFocus());
+    expect(firstName).toHaveAccessibleDescription("FirstName.required");
     expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+
+    // Each fixed field hands the line to the next reason.
+    await user.type(firstName, "Ada");
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("LastName.required"),
+    );
+    await user.type(lastName, "Lovelace");
+    await waitFor(() => expect(errorLine()).toHaveTextContent("incomplete"));
+    expect(code).toHaveAccessibleDescription(/incomplete$/);
   });
 
-  it("explains a wrong code beside the field and returns focus to it", async () => {
+  it("explains a wrong code in the error line and returns focus to it", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", message: "Invalid OTP", status: 400 },
@@ -1041,13 +1053,15 @@ describe("SignUpForm email code", () => {
     await user.click(code);
     await user.paste("042917");
     await user.click(screen.getByRole("button", { name: "submit" }));
-    await screen.findByRole("alert");
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("AccountExists.message"),
+    );
 
     await user.click(screen.getByRole("button", { name: "removePassword" }));
     await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
-    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(errorLine()).not.toHaveTextContent("AccountExists.message");
   });
 
   it("adds a password beside the code and takes it away, without a new code", async () => {
@@ -1075,12 +1089,72 @@ describe("SignUpForm email code", () => {
     render(<SignUpStep codeSent={false} />);
 
     const code = screen.getByRole("textbox", { name: "codeLabel" });
-    expect(code).toBeInTheDocument();
+    expect(errorLine()).toHaveTextContent("notSent");
+    expect(code).toHaveAccessibleDescription("notSent");
     await user.click(screen.getByRole("button", { name: "resend" }));
 
     expect(mockSendEmailCode).toHaveBeenCalledWith(
       expect.objectContaining({ email: EMAIL, type: "sign-in" }),
     );
+    await waitFor(() => expect(errorLine()).toBeEmptyDOMElement());
+  });
+
+  it("focuses the field the error line explains, a password added after the code included", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.click(screen.getByRole("button", { name: "addPassword" }));
+    const password = screen.getByLabelText("Fields.Password.label");
+    await user.type(password, "abc");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() => expect(errorLine()).toHaveTextContent("Password.min"));
+    await waitFor(() => expect(password).toHaveFocus());
+    expect(password).toHaveAccessibleDescription(
+      "Fields.Password.description Password.min",
+    );
+    // The code is refused too, but the line is not about it yet.
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(code).not.toHaveAccessibleDescription();
+  });
+
+  it("describes an unsent code by the error line only while the line is about it", async () => {
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+    const code = screen.getByRole("textbox", { name: "codeLabel" });
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    await waitFor(() =>
+      expect(errorLine()).toHaveTextContent("FirstName.required"),
+    );
+    expect(code).not.toHaveAccessibleDescription();
+  });
+
+  it("puts the updates checkbox under Register, and resend and the password switch in the links row after both", async () => {
+    render(<SignUpStep codeSent />);
+    await screen.findByRole("textbox", { name: "codeLabel" });
+
+    const inOrder = [
+      screen.getByRole("textbox", { name: "codeLabel" }),
+      errorLine(),
+      screen.getByRole("button", { name: "submit" }),
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+      screen.getByRole("button", { name: /^resend/ }),
+      screen.getByRole("button", { name: "addPassword" }),
+    ];
+    for (const [index, element] of inOrder.slice(1).entries()) {
+      expect(
+        inOrder[index].compareDocumentPosition(element) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+    // The links act on the step without submitting it.
+    const form = inOrder[2].closest("form");
+    expect(form).not.toContainElement(inOrder[4]);
+    expect(form).not.toContainElement(inOrder[5]);
   });
 });
 
