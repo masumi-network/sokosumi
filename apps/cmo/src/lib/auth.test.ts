@@ -25,12 +25,25 @@ const CLIENT_ID = "cmo-client";
 const CLIENT_SECRET = "cmo-secret";
 const CALLBACK = `${CMO}/api/auth/callback/sokosumi`;
 const TWO_HOURS_S = 7_200;
+/** How long CMO waits before asking an unreachable Core again. */
+const OUTAGE_BACKOFF_MS = 10_000;
+const AUTH_CONFIG = {
+  baseURL: CMO,
+  coreBaseUrl: CORE,
+  clientId: CLIENT_ID,
+  clientSecret: CLIENT_SECRET,
+  secret: "a-cookie-secret-that-is-at-least-32-characters",
+};
 
 interface FakeCore {
   fetch: typeof fetch;
   /** Authorize URL query of the last sign-in, as the browser would send it. */
   approve(authorizeUrl: string): { code: string; state: string };
   refreshCount(): number;
+  /** Refresh grants CMO sent, including ones the token endpoint failed. */
+  refreshAttempts: number;
+  /** The token endpoint fails while set: a network error or that status. */
+  tokenFailure: "network" | number | null;
   revoked: string[];
   revokeAll(): void;
   /** Core refuses the user on `/v1`, as for a banned or deleted account. */
@@ -142,6 +155,25 @@ async function createFakeCore(): Promise<FakeCore> {
         return json({ keys: [publicJwk] });
       case "/auth/oauth2/token": {
         const form = new URLSearchParams(await request.text());
+        if (form.get("grant_type") === "refresh_token") {
+          fake.refreshAttempts += 1;
+        }
+        if (fake.tokenFailure === "network") {
+          throw new TypeError("fetch failed");
+        }
+        if (fake.tokenFailure !== null) {
+          return json(
+            {
+              error:
+                fake.tokenFailure >= 500
+                  ? "server_error"
+                  : fake.tokenFailure === 400
+                    ? "invalid_grant"
+                    : "invalid_client",
+            },
+            fake.tokenFailure,
+          );
+        }
         if (!hasClientCredentials(request, form)) {
           return json({ error: "invalid_client" }, 401);
         }
@@ -217,6 +249,8 @@ async function createFakeCore(): Promise<FakeCore> {
       return { code, state: query.get("state") ?? "" };
     },
     refreshCount: () => refreshes,
+    refreshAttempts: 0,
+    tokenFailure: null,
     revoked,
     revokeAll() {
       for (const token of refreshTokens) revoked.push(token);
@@ -371,13 +405,7 @@ describe("CMO auth handler", () => {
     });
     core = await createFakeCore();
     vi.stubGlobal("fetch", core.fetch);
-    auth = createCmoAuth({
-      baseURL: CMO,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-cookie-secret-that-is-at-least-32-characters",
-    });
+    auth = createCmoAuth(AUTH_CONFIG);
     jar = new CookieJar();
     vi.mocked(getAuth).mockReturnValue(auth);
   });
@@ -892,6 +920,117 @@ describe("CMO auth handler", () => {
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
     await renew(auth, jar);
     expect(core.refreshCount()).toBe(2);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it.each(["network", 429, 500, 502] as const)(
+    "keeps the session while Core's token endpoint fails (%s), then renews once Core is back",
+    async (failure) => {
+      await signIn(auth, jar, core);
+      vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+      const cookies = jar.header();
+      core.tokenFailure = failure;
+
+      const unavailable = await renew(auth, jar);
+
+      expect(unavailable.status).toBe(503);
+      expect(unavailable.headers.getSetCookie()).toEqual([]);
+      expect(jar.header()).toBe(cookies);
+      expect(core.revoked).toEqual([]);
+
+      core.tokenFailure = null;
+      await vi.advanceTimersByTimeAsync(OUTAGE_BACKOFF_MS);
+      const recovered = await renew(auth, jar);
+
+      expect(recovered.status).toBe(204);
+      expect(core.refreshCount()).toBe(1);
+      expect(await sessionUser(auth, jar)).toEqual({
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      });
+    },
+  );
+
+  it("keeps the session while a new instance cannot discover Core, then renews once Core is back", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const cookies = jar.header();
+    // getAuth builds a new instance after a failed discovery.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+    const undiscovered = createCmoAuth(AUTH_CONFIG);
+
+    const unavailable = await renew(undiscovered, jar);
+
+    expect(unavailable.status).toBe(503);
+    expect(jar.header()).toBe(cookies);
+    expect(core.revoked).toEqual([]);
+
+    core.discoveryDown = false;
+    const recovered = await renew(createCmoAuth(AUTH_CONFIG), jar);
+    logged.mockRestore();
+
+    expect(recovered.status).toBe(204);
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it.each([400, 401, 403])(
+    "signs out when Core's token endpoint refuses with %i",
+    async (status) => {
+      await signIn(auth, jar, core);
+      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+      core.tokenFailure = status;
+
+      const response = await renew(auth, jar);
+
+      expect(response.status).toBe(401);
+      expect(await sessionUser(auth, jar)).toBeNull();
+      expect(jar.names()).toEqual([]);
+    },
+  );
+
+  it("asks Core again only after a pause while it is unreachable", async () => {
+    await signIn(auth, jar, core);
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    core.tokenFailure = 502;
+
+    const statuses = [];
+    for (let page = 0; page < 3; page += 1) {
+      statuses.push((await renew(auth, jar)).status);
+    }
+
+    expect(statuses).toEqual([503, 503, 503]);
+    expect(core.refreshAttempts).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(OUTAGE_BACKOFF_MS);
+    await renew(auth, jar);
+    expect(core.refreshAttempts).toBe(2);
+  });
+
+  it("serves a valid access token without asking Core while Core is down", async () => {
+    await signIn(auth, jar, core);
+    core.tokenFailure = "network";
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(204);
+    expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("serves a valid access token while a new instance cannot discover Core", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+
+    const response = await renew(createCmoAuth(AUTH_CONFIG), jar);
+    logged.mockRestore();
+
+    expect(response.status).toBe(204);
+    expect(jar.header()).toBe(cookies);
     expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
