@@ -224,7 +224,7 @@ struct ChatRecipientRosterTests {
       "get/users/{id}/organizations/{organizationId}/member": (401, body)
     ])
     let client = try Client.connecting(to: #require(URL(string: "https://example.com")), transport: transport)
-    await #expect(throws: ChatServiceError.unauthorized("Sign in required.")) {
+    await #expect(throws: ChatServiceError.unauthorized("Log in required.")) {
       _ = try await ChatService().channelRoster(client: client, organizationId: "org", organizationSlug: "team")
     }
   }

@@ -23,10 +23,7 @@ export type AuthMethodId = z.infer<typeof authMethodIdSchema>;
 export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     currentPassword: inputPasswordSchema(t),
-    rememberMe: z.boolean(),
   });
-
-export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
 // Sign-in and sign-up both ask for the email first, then everything else.
 export const emailStepFormSchema = (

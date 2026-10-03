@@ -641,6 +641,13 @@ describe("SignInForm", () => {
       expect(mockSignInEmail).not.toHaveBeenCalled();
     });
 
+    // SOK-1259: every log-in is persistent, so there is nothing to choose.
+    it("offers no Keep me logged in choice", () => {
+      renderForm();
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
     it("signs in with the verified captcha and a persistent session", async () => {
       mockSignInEmail.mockResolvedValue({ data: {}, error: null });
       renderForm({ returnUrl: "/chat" });

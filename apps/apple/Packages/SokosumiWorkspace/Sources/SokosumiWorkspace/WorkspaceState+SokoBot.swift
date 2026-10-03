@@ -22,7 +22,7 @@ public extension WorkspaceState {
   func sendSokoBotFeedback(turnId: String, useful: Bool, auth: AuthState) async throws {
     guard !turnId.isEmpty, sokoBotFeedback[turnId] == nil, !pendingSokoBotFeedback.contains(turnId) else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to rate replies.")
+      throw ChatServiceError.unauthorized("Log in to rate replies.")
     }
     let context = compositionContext
     pendingSokoBotFeedback.insert(turnId)
