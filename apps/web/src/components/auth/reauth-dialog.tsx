@@ -8,7 +8,6 @@ import { type FormEvent, useState } from "react";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -68,10 +67,6 @@ export function ReauthDialog({
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
-  // Better Auth defaults this to true. Signing in again mints a new session,
-  // so without the same choice the dialog would quietly turn a viewer's
-  // "do not keep me signed in" into a persistent cookie.
-  const [rememberMe, setRememberMe] = useState(true);
   // When the code went out; null until one has.
   const [emailCodeSentAt, setEmailCodeSentAt] = useState<number | null>(null);
   // `fromPassword` keeps the field's invalid marking on the path that owns it.
@@ -132,7 +127,9 @@ export function ReauthDialog({
           fetchOptions,
           email,
           password,
-          rememberMe,
+          // Every log-in is persistent. Sent explicitly so a stale
+          // `dont_remember` cookie from an older log-in is cleared too.
+          rememberMe: true,
         }),
       );
 
@@ -286,18 +283,6 @@ export function ReauthDialog({
                     type="password"
                     value={password}
                   />
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={rememberMe}
-                      id="reauth-remember-me"
-                      onCheckedChange={(checked) =>
-                        setRememberMe(checked === true)
-                      }
-                    />
-                    <Label className="font-normal" htmlFor="reauth-remember-me">
-                      {t("rememberMe")}
-                    </Label>
-                  </div>
                 </fieldset>
                 {passwordCaptcha.widget}
                 <Button

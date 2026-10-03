@@ -639,6 +639,13 @@ describe("SignInForm", () => {
       expect(mockSignInEmail).not.toHaveBeenCalled();
     });
 
+    // SOK-1259: every log-in is persistent, so there is nothing to choose.
+    it("offers no Keep me signed in choice", () => {
+      renderForm();
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+    });
+
     it("signs in with the verified captcha and a persistent session", async () => {
       mockSignInEmail.mockResolvedValue({ data: {}, error: null });
       renderForm({ returnUrl: "/chat" });
@@ -649,6 +656,7 @@ describe("SignInForm", () => {
         expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
       );
       // SOK-752: rememberMe:false → a session cookie iOS drops with the PWA.
+      // Sent explicitly so Better Auth clears a stale `dont_remember` cookie.
       expect(mockSignInEmail).toHaveBeenCalledWith({
         fetchOptions: captchaFetchOptions,
         email: EMAIL,
