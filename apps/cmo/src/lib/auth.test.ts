@@ -1,3 +1,4 @@
+import { symmetricDecodeJWT, symmetricEncodeJWT } from "better-auth/crypto";
 import {
   calculateJwkThumbprint,
   exportJWK,
@@ -1032,6 +1033,37 @@ describe("CMO auth handler", () => {
     expect(response.status).toBe(204);
     expect(jar.header()).toBe(cookies);
     expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("signs out an account cookie for a provider CMO does not have", async () => {
+    await signIn(auth, jar, core);
+    const { secretConfig } = await auth.$context;
+    const name = "__Secure-cmo.account_data";
+    const value =
+      jar
+        .header()
+        .split("; ")
+        .find((pair) => pair.startsWith(`${name}=`))
+        ?.slice(name.length + 1) ?? "";
+    const account = await symmetricDecodeJWT<Record<string, unknown>>(
+      value,
+      secretConfig,
+      "better-auth-account",
+    );
+    const forged = await symmetricEncodeJWT(
+      { ...account, providerId: "github" },
+      secretConfig,
+      "better-auth-account",
+      300,
+    );
+    jar.store(
+      new Response(null, { headers: { "set-cookie": `${name}=${forged}` } }),
+    );
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(401);
+    expect(jar.names()).toEqual([]);
   });
 
   it("does nothing for a signed-out visitor", async () => {

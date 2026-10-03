@@ -1,7 +1,7 @@
 import { getUsersById, type User } from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
-import type { BetterAuthPlugin } from "better-auth";
+import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
   APIError,
   createAuthMiddleware,
@@ -52,6 +52,13 @@ const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
 
 /** Renewal requests whose refresh grant got no answer from Core. */
 const unansweredRefreshes = new WeakSet<Request>();
+
+/** False while Core's discovery failed on this instance. */
+function hasSokosumiProvider({
+  socialProviders,
+}: Pick<AuthContext, "socialProviders">): boolean {
+  return socialProviders.some(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
+}
 
 /** Whether a refresh failed without an answer from Core. */
 function isUnanswered(error: unknown): boolean {
@@ -181,13 +188,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
         if (ctx.path === "/get-access-token") {
           // Without discovery there is no provider, and Better Auth fails
           // before it looks at the token. A valid token needs no provider.
-          if (
-            ctx.context.socialProviders.some(
-              ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
-            )
-          ) {
-            return;
-          }
+          if (hasSokosumiProvider(ctx.context)) return;
           const [session, account] = await Promise.all([
             getSessionFromCtx(ctx),
             getAccountCookie(ctx),
@@ -508,7 +509,8 @@ async function renewSessionOnce(
     (body &&
       typeof body === "object" &&
       "code" in body &&
-      body.code === "PROVIDER_NOT_SUPPORTED")
+      body.code === "PROVIDER_NOT_SUPPORTED" &&
+      !hasSokosumiProvider(await auth.$context))
   ) {
     return withSetCookies(renewed, 503);
   }
