@@ -69,9 +69,9 @@ interface EmailCodeFieldProps {
    * Called when the value becomes a whole code, typed, pasted or autofilled,
    * so the page can spend it without the button. Not again for the code it
    * last handed over, or the one the field opened on: sending that again,
-   * refused or declined, is the button's.
+   * refused or declined, is the button's. Without it, only the button sends.
    */
-  onComplete: (code: string) => void;
+  onComplete?: (code: string) => void;
   /** Preserve completion history when a method switch remounts this field. */
   completedCodeRef?: RefObject<string>;
   onBlur?: () => void;
@@ -137,6 +137,7 @@ export function EmailCodeField({
         onChange={(code) => {
           onChange(code);
           if (
+            onComplete &&
             code.length === EMAIL_CODE_LENGTH &&
             code !== completedCode.current
           ) {
