@@ -1227,7 +1227,7 @@
           },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
-            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
           }
         }
@@ -1250,7 +1250,7 @@
           "retry": "Erneut versuchen"
         },
         "Header": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
@@ -1853,8 +1853,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
+            "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }

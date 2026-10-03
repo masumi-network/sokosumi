@@ -165,7 +165,7 @@ describe("ReauthDialog", () => {
     });
   });
 
-  it("carries a cleared Keep me signed in through to the new session", async () => {
+  it("carries a cleared Keep me logged in through to the new session", async () => {
     renderDialog([passwordAccount]);
 
     const user = userEvent.setup();
