@@ -154,6 +154,16 @@ export interface JevLabelInput {
   /** Authorized vocabulary shortlist: id, name and rubric description. */
   vocabulary: { id: string; name: string; description: string | null }[];
   projects: { id: string; name: string; description: string | null }[];
+  /**
+   * MEASUREMENT HARNESS ONLY. Throwaway branch, never merges.
+   *
+   * Omitted everywhere in the product, so every real call keeps
+   * `LABEL_EVALUATION_CEILINGS` exactly. The cost-measurement arms pass a
+   * raised ceiling so `fitWithin` stops halving the excerpt back down to
+   * today's 2,048 — raising `components.excerpt` alone does nothing,
+   * because the halving loop is driven by `ceilings.total`.
+   */
+  ceilings?: TokenCeilings;
 }
 
 export interface SerializedJevRequest {
@@ -396,6 +406,7 @@ export function labelExcerptFromChunks(chunks: { text: string }[]): string {
 export function buildJevLabelRequest(
   input: JevLabelInput,
 ): JevLabelRequestResult {
+  const ceilings = input.ceilings ?? LABEL_EVALUATION_CEILINGS;
   const total = input.vocabulary.length + input.projects.length;
   const vocabulary = boundLabelVocabulary(input.vocabulary, total);
   const projects = boundLabelVocabulary(input.projects, total);
@@ -414,14 +425,14 @@ export function buildJevLabelRequest(
   const askedLabels = vocabulary;
 
   const result = fitWithin(
-    LABEL_EVALUATION_CEILINGS,
+    ceilings,
     (excerptBudget) => ({
       context: LABEL_CONTEXT,
       document: truncateToTokenBudget(input.documentExcerpt, excerptBudget),
       vocabulary,
       projects,
     }),
-    LABEL_EVALUATION_CEILINGS.components.excerpt,
+    ceilings.components.excerpt,
     // The real envelope: one boolean question per asked entry, each
     // carrying that entry's name and description. `RUBRICS.belongs` is
     // never sent on this path, so charging its two fixed rungs measured a
