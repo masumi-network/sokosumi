@@ -3,11 +3,17 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
-import { EmailStep, type EmailStepAccount } from "@/auth/components/email-step";
+import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -20,15 +26,18 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
+  takeSignInHandover,
 } from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
+  chooseSignInMethod,
   type LastUsedAuthMethod,
+  type SignInMethod,
   toProviderAuthMethod,
 } from "@/lib/utils/last-used-auth-method";
 
-import SignInForm, { type SignInMethod } from "./form";
+import SignInForm from "./form";
 import SignInHeader from "./header";
 
 interface SignInFlowProps {
@@ -48,24 +57,10 @@ interface SignInFlowProps {
 }
 
 /**
- * Where step 2 opens. A password person is not emailed a code they will not
- * use. A code also removes the password of an account whose address is
- * unproven (`revokeUnprovenAccountAccess`), so an account with a password
- * always opens on it: the cookie belongs to the browser, not the account.
- */
-function chooseInitialMethod(
-  lastUsedMethod: LastUsedAuthMethod | null,
-  account: EmailStepAccount,
-): SignInMethod {
-  return lastUsedMethod === "email" || account.hasPassword
-    ? "password"
-    : "code";
-}
-
-/**
  * Sign-in in two steps. The first asks for the email beside the providers
  * and checks that it has an account. The second asks for the emailed code or
- * the password, opening as `chooseInitialMethod` decides.
+ * the password, opening as `chooseSignInMethod` decides. Register hands an
+ * address that has an account straight to the second step.
  */
 export default function SignInFlow({
   client,
@@ -111,7 +106,25 @@ export default function SignInFlow({
   // Step 1 starts one sign-in at a time: the email or a provider.
   const [isEmailPending, setIsEmailPending] = useState(false);
   const [isProviderPending, setIsProviderPending] = useState(false);
+  // Register found an account and handed the address over.
+  const [handedOver, setHandedOver] = useState(false);
   const formStarted = useRef(false);
+
+  // Register found an account and chose the method as Continue here would,
+  // so step 2 opens at once. A layout effect: after a client navigation the
+  // email step never paints.
+  useLayoutEffect(() => {
+    if (prefilledEmail) return;
+    const handover = takeSignInHandover();
+    if (!handover) return;
+    setEmail(handover.email);
+    setInitialMethod(handover.method);
+    if (handover.method === "code" && handover.codeSentAt !== null) {
+      emailCode.adoptSentCode(handover.email, handover.codeSentAt);
+    }
+    setHandedOver(true);
+    setStep("method");
+  }, []);
 
   // when user first sees the login area
   useMountEffect(() => {
@@ -140,6 +153,7 @@ export default function SignInFlow({
                 ? undefined
                 : () => {
                     setCameBack(true);
+                    setHandedOver(false);
                     setStep("email");
                   }
             }
@@ -149,6 +163,7 @@ export default function SignInFlow({
             email={email}
             returnUrl={returnUrl}
             initialMethod={initialMethod}
+            handedOver={handedOver}
             emailCode={emailCode}
             onFormStart={handleFormStart}
             onPendingChange={setIsMethodPending}
@@ -193,7 +208,7 @@ export default function SignInFlow({
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal, account) => {
             setEmail(confirmedEmail);
-            const method = chooseInitialMethod(lastUsedMethod, account);
+            const method = chooseSignInMethod(lastUsedMethod, account);
             setInitialMethod(method);
             // A failed send has said so; step 2 then opens on the password.
             if (method === "code") {
