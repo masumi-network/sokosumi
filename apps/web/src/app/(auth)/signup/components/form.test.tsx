@@ -313,7 +313,8 @@ describe("SignUpForm with a password", () => {
     expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
   });
 
-  it("creates the account as soon as the sixth digit follows the names and password", async () => {
+  // The updates checkbox comes after the code, so the code never sends.
+  it("waits for Register after the sixth digit follows the names and password", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
@@ -332,10 +333,21 @@ describe("SignUpForm with a password", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() =>
       expect(mockEmailCodeSignIn).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ otp: "042917", password: "Passw0rd!" }),
+        expect.objectContaining({
+          otp: "042917",
+          password: "Passw0rd!",
+          marketingOptIn: true,
+        }),
       ),
     );
   });
@@ -531,6 +543,7 @@ describe("SignUpForm with a password", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledOnce());
     expect(mockEmailCodeSignIn.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -857,7 +870,7 @@ describe("SignUpForm email code", () => {
     expect(mockHandleUtmConversion).toHaveBeenCalledOnce();
   });
 
-  it("creates the account as soon as the sixth digit follows the names", async () => {
+  it("waits for Register after the sixth digit, so updates can still be chosen", async () => {
     const { db, emailedCodes } = connectToEmailCodeHandler();
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);
@@ -865,13 +878,24 @@ describe("SignUpForm email code", () => {
     await typeNames(user);
 
     await user.type(code, emailedCodes[0] ?? "");
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
       expect(mockLocationReplace).toHaveBeenCalled();
     });
     expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
     expect(db.user).toEqual([
-      expect.objectContaining({ firstName: "Ada", lastName: "Lovelace" }),
+      expect.objectContaining({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        marketingOptIn: true,
+      }),
     ]);
   });
 
@@ -907,7 +931,7 @@ describe("SignUpForm email code", () => {
     );
   });
 
-  it("shares a synchronous lock between completion and Register", async () => {
+  it("sends the code once when Register is pressed twice", async () => {
     mockEmailCodeSignIn.mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);
@@ -927,27 +951,6 @@ describe("SignUpForm email code", () => {
     await act(async () => {});
     expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
     expect(code).toBeDisabled();
-  });
-
-  it("remembers a refused code through a partial-value method switch", async () => {
-    mockEmailCodeSignIn.mockResolvedValue({
-      data: null,
-      error: { code: "INVALID_OTP", status: 400 },
-    });
-    const user = userEvent.setup();
-    render(<SignUpStep codeSent />);
-    let code = await screen.findByRole("textbox", { name: "codeLabel" });
-    await typeNames(user);
-    await user.type(code, "000000");
-    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
-    await user.type(code, "{Backspace}");
-    await user.click(screen.getByRole("button", { name: "addPassword" }));
-    await user.click(screen.getByRole("button", { name: "removePassword" }));
-    code = screen.getByRole("textbox", { name: "codeLabel" });
-    await user.type(code, "0");
-    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
-    await user.type(code, "{Backspace}7");
-    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
   });
 
   it("keeps the first email's code working after a resend", async () => {
@@ -1022,9 +1025,9 @@ describe("SignUpForm email code", () => {
       screen.getByLabelText("Fields.Password.label"),
       "Passw0rd!",
     );
-    // The sixth digit sends it.
     await user.click(code);
     await user.paste("042917");
+    await user.click(screen.getByRole("button", { name: "submit" }));
     await screen.findByRole("alert");
 
     await user.click(screen.getByRole("button", { name: "removePassword" }));
