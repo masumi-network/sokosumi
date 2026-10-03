@@ -55,7 +55,6 @@
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
-      "rememberMe": "Keep me logged in",
       "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
@@ -1212,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Password"
-            },
-            "RememberMe": {
-              "label": "Keep me logged in"
             }
           },
           "forgotPassword": "Forgot password?",
@@ -1229,6 +1225,12 @@
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
             "createAccount": "Create account"
+          },
+          "Handover": {
+            "codeSent": "You already have an account, so we sent you a code to log in.",
+            "password": "You already have an account. Enter your password to log in.",
+            "codeNotSentNotice": "You already have an account.",
+            "codeNotSent": "We could not send a code. Try again."
           }
         }
       },

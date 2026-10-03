@@ -12,12 +12,10 @@ import * as z from "zod";
 
 import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
-import { FormFields } from "@/auth/components/form/form-fields";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
-import { signInRememberMeFormData } from "@/auth/signin/data";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
@@ -26,6 +24,7 @@ import {
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -43,8 +42,7 @@ import {
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { signInFormSchema } from "@/lib/schemas/auth";
-
-export type SignInMethod = "code" | "password";
+import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
 
 interface SignInFormProps {
   /** Confirmed on the step before this one. */
@@ -52,6 +50,11 @@ interface SignInFormProps {
   returnUrl?: string | undefined;
   /** The way this browser signed in last; the code when it is not known. */
   initialMethod: SignInMethod;
+  /**
+   * Register found an account and sent the person here: the step says so,
+   * and opens on the code even when Register could not send it.
+   */
+  handedOver?: boolean | undefined;
   /** The code step 1 sent to `email`, if it went out. */
   emailCode: EmailCode;
   onFormStart: () => void;
@@ -61,12 +64,13 @@ interface SignInFormProps {
 /**
  * Second sign-in step: the code step 1 emailed, or the password. It opens on
  * the way this browser signed in last, and on the password when no code went
- * out. Either is one switch away.
+ * out, unless Register handed the address over. Either is one switch away.
  */
 export default function SignInForm({
   email,
   returnUrl,
   initialMethod,
+  handedOver = false,
   emailCode,
   onFormStart,
   onPendingChange,
@@ -95,7 +99,20 @@ export default function SignInForm({
     [returnUrl, searchParams],
   );
 
-  const isCodeStep = emailCode.sentTo === email && !prefersPassword;
+  const wasCodeSent = emailCode.sentTo === email;
+  const isCodeStep = (wasCodeSent || handedOver) && !prefersPassword;
+  // Register's send failed: the field says so, and the resend is ready.
+  const isCodeUnsent = isCodeStep && !wasCodeSent;
+  // Why the step opened here; each field is described by it.
+  const handoverNotice = handedOver
+    ? t(
+        isCodeUnsent
+          ? "Handover.codeNotSentNotice"
+          : isCodeStep
+            ? "Handover.codeSent"
+            : "Handover.password",
+      )
+    : undefined;
   // Read by the resolver, which validates whichever way the step finishes.
   const isCodeStepRef = useRef(isCodeStep);
   isCodeStepRef.current = isCodeStep;
@@ -120,9 +137,6 @@ export default function SignInForm({
     defaultValues: {
       currentPassword: "",
       code: "",
-      // Persistent session cookie (Max-Age). false → Better Auth omits Max-Age;
-      // iOS then drops the cookie when it kills the PWA after backgrounding.
-      rememberMe: true,
     },
   });
 
@@ -155,7 +169,9 @@ export default function SignInForm({
           fetchOptions,
           email,
           password: values.currentPassword,
-          rememberMe: values.rememberMe,
+          // Persistent session cookie (Max-Age). false → Better Auth omits
+          // Max-Age; iOS then drops the cookie when it kills the PWA.
+          rememberMe: true,
         });
 
         if (result.error) {
@@ -251,7 +267,12 @@ export default function SignInForm({
                 if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
-              error={fieldState.error?.message}
+              error={
+                fieldState.error?.message ??
+                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)
+              }
+              notice={handoverNotice}
+              unsent={isCodeUnsent}
               sentAt={emailCode.sentAt}
               onResend={() => {
                 void emailCode.sendCode(email);
@@ -262,47 +283,46 @@ export default function SignInForm({
           )}
         />
       ) : (
-        <>
-          <FormField
-            control={form.control}
-            name="currentPassword"
-            render={({ field }) => (
-              <FormItem>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                  <FormLabel>{t("Fields.Password.label")}</FormLabel>
-                  <Link
-                    href={buildAuthPageUrl(
-                      "/forgot-password",
-                      readAuthPageContext(searchParams),
-                    )}
-                    // The address stays out of the URL, which reaches logs.
-                    onClick={(event) =>
-                      rememberAuthEmailHintOnClick(event, email)
-                    }
-                    className="text-muted-foreground hover:text-foreground text-sm hover:underline"
-                  >
-                    {t("forgotPassword")}
-                  </Link>
-                </div>
-                <FormControl>
-                  <PasswordInput
-                    data-testid="auth-field-currentPassword"
-                    autoComplete="current-password"
-                    showLabel={authT("PasswordToggle.show")}
-                    hideLabel={authT("PasswordToggle.hide")}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormFields
-            form={form}
-            formData={signInRememberMeFormData}
-            namespace="Auth.Pages.SignIn.Form"
-          />
-        </>
+        <FormField
+          control={form.control}
+          name="currentPassword"
+          render={({ field }) => (
+            <FormItem>
+              {handoverNotice ? (
+                // The item's gap and this margin match the form's gap.
+                <FormDescription className="mb-1">
+                  {handoverNotice}
+                </FormDescription>
+              ) : null}
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                <FormLabel>{t("Fields.Password.label")}</FormLabel>
+                <Link
+                  href={buildAuthPageUrl(
+                    "/forgot-password",
+                    readAuthPageContext(searchParams),
+                  )}
+                  // The address stays out of the URL, which reaches logs.
+                  onClick={(event) =>
+                    rememberAuthEmailHintOnClick(event, email)
+                  }
+                  className="text-muted-foreground hover:text-foreground text-sm hover:underline"
+                >
+                  {t("forgotPassword")}
+                </Link>
+              </div>
+              <FormControl>
+                <PasswordInput
+                  data-testid="auth-field-currentPassword"
+                  autoComplete="current-password"
+                  showLabel={authT("PasswordToggle.show")}
+                  hideLabel={authT("PasswordToggle.hide")}
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
       )}
       <div className="flex flex-col gap-4">
         {isCodeStep ? emailCode.captcha : captcha}

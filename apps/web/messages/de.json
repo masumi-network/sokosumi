@@ -55,7 +55,6 @@
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
-      "rememberMe": "Angemeldet bleiben",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1212,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Passwort"
-            },
-            "RememberMe": {
-              "label": "Angemeldet bleiben"
             }
           },
           "forgotPassword": "Passwort vergessen?",
@@ -1229,6 +1225,12 @@
             "title": "Kein Konto für diese Adresse",
             "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "Handover": {
+            "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
+            "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
+            "codeNotSentNotice": "Du hast bereits ein Konto.",
+            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
           }
         }
       },
