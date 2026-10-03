@@ -127,8 +127,8 @@ export function ReauthDialog({
           fetchOptions,
           email,
           password,
-          // Every log-in is persistent. Sent explicitly so a stale
-          // `dont_remember` cookie from an older log-in is cleared too.
+          // Persistent session cookie (Max-Age). false → Better Auth omits
+          // Max-Age; iOS then drops the cookie when it kills the PWA.
           rememberMe: true,
         }),
       );

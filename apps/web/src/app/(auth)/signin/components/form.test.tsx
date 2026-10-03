@@ -656,7 +656,6 @@ describe("SignInForm", () => {
         expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
       );
       // SOK-752: rememberMe:false → a session cookie iOS drops with the PWA.
-      // Sent explicitly so Better Auth clears a stale `dont_remember` cookie.
       expect(mockSignInEmail).toHaveBeenCalledWith({
         fetchOptions: captchaFetchOptions,
         email: EMAIL,

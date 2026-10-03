@@ -32,6 +32,7 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { APIError, createAuthMiddleware } from "better-auth/api";
+import { expireCookie, setSessionCookie } from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -521,6 +522,18 @@ export const auth = betterAuth({
           ctx.context.adapter,
           ctx.context.session.user.id,
         );
+      }
+
+      // `rememberMe: true` does not delete a stale `dont_remember` cookie.
+      // Email-code, passkey, and OAuth then keep a session cookie, which iOS
+      // drops with the home-screen app. Rewrite this session as persistent
+      // and expire that cookie.
+      if (
+        ctx.context.newSession &&
+        !(ctx.context.returned instanceof APIError)
+      ) {
+        await setSessionCookie(ctx, ctx.context.newSession, false);
+        expireCookie(ctx, ctx.context.authCookies.dontRememberToken);
       }
     }),
   },

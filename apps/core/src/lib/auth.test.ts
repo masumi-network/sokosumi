@@ -52,6 +52,7 @@ const {
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
   sentrySetExtrasMock,
+  setSessionCookieMock,
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
@@ -171,6 +172,7 @@ const {
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
     sentryCaptureExceptionMock: vi.fn(),
     sentrySetExtrasMock: vi.fn(),
+    setSessionCookieMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
@@ -230,6 +232,14 @@ function envRequiringPersonalWorkspace() {
     REQUIRE_PERSONAL_WORKSPACE: true,
   };
 }
+
+vi.mock("better-auth/cookies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("better-auth/cookies")>();
+  return {
+    ...actual,
+    setSessionCookie: (...args: unknown[]) => setSessionCookieMock(...args),
+  };
+});
 
 vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
@@ -3177,8 +3187,21 @@ describe("core auth config", () => {
         {
           hooks: {
             after: (ctx: {
-              context: { newSession?: { user?: { termsAccepted?: boolean } } };
+              context: {
+                authCookies?: {
+                  dontRememberToken: {
+                    attributes: { httpOnly: boolean; path: string };
+                    name: string;
+                  };
+                };
+                newSession?: { user?: { termsAccepted?: boolean } };
+              };
               path: string;
+              setCookie?: (
+                name: string,
+                value: string,
+                attributes: object,
+              ) => void;
             }) => Promise<void>;
           };
         },
@@ -3187,10 +3210,78 @@ describe("core auth config", () => {
 
     await expect(
       config.hooks.after({
-        context: { newSession: { user: { termsAccepted: true } } },
+        context: {
+          authCookies: {
+            dontRememberToken: {
+              attributes: { httpOnly: true, path: "/" },
+              name: "sokosumi.dont_remember",
+            },
+          },
+          newSession: { user: { termsAccepted: true } },
+        },
         path: "/sign-in/email",
+        setCookie: vi.fn(),
       }),
     ).resolves.toBeUndefined();
+  });
+
+  it("keeps a new session persistent and drops a stale dont_remember cookie", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          hooks: {
+            after: (ctx: {
+              context: {
+                authCookies: {
+                  dontRememberToken: {
+                    attributes: { httpOnly: boolean; path: string };
+                    name: string;
+                  };
+                };
+                newSession?: { user?: { termsAccepted?: boolean } };
+                returned?: unknown;
+              };
+              path: string;
+              setCookie: (
+                name: string,
+                value: string,
+                attributes: { httpOnly: boolean; maxAge: number; path: string },
+              ) => void;
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    const setCookie = vi.fn();
+    const newSession = { user: { termsAccepted: true } };
+    await config.hooks.after({
+      context: {
+        authCookies: {
+          dontRememberToken: {
+            attributes: { httpOnly: true, path: "/" },
+            name: "sokosumi.dont_remember",
+          },
+        },
+        newSession,
+        returned: { token: "session-token" },
+      },
+      path: "/sign-in/email-otp",
+      setCookie,
+    });
+
+    expect(setSessionCookieMock).toHaveBeenCalledWith(
+      expect.objectContaining({ setCookie }),
+      newSession,
+      false,
+    );
+    expect(setCookie).toHaveBeenCalledWith("sokosumi.dont_remember", "", {
+      httpOnly: true,
+      maxAge: 0,
+      path: "/",
+    });
   });
 
   it("delivers the committed Calendar revocation after leaving an organization", async () => {
