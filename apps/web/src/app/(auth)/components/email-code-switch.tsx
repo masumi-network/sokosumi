@@ -12,7 +12,7 @@ interface EmailCodeSwitchProps {
   /** Confirmed on the email step. */
   email: string;
   emailCode: EmailCode;
-  onSwitch: (method: "code") => void;
+  onSwitchToCode: () => void;
 }
 
 /**
@@ -22,7 +22,7 @@ interface EmailCodeSwitchProps {
 export function EmailCodeSwitch({
   email,
   emailCode,
-  onSwitch,
+  onSwitchToCode,
 }: EmailCodeSwitchProps) {
   const t = useTranslations("Auth.Email.Form");
   const wasCodeSent = emailCode.sentTo === email;
@@ -36,7 +36,7 @@ export function EmailCodeSwitch({
           <button
             type="button"
             className={STEP_LINK_BUTTON_CLASS}
-            onClick={() => onSwitch("code")}
+            onClick={onSwitchToCode}
           >
             {t("useCodeInstead")}
           </button>
@@ -50,7 +50,7 @@ export function EmailCodeSwitch({
             disabled={emailCode.isSending}
             onClick={async () => {
               await emailCode.sendCode(email);
-              onSwitch("code");
+              onSwitchToCode();
             }}
           >
             {emailCode.isSending

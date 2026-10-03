@@ -134,18 +134,31 @@ export function useEmailCode({
       return result.error;
     }
     setIsAccepted(true);
+    try {
+      await leaveAfterAcceptance(result.data, fields);
+    } catch (error) {
+      // Still here: the page could not leave, so nothing was accepted yet.
+      setIsAccepted(false);
+      throw error;
+    }
+    return undefined;
+  }
 
+  async function leaveAfterAcceptance(
+    data: unknown,
+    fields: EmailCodeSignUpFields | undefined,
+  ) {
     const finish = (destination: string | undefined) =>
       finishAuthInPlace({
         eventType,
         // A password sign-up counts as one, whichever request carried it.
         provider: fields?.password === undefined ? "email-otp" : "credential",
         returnUrl: destination,
-        result: result.data,
+        result: data,
         beforeLeaving,
       });
 
-    if (didRemoveSignInMethods(result.data)) {
+    if (didRemoveSignInMethods(data)) {
       // Settles once the page is leaving, so the step stays locked.
       await new Promise<void>((resolve, reject) => {
         let leaving = false;
@@ -160,11 +173,10 @@ export function useEmailCode({
           },
         });
       });
-      return undefined;
+      return;
     }
 
     await finish(returnUrl);
-    return undefined;
   }
 
   return {

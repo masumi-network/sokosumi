@@ -177,7 +177,13 @@ export default function SignInForm({
 
   const handleCodeSubmit = async (values: Values) => {
     track("Sign In", { provider: "email-otp" });
-    const error = await emailCode.signInWithCode(email, values.code);
+    let error: Awaited<ReturnType<EmailCode["signInWithCode"]>>;
+    try {
+      error = await emailCode.signInWithCode(email, values.code);
+    } catch {
+      // Nothing to press again: clear the field for the next code.
+      error = {};
+    }
     if (error) {
       form.setError("code", { message: codeRefusal.refuse(error) });
       return;
@@ -425,7 +431,7 @@ export default function SignInForm({
           <EmailCodeSwitch
             email={email}
             emailCode={emailCode}
-            onSwitch={switchTo}
+            onSwitchToCode={() => switchTo("code")}
           />
           {removedDialog}
         </BaseForm>

@@ -447,6 +447,20 @@ describe("SignInForm", () => {
       });
     });
 
+    it("takes back the accepted state when the page cannot leave", async () => {
+      mockWaitForAuthSession.mockRejectedValue(new Error("Core is down"));
+      render(<SignInCodeStep />);
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+      fireEvent.change(code, { target: { value: "042917" } });
+
+      await waitFor(() => expect(statusLine()).toHaveTextContent("generic"));
+      expect(statusLine()).not.toHaveTextContent("CodeStep.accepted");
+      expect(code).toBeEnabled();
+      expect(code).toHaveValue("");
+      expect(mockLocationReplace).not.toHaveBeenCalled();
+    });
+
     it("leaves without a notice when the code removed nothing", async () => {
       mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
       mockSendEmailCode.mockResolvedValue({
