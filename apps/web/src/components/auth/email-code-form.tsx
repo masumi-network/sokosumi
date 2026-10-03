@@ -1,30 +1,24 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
-import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 import {
   EMAIL_CODE_LENGTH,
   type EmailCodeError,
-  EmailCodeField,
+  EmailCodeInput,
   useEmailCodeRefusal,
 } from "./email-code-field";
+import { ResendCodeButton } from "./resend-code-button";
 
 interface EmailCodeFormProps {
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
-  /** Names what the code does here: sign in, confirm. */
-  submitLabel: string;
-  /**
-   * Resolves with Better Auth's error, nothing once the code worked, or
-   * `false` when the page did not send the code and marked what to fix
-   * itself.
-   */
-  onSubmitCode: (code: string) => Promise<EmailCodeError | false | undefined>;
+  /** Resolves with Better Auth's error, or nothing once the code worked. */
+  onSubmitCode: (code: string) => Promise<EmailCodeError | undefined>;
   /** When the current code went out, in epoch milliseconds. */
   sentAt: number;
   onResend: () => void;
@@ -32,20 +26,21 @@ interface EmailCodeFormProps {
 }
 
 /**
- * The second half of an email code on its own: the field and the button that
- * spends the code. The code is typed into the tab that asked for it, so
- * whatever that tab was doing (a sign-in for another app, a gated action)
- * carries on.
+ * The second half of an email code on its own: the underlined slots, a status
+ * line for the check and its refusal, and a way to ask again. There is no
+ * button: the sixth digit sends the code. It is typed into the tab that asked
+ * for it, so whatever that tab was doing (a gated action) carries on.
  */
 export function EmailCodeForm({
   email,
-  submitLabel,
   onSubmitCode,
   sentAt,
   onResend,
   isResending,
 }: EmailCodeFormProps) {
   const t = useTranslations("Components.EmailCodeForm");
+  const hintId = useId();
+  const statusId = useId();
   const fieldRef = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
   const [code, setCode] = useState("");
@@ -59,23 +54,15 @@ export function EmailCodeForm({
     isLocked,
   });
 
-  function showError(message: string) {
-    // The field is disabled while a code is checked; enable it first, so
-    // focus can return to it. Moving there is what reads the error out.
-    flushSync(() => {
-      setError(message);
-      setIsVerifying(false);
-    });
-    fieldRef.current?.focus();
-  }
-
-  // The button and a completed field both end here, so a code is spent one
-  // way only. The field hands its code over before the state holding it has
+  // A completed field and Enter both end here, so a code is spent one way
+  // only. The field hands its code over before the state holding it has
   // rendered.
   const submitCode = async (submitted: string) => {
     if (submitting.current) return;
     if (submitted.length !== EMAIL_CODE_LENGTH) {
-      showError(t("incomplete"));
+      // Enter in the field; focus is still there, so the reason is read out.
+      flushSync(() => setError(t("incomplete")));
+      fieldRef.current?.focus();
       return;
     }
 
@@ -84,10 +71,9 @@ export function EmailCodeForm({
     setIsVerifying(true);
     let accepted = false;
     try {
-      const answer = await onSubmitCode(submitted);
-      if (answer === false) {
-        return;
-      }
+      // A check that never answered is refused like a wrong code: with no
+      // button, the same code can only go again once the field is clear.
+      const answer = await onSubmitCode(submitted).catch(() => ({}));
       if (answer) {
         setError(refusal.refuse(answer));
         return;
@@ -96,8 +82,6 @@ export function EmailCodeForm({
       // spend a code that already worked.
       accepted = true;
       setIsAccepted(true);
-    } catch {
-      showError(t("generic"));
     } finally {
       submitting.current = accepted;
       setIsVerifying(false);
@@ -110,8 +94,12 @@ export function EmailCodeForm({
   };
 
   return (
-    <form noValidate className="flex flex-col gap-3" onSubmit={handleSubmit}>
-      <EmailCodeField
+    <form
+      noValidate
+      className="flex flex-col items-center"
+      onSubmit={handleSubmit}
+    >
+      <EmailCodeInput
         inputRef={fieldRef}
         // Focus follows the step that just appeared.
         autoFocus
@@ -124,19 +112,37 @@ export function EmailCodeForm({
         onComplete={(completed) => {
           if (!isLocked) void submitCode(completed);
         }}
-        email={email}
-        error={error ?? undefined}
-        sentAt={sentAt}
-        onResend={onResend}
-        isResending={isResending || isLocked}
+        invalid={error !== null}
+        describedBy={[hintId, error ? statusId : null]
+          .filter(Boolean)
+          .join(" ")}
         disabled={isLocked}
       />
-      <Button type="submit" disabled={isLocked}>
-        {isLocked ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-        ) : null}
-        {submitLabel}
-      </Button>
+      {/* The slots show the length and the page shows the address, so the
+          line only tells a screen reader a code went out. */}
+      <p id={hintId} className="sr-only">
+        {email ? t("sent", { email }) : t("sentNoAddress")}
+      </p>
+      {/* Always rendered, so a screen reader hears what appears in it. */}
+      <div
+        id={statusId}
+        role="status"
+        className={cn(
+          "text-center text-sm",
+          error ? "text-destructive" : "text-muted-foreground",
+          // Takes no space until it says something.
+          (isVerifying || error) && "mt-4",
+        )}
+      >
+        {isVerifying ? t("checking") : error}
+      </div>
+      <div className="mt-4">
+        <ResendCodeButton
+          sentAt={sentAt}
+          onResend={onResend}
+          isSending={isResending || isLocked}
+        />
+      </div>
     </form>
   );
 }

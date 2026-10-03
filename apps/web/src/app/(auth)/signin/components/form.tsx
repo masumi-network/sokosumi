@@ -7,21 +7,18 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ReactNode, useId, useMemo, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import * as z from "zod";
 
 import {
   AuthStepLayout,
   AuthStepLinkSeparator,
 } from "@/auth/components/auth-step-layout";
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import { EmailChip } from "@/auth/components/email-chip";
 import {
   EmailCodeSwitch,
   STEP_LINK_BUTTON_CLASS,
 } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
-import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
@@ -30,16 +27,9 @@ import {
   EmailCodeInput,
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
+import { PasswordInput } from "@/components/auth/password-input";
 import { ResendCodeButton } from "@/components/auth/resend-code-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
-import {
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
@@ -54,8 +44,6 @@ import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { signInFormSchema } from "@/lib/schemas/auth";
 import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
-
-import SignInHeader from "./header";
 
 interface SignInFormProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
@@ -83,7 +71,8 @@ interface SignInFormProps {
  * Second sign-in step: the code step 1 emailed, or the password. It opens on
  * the way this browser signed in last, and on the password when no code went
  * out, unless Register handed the address over. Either is one switch away.
- * The code needs no button: the sixth digit logs in.
+ * The code needs no button: the sixth digit logs in. The password's Log in
+ * button carries the only progress, and a refusal shows under the field.
  */
 export default function SignInForm({
   client,
@@ -97,7 +86,6 @@ export default function SignInForm({
   children,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-  const authT = useTranslations("Auth");
   const emailT = useTranslations("Auth.Email.Form");
   const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
@@ -105,6 +93,7 @@ export default function SignInForm({
   const [isLeaving, setIsLeaving] = useState(false);
   const noticeId = useId();
   const statusId = useId();
+  const passwordErrorId = useId();
   const formRef = useRef<HTMLFormElement>(null);
   const [prefersPassword, setPrefersPassword] = useState(
     initialMethod === "password",
@@ -206,24 +195,18 @@ export default function SignInForm({
       });
 
       if (result.error) {
-        if (isRejectedOAuthRequestError(result.error)) {
-          toast.error(oauthT("errorDescription"));
-          return;
-        }
-
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
-
-        switch (errorCode) {
-          case AuthErrorCode.TERMS_NOT_ACCEPTED:
-            toast.error(t("Errors.termsNotAccepted"));
-            break;
-          default:
-            toast.error(
-              getErrorMessage(result.error, result.error.message ?? t("error")),
-            );
-            break;
-        }
+        form.setError("currentPassword", {
+          message: isRejectedOAuthRequestError(result.error)
+            ? oauthT("errorDescription")
+            : errorCode === AuthErrorCode.TERMS_NOT_ACCEPTED
+              ? t("Errors.termsNotAccepted")
+              : getErrorMessage(
+                  result.error,
+                  result.error.message ?? t("error"),
+                ),
+        });
         return;
       }
 
@@ -245,56 +228,21 @@ export default function SignInForm({
     setPrefersPassword(method === "password");
   };
 
-  // Password managers pair the password with this address.
-  const usernameField = (
-    <input
-      data-testid="auth-field-username"
-      type="email"
-      autoComplete="username"
-      autoCapitalize="none"
-      spellCheck={false}
-      value={email}
-      readOnly
-      tabIndex={-1}
-      aria-hidden="true"
-      className="sr-only"
-    />
-  );
-  const removedDialog = (
-    <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
-  );
-
-  if (isCodeStep) {
-    const codeError = errors.code?.message;
-    const status =
-      isLeaving || emailCode.isAccepted
-        ? t("CodeStep.accepted")
-        : isSubmitting
-          ? t("CodeStep.checking")
-          : (codeError ??
-            (isCodeUnsent ? t("Handover.codeNotSent") : undefined));
-    const statusIsError =
-      !isPending && (codeError !== undefined || isCodeUnsent);
-
-    return (
-      <AuthStepLayout
-        client={client}
-        title={t("CodeStep.title")}
-        subtitle={codeT("sentTo")}
-        chip={
-          <EmailChip
-            email={email}
-            onChange={onChangeEmail}
-            disabled={isPending}
-          />
-        }
-        notice={handoverNotice}
-        noticeId={noticeId}
-        status={status}
-        statusId={statusId}
-        statusIsError={statusIsError}
-        securityCheck={emailCode.captcha}
-        links={
+  const codeError = errors.code?.message;
+  const passwordError = errors.currentPassword?.message;
+  const step = isCodeStep
+    ? {
+        title: t("CodeStep.title"),
+        subtitle: codeT("sentTo"),
+        status:
+          isLeaving || emailCode.isAccepted
+            ? t("CodeStep.accepted")
+            : isSubmitting
+              ? codeT("checking")
+              : (codeError ??
+                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)),
+        statusIsError: !isPending && (codeError !== undefined || isCodeUnsent),
+        links: (
           <>
             <ResendCodeButton
               sentAt={emailCode.sentAt}
@@ -314,18 +262,80 @@ export default function SignInForm({
               {emailT("usePassword")}
             </button>
           </>
-        }
-        footer={children}
+        ),
+      }
+    : {
+        title: t("PasswordStep.title"),
+        subtitle: t("PasswordStep.subtitle"),
+        status: undefined,
+        statusIsError: false,
+        links: (
+          <>
+            <Link
+              href={buildAuthPageUrl(
+                "/forgot-password",
+                readAuthPageContext(searchParams),
+              )}
+              // The address stays out of the URL, which reaches logs.
+              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
+              className={STEP_LINK_BUTTON_CLASS}
+            >
+              {t("forgotPassword")}
+            </Link>
+            <AuthStepLinkSeparator />
+            <EmailCodeSwitch
+              email={email}
+              emailCode={emailCode}
+              disabled={isPending}
+              onSwitchToCode={() => switchTo("code")}
+            />
+          </>
+        ),
+      };
+
+  return (
+    <AuthStepLayout
+      client={client}
+      title={step.title}
+      subtitle={step.subtitle}
+      chip={
+        <EmailChip
+          email={email}
+          onChange={onChangeEmail}
+          disabled={isPending}
+        />
+      }
+      notice={handoverNotice}
+      noticeId={noticeId}
+      status={step.status}
+      statusId={statusId}
+      statusIsError={step.statusIsError}
+      securityCheck={emailCode.captcha}
+      links={step.links}
+      footer={children}
+    >
+      <BaseForm
+        form={form}
+        formRef={formRef}
+        disabled={isLeaving}
+        onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
+        onChange={onFormStart}
+        className="w-full"
       >
-        <BaseForm
-          form={form}
-          formRef={formRef}
-          disabled={isLeaving}
-          onSubmit={handleCodeSubmit}
-          onChange={onFormStart}
-          className="w-full"
-        >
-          {usernameField}
+        {/* Password managers pair the password with this address. */}
+        <input
+          data-testid="auth-field-username"
+          type="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={email}
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
+        />
+        {isCodeStep ? (
           <Controller
             control={form.control}
             name="code"
@@ -355,88 +365,55 @@ export default function SignInForm({
               />
             )}
           />
-          {removedDialog}
-        </BaseForm>
-      </AuthStepLayout>
-    );
-  }
-
-  return (
-    <div className="flex flex-1 flex-col">
-      <SignInHeader client={client} />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ConfirmedEmail
-          email={email}
-          onChange={onChangeEmail}
-          changeDisabled={isPending}
-        />
-        <BaseForm
-          form={form}
-          formRef={formRef}
-          disabled={isLeaving}
-          onSubmit={handlePasswordSubmit}
-          onChange={onFormStart}
-        >
-          {usernameField}
-          <FormField
-            control={form.control}
-            name="currentPassword"
-            render={({ field }) => (
-              <FormItem>
-                {handoverNotice ? (
-                  // The item's gap and this margin match the form's gap.
-                  <FormDescription className="mb-1">
-                    {handoverNotice}
-                  </FormDescription>
-                ) : null}
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                  <FormLabel>{t("Fields.Password.label")}</FormLabel>
-                  <Link
-                    href={buildAuthPageUrl(
-                      "/forgot-password",
-                      readAuthPageContext(searchParams),
-                    )}
-                    // The address stays out of the URL, which reaches logs.
-                    onClick={(event) =>
-                      rememberAuthEmailHintOnClick(event, email)
-                    }
-                    className="text-muted-foreground hover:text-foreground text-sm hover:underline"
-                  >
-                    {t("forgotPassword")}
-                  </Link>
-                </div>
-                <FormControl>
-                  <PasswordInput
-                    data-testid="auth-field-currentPassword"
-                    autoComplete="current-password"
-                    showLabel={authT("PasswordToggle.show")}
-                    hideLabel={authT("PasswordToggle.hide")}
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="flex flex-col gap-4">
-            {captcha}
-            <SubmitButton
-              isSubmitting={isPending}
-              spinnerPosition="start"
-              label={t("submit")}
-              className="w-full"
-              data-testid="auth-submit"
+        ) : (
+          <>
+            <Controller
+              control={form.control}
+              name="currentPassword"
+              render={({ field }) => (
+                <PasswordInput
+                  {...field}
+                  variant="underlined"
+                  data-testid="auth-field-currentPassword"
+                  autoComplete="current-password"
+                  placeholder={t("Fields.Password.label")}
+                  aria-label={t("Fields.Password.label")}
+                  aria-invalid={passwordError ? true : undefined}
+                  aria-describedby={
+                    [
+                      handoverNotice ? noticeId : null,
+                      passwordError ? passwordErrorId : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                />
+              )}
             />
-          </div>
-          <EmailCodeSwitch
-            email={email}
-            emailCode={emailCode}
-            onSwitchToCode={() => switchTo("code")}
-          />
-          {removedDialog}
-        </BaseForm>
-        {children}
-      </div>
-    </div>
+            {passwordError ? (
+              // Announced: a submit leaves focus on the disabled form.
+              <p
+                id={passwordErrorId}
+                role="alert"
+                className="text-destructive text-center text-sm"
+              >
+                {passwordError}
+              </p>
+            ) : null}
+            <div className="mt-3 flex flex-col gap-4">
+              {captcha}
+              <SubmitButton
+                isSubmitting={isPending}
+                spinnerPosition="start"
+                label={t("submit")}
+                className="w-full"
+                data-testid="auth-submit"
+              />
+            </div>
+          </>
+        )}
+        <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
+      </BaseForm>
+    </AuthStepLayout>
   );
 }

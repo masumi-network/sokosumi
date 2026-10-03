@@ -11,6 +11,7 @@
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
       "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
       "sentTo": "Wir haben einen 6-stelligen Code gesendet an",
+      "checking": "Code wird geprüft…",
       "codeLabel": "Code aus der E-Mail",
       "incomplete": "Gib den 6-stelligen Code aus der E-Mail ein.",
       "invalid": "Dieser Code stimmt nicht. Prüfe die E-Mail und versuche es erneut.",
@@ -21,6 +22,10 @@
       "resendIn": "Neuer Code in {seconds} s",
       "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
+    },
+    "PasswordToggle": {
+      "show": "Passwort anzeigen",
+      "hide": "Passwort ausblenden"
     },
     "EmergencyDialog": {
       "title": "Notfallwartung",
@@ -45,7 +50,6 @@
     },
     "ReauthDialog": {
       "confirm": "Bestätigen",
-      "confirmCode": "Mit Code bestätigen",
       "continueWithEmail": "Code per E-Mail senden",
       "continueWithGoogle": "Mit Google fortfahren",
       "continueWithMicrosoft": "Mit Microsoft fortfahren",
@@ -1176,10 +1180,6 @@
     "Words": {
       "signUp": "Registrieren"
     },
-    "PasswordToggle": {
-      "show": "Passwort anzeigen",
-      "hide": "Passwort ausblenden"
-    },
     "Email": {
       "Form": {
         "label": "E-Mail",
@@ -1187,10 +1187,9 @@
         "change": "Ändern",
         "changeEmail": "E-Mail ändern",
         "usePassword": "Ein Passwort verwenden",
-        "emailCodeInstead": "Stattdessen Code per E-Mail senden",
+        "emailCode": "Code per E-Mail senden",
         "emailCodeSending": "Code wird gesendet...",
-        "codeStillWorks": "Der gesendete Code gilt weiterhin.",
-        "useCodeInstead": "Stattdessen den Code verwenden",
+        "useCode": "Den Code verwenden",
         "error": "Wir konnten diese E-Mail nicht prüfen. Bitte versuche es erneut."
       }
     },
@@ -1210,8 +1209,11 @@
           "lastUsed": "Zuletzt verwendet",
           "CodeStep": {
             "title": "Prüfe deine E-Mails",
-            "checking": "Code wird geprüft…",
             "accepted": "Code akzeptiert. Du wirst angemeldet…"
+          },
+          "PasswordStep": {
+            "title": "Gib dein Passwort ein",
+            "subtitle": "Anmeldung als"
           },
           "error": "Ungültige E-Mail-Adresse oder falsches Passwort",
           "Fields": {

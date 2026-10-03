@@ -7,7 +7,7 @@ import type {
   Path,
   UseFormReturn,
 } from "react-hook-form";
-
+import { PasswordInput } from "@/components/auth/password-input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -20,8 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import type { FormData } from "@/lib/form";
-
-import { PasswordInput } from "./password-input";
 import type { AuthNamespace } from "./types";
 
 interface FormFieldsProps<T extends FieldValues> {
@@ -36,7 +34,6 @@ export function FormFields<T extends FieldValues>({
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
-  const authT = useTranslations("Auth");
 
   return (
     <>
@@ -51,12 +48,7 @@ export function FormFields<T extends FieldValues>({
                 <FormLabel>{t(formDataItem.labelKey)}</FormLabel>
               ) : null}
               <FormControl>
-                <FormInput
-                  field={field}
-                  formDataItem={formDataItem}
-                  t={t}
-                  authT={authT}
-                />
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
               {formDataItem.descriptionKey ? (
                 <FormDescription>
@@ -82,14 +74,12 @@ interface FormInputProps<T extends FieldValues>
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  authT: IntlTranslation<"Auth">;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
-  authT,
   ...controlProps
 }: FormInputProps<T>) {
   const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
@@ -117,8 +107,6 @@ function FormInput<T extends FieldValues>({
         data-testid={`auth-field-${name.toString()}`}
         autoComplete={autoComplete}
         placeholder={placeholderKey && t(placeholderKey)}
-        showLabel={authT("PasswordToggle.show")}
-        hideLabel={authT("PasswordToggle.hide")}
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
         disabled={disabled}

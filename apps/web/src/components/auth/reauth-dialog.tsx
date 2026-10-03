@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
+import { PasswordInput } from "@/components/auth/password-input";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import {
@@ -268,19 +267,21 @@ export function ReauthDialog({
           <>
             {hasPasswordAccount ? (
               <form className="space-y-4" onSubmit={handlePasswordSubmit}>
-                <fieldset className="space-y-2" disabled={isSubmitting}>
-                  <Label htmlFor="reauth-password">{t("passwordLabel")}</Label>
-                  <Input
+                <fieldset disabled={isSubmitting}>
+                  {/* The placeholder is the visible name (ADR 0051). */}
+                  <PasswordInput
+                    variant="underlined"
                     aria-describedby={
                       error?.fromPassword ? "reauth-error" : undefined
                     }
                     aria-invalid={error?.fromPassword ? true : undefined}
+                    aria-label={t("passwordLabel")}
                     autoComplete="current-password"
                     data-testid="reauth-field-currentPassword"
                     id="reauth-password"
                     onChange={(event) => setPassword(event.target.value)}
+                    placeholder={t("passwordLabel")}
                     required
-                    type="password"
                     value={password}
                   />
                 </fieldset>
@@ -339,7 +340,6 @@ export function ReauthDialog({
                   <EmailCodeForm
                     email={email}
                     sentAt={emailCodeSentAt}
-                    submitLabel={t("confirmCode")}
                     onSubmitCode={handleEmailCodeSubmit}
                     onResend={() => {
                       void handleEmailCodeSend();

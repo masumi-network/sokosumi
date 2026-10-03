@@ -12,53 +12,39 @@ interface EmailCodeSwitchProps {
   /** Confirmed on the email step. */
   email: string;
   emailCode: EmailCode;
+  disabled?: boolean | undefined;
   onSwitchToCode: () => void;
 }
 
 /**
- * Under Log in's password step: the way to the emailed code. A code goes out
- * only when it is asked for here or already went out on Continue.
+ * In Log in's password links row: the way to the emailed code. A code goes
+ * out only when it is asked for here; one that already went out on Continue
+ * still works, so the step switches back to it without another.
  */
 export function EmailCodeSwitch({
   email,
   emailCode,
+  disabled,
   onSwitchToCode,
 }: EmailCodeSwitchProps) {
   const t = useTranslations("Auth.Email.Form");
   const wasCodeSent = emailCode.sentTo === email;
 
-  // A div, not a p: the captcha widget may render inside it.
   return (
-    <div className="text-muted-foreground text-center text-sm">
-      {wasCodeSent ? (
-        <>
-          {t("codeStillWorks")}{" "}
-          <button
-            type="button"
-            className={STEP_LINK_BUTTON_CLASS}
-            onClick={onSwitchToCode}
-          >
-            {t("useCodeInstead")}
-          </button>
-        </>
-      ) : (
-        <>
-          {emailCode.captcha}
-          <button
-            type="button"
-            className={STEP_LINK_BUTTON_CLASS}
-            disabled={emailCode.isSending}
-            onClick={async () => {
-              await emailCode.sendCode(email);
-              onSwitchToCode();
-            }}
-          >
-            {emailCode.isSending
-              ? t("emailCodeSending")
-              : t("emailCodeInstead")}
-          </button>
-        </>
-      )}
-    </div>
+    <button
+      type="button"
+      className={STEP_LINK_BUTTON_CLASS}
+      disabled={disabled || emailCode.isSending}
+      onClick={async () => {
+        if (!wasCodeSent) await emailCode.sendCode(email);
+        onSwitchToCode();
+      }}
+    >
+      {wasCodeSent
+        ? t("useCode")
+        : emailCode.isSending
+          ? t("emailCodeSending")
+          : t("emailCode")}
+    </button>
   );
 }
