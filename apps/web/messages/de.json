@@ -1225,6 +1225,12 @@
             "title": "Kein Konto für diese Adresse",
             "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "Handover": {
+            "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
+            "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
+            "codeNotSentNotice": "Du hast bereits ein Konto.",
+            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
           }
         }
       },
