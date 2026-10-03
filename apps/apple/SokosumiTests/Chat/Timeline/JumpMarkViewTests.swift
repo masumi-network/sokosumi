@@ -9,11 +9,13 @@
   import Testing
 
   /// A jump that has landed in a hosted transcript, and what the test drives it through.
-  private struct JumpLanding {
+  struct JumpLanding {
     let state: WorkspaceState
     let host: NSHostingView<AnyView>
     let window: NSWindow
     let scroll: NSScrollView
+    /// What the test saw, attached if it fails.
+    let diagnosis: JumpDiagnosis
   }
 
   extension NativeWindowTests {
@@ -21,14 +23,22 @@
     /// globals.css) holds for 4.5 s, and a reader scroll at full strength fades it out over 320 ms. The test host
     /// builds no accessibility tree, so the room's mark is read from pixels and the thread's from its jump target.
     @MainActor struct JumpMarkViewTests {
-      /// The room transcript, or the thread holding fixture-2, with a jump to fixture-2 requested.
-      private static func landing(thread: Bool) async throws -> JumpLanding {
+      /// Where the jumps land: deep enough in the hundred-message fixture that no reader scroll in a test reaches
+      /// the list's top. Landing on fixture-2 put the Thread's header (its divider, reply count, the fixture's Retry
+      /// and the day pill) just above the viewport on GitHub's 1× runner, and the wheel brought it in: the divider kept
+      /// the wash column from ever reading clear and the chrome added ink (row 25b2's CI follow-up).
+      static let landedId = "fixture-10"
+
+      /// The room transcript, or the thread holding it, with a jump to `landedId` requested. With
+      /// `blocksHover`, a clear layer over everything takes the pointer's hover, so no row draws its hover wash
+      /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
+      static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: "fixture-2")
+          state.thread.requestJump(to: Self.landedId)
         } else {
-          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+          #expect(try await state.openMessage(Self.landedId, auth: auth) == .opened)
         }
         let host = NSHostingView(rootView: AnyView(Group {
           if thread {
@@ -36,18 +46,28 @@
           } else {
             RoomTimelineView(roomId: "fixture")
           }
-        }.background(.background).environmentObject(state).environmentObject(auth)))
+        }
+        .background(.background)
+        .overlay {
+          if blocksHover {
+            Self.hoverBlocker
+          }
+        }
+        .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua)
         // A pointer resting over the window would draw a row's hover wash, which the pixel reads count.
         window.ignoresMouseEvents = true
         window.contentView = host
+        try keepPointerOff(window)
         window.orderFront(nil)
         let scroll = try await loadedTranscriptScrollView(in: host)
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land: \(TranscriptScrollingTests.distanceFromBottom(scroll)) pt from the bottom") {
           TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
-        return JumpLanding(state: state, host: host, window: window, scroll: scroll)
+        let diagnosis = JumpDiagnosis(state: state, host: host, scroll: scroll)
+        diagnosis.snap("landed")
+        return JumpLanding(state: state, host: host, window: window, scroll: scroll, diagnosis: diagnosis)
       }
 
       /// Rows of the transcript's viewport whose pixel `column` points in differs from the viewport's top row
@@ -61,18 +81,21 @@
         try columnDifferences(in: host, scroll: scroll, column: 6).max() ?? 0
       }
 
-      /// Each viewport row's colour difference, in `column` points, from the viewport's top row.
+      /// Each viewport row's colour difference, in `column` points, from the viewport's top row. Only a strip
+      /// around the column is drawn: drawing the whole window in software takes a fifth of a second once the
+      /// spotlight (row 25b2) blurs the other rows, which is longer than the leave fade these reads have to catch.
       private static func columnDifferences(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> [CGFloat] {
         host.layoutSubtreeIfNeeded()
-        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
-        host.cacheDisplay(in: host.bounds, to: bitmap)
-        let scale = CGFloat(bitmap.pixelsWide) / host.bounds.width
+        let strip = NSRect(x: column - 2, y: 0, width: 4, height: host.bounds.height)
+        let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: strip))
+        host.cacheDisplay(in: strip, to: bitmap)
+        let scale = CGFloat(bitmap.pixelsHigh) / host.bounds.height
         var frame = scroll.convert(scroll.bounds, to: host)
         if !host.isFlipped {
           frame.origin.y = host.bounds.height - frame.maxY
         }
         let top = Int((frame.minY + 2) * scale), bottom = Int((frame.maxY - scroll.contentInsets.bottom - 2) * scale)
-        let pixelX = Int(column * scale)
+        let pixelX = Int(2 * scale)
         let reference = try #require(bitmap.colorAt(x: pixelX, y: top)?.usingColorSpace(.deviceRGB))
         return (top ..< bottom).map { pixelY in
           guard let color = bitmap.colorAt(x: pixelX, y: pixelY)?.usingColorSpace(.deviceRGB) else { return 0 }
@@ -81,17 +104,51 @@
         }
       }
 
-      private static func wheel(_ scroll: NSScrollView, host: NSView) throws {
+      /// A clear layer that is hit by the pointer, so the rows under it never hover.
+      private static var hoverBlocker: some View {
+        Color.clear.contentShape(.rect)
+      }
+
+      /// Moves `window` off the pointer. `ignoresMouseEvents` keeps clicks out, but SwiftUI still hovers the row a
+      /// scroll brings under the pointer, and with mouse events ignored no exit arrives when the pointer moves on: the
+      /// row's hover wash and toolbar stay and the pixel reads count them (CI run 37066842622, where GitHub's runner
+      /// leaves its pointer over the window). The window goes to the side of the pointer with more room; where that
+      /// side is narrower than the window it runs past the screen's edge, keeping a part on screen, rather than
+      /// shrinking, so the layout never changes mid-test.
+      static func keepPointerOff(_ window: NSWindow) throws {
+        // A pointer someone is moving can land on the new frame; a few tries outrun it.
+        for _ in 0 ..< 5 {
+          let pointer = NSEvent.mouseLocation
+          var frame = window.frame
+          guard frame.contains(pointer) else { return }
+          let screen = NSScreen.screens.first { $0.frame.contains(pointer) } ?? window.screen ?? NSScreen.main
+          let bounds = try #require(screen).visibleFrame
+          frame.origin.x = pointer.x - bounds.minX >= bounds.maxX - pointer.x ? pointer.x - 1 - frame.width : pointer.x + 1
+          window.setFrame(frame, display: true)
+        }
+        try #require(!window.frame.contains(NSEvent.mouseLocation), "The window \(window.frame) still holds the pointer at \(NSEvent.mouseLocation), so a scroll would hover a row under it.")
+      }
+
+      static func wheel(_ scroll: NSScrollView, host: NSView) throws {
+        try keepPointerOff(#require(host.window))
         let event = try #require(CGEvent(scrollWheelEvent2Source: nil, units: .pixel, wheelCount: 1, wheel1: 40, wheel2: 0, wheel3: 0))
         event.setIntegerValueField(.scrollWheelEventScrollPhase, value: 1)
         try scroll.scrollWheel(with: #require(NSEvent(cgEvent: event)))
         host.layoutSubtreeIfNeeded()
       }
 
-      /// Polls until `done` holds or ten seconds pass; a loaded runner can hold the main actor for a while.
-      private static func poll(_ host: NSView, until done: () throws -> Bool) async throws {
+      /// Polls until `done` holds or ten seconds pass; a loaded runner can hold the main actor for a while. A poll
+      /// that runs out attaches what `diagnosis` saw.
+      static func poll(_ host: NSView, diagnosis: JumpDiagnosis? = nil, until done: () throws -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
-        while try !done(), ContinuousClock.now < deadline {
+        while try !done() {
+          guard ContinuousClock.now < deadline else {
+            diagnosis?.attach("poll timed out")
+            return
+          }
+          if let window = host.window {
+            try keepPointerOff(window)
+          }
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
@@ -108,7 +165,7 @@
         let marked = ContinuousClock.now
         try await Task.sleep(until: marked.advanced(by: .seconds(1)))
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Still marked a second in.")
-        try await Self.poll(host) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
+        try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
         let gone = marked.duration(to: ContinuousClock.now)
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
         // The hold's own fade takes the wash under the pixel threshold shortly before 4.5 s.
@@ -122,8 +179,8 @@
         let (state, host, window) = (landing.state, landing.host, landing.window)
         defer { window.orderOut(nil) }
         try await Task.sleep(for: .seconds(1))
-        #expect(state.thread.jumpTarget?.messageId == "fixture-2", "Still held a second in.")
-        try await Self.poll(host) { state.thread.jumpTarget == nil }
+        #expect(state.thread.jumpTarget?.messageId == Self.landedId, "Still held a second in.")
+        try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
         let gone = requested.duration(to: ContinuousClock.now)
         #expect(state.thread.jumpTarget == nil, "The hold is over.")
         #expect(gone >= .milliseconds(4500), "Held for the whole hold: gone after \(gone).")
@@ -142,7 +199,7 @@
         defer { window.orderOut(nil) }
         let full: CGFloat
         if thread {
-          try await Self.poll(host) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
           #expect(state.thread.jumpTarget?.mark?.stage(at: Date()) == .full)
           full = 0
         } else {
@@ -153,7 +210,7 @@
           try await Task.sleep(for: .milliseconds(500))
           var last: CGFloat = -1
           var steady: CGFloat = 0
-          try await Self.poll(host) {
+          try await Self.poll(host, diagnosis: landing.diagnosis) {
             let strength = try Self.washStrength(in: host, scroll: scroll)
             defer { last = strength }
             if strength > 0.04, abs(strength - last) < 0.002 {
@@ -168,13 +225,13 @@
         let wheeled = ContinuousClock.now
         try Self.wheel(scroll, host: host)
         if thread {
-          try await Self.poll(host) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget?.mark?.leftAt != nil, "Fading, not cut.")
-          try await Self.poll(host) { state.thread.jumpTarget == nil }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget == nil, "The fade is over.")
         } else {
           var partial = false
-          try await Self.poll(host) {
+          try await Self.poll(host, diagnosis: landing.diagnosis) {
             let strength = try Self.washStrength(in: host, scroll: scroll)
             if strength > 0.04, strength < full - 0.01 {
               partial = true
@@ -194,7 +251,7 @@
       /// Web keeps the mark when the scrollbar moves the list, which raises no wheel or touch event. Dragging the
       /// scroller's knob moves the thread and leaves its mark at full strength.
       @Test func aScrollerDragKeepsTheMark() async throws {
-        let landing = try await Self.landing(thread: true)
+        let landing = try await Self.landing(thread: true, blocksHover: false)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
         window.ignoresMouseEvents = false
@@ -221,13 +278,14 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(scroll.contentView.bounds.minY - before > 50, "The drag moved the thread: \(before) to \(scroll.contentView.bounds.minY)")
-        #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        #expect(state.thread.jumpTarget?.messageId == Self.landedId)
         let mark = try #require(state.thread.jumpTarget?.mark)
         #expect(mark.leftAt == nil, "The mark stands.")
       }
 
-      /// The mark in both lights, drawn by the real row at full strength over the window background.
-      private static func render(dark: Bool) async throws -> NSBitmapImageRep {
+      /// Three real rows over the window background, with the middle one landed a second ago, so at full
+      /// strength. With `spotlight` they sit in a list that casts the jump spotlight (row 25b2), as both lists do.
+      static func render(dark: Bool, landed: Bool = true, spotlight: Bool = true) async throws -> NSBitmapImageRep {
         let messages = ["Ada", "Ben", "Grace"].enumerated().map { index, name in
           var message = chatRoomMessage(from: .init(
             clientTurnId: name, roomId: "room_1", content: "\(name) wrote a message the jump can land on, with a second sentence to wrap.",
@@ -238,16 +296,29 @@
           message.metadata = nil
           return message
         }
-        let content = VStack(alignment: .leading, spacing: 0) {
+        let mark = landed ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil
+        let rows = VStack(alignment: .leading, spacing: 0) {
           ForEach(messages, id: \.id) { message in
-            MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
-                           jumpMark: message.id == "Ben" ? JumpMark(messageId: "Ben", landedAt: Date().addingTimeInterval(-1)) : nil,
-                           horizontalInset: 12)
+            let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                                     jumpMark: mark?.messageId == message.id ? mark : nil, horizontalInset: 12)
+            if spotlight {
+              row.jumpSpotlightRow(messageId: message.id)
+            } else {
+              row
+            }
+          }
+        }
+        let content = Group {
+          if spotlight {
+            rows.jumpSpotlight(for: mark)
+          } else {
+            rows
           }
         }
         .padding(.vertical, 12)
         .frame(width: 520, alignment: .leading)
         .background(.background)
+        .overlay { Self.hoverBlocker }
         .environmentObject(WorkspaceState()).environmentObject(AuthState())
         .environment(\.colorScheme, dark ? .dark : .light)
         let host = NSHostingView(rootView: content)
