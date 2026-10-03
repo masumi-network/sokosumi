@@ -22,6 +22,17 @@ function renderHeader(props: ComponentProps<typeof SignUpHeader>) {
 }
 
 describe("SignUpHeader", () => {
+  it("says an invitation fixed the address", () => {
+    renderHeader({ invited: true });
+
+    expect(
+      screen.getByText("You're joining through an invitation."),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("heading")).toHaveTextContent(
+      /^Create your account$/,
+    );
+  });
+
   it("leads with the way back to the product, then names it", () => {
     renderHeader({ client: CMO });
 
@@ -37,10 +48,9 @@ describe("SignUpHeader", () => {
   });
 
   it("stays the plain header without an OAuth request", () => {
-    const { container } = renderHeader({ invitationId: "inv_1" });
+    const { container } = renderHeader({});
 
     expect(screen.getByText("Hire agents on our platform")).toBeInTheDocument();
-    expect(screen.getByText("(via invitation)")).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
   });

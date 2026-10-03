@@ -10,14 +10,12 @@ import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
 
 import {
+  AUTH_STEP_LINK_CLASS,
   AuthStepLayout,
   AuthStepLinkSeparator,
 } from "@/auth/components/auth-step-layout";
 import { EmailChip } from "@/auth/components/email-chip";
-import {
-  EmailCodeSwitch,
-  STEP_LINK_BUTTON_CLASS,
-} from "@/auth/components/email-code-switch";
+import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
@@ -260,7 +258,7 @@ export default function SignInForm({
             <button
               type="button"
               data-testid="auth-use-password"
-              className={STEP_LINK_BUTTON_CLASS}
+              className={AUTH_STEP_LINK_CLASS}
               disabled={isPending}
               onClick={() => switchTo("password")}
             >
@@ -283,7 +281,7 @@ export default function SignInForm({
               )}
               // The address stays out of the URL, which reaches logs.
               onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
-              className={STEP_LINK_BUTTON_CLASS}
+              className={AUTH_STEP_LINK_CLASS}
             >
               {t("forgotPassword")}
             </Link>

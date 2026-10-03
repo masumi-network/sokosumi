@@ -4,6 +4,10 @@ import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { cn } from "@/lib/utils";
 
+/** A link or text button in the links row, e.g. to switch the method. */
+export const AUTH_STEP_LINK_CLASS =
+  "text-muted-foreground hover:text-foreground focus-visible:ring-ring-halo rounded-sm text-sm font-medium underline underline-offset-4 outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed";
+
 interface AuthStepLayoutProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
@@ -20,7 +24,11 @@ interface AuthStepLayoutProps {
   children: ReactNode;
   /** Checking, accepted, or what went wrong; nothing while the person types. */
   status?: ReactNode;
-  /** For the content's `aria-describedby`; set even while `status` is empty. */
+  /**
+   * For the content's `aria-describedby`; set even while `status` is empty.
+   * A step without either has no status line, e.g. step 1, whose checks
+   * speak through toasts and the unknown-address notice.
+   */
   statusId?: string | undefined;
   /** Marks `status` as the reason the field was refused. */
   statusIsError?: boolean | undefined;
@@ -65,25 +73,32 @@ export function AuthStepLayout({
         ) : null}
         {chip}
         {notice ? (
-          <p id={noticeId} className="text-muted-foreground mt-4 text-sm">
+          // A div: a notice can be a whole alert, e.g. why a sign-in failed.
+          <div
+            id={noticeId}
+            className="text-muted-foreground mt-4 w-full text-sm"
+          >
             {notice}
-          </p>
+          </div>
         ) : null}
       </div>
       <div className="flex w-full flex-col items-center">
         {children}
-        {/* Always rendered, so a screen reader hears what appears in it. */}
-        <div
-          id={statusId}
-          role="status"
-          className={cn(
-            "text-sm",
-            statusIsError ? "text-destructive" : "text-muted-foreground",
-            status ? "mt-6" : null,
-          )}
-        >
-          {status}
-        </div>
+        {/* Rendered from the start on a step that checks something, so a
+            screen reader hears what appears in it. */}
+        {statusId !== undefined || status ? (
+          <div
+            id={statusId}
+            role="status"
+            className={cn(
+              "text-sm",
+              statusIsError ? "text-destructive" : "text-muted-foreground",
+              status ? "mt-6" : null,
+            )}
+          >
+            {status}
+          </div>
+        ) : null}
         {securityCheck}
       </div>
       {links ? (

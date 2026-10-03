@@ -9,10 +9,16 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { BaseForm } from "@/auth/components/form/base-form";
-import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
@@ -21,7 +27,6 @@ import {
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
-import type { FormData } from "@/lib/form";
 import {
   type EmailStepFormSchemaType,
   emailStepFormSchema,
@@ -105,9 +110,10 @@ interface EmailStepProps {
  * an account, so a person on the wrong page is pointed at the right one
  * before typing anything else.
  *
- * When they are, the button stays where it is and a notice grows around it:
- * title and description unfold above, a frame fades in, and the button
- * becomes the way to the other page. Editing the address plays it back.
+ * When they are, the button stays where it is: a notice unfolds above it,
+ * centred under the field, and the button becomes the way to the other page.
+ * The field keeps its neutral line, since the address is not wrong. Editing
+ * the address plays it back.
  * A hand-over skips the notice: Continue goes to the other page itself.
  */
 export function EmailStep({
@@ -151,15 +157,6 @@ export function EmailStep({
     ),
     defaultValues: { email: defaultEmail },
   });
-  const formData: FormData<EmailStepFormSchemaType, "Auth.Email.Form"> = [
-    {
-      name: "email",
-      labelKey: "label",
-      type: "email",
-      autoComplete,
-      disabled: emailLocked,
-    },
-  ];
 
   useMountEffect(() => {
     mounted.current = true;
@@ -297,7 +294,32 @@ export function EmailStep({
         onEmailChange?.(form.getValues("email"));
       }}
     >
-      <FormFields form={form} formData={formData} namespace="Auth.Email.Form" />
+      <FormField
+        control={form.control}
+        name="email"
+        render={({ field }) => (
+          <FormItem>
+            <FormControl>
+              <Input
+                {...field}
+                variant="underlined"
+                data-testid="auth-field-email"
+                type="email"
+                autoComplete={autoComplete}
+                // Phones would otherwise capitalise and autocorrect it.
+                autoCapitalize="none"
+                spellCheck={false}
+                // The placeholder is the visible name (ADR 0051).
+                placeholder={t("label")}
+                aria-label={t("label")}
+                // Shown, not greyed out: it is the address the person joins with.
+                readOnly={emailLocked}
+              />
+            </FormControl>
+            <FormMessage className="text-center" />
+          </FormItem>
+        )}
+      />
       {/* Announces the notice. The visible copy below is the same text, so
           it is hidden from assistive technology rather than read twice. */}
       <p id={noticeId} role="status" className="sr-only">
@@ -306,15 +328,7 @@ export function EmailStep({
       <div
         data-testid="email-step-detour"
         data-state={isDetoured ? "open" : "closed"}
-        className={cn(
-          // A ring, not a border: it takes no space, so the button below is
-          // as wide as the field above it while the notice is closed.
-          "rounded-lg text-sm ring-1 ring-inset transition-[padding,box-shadow,background-color]",
-          MOTION,
-          isDetoured
-            ? "bg-card px-4 pt-3 pb-4 ring-border"
-            : "ring-transparent",
-        )}
+        className="mt-3 text-sm"
       >
         <div
           aria-hidden="true"
@@ -325,7 +339,7 @@ export function EmailStep({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="grid gap-0.5 pb-3">
+            <div className="grid gap-0.5 pb-4 text-center">
               <p className="font-medium tracking-tight">{notice?.title}</p>
               <p className="text-muted-foreground">{notice?.description}</p>
             </div>

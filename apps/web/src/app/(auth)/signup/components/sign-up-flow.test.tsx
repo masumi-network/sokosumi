@@ -117,6 +117,53 @@ describe("SignUpFlow", () => {
     });
   });
 
+  describe("step 1", () => {
+    const CMO = { name: "CMO", uri: "https://cmo.xyz", logoUri: undefined };
+
+    it("asks for the email in one field named by its placeholder, with Log in in the links row", () => {
+      render(<SignUpFlow lastUsedMethod={null} />);
+
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        "title",
+      );
+      expect(screen.getByText("description")).toBeInTheDocument();
+      expect(screen.getByTestId("auth-field-email")).toBe(emailField());
+      expect(emailField()).toHaveAttribute("placeholder", "label");
+      expect(screen.queryByText("label")).not.toBeInTheDocument();
+      expect(
+        screen.getByText("Login.message", { exact: false }),
+      ).toContainElement(screen.getByRole("link", { name: "Login.link" }));
+    });
+
+    it("leads with the way back to an outside product and names it", () => {
+      render(<SignUpFlow lastUsedMethod={null} client={CMO} />);
+
+      expect(screen.getByRole("link", { name: "backTo:CMO" })).toHaveAttribute(
+        "href",
+        "https://cmo.xyz",
+      );
+      expect(screen.getByText("descriptionFor:CMO")).toBeInTheDocument();
+    });
+
+    it("says an invitation brought the person here in the subtitle, not the title", async () => {
+      const user = userEvent.setup();
+      render(
+        <SignUpFlow
+          lastUsedMethod={null}
+          invitationId="inv_1"
+          prefilledEmail="invited@example.com"
+        />,
+      );
+
+      expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+        /^title$/,
+      );
+      expect(screen.getByText("invitation")).toBeInTheDocument();
+      await user.type(emailField(), "x");
+      expect(emailField()).toHaveValue("invited@example.com");
+    });
+  });
+
   it("emails a code to a new address on Continue, so step 2 opens on it", async () => {
     const user = userEvent.setup();
     render(<SignUpFlow lastUsedMethod={null} />);
@@ -346,7 +393,7 @@ describe("SignUpFlow", () => {
     );
     await act(async () => {});
     expect(emailField()).toHaveValue("invited@example.com");
-    expect(emailField()).toBeDisabled();
+    expect(emailField()).toHaveAttribute("readonly");
     expect(signUpFormMock).not.toHaveBeenCalled();
     expect(takeAuthEmailHint()).toBeNull();
   });
@@ -708,7 +755,7 @@ describe("SignUpFlow", () => {
       />,
     );
 
-    expect(emailField()).toBeDisabled();
+    expect(emailField()).toHaveAttribute("readonly");
     expect(emailField()).toHaveValue("invited@example.com");
 
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
@@ -736,7 +783,7 @@ describe("SignUpFlow", () => {
     );
 
     expect(emailField()).toHaveValue("invited@example.com");
-    expect(emailField()).toBeDisabled();
+    expect(emailField()).toHaveAttribute("readonly");
     // Taken all the same, so it does not turn up on a later visit.
     expect(takeAuthEmailHint()).toBeNull();
   });
@@ -800,7 +847,7 @@ describe("SignUpFlow", () => {
       <SignUpFlow lastUsedMethod={null} prefilledEmail="ada@exmaple.com" />,
     );
 
-    expect(emailField()).toBeEnabled();
+    expect(emailField()).not.toHaveAttribute("readonly");
     expect(emailField()).toHaveValue("ada@exmaple.com");
 
     await user.clear(emailField());

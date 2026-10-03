@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { AUTH_STEP_LINK_CLASS } from "@/auth/components/auth-step-layout";
+
 import {
   buildSignInUrlFromSignUp,
   readAuthPageContext,
@@ -21,10 +23,7 @@ export default function SignInLink() {
   const href = useSignInHref();
 
   return (
-    <Link
-      href={href}
-      className="text-primary text-sm font-medium hover:underline"
-    >
+    <Link href={href} className={AUTH_STEP_LINK_CLASS}>
       {t("Login.link")}
     </Link>
   );

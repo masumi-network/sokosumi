@@ -4,34 +4,28 @@ import OAuthClientBackLink from "@/auth/components/oauth-client-back-link";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 
 interface SignUpHeaderProps {
-  invitationId?: string | undefined;
+  /** An invitation fixed the address. */
+  invited?: boolean | undefined;
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
 }
 
-export default function SignUpHeader({
-  invitationId,
-  client,
-}: SignUpHeaderProps) {
+export default function SignUpHeader({ invited, client }: SignUpHeaderProps) {
   const t = useTranslations("Auth.Pages.SignUp.Header");
+  const emailT = useTranslations("Auth.Email.Form");
 
   return (
     <div className="p-6">
       {client ? <OAuthClientBackLink client={client} /> : null}
-      <div className="flex items-end gap-2">
-        <h1 className="text-2xl font-light text-balance tracking-tight">
-          {t("title")}
-        </h1>
-        {invitationId && (
-          <p className="text-sm text-muted-foreground italic">
-            {t("viaInvitation")}
-          </p>
-        )}
-      </div>
+      <h1 className="text-2xl font-light text-balance tracking-tight">
+        {t("title")}
+      </h1>
       <p className="text-sm text-muted-foreground">
-        {client
-          ? t("descriptionFor", { client: client.name })
-          : t("description")}
+        {invited
+          ? emailT("invitation")
+          : client
+            ? t("descriptionFor", { client: client.name })
+            : t("description")}
       </p>
     </div>
   );

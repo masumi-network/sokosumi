@@ -73,7 +73,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       prefilledEmail={await getInvitationEmail(invitationId)}
       returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
-      notice={<SignInErrorNotice error={error} />}
+      notice={error ? <SignInErrorNotice error={error} /> : undefined}
     >
       <TermsNotice />
     </SignUpFlow>
