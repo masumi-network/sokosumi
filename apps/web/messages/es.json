@@ -55,7 +55,6 @@
       "orSocial": "O continúa con una cuenta conectada.",
       "passwordError": "No hemos podido verificar esa contraseña.",
       "passwordLabel": "Contraseña actual",
-      "rememberMe": "Mantener la sesión iniciada",
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
       "sessionLost": "Abre la página de inicio de sesión e inicia sesión de nuevo.",
       "socialError": "No hemos podido iniciar ese acceso.",
@@ -1212,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Contraseña"
-            },
-            "RememberMe": {
-              "label": "Mantener la sesión iniciada"
             }
           },
           "forgotPassword": "¿Olvidaste tu contraseña?",
@@ -1262,7 +1258,7 @@
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "addPassword": "Establecer también una contraseña",
+          "addPassword": "Añadir una contraseña para futuros inicios de sesión",
           "removePassword": "Registrarse sin contraseña",
           "Fields": {
             "MarketingOptIn": {

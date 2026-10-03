@@ -685,11 +685,11 @@ struct ChatServiceTests {
         == "slug taken"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"), mode: .coreMessage)
-        == "Sign in to continue"
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"), mode: .coreMessage)
+        == "Log in to continue"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"))
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"))
         == "Couldn't complete the request. Try again."
     )
     #expect(
