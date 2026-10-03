@@ -153,6 +153,7 @@ describe("stepped sign-up with an OAuth request", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
       expect(signUpEmailMock).toHaveBeenCalledTimes(1);
