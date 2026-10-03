@@ -22,5 +22,5 @@ The steps move one at a time: Log in's code step first, then its password step a
 ## Consequences
 
 - Two field looks exist in the web app. A new auth step uses the underlined field and `AuthStepLayout`; anything outside auth and the re-authentication dialog uses `Input`.
-- `InputOTP` carries both variants until every code field has moved; the boxed variant and the labelled `EmailCodeField` go with the last of them.
+- Every email code field is underlined now, so `InputOTP` has no boxed variant and the labelled `EmailCodeField` is gone. The shared name fields (`FirstAndLastNameFields`) take an `underlined` variant for sign-up and stay boxed in account settings and setup.
 - Layout and the underline are not unit-tested. Each change proves them with real-browser screenshots in light and dark mode, at desktop width and at 375px.

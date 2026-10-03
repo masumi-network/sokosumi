@@ -4,42 +4,53 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { AUTH_STEP_LINK_CLASS } from "@/auth/components/auth-step-layout";
+import {
+  AUTH_STEP_LINK_CLASS,
+  AuthStepLayout,
+  AuthStepLinkSeparator,
+} from "@/auth/components/auth-step-layout";
+import { EmailChip } from "@/auth/components/email-chip";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
-import {
-  signUpMarketingFormData,
-  signUpPasswordFormData,
-} from "@/auth/signup/data";
+import { signUpMarketingFormData } from "@/auth/signup/data";
 import {
   EMAIL_CODE_LENGTH,
-  EmailCodeField,
+  EmailCodeInput,
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { PasswordInput } from "@/components/auth/password-input";
+import { ResendCodeButton } from "@/components/auth/resend-code-button";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
+import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { signUpFormSchema } from "@/lib/schemas/auth";
+import { cn } from "@/lib/utils";
 
 import { useSignInHref } from "./sign-in-link";
 
 interface SignUpFormProps {
+  /** The product that sent the person here through Sign in with Sokosumi. */
+  client?: OAuthRequestClient | undefined;
   /** Confirmed on the step before this one. */
   email: string;
+  /** Back to the email step; absent when an invitation fixes the address. */
+  onChangeEmail?: (() => void) | undefined;
   /** The code step 1 sent to `email`, if it went out. */
   emailCode: EmailCode;
   onFormStart: () => void;
-  onPendingChange: (pending: boolean) => void;
+  /** At the foot of the page, e.g. the terms notice. */
+  children?: ReactNode;
 }
 
 /**
@@ -47,18 +58,26 @@ interface SignUpFormProps {
  * and that code, with one Register; a whole code waits for it. A password is
  * a deliberate addition, sent with the code: the code proves the address, so
  * no account starts with an unproven one. When the first code did not go out,
- * the field sends another.
+ * the error line says so and the links row sends another at once.
+ *
+ * It has one error line, between the code and Register: the first refused
+ * field's reason, then an existing account, then an unsent code. The refused
+ * fields are marked and described by it.
  */
 export default function SignUpForm({
+  client,
   email,
+  onChangeEmail,
   emailCode,
   onFormStart,
-  onPendingChange,
+  children,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
+  const passwordHintId = useId();
+  const errorLineId = useId();
   const [isLeaving, setIsLeaving] = useState(false);
   const [withPassword, setWithPassword] = useState(false);
   // Step 1 found no account, but one can appear since, e.g. through Google
@@ -111,8 +130,6 @@ export default function SignUpForm({
   const handleSubmit = async (values: z.infer<typeof passwordSchema>) => {
     track("Sign Up", { provider: withPassword ? "credential" : "email-otp" });
     setAccountExists(false);
-    // The address stays fixed while the account is being created.
-    onPendingChange(true);
     const error = await emailCode.signInWithCode(email, values.code, {
       firstName: values.firstName,
       lastName: values.lastName,
@@ -122,7 +139,6 @@ export default function SignUpForm({
       ...(withPassword ? { password: values.password } : {}),
     });
     if (error) {
-      onPendingChange(false);
       if (isRejectedOAuthRequestError(error)) {
         toast.error(oauthT("errorDescription"));
         return;
@@ -157,103 +173,182 @@ export default function SignUpForm({
     setWithPassword((current) => !current);
   };
 
+  const { errors } = form.formState;
+  const fieldError =
+    errors.firstName?.message ??
+    errors.lastName?.message ??
+    errors.password?.message ??
+    errors.code?.message;
+  // Step 1 said so already when the send failed; resend works at once.
+  const isCodeUnsent = emailCode.sentTo !== email && !emailCode.isSending;
+  const errorLine =
+    fieldError ??
+    (accountExists ? (
+      <>
+        {t("AccountExists.message")}{" "}
+        <Link
+          href={signInHref}
+          // Sign-in ignores it when an invitation locks the address.
+          onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
+          className={cn(
+            AUTH_STEP_LINK_CLASS,
+            "whitespace-nowrap text-current hover:text-current",
+          )}
+        >
+          {t("AccountExists.logIn")}
+        </Link>
+      </>
+    ) : isCodeUnsent && !isPending ? (
+      codeT("notSent")
+    ) : null);
+
   return (
-    <BaseForm
-      form={form}
-      disabled={isLeaving}
-      onSubmit={handleSubmit}
-      onChange={onFormStart}
-    >
-      {/* Password managers pair the new password with this address. */}
-      <input
-        type="email"
-        autoComplete="username"
-        autoCapitalize="none"
-        spellCheck={false}
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-      />
-      <FirstAndLastNameFields
-        control={form.control}
-        testIdPrefix="auth-field"
-      />
-      {withPassword ? (
-        <FormFields
-          form={form}
-          formData={signUpPasswordFormData}
-          namespace="Auth.Pages.SignUp.Form"
+    <AuthStepLayout
+      client={client}
+      title={t("title")}
+      subtitle={codeT("sentTo")}
+      chip={
+        <EmailChip
+          email={email}
+          onChange={onChangeEmail}
+          disabled={isPending}
         />
-      ) : null}
-      <Controller
-        control={form.control}
-        name="code"
-        render={({ field, fieldState }) => (
-          <EmailCodeField
-            inputRef={field.ref}
-            value={field.value}
-            // No onComplete: the updates checkbox comes after the code,
-            // so only Register sends it.
-            onChange={(code) => {
-              // Typing replaces the reason; checking for a whole code while
-              // it is typed would only say it is not yet one.
-              form.clearErrors("code");
-              form.setValue("code", code);
-            }}
-            onBlur={field.onBlur}
-            error={fieldState.error?.message}
+      }
+      links={
+        <>
+          <ResendCodeButton
             sentAt={emailCode.sentAt}
             onResend={() => {
               void emailCode.sendCode(email);
             }}
-            isResending={emailCode.isSending}
-            disabled={isPending}
+            isSending={emailCode.isSending || isPending}
           />
-        )}
-      />
-      <FormFields
+          <AuthStepLinkSeparator />
+          <button
+            type="button"
+            className={AUTH_STEP_LINK_CLASS}
+            disabled={isPending}
+            onClick={togglePassword}
+          >
+            {withPassword ? t("removePassword") : t("addPassword")}
+          </button>
+        </>
+      }
+      footer={children}
+    >
+      <BaseForm
         form={form}
-        formData={signUpMarketingFormData}
-        namespace="Auth.Pages.SignUp.Form"
-      />
-      {accountExists ? (
-        <Alert>
-          <AlertTitle>{t("AccountExists.title")}</AlertTitle>
-          <AlertDescription>
-            <p>{t("AccountExists.description")}</p>
-            <Link
-              href={signInHref}
-              // Sign-in ignores it when an invitation locks the address.
-              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
-              className="text-primary font-medium hover:underline"
-            >
-              {t("AccountExists.logIn")}
-            </Link>
-          </AlertDescription>
-        </Alert>
-      ) : null}
-      <div className="flex flex-col gap-4">
-        {emailCode.captcha}
-        <SubmitButton
-          isSubmitting={isPending}
-          spinnerPosition="start"
-          label={t("submit")}
-          className="w-full"
+        disabled={isLeaving}
+        onSubmit={handleSubmit}
+        onChange={onFormStart}
+        className="w-full"
+      >
+        {/* Password managers pair the new password with this address. */}
+        <input
+          type="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
+          value={email}
+          readOnly
+          tabIndex={-1}
+          aria-hidden="true"
+          className="sr-only"
         />
-      </div>
-      <div className="text-center">
-        <button
-          type="button"
-          className={AUTH_STEP_LINK_CLASS}
-          disabled={isPending}
-          onClick={togglePassword}
+        <FirstAndLastNameFields
+          control={form.control}
+          testIdPrefix="auth-field"
+          variant="underlined"
+          describedBy={errorLineId}
+        />
+        {withPassword ? (
+          <FormField
+            control={form.control}
+            name="password"
+            render={({ field, fieldState }) => (
+              <FormItem>
+                <FormControl>
+                  <PasswordInput
+                    {...field}
+                    variant="underlined"
+                    data-testid="auth-field-password"
+                    autoComplete="new-password"
+                    placeholder={t("Fields.Password.label")}
+                    aria-label={t("Fields.Password.label")}
+                    aria-describedby={[
+                      passwordHintId,
+                      fieldState.error ? errorLineId : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" ")}
+                  />
+                </FormControl>
+                {/* Shown up front, so the rule is known before Register. */}
+                <p
+                  id={passwordHintId}
+                  className="text-muted-foreground text-center text-sm"
+                >
+                  {t("Fields.Password.description")}
+                </p>
+              </FormItem>
+            )}
+          />
+        ) : null}
+        <Controller
+          control={form.control}
+          name="code"
+          render={({ field, fieldState }) => (
+            <div className="mt-3">
+              <EmailCodeInput
+                inputRef={field.ref}
+                value={field.value}
+                // No onComplete: the updates checkbox comes after the code,
+                // so only Register sends it.
+                onChange={(code) => {
+                  // Typing replaces the reason; checking for a whole code
+                  // while it is typed would only say it is not yet one.
+                  form.clearErrors("code");
+                  form.setValue("code", code);
+                }}
+                onBlur={field.onBlur}
+                invalid={Boolean(fieldState.error)}
+                describedBy={
+                  fieldState.error || isCodeUnsent ? errorLineId : undefined
+                }
+                disabled={isPending}
+              />
+            </div>
+          )}
+        />
+        {/* Always rendered, so a screen reader hears what appears in it. A
+            div: it can hold the link to Log in. */}
+        <div
+          id={errorLineId}
+          role="alert"
+          className={
+            errorLine ? "text-destructive text-center text-sm" : "sr-only"
+          }
         >
-          {withPassword ? t("removePassword") : t("addPassword")}
-        </button>
-      </div>
-      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
-    </BaseForm>
+          {errorLine}
+        </div>
+        <div className="mt-3 flex flex-col gap-4">
+          {emailCode.captcha}
+          <SubmitButton
+            isSubmitting={isPending}
+            spinnerPosition="start"
+            label={t("submit")}
+            className="w-full"
+          />
+          <div className="flex justify-center">
+            <FormFields
+              form={form}
+              formData={signUpMarketingFormData}
+              namespace="Auth.Pages.SignUp.Form"
+            />
+          </div>
+        </div>
+        <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
+      </BaseForm>
+    </AuthStepLayout>
   );
 }

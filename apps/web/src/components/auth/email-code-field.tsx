@@ -2,23 +2,13 @@
 
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentProps,
-  type Ref,
-  type RefObject,
-  useEffect,
-  useId,
-  useRef,
-} from "react";
+import { type Ref, type RefObject, useEffect, useRef } from "react";
 
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
-import { Label } from "@/components/ui/label";
-
-import { ResendCodeButton } from "./resend-code-button";
 
 // Core's `otpLength`.
 export const EMAIL_CODE_LENGTH = 6;
@@ -142,8 +132,6 @@ interface EmailCodeInputProps {
   autoFocus?: boolean | undefined;
   inputRef?: Ref<HTMLInputElement>;
   id?: string | undefined;
-  /** Underlined on the auth pages (ADR 0051); boxed under a visible label. */
-  variant?: ComponentProps<typeof InputOTP>["variant"];
 }
 
 /**
@@ -163,7 +151,6 @@ export function EmailCodeInput({
   autoFocus,
   inputRef,
   id,
-  variant = "underlined",
 }: EmailCodeInputProps) {
   const t = useTranslations("Components.EmailCodeForm");
   const localCompletedCode = useRef(
@@ -175,7 +162,6 @@ export function EmailCodeInput({
     <InputOTP
       ref={inputRef}
       id={id}
-      variant={variant}
       aria-label={t("codeLabel")}
       maxLength={EMAIL_CODE_LENGTH}
       pattern={REGEXP_ONLY_DIGITS}
@@ -214,79 +200,5 @@ export function EmailCodeInput({
         ))}
       </InputOTPGroup>
     </InputOTP>
-  );
-}
-
-interface EmailCodeFieldProps
-  extends Pick<
-    EmailCodeInputProps,
-    | "value"
-    | "onChange"
-    | "onComplete"
-    | "completedCodeRef"
-    | "onBlur"
-    | "disabled"
-    | "autoFocus"
-    | "inputRef"
-  > {
-  /** Where the code went, when the page does not already show it. */
-  email?: string | undefined;
-  error?: string | undefined;
-  sentAt: number;
-  onResend: () => void;
-  isResending: boolean;
-}
-
-/**
- * The code slots under a visible label, with "Send a new code" beside it and
- * where the code went under it, for forms not yet on the auth step layout.
- */
-export function EmailCodeField({
-  email,
-  error,
-  sentAt,
-  onResend,
-  isResending,
-  disabled,
-  ...input
-}: EmailCodeFieldProps) {
-  const t = useTranslations("Components.EmailCodeForm");
-  const fieldId = useId();
-  const hintId = useId();
-  const errorId = useId();
-
-  return (
-    <div className="grid gap-2">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
-        <ResendCodeButton
-          sentAt={sentAt}
-          onResend={onResend}
-          isSending={isResending || Boolean(disabled)}
-        />
-      </div>
-      <EmailCodeInput
-        {...input}
-        id={fieldId}
-        variant="boxed"
-        invalid={Boolean(error)}
-        describedBy={[hintId, error ? errorId : null].filter(Boolean).join(" ")}
-        disabled={disabled}
-      />
-      {/* Without an address the page shows it above the field, and the slots
-          show the length, so the line only tells a screen reader a code went
-          out. */}
-      <p
-        id={hintId}
-        className={email ? "text-muted-foreground text-sm" : "sr-only"}
-      >
-        {email ? t("sent", { email }) : t("sentNoAddress")}
-      </p>
-      {error ? (
-        <p id={errorId} className="text-destructive text-sm">
-          {error}
-        </p>
-      ) : null}
-    </div>
   );
 }

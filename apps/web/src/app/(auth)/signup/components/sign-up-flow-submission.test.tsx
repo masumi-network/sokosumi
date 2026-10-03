@@ -86,7 +86,7 @@ describe("SignUpFlow submission", () => {
     }>();
     signUpMock.mockReturnValueOnce(pending.promise);
     const user = await submitDetails();
-    const changeEmail = screen.getByRole("button", { name: "changeEmail" });
+    const changeEmail = screen.getByRole("button", { name: /changeEmail/ });
 
     expect(changeEmail).toBeDisabled();
     await user.click(changeEmail);
@@ -116,11 +116,11 @@ describe("SignUpFlow submission", () => {
       error: null,
     });
     await waitFor(() => expect(finishAuthMock).toHaveBeenCalledOnce());
-    expect(screen.getByRole("button", { name: "changeEmail" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /changeEmail/ })).toBeDisabled();
     finishing.resolve();
     await waitFor(() =>
       expect(screen.getByRole("button", { name: "submit" })).toBeDisabled(),
     );
-    expect(screen.getByRole("button", { name: "changeEmail" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /changeEmail/ })).toBeDisabled();
   });
 });

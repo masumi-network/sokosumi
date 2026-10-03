@@ -3,11 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { createRef, type Ref, useRef, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  EmailCodeField,
-  EmailCodeInput,
-  useEmailCodeRefusal,
-} from "./email-code-field";
+import { EmailCodeInput, useEmailCodeRefusal } from "./email-code-field";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
@@ -258,51 +254,5 @@ describe("EmailCodeInput", () => {
     await user.type(codeField(), "00000");
     expect(onComplete).toHaveBeenCalledTimes(2);
     expect(onComplete).toHaveBeenLastCalledWith("000000");
-  });
-});
-
-describe("EmailCodeField", () => {
-  function renderField(props: { email?: string; error?: string } = {}) {
-    render(
-      <EmailCodeField
-        value=""
-        onChange={vi.fn()}
-        sentAt={0}
-        onResend={vi.fn()}
-        isResending={false}
-        {...props}
-      />,
-    );
-  }
-
-  it("labels the code and offers a new one beside it", () => {
-    renderField();
-
-    expect(screen.getByText("codeLabel")).toBeVisible();
-    expect(codeField()).toBeVisible();
-    expect(screen.getByRole("button", { name: "resend" })).toBeEnabled();
-  });
-
-  it("describes the field by where the code went, and by the error once there is one", () => {
-    renderField({ email: "ada@example.com" });
-    expect(codeField()).not.toHaveAttribute("aria-invalid");
-    expect(codeField()).toHaveAccessibleDescription("sent");
-  });
-
-  it("adds the error to where the code went", () => {
-    renderField({ email: "ada@example.com", error: "That code is wrong." });
-
-    expect(codeField()).toHaveAttribute("aria-invalid", "true");
-    expect(codeField()).toHaveAccessibleDescription("sent That code is wrong.");
-  });
-
-  it("still tells a screen reader a code was sent when the page shows no address", () => {
-    // Sign-up shows the address above the field, so the line is hidden from
-    // sight there, not from the field's description.
-    renderField({ error: "That code is wrong." });
-
-    expect(codeField()).toHaveAccessibleDescription(
-      "sentNoAddress That code is wrong.",
-    );
   });
 });

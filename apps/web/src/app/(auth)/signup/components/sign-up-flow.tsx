@@ -11,7 +11,6 @@ import {
 } from "react";
 
 import { AuthStepLayout } from "@/auth/components/auth-step-layout";
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
@@ -32,7 +31,6 @@ import {
 } from "@/lib/utils/last-used-auth-method";
 
 import SignUpForm from "./form";
-import SignUpHeader from "./header";
 import SignInLink, { useSignInHref } from "./sign-in-link";
 
 interface SignUpFlowProps {
@@ -87,7 +85,6 @@ export default function SignUpFlow({
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
-  const [isDetailsPending, setIsDetailsPending] = useState(false);
   // Step 1 starts one sign-up at a time: the email or a provider.
   const [isEmailPending, setIsEmailPending] = useState(false);
   const [isProviderPending, setIsProviderPending] = useState(false);
@@ -122,30 +119,23 @@ export default function SignUpFlow({
 
   if (step === "details") {
     return (
-      <div className="flex flex-1 flex-col">
-        <SignUpHeader invited={emailLocked} client={client} />
-        <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          <ConfirmedEmail
-            email={email}
-            onChange={
-              emailLocked
-                ? undefined
-                : () => {
-                    setCameBack(true);
-                    setStep("email");
-                  }
-            }
-            changeDisabled={isDetailsPending}
-          />
-          <SignUpForm
-            email={email}
-            emailCode={emailCode}
-            onFormStart={handleFormStart}
-            onPendingChange={setIsDetailsPending}
-          />
-          {children}
-        </div>
-      </div>
+      <SignUpForm
+        client={client}
+        email={email}
+        onChangeEmail={
+          // An invitation fixes the address.
+          emailLocked
+            ? undefined
+            : () => {
+                setCameBack(true);
+                setStep("email");
+              }
+        }
+        emailCode={emailCode}
+        onFormStart={handleFormStart}
+      >
+        {children}
+      </SignUpForm>
     );
   }
 

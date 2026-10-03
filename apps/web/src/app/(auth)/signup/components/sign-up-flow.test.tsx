@@ -6,7 +6,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { StrictMode } from "react";
+import { type ReactNode, StrictMode } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { toast } from "sonner";
@@ -81,14 +81,29 @@ vi.mock("@/auth/components/social-buttons", () => ({
   },
 }));
 
+// Step 2 has its own tests in form.test.tsx and the submission flow test.
 vi.mock("./form", () => ({
   __esModule: true,
-  default: (props: { onFormStart: () => void }) => {
+  default: (props: {
+    email: string;
+    onFormStart: () => void;
+    onChangeEmail?: () => void;
+    children?: ReactNode;
+  }) => {
     signUpFormMock(props);
     return (
-      <button type="button" onClick={props.onFormStart}>
-        type in details
-      </button>
+      <div data-testid="sign-up-form">
+        <span>{props.email}</span>
+        <button type="button" onClick={props.onFormStart}>
+          type in details
+        </button>
+        {props.onChangeEmail ? (
+          <button type="button" onClick={props.onChangeEmail}>
+            changeEmail
+          </button>
+        ) : null}
+        {props.children}
+      </div>
     );
   },
 }));
@@ -271,8 +286,7 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "ada@example.com" }),
     );
-    // The confirmed address stands where the email field was, under its label.
-    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+    expect(screen.getByTestId("sign-up-form")).toHaveTextContent(
       "ada@example.com",
     );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
@@ -763,7 +777,7 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "invited@example.com" }),
     );
-    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+    expect(screen.getByTestId("sign-up-form")).toHaveTextContent(
       "invited@example.com",
     );
     expect(

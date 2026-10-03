@@ -112,11 +112,9 @@ describe("SignInFlow after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
-    expect(screen.getByRole("status")).toHaveTextContent(
-      "Handover.codeNotSent",
-    );
+    expect(screen.getByRole("status")).toHaveTextContent("notSent");
     expect(codeField()).toHaveAccessibleDescription(
-      "Handover.codeNotSentNotice Handover.codeNotSent",
+      "Handover.codeNotSentNotice notSent",
     );
     // The field holds nothing wrong yet.
     expect(codeField()).not.toHaveAttribute("aria-invalid");
@@ -134,9 +132,7 @@ describe("SignInFlow after Register handed over", () => {
       }),
     );
     await waitFor(() =>
-      expect(
-        screen.queryByText("Handover.codeNotSent"),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText("notSent")).not.toBeInTheDocument(),
     );
     expect(codeField()).toBeVisible();
   });
