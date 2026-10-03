@@ -14,6 +14,8 @@
     let host: NSHostingView<AnyView>
     let window: NSWindow
     let scroll: NSScrollView
+    /// What the test saw, attached if it fails.
+    let diagnosis: JumpDiagnosis
   }
 
   extension NativeWindowTests {
@@ -57,7 +59,9 @@
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land: \(TranscriptScrollingTests.distanceFromBottom(scroll)) pt from the bottom") {
           TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
-        return JumpLanding(state: state, host: host, window: window, scroll: scroll)
+        let diagnosis = JumpDiagnosis(state: state, host: host, scroll: scroll)
+        diagnosis.snap("landed")
+        return JumpLanding(state: state, host: host, window: window, scroll: scroll, diagnosis: diagnosis)
       }
 
       /// Rows of the transcript's viewport whose pixel `column` points in differs from the viewport's top row
@@ -127,10 +131,15 @@
         host.layoutSubtreeIfNeeded()
       }
 
-      /// Polls until `done` holds or ten seconds pass; a loaded runner can hold the main actor for a while.
-      static func poll(_ host: NSView, until done: () throws -> Bool) async throws {
+      /// Polls until `done` holds or ten seconds pass; a loaded runner can hold the main actor for a while. A poll
+      /// that runs out attaches what `diagnosis` saw.
+      static func poll(_ host: NSView, diagnosis: JumpDiagnosis? = nil, until done: () throws -> Bool) async throws {
         let deadline = ContinuousClock.now.advanced(by: .seconds(10))
-        while try !done(), ContinuousClock.now < deadline {
+        while try !done() {
+          guard ContinuousClock.now < deadline else {
+            diagnosis?.attach("poll timed out")
+            return
+          }
           if let window = host.window {
             try keepPointerOff(window)
           }
@@ -150,7 +159,7 @@
         let marked = ContinuousClock.now
         try await Task.sleep(until: marked.advanced(by: .seconds(1)))
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Still marked a second in.")
-        try await Self.poll(host) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
+        try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
         let gone = marked.duration(to: ContinuousClock.now)
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
         // The hold's own fade takes the wash under the pixel threshold shortly before 4.5 s.
@@ -165,7 +174,7 @@
         defer { window.orderOut(nil) }
         try await Task.sleep(for: .seconds(1))
         #expect(state.thread.jumpTarget?.messageId == "fixture-2", "Still held a second in.")
-        try await Self.poll(host) { state.thread.jumpTarget == nil }
+        try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
         let gone = requested.duration(to: ContinuousClock.now)
         #expect(state.thread.jumpTarget == nil, "The hold is over.")
         #expect(gone >= .milliseconds(4500), "Held for the whole hold: gone after \(gone).")
@@ -184,7 +193,7 @@
         defer { window.orderOut(nil) }
         let full: CGFloat
         if thread {
-          try await Self.poll(host) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark.map { $0.stage(at: Date()) == .full } == true }
           #expect(state.thread.jumpTarget?.mark?.stage(at: Date()) == .full)
           full = 0
         } else {
@@ -195,7 +204,7 @@
           try await Task.sleep(for: .milliseconds(500))
           var last: CGFloat = -1
           var steady: CGFloat = 0
-          try await Self.poll(host) {
+          try await Self.poll(host, diagnosis: landing.diagnosis) {
             let strength = try Self.washStrength(in: host, scroll: scroll)
             defer { last = strength }
             if strength > 0.04, abs(strength - last) < 0.002 {
@@ -210,13 +219,13 @@
         let wheeled = ContinuousClock.now
         try Self.wheel(scroll, host: host)
         if thread {
-          try await Self.poll(host) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget?.mark?.leftAt != nil || state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget?.mark?.leftAt != nil, "Fading, not cut.")
-          try await Self.poll(host) { state.thread.jumpTarget == nil }
+          try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
           #expect(state.thread.jumpTarget == nil, "The fade is over.")
         } else {
           var partial = false
-          try await Self.poll(host) {
+          try await Self.poll(host, diagnosis: landing.diagnosis) {
             let strength = try Self.washStrength(in: host, scroll: scroll)
             if strength > 0.04, strength < full - 0.01 {
               partial = true

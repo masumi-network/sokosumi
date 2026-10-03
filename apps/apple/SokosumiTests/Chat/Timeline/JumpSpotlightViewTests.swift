@@ -48,23 +48,30 @@
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
         let washed = { try Self.capture(host, scroll: scroll).washed.count { $0 } }
-        try await JumpMarkViewTests.poll(host) { try washed() > 40 }
+        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() > 40 }
         // Inside the full-strength stretch (0.45 s to 3.42 s of the hold).
         try await Task.sleep(for: .seconds(1))
         let held = try Self.capture(host, scroll: scroll)
+        landing.diagnosis.snap("held")
         let away = held.washed.indices.filter { !held.washed[$0] }
         #expect(away.count > 200, "Rows away from the mark are in view: \(away.count) pixel rows")
-        try await JumpMarkViewTests.poll(host) { try washed() == 0 && (!thread || state.thread.jumpTarget == nil) }
+        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() == 0 && (!thread || state.thread.jumpTarget == nil) }
         try await Task.sleep(for: .milliseconds(100))
         let after = try Self.capture(host, scroll: scroll)
-        #expect(after.washed.allSatisfy { !$0 }, "The mark is gone.")
+        let gone = after.washed.allSatisfy { !$0 }
+        #expect(gone, "The mark is gone.")
         let dimmed = held.meanInk(away), rest = after.meanInk(away)
         #expect(rest > 1, "The rows put down ink at rest: \(rest)")
-        if Self.reduceMotion {
-          #expect(abs(dimmed / rest - 1) < 0.1, "Reduce Motion casts no spotlight: \(dimmed) held, \(rest) after.")
-        } else {
-          #expect(dimmed < 0.75 * rest, "Stepped back while the mark held: \(dimmed) held, \(rest) after.")
+        if !Self.expectSpotlight(held: dimmed, rest: rest, "Stepped back while the mark held") || !gone {
+          landing.diagnosis.attach("ink check failed")
         }
+      }
+
+      /// Web's spotlight: the ink held well under the ink at rest, or the same under Reduce Motion, which casts none.
+      private static func expectSpotlight(held: CGFloat, rest: CGFloat, _ claim: String) -> Bool {
+        let passed = reduceMotion ? abs(held / rest - 1) < 0.1 : held < 0.75 * rest
+        #expect(passed, "\(reduceMotion ? "Reduce Motion casts no spotlight" : claim): \(held) held, \(rest) after.")
+        return passed
       }
 
       /// A reader scroll at full strength brings the rows back with the mark's leave fade, well inside the hold.
@@ -73,22 +80,22 @@
         let landing = try await JumpMarkViewTests.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
-        try await JumpMarkViewTests.poll(host) { try Self.capture(host, scroll: scroll).washed.count { $0 } > 40 }
+        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try Self.capture(host, scroll: scroll).washed.count { $0 } > 40 }
         try await Task.sleep(for: .seconds(1))
         let dimmed = try Self.capture(host, scroll: scroll).meanInk()
+        landing.diagnosis.snap("held")
         let wheeled = ContinuousClock.now
         try JumpMarkViewTests.wheel(scroll, host: host)
-        try await JumpMarkViewTests.poll(host) {
+        landing.diagnosis.snap("after wheel")
+        try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) {
           try Self.capture(host, scroll: scroll).washed.allSatisfy { !$0 } && (!thread || state.thread.jumpTarget == nil)
         }
         let gone = wheeled.duration(to: ContinuousClock.now)
         try await Task.sleep(for: .milliseconds(100))
         let rest = try Self.capture(host, scroll: scroll).meanInk()
         #expect(gone < .seconds(2), "The mark and the spotlight ended \(gone) after the wheel, not with the hold.")
-        if Self.reduceMotion {
-          #expect(abs(dimmed / rest - 1) < 0.1, "Reduce Motion casts no spotlight: \(dimmed) held, \(rest) after.")
-        } else {
-          #expect(dimmed < 0.75 * rest, "Back at rest after the wheel: \(dimmed) held, \(rest) after.")
+        if !Self.expectSpotlight(held: dimmed, rest: rest, "Back at rest after the wheel") {
+          landing.diagnosis.attach("ink check failed")
         }
       }
 
