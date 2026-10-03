@@ -269,6 +269,7 @@ import SwiftUI
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  horizontalInset: 12,
                                  streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
                     .jumpSpotlightRow(messageId: message.id)
                 }

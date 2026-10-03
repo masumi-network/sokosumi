@@ -54,6 +54,35 @@ struct MessageAttachmentRunTests {
     #expect(document.segments.last?.blocks.first?.text.runs.compactMap(\.link).first?.scheme == "sokosumi-channel")
   }
 
+  /// Row 31b3 (web `endsWithAttachmentRow`): the newest row keeps the Seen by corner clear when its body's last
+  /// segment is a run of files — a picture, a document, media or a mix — whatever text came before it.
+  @Test(arguments: [
+    "![photo](https://example.com/photo.png)",
+    "[report.pdf](https://example.com/report.pdf)",
+    "[a.png](https://example.com/a.png) [b.mp4](https://example.com/b.mp4) [notes.pdf](https://example.com/notes.pdf)",
+    "Here are Friday's files.\n\n[a.png](https://example.com/a.png)",
+    "[a.png](https://example.com/a.png)\n\n  \n\n"
+  ])
+  func aBodyEndingInAFileRunEndsWithAnAttachmentRun(source: String) {
+    #expect(MessageMarkdown.endsWithAttachmentRun(source))
+    #expect(MessageMarkdown(source).segments.last?.files.isEmpty == false, "Agrees with what the row draws")
+  }
+
+  /// Text after the run, text alone, an empty body (Send to yourself posts only a quote) and a file link inside
+  /// code all end the body in text, so the row keeps no corner.
+  @Test(arguments: [
+    "[a.png](https://example.com/a.png)\n\nThat's the one.",
+    "Release notes are up.",
+    "",
+    "   \n",
+    "[a.png](https://example.com/a.png)\n\n```\n[b.png](https://example.com/b.png)\n```",
+    "[docs](https://example.com/docs)"
+  ])
+  func aBodyEndingInTextDoesNot(source: String) {
+    #expect(!MessageMarkdown.endsWithAttachmentRun(source))
+    #expect(MessageMarkdown(source).segments.last?.files.isEmpty != false, "Agrees with what the row draws")
+  }
+
   @Test func codeStaysTextBesideAnAttachmentRun() {
     let document = MessageMarkdown("`" + link("code.png") + "`\n\n" + link("a.png") + " " + link("b.png"))
     #expect(document.segments.count == 2)
