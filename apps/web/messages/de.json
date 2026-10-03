@@ -1258,7 +1258,7 @@
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "addPassword": "Zusätzlich ein Passwort festlegen",
+          "addPassword": "Passwort für künftige Anmeldungen festlegen",
           "removePassword": "Ohne Passwort registrieren",
           "Fields": {
             "MarketingOptIn": {

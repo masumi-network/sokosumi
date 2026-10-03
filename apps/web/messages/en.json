@@ -1258,7 +1258,7 @@
             "description": "Log in with this email, or enter a different one to register.",
             "logIn": "Log in"
           },
-          "addPassword": "Also set a password",
+          "addPassword": "Add a password for future logins",
           "removePassword": "Sign up without a password",
           "Fields": {
             "MarketingOptIn": {
