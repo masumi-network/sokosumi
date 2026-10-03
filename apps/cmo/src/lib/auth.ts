@@ -1,6 +1,7 @@
 import { getUsersById, type User } from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
+import type { BetterAuthPlugin } from "better-auth";
 import {
   APIError,
   createAuthMiddleware,
@@ -42,6 +43,46 @@ const CLIENT_IP_HEADERS = ["x-vercel-forwarded-for", "x-forwarded-for"];
 
 /** Core's refresh tokens last 90 days; the session never outlives them. */
 const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
+
+/** Token endpoint answers that refuse a refresh (RFC 6749 section 5.2). */
+const REFRESH_REFUSED_STATUSES = new Set([400, 401, 403]);
+
+/** Renewal requests whose refresh grant got no answer from Core. */
+const refreshesWithoutAnswer = new WeakSet<Request>();
+
+/**
+ * Better Auth answers every failed refresh with the same 400. This records
+ * the requests where Core gave no answer (a network error, a timeout, a 5xx)
+ * rather than refusing, so renewal can keep the session through an outage.
+ */
+const sokosumiRefreshOutcome = {
+  id: "cmo-sokosumi-refresh-outcome",
+  init(ctx) {
+    const provider = ctx.socialProviders.find(
+      ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
+    );
+    const refresh = provider?.refreshAccessToken;
+    if (!provider || !refresh) return;
+    provider.refreshAccessToken = async (refreshToken, refreshCtx) => {
+      try {
+        return await refresh(refreshToken, refreshCtx);
+      } catch (error) {
+        // Better Fetch throws the token endpoint's error body with its status.
+        const status =
+          error && typeof error === "object" && "status" in error
+            ? error.status
+            : undefined;
+        if (
+          refreshCtx?.request &&
+          !(typeof status === "number" && REFRESH_REFUSED_STATUSES.has(status))
+        ) {
+          refreshesWithoutAnswer.add(refreshCtx.request);
+        }
+        throw error;
+      }
+    };
+  },
+} satisfies BetterAuthPlugin;
 
 /** The person's full name, or their display name when Sokosumi has no parts. */
 function personName(user: User): string {
@@ -211,6 +252,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
           },
         ],
       }),
+      sokosumiRefreshOutcome,
       nextCookies(),
     ],
   });
@@ -326,14 +368,18 @@ function withSetCookies(from: Response, status: number): Response {
 
 // ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
 const RENEWAL_REPLAY_MS = 30_000;
+// Inside Core's 30s rotation replay, so a retry after a lost answer still
+// receives the rotated token instead of revoking the family.
+const OUTAGE_BACKOFF_MS = 10_000;
 const renewalsByAuth = new WeakMap<CmoAuth, Map<string, Promise<Response>>>();
 
 /**
  * Keeps a page request's Sokosumi access fresh. Returns an empty response
  * whose `Set-Cookie` headers the caller forwards: renewed token cookies after
- * a silent refresh, cleared cookies when renewal fails, none otherwise. Its
- * status is 401 when renewal signed the person out, 503 while Core cannot
- * check them, and 204 otherwise.
+ * a silent refresh, cleared cookies when Core refuses renewal, none
+ * otherwise. Its status is 401 when renewal signed the person out, 503 while
+ * Core cannot be reached or cannot check them, and 204 otherwise. A 503 is
+ * replayed for a few seconds, so an outage does not send every page to Core.
  */
 export function renewSession(
   auth: CmoAuth,
@@ -362,11 +408,16 @@ export function renewSession(
   const cache = renewals;
   const renewal = renewSessionOnce(auth, request).then(
     (response) => {
-      if (response.headers.getSetCookie().length === 0) cache.delete(key);
-      else {
-        // Requests already sent by the browser can arrive after rotation ends.
-        setTimeout(() => cache.delete(key), RENEWAL_REPLAY_MS).unref();
-      }
+      // Requests already sent by the browser can arrive after rotation ends,
+      // and an outage should not send every page load to Core.
+      const replayMs =
+        response.headers.getSetCookie().length > 0
+          ? RENEWAL_REPLAY_MS
+          : response.status === 503
+            ? OUTAGE_BACKOFF_MS
+            : 0;
+      if (replayMs === 0) cache.delete(key);
+      else setTimeout(() => cache.delete(key), replayMs).unref();
       return response;
     },
     (error: unknown) => {
@@ -395,16 +446,27 @@ async function renewSessionOnce(
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  const renewed = await auth.handler(
-    new Request(`${origin}/api/auth/get-access-token`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify({ useAccountCookie: true }),
-    }),
-  );
+  const renewal = new Request(`${origin}/api/auth/get-access-token`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ useAccountCookie: true }),
+  });
+  const renewed = await auth.handler(renewal);
   // 401: nobody is signed in.
   if (renewed.ok || renewed.status === 401 || renewed.status === 503) {
     return withSetCookies(renewed, renewed.status === 503 ? 503 : 204);
+  }
+  // Core gave no answer to the refresh, or discovery failed on this instance
+  // so it has no provider: keep the session and try again later.
+  const body: unknown = await renewed.json().catch(() => null);
+  if (
+    refreshesWithoutAnswer.has(renewal) ||
+    (body &&
+      typeof body === "object" &&
+      "code" in body &&
+      body.code === "PROVIDER_NOT_SUPPORTED")
+  ) {
+    return withSetCookies(renewed, 503);
   }
 
   // The access check may reject a user after refresh has rotated the token.
