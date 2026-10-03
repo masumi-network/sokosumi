@@ -1229,6 +1229,11 @@
             "title": "Kein Konto für diese Adresse",
             "description": "Erstelle jetzt eines mit dieser E-Mail.",
             "createAccount": "Konto erstellen"
+          },
+          "Handover": {
+            "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
+            "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
+            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
           }
         }
       },

@@ -1229,6 +1229,11 @@
             "title": "No hay ninguna cuenta con este email",
             "description": "Crea una ahora con este email.",
             "createAccount": "Crear cuenta"
+          },
+          "Handover": {
+            "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
+            "password": "Ya tienes una cuenta. Introduce tu contraseña para iniciar sesión.",
+            "codeNotSent": "No pudimos enviar un código. Inténtalo de nuevo."
           }
         }
       },

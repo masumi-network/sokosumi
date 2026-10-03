@@ -63,6 +63,8 @@ interface EmailCodeFieldProps {
   /** Where the code went, when the page does not already show it. */
   email?: string | undefined;
   error?: string | undefined;
+  /** No code went out, so the field does not say one did. */
+  unsent?: boolean | undefined;
   sentAt: number;
   onResend: () => void;
   isResending: boolean;
@@ -83,6 +85,7 @@ export function EmailCodeField({
   onBlur,
   email,
   error,
+  unsent = false,
   sentAt,
   onResend,
   isResending,
@@ -135,12 +138,18 @@ export function EmailCodeField({
         }}
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}
-        aria-describedby={error ? `${hintId} ${errorId}` : hintId}
+        aria-describedby={
+          [unsent ? null : hintId, error ? errorId : null]
+            .filter(Boolean)
+            .join(" ") || undefined
+        }
         disabled={disabled}
       />
-      <p id={hintId} className="text-muted-foreground text-sm">
-        {email ? t("sent", { email }) : t("sentNoAddress")}
-      </p>
+      {unsent ? null : (
+        <p id={hintId} className="text-muted-foreground text-sm">
+          {email ? t("sent", { email }) : t("sentNoAddress")}
+        </p>
+      )}
       {error ? (
         <p id={errorId} className="text-destructive text-sm">
           {error}
