@@ -1263,7 +1263,7 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
     if case let .unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
       return true
     }
     return false
@@ -1409,7 +1409,7 @@ public final class WorkspaceState: ObservableObject {
 
   private func handleWorkspaceError(_ error: Error, auth: AuthState) {
     if case let ChatServiceError.unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
     }
   }
 }
