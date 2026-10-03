@@ -14,13 +14,8 @@
     /// CI run 37106441624 read that offset as a 269 pt jump; the captures show a 40 pt move.
     @MainActor struct ThreadScrollNearTopTests {
       @Test func aReaderScrollMovesTheContentByTheScrollWhileTheRowsAboveAreMeasured() async throws {
-        LegacyScrollers.swap()
-        defer { LegacyScrollers.swap() }
-        // A failed swizzle leaves overlay scrollers, and a plain 40 pt scroll still moves the pixels by 40.
-        #expect(NSScroller.preferredScrollerStyle == .legacy)
         let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
         let auth = AuthState()
-        state.thread.requestJump(to: "fixture-2")
         let host = NSHostingView(rootView: AnyView(ReplyThreadView()
             .background(.background)
             // Takes the pointer's hover, so no row draws its hover wash into the pixels compared.
@@ -30,9 +25,16 @@
         window.appearance = NSAppearance(named: .aqua)
         window.ignoresMouseEvents = true
         window.contentView = host
+        try JumpMarkViewTests.keepPointerOff(window)
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
+        let restoreScrollers = try LegacyScrollers.pin(scroll)
+        defer { restoreScrollers() }
+        host.layoutSubtreeIfNeeded()
+        // Overlay scrollers would leave the content 900 pt wide, and a plain 40 pt scroll still moves the pixels by 40.
+        try #require(scroll.scrollerStyle == .legacy)
+        state.thread.requestJump(to: "fixture-2")
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land") {
           state.thread.jumpTarget?.mark != nil && TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
@@ -40,6 +42,7 @@
         state.thread.clearJump()
         try await Task.sleep(for: .milliseconds(500))
         host.layoutSubtreeIfNeeded()
+        try JumpMarkViewTests.keepPointerOff(window)
         let before = try Self.bands(host: host, scroll: scroll)
         let offsetBefore = scroll.contentView.bounds.minY
 
@@ -80,10 +83,15 @@
         }
       }
 
-      /// How far the content moved down, in points: the shift that best lines `after` up with `before`.
-      private static func contentShift(from before: [[Double]], to after: [[Double]]) -> Int {
+      /// How far the content moved down, in points: the shift that best lines `after` up with `before`. The
+      /// fixture's messages repeat every 230 pt, so the best shift has to beat every other one by half.
+      private static func contentShift(from before: [[Double]], to after: [[Double]]) throws -> Int {
         let height = min(before.count, after.count)
-        return (-300 ... 300).min { error(before, after, height, $0) < error(before, after, height, $1) } ?? 0
+        let ranked = (-300 ... 300).map { ($0, error(before, after, height, $0)) }.sorted { $0.1 < $1.1 }
+        let best = try #require(ranked.first)
+        let runnerUp = try #require(ranked.first { abs($0.0 - best.0) > 2 })
+        try #require(best.1 * 2 < runnerUp.1, "No unique shift: \(best.0) pt scores \(best.1), \(runnerUp.0) pt scores \(runnerUp.1).")
+        return best.0
       }
 
       private static func error(_ before: [[Double]], _ after: [[Double]], _ height: Int, _ shift: Int) -> Double {
@@ -96,17 +104,30 @@
     }
   }
 
-  /// Stands in for `NSScroller.preferredScrollerStyle` while a test needs the legacy scrollers GitHub's runner has.
-  private final class LegacyScrollers: NSObject {
-    @objc static func legacyStyle() -> Int {
-      NSScroller.Style.legacy.rawValue
-    }
-
-    static func swap() {
-      guard let original = class_getClassMethod(NSScroller.self, #selector(getter: NSScroller.preferredScrollerStyle)),
-            let replacement = class_getClassMethod(LegacyScrollers.self, #selector(legacyStyle)) else { return }
-      method_exchangeImplementations(original, replacement)
-      NotificationCenter.default.post(name: NSScroller.preferredScrollerStyleDidChangeNotification, object: nil)
+  /// Legacy scrollers (GitHub's runner) for one scroll view. SwiftUI sets a scroll view's `scrollerStyle` back to the
+  /// preferred overlay style, and AppKit cannot take a subclass of its scroll view, so `scrollerStyle` answers legacy
+  /// for `scroll` alone until the returned closure restores it; other views, in suites running in parallel too,
+  /// keep the system's style.
+  private enum LegacyScrollers {
+    static func pin(_ scroll: NSScrollView) throws -> () -> Void {
+      typealias Getter = @convention(c) (NSScrollView, Selector) -> Int
+      typealias Setter = @convention(c) (NSScrollView, Selector, Int) -> Void
+      let getSelector = #selector(getter: NSScrollView.scrollerStyle), setSelector = #selector(setter: NSScrollView.scrollerStyle)
+      let base: AnyClass = try #require(object_getClass(scroll))
+      let getter = try #require(class_getInstanceMethod(base, getSelector)), setter = try #require(class_getInstanceMethod(base, setSelector))
+      let originalGet = method_getImplementation(getter), originalSet = method_getImplementation(setter)
+      let get = unsafeBitCast(originalGet, to: Getter.self), set = unsafeBitCast(originalSet, to: Setter.self)
+      let legacy = NSScroller.Style.legacy.rawValue
+      weak var pinned = scroll
+      let pinnedGet: @convention(block) (NSScrollView) -> Int = { view in view === pinned ? legacy : get(view, getSelector) }
+      let pinnedSet: @convention(block) (NSScrollView, Int) -> Void = { view, style in set(view, setSelector, view === pinned ? legacy : style) }
+      method_setImplementation(getter, imp_implementationWithBlock(pinnedGet))
+      method_setImplementation(setter, imp_implementationWithBlock(pinnedSet))
+      scroll.scrollerStyle = .legacy
+      return {
+        method_setImplementation(getter, originalGet)
+        method_setImplementation(setter, originalSet)
+      }
     }
   }
 #endif
