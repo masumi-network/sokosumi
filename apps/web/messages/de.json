@@ -1853,8 +1853,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
+            "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }

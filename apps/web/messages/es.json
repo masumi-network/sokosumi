@@ -1214,7 +1214,7 @@
               "label": "Contraseña"
             },
             "RememberMe": {
-              "label": "Mantenerme conectado"
+              "label": "Mantener la sesión iniciada"
             }
           },
           "forgotPassword": "¿Olvidaste tu contraseña?",
@@ -1853,8 +1853,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
+            "unauthenticatedAction": "Iniciar sesión",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }
