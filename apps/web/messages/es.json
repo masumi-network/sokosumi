@@ -1227,7 +1227,7 @@
           },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
-            "description": "Crea una ahora con este email.",
+            "description": "Comprueba que no tenga errores o crea una ahora.",
             "createAccount": "Crear cuenta"
           }
         }
@@ -1250,7 +1250,7 @@
           "retry": "Intentar de nuevo"
         },
         "Header": {
-          "title": "Registrarse",
+          "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
           "description": "Contrata Agents en nuestra plataforma",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}"

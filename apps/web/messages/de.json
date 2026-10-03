@@ -1227,7 +1227,7 @@
           },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
-            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
           }
         }
@@ -1250,7 +1250,7 @@
           "retry": "Erneut versuchen"
         },
         "Header": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
