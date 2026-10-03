@@ -16,6 +16,7 @@
       @Test func aReaderScrollMovesTheContentByTheScrollWhileTheRowsAboveAreMeasured() async throws {
         let state = try TranscriptScrollingTests.fixtureState(thread: true, media: false)
         let auth = AuthState()
+        state.thread.requestJump(to: "fixture-2")
         let host = NSHostingView(rootView: AnyView(ReplyThreadView()
             .background(.background)
             // Takes the pointer's hover, so no row draws its hover wash into the pixels compared.
@@ -24,17 +25,15 @@
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua)
         window.ignoresMouseEvents = true
+        let restoreScrollers = try LegacyScrollers.pin(in: window)
+        defer { restoreScrollers() }
         window.contentView = host
         try JumpMarkViewTests.keepPointerOff(window)
         window.orderFront(nil)
         defer { window.orderOut(nil) }
         let scroll = try await loadedTranscriptScrollView(in: host)
-        let restoreScrollers = try LegacyScrollers.pin(scroll)
-        defer { restoreScrollers() }
-        host.layoutSubtreeIfNeeded()
         // Overlay scrollers would leave the content 900 pt wide, and a plain 40 pt scroll still moves the pixels by 40.
         try #require(scroll.scrollerStyle == .legacy)
-        state.thread.requestJump(to: "fixture-2")
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land") {
           state.thread.jumpTarget?.mark != nil && TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
@@ -107,26 +106,28 @@
     }
   }
 
-  /// Legacy scrollers (GitHub's runner) for one scroll view. SwiftUI sets a scroll view's `scrollerStyle` back to the
-  /// preferred overlay style, and AppKit cannot take a subclass of its scroll view, so `scrollerStyle` answers legacy
-  /// for `scroll` alone until the returned closure restores it; other views, in suites running in parallel too,
-  /// keep the system's style.
+  /// Legacy scrollers (GitHub's runner) for the scroll views in one window, from the moment they are created, as on a
+  /// machine set to show them. SwiftUI sets a scroll view's `scrollerStyle` back to the preferred overlay style, and
+  /// AppKit cannot take a subclass of its scroll view, so `scrollerStyle` answers legacy inside `window` until the
+  /// returned closure restores it; views in other windows, in suites running in parallel too, keep the system's style.
   private enum LegacyScrollers {
-    static func pin(_ scroll: NSScrollView) throws -> () -> Void {
+    static func pin(in window: NSWindow) throws -> () -> Void {
       typealias Getter = @convention(c) (NSScrollView, Selector) -> Int
       typealias Setter = @convention(c) (NSScrollView, Selector, Int) -> Void
       let getSelector = #selector(getter: NSScrollView.scrollerStyle), setSelector = #selector(setter: NSScrollView.scrollerStyle)
-      let base: AnyClass = try #require(object_getClass(scroll))
-      let getter = try #require(class_getInstanceMethod(base, getSelector)), setter = try #require(class_getInstanceMethod(base, setSelector))
+      let getter = try #require(class_getInstanceMethod(NSScrollView.self, getSelector))
+      let setter = try #require(class_getInstanceMethod(NSScrollView.self, setSelector))
       let originalGet = method_getImplementation(getter), originalSet = method_getImplementation(setter)
       let get = unsafeBitCast(originalGet, to: Getter.self), set = unsafeBitCast(originalSet, to: Setter.self)
       let legacy = NSScroller.Style.legacy.rawValue
-      weak var pinned = scroll
-      let pinnedGet: @convention(block) (NSScrollView) -> Int = { view in view === pinned ? legacy : get(view, getSelector) }
-      let pinnedSet: @convention(block) (NSScrollView, Int) -> Void = { view, style in set(view, setSelector, view === pinned ? legacy : style) }
+      weak var pinned = window
+      func isPinned(_ view: NSScrollView) -> Bool {
+        pinned.map { view.window === $0 } ?? false
+      }
+      let pinnedGet: @convention(block) (NSScrollView) -> Int = { view in isPinned(view) ? legacy : get(view, getSelector) }
+      let pinnedSet: @convention(block) (NSScrollView, Int) -> Void = { view, style in set(view, setSelector, isPinned(view) ? legacy : style) }
       method_setImplementation(getter, imp_implementationWithBlock(pinnedGet))
       method_setImplementation(setter, imp_implementationWithBlock(pinnedSet))
-      scroll.scrollerStyle = .legacy
       return {
         method_setImplementation(getter, originalGet)
         method_setImplementation(setter, originalSet)
