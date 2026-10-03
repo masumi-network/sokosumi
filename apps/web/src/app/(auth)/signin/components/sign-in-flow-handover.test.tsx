@@ -139,7 +139,56 @@ describe("SignInFlow after Register handed over", () => {
     expect(codeField()).toBeVisible();
   });
 
-  it("ignores the handover when an invitation locks the address", async () => {
+  it("opens on the code for the invited address, which stays fixed", () => {
+    // Register sends the address as typed; Core may hold it in another case.
+    rememberAuthEmailHint("Invited@Example.com", {
+      signIn: { method: "code", codeSentAt: Date.now() },
+    });
+
+    render(
+      <SignInFlow
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
+      />,
+    );
+
+    expect(codeField()).toBeVisible();
+    expect(screen.getByText("Handover.codeSent")).toBeVisible();
+    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+      "invited@example.com",
+    );
+    expect(
+      screen.queryByRole("button", { name: "changeEmail" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /resendIn/ })).toBeDisabled();
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("opens on the password for the invited address, sending nothing", () => {
+    rememberAuthEmailHint("invited@example.com", {
+      signIn: { method: "password" },
+    });
+
+    render(
+      <SignInFlow
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
+      />,
+    );
+
+    expect(screen.getByLabelText("Fields.Password.label")).toBeVisible();
+    expect(screen.getByText("Handover.password")).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "changeEmail" }),
+    ).not.toBeInTheDocument();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+  });
+
+  it("ignores a handover for another address than the invitation's", async () => {
     rememberAuthEmailHint("ada@example.com", {
       signIn: { method: "code", codeSentAt: Date.now() },
     });

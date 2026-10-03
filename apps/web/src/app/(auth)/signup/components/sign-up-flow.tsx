@@ -157,36 +157,23 @@ export default function SignUpFlow({
           autoFocus={cameBack}
           autoComplete="email"
           captchaEntry="signup"
-          detour={
-            // Log in ignores a hand-over for an invitation's address, so the
-            // notice still leads there.
-            emailLocked
-              ? {
-                  when: "exists",
-                  title: t("AccountExists.title"),
-                  description: t("AccountExists.description"),
-                  label: t("AccountExists.logIn"),
-                  href: signInHref,
-                }
-              : {
-                  when: "exists",
-                  // Log in's first step would only ask Core again and send
-                  // this code, so it opens on its second step.
-                  handOver: async (knownEmail, signal, account) => {
-                    const method = chooseSignInMethod(lastUsedMethod, account);
-                    const codeSentAt =
-                      method === "code"
-                        ? await emailCode.sendCode(knownEmail, { signal })
-                        : null;
-                    if (signal.aborted) return;
-                    rememberAuthEmailHint(knownEmail, {
-                      signIn:
-                        method === "code" ? { method, codeSentAt } : { method },
-                    });
-                    router.push(signInHref);
-                  },
-                }
-          }
+          detour={{
+            when: "exists",
+            // Log in's first step would only ask Core again and send this
+            // code, so it opens on its second step, an invitation's too.
+            handOver: async (knownEmail, signal, account) => {
+              const method = chooseSignInMethod(lastUsedMethod, account);
+              const codeSentAt =
+                method === "code"
+                  ? await emailCode.sendCode(knownEmail, { signal })
+                  : null;
+              if (signal.aborted) return;
+              rememberAuthEmailHint(knownEmail, {
+                signIn: method === "code" ? { method, codeSentAt } : { method },
+              });
+              router.push(signInHref);
+            },
+          }}
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal) => {
