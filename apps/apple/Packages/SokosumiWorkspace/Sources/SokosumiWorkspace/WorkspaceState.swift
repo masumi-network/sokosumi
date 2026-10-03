@@ -567,8 +567,11 @@ public final class WorkspaceState: ObservableObject {
     guard phase == .ready, context == compositionContext, !workspaceSession.isSwitching,
           let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
+      let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
+        userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+      )
       let roster = try await ChatService().directRecipients(
-        client: client, currentUserId: currentUserId,
+        client: client, yourself: yourself,
         organizationId: selection?.workspace.organizationId,
         organizationSlug: selection?.workspace.organizationSlug
       )
@@ -586,7 +589,7 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws -> Bool {
     guard canOpenDirect(recipient) else { return false }
-    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil)
+    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil, currentUserId: currentUserId)
     recipients.add(recipient)
     return try await openDirect(recipients, context: compositionContext, auth: auth)
   }

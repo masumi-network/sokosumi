@@ -113,6 +113,38 @@
         #expect(window.subtitle.isEmpty)
       }
 
+      /// Row 27c: a Self Direct's header draws the reader's own face, not the message glyph, and is named "You"
+      /// (web `room-header-chrome.tsx`:185-189).
+      @Test func aSelfDirectShowsTheReadersFace() async throws {
+        let reader = Components.Schemas.ChatRoomUserParticipant(
+          id: "user_reader", name: "Ada Lovelace", email: "ada@example.com", image: nil, presence: .online
+        )
+        var room = Self.room("Direct", kind: .direct)
+        room.isSelfDirect = true
+        room.userMembers = [reader]
+        let identity = Self.identity(room)
+        #expect(identity.mark == .selfDirect(.init(id: reader.id, name: reader.name, imageURL: nil, presence: .online)))
+        #expect(identity.title == "You")
+        var columns: [[CGImage]] = [[], []]
+        for (column, dark) in [false, true].enumerated() {
+          let window = try await Self.window(identity, dark: dark, width: 420)
+          let items = Self.headerItems(in: window).map(\.itemIdentifier.rawValue)
+          #expect(items.count == 1, "The face is the Self Direct's one title bar item: \(items)")
+          #expect(window.subtitle.isEmpty)
+          let frame = try #require(window.contentView?.superview)
+          let bitmap = try #require(frame.bitmapImageRepForCachingDisplay(in: frame.bounds))
+          frame.cacheDisplay(in: frame.bounds, to: bitmap)
+          window.orderOut(nil)
+          let image = try #require(bitmap.cgImage)
+          let scale = CGFloat(image.width) / frame.bounds.width
+          try columns[column].append(#require(image.cropping(to: CGRect(
+            x: 0, y: 0, width: CGFloat(image.width), height: (Self.titleBarHeight * scale).rounded()
+          ))))
+        }
+        let combined = try Self.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "self-direct-header.png")
+      }
+
       /// The recorded picture: each header's title bar band, light beside dark.
       @Test func rendersTheHeaderInLightAndDark() async throws {
         let long = "Weekly launch planning, release notes, the go/no-go call and everything the support rota needs to know"
