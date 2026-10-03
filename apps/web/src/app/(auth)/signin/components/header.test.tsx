@@ -32,7 +32,7 @@ describe("SignInHeader", () => {
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     expect(
-      screen.getByText("Sign in with your Sokosumi account to continue to CMO"),
+      screen.getByText("Log in with your Sokosumi account to continue to CMO"),
     ).toBeInTheDocument();
   });
 
