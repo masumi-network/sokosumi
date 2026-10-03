@@ -1171,7 +1171,7 @@
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
-      "passkeyError": "We could not sign you in with a passkey. Please try again."
+      "passkeyError": "We could not log you in with a passkey. Please try again."
     },
     "Words": {
       "signUp": "Register"
