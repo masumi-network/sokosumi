@@ -23,16 +23,22 @@
     /// globals.css) holds for 4.5 s, and a reader scroll at full strength fades it out over 320 ms. The test host
     /// builds no accessibility tree, so the room's mark is read from pixels and the thread's from its jump target.
     @MainActor struct JumpMarkViewTests {
-      /// The room transcript, or the thread holding fixture-2, with a jump to fixture-2 requested. With
+      /// Where the jumps land: deep enough in the hundred-message fixture that no reader scroll in a test reaches
+      /// the list's top. Landing on fixture-2 put the Thread's header (its divider, reply count, the fixture's Retry
+      /// and the day pill) just above the viewport on GitHub's 1× runner, and the wheel brought it in: the divider kept
+      /// the wash column from ever reading clear and the chrome added ink (row 25b2's CI follow-up).
+      static let landedId = "fixture-10"
+
+      /// The room transcript, or the thread holding it, with a jump to `landedId` requested. With
       /// `blocksHover`, a clear layer over everything takes the pointer's hover, so no row draws its hover wash
       /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
       static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
-          state.thread.requestJump(to: "fixture-2")
+          state.thread.requestJump(to: Self.landedId)
         } else {
-          #expect(try await state.openMessage("fixture-2", auth: auth) == .opened)
+          #expect(try await state.openMessage(Self.landedId, auth: auth) == .opened)
         }
         let host = NSHostingView(rootView: AnyView(Group {
           if thread {
@@ -173,7 +179,7 @@
         let (state, host, window) = (landing.state, landing.host, landing.window)
         defer { window.orderOut(nil) }
         try await Task.sleep(for: .seconds(1))
-        #expect(state.thread.jumpTarget?.messageId == "fixture-2", "Still held a second in.")
+        #expect(state.thread.jumpTarget?.messageId == Self.landedId, "Still held a second in.")
         try await Self.poll(host, diagnosis: landing.diagnosis) { state.thread.jumpTarget == nil }
         let gone = requested.duration(to: ContinuousClock.now)
         #expect(state.thread.jumpTarget == nil, "The hold is over.")
@@ -272,7 +278,7 @@
           try await Task.sleep(for: .milliseconds(20))
         }
         #expect(scroll.contentView.bounds.minY - before > 50, "The drag moved the thread: \(before) to \(scroll.contentView.bounds.minY)")
-        #expect(state.thread.jumpTarget?.messageId == "fixture-2")
+        #expect(state.thread.jumpTarget?.messageId == Self.landedId)
         let mark = try #require(state.thread.jumpTarget?.mark)
         #expect(mark.leftAt == nil, "The mark stands.")
       }
