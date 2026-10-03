@@ -215,47 +215,27 @@ describe("readOAuthRequest", () => {
   });
 
   describe("when the product asks for a new account", () => {
-    // Core signed the request (`ba_iat`, milliseconds) at 10:00:00.
+    // As Core signs it, at 10:00:00 (`ba_iat`, milliseconds).
     const CREATE = {
       ...SIGNED,
       prompt: "create",
       ba_iat: String(Date.parse("2026-09-30T10:00:00Z")),
     };
 
-    it("asks a person signed in before the request which account to use", async () => {
-      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:59:54Z"));
-
-      expect(await read(CREATE)).toMatchObject({
-        canHandBack: true,
-        accountToConfirm: ACCOUNT,
-      });
-    });
-
-    it("asks when the request does not say when it was signed", async () => {
-      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T09:59:59Z"));
-
-      expect(await read({ ...SIGNED, prompt: "create" })).toMatchObject({
-        accountToConfirm: ACCOUNT,
-      });
-    });
-
-    it("asks after an unrelated session starts much later than the request", async () => {
-      getSessionMock.mockResolvedValue(signedInSince("2026-09-30T10:05:00Z"));
-      expect(await read(CREATE)).toMatchObject({ accountToConfirm: ACCOUNT });
-    });
-
+    // Core answers a session started for the request itself straight to the
+    // product, so a session that reaches this page was there before.
     it.each([
-      ["in the response that signed it", "2026-09-30T09:59:59.700Z"],
-      ["five seconds before it was signed", "2026-09-30T09:59:55Z"],
-      ["after it was signed", "2026-09-30T10:00:03Z"],
+      ["long before the request", "2026-09-30T09:00:00Z"],
+      ["a moment before the request", "2026-09-30T09:59:59.700Z"],
+      ["after the request", "2026-09-30T10:00:03Z"],
     ])(
-      "does not ask a person whose session started %s",
+      "asks a person signed in %s which account to use",
       async (_when, createdAt) => {
         getSessionMock.mockResolvedValue(signedInSince(createdAt));
 
         expect(await read(CREATE)).toMatchObject({
           canHandBack: true,
-          accountToConfirm: undefined,
+          accountToConfirm: ACCOUNT,
         });
       },
     );

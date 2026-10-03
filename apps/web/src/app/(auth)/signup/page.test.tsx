@@ -20,8 +20,6 @@ const OAUTH_SEARCH_PARAMS = {
   exp: String(NOW / 1000 + 600),
   sig: "signed-value",
 };
-// When Core signed the request (`ba_iat`, in milliseconds).
-const REQUEST_SIGNED_AT = NOW;
 const OAUTH_QUERY = `client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=${NOW / 1000 + 600}&sig=signed-value`;
 
 const getPendingInvitationMock = vi.fn();
@@ -347,13 +345,12 @@ describe("SignUp page", () => {
         searchParams: Promise.resolve({
           ...OAUTH_SEARCH_PARAMS,
           prompt: "create",
-          ba_iat: String(REQUEST_SIGNED_AT),
         }),
       }),
     );
 
     expect(handBackMock).toHaveBeenCalledWith({
-      oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
+      oauthQuery: `${OAUTH_QUERY}&prompt=create`,
       client: {
         name: "CMO",
         uri: "https://cmo.xyz/",
@@ -368,13 +365,11 @@ describe("SignUp page", () => {
     expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
   });
 
-  it("hands back at once when the person just signed up on this page for the request", async () => {
+  it("asks even a session that started a moment before the request", async () => {
     getSessionMock.mockResolvedValue({
-      // Core signs the request again in the same response that starts the
-      // session, and sends the person back here.
       session: {
         id: "session-1",
-        createdAt: new Date(REQUEST_SIGNED_AT - 300).toISOString(),
+        createdAt: new Date(NOW - 300).toISOString(),
       },
       user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
@@ -385,20 +380,43 @@ describe("SignUp page", () => {
         searchParams: Promise.resolve({
           ...OAUTH_SEARCH_PARAMS,
           prompt: "create",
-          ba_iat: String(REQUEST_SIGNED_AT),
+          // Core signed it (`ba_iat`, milliseconds) as the session started.
+          ba_iat: String(NOW),
         }),
       }),
     );
 
-    expect(handBackMock).toHaveBeenCalledWith({
-      oauthQuery: `${OAUTH_QUERY}&prompt=create&ba_iat=${REQUEST_SIGNED_AT}`,
-      client: {
-        name: "CMO",
-        uri: "https://cmo.xyz/",
-        logoUri: "https://cmo.xyz/logo.png",
+    expect(handBackMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountToConfirm: {
+          id: "user-1",
+          name: "Ada Lovelace",
+          email: "ada@example.com",
+        },
+      }),
+    );
+  });
+
+  it("hands a new social sign-up back at once, without the new-account prompt", async () => {
+    getSessionMock.mockResolvedValue({
+      // Core sends a social sign-up here once to be counted, after its new
+      // session answered "Create account".
+      session: {
+        id: "session-1",
+        createdAt: new Date(NOW - 300).toISOString(),
       },
-      accountToConfirm: undefined,
+      user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
+    const { default: Page } = await import("./page");
+
+    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+
+    expect(handBackMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        oauthQuery: OAUTH_QUERY,
+        accountToConfirm: undefined,
+      }),
+    );
   });
 
   it("asks a signed-in person to sign in again when the request demands it", async () => {

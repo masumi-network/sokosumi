@@ -157,11 +157,12 @@ started it can count it. Core is the one place that sees every new account:
    `sign-up-conversion-redirect:<userId>`, valid one hour
    (`apps/core/src/lib/auth-sign-up-conversion.ts`).
 2. Outside an OAuth request the browser lands on `/auth/callback/signup`.
-   During one, a `prompt=create` request lands on `/signup` anyway; otherwise
-   the OAuth provider's `signup.shouldRedirect` takes the redirect row and
-   sends the authorization to `/signup`. There the hand-back counts the
-   sign-up before `/oauth2/continue`. The redirect row is single-use, so a
-   claim that keeps failing cannot loop the browser back to `/signup`.
+   During one, the OAuth provider's `signup.shouldRedirect` takes the
+   redirect row and sends the authorization to `/signup`, also for
+   `prompt=create`, which the new session answered. There the hand-back
+   counts the sign-up before `/oauth2/continue`. The redirect row is
+   single-use, so a claim that keeps failing cannot loop the browser back to
+   `/signup`.
 3. Either page calls `claimSignUpConversion`, which asks Core
    (`POST /v1/users/me/sign-up-conversion`) with the existing UTM cookie data.
    Only an interactive session may claim its own conversion through `me`.
