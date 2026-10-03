@@ -225,11 +225,26 @@ struct SidebarRoomsTests {
     #expect(roomDisplayName(unnamed, currentUserId: "me") == "Ann, Bob")
   }
 
-  @Test func oneToOneAndSelfDirectsKeepTheirNames() {
+  /// Web `getRoomDisplayName` (`room-helpers.ts`:657-680; test `room-helpers-direct-display-order.test.ts`:202-217):
+  /// a Self Direct is "You" before anything else, even with a stored name.
+  @Test func oneToOneKeepsItsNameAndASelfDirectIsYou() {
     let oneToOne = makeRoom(id: "d1", name: "Ann", kind: .direct, peers: [makePeer(id: "me", name: "Me"), makePeer(id: "a", name: "Ann")])
     #expect(roomDisplayName(oneToOne, currentUserId: "me") == "Ann")
     let selfDirect = makeRoom(id: "d2", name: "Me", kind: .direct, isSelfDirect: true, peers: [makePeer(id: "me", name: "Me")])
-    #expect(roomDisplayName(selfDirect, currentUserId: "me") == "Me")
+    #expect(roomDisplayName(selfDirect, currentUserId: "me") == "You")
+    let named = makeRoom(id: "d3", name: "Me", kind: .direct, isSelfDirect: true, groupName: "Notes", peers: [makePeer(id: "me", name: "Me")])
+    #expect(roomDisplayName(named, currentUserId: "me") == "You")
+  }
+
+  /// Web `getDirectParticipants` (`direct-room-avatar-stack.tsx`:25-46) keeps the owner for a Self Direct, so the row
+  /// shows the reader's own face rather than the message glyph.
+  @Test func aSelfDirectShowsTheReadersOwnFace() {
+    let selfDirect = makeRoom(
+      id: "d2", name: "Me", kind: .direct, isSelfDirect: true,
+      peers: [makePeer(id: "me", name: "Ada Lovelace", image: "https://example.com/ada.png")]
+    )
+    let faces = directRoomAvatarParticipants(selfDirect, currentUserId: "me")
+    #expect(faces == [.init(id: "me", name: "Ada Lovelace", imageURL: "https://example.com/ada.png", presence: .online)])
   }
 
   @Test func oneToOneDirectAvatarExcludesSelfAndKeepsPeerImage() {
