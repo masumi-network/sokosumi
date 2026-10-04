@@ -14,7 +14,7 @@ public struct JumpSpotlight: Equatable, Sendable {
 
   /// All the way back: web's `--chat-jump-dim-opacity` and `--chat-jump-dim-blur`. Dark takes more of both,
   /// because pulling opacity down on a dark ground takes far less contrast out of the text than it does on white.
-  public static func steppedBack(dark: Bool) -> JumpSpotlight {
+  static func steppedBack(dark: Bool) -> JumpSpotlight {
     dark ? JumpSpotlight(opacity: 0.36, blurRadius: 2.5) : JumpSpotlight(opacity: 0.5, blurRadius: 1.5)
   }
 
