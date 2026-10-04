@@ -3342,6 +3342,18 @@ describe("core auth config", () => {
       expect(setCookie).not.toHaveBeenCalled();
     });
 
+    // The OAuth provider resumes authorize through these hooks after a
+    // sign-in; setting the cookie there would make it resume again.
+    it("leaves the cookie to the sign-in when the OAuth provider resumes authorize", async () => {
+      const setCookie = await runAfterHook("/oauth2/authorize", {
+        newSession: { session: {}, user: { termsAccepted: true } },
+        returned: { redirect: true, url: "https://app.cmo.xyz/callback" },
+      });
+
+      expect(setSessionCookieMock).not.toHaveBeenCalled();
+      expect(setCookie).not.toHaveBeenCalled();
+    });
+
     // The provider's after hook runs next and continues this request.
     it("lets a session started for an OAuth request answer its Create account prompt", async () => {
       const oauthRequest = { query: "client_id=cmo&prompt=create+consent" };

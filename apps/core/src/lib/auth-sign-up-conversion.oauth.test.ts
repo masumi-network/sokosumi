@@ -7,6 +7,7 @@ import { jwt, oAuthProxy } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { answerCreatePromptWithNewSession } from "./auth-oauth-provider";
+import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   claimSignUpConversion,
   oauthSignUpOptions,
@@ -169,7 +170,13 @@ function createAuth(origin = CORE, proxy = false) {
         create: { after: (user, ctx) => recordSignUpConversion(user.id, ctx) },
       },
     },
-    hooks: { after: createAuthMiddleware(answerCreatePromptWithNewSession) },
+    // Core's after hook, in order.
+    hooks: {
+      after: createAuthMiddleware(async (ctx) => {
+        await keepNewSessionPersistent(ctx);
+        await answerCreatePromptWithNewSession(ctx);
+      }),
+    },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       oauthProvider({

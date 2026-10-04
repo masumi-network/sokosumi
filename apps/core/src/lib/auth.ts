@@ -32,7 +32,6 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { APIError, createAuthMiddleware } from "better-auth/api";
-import { expireCookie, setSessionCookie } from "better-auth/cookies";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
@@ -93,6 +92,7 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
@@ -525,22 +525,7 @@ export const auth = betterAuth({
         );
       }
 
-      // `rememberMe: true` does not delete a stale `dont_remember` cookie.
-      // Email-code, passkey, and OAuth then keep a session cookie, which iOS
-      // drops with the home-screen app. Rewrite this session as persistent
-      // and expire that cookie. The OAuth callback succeeds by throwing a
-      // redirect, so only an error status counts as a failure. Impersonation
-      // stays session-only on purpose.
-      const returned = ctx.context.returned;
-      if (
-        ctx.context.newSession &&
-        !ctx.context.newSession.session.impersonatedBy &&
-        !(returned instanceof APIError && returned.statusCode >= 400)
-      ) {
-        await setSessionCookie(ctx, ctx.context.newSession, false);
-        expireCookie(ctx, ctx.context.authCookies.dontRememberToken);
-      }
-
+      await keepNewSessionPersistent(ctx);
       await answerCreatePromptWithNewSession(ctx);
     }),
   },
