@@ -20,7 +20,6 @@ export function createAuthCaptchaPlugin(secretKey: string | undefined) {
     // Custom endpoints replace Better Auth's defaults. Include every public
     // account-email entry point, including resends and address changes.
     endpoints: [
-      "/sign-up/email",
       SIGN_UP_EMAIL_STATUS_PATH,
       "/sign-in/email",
       "/request-password-reset",

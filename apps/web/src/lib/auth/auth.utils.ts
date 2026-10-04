@@ -180,6 +180,9 @@ export function readAuthPageContext(
   };
 }
 
+// Typed emails travel as editable session hints, never in the query, which
+// reaches server logs and analytics. An invitation travels as its id; each
+// page looks up the address and locks it.
 export function buildAuthPageUrl(
   path:
     | "/signin"
@@ -228,17 +231,6 @@ export function appendQueryParam(
 ): string {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}${name}=${encodeURIComponent(value)}`;
-}
-
-// Typed emails travel as editable session hints, never in the query, which
-// reaches server logs and analytics. An invitation travels as its id; each
-// page looks up the address and locks it.
-export function buildSignUpUrlFromSignIn(params: AuthPageContext): string {
-  return buildAuthPageUrl("/signup", params);
-}
-
-export function buildSignInUrlFromSignUp(params: AuthPageContext): string {
-  return buildAuthPageUrl("/signin", params);
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable

@@ -3,8 +3,11 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getAuth, startSokosumiSignIn } from "../lib/auth";
-import type { SokosumiSignInOptions } from "../lib/sokosumi-oauth";
+import {
+  getAuth,
+  type SokosumiSignInOptions,
+  startSokosumiSignIn,
+} from "../lib/auth";
 
 async function startSignIn(options: SokosumiSignInOptions) {
   const { url } = await startSokosumiSignIn(

@@ -44,9 +44,9 @@ import {
 import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
-import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
 import {
+  getBetterAuthProductionUrl,
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
@@ -80,7 +80,6 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
   answerCreatePromptWithNewSession,
@@ -419,7 +418,11 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
-  onAPIError: authErrorPageOptions(webAppBaseUrl),
+  // Failures with no error URL of their own (a social callback whose state is
+  // gone, an unreturnable authorize request, a failed account link or proxy
+  // hand-off) land here instead of Core's `/auth/error`, which on production
+  // bounces to the API host's root. Web's own `errorCallbackURL` still wins.
+  onAPIError: { errorURL: `${webAppBaseUrl}/auth/error` },
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [

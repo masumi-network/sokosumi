@@ -22,10 +22,7 @@ import {
   takeAuthEmailHint,
 } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
-import {
-  type EmailStepFormSchemaType,
-  emailStepFormSchema,
-} from "@/lib/schemas/auth";
+import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 import { cn } from "@/lib/utils";
 
 // 200ms ease-out is the project default. Under reduced motion the two states
@@ -37,7 +34,7 @@ const MOTION = "duration-200 ease-out motion-reduce:transition-none";
 const DETOUR_GRACE_MS = 400;
 
 /** What Core said about the address, for the step after Continue. */
-export interface EmailStepAccount {
+interface EmailStepAccount {
   /** Sign-in opens on it, since a code could remove an unproven password. */
   hasPassword: boolean;
 }
@@ -69,7 +66,7 @@ interface EmailStepHandOver {
 }
 
 /** Where the step sends a person instead of continuing, and when. */
-export type EmailStepDetour = EmailStepNoticeDetour | EmailStepHandOver;
+type EmailStepDetour = EmailStepNoticeDetour | EmailStepHandOver;
 
 interface EmailStepProps {
   defaultEmail: string;
@@ -145,13 +142,13 @@ export function EmailStep({
   const notice = "handOver" in detour ? null : detour;
   const mounted = useRef(false);
   const pending = useRef<AbortController | null>(null);
-  const form = useForm<EmailStepFormSchemaType>({
+  const form = useForm<EmailFormSchemaType>({
     resolver: zodResolver(
-      emailStepFormSchema(useTranslations("Library.Auth.Schema")),
+      emailFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: { email: defaultEmail },
   });
-  const formData: FormData<EmailStepFormSchemaType, "Auth.Email.Form"> = [
+  const formData: FormData<EmailFormSchemaType, "Auth.Email.Form"> = [
     {
       name: "email",
       labelKey: "label",
@@ -217,7 +214,7 @@ export function EmailStep({
     if (mounted.current) changeFollowing(null);
   }
 
-  async function handleSubmit({ email }: EmailStepFormSchemaType) {
+  async function handleSubmit({ email }: EmailFormSchemaType) {
     if (!mounted.current) return;
     const controller = new AbortController();
     pending.current = controller;

@@ -5,9 +5,9 @@ import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { AuthForm } from "@/auth/components/form/auth-form";
+import { BaseForm } from "@/auth/components/form/base-form";
+import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { forgotPasswordFormData } from "@/auth/forgot-password/data";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -18,10 +18,20 @@ import {
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
 import { takeAuthEmailHint } from "@/lib/auth/auth-email-hint";
-import {
-  type ForgotPasswordFormSchemaType,
-  forgotPasswordFormSchema,
-} from "@/lib/schemas/auth";
+import type { FormData } from "@/lib/form";
+import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
+
+const formData: FormData<
+  EmailFormSchemaType,
+  "Auth.Pages.ForgotPassword.Form"
+> = [
+  {
+    name: "email",
+    labelKey: "Fields.Email.label",
+    type: "email",
+    autoComplete: "email",
+  },
+];
 
 interface ForgotPasswordFormProps {
   /** The person followed a reset link that expired or was already used. */
@@ -41,9 +51,9 @@ export default function ForgotPasswordForm({
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const form = useForm<ForgotPasswordFormSchemaType>({
+  const form = useForm<EmailFormSchemaType>({
     resolver: zodResolver(
-      forgotPasswordFormSchema(useTranslations("Library.Auth.Schema")),
+      emailFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
       email: "",
@@ -58,7 +68,7 @@ export default function ForgotPasswordForm({
     }
   });
 
-  async function handleSubmit(values: ForgotPasswordFormSchemaType) {
+  async function handleSubmit(values: EmailFormSchemaType) {
     setIsEmailSent(false);
     setError(null);
     try {
@@ -101,12 +111,12 @@ export default function ForgotPasswordForm({
           <AlertDescription>{t("linkExpired")}</AlertDescription>
         </Alert>
       ) : null}
-      <AuthForm
-        form={form}
-        formData={forgotPasswordFormData}
-        namespace="Auth.Pages.ForgotPassword.Form"
-        onSubmit={handleSubmit}
-      >
+      <BaseForm form={form} onSubmit={handleSubmit}>
+        <FormFields
+          form={form}
+          formData={formData}
+          namespace="Auth.Pages.ForgotPassword.Form"
+        />
         <p
           role="status"
           className="text-muted-foreground text-center text-sm empty:-mt-3"
@@ -120,7 +130,7 @@ export default function ForgotPasswordForm({
         ) : null}
         {captcha}
         <SubmitButton isSubmitting={isSubmitting} label={t("reset_password")} />
-      </AuthForm>
+      </BaseForm>
     </>
   );
 }

@@ -42,11 +42,6 @@ export interface ResolveBetterAuthPublicBaseUrlParams {
   fallbackUrl: string;
 }
 
-export interface ResolveBetterAuthProductionUrlParams {
-  vercelProductionUrl: string | undefined;
-  fallbackUrl: string;
-}
-
 /**
  * Resolves the public Better Auth base URL for Vercel Preview vs production/local.
  *
@@ -85,16 +80,4 @@ export function resolveBetterAuthPublicBaseUrl(
   }
 
   return stripTrailingSlashes(raw);
-}
-
-/**
- * Resolves the canonical Better Auth production URL used by OAuth proxying.
- * This always points at the production host, never a preview deployment.
- */
-export function resolveBetterAuthProductionUrl(
-  params: ResolveBetterAuthProductionUrlParams,
-): string {
-  const { vercelProductionUrl, fallbackUrl } = params;
-
-  return stripTrailingSlashes(vercelProductionUrl || fallbackUrl);
 }
