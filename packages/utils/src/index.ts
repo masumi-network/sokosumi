@@ -478,11 +478,6 @@ export {
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
 export {
-  buildWebhookFailureContext,
-  DEFAULT_WEBHOOK_TIMEOUT_MS,
-  postWebhook,
-} from "./webhook.js";
-export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,
   normalizeWebsiteUrl,
