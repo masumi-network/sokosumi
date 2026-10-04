@@ -3302,6 +3302,17 @@ describe("core auth config", () => {
       expectRewritten(setCookie, newSession);
     });
 
+    // A sign-in inside an OAuth flow resumes /oauth2/authorize with the same
+    // context. A second cookie there re-triggered the provider's resume hook
+    // until the request timed out.
+    it("rewrites a session's cookie once when authorize resumes after sign-in", async () => {
+      const newSession = { session: {}, user: { termsAccepted: true } };
+      await runAfterHook("/sign-in/email", { newSession, returned: {} });
+      await runAfterHook("/oauth2/authorize", { newSession, returned: {} });
+
+      expect(setSessionCookieMock).toHaveBeenCalledTimes(1);
+    });
+
     // The social callback ends with `throw c.redirect(...)`, an APIError with
     // status FOUND. It is a success, and its cookies still reach the browser.
     it("keeps a session from an OAuth callback redirect persistent", async () => {
