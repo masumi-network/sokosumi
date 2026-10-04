@@ -212,6 +212,10 @@ const baseEnvSchema = z.object({
   COMPOSIO_LINKEDIN_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_FACEBOOK_AUTH_CONFIG_ID: z.string().min(1).optional(),
   COMPOSIO_YOUTUBE_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_GOOGLEADS_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  COMPOSIO_METAADS_AUTH_CONFIG_ID: z.string().min(1).optional(),
+  /** Platform-wide DataForSEO connection used for Ads market lookups. */
+  COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: z.string().min(1).optional(),
   /**
    * Where the agent loop runs. `sandbox`: each bot's own Vercel Sandbox, with
    * the web, a shell and a persistent workspace. `in-process`: inside Core,
