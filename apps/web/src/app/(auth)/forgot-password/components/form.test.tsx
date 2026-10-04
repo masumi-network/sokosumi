@@ -150,6 +150,10 @@ describe("ForgotPasswordForm", () => {
     await submit();
 
     expect(sentHeading()).toBeInTheDocument();
+    // The form and its focused button are gone; a live region says why.
+    expect(
+      screen.getByText("Sent.title. Sent.subtitle person@example.com."),
+    ).toHaveAttribute("role", "status");
     expect(screen.getByText("Sent.subtitle")).toBeInTheDocument();
     expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "person@example.com",
@@ -321,8 +325,9 @@ describe("ForgotPasswordForm", () => {
     await userEvent.setup().click(resend);
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Errors.rateLimited",
+      expect(screen.getByText("Errors.rateLimited")).toHaveAttribute(
+        "role",
+        "status",
       ),
     );
     expect(sentHeading()).toBeInTheDocument();

@@ -130,52 +130,63 @@ export default function ForgotPasswordForm({
     }
   }
 
+  // Mounted on both steps, so a screen reader hears the step change: the
+  // focused button leaves with the form.
+  const announcement = (
+    <p role="status" className="sr-only">
+      {sentTo ? `${t("Sent.title")}. ${t("Sent.subtitle")} ${sentTo}.` : null}
+    </p>
+  );
+
   if (sentTo) {
     return (
-      <AuthStepLayout
-        title={t("Sent.title")}
-        subtitle={t("Sent.subtitle")}
-        chip={
-          <EmailChip
-            email={sentTo}
-            onChange={() => {
-              setError(null);
-              setCameBack(true);
-              setSentTo(null);
-            }}
-            disabled={isResending}
-          />
-        }
-        status={error}
-        statusId={statusId}
-        statusIsError
-        securityCheck={captcha}
-        links={
-          <>
-            <ResendCodeButton
-              sentAt={sentAt}
-              onResend={() => {
-                void resend(sentTo);
+      <>
+        {announcement}
+        <AuthStepLayout
+          title={t("Sent.title")}
+          subtitle={t("Sent.subtitle")}
+          chip={
+            <EmailChip
+              email={sentTo}
+              onChange={() => {
+                setError(null);
+                setCameBack(true);
+                setSentTo(null);
               }}
-              isSending={isResending}
-              labels={{
-                resend: t("Sent.resend"),
-                resendIn: (seconds) => t("Sent.resendIn", { seconds }),
-              }}
+              disabled={isResending}
             />
-            <AuthStepLinkSeparator />
-            <Link
-              href={signInHref}
-              onClick={(event) => rememberAuthEmailHintOnClick(event, sentTo)}
-              className={AUTH_STEP_LINK_CLASS}
-            >
-              {t("Sent.backToLogIn")}
-            </Link>
-          </>
-        }
-      >
-        <p className="text-muted-foreground text-sm">{t("Sent.expiry")}</p>
-      </AuthStepLayout>
+          }
+          status={error}
+          statusId={statusId}
+          statusIsError
+          securityCheck={captcha}
+          links={
+            <>
+              <ResendCodeButton
+                sentAt={sentAt}
+                onResend={() => {
+                  void resend(sentTo);
+                }}
+                isSending={isResending}
+                labels={{
+                  resend: t("Sent.resend"),
+                  resendIn: (seconds) => t("Sent.resendIn", { seconds }),
+                }}
+              />
+              <AuthStepLinkSeparator />
+              <Link
+                href={signInHref}
+                onClick={(event) => rememberAuthEmailHintOnClick(event, sentTo)}
+                className={AUTH_STEP_LINK_CLASS}
+              >
+                {t("Sent.backToLogIn")}
+              </Link>
+            </>
+          }
+        >
+          <p className="text-muted-foreground text-sm">{t("Sent.expiry")}</p>
+        </AuthStepLayout>
+      </>
     );
   }
 
@@ -183,63 +194,66 @@ export default function ForgotPasswordForm({
   const errorLine = errors.email?.message ?? error;
 
   return (
-    <AuthStepLayout
-      title={headerT("title")}
-      subtitle={headerT("description")}
-      // A new link replaces the dead one, so the notice goes with it.
-      notice={linkExpired && sentAt === 0 ? t("linkExpired") : undefined}
-      links={
-        <span>
-          {t("remembered")}{" "}
-          <Link
-            href={signInHref}
-            // The typed address travels back as a hint, as it came.
-            onClick={(event) =>
-              rememberAuthEmailHintOnClick(event, form.getValues("email"))
-            }
-            className={AUTH_STEP_LINK_CLASS}
-          >
-            {t("logIn")}
-          </Link>
-        </span>
-      }
-    >
-      <BaseForm form={form} onSubmit={handleSubmit} className="w-full">
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormControl>
-                <Input
-                  {...field}
-                  variant="underlined"
-                  data-testid="auth-field-email"
-                  type="email"
-                  autoComplete="email"
-                  // Phones would otherwise capitalise and autocorrect it.
-                  autoCapitalize="none"
-                  spellCheck={false}
-                  placeholder={t("Fields.Email.label")}
-                  aria-label={t("Fields.Email.label")}
-                  // Back from "Check your email" to change the address.
-                  autoFocus={cameBack}
-                  aria-describedby={errorLine ? errorLineId : undefined}
-                />
-              </FormControl>
-            </FormItem>
-          )}
-        />
-        <AuthStepErrorLine id={errorLineId}>{errorLine}</AuthStepErrorLine>
-        <div className="mt-3 flex flex-col gap-4">
-          {captcha}
-          <SubmitButton
-            isSubmitting={isSubmitting}
-            label={t("submit")}
-            className="w-full"
+    <>
+      {announcement}
+      <AuthStepLayout
+        title={headerT("title")}
+        subtitle={headerT("description")}
+        // A new link replaces the dead one, so the notice goes with it.
+        notice={linkExpired && sentAt === 0 ? t("linkExpired") : undefined}
+        links={
+          <span>
+            {t("remembered")}{" "}
+            <Link
+              href={signInHref}
+              // The typed address travels back as a hint, as it came.
+              onClick={(event) =>
+                rememberAuthEmailHintOnClick(event, form.getValues("email"))
+              }
+              className={AUTH_STEP_LINK_CLASS}
+            >
+              {t("logIn")}
+            </Link>
+          </span>
+        }
+      >
+        <BaseForm form={form} onSubmit={handleSubmit} className="w-full">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    variant="underlined"
+                    data-testid="auth-field-email"
+                    type="email"
+                    autoComplete="email"
+                    // Phones would otherwise capitalise and autocorrect it.
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder={t("Fields.Email.label")}
+                    aria-label={t("Fields.Email.label")}
+                    // Back from "Check your email" to change the address.
+                    autoFocus={cameBack}
+                    aria-describedby={errorLine ? errorLineId : undefined}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
           />
-        </div>
-      </BaseForm>
-    </AuthStepLayout>
+          <AuthStepErrorLine id={errorLineId}>{errorLine}</AuthStepErrorLine>
+          <div className="mt-3 flex flex-col gap-4">
+            {captcha}
+            <SubmitButton
+              isSubmitting={isSubmitting}
+              label={t("submit")}
+              className="w-full"
+            />
+          </div>
+        </BaseForm>
+      </AuthStepLayout>
+    </>
   );
 }
