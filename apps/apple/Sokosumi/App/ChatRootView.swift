@@ -146,10 +146,9 @@ struct ChatRootView: View {
             .navigationTitle("Threads")
           }
         } else if let selectedRoomId = workspaces.selectedRoomId,
-                  let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
+                  workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
           NavigationStack {
             RoomTimelineView(roomId: selectedRoomId)
-              .modifier(RoomHeaderModifier(identity: RoomHeaderIdentity(room: selectedRoom, currentUserId: workspaces.currentUserId)))
               .navigationDestination(isPresented: Binding(
                 get: { workspaces.thread.parent != nil },
                 set: { presented in
@@ -173,6 +172,7 @@ struct ChatRootView: View {
             .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
+      .modifier(RoomEditSheetsHost())
     }
     if let signOutError = auth.signOutError {
       Text(signOutError)
