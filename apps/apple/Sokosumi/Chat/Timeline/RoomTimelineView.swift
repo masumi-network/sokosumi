@@ -46,6 +46,9 @@ import SwiftUI
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
     /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
     @State private var jumpMark: JumpMark?
+    /// The Thread's parent a reply jump marked while the Thread covered the room (row 25c). The rows behind the
+    /// Thread are not laid out, so the room lands on it when the Thread closes.
+    @State private var parentBehindThread: String?
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
@@ -111,8 +114,24 @@ import SwiftUI
         .task(id: workspaces.messageJump) {
           guard let target = workspaces.messageJump, target.roomId == roomId else { return }
           scrollIntent.readOlder()
-          quoteTarget = target.messageId
+          if let mark = target.mark {
+            // Row 25c: the Thread's parent, marked now on its reply's clock; the room lands on it when the Thread
+            // closes. It replaces a room jump still landing.
+            quoteTarget = nil
+            jumpCompletion?.resume(returning: false)
+            jumpCompletion = nil
+            jumpMark = mark
+            parentBehindThread = mark.messageId
+          } else {
+            parentBehindThread = nil
+            quoteTarget = target.messageId
+          }
           workspaces.consumeMessageJump(target.requestId)
+        }
+        .onChange(of: workspaces.thread.parent == nil) { _, closed in
+          if closed, let parent = parentBehindThread {
+            quoteTarget = parent
+          }
         }
         .task(id: roomId) {
           if room?.kind == .channel {
@@ -137,6 +156,7 @@ import SwiftUI
         }
         .onChange(of: roomId) { _, _ in
           jumpMark = nil
+          parentBehindThread = nil
           jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
           pendingQuote = nil
@@ -416,7 +436,12 @@ import SwiftUI
 
     private func completeVisibleJump(_ target: String) {
       guard quoteTarget == target else { return }
-      jumpMark = JumpMark(messageId: target, landedAt: Date())
+      // The Thread's parent keeps the mark it got with its reply, or none once that hold has run out.
+      if parentBehindThread == target {
+        parentBehindThread = nil
+      } else {
+        jumpMark = JumpMark(messageId: target, landedAt: Date())
+      }
       quoteTarget = nil
       jumpCompletion?.resume(returning: true)
       jumpCompletion = nil

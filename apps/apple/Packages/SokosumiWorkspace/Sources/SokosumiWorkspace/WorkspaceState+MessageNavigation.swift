@@ -93,6 +93,19 @@ public extension WorkspaceState {
     return try await navigateReply(hit, request: request, auth: auth)
   }
 
+  /// The Thread has scrolled to the reply it was sent to: start the reply's mark (row 25b1), then send the room
+  /// to the Thread's parent, marked there too on the reply's clock (row 25c, web `performRoomSearchJump`). The
+  /// Thread covers the room, so the parent's mark shows when the reader closes the Thread inside the hold. A
+  /// parent the room has not loaded is left alone: no window is loaded around it. Only a landing that starts the
+  /// reply's mark sends one.
+  func landThreadJump(_ requestId: UUID) {
+    guard thread.jumpTarget?.mark == nil else { return }
+    thread.landJump(requestId)
+    guard let mark = thread.jumpTarget?.mark, let roomId = transcriptRoomId, let parentId = thread.parent?.id,
+          displayedTranscript.contains(where: { $0.id == parentId }) else { return }
+    messageJump = MessageJump(roomId: roomId, messageId: parentId, mark: JumpMark(messageId: parentId, landedAt: mark.landedAt))
+  }
+
   func consumeMessageJump(_ requestId: UUID) {
     if messageJump?.requestId == requestId {
       messageJump = nil

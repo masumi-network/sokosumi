@@ -2615,6 +2615,63 @@ extension WorkspaceStateTests {
     #expect(state.thread.jumpTarget?.messageId == "reply")
   }
 
+  /// Row 25c (web `performRoomSearchJump`): once the reply has landed in the Thread, the room is put on the
+  /// Thread's parent and marked there too, on the reply's clock; a second acknowledgement lands nothing again.
+  @Test func aLandedReplyMarksItsParentInTheRoom() async throws {
+    let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "reply"
+    hit.parentMessageId = "parent"
+    #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
+    let target = try #require(state.thread.jumpTarget)
+    #expect(state.messageJump == nil, "The room waits for the reply to land.")
+
+    state.landThreadJump(target.requestId)
+    let mark = try #require(state.thread.jumpTarget?.mark)
+    let jump = try #require(state.messageJump)
+    #expect(jump.roomId == "room")
+    #expect(jump.messageId == "parent")
+    #expect(jump.mark == JumpMark(messageId: "parent", landedAt: mark.landedAt))
+
+    state.consumeMessageJump(jump.requestId)
+    state.landThreadJump(target.requestId)
+    #expect(state.messageJump == nil, "The same landing does not land the room again.")
+    #expect(state.thread.jumpTarget?.mark == mark)
+    #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/threads/{parentMessageId}/messages"])
+  }
+
+  /// Row 25c: a parent further back than the room's loaded rows is left alone; no window is loaded around it.
+  @Test func aParentOutsideTheLoadedRoomIsLeftAlone() async throws {
+    let other = transcriptMessage(id: "other", roomId: "room", content: "Other")
+    let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [other], nextCursor: nil)),
+      (200, """
+      {"data":{"parentMessage":\(transcriptMessage(id: "parent", roomId: "room", content: "Parent")),"replyCount":1,"lastReplyAt":"\(timestamp)","unreadReplyCount":0,"lastUnreadReplyAt":null,"hasLooked":true},"meta":{"timestamp":"\(timestamp)","requestId":"test"}}
+      """),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("other", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "reply"
+    hit.parentMessageId = "parent"
+    #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
+    try state.landThreadJump(#require(state.thread.jumpTarget).requestId)
+    #expect(state.thread.jumpTarget?.mark != nil, "The reply is marked.")
+    #expect(state.messageJump == nil)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
+  }
+
   @Test func newerMessageTargetWinsOverPausedLookup() async throws {
     let (state, auth, transport, _) = try ephemeralState([
       (200, transcriptPageBody(messages: [transcriptMessage(id: "new", roomId: "room", content: "New")], nextCursor: nil)),

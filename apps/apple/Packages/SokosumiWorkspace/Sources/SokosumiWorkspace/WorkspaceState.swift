@@ -21,7 +21,16 @@ public final class WorkspaceState: ObservableObject {
   public struct MessageJump: Equatable, Sendable {
     public let roomId: String
     public let messageId: String
+    /// A mark that started elsewhere: the Thread's parent, landed behind the Thread on its reply's clock (row 25c).
+    /// Nil for a room jump, which marks its row once the row scrolls into view.
+    public let mark: JumpMark?
     public let requestId = UUID()
+
+    init(roomId: String, messageId: String, mark: JumpMark? = nil) {
+      self.roomId = roomId
+      self.messageId = messageId
+      self.mark = mark
+    }
   }
 
   @Published public internal(set) var messageJump: MessageJump?
