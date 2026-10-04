@@ -34,6 +34,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/sync/skill-catalog",
+      "schedule": "17 4 * * *"
+    },
+    {
       "path": "/sync/drive-index",
       "schedule": "* * * * *"
     },
