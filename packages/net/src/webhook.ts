@@ -11,8 +11,7 @@ export interface PostWebhookOptions {
 
 /**
  * Outcome of a {@link postWebhook} call. Callers map each variant onto their own
- * reporting sink (e.g. Sentry `captureMessage` in web and core); the transport
- * itself never logs.
+ * reporting sink (e.g. Sentry `captureMessage`); the transport itself never logs.
  */
 export type PostWebhookResult =
   | { status: "ok"; httpStatus: number }
@@ -61,8 +60,10 @@ function isWebhookBackpressureResponse(
  * Framework-agnostic webhook transport: POSTs a JSON payload with timeout
  * protection and classifies the outcome as `ok`, `backpressure`, or `failed`.
  *
- * The body is always consumed to avoid connection leaks. This helper performs
- * no logging — callers map {@link PostWebhookResult} onto their own error sink.
+ * The body is always consumed to avoid connection leaks. Destinations are
+ * operator env URLs, so this uses global `fetch` rather than `ssrfSafeFetch`.
+ * This helper performs no logging — callers map {@link PostWebhookResult} onto
+ * their own error sink.
  */
 export async function postWebhook(
   webhookUrl: string,
