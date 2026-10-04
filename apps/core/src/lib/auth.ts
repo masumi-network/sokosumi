@@ -500,6 +500,16 @@ export const auth = betterAuth({
           "[signin-debug] after hook",
           Boolean(ctx.context.newSession),
         );
+      if (
+        ctx.path.startsWith("/sign-in") &&
+        ctx.context.returned instanceof APIError
+      )
+        console.log(
+          "[signin-debug] error",
+          ctx.path,
+          ctx.context.returned.statusCode,
+          (ctx.context.returned.body as { code?: string } | undefined)?.code,
+        );
       if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
