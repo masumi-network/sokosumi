@@ -144,7 +144,7 @@ interface EmailCodeFieldProps {
 
 /**
  * The field an emailed code goes into, one slot per digit, with "Send a new
- * code" beside its label. Only digits go in.
+ * code" beside its label, or under it when `centered`. Only digits go in.
  */
 export function EmailCodeField({
   value,

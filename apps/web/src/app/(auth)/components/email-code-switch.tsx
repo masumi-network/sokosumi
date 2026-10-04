@@ -15,7 +15,7 @@ interface EmailCodeSwitchProps {
   emailCode: EmailCode;
   isCodeStep: boolean;
   onSwitch: (method: "password" | "code") => void;
-  /** The way to a new password, before the switch in the same row. */
+  /** The way to a new password, above the switch. */
   forgotPassword?: ReactNode;
 }
 
@@ -73,19 +73,10 @@ export function EmailCodeSwitch({
   return (
     <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm">
       {willSend ? emailCode.captcha : null}
-      {/* One row from the sm breakpoint; stacked on a phone, where the row
-          would wrap and leave the dot hanging. */}
-      <div className="flex flex-col items-center gap-2 sm:flex-row sm:gap-3">
-        {forgotPassword ? (
-          <>
-            {forgotPassword}
-            <span aria-hidden className="hidden sm:inline">
-              ·
-            </span>
-          </>
-        ) : null}
-        {action}
-      </div>
+      {/* Stacked: in German and Spanish the two links do not fit one row of
+          the auth column, and a wrapped row squeezes each into two lines. */}
+      {forgotPassword}
+      {action}
     </div>
   );
 }
