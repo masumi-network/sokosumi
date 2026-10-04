@@ -1,7 +1,9 @@
 # Soko Bot deployment
 
-Soko Bot has no deployment of its own. The agent loop runs inside `apps/core`,
-so it ships with Core and is deployed by the same pipeline: `/deploy <network>`
+Soko Bot has no deployment of its own. The production loop is the sandbox
+adapter ([ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md)): each
+turn runs in a fresh Vercel Sandbox VM, and Core stays the control plane. It
+ships with Core and is deployed by the same pipeline: `/deploy <network>`
 on a pull request, or a merge to `main` for production.
 
 ## Enabling it
