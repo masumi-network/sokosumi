@@ -11,7 +11,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 
 /** Sent with the code from the sign-up page, so the new account has a name. */
-export interface EmailCodeSignUpFields {
+interface EmailCodeSignUpFields {
   firstName: string;
   lastName: string;
   marketingOptIn: boolean;

@@ -279,3 +279,51 @@ describe("Redis environment", () => {
     expect(config.KV_URL).toBe("redis://kv");
   });
 });
+
+// Core hands both values to the OAuth proxy, which steps aside only when they
+// match. If they drift apart, production proxies its own sign-ins.
+describe("Better Auth production URL", () => {
+  async function urls(env: Record<string, string | undefined>) {
+    // A deployed environment needs a Soko Bot runtime to boot.
+    vi.stubEnv("SOKO_BOT_RUNTIME_ADAPTER", "in-process");
+    for (const [key, value] of Object.entries(env)) vi.stubEnv(key, value);
+    vi.resetModules();
+    const { getBetterAuthProductionUrl, getBetterAuthPublicBaseUrl } =
+      await import("./env.js");
+    return {
+      production: getBetterAuthProductionUrl(),
+      publicBase: getBetterAuthPublicBaseUrl(),
+    };
+  }
+
+  it.each(["core.example.com", undefined])(
+    "is production's public base URL (VERCEL_PROJECT_PRODUCTION_URL: %s)",
+    async (productionUrl) => {
+      const { production, publicBase } = await urls({
+        VERCEL_ENV: "production",
+        VERCEL_URL: "core-abc123.preview.example.com",
+        VERCEL_BRANCH_URL: "core-git-x.preview.example.com",
+        VERCEL_PROJECT_PRODUCTION_URL: productionUrl,
+        BETTER_AUTH_URL: "https://app.example.com/",
+      });
+
+      expect(production).toBe(
+        productionUrl ? `https://${productionUrl}` : "https://app.example.com",
+      );
+      expect(publicBase).toBe(production);
+    },
+  );
+
+  it("is never a preview's public base URL", async () => {
+    const { production, publicBase } = await urls({
+      VERCEL_ENV: "preview",
+      VERCEL_URL: "core-abc123.preview.example.com",
+      VERCEL_BRANCH_URL: "core-git-x.preview.example.com",
+      VERCEL_PROJECT_PRODUCTION_URL: "core.example.com",
+      BETTER_AUTH_URL: "https://app.example.com",
+    });
+
+    expect(production).toBe("https://core.example.com");
+    expect(publicBase).not.toBe(production);
+  });
+});

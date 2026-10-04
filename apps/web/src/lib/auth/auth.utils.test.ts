@@ -11,10 +11,9 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 import {
   buildAuthCallbackUrl,
   buildAuthErrorCallbackUrl,
+  buildAuthPageUrl,
   buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
-  buildSignInUrlFromSignUp,
-  buildSignUpUrlFromSignIn,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
@@ -421,14 +420,14 @@ describe("normalizeAuthReturnUrl", () => {
   });
 });
 
-describe("buildSignUpUrlFromSignIn", () => {
+describe("buildAuthPageUrl for sign-up", () => {
   it("returns bare signup path when no params are provided", () => {
-    expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
+    expect(buildAuthPageUrl("/signup", {})).toBe("/signup");
   });
 
   it("preserves returnUrl in signup link", () => {
     expect(
-      buildSignUpUrlFromSignIn({
+      buildAuthPageUrl("/signup", {
         returnUrl: "/accept-invitation/invite_123?foo=bar",
       }),
     ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
@@ -436,7 +435,7 @@ describe("buildSignUpUrlFromSignIn", () => {
 
   it("carries the OAuth request as the sign-up page's own query", () => {
     expect(
-      buildSignUpUrlFromSignIn({
+      buildAuthPageUrl("/signup", {
         oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
         returnUrl: "/agents",
       }),
@@ -446,11 +445,11 @@ describe("buildSignUpUrlFromSignIn", () => {
   });
 });
 
-describe("buildSignUpUrlFromSignIn with an invitation", () => {
+describe("buildAuthPageUrl for sign-up with an invitation", () => {
   // Sign-up looks the address up and locks it; the URL reaches logs.
   it("keeps the invitation without its address", () => {
     expect(
-      buildSignUpUrlFromSignIn({
+      buildAuthPageUrl("/signup", {
         returnUrl: "/accept-invitation/inv_1",
         invitationId: "inv_1",
       }),
@@ -458,14 +457,14 @@ describe("buildSignUpUrlFromSignIn with an invitation", () => {
   });
 });
 
-describe("buildSignInUrlFromSignUp", () => {
+describe("buildAuthPageUrl for sign-in", () => {
   it("returns bare signin path without an OAuth request or returnUrl", () => {
-    expect(buildSignInUrlFromSignUp({})).toBe("/signin");
+    expect(buildAuthPageUrl("/signin", {})).toBe("/signin");
   });
 
   it("carries the OAuth request as the sign-in page's own query", () => {
     expect(
-      buildSignInUrlFromSignUp({
+      buildAuthPageUrl("/signin", {
         oauthQuery:
           "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
       }),
@@ -698,15 +697,15 @@ describe("createAuthSessionGetter", () => {
 });
 
 describe("auth page URL round trips", () => {
-  it.each([buildSignUpUrlFromSignIn, buildSignInUrlFromSignUp])(
-    "preserves signed multi-value OAuth parameters and an escaped return URL",
-    (buildUrl) => {
+  it.each(["/signup", "/signin"] as const)(
+    "preserves signed multi-value OAuth parameters and an escaped return URL on %s",
+    (path) => {
       const oauthQuery =
         "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
       const returnUrl =
         "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
       const url = new URL(
-        buildUrl({
+        buildAuthPageUrl(path, {
           oauthQuery,
           returnUrl,
           invitationId: "inv_1",
