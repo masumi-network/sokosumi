@@ -438,6 +438,9 @@ export function ThreadPanel({
             onSetPendingQuote={onSetPendingQuote}
             onResolveMessageLink={onResolveMessageLink}
             requireBody={requireBody}
+            // The coworker 1:1 stream (the rooms that require a body) does
+            // not carry skills.
+            allowSkills={!requireBody}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}
