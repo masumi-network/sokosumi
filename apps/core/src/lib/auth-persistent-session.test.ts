@@ -76,11 +76,11 @@ function createAuth() {
     rateLimit: { enabled: false },
   });
 
-  function post(path: string, body: object) {
+  function post(path: string, body: object, cookie = "") {
     return auth.handler(
       new Request(`${CORE}/auth${path}`, {
         method: "POST",
-        headers: { "content-type": "application/json", origin: WEB },
+        headers: { "content-type": "application/json", origin: WEB, cookie },
         body: JSON.stringify(body),
       }),
     );
@@ -90,7 +90,7 @@ function createAuth() {
 }
 
 describe("keepNewSessionPersistent", () => {
-  it("sends a CMO sign-in with an email code to CMO, on a persistent cookie", async () => {
+  it("sends a CMO sign-in with an email code to CMO and drops a stale dont_remember cookie", async () => {
     const { auth, codes, post } = createAuth();
     const query = new URLSearchParams({
       response_type: "code",
@@ -113,11 +113,16 @@ describe("keepNewSessionPersistent", () => {
     });
     // The provider resumes authorize through the after hooks; setting the
     // cookie again there made it resume again, and this never answered.
-    const response = await post("/sign-in/email-otp", {
-      email: EMAIL,
-      otp: codes.get(EMAIL),
-      oauth_query: signin.searchParams.toString(),
-    });
+    const response = await post(
+      "/sign-in/email-otp",
+      {
+        email: EMAIL,
+        otp: codes.get(EMAIL),
+        oauth_query: signin.searchParams.toString(),
+      },
+      // Left by an earlier session-only sign-in.
+      "__Secure-better-auth.dont_remember=true",
+    );
 
     const result = await response.json();
     expect(result, JSON.stringify(result)).toMatchObject({ redirect: true });
@@ -125,10 +130,12 @@ describe("keepNewSessionPersistent", () => {
     expect(target.origin + target.pathname).toBe(CMO_CALLBACK);
     expect(target.searchParams.get("state")).toBe("state-1");
     expect(target.searchParams.has("code")).toBe(true);
-    expect(
-      response.headers
-        .getSetCookie()
-        .find((cookie) => cookie.includes("session_token=")),
-    ).toMatch(/Max-Age=\d+/);
+    const cookies = response.headers.getSetCookie();
+    expect(cookies.find((cookie) => cookie.includes("session_token="))).toMatch(
+      /Max-Age=[1-9]/,
+    );
+    expect(cookies.find((cookie) => cookie.includes("dont_remember="))).toMatch(
+      /Max-Age=0/,
+    );
   }, 5_000);
 });
