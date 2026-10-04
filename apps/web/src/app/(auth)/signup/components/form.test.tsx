@@ -32,9 +32,11 @@ const EMAIL = "new-user@example.com";
 function SignUpStep({
   codeSent,
   onFormStart = () => {},
+  onPendingChange = vi.fn(),
 }: {
   codeSent: boolean;
   onFormStart?: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const emailCode = useEmailCode({
     eventType: "signUp",
@@ -49,7 +51,7 @@ function SignUpStep({
       email={EMAIL}
       emailCode={emailCode}
       onFormStart={onFormStart}
-      onPendingChange={vi.fn()}
+      onPendingChange={onPendingChange}
     />
   );
 }
@@ -1013,6 +1015,31 @@ describe("SignUpForm email code", () => {
     expect(mockEmailCodeSignIn).toHaveBeenLastCalledWith(
       expect.objectContaining({ otp: "000000" }),
     );
+  });
+
+  it("explains a code check that fails without an answer, so the code can be typed again", async () => {
+    mockEmailCodeSignIn
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue({
+        data: null,
+        error: { code: "INVALID_OTP", status: 400 },
+      });
+    const onPendingChange = vi.fn();
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent onPendingChange={onPendingChange} />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "042917");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    // As for a refused code: the field clears, says why and unlocks the step.
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/generic$/));
+    expect(code).toHaveValue("");
+    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+    await user.type(code, "042917");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
   });
 
   it("drops the existing-account notice when the code is tried alone next", async () => {
