@@ -310,12 +310,10 @@ export const auth = betterAuth({
     session: {
       create: {
         before: async (session, _ctx) => {
-          console.log("[signin-debug] session.create.before start");
           try {
             const activeOrganizationId =
               await resolveActiveOrganizationIdForSession(session.userId);
 
-            console.log("[signin-debug] session.create.before resolved");
             return {
               data: {
                 ...session,
@@ -457,9 +455,6 @@ export const auth = betterAuth({
   ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      // TEMP DEBUG (PR #5543 preview sign-in hang); remove before merge.
-      if (ctx.path === "/sign-in/email")
-        console.log("[signin-debug] before hook");
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
       switch (ctx.path) {
@@ -495,11 +490,6 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path === "/sign-in/email")
-        console.log(
-          "[signin-debug] after hook",
-          Boolean(ctx.context.newSession),
-        );
       if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
