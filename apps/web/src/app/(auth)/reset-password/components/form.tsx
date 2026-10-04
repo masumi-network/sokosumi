@@ -102,7 +102,7 @@ export default function ResetPasswordForm() {
         }}
       >
         {signOutFailed ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-destructive text-center text-sm">
             {t("signOutError")}
           </p>
         ) : null}
@@ -122,7 +122,7 @@ export default function ResetPasswordForm() {
       onSubmit={handleSubmit}
     >
       {failed ? (
-        <p role="alert" className="text-destructive text-sm">
+        <p role="alert" className="text-destructive text-center text-sm">
           {t("error")}{" "}
           <Link
             href={buildAuthPageUrl("/forgot-password", context)}

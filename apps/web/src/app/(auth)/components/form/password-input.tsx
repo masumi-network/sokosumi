@@ -69,7 +69,8 @@ export const PasswordInput = React.forwardRef<
         ref={handleInputRef}
         disabled={disabled}
         type={isVisible ? "text" : "password"}
-        className={cn("pr-10", className)}
+        // Even sides, so centered text sits in the middle of the field.
+        className={cn("px-10", className)}
       />
       <button
         type="button"

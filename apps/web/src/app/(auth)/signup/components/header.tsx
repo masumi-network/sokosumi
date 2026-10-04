@@ -16,9 +16,9 @@ export default function SignUpHeader({
   const t = useTranslations("Auth.Pages.SignUp.Header");
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-center">
       {client ? <OAuthClientBackLink client={client} /> : null}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end justify-center gap-2">
         <h1 className="text-2xl font-light text-balance tracking-tight">
           {t("title")}
         </h1>

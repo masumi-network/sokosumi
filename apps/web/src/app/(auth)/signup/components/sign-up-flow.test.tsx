@@ -224,8 +224,8 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "ada@example.com" }),
     );
-    // The confirmed address stands where the email field was, under its label.
-    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+    // The confirmed address stands under the header, as the email pill.
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "ada@example.com",
     );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
@@ -716,7 +716,7 @@ describe("SignUpFlow", () => {
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ email: "invited@example.com" }),
     );
-    expect(screen.getByRole("group", { name: "label" })).toHaveTextContent(
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "invited@example.com",
     );
     expect(

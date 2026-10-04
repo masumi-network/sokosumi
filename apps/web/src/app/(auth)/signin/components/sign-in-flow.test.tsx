@@ -151,7 +151,7 @@ describe("SignInFlow", () => {
         emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
       }),
     );
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "ada@example.com",
     );
     expect(screen.queryByTestId("social-buttons")).not.toBeInTheDocument();
