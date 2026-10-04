@@ -1,5 +1,5 @@
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 /// Row 25b2: the spotlight a jump mark casts over the rest of its list (web `chat-jump-dim` and
