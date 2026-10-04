@@ -113,21 +113,14 @@ export default function SignUpForm({
     setAccountExists(false);
     // The address stays fixed while the account is being created.
     onPendingChange(true);
-    let error: Awaited<ReturnType<EmailCode["signInWithCode"]>>;
-    try {
-      error = await emailCode.signInWithCode(email, values.code, {
-        firstName: values.firstName,
-        lastName: values.lastName,
-        // Unset is a no; Better Auth's own default would be yes.
-        marketingOptIn: values.marketingOptIn ?? false,
-        termsAccepted: true,
-        ...(withPassword ? { password: values.password } : {}),
-      });
-    } catch {
-      // No answer: refused like an unknown one, so the field clears, the
-      // step unlocks and the same code can go again.
-      error = {};
-    }
+    const error = await emailCode.signInWithCode(email, values.code, {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      // Unset is a no; Better Auth's own default would be yes.
+      marketingOptIn: values.marketingOptIn ?? false,
+      termsAccepted: true,
+      ...(withPassword ? { password: values.password } : {}),
+    });
     if (error) {
       onPendingChange(false);
       if (isRejectedOAuthRequestError(error)) {

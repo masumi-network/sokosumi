@@ -136,7 +136,15 @@ export function useEmailCode({
     otp: string,
     fields?: EmailCodeSignUpFields,
   ): Promise<EmailCodeError | undefined> {
-    const result = await authClient.signIn.emailOtp({ email, otp, ...fields });
+    let result: Awaited<ReturnType<typeof authClient.signIn.emailOtp>>;
+    try {
+      result = await authClient.signIn.emailOtp({ email, otp, ...fields });
+    } catch {
+      // No answer, e.g. offline: refused like an unknown one, so the field
+      // clears and the same code can go again. A failure once the code was
+      // accepted is not caught here, because the code is spent by then.
+      return {};
+    }
     if (result.error) {
       return result.error;
     }

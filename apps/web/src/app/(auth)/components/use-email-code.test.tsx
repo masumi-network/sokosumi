@@ -18,13 +18,22 @@ vi.mock("sonner", () => ({
   toast: { error: vi.fn() },
 }));
 
+const signInEmailOtp = vi.fn();
+const finishAuthInPlace = vi.fn();
+
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     emailOtp: {
       sendVerificationOtp: (...args: unknown[]) => sendVerificationOtp(...args),
     },
-    signIn: { emailOtp: vi.fn() },
+    signIn: {
+      emailOtp: (...args: unknown[]) => signInEmailOtp(...args),
+    },
   },
+}));
+
+vi.mock("@/lib/auth/finish-auth.client", () => ({
+  finishAuthInPlace: (...args: unknown[]) => finishAuthInPlace(...args),
 }));
 
 vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
@@ -129,5 +138,38 @@ describe("useEmailCode sendCode", () => {
     });
     expect(result.current.sentTo).toBe("bob@example.com");
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+describe("useEmailCode signInWithCode", () => {
+  beforeEach(() => {
+    signInEmailOtp.mockReset();
+    finishAuthInPlace.mockReset();
+  });
+
+  function renderCode() {
+    return renderHook(() =>
+      useEmailCode({ eventType: "signUp", returnUrl: "/chat" }),
+    );
+  }
+
+  it("answers a check that fails without an answer as an unanswered one", async () => {
+    signInEmailOtp.mockRejectedValue(new TypeError("Failed to fetch"));
+    const { result } = renderCode();
+
+    await expect(
+      result.current.signInWithCode("ada@example.com", "042917"),
+    ).resolves.toEqual({});
+    expect(finishAuthInPlace).not.toHaveBeenCalled();
+  });
+
+  it("lets a failure after the code was accepted through, not as a code refusal", async () => {
+    signInEmailOtp.mockResolvedValue({ data: {}, error: null });
+    finishAuthInPlace.mockRejectedValue(new Error("Could not leave"));
+    const { result } = renderCode();
+
+    await expect(
+      result.current.signInWithCode("ada@example.com", "042917"),
+    ).rejects.toThrow("Could not leave");
   });
 });
