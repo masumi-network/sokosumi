@@ -6270,6 +6270,120 @@ export type PublicSharedTaskFile = {
     createdAt: Date;
 };
 
+export type CmoOverview = {
+    id: string;
+    businessName: string;
+    websiteUrl: string;
+    goals: string;
+    organizationId: string;
+    organizationSlug: string;
+    workspaceId: string;
+    sokoBotId: string;
+    projectId: string;
+    roomId: string;
+    botStatus: string;
+    subscriptionActive: boolean;
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+    } | null;
+    brandBrainUpdatedAt: Date | null;
+    strategy: {
+        month: string;
+        summary: string;
+        goals: Array<string>;
+        pillars: Array<string>;
+        channels: Array<{
+            channel: string;
+            cadence: string;
+            autonomy?: 'drafts' | 'ask' | 'autopilot';
+        }>;
+        calendar: Array<{
+            id: string;
+            date: string;
+            channel: string;
+            title: string;
+            format: string;
+            status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            brief?: string;
+            socialPostId?: string;
+            imageFileId?: string;
+            taskId?: string;
+        }>;
+        reviewMode?: 'suggest' | 'auto';
+        weeklyReviews?: Array<{
+            weekOf: string;
+            summary: string;
+            changes: Array<string>;
+        }>;
+    } | null;
+    strategyUpdatedAt: Date | null;
+    createdAt: Date;
+};
+
+export type CmoOnboardingRequest = {
+    websiteUrl: string;
+    goals: string;
+    businessName?: string;
+};
+
+export type CmoBrandBrainRequest = {
+    brandBrain: {
+        summary: string;
+        voice: {
+            tone: string;
+            do: Array<string>;
+            dont: Array<string>;
+            examples: Array<string>;
+        };
+        audience: Array<string>;
+        products: Array<string>;
+        competitors: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+        channels: Array<{
+            name: string;
+            url?: string;
+            note?: string;
+        }>;
+    };
+};
+
+export type CmoTurnStarted = {
+    turnId: string;
+};
+
+export type CmoStrategyRequest = {
+    note?: string;
+};
+
+export type CmoStrategySettingsRequest = {
+    channels?: Array<{
+        channel: string;
+        autonomy: 'drafts' | 'ask' | 'autopilot';
+    }>;
+    reviewMode?: 'suggest' | 'auto';
+};
+
 export type SokoBotApiKey = {
     id: string;
     sokoBotId: string;
@@ -44388,6 +44502,401 @@ export type GetShareByTokenResponses = {
 };
 
 export type GetShareByTokenResponse = GetShareByTokenResponses[keyof GetShareByTokenResponses];
+
+export type GetCmoOverviewData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo';
+};
+
+export type GetCmoOverviewErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewErrors];
+
+export type GetCmoOverviewResponses = {
+    /**
+     * The caller's CMO workspace
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetCmoOverviewResponse = GetCmoOverviewResponses[keyof GetCmoOverviewResponses];
+
+export type StartCmoOnboardingData = {
+    body?: CmoOnboardingRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding';
+};
+
+export type StartCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartCmoOnboardingError = StartCmoOnboardingErrors[keyof StartCmoOnboardingErrors];
+
+export type StartCmoOnboardingResponses = {
+    /**
+     * CMO workspace created; Cuso is learning the business
+     */
+    201: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
+
+export type UpdateCmoBrandBrainData = {
+    body?: CmoBrandBrainRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/brand-brain';
+};
+
+export type UpdateCmoBrandBrainErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateCmoBrandBrainError = UpdateCmoBrandBrainErrors[keyof UpdateCmoBrandBrainErrors];
+
+export type UpdateCmoBrandBrainResponses = {
+    /**
+     * Brand Brain saved
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateCmoBrandBrainResponse = UpdateCmoBrandBrainResponses[keyof UpdateCmoBrandBrainResponses];
+
+export type RequestCmoStrategyData = {
+    body?: CmoStrategyRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy';
+};
+
+export type RequestCmoStrategyErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The Brand Brain is not ready yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RequestCmoStrategyError = RequestCmoStrategyErrors[keyof RequestCmoStrategyErrors];
+
+export type RequestCmoStrategyResponses = {
+    /**
+     * Cuso started planning the month
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
+
+export type UpdateCmoStrategySettingsData = {
+    body?: CmoStrategySettingsRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/strategy/settings';
+};
+
+export type UpdateCmoStrategySettingsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * There is no strategy yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateCmoStrategySettingsError = UpdateCmoStrategySettingsErrors[keyof UpdateCmoStrategySettingsErrors];
+
+export type UpdateCmoStrategySettingsResponses = {
+    /**
+     * Settings saved
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateCmoStrategySettingsResponse = UpdateCmoStrategySettingsResponses[keyof UpdateCmoStrategySettingsResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

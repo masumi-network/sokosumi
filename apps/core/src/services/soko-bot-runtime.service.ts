@@ -16,6 +16,7 @@ import {
   exceedsUnattendedHireBudget,
   sokoBotGenerateImageInputSchema as generateImageInputSchema,
   sokoBotGetImageInputSchema as getImageInputSchema,
+  getSokoBotVersion,
   sokoBotHireAgentInputSchema as hireAgentInputSchema,
   isSokoBotCapability,
   isSokoBotDecisionTarget,
@@ -166,6 +167,12 @@ import {
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
+import {
+  CmoNotFoundError,
+  cmoExecutionRefusal,
+  saveCmoBrandBrain,
+  saveCmoStrategy,
+} from "@/services/cmo.service";
 import { adoptDriveStoreIfPending } from "@/services/file-backfill.service";
 import {
   activateDriveUploadResource,
@@ -3632,6 +3639,61 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
+  /** Cuso's Brand Brain and strategy, written to its CMO workspace. */
+  private async saveCmoRecord(
+    authorized: AuthorizedSokoBotRuntime,
+    input: ExecuteSokoBotToolInput,
+  ) {
+    if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Only a CMO assistant keeps a Brand Brain and strategy",
+      );
+    }
+    const where = { sokoBotId: authorized.turn.sokoBotId };
+    const saved =
+      input.capability === "save_brand_brain"
+        ? await saveCmoBrandBrain(
+            where,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(input.input)
+              .brandBrain,
+          )
+        : await saveCmoStrategy(
+            where,
+            SOKO_BOT_TOOL_INPUT_SCHEMAS.save_strategy.parse(input.input)
+              .strategy,
+            { byOwner: false },
+          ).catch((error: unknown) => {
+            if (error instanceof CmoNotFoundError) {
+              throw new SokoBotRuntimeValidationError(error.message);
+            }
+            throw error;
+          });
+    const result = {
+      saved:
+        input.capability === "save_brand_brain" ? "brandBrain" : "strategy",
+      updatedAt: (input.capability === "save_brand_brain"
+        ? saved.brandBrainUpdatedAt
+        : saved.strategyUpdatedAt
+      )?.toISOString(),
+    };
+    await serializableTransaction(async (tx) => {
+      await this.requireMutationAuthority(
+        tx,
+        authorized,
+        false,
+        input.capability,
+      );
+      await commitActionReceipt(tx, {
+        turnId: authorized.turn.id,
+        toolCallId: input.toolCallId,
+        actorBotId: authorized.turn.sokoBotId,
+        targetId: saved.id,
+        result: persistedToolResult(result),
+      });
+    }, "CMO record changed concurrently");
+    return result;
+  }
+
   private async updateMemory(
     authorized: AuthorizedSokoBotRuntime,
     rawInput: unknown,
@@ -4165,8 +4227,51 @@ export class SokoBotRuntimeService {
       workspace.organizationId,
       tx,
     );
-    await requireSocialBetaAccess(authorized.turn.userId, tx);
+    // Social is Cuso's core job, so CMO bots skip the Social beta; their
+    // scheduling and publishing answer to the CMO gate instead.
+    if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
+      await requireSocialBetaAccess(authorized.turn.userId, tx);
+    }
     return workspace;
+  }
+
+  /**
+   * CMO bots schedule and publish only with an active CMO subscription and
+   * as far as the channel's autonomy allows. No-op for every other bot.
+   */
+  private async requireCmoExecution(
+    authorized: AuthorizedSokoBotRuntime,
+    provider: string,
+  ) {
+    const refusal = await cmoExecutionRefusal({
+      sokoBotId: authorized.turn.sokoBotId,
+      versionId: authorized.turn.versionId,
+      provider,
+      ownerPresent: (authorized.turn.source ?? "CHAT") === "CHAT",
+    });
+    if (refusal) throw new SokoBotRuntimeValidationError(refusal);
+  }
+
+  /** The provider a social write would execute on, for the CMO gate. */
+  private async socialProviderFor(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { postId?: string; socialConnectionId?: string | null },
+  ): Promise<string> {
+    if (input.socialConnectionId) {
+      const connection = await prisma.projectSocialConnection.findFirst({
+        where: { id: input.socialConnectionId },
+        select: { provider: true },
+      });
+      if (connection) return connection.provider;
+    }
+    if (input.postId) {
+      const post = await prisma.socialPost.findFirst({
+        where: { id: input.postId, workspaceId: authorized.turn.workspaceId },
+        select: { provider: true },
+      });
+      if (post) return post.provider;
+    }
+    return "unknown";
   }
 
   private async executeSocialTool(
@@ -4174,6 +4279,28 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
   ) {
     const { workspaceId, userId } = authorized.turn;
+    if (
+      getSokoBotVersion(authorized.turn.versionId).profile === "cmo" &&
+      (input.capability === "publish_social_post" ||
+        input.capability === "schedule_social_post" ||
+        (input.capability === "create_social_post" &&
+          SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.safeParse(input.input)
+            .data?.scheduledAt))
+    ) {
+      const target = z
+        .object({
+          postId: z.string().optional(),
+          socialConnectionId: z.string().nullish(),
+        })
+        .safeParse(input.input);
+      await this.requireCmoExecution(
+        authorized,
+        await this.socialProviderFor(
+          authorized,
+          target.success ? target.data : {},
+        ),
+      );
+    }
     switch (input.capability) {
       case "list_project_social_accounts": {
         const params =
@@ -4763,6 +4890,9 @@ export class SokoBotRuntimeService {
           });
       case "update_memory":
         return this.updateMemory(authorized, input.input, input.toolCallId);
+      case "save_brand_brain":
+      case "save_strategy":
+        return this.saveCmoRecord(authorized, input);
       case "manage_reminder": {
         const parsed = sokoBotManageReminderInputSchema.parse(input.input);
         return serializableTransaction(async (tx) => {

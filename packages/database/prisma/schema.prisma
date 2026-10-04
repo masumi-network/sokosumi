@@ -2050,6 +2050,7 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
+  cmoWorkspace          CmoWorkspace?
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
@@ -2135,6 +2136,36 @@ model SokoBot {
   @@index([userId, workspaceId])
   @@index([workspaceId])
   @@map("soko_bot")
+}
+
+/// One business a person runs through CMO.xyz. Cuso, the CMO bot, is an
+/// ordinary Soko Bot in the business's own organization workspace; this row
+/// holds what CMO adds on top: the onboarding answers, the Brand Brain and
+/// the strategy (JSON, validated by the `@sokosumi/soko-bot` CMO schemas).
+model CmoWorkspace {
+  id        String   @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// The person who started it. One CMO workspace per person for now.
+  userId         String @unique
+  organizationId String @unique
+  workspaceId    String @unique @db.Uuid
+  sokoBotId      String @unique @db.Uuid
+  sokoBot        SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// The marketing Project: where social accounts connect and posts live.
+  projectId      String @db.Uuid
+
+  businessName String
+  websiteUrl   String
+  goals        String
+
+  brandBrain          Json?
+  brandBrainUpdatedAt DateTime?
+  strategy            Json?
+  strategyUpdatedAt   DateTime?
+
+  @@map("cmo_workspace")
 }
 
 /// Immutable copy of external Hermes chat history made during first-party

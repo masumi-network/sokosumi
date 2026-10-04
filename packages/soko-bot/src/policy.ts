@@ -70,9 +70,25 @@ export const SOKO_BOT_CAPABILITIES = [
   "workspace_search",
   "update_plan",
   "run_subagent",
+  "save_brand_brain",
+  "save_strategy",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
+
+/**
+ * Tools only CMO (Cuso) bots carry. They write the bot's own marketing
+ * workspace (Brand Brain, strategy), so a CMO bot has them on every turn and
+ * no other bot ever does; `applyVersionCapabilities` enforces both.
+ */
+export const SOKO_BOT_CMO_CAPABILITIES = [
+  "save_brand_brain",
+  "save_strategy",
+] as const satisfies readonly SokoBotCapability[];
+
+export function isSokoBotCmoCapability(value: string): boolean {
+  return (SOKO_BOT_CMO_CAPABILITIES as readonly string[]).includes(value);
+}
 
 /**
  * Tools that run inside the bot's own sandbox: the web, a shell and a

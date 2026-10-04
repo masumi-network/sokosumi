@@ -7,6 +7,11 @@ import type { SokoBotCapability } from "../policy.js";
  */
 export interface SokoBotVersion {
   id: string;
+  /**
+   * Which product the bot is. Omitted means the personal assistant; `cmo` is
+   * Cuso on cmo.xyz, with its own tools and rhythms.
+   */
+  profile?: "cmo";
   name: string;
   createdAt: string;
   summary: string;

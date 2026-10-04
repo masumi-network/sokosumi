@@ -21507,6 +21507,653 @@ export const PublicSharedTaskFileSchema = {
     ]
 } as const;
 
+export const CmoOverviewSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        businessName: {
+            type: 'string'
+        },
+        websiteUrl: {
+            type: 'string'
+        },
+        goals: {
+            type: 'string'
+        },
+        organizationId: {
+            type: 'string'
+        },
+        organizationSlug: {
+            type: 'string'
+        },
+        workspaceId: {
+            type: 'string'
+        },
+        sokoBotId: {
+            type: 'string'
+        },
+        projectId: {
+            type: 'string'
+        },
+        roomId: {
+            type: 'string'
+        },
+        botStatus: {
+            type: 'string'
+        },
+        subscriptionActive: {
+            type: 'boolean'
+        },
+        brandBrain: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        voice: {
+                            type: 'object',
+                            properties: {
+                                tone: {
+                                    type: 'string',
+                                    minLength: 1,
+                                    maxLength: 400
+                                },
+                                do: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                dont: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    maxItems: 12
+                                },
+                                examples: {
+                                    type: 'array',
+                                    items: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    maxItems: 8
+                                }
+                            },
+                            required: [
+                                'tone',
+                                'do',
+                                'dont',
+                                'examples'
+                            ]
+                        },
+                        audience: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 8
+                        },
+                        products: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        competitors: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    name: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    url: {
+                                        type: 'string',
+                                        maxLength: 500,
+                                        format: 'uri'
+                                    },
+                                    note: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    }
+                                },
+                                required: [
+                                    'name'
+                                ]
+                            },
+                            maxItems: 12
+                        }
+                    },
+                    required: [
+                        'summary',
+                        'voice',
+                        'audience',
+                        'products',
+                        'competitors',
+                        'channels'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandBrainUpdatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategy: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        month: {
+                            type: 'string',
+                            pattern: '^\\d{4}-\\d{2}$'
+                        },
+                        summary: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
+                        goals: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            minItems: 1,
+                            maxItems: 6
+                        },
+                        pillars: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 6
+                        },
+                        channels: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    cadence: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    autonomy: {
+                                        type: 'string',
+                                        enum: [
+                                            'drafts',
+                                            'ask',
+                                            'autopilot'
+                                        ],
+                                        default: 'ask'
+                                    }
+                                },
+                                required: [
+                                    'channel',
+                                    'cadence'
+                                ]
+                            },
+                            maxItems: 10
+                        },
+                        calendar: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    id: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 64
+                                    },
+                                    date: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    format: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    status: {
+                                        type: 'string',
+                                        enum: [
+                                            'idea',
+                                            'draft',
+                                            'scheduled',
+                                            'published',
+                                            'skipped'
+                                        ]
+                                    },
+                                    brief: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    socialPostId: {
+                                        type: 'string',
+                                        format: 'uuid'
+                                    },
+                                    imageFileId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    },
+                                    taskId: {
+                                        type: 'string',
+                                        maxLength: 100
+                                    }
+                                },
+                                required: [
+                                    'id',
+                                    'date',
+                                    'channel',
+                                    'title',
+                                    'format',
+                                    'status'
+                                ]
+                            },
+                            maxItems: 120
+                        },
+                        reviewMode: {
+                            type: 'string',
+                            enum: [
+                                'suggest',
+                                'auto'
+                            ],
+                            default: 'suggest'
+                        },
+                        weeklyReviews: {
+                            type: 'array',
+                            items: {
+                                type: 'object',
+                                properties: {
+                                    weekOf: {
+                                        type: 'string',
+                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    summary: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 2000
+                                    },
+                                    changes: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'string',
+                                            minLength: 1,
+                                            maxLength: 400
+                                        },
+                                        maxItems: 10
+                                    }
+                                },
+                                required: [
+                                    'weekOf',
+                                    'summary',
+                                    'changes'
+                                ]
+                            },
+                            maxItems: 12,
+                            default: []
+                        }
+                    },
+                    required: [
+                        'month',
+                        'summary',
+                        'goals',
+                        'pillars',
+                        'channels',
+                        'calendar'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        strategyUpdatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'businessName',
+        'websiteUrl',
+        'goals',
+        'organizationId',
+        'organizationSlug',
+        'workspaceId',
+        'sokoBotId',
+        'projectId',
+        'roomId',
+        'botStatus',
+        'subscriptionActive',
+        'brandBrain',
+        'brandBrainUpdatedAt',
+        'strategy',
+        'strategyUpdatedAt',
+        'createdAt'
+    ]
+} as const;
+
+export const CmoOnboardingRequestSchema = {
+    type: 'object',
+    properties: {
+        websiteUrl: {
+            type: 'string',
+            maxLength: 500,
+            format: 'uri'
+        },
+        goals: {
+            type: 'string',
+            minLength: 3,
+            maxLength: 2000
+        },
+        businessName: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 80
+        }
+    },
+    required: [
+        'websiteUrl',
+        'goals'
+    ]
+} as const;
+
+export const CmoBrandBrainRequestSchema = {
+    type: 'object',
+    properties: {
+        brandBrain: {
+            type: 'object',
+            properties: {
+                summary: {
+                    type: 'string',
+                    minLength: 1,
+                    maxLength: 2000
+                },
+                voice: {
+                    type: 'object',
+                    properties: {
+                        tone: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        do: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        dont: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 12
+                        },
+                        examples: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 2000
+                            },
+                            maxItems: 8
+                        }
+                    },
+                    required: [
+                        'tone',
+                        'do',
+                        'dont',
+                        'examples'
+                    ]
+                },
+                audience: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 8
+                },
+                products: {
+                    type: 'array',
+                    items: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 400
+                    },
+                    maxItems: 12
+                },
+                competitors: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 10
+                },
+                channels: {
+                    type: 'array',
+                    items: {
+                        type: 'object',
+                        properties: {
+                            name: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            url: {
+                                type: 'string',
+                                maxLength: 500,
+                                format: 'uri'
+                            },
+                            note: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            }
+                        },
+                        required: [
+                            'name'
+                        ]
+                    },
+                    maxItems: 12
+                }
+            },
+            required: [
+                'summary',
+                'voice',
+                'audience',
+                'products',
+                'competitors',
+                'channels'
+            ]
+        }
+    },
+    required: [
+        'brandBrain'
+    ]
+} as const;
+
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
+export const CmoStrategyRequestSchema = {
+    type: 'object',
+    properties: {
+        note: {
+            type: 'string',
+            maxLength: 1000
+        }
+    }
+} as const;
+
+export const CmoStrategySettingsRequestSchema = {
+    type: 'object',
+    properties: {
+        channels: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    channel: {
+                        type: 'string',
+                        minLength: 1,
+                        maxLength: 40
+                    },
+                    autonomy: {
+                        type: 'string',
+                        enum: [
+                            'drafts',
+                            'ask',
+                            'autopilot'
+                        ]
+                    }
+                },
+                required: [
+                    'channel',
+                    'autonomy'
+                ]
+            },
+            maxItems: 10
+        },
+        reviewMode: {
+            type: 'string',
+            enum: [
+                'suggest',
+                'auto'
+            ]
+        }
+    }
+} as const;
+
 export const SokoBotApiKeySchema = {
     type: 'object',
     properties: {
