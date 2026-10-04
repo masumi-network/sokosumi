@@ -114,7 +114,7 @@ export function chatRoomFileLinks(
 ): { name: string; url: string }[] {
   const links = new Map<string, string>();
   for (const match of content.matchAll(
-    /!?\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/g,
+    /!?\[([^[\]]{0,500})\]\((https:\/\/[^)\s]{1,2048})\)/g,
   )) {
     const [, label = "", url = ""] = match;
     const file = parseChatRoomFileUrl(url);
