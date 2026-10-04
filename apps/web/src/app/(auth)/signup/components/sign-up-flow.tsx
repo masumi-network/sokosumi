@@ -11,7 +11,6 @@ import {
 } from "react";
 
 import { AuthStepLayout } from "@/auth/components/auth-step-layout";
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
@@ -32,7 +31,6 @@ import {
 } from "@/lib/utils/last-used-auth-method";
 
 import SignUpForm from "./form";
-import SignUpHeader from "./header";
 import SignInLink, { useSignInHref } from "./sign-in-link";
 
 interface SignUpFlowProps {
@@ -52,8 +50,8 @@ interface SignUpFlowProps {
 /**
  * Sign-up in two steps. The first asks for the email beside the providers
  * and, for a new address, emails a code right away. The second asks for the
- * name and that code, or the name and a password instead. An address that
- * has an account goes to Log in's second step.
+ * name and that code, with a password as an optional addition. An address
+ * that has an account goes to Log in's second step.
  */
 export default function SignUpFlow({
   invitationId,
@@ -87,7 +85,6 @@ export default function SignUpFlow({
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
-  const [isDetailsPending, setIsDetailsPending] = useState(false);
   // Step 1 starts one sign-up at a time: the email or a provider.
   const [isEmailPending, setIsEmailPending] = useState(false);
   const [isProviderPending, setIsProviderPending] = useState(false);
@@ -122,30 +119,23 @@ export default function SignUpFlow({
 
   if (step === "details") {
     return (
-      <div className="flex flex-1 flex-col">
-        <SignUpHeader invited={emailLocked} client={client} />
-        <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          <ConfirmedEmail
-            email={email}
-            onChange={
-              emailLocked
-                ? undefined
-                : () => {
-                    setCameBack(true);
-                    setStep("email");
-                  }
-            }
-            changeDisabled={isDetailsPending}
-          />
-          <SignUpForm
-            email={email}
-            emailCode={emailCode}
-            onFormStart={handleFormStart}
-            onPendingChange={setIsDetailsPending}
-          />
-          {children}
-        </div>
-      </div>
+      <SignUpForm
+        client={client}
+        email={email}
+        onChangeEmail={
+          // An invitation fixes the address.
+          emailLocked
+            ? undefined
+            : () => {
+                setCameBack(true);
+                setStep("email");
+              }
+        }
+        emailCode={emailCode}
+        onFormStart={handleFormStart}
+      >
+        {children}
+      </SignUpForm>
     );
   }
 
@@ -196,7 +186,8 @@ export default function SignUpFlow({
           continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal) => {
             setEmail(confirmedEmail);
-            // A failed send has said so; step 2 then opens on the password.
+            // A failed send has said so; step 2 then opens with the code
+            // unsent and a new one a click away.
             await emailCode.sendCode(confirmedEmail, { signal });
             if (!signal.aborted) setStep("details");
           }}

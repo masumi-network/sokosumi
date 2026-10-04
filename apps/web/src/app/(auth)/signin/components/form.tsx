@@ -242,8 +242,7 @@ export default function SignInForm({
             ? t("CodeStep.accepted")
             : isSubmitting
               ? codeT("checking")
-              : (codeError ??
-                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)),
+              : (codeError ?? (isCodeUnsent ? codeT("notSent") : undefined)),
         statusIsError: !isPending && (codeError !== undefined || isCodeUnsent),
         links: (
           <>
