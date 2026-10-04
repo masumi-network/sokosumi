@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useMemo, useRef, useState } from "react";
+import {
+  type ReactNode,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
@@ -20,21 +26,24 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
+  takeSignInHandover,
 } from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
+  chooseSignInMethod,
   type LastUsedAuthMethod,
+  type SignInMethod,
   toProviderAuthMethod,
 } from "@/lib/utils/last-used-auth-method";
 
-import SignInForm, { type SignInMethod } from "./form";
+import SignInForm from "./form";
 import SignInHeader from "./header";
 
 interface SignInFlowProps {
   /** The product that sent the person here through Sign in with Sokosumi. */
   client?: OAuthRequestClient | undefined;
-  /** An address from the link, which the person cannot change. */
+  /** The invitation's address, read from Core by id; it cannot be changed. */
   prefilledEmail?: string | undefined;
   /** The invitation `prefilledEmail` belongs to; it stays fixed on sign-up. */
   invitationId?: string | undefined;
@@ -50,7 +59,8 @@ interface SignInFlowProps {
 /**
  * Sign-in in two steps. The first asks for the email beside the providers
  * and checks that it has an account. The second asks for the emailed code or
- * the password, opening on the one this browser used last.
+ * the password, opening as `chooseSignInMethod` decides. Register hands an
+ * address that has an account straight to the second step.
  */
 export default function SignInFlow({
   client,
@@ -68,25 +78,23 @@ export default function SignInFlow({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const invitation =
-    invitationId && prefilledEmail
-      ? { id: invitationId, email: prefilledEmail }
-      : undefined;
+  // The invitation whose address this page locked; sign-up locks it too.
+  const lockedInvitationId =
+    invitationId && prefilledEmail ? invitationId : undefined;
   const signUpHref = buildSignUpUrlFromSignIn({
     returnUrl,
     oauthQuery: returnUrl
       ? undefined
       : buildSignedOAuthQueryFromSearchParams(searchParams),
-    invitation,
+    invitationId: lockedInvitationId,
   });
   // Lives here, not in step 2: Continue sends the code before step 2 opens.
   const emailCode = useEmailCode({
     eventType: "signIn",
     returnUrl: effectiveReturnUrl,
   });
-  // A password person is not emailed a code they will not use.
-  const initialMethod: SignInMethod =
-    lastUsedMethod === "email" ? "password" : "code";
+  // Set on Continue, from this browser and the account.
+  const [initialMethod, setInitialMethod] = useState<SignInMethod>("code");
   const isEmailLastUsed =
     lastUsedMethod === "email" || lastUsedMethod === "email-otp";
   const [email, setEmail] = useState(prefilledEmail ?? "");
@@ -95,7 +103,35 @@ export default function SignInFlow({
   const [step, setStep] = useState<"email" | "method">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isMethodPending, setIsMethodPending] = useState(false);
+  // Step 1 starts one sign-in at a time: the email or a provider.
+  const [isEmailPending, setIsEmailPending] = useState(false);
+  const [isProviderPending, setIsProviderPending] = useState(false);
+  // Register found an account and handed the address over.
+  const [handedOver, setHandedOver] = useState(false);
   const formStarted = useRef(false);
+
+  // Register found an account and chose the method as Continue here would,
+  // so step 2 opens at once. A layout effect: after a client navigation the
+  // email step never paints. An invitation fixes the address, so only a
+  // hand-over for that address counts; any other is discarded.
+  useLayoutEffect(() => {
+    const handover = takeSignInHandover();
+    if (!handover) return;
+    if (
+      prefilledEmail &&
+      handover.email.toLowerCase() !== prefilledEmail.toLowerCase()
+    ) {
+      return;
+    }
+    const handedOverEmail = prefilledEmail ?? handover.email;
+    setEmail(handedOverEmail);
+    setInitialMethod(handover.method);
+    if (handover.method === "code" && handover.codeSentAt !== null) {
+      emailCode.adoptSentCode(handedOverEmail, handover.codeSentAt);
+    }
+    setHandedOver(true);
+    setStep("method");
+  }, []);
 
   // when user first sees the login area
   useMountEffect(() => {
@@ -124,6 +160,7 @@ export default function SignInFlow({
                 ? undefined
                 : () => {
                     setCameBack(true);
+                    setHandedOver(false);
                     setStep("email");
                   }
             }
@@ -133,6 +170,7 @@ export default function SignInFlow({
             email={email}
             returnUrl={returnUrl}
             initialMethod={initialMethod}
+            handedOver={handedOver}
             emailCode={emailCode}
             onFormStart={handleFormStart}
             onPendingChange={setIsMethodPending}
@@ -175,20 +213,26 @@ export default function SignInFlow({
           onFormStart={handleFormStart}
           onEmailChange={setTypedEmail}
           continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail, signal) => {
+          onContinue={async (confirmedEmail, signal, account) => {
             setEmail(confirmedEmail);
+            const method = chooseSignInMethod(lastUsedMethod, account);
+            setInitialMethod(method);
             // A failed send has said so; step 2 then opens on the password.
-            if (initialMethod === "code") {
+            if (method === "code") {
               await emailCode.sendCode(confirmedEmail, { signal });
             }
             if (!signal.aborted) setStep("method");
           }}
+          disabled={isProviderPending}
+          onPendingChange={setIsEmailPending}
         />
         <Divider />
         <SocialButtons
           returnUrl={returnUrl}
           lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
           showPasskey
+          disabled={isEmailPending}
+          onPendingChange={setIsProviderPending}
         />
         <div className="flex flex-row items-center gap-2">
           <span className="text-muted-foreground text-sm">
@@ -198,10 +242,13 @@ export default function SignInFlow({
             href={signUpHref}
             className="text-primary text-sm font-medium hover:underline"
             onAuxClick={() => takeAuthEmailHint()}
-            // A typed email stays out of the link, which would lock it on
-            // sign-up. Only an invitation's address belongs there.
+            // A typed email travels as an editable hint. Sign-up looks up an
+            // invitation's address itself.
             onClick={(event) => {
-              rememberAuthEmailHintOnClick(event, invitation ? "" : typedEmail);
+              rememberAuthEmailHintOnClick(
+                event,
+                lockedInvitationId ? "" : typedEmail,
+              );
             }}
           >
             {t("Register.link")}

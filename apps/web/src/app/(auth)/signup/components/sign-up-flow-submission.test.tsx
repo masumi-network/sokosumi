@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,6 +7,7 @@ import SignUpFlow from "./sign-up-flow";
 const signUpMock = vi.fn();
 const finishAuthMock = vi.fn();
 vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({
@@ -20,9 +21,18 @@ vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn() } }));
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
-    $fetch: vi.fn().mockResolvedValue({ data: { exists: false }, error: null }),
+    $fetch: vi.fn().mockResolvedValue({
+      data: { exists: false, hasPassword: false },
+      error: null,
+    }),
+    emailOtp: {
+      sendVerificationOtp: vi
+        .fn()
+        .mockResolvedValue({ data: { success: true }, error: null }),
+    },
+    // A password sign-up goes through the email code.
+    signIn: { emailOtp: (...args: unknown[]) => signUpMock(...args) },
   },
-  signUp: { email: (...args: unknown[]) => signUpMock(...args) },
 }));
 vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));
 vi.mock("@/lib/actions/auth/action", () => ({ handleUtmConversion: vi.fn() }));
@@ -41,12 +51,28 @@ async function submitDetails() {
   await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
   await user.type(await screen.findByLabelText("firstNameLabel"), "Ada");
   await user.type(screen.getByLabelText("lastNameLabel"), "Lovelace");
+  await user.click(screen.getByRole("button", { name: "addPassword" }));
   await user.type(
     screen.getByLabelText("Fields.Password.label"),
     "password123",
   );
+  await user.type(screen.getByRole("textbox", { name: "codeLabel" }), "042917");
+  // The code waits for Register, so the updates checkbox after it counts.
+  await act(async () => {});
+  expect(signUpMock).not.toHaveBeenCalled();
+  await user.click(
+    screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+  );
   await user.click(screen.getByRole("button", { name: "submit" }));
-  await waitFor(() => expect(signUpMock).toHaveBeenCalledOnce());
+  await waitFor(() =>
+    expect(signUpMock).toHaveBeenCalledExactlyOnceWith(
+      expect.objectContaining({
+        otp: "042917",
+        password: "password123",
+        marketingOptIn: true,
+      }),
+    ),
+  );
   return user;
 }
 

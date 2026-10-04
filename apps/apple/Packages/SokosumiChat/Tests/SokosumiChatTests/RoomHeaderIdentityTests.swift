@@ -26,10 +26,10 @@ struct RoomHeaderIdentityTests {
   ) -> Components.Schemas.ChatRoom {
     .init(
       id: "550e8400-e29b-41d4-a716-446655440031", organizationId: discoverability == .matched ? nil : "org_1",
-      name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, groupName: groupName,
+      name: name, kind: kind, isSelfDirect: isSelfDirect, isGroupDirect: members.count > 2, isReadOnly: false, groupName: groupName,
       topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
       createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
-      myAccess: access, userMembers: members, coworkerMembers: coworkers, sokoBotMembers: sokoBots
+      myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)), userMembers: members, formerUserMembers: [], coworkerMembers: coworkers, sokoBotMembers: sokoBots
     )
   }
 
@@ -91,21 +91,27 @@ struct RoomHeaderIdentityTests {
     #expect(RoomHeaderIdentity(room: Self.room(topic: example.0), currentUserId: Self.reader).topic == example.1)
   }
 
+  /// Web `RoomHeaderChrome` (`room-header-chrome.tsx`:183-216) draws a Self Direct's `DirectRoomAvatarStack`, the
+  /// reader's own face, and names it "You" (row 27c).
+  @Test func aSelfDirectDrawsTheReadersFaceAndIsYou() {
+    let room = Self.room(kind: .direct, name: "self", topic: "Ignored", isSelfDirect: true, members: [Self.person(Self.reader, "Me")])
+    let face = DirectRoomAvatarParticipant(id: Self.reader, name: "Me", imageURL: nil, presence: .offline)
+    #expect(RoomHeaderIdentity(room: room, currentUserId: Self.reader) == .init(mark: .selfDirect(face), title: "You", topic: nil))
+  }
+
   @Test func aDirectDrawsTheMessageGlyphAndNeverATopic() {
     let ada = Self.person("user_ada", "Ada")
     let rooms = [
       Self.room(kind: .direct, name: "dm", topic: "Ignored", members: [Self.person(Self.reader, "Me"), ada]),
-      Self.room(kind: .direct, name: "self", isSelfDirect: true, members: [Self.person(Self.reader, "Me")]),
       Self.room(kind: .direct, name: "group", groupName: "Launch crew",
                 members: [Self.person(Self.reader, "Me"), ada, Self.person("user_grace", "Grace")]),
       Self.room(kind: .direct, name: "assistant", members: [Self.person(Self.reader, "Me")],
-                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, presence: .online)]),
+                sokoBots: [.init(id: "bot_1", name: "Soko", caption: nil, image: nil, avatarSeed: nil, ownerUserId: "user_1", presence: .online)]),
       Self.room(kind: .direct, name: "coworker", topic: "Ignored", members: [Self.person(Self.reader, "Me")],
                 coworkers: [.init(id: "cow_1", name: "Helper", slug: "helper", caption: nil, image: nil, presence: .online)])
     ]
     #expect(rooms.map { RoomHeaderIdentity(room: $0, currentUserId: Self.reader) } == [
       .init(mark: .direct, title: "Ada", topic: nil),
-      .init(mark: .direct, title: "Me", topic: nil),
       .init(mark: .direct, title: "Launch crew", topic: nil),
       .init(mark: .direct, title: "Soko", topic: nil),
       .init(mark: .direct, title: "Helper", topic: nil)

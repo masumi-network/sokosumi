@@ -5,6 +5,7 @@ const resetPasswordViaCoreMock = vi.fn();
 const getResetPasswordTokenMock = vi.fn();
 const clearResetPasswordTokenMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
+const claimMySignUpConversionMock = vi.fn();
 
 vi.mock("@/lib/auth/core-auth-http.server", () => ({
   setPasswordViaCore: (...args: unknown[]) => setPasswordViaCoreMock(...args),
@@ -19,6 +20,8 @@ vi.mock("@/lib/reset-password-token-cookie", () => ({
 
 vi.mock("@/lib/services/utm.service", () => ({
   utmService: {
+    claimSignUpConversion: (...args: unknown[]) =>
+      claimMySignUpConversionMock(...args),
     handleUTMConversion: (...args: unknown[]) =>
       handleUTMConversionMock(...args),
   },
@@ -164,5 +167,41 @@ describe("handleUtmConversion", () => {
       "Failed to create utm attribution",
       expect.any(Error),
     );
+  });
+});
+
+describe("claimSignUpConversion", () => {
+  beforeEach(() => {
+    handleUTMConversionMock.mockReset();
+    handleUTMConversionMock.mockResolvedValue(undefined);
+    claimMySignUpConversionMock.mockReset();
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+  });
+
+  it("returns the provider and records UTM attribution for a new social account", async () => {
+    claimMySignUpConversionMock.mockResolvedValue("google");
+
+    const { claimSignUpConversion } = await import("./action");
+
+    await expect(claimSignUpConversion()).resolves.toBe("google");
+    expect(handleUTMConversionMock).not.toHaveBeenCalled();
+  });
+
+  it("counts nothing for an account that is not a new social sign-up", async () => {
+    claimMySignUpConversionMock.mockResolvedValue(null);
+
+    const { claimSignUpConversion } = await import("./action");
+
+    await expect(claimSignUpConversion()).resolves.toBeNull();
+    expect(handleUTMConversionMock).not.toHaveBeenCalled();
+  });
+
+  it("counts nothing when Core cannot answer", async () => {
+    claimMySignUpConversionMock.mockRejectedValue(new Error("core down"));
+
+    const { claimSignUpConversion } = await import("./action");
+
+    await expect(claimSignUpConversion()).resolves.toBeNull();
+    expect(handleUTMConversionMock).not.toHaveBeenCalled();
   });
 });

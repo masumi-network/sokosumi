@@ -67,8 +67,12 @@ import SwiftUI
       return { url in try await workspaces.removeUnfurl(message, url: url, auth: auth) }
     }
 
+    private var room: Components.Schemas.ChatRoom? {
+      workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+    }
+
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message) else { return nil }
+      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
@@ -94,7 +98,8 @@ import SwiftUI
     }
 
     private func quoteAction(for message: Components.Schemas.ChatRoomMessage) -> (() -> Void)? {
-      guard canQuoteMessage(message) else { return nil }
+      // Quoting fills the composer, which a Read-only Direct lacks.
+      guard canQuoteMessage(message), roomTakesNewMessages(room) else { return nil }
       return {
         pendingQuote = messageQuote(from: message)
         quoteFocusRequest = UUID().uuidString
@@ -122,7 +127,7 @@ import SwiftUI
     @ViewBuilder private var content: some View {
       if let parent = messages.first {
         let jumpTarget = readyJump(in: messages)
-        let currentRoom = workspaces.rooms.first { $0.id == workspaces.transcriptRoomId }
+        let currentRoom = room
         let channels = workspaces.composerChannels
         ScrollViewReader { proxy in
           ScrollView {
@@ -138,6 +143,7 @@ import SwiftUI
                              onSendToSelf: sendToSelfAction(for: parent),
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
                              onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
+                .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
               HStack {
@@ -168,6 +174,8 @@ import SwiftUI
             .padding(.horizontal)
             .padding(.top)
           }
+          // Row 25b2: the other rows, the parent too, step back while the Thread's mark holds.
+          .jumpSpotlight(for: jumpTarget?.mark)
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
@@ -231,10 +239,14 @@ import SwiftUI
         }
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
-                           roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
-                           onAccepted: { scrollIntent.followLatest() })
-            .id(parent.id)
+          if let notice = ReadOnlyDirectNotice(room: currentRoom) {
+            ReadOnlyDirectNoticeView(notice: notice)
+          } else {
+            ChatComposerView(userId: workspaces.currentUserId, organizationId: workspaces.selection?.workspace.organizationId,
+                             roomId: parent.roomId, parentMessageId: parent.id, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest,
+                             onAccepted: { scrollIntent.followLatest() })
+              .id(parent.id)
+          }
         }
         .safeAreaInset(edge: .top, spacing: 0) {
           if let failure = workspaces.thread.mute?.failure {
@@ -320,7 +332,7 @@ import SwiftUI
       return ForEach(Array(messages.enumerated()), id: \.element.id) { index, message in
         let hasGap = gaps.contains(message.id)
         let previous = index > 0 && !hasGap ? messages[index - 1] : nil
-        let streaming = message.id.hasPrefix("stream:") && isCoworkerMessage(message)
+        let streaming = isCoworkerStreamOverlay(message)
         let thinking = streaming && message.content.isEmpty && workspaces.directStream.isBusy
         let outbox = workspaces.thread.outbox
         let shell = outbox.shells.first { $0.id == message.id }
@@ -337,6 +349,7 @@ import SwiftUI
           }
           if let status = roomStatusText(message) {
             RoomStatusRow(text: status)
+              .jumpSpotlightRow(messageId: message.id)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
@@ -354,6 +367,7 @@ import SwiftUI
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            streamThinking: thinking)
+              .jumpSpotlightRow(messageId: message.id)
           }
         }
         .id(message.id)

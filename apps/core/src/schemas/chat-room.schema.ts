@@ -116,6 +116,19 @@ export const chatRoomUserParticipantSchema = z
   })
   .openapi("ChatRoomUserParticipant");
 
+/** A human a Direct was started for who is no longer in it. Not a roster entry. */
+export const chatRoomFormerUserMemberSchema = z
+  .object({
+    id: z.string().openapi({ example: "user_123" }),
+    name: z.string().openapi({ example: "Jane Doe" }),
+    email: z.string().openapi({ example: "jane@example.com" }),
+    image: z
+      .string()
+      .nullable()
+      .openapi({ example: "https://example.com/avatar.png" }),
+  })
+  .openapi("ChatRoomFormerUserMember");
+
 export const chatRoomCoworkerParticipantSchema = z
   .object({
     id: z.string().openapi({ example: "cow_123" }),
@@ -145,6 +158,11 @@ export const chatRoomSokoBotParticipantSchema = z
       .nullable()
       .openapi({ example: "https://example.com/soko-bot.png" }),
     avatarSeed: z.string().nullable().openapi({ example: "orb:user_123" }),
+    ownerUserId: z.string().openapi({
+      description:
+        "The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.",
+      example: "user_123",
+    }),
     presence: chatRoomPresenceSchema.openapi({ example: "online" }),
   })
   .openapi("ChatRoomSokoBotParticipant");
@@ -205,6 +223,11 @@ export const chatRoomSchema = z
     isGroupDirect: z.boolean().openapi({
       description:
         "Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.",
+      example: false,
+    }),
+    isReadOnly: z.boolean().openapi({
+      description:
+        "Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.",
       example: false,
     }),
     groupName: z.string().nullable().openapi({
@@ -294,6 +317,10 @@ export const chatRoomSchema = z
       example: false,
     }),
     userMembers: z.array(chatRoomUserParticipantSchema),
+    formerUserMembers: z.array(chatRoomFormerUserMemberSchema).openapi({
+      description:
+        "Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.",
+    }),
     coworkerMembers: z.array(chatRoomCoworkerParticipantSchema),
     sokoBotMembers: z.array(chatRoomSokoBotParticipantSchema),
   })
@@ -448,31 +475,6 @@ export const updateChatRoomRequestSchema = z
         'Update channel discoverability. `"public"` makes the channel org-discoverable and self-joinable by any member; `"private"` hides it from the discoverable listing for plain members (organization owners/admins still see and can join it); `"external"` is org-discoverable for host members with guest invites. Converting away from `"external"` is blocked while guest members or pending invites exist.',
       example: "private",
     }),
-    memberUserIds: z
-      .array(z.string().min(1))
-      .max(MAX_ROOM_MEMBERS)
-      .optional()
-      .openapi({
-        description:
-          "Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.",
-        example: ["user_123", "user_456"],
-      }),
-    coworkerIds: z
-      .array(z.string().min(1))
-      .max(MAX_ROOM_COWORKERS)
-      .optional()
-      .openapi({
-        example: ["cow_123"],
-      }),
-    sokoBotIds: z
-      .array(z.string().uuid())
-      .max(MAX_ROOM_SOKO_BOTS)
-      .optional()
-      .openapi({
-        description:
-          "Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.",
-        example: ["01960001-0001-7001-8001-000000000099"],
-      }),
     groupName: z.string().trim().max(80).nullable().optional().openapi({
       description:
         "Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.",
@@ -480,6 +482,22 @@ export const updateChatRoomRequestSchema = z
     }),
   })
   .openapi("UpdateChatRoomRequest");
+
+export const addChatRoomMembersRequestSchema = z
+  .object({
+    userIds: roomMemberUserIdsSchema,
+    coworkerIds: roomCoworkerIdsSchema,
+    sokoBotIds: roomSokoBotIdsSchema,
+  })
+  .refine(
+    (body) =>
+      (body.userIds?.length ?? 0) +
+        (body.coworkerIds?.length ?? 0) +
+        (body.sokoBotIds?.length ?? 0) >
+      0,
+    { message: "Name at least one member to add." },
+  )
+  .openapi("AddChatRoomMembersRequest");
 
 export const discoverableChatRoomSchema = z
   .object({
@@ -618,6 +636,10 @@ export const chatRoomMessageMembershipSchema = z
   .object({
     action: z.enum(["joined", "left"]),
     subject: chatRoomMessageMembershipSubjectSchema,
+    actor: z.object({ id: z.string(), name: z.string() }).optional().openapi({
+      description:
+        "Who added or removed the subject. Absent when the subject joined or left on their own.",
+    }),
   })
   .openapi("ChatRoomMessageMembership");
 

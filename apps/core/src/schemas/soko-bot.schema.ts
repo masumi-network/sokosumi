@@ -445,6 +445,8 @@ export const adminSokoBotListItemSchema = z
     lastSucceededAt: dateTimeSchema.nullable(),
     lastFailedAt: dateTimeSchema.nullable(),
     consecutiveTurnFailures: z.number().int().nonnegative(),
+    /** The payer (organization or owner) cannot fund a minimum turn. */
+    outOfCredits: z.boolean(),
     turnCount: z.number().int().nonnegative(),
     pendingDecisionCount: z.number().int().nonnegative(),
     scheduleCount: z.number().int().nonnegative(),

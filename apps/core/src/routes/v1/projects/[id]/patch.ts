@@ -1,10 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import type { Prisma } from "@sokosumi/database";
-import { isOwnedProjectLogoUrl } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, isOwnedProjectLogoUrl } from "@sokosumi/utils";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
-import { notFound, unprocessableEntity } from "@/helpers/error";
+import { conflict, notFound, unprocessableEntity } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -39,7 +40,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "patch",
     path: "/{id}",
     description:
-      "Update a project's name, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
+      "Update a project's name, identifier, briefing, website, or logo. The deprecated description field is accepted as a briefing alias; DESIGN.md uses its dedicated PUT/DELETE routes. Changing websiteUrl does not clear logo or DESIGN.md. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       params: paramsSchema,
@@ -56,6 +57,7 @@ const route = withOrganizationSlugHeaderParameter(
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Project identifier already in use"),
       422: jsonErrorResponse("Unprocessable Entity"),
     },
   }),
@@ -73,6 +75,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     };
     if (body.name !== undefined) {
       updateData.name = body.name;
+    }
+    if (body.identifier !== undefined) {
+      updateData.identifier = body.identifier;
     }
     if (body.websiteUrl !== undefined) {
       updateData.websiteUrl = body.websiteUrl ?? null;
@@ -126,10 +131,18 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       }
     }
 
-    const updateResult = await prisma.project.updateMany({
-      where: { id, workspaceId: workspaceContext.workspaceId },
-      data: updateData,
-    });
+    const updateResult = await prisma.project
+      .updateMany({
+        where: { id, workspaceId: workspaceContext.workspaceId },
+        data: updateData,
+      })
+      .catch((error: unknown) => {
+        throw isProjectIdentifierUniqueConstraintError(error)
+          ? conflict("Project identifier already in use in this workspace", {
+              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+            })
+          : error;
+      });
 
     if (updateResult.count === 0) {
       throw notFound("Project not found");

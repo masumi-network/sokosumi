@@ -296,6 +296,25 @@ test("direct discovery handlers require explicit subcommands", async () => {
     /Usage: sokosumi vendors me/,
   );
   await assert.rejects(
+    runVendorsCommand({
+      client: clientWith({ data: [] }),
+      stdout,
+      subcommand: "me",
+      positionalId: "extra",
+    }),
+    /Usage: sokosumi vendors me/,
+  );
+  await assert.rejects(
+    runVendorsCommand({
+      client: clientWith({ data: [] }),
+      stdout,
+      subcommand: "create",
+      positionalId: "extra",
+      options: { name: "Acme", slug: "acme" },
+    }),
+    /Usage: sokosumi vendors me/,
+  );
+  await assert.rejects(
     runWorkspacesCommand({ client: clientWith({ data: [] }), stdout }),
     /Usage: sokosumi workspaces list/,
   );

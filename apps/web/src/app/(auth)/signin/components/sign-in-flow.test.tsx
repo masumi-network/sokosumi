@@ -106,7 +106,10 @@ describe("SignInFlow", () => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
     mockSearchParams = new URLSearchParams();
-    emailStatusMock.mockResolvedValue({ data: { exists: true }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: false },
+      error: null,
+    });
     sendEmailCodeMock.mockResolvedValue({
       data: { success: true },
       error: null,
@@ -169,6 +172,73 @@ describe("SignInFlow", () => {
         emailCode: expect.objectContaining({ sentTo: null }),
       }),
     );
+  });
+
+  // A code sign-in to an account whose address is unproven removes its
+  // password, so a new browser asks for the password instead.
+  it("opens on the password without emailing a code when the account has one", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signInFormMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        initialMethod: "password",
+        emailCode: expect.objectContaining({ sentTo: null }),
+      }),
+    );
+  });
+
+  it("asks again after the address changes to one without a password", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValueOnce({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+    await user.clear(emailField());
+    await continueWith(user, "grace@example.com");
+
+    await waitFor(() =>
+      expect(signInFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          email: "grace@example.com",
+          initialMethod: "code",
+        }),
+      ),
+    );
+    expect(sendEmailCodeMock).toHaveBeenCalledOnce();
+  });
+
+  // The cookie belongs to the browser, not the account: on a shared browser it
+  // can name another person's code sign-in.
+  it("opens on the password for an account with one, even when the code was used last", async () => {
+    const user = userEvent.setup();
+    emailStatusMock.mockResolvedValue({
+      data: { exists: true, hasPassword: true },
+      error: null,
+    });
+    render(<SignInFlow lastUsedMethod="email-otp" />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() =>
+      expect(signInFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({ initialMethod: "password" }),
+      ),
+    );
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
   it("emails a code when the code was used last, and marks Continue", async () => {
@@ -278,12 +348,20 @@ describe("SignInFlow", () => {
     );
     expect(createAccount).toHaveAttribute("aria-busy", "true");
     expect(pushMock).not.toHaveBeenCalled();
+    expect(emailField()).toBeEnabled();
+    expect(lastSocialProps().disabled).toBe(true);
 
     await act(async () => {
       finishSend({ data: { success: true }, error: null });
     });
 
     expect(pushMock).toHaveBeenCalledWith("/signup");
+    // Preparing the code is abortable; the dispatched navigation is not.
+    expect(emailField()).toBeDisabled();
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.type(emailField(), ".uk");
+    expect(emailField()).toHaveValue("new@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
     expect(takeSignUpHandover()).toEqual({
       email: "new@example.com",
       codeSentAt: expect.any(Number),
@@ -337,6 +415,40 @@ describe("SignInFlow", () => {
 
     expect(pushMock).not.toHaveBeenCalled();
     expect(takeSignUpHandover()).toBeNull();
+  });
+
+  it("keeps a newer detour locked when an older cancelled send finishes", async () => {
+    const user = userEvent.setup();
+    const createAccount = await showCreateAccount(user);
+    let finishFirst!: (result: { data: unknown; error: null }) => void;
+    let finishSecond!: (result: { data: unknown; error: null }) => void;
+    sendEmailCodeMock
+      .mockReturnValueOnce(new Promise((resolve) => (finishFirst = resolve)))
+      .mockReturnValueOnce(new Promise((resolve) => (finishSecond = resolve)));
+
+    await user.click(createAccount);
+    expect(lastSocialProps().disabled).toBe(true);
+    await user.clear(emailField());
+    await continueWith(user, "bob@example.com");
+    await waitFor(() => expect(detour()).toHaveAttribute("data-state", "open"));
+    await new Promise((resolve) => setTimeout(resolve, 450));
+    await user.click(createAccount);
+    expect(sendEmailCodeMock).toHaveBeenCalledTimes(2);
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () => {
+      finishFirst({ data: { success: true }, error: null });
+    });
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(createAccount).toHaveAttribute("aria-busy", "true");
+
+    await act(async () => {
+      finishSecond({ data: { success: true }, error: null });
+    });
+    expect(pushMock).toHaveBeenCalledWith("/signup");
+    expect(lastSocialProps().disabled).toBe(true);
+    expect(emailField()).toBeDisabled();
   });
 
   it("carries the OAuth request to sign-up", async () => {
@@ -495,7 +607,7 @@ describe("SignInFlow", () => {
       expect(takeAuthEmailHint()).toBeNull();
     });
 
-    it("keeps an invitation's address and id on the links to sign-up", async () => {
+    it("keeps an invitation, not its address, on the links to sign-up", async () => {
       const user = userEvent.setup();
       emailStatusMock.mockResolvedValue({
         data: { exists: false },
@@ -510,7 +622,7 @@ describe("SignInFlow", () => {
         />,
       );
       const href =
-        "/signup?returnUrl=%2Faccept-invitation%2Finv_1&email=invited%40example.com&invitationId=inv_1";
+        "/signup?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1";
 
       expect(register()).toHaveAttribute("href", href);
       fireEvent.click(register());
@@ -565,5 +677,68 @@ describe("SignInFlow", () => {
 
     expect(screen.queryByText("why-you-are-back")).not.toBeInTheDocument();
     expect(screen.getByText("terms")).toBeInTheDocument();
+  });
+
+  function lastSocialProps() {
+    return socialButtonsMock.mock.lastCall?.[0] as {
+      disabled: boolean;
+      onPendingChange: (pending: boolean) => void;
+    };
+  }
+
+  it("holds the providers while Continue checks the address", async () => {
+    const user = userEvent.setup();
+    let answer: (value: unknown) => void = () => {};
+    emailStatusMock.mockReturnValue(
+      new Promise((resolve) => (answer = resolve)),
+    );
+    render(<SignInFlow lastUsedMethod={null} />);
+    expect(lastSocialProps().disabled).toBe(false);
+
+    await continueWith(user, "ada@example.com");
+    expect(lastSocialProps().disabled).toBe(true);
+
+    await act(async () =>
+      answer({ data: null, error: { message: "Core is down" } }),
+    );
+    expect(lastSocialProps().disabled).toBe(false);
+  });
+
+  it("frees the providers again when the person changes the address", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+    socialButtonsMock.mockClear();
+    await user.click(screen.getByRole("button", { name: "changeEmail" }));
+
+    expect(socialButtonsMock).toHaveBeenCalled();
+    for (const [props] of socialButtonsMock.mock.calls) {
+      expect((props as { disabled: boolean }).disabled).toBe(false);
+    }
+  });
+
+  it("holds the email while a provider sign-in starts", async () => {
+    const user = userEvent.setup();
+    render(<SignInFlow lastUsedMethod={null} />);
+    await user.type(emailField(), "ada@example.com");
+    const continueButton = screen.getByRole("button", {
+      name: "continueWithEmail",
+    });
+
+    act(() => lastSocialProps().onPendingChange(true));
+
+    expect(continueButton).toBeDisabled();
+    expect(emailField()).toBeDisabled();
+    // Enter in the field would submit; nothing may reach Core or send a code.
+    fireEvent.submit(emailField().closest("form") as HTMLFormElement);
+    await act(async () => {});
+    expect(emailStatusMock).not.toHaveBeenCalled();
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+
+    act(() => lastSocialProps().onPendingChange(false));
+    expect(continueButton).toBeEnabled();
+    expect(emailField()).toBeEnabled();
   });
 });

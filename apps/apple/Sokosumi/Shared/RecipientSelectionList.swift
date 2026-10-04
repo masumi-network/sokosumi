@@ -1,7 +1,7 @@
 import SokosumiChat
 import SwiftUI
 
-/// Searchable people / AI coworker / assistant toggles shared by channel creation and editing.
+/// Searchable people / AI coworker / assistant toggles shared by channel creation and the members panel's Add picker.
 /// The current user stays selected and disabled, matching web's locked checkbox.
 struct RecipientSelectionList: View {
   let sections: [ChatRecipientSection]
@@ -12,12 +12,16 @@ struct RecipientSelectionList: View {
   /// other sections stay.
   var membersLoadFailed = false
   var retryMembers: () -> Void = {}
+  /// Channel creation's reminder under the list; the Add picker lists only non-members, so it passes nil.
+  var note: LocalizedStringKey? = "You are always included in the channel."
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       TextField("Search participants", text: $query)
       list
-      Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
+      if let note {
+        Text(note).font(.caption).foregroundStyle(.secondary)
+      }
     }
   }
 

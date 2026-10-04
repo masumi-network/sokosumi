@@ -77,6 +77,10 @@ import SwiftUI
     var onSokoBotFeedback: ((Bool) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
+    /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
+    /// `newestEndsInAttachment`). Known before the read state, so the corner the faces need is there from the
+    /// first layout and nothing moves when they arrive.
+    var newestEndsInAttachment = false
     /// Who has read this far: set on the room transcript's newest message only (row 31b1).
     var seenBy: SeenBy?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -137,6 +141,41 @@ import SwiftUI
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
           || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil
           || sokoBotFeedback != nil)
+    }
+
+    private var isEditingThisRow: Bool {
+      editing?.source?.id == message.id
+    }
+
+    private var showsReactions: Bool {
+      message.deletedAt == nil && outbound == nil && !message.reactions.isEmpty
+    }
+
+    /// Link previews and the Soko Bot footer follow a settled body only.
+    private var showsBodyExtras: Bool {
+      outbound == nil && mentionShell == nil
+    }
+
+    private var unfurls: [Components.Schemas.ChatRoomMessageUnfurl] {
+      showsBodyExtras ? message.unfurls ?? [] : []
+    }
+
+    /// Web renders the Soko Bot footer only once the turn's answer is in the row, and only with approvals or Tasks.
+    private var sokoBotFooter: SokoBotTurnMetadata? {
+      guard showsBodyExtras, let turn = SokoBotTurnMetadata(message: message), turn.hasFooter else { return nil }
+      return turn
+    }
+
+    private var threadReplyBar: ThreadReplyBar? {
+      onReply == nil ? nil : ThreadReplyBar(message: message)
+    }
+
+    /// Web `keepsSeenByCornerClear` (row 31b3): the newest message's body ends in attachments and nothing is drawn
+    /// after it — no reactions, Thread bar, link preview, Soko Bot footer or failed send, and it is not being
+    /// edited. The faces then sit under the attachment instead of beside it, so the column never narrows for them.
+    private var keepsSeenByCornerClear: Bool {
+      newestEndsInAttachment && message.deletedAt == nil && mentionShell == nil && !isEditingThisRow && !showsReactions
+        && threadReplyBar == nil && unfurls.isEmpty && sokoBotFooter == nil && outbound?.status != .failed
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -239,6 +278,10 @@ import SwiftUI
             }
           }
           let mentionShell = mentionShell
+          // Web draws it at the top of a settled body, above the Thought and the text; not while the row is edited (row 38c).
+          if let sourceLabel = SokoBotSourceLabel(message: message), editing?.source?.id != message.id {
+            SokoBotSourceLabelView(label: sourceLabel)
+          }
           if case .failed? = mentionShell {
             failedMentionView
           } else if hasThoughtView(message) {
@@ -257,30 +300,27 @@ import SwiftUI
               MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
                 .id(quote.messageId + quote.snippet)
             }
-            if let editing, editing.source?.id == message.id {
+            if let editing, isEditingThisRow {
               MessageEditComposer(editing: editing).id(message.id)
             } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
               // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if outbound == nil, mentionShell == nil {
-              ForEach(message.unfurls ?? [], id: \.url) { preview in
-                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
-                  .id(preview.url + (preview.imageUrl ?? ""))
-              }
-              // Web renders the Soko Bot footer only once the turn's answer is in the row, and only with approvals or Tasks.
-              if let turn = SokoBotTurnMetadata(message: message), turn.hasFooter {
-                SokoBotMessageFooterView(turn: turn)
-              }
+            ForEach(unfurls, id: \.url) { preview in
+              MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                .id(preview.url + (preview.imageUrl ?? ""))
+            }
+            if let sokoBotFooter {
+              SokoBotMessageFooterView(turn: sokoBotFooter)
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
-          if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
+          if showsReactions {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, let bar = ThreadReplyBar(message: message) {
+          if let onReply, let bar = threadReplyBar {
             ThreadReplyBarButton(bar: bar, open: onReply)
               .padding(.top, 4)
           }
@@ -302,8 +342,11 @@ import SwiftUI
             .font(.caption)
           }
         }
-        // The faces sit in the corner, out of the text flow; the column gives up their width so no line runs under them.
-        .padding(.trailing, seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
+        // The faces sit in the corner, out of the text flow; the column gives up their width so no line runs under
+        // them. A newest body ending in attachments keeps their height under it instead, from the first layout, with
+        // the 4 pt they keep from the row's edge between them and the attachment.
+        .padding(.trailing, keepsSeenByCornerClear ? 0 : seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
+        .padding(.bottom, keepsSeenByCornerClear ? SeenByFaces.faceDiameter + 4 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(.vertical, 4)
@@ -354,6 +397,11 @@ import SwiftUI
         // keyboard-focused, or choosing from the picker.
         if visible {
           quickReactions = ReactionEmojiHistory().quickReactions
+        }
+      }
+      .onChange(of: onToggleReaction != nil) { _, canReact in
+        if !canReact {
+          showsReactionPicker = false
         }
       }
       // Track the complete row, including its action overlay. The toolbar
@@ -719,10 +767,3 @@ import SwiftUI
   #endif
 
 #endif
-
-func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  if case .case2 = message.sender {
-    return true
-  }
-  return false
-}

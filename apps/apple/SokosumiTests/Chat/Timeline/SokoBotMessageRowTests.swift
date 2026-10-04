@@ -21,7 +21,7 @@
         createdAt: Date(timeIntervalSince1970: 1_788_868_800),
         deletedAt: nil,
         editedAt: nil,
-        sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", presence: .online))),
+        sender: .case3(.init(_type: .sokoBot, sokoBot: .init(id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online))),
         mentions: [],
         reactions: [],
         threadReplyCount: 0,
@@ -45,10 +45,10 @@
       ])
       #expect(SokoBotChainMetadata(message: hop) == .init(depth: 2, maxDepth: 3, roomMessagesThisHour: 4, roomMessagesPerHour: 20))
       #expect(SokoBotTurnMetadata(message: hop) == nil)
-      // A shell without its answer never reaches the row (web drops it from the transcript).
+      // A shell without its answer stays in the transcript and draws its live Thinking (web #5617, row 38d).
       let shell = try botMessage(id: "shell", content: "", metadata: ["streaming": true, "mention_id": "mention_1", "soko_bot": ["turn_id": "turn_1"] as [String: String]])
-      #expect(!shouldKeepPersistedMessage(shell))
-      #expect(displayedTranscript(messages: [shell, settled], shells: []).map(\.id) == ["settled"])
+      #expect(shouldKeepPersistedMessage(shell))
+      #expect(displayedTranscript(messages: [shell, settled], shells: []).map(\.id) == ["shell", "settled"])
     }
 
     @Test(arguments: [false, true])

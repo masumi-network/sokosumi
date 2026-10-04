@@ -11,7 +11,7 @@ import {
   EMAIL_CODE_LENGTH,
   type EmailCodeError,
   EmailCodeField,
-  useDescribeEmailCodeError,
+  useEmailCodeRefusal,
 } from "./email-code-field";
 
 interface EmailCodeFormProps {
@@ -46,13 +46,18 @@ export function EmailCodeForm({
   isResending,
 }: EmailCodeFormProps) {
   const t = useTranslations("Components.EmailCodeForm");
-  const describeError = useDescribeEmailCodeError();
   const fieldRef = useRef<HTMLInputElement>(null);
   const submitting = useRef(false);
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAccepted, setIsAccepted] = useState(false);
+  const isLocked = isVerifying || isAccepted;
+  const refusal = useEmailCodeRefusal({
+    clear: () => setCode(""),
+    focus: () => fieldRef.current?.focus(),
+    isLocked,
+  });
 
   function showError(message: string) {
     // The field is disabled while a code is checked; enable it first, so
@@ -84,7 +89,7 @@ export function EmailCodeForm({
         return;
       }
       if (answer) {
-        showError(describeError(answer));
+        setError(refusal.refuse(answer));
         return;
       }
       // The page is leaving or the dialog is closing; a second submit would
@@ -99,8 +104,6 @@ export function EmailCodeForm({
     }
   };
 
-  const isLocked = isVerifying || isAccepted;
-
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     void submitCode(code);
@@ -113,7 +116,11 @@ export function EmailCodeForm({
         // Focus follows the step that just appeared.
         autoFocus
         value={code}
-        onChange={setCode}
+        completedCodeRef={refusal.completedCodeRef}
+        onChange={(next) => {
+          setCode(next);
+          setError(null);
+        }}
         onComplete={(completed) => {
           if (!isLocked) void submitCode(completed);
         }}

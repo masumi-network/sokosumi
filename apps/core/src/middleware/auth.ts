@@ -9,6 +9,7 @@ import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
+import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-provider";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -517,7 +518,9 @@ async function verifyAgentApiKey(
 }
 
 const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
+  const tokenWithoutPrefix = value.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)
+    ? value.slice(OAUTH_ACCESS_TOKEN_PREFIX.length)
+    : value;
   return await hashApiKey(tokenWithoutPrefix);
 };
 
@@ -642,8 +645,12 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    const apiKeyValid = await verifyApiKey(token, c);
-    if (apiKeyValid) {
+    // An OAuth access token is never an API key. Trying it as one makes
+    // Better Auth log "Failed to validate API key" at error level.
+    if (
+      !token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX) &&
+      (await verifyApiKey(token, c))
+    ) {
       return true;
     }
 

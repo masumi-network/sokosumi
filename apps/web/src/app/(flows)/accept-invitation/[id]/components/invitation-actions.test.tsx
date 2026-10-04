@@ -75,8 +75,8 @@ const messages = {
         joining: "Joining…",
         decline: "Decline",
         activateRetry: "Try switching again",
-        signedOutHint: "Sign in or create an account to accept this invite.",
-        signIn: "Sign in to join",
+        signedOutHint: "Log in or create an account to accept this invite.",
+        signIn: "Log in to join",
         register: "Create an account",
         emailMismatch: "You are not the invited user.",
         logout: "Logout",
@@ -87,7 +87,7 @@ const messages = {
           decline: "Decline failed",
           activate: "Activate failed",
         },
-        Errors: { unauthorizedAction: "Login" },
+        Errors: { unauthorizedAction: "Log in" },
       },
     },
   },
@@ -241,20 +241,21 @@ describe("InvitationActions join-like layout", () => {
     renderActions(null);
 
     expect(
-      screen.getByText("Sign in or create an account to accept this invite."),
+      screen.getByText("Log in or create an account to accept this invite."),
     ).toBeVisible();
     expect(
       screen.queryByText(/If you already have an account/i),
     ).not.toBeInTheDocument();
 
-    await actor.click(screen.getByRole("button", { name: "Sign in to join" }));
+    await actor.click(screen.getByRole("button", { name: "Log in to join" }));
     const signin = new URL(
       String(routerPushMock.mock.calls.at(-1)?.[0]),
       "http://localhost",
     );
     expect(signin.pathname).toBe("/signin");
-    expect(signin.searchParams.get("email")).toBe("ada@example.com");
-    // So sign-in's Register link can keep the address fixed on sign-up.
+    // The address stays out of logs and analytics; sign-in looks it up from
+    // the invitation and keeps it fixed.
+    expect(signin.searchParams.has("email")).toBe(false);
     expect(signin.searchParams.get("invitationId")).toBe("inv_1");
     expect(signin.searchParams.get("returnUrl")).toBe(
       "/accept-invitation/inv_1",
@@ -268,7 +269,7 @@ describe("InvitationActions join-like layout", () => {
       "http://localhost",
     );
     expect(signup.pathname).toBe("/signup");
-    expect(signup.searchParams.get("email")).toBe("ada@example.com");
+    expect(signup.searchParams.has("email")).toBe(false);
     expect(signup.searchParams.get("invitationId")).toBe("inv_1");
     expect(signup.searchParams.get("returnUrl")).toBe(
       "/accept-invitation/inv_1",

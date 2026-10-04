@@ -243,6 +243,8 @@ export interface MapChatRoomAttentionOptions {
   organizationName?: string | null;
   /** Other humans on this Direct are Members of the caller's active org. */
   peerInActiveOrganization?: boolean;
+  /** Profiles of this Direct's former members, from `loadFormerDirectUserMembers`. */
+  formerUserMembers?: ReadonlyArray<FormerDirectUserMember>;
 }
 
 function resolveMyAccess(
@@ -287,6 +289,7 @@ export function mapChatRoom(
     myAccess: myAccessOverride,
     organizationName = null,
     peerInActiveOrganization = false,
+    formerUserMembers = [],
   } = attention;
 
   const myAccess = resolveMyAccess(room, currentUserId, myAccessOverride);
@@ -308,6 +311,7 @@ export function mapChatRoom(
     directKey: room.directKey,
     isSelfDirect: isSelfDirectRoom(room),
     isGroupDirect: isGroupDirectRoom(room),
+    isReadOnly: isReadOnlyDirectRoom(room),
     groupName: room.groupName,
     topic: room.topic,
     discoverability: mapChatRoomDiscoverability(
@@ -342,6 +346,12 @@ export function mapChatRoom(
         member.access === "guest" ? ("guest" as const) : ("member" as const),
       lastReadAt: lastReadByUserId.get(member.userId) ?? null,
     })),
+    formerUserMembers: formerUserMembers.map((user) => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      image: user.image ?? null,
+    })),
     coworkerMembers: room.coworkerMembers.map(({ coworker }) => ({
       id: coworker.id,
       name: coworker.name,
@@ -356,6 +366,7 @@ export function mapChatRoom(
       caption: sokoBotCaption(sokoBot),
       image: sokoBot.avatarImageUrl ?? null,
       avatarSeed: sokoBotAvatarSeedFor(sokoBot),
+      ownerUserId: sokoBot.userId,
       presence: "online" as const,
     })),
   };
@@ -563,6 +574,7 @@ export async function mapChatRoomWithSidebarFlags(
     [room.id],
     tx,
   );
+  const formerUserMembers = await loadFormerDirectUserMembers([room], tx);
   const peerInActiveOrganization = await resolvePeerInActiveOrganization(
     room,
     userId,
@@ -583,6 +595,7 @@ export async function mapChatRoomWithSidebarFlags(
     markedUnread: flags?.markedUnread ?? false,
     organizationName: attention.organizationName ?? null,
     peerInActiveOrganization,
+    formerUserMembers: formerUserMembers.get(room.id),
   });
 }
 
@@ -631,6 +644,7 @@ function mapChatRoomMessageSender(
         caption: sokoBotCaption(row.senderSokoBot),
         image: row.senderSokoBot.avatarImageUrl ?? null,
         avatarSeed: sokoBotAvatarSeedFor(row.senderSokoBot),
+        ownerUserId: row.senderSokoBot.userId,
         presence: "online" as const,
       },
     };
@@ -1116,6 +1130,98 @@ export function isGroupDirectRoom(room: {
   return humanCount >= 3;
 }
 
+/**
+ * Humans a Direct was started for, read from its participant key. Empty for
+ * Self Directs and AI 1:1s, whose one human owns the room and is never left
+ * out of it while it exists. SQL `chat_direct_key_user_ids` mirrors this for
+ * the Organization rejoin trigger; change both together.
+ */
+function directKeyUserIds(directKey: string): string[] {
+  if (directKey.startsWith(DIRECT_PARTICIPANT_KEY_PREFIX)) {
+    const parts = directKey
+      .slice(DIRECT_PARTICIPANT_KEY_PREFIX.length)
+      .split(":");
+    return parts.filter(
+      (_part, index) => index % 2 === 1 && parts[index - 1] === "user",
+    );
+  }
+  // A human 1:1 key is the two user ids; every other key is namespaced.
+  const parts = directKey.split(":");
+  return parts.length === 2 ? parts : [];
+}
+
+/**
+ * Former members of a Direct: the humans it was started for who are no longer
+ * in it. Organization exit takes a member out of an Org Direct but keeps its
+ * participant key, so the key still says who the Direct was with.
+ */
+export function formerDirectUserIds(room: {
+  kind: string;
+  directKey: string | null;
+  userMembers: ReadonlyArray<{ userId: string }>;
+}): string[] {
+  if (room.kind !== "direct" || !room.directKey) {
+    return [];
+  }
+  const memberIds = new Set(room.userMembers.map((member) => member.userId));
+  return directKeyUserIds(room.directKey).filter(
+    (userId) => !memberIds.has(userId),
+  );
+}
+
+/**
+ * A Direct whose every other participant has left: nobody would read what is
+ * added, so it keeps its history but takes no new messages, uploads or
+ * Reactions (see {@link requireWritableChatRoom}).
+ */
+export function isReadOnlyDirectRoom(room: {
+  kind: string;
+  directKey: string | null;
+  userMembers: ReadonlyArray<{ userId: string }>;
+  coworkerMembers: readonly unknown[];
+  sokoBotMembers: readonly unknown[];
+}): boolean {
+  return (
+    room.userMembers.length <= 1 &&
+    room.coworkerMembers.length === 0 &&
+    room.sokoBotMembers.length === 0 &&
+    formerDirectUserIds(room).length > 0
+  );
+}
+
+type FormerDirectUserMember = Prisma.UserGetPayload<{
+  select: typeof chatRoomUserSelect;
+}>;
+
+/** Former member profiles per room, in one read; rooms without any are absent. */
+export async function loadFormerDirectUserMembers(
+  rooms: ReadonlyArray<ChatRoomWithMembers>,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<Map<string, FormerDirectUserMember[]>> {
+  const formerIdsByRoom = new Map(
+    rooms
+      .map((room) => [room.id, formerDirectUserIds(room)] as const)
+      .filter(([, userIds]) => userIds.length > 0),
+  );
+  const userIds = [...new Set([...formerIdsByRoom.values()].flat())];
+  if (userIds.length === 0) {
+    return new Map();
+  }
+
+  const users = await tx.user.findMany({
+    where: { id: { in: userIds } },
+    select: chatRoomUserSelect,
+  });
+  const userById = new Map(users.map((user) => [user.id, user]));
+  // A deleted account has no profile left to show; its room stays read-only.
+  return new Map(
+    [...formerIdsByRoom].map(([roomId, formerIds]) => [
+      roomId,
+      formerIds.flatMap((userId) => userById.get(userId) ?? []),
+    ]),
+  );
+}
+
 export function buildDirectRoomKey(userIdA: string, userIdB: string): string {
   return [userIdA, userIdB].sort().join(":");
 }
@@ -1224,9 +1330,8 @@ export function chatRoomPatchTouchesSettings(body: {
 }
 
 /**
- * Split PATCH gates (after caller proven access=member, not guest):
- * settings (name/topic/discoverability) need OWNER/ADMIN; roster rewrite is
- * allowed for any host-org room member. Fail settings before any writes.
+ * PATCH gate (after caller proven access=member, not guest): settings
+ * (name/topic/discoverability) need OWNER/ADMIN. Fail before any writes.
  */
 export function assertChatRoomPatchAuth(options: {
   role: string;
@@ -1234,8 +1339,6 @@ export function assertChatRoomPatchAuth(options: {
     name?: unknown;
     topic?: unknown;
     discoverability?: unknown;
-    memberUserIds?: unknown;
-    coworkerIds?: unknown;
   };
 }): void {
   if (
@@ -1386,6 +1489,7 @@ const chatRoomWriteSelect = {
   organizationId: true,
   slug: true,
   kind: true,
+  directKey: true,
   providerConversationId: true,
   userMembers: {
     select: {
@@ -1456,6 +1560,24 @@ export async function requireChatRoomUserWriteAccess(
     tx,
   );
 
+  return room;
+}
+
+/**
+ * Write access for adding to a room: a message, an upload, a Reaction. On top
+ * of {@link requireChatRoomUserWriteAccess}, a Read-only Direct refuses them,
+ * since nobody else is left to read them. Edits to one's own messages go
+ * through the plain write access and stay allowed.
+ */
+export async function requireWritableChatRoom(
+  roomId: string,
+  userId: string,
+  tx: Prisma.TransactionClient | typeof prisma,
+): Promise<ChatRoomForWrite> {
+  const room = await requireChatRoomUserWriteAccess(roomId, userId, tx);
+  if (isReadOnlyDirectRoom(room)) {
+    throw forbidden("Everyone else has left this Direct, so it is read-only.");
+  }
   return room;
 }
 

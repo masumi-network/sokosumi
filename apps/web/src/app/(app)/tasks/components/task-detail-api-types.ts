@@ -17,6 +17,7 @@ export interface TaskPickerTask {
 export interface VisibleTaskLink {
   id: string;
   name: string;
+  identifier: string | null;
   status: TaskStatus;
   relation: TaskLinkRelation;
 }
@@ -37,6 +38,7 @@ export function mapVisibleTaskLinks(links: TaskLink[]): VisibleTaskLink[] {
     .map((link) => ({
       id: link.peerTask.id,
       name: stripInlineMarkdown(link.peerTask.name),
+      identifier: link.peerTask.identifier,
       status: link.peerTask.status,
       relation: link.relation,
     }));

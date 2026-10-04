@@ -732,6 +732,110 @@ export const PatchAdminAgentMetadataOverrideBodySchema = {
     }
 } as const;
 
+export const AdminBadgeCampaignListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/BadgeCampaign'
+    }
+} as const;
+
+export const BadgeCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'feature',
+        'startsAt',
+        'endsAt',
+        'createdAt'
+    ]
+} as const;
+
+export const AnnouncedFeatureSchema = {
+    type: 'string',
+    enum: [
+        'SOKO_BOTS',
+        'NEW_TASK',
+        'SEARCH',
+        'AGENTS',
+        'TASKS',
+        'SCHEDULES',
+        'CONTENT_STUDIO',
+        'SOCIAL',
+        'DRIVE',
+        'THREADS',
+        'UNREADS'
+    ],
+    example: 'DRIVE'
+} as const;
+
+export const CreateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'feature',
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
+export const UpdateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
 export const AdminOrganizationOptionSchema = {
     type: 'object',
     properties: {
@@ -845,6 +949,9 @@ export const AdminSokoBotListItemSchema = {
             type: 'integer',
             minimum: 0
         },
+        outOfCredits: {
+            type: 'boolean'
+        },
         turnCount: {
             type: 'integer',
             minimum: 0
@@ -883,6 +990,7 @@ export const AdminSokoBotListItemSchema = {
         'lastSucceededAt',
         'lastFailedAt',
         'consecutiveTurnFailures',
+        'outOfCredits',
         'turnCount',
         'pendingDecisionCount',
         'scheduleCount',
@@ -2241,6 +2349,11 @@ export const ChatRoomSokoBotParticipantSchema = {
             ],
             example: 'orb:user_123'
         },
+        ownerUserId: {
+            type: 'string',
+            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            example: 'user_123'
+        },
         presence: {
             $ref: '#/components/schemas/ChatRoomPresence'
         }
@@ -2251,6 +2364,7 @@ export const ChatRoomSokoBotParticipantSchema = {
         'caption',
         'image',
         'avatarSeed',
+        'ownerUserId',
         'presence'
     ]
 } as const;
@@ -2445,6 +2559,22 @@ export const ChatRoomMessageMembershipSchema = {
         },
         subject: {
             $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Who added or removed the subject. Absent when the subject joined or left on their own.'
         }
     },
     required: [
@@ -5761,6 +5891,23 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -5785,6 +5932,9 @@ export const TaskSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -5908,10 +6058,13 @@ export const TaskSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
@@ -5990,6 +6143,14 @@ export const ProjectSummarySchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         logo: {
             type: [
                 'string',
@@ -6002,6 +6163,7 @@ export const ProjectSummarySchema = {
     required: [
         'id',
         'name',
+        'identifier',
         'logo'
     ]
 } as const;
@@ -6319,6 +6481,19 @@ export const TaskVisibilitySchema = {
     ],
     example: 'PUBLIC',
     description: 'PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner\'s Soko Bot, and the assigned coworker\'s vendor family. Set at create; immutable.'
+} as const;
+
+export const TaskPrioritySchema = {
+    type: 'string',
+    enum: [
+        'URGENT',
+        'HIGH',
+        'MEDIUM',
+        'LOW',
+        'NONE'
+    ],
+    example: 'NONE',
+    description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
 } as const;
 
 export const TaskEventSchema = {
@@ -7038,7 +7213,8 @@ export const TaskLinkSchema = {
             id: 'tsk_b',
             name: 'Review onboarding copy',
             status: 'READY',
-            archivedAt: null
+            archivedAt: null,
+            identifier: 'SOK-12'
         },
         note: 'Blocked until onboarding copy is approved'
     }
@@ -7085,19 +7261,29 @@ export const TaskLinkPeerTaskSchema = {
             ],
             format: 'date-time',
             example: null
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-12',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the peer has no project.'
         }
     },
     required: [
         'id',
         'name',
         'status',
-        'archivedAt'
+        'archivedAt',
+        'identifier'
     ],
     example: {
         id: 'tsk_b',
         name: 'Review onboarding copy',
         status: 'READY',
-        archivedAt: null
+        archivedAt: null,
+        identifier: 'SOK-12'
     }
 } as const;
 
@@ -9554,6 +9740,11 @@ export const ChatRoomSchema = {
             description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
             example: false
         },
+        isReadOnly: {
+            type: 'boolean',
+            description: 'Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.',
+            example: false
+        },
         groupName: {
             type: [
                 'string',
@@ -9730,6 +9921,13 @@ export const ChatRoomSchema = {
                 $ref: '#/components/schemas/ChatRoomUserParticipant'
             }
         },
+        formerUserMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomFormerUserMember'
+            },
+            description: 'Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.'
+        },
         coworkerMembers: {
             type: 'array',
             items: {
@@ -9753,6 +9951,7 @@ export const ChatRoomSchema = {
         'isSelfDirect',
         'directKey',
         'isGroupDirect',
+        'isReadOnly',
         'groupName',
         'topic',
         'discoverability',
@@ -9766,8 +9965,40 @@ export const ChatRoomSchema = {
         'markedUnread',
         'myAccess',
         'userMembers',
+        'formerUserMembers',
         'coworkerMembers',
         'sokoBotMembers'
+    ]
+} as const;
+
+export const ChatRoomFormerUserMemberSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image'
     ]
 } as const;
 
@@ -10455,42 +10686,6 @@ export const UpdateChatRoomRequestSchema = {
         discoverability: {
             $ref: '#/components/schemas/OrgChannelDiscoverability'
         },
-        memberUserIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 500,
-            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
-            example: [
-                'user_123',
-                'user_456'
-            ]
-        },
-        coworkerIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 50,
-            example: [
-                'cow_123'
-            ]
-        },
-        sokoBotIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            maxItems: 50,
-            description: 'Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.',
-            example: [
-                '01960001-0001-7001-8001-000000000099'
-            ]
-        },
         groupName: {
             type: [
                 'string',
@@ -10662,6 +10857,49 @@ export const LeftChatRoomSchema = {
         'id',
         'remainingUserMemberCount'
     ]
+} as const;
+
+export const AddChatRoomMembersRequestSchema = {
+    type: 'object',
+    properties: {
+        userIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Organization member user IDs to add to the room.',
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            description: 'Marketplace AI coworker IDs to add to the room.',
+            example: [
+                'cow_123'
+            ]
+        },
+        sokoBotIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
+            ]
+        }
+    }
 } as const;
 
 export const ChatRoomThreadSchema = {
@@ -15617,6 +15855,39 @@ export const NoticeKindSchema = {
     example: 'LEGAL_TERMS'
 } as const;
 
+export const UserBadgeCampaignsSchema = {
+    type: 'object',
+    properties: {
+        badgeCampaigns: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    feature: {
+                        $ref: '#/components/schemas/AnnouncedFeature'
+                    },
+                    endsAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'feature',
+                    'endsAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'badgeCampaigns'
+    ]
+} as const;
+
 export const BlobFileSchema = {
     type: 'object',
     properties: {
@@ -15872,6 +16143,37 @@ export const UtmAttributionRequestSchema = {
         'utm_source',
         'capturedAt'
     ]
+} as const;
+
+export const SignUpConversionResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'google',
+                'microsoft',
+                null
+            ],
+            description: 'The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.',
+            example: 'google'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
+export const SignUpConversionRequestSchema = {
+    type: 'object',
+    properties: {
+        utmAttribution: {
+            $ref: '#/components/schemas/UtmAttributionRequest'
+        }
+    }
 } as const;
 
 export const CoworkerWorkspaceAccessSchema = {
@@ -16311,7 +16613,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'John'
         },
         lastName: {
@@ -16319,7 +16621,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'Doe'
         },
         email: {
@@ -17272,6 +17574,14 @@ export const ProjectSchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         briefing: {
             type: [
                 'string',
@@ -17393,6 +17703,7 @@ export const ProjectSchema = {
         'id',
         'workspaceId',
         'name',
+        'identifier',
         'briefing',
         'briefingUrl',
         'latestUpdate',
@@ -17442,6 +17753,12 @@ export const CreateProjectRequestSchema = {
             ],
             maxLength: 2048,
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.',
+            example: 'SOK'
         }
     },
     required: [
@@ -19405,6 +19722,12 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
+            example: 'SOK'
         }
     }
 } as const;
@@ -24064,6 +24387,23 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -24088,6 +24428,9 @@ export const TaskListItemSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -24165,10 +24508,13 @@ export const TaskListItemSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',

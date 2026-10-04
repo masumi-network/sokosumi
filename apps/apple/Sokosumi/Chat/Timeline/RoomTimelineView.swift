@@ -67,7 +67,7 @@ import SwiftUI
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message) else { return nil }
+      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
     }
 
@@ -96,12 +96,16 @@ import SwiftUI
       transcriptBody
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          ChatComposerView(
-            userId: workspaces.currentUserId,
-            organizationId: workspaces.selection?.workspace.organizationId,
-            roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
-          )
-          .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          if let notice = ReadOnlyDirectNotice(room: room) {
+            ReadOnlyDirectNoticeView(notice: notice, horizontalInset: 20)
+          } else {
+            ChatComposerView(
+              userId: workspaces.currentUserId,
+              organizationId: workspaces.selection?.workspace.organizationId,
+              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+            )
+            .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          }
         }
         .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
         .task(id: workspaces.messageJump) {
@@ -152,6 +156,14 @@ import SwiftUI
       } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
+        } else if room?.isSelfDirect == true {
+          // Web's private-notes empty state (`rooms-client.tsx`:3219-3230).
+          ContentUnavailableView(
+            "Message yourself",
+            systemImage: "bubble.left",
+            description: Text("Send yourself notes and to-dos. Only you can see them.")
+          )
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ContentUnavailableView(
             "No messages yet",
@@ -220,6 +232,7 @@ import SwiftUI
                 if let status = roomStatusText(message) {
                   RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
+                    .jumpSpotlightRow(messageId: message.id)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
                   MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
@@ -234,10 +247,13 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
-                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`),
+                                 // and in a Read-only Direct on a message with no replies yet (`canOpenThread`).
                                  onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
+                                   && canOpenThread(message, in: transcriptRoom)
                                    ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                 // Quoting fills the composer, which a Read-only Direct lacks.
+                                 onQuote: canQuoteMessage(message) && roomTakesNewMessages(transcriptRoom) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
@@ -260,8 +276,10 @@ import SwiftUI
                                  sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                                  onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  horizontalInset: 12,
-                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),
                                  seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
+                    .jumpSpotlightRow(messageId: message.id)
                 }
               }
               .background {
@@ -283,6 +301,8 @@ import SwiftUI
           .scrollTargetLayout()
           .padding(.top, 8)
         }
+        // Row 25b2: the other rows step back while the mark holds.
+        .jumpSpotlight(for: jumpMark)
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
@@ -443,10 +463,6 @@ import SwiftUI
           .foregroundStyle(.secondary)
         Button("Retry", action: retry)
       }
-    }
-
-    private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-      message.id.hasPrefix("stream:") && isCoworkerMessage(message)
     }
   }
 

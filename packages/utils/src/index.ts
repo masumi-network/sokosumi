@@ -22,6 +22,7 @@ export {
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
 } from "./better-auth-client-schema.js";
 export {
   resolveBetterAuthCookieName,
@@ -360,6 +361,14 @@ export {
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
 export {
+  isValidProjectIdentifier,
+  PROJECT_IDENTIFIER_ERROR,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  PROJECT_IDENTIFIER_PATTERN,
+  projectIdentifierSchema,
+  sanitizeProjectIdentifier,
+} from "./project-identifier.js";
+export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
@@ -381,7 +390,6 @@ export {
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
-  type SocialPostMediaRequirement,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMaxBytesForKind,
@@ -425,6 +433,11 @@ export {
   resolveTaskFileContentType,
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
+export {
+  formatTaskIdentifier,
+  parseTaskRef,
+  type TaskRef,
+} from "./task-identifier.js";
 export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
 export {
   isAgentOnlyTaskStatus,

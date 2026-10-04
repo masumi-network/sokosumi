@@ -1,7 +1,8 @@
 import { Mascot } from "./mascot";
+import { SubmitButton } from "./submit-button";
 
 interface SignedOutProps {
-  /** The `error` query Sokosumi sent back, if sign in did not finish. */
+  /** The `error` query Sokosumi or CMO sent back, if sign in did not finish. */
   error?: string;
   createAccount: () => Promise<void>;
   signIn: () => Promise<void>;
@@ -16,15 +17,30 @@ const SCOPE = [
   "Images and graphics",
 ];
 
+/**
+ * The sign-in state cookie is gone or replaced: over ten minutes, another
+ * browser, Back, or a second Sign in (another tab, the link again), since
+ * the browser keeps one state cookie.
+ */
+const STATE_EXPIRED =
+  "That sign in expired or was started again somewhere else. Press Sign in again.";
+
+const ERROR_MESSAGES = new Map([
+  ["access_denied", "You did not allow CMO. Nothing was shared."],
+  ["state_mismatch", STATE_EXPIRED],
+  ["state_invalid", STATE_EXPIRED],
+  ["state_not_found", STATE_EXPIRED],
+  // CMO could not start sign in: Core is down or its discovery failed.
+  [
+    "unavailable",
+    "Sokosumi is not reachable right now. Try again in a minute.",
+  ],
+  // Renewal ended the session: a ban, a revoked token, or a failed refresh.
+  ["signed_out", "You were signed out. Sign in again."],
+]);
+
 function errorMessage(error: string): string {
-  if (error === "access_denied") {
-    return "You did not allow CMO. Nothing was shared.";
-  }
-  // The sign-in state is gone: over ten minutes, another browser, or Back.
-  if (error === "state_mismatch") {
-    return "That sign in took too long. Press Sign in again.";
-  }
-  return "Sign in did not finish. Try again.";
+  return ERROR_MESSAGES.get(error) ?? "Sign in did not finish. Try again.";
 }
 
 export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
@@ -43,18 +59,15 @@ export function SignedOut({ error, createAccount, signIn }: SignedOutProps) {
           ))}
         </ul>
         {error ? <p role="alert">{errorMessage(error)}</p> : null}
-        <div className="actions">
-          <form action={createAccount}>
-            <button className="button" type="submit">
-              Create account
-            </button>
-          </form>
-          <form action={signIn}>
-            <button className="button button-secondary" type="submit">
-              Sign in
-            </button>
-          </form>
-        </div>
+        {/* One form, so pressing either button disables both. */}
+        <form className="actions">
+          <SubmitButton className="button" formAction={createAccount}>
+            Create account
+          </SubmitButton>
+          <SubmitButton className="button button-secondary" formAction={signIn}>
+            Sign in
+          </SubmitButton>
+        </form>
         <p className="note">
           CMO uses your <a href="https://sokosumi.com">Sokosumi</a> account.
         </p>

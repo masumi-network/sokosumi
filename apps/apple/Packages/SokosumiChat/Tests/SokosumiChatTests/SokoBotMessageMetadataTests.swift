@@ -4,7 +4,7 @@ import OpenAPIRuntime
 @testable import SokosumiChat
 import Testing
 
-private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","presence":"online"}}"#
+private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
 private let coworkerSender = #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
 private let webBaseURL = URL(string: "https://app.example.com") ?? URL(fileURLWithPath: "/")
 
@@ -63,6 +63,65 @@ extension SokoBotTurnMetadataTests {
     #expect(!SokoBotTurnMetadata(turnId: "turn_1", source: "SCHEDULE").hasFooter)
     #expect(SokoBotTurnMetadata(turnId: "turn_1", pendingDecisionIds: ["dec_1"]).hasFooter)
     #expect(SokoBotTurnMetadata(turnId: "turn_1", taskIds: ["task_1"]).hasFooter)
+  }
+}
+
+/// Row 38c: web `sokoBotSourceLabel` (#5536) and where `ChatMessageRow` draws `SokoBotSourceLabel`.
+struct SokoBotSourceLabelTests {
+  private func label(_ sokoBot: String) async throws -> SokoBotSourceLabel? {
+    try await SokoBotSourceLabel(message: decode(botRow(metadata: #"{"soko_bot":\#(sokoBot)}"#)))
+  }
+
+  /// Core's delivery writes `source` for turns the bot started itself, and the schedule's name and system key for schedule runs.
+  @Test func readsTheScheduleItCameFrom() async throws {
+    let turn = try await SokoBotTurnMetadata(message: decode(botRow(metadata: #"{"soko_bot":{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Daily stand-up","schedule_key":"standup"}}"#)))
+    #expect(turn == .init(turnId: "turn_1", source: "SCHEDULE", scheduleName: "Daily stand-up", scheduleKey: "standup"))
+    // A schedule the owner made has no system key; web reads anything but a string as none.
+    let custom = try await SokoBotTurnMetadata(message: decode(botRow(metadata: #"{"soko_bot":{"turn_id":"turn_2","source":"SCHEDULE","schedule_name":7,"schedule_key":null}}"#)))
+    #expect(custom == .init(turnId: "turn_2", source: "SCHEDULE"))
+  }
+
+  @Test func namesWhereAnUnpromptedMessageCameFrom() async throws {
+    #expect(try await label(#"{"turn_id":"turn_1","source":"INGEST"}"#) == .inbox)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"EVENT"}"#) == .taskUpdate)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Daily stand-up","schedule_key":"standup"}"#) == .standup)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Weekly wrap","schedule_key":"weekly-wrap"}"#) == .weeklyWrap)
+    // The system key wins over the name, and names the stand-up even without one.
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Morning","schedule_key":"standup"}"#) == .standup)
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_key":"weekly-wrap"}"#) == .weeklyWrap)
+    // Any other schedule, the owner's own or another system one, goes by its name.
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"Monday check-in","schedule_key":null}"#) == .scheduled(name: "Monday check-in"))
+    #expect(try await label(#"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"End of day","schedule_key":"end-of-day"}"#) == .scheduled(name: "End of day"))
+    #expect(SokoBotSourceLabel(turn: .init(turnId: "turn_1", source: "INGEST")) == .inbox)
+  }
+
+  /// Web returns null for a chat reply, an admin retry, an unknown or missing source, and a schedule with no system key and no name.
+  @Test(arguments: [
+    #"{"turn_id":"turn_1","source":"CHAT"}"#,
+    #"{"turn_id":"turn_1","source":"ADMIN_RETRY"}"#,
+    #"{"turn_id":"turn_1","source":"ingest"}"#,
+    #"{"turn_id":"turn_1","source":7}"#,
+    #"{"turn_id":"turn_1"}"#,
+    #"{"turn_id":"turn_1","pending_decision_ids":["dec_1"],"task_ids":["task_1"]}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE"}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE","schedule_name":"","schedule_key":null}"#,
+    #"{"turn_id":"turn_1","source":"SCHEDULE","schedule_key":"meeting-prep"}"#,
+    #"{"source":"INGEST"}"#,
+    #"{"turn_id":7,"source":"INGEST"}"#
+  ])
+  func labelsNothingOnRepliesOrUnknownSources(sokoBot: String) async throws {
+    #expect(try await label(sokoBot) == nil)
+  }
+
+  /// Web draws the line in a settled row's body only: not on a deleted message, and not on a mention shell, thinking or failed.
+  /// It does not check the sender, so the metadata alone decides.
+  @Test func onlyASettledRowCarriesItsLabel() async throws {
+    let inbox = #"{"turn_id":"turn_1","source":"INGEST"}"#
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(sender: coworkerSender, metadata: #"{"soko_bot":\#(inbox)}"#))) == .inbox)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(metadata: #"{"soko_bot":\#(inbox)}"#, deletedAt: testTimestamp))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(content: "", metadata: #"{"streaming":true,"mention_id":"mention_1","soko_bot":\#(inbox)}"#))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","mention_failed":true,"soko_bot":\#(inbox)}"#))) == nil)
+    #expect(try await SokoBotSourceLabel(message: decode(botRow(metadata: nil))) == nil)
   }
 }
 
@@ -133,37 +192,61 @@ struct SokoBotChainMetadataTests {
   }
 }
 
-struct MentionShellTranscriptVisibilityTests {
+@MainActor struct MentionShellTranscriptVisibilityTests {
   private let thinking = #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
   private let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
 
-  @Test func bodilessSokoBotShellsLeaveTheTranscript() async throws {
-    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: thinking))))
-    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "   ", metadata: failed))))
-    // Web keeps coworker shells and answered rows.
+  /// Row 38d: web #5617 (`isMentionThoughtShell`) keeps a Soko Bot's bodiless mention shell as it keeps a
+  /// coworker's, so the live Thinking and "Failed to reply" stay in the transcript.
+  @Test func sokoBotShellsStayInTheTranscriptLikeACoworkers() async throws {
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", metadata: thinking))))
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "   ", metadata: failed))))
+    // A dispatch failure before the turn started carries no `soko_bot` record (`failMentionThoughtPlaceholder`).
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source"}"#))))
     #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", sender: coworkerSender, metadata: thinking))))
     #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "Done.", metadata: #"{"mention_id":"mention_1","soko_bot":{"turn_id":"turn_1"}}"#))))
     // Row 19a: the predicate is web's whole `shouldKeepPersistedMessage`, so every other bodiless
-    // row leaves too — a tombstone, a bot row without shell metadata, and shell metadata on a human.
+    // row leaves — a tombstone, a bot row without shell metadata, and shell metadata on a human.
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil, deletedAt: testTimestamp))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"","streaming":true}"#))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1"}"#))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","streaming":false}"#))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", sender: testUserSender(name: "Me", email: "me@example.com"), metadata: thinking))))
   }
 
-  @Test func displayedTranscriptDropsTheShellUntilTheAnswerArrives() async throws {
+  /// Web's `mergeMessagesWithStreamOverlay` test from #5617: both shells stay, and the answer fills the same row.
+  @Test func displayedTranscriptKeepsTheShellsAndTheAnswerFillsTheSameRow() async throws {
     let rows = try await fetchTestMessages([
       testMessageJSON(id: "source", content: "plan my week", sender: testUserSender(name: "Me", email: "me@example.com")),
       botRow(id: "shell", content: "", metadata: thinking),
-      botRow(id: "failed", content: "", metadata: failed),
-      botRow(id: "answer", content: "Here is the plan.", metadata: #"{"mention_id":"mention_2","soko_bot":{"turn_id":"turn_2","task_ids":["task_1"]}}"#)
+      botRow(id: "failed", content: "", metadata: failed)
     ])
-    let displayed = displayedTranscript(messages: rows, shells: [])
-    #expect(displayed.map(\.id) == ["source", "answer"])
+    #expect(displayedTranscript(messages: rows, shells: []).map(\.id) == ["source", "shell", "failed"])
     var answered = rows[1]
-    answered.content = "Done."
-    #expect(displayedTranscript(messages: [rows[0], answered], shells: []).map(\.id) == ["source", "shell"])
+    answered.content = "Here is the plan."
+    answered.metadata = try .init(additionalProperties: [
+      "mention_id": .init(unvalidatedValue: "mention_1"),
+      "soko_bot": .init(unvalidatedValue: ["turn_id": "turn_1"])
+    ])
+    let settled = displayedTranscript(messages: [rows[0], answered, rows[2]], shells: [])
+    #expect(settled.map(\.id) == ["source", "shell", "failed"])
+    #expect(settled[1].content == "Here is the plan.")
+  }
+
+  /// Web's thread panel runs the same filter over the replies.
+  @Test func aThreadKeepsTheSokoBotShellsToo() async throws {
+    let reply = { (id: String, metadata: String) in
+      botRow(id: id, content: "", metadata: metadata)
+        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    }
+    let root = try await decode(testMessageJSON(id: "root", content: "@Soko plan my week", sender: testUserSender(name: "Me", email: "me@example.com")))
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [reply("shell", thinking), reply("failed", failed)], nextCursor: nil))])
+    let session = ThreadSession()
+    #expect(session.open(root))
+    _ = try await session.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.timeline.generation)
+    // Same timestamp, so the page orders them by id.
+    #expect(session.displayedReplies.map(\.id) == ["failed", "shell"])
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
   type ReactNode,
@@ -18,10 +18,17 @@ import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
-import { takeSignUpHandover } from "@/lib/auth/auth-email-hint";
+import {
+  rememberAuthEmailHint,
+  takeSignUpHandover,
+} from "@/lib/auth/auth-email-hint";
 import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
+import {
+  chooseSignInMethod,
+  type LastUsedAuthMethod,
+  toProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
 import SignUpForm from "./form";
 import SignUpHeader from "./header";
@@ -33,7 +40,8 @@ interface SignUpFlowProps {
   client?: OAuthRequestClient | undefined;
   prefilledEmail?: string | undefined;
   returnUrl?: string | undefined;
-  lastUsedMethod: ProviderAuthMethod | null;
+  /** How this browser signed in or signed up last, from Better Auth's cookie. */
+  lastUsedMethod: LastUsedAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
   notice?: ReactNode;
   /** Shown under the methods of both steps, e.g. the terms notice. */
@@ -43,7 +51,8 @@ interface SignUpFlowProps {
 /**
  * Sign-up in two steps. The first asks for the email beside the providers
  * and, for a new address, emails a code right away. The second asks for the
- * name and that code, or the name and a password instead.
+ * name and that code, or the name and a password instead. An address that
+ * has an account goes to Log in's second step.
  */
 export default function SignUpFlow({
   invitationId,
@@ -56,6 +65,7 @@ export default function SignUpFlow({
 }: SignUpFlowProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const searchParams = useSearchParams();
+  const router = useRouter();
   const signInHref = useSignInHref();
   const effectiveReturnUrl = useMemo(
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
@@ -68,13 +78,16 @@ export default function SignUpFlow({
     // Record UTM attribution for every successful signup.
     beforeLeaving: handleUtmConversion,
   });
-  // An invitation fixes the address. Any other query email is only a
-  // starting value, so a mistyped one can still be fixed.
+  // An invitation fixes the address, which the page read from Core by the
+  // invitation's id. The URL never carries an address.
   const emailLocked = Boolean(invitationId && prefilledEmail);
   const [email, setEmail] = useState(prefilledEmail ?? "");
   const [step, setStep] = useState<"email" | "details">("email");
   const [cameBack, setCameBack] = useState(false);
   const [isDetailsPending, setIsDetailsPending] = useState(false);
+  // Step 1 starts one sign-up at a time: the email or a provider.
+  const [isEmailPending, setIsEmailPending] = useState(false);
+  const [isProviderPending, setIsProviderPending] = useState(false);
   const formStarted = useRef(false);
 
   // Sign-in found no account and emailed the code, so step 2 opens at once.
@@ -123,7 +136,6 @@ export default function SignUpFlow({
           />
           <SignUpForm
             email={email}
-            returnUrl={returnUrl}
             emailCode={emailCode}
             onFormStart={handleFormStart}
             onPendingChange={setIsDetailsPending}
@@ -147,10 +159,20 @@ export default function SignUpFlow({
           captchaEntry="signup"
           detour={{
             when: "exists",
-            title: t("AccountExists.title"),
-            description: t("AccountExists.description"),
-            label: t("AccountExists.logIn"),
-            href: signInHref,
+            // Log in's first step would only ask Core again and send this
+            // code, so it opens on its second step, an invitation's too.
+            handOver: async (knownEmail, signal, account) => {
+              const method = chooseSignInMethod(lastUsedMethod, account);
+              const codeSentAt =
+                method === "code"
+                  ? await emailCode.sendCode(knownEmail, { signal })
+                  : null;
+              if (signal.aborted) return;
+              rememberAuthEmailHint(knownEmail, {
+                signIn: method === "code" ? { method, codeSentAt } : { method },
+              });
+              router.push(signInHref);
+            },
           }}
           onFormStart={handleFormStart}
           continueCaptcha={emailCode.captcha}
@@ -160,9 +182,17 @@ export default function SignUpFlow({
             await emailCode.sendCode(confirmedEmail, { signal });
             if (!signal.aborted) setStep("details");
           }}
+          disabled={isProviderPending}
+          onPendingChange={setIsEmailPending}
         />
         <Divider />
-        <SocialButtons returnUrl={returnUrl} lastUsedMethod={lastUsedMethod} />
+        <SocialButtons
+          returnUrl={returnUrl}
+          lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
+          eventType="signUp"
+          disabled={isEmailPending}
+          onPendingChange={setIsProviderPending}
+        />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}

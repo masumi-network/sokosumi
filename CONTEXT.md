@@ -216,11 +216,33 @@ _Avoid_: Topbar, shell (unless meaning the loading frame)
 The header control that shows the active personal or organization workspace and lets the user switch between them. This is the identity/context control, not the Notification Center entry point. It only lists workspaces the user actually has. If they have no personal workspace, it offers an explicit create action — it does not create one by switching.
 _Avoid_: Profile menu (unless a separate account menu is introduced), notification avatar
 
+### Feature badges
+
+**Announced feature**:
+An item of the sidebar menu that a Badge campaign can point at, named as the sidebar names it: a page such as Files or Content Studio, or an action such as Search or New task. The set is fixed by the product; admins choose from it, they never invent one. Opening a page anywhere under it opens the feature; an action is opened by using it.
+_Avoid_: Feature (alone; collides with beta and feature flags), badge target, route
+
+**Badge campaign**:
+One time-boxed announcement of an Announced feature, with a start and an end set by a platform admin. At most one per Announced feature at a time. A later campaign for the same feature announces it again, even to users who opened it before.
+_Avoid_: Announcement, release, feature flag
+
+**New badge**:
+The "New" pill on an Announced feature's nav row while a Badge campaign runs. Shown only to users whose account existed before the campaign started, and gone for good in that campaign once the user opens the feature.
+_Avoid_: NEW tag, beta badge, unread badge
+
 ### Account access
 
 **Security check**:
 The human check on public account-email entry points (sign-up, sign-in, password reset, email code, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
+
+**Log in**:
+Starting a Sokosumi session on Sokosumi's own pages, with an email code, a password, a passkey, or a provider. "Login" is only ever a noun.
+_Avoid_: Login (as a verb), Sign in (except in Sign in with Sokosumi)
+
+**Email code**:
+The six-digit code Sokosumi emails to log in or to prove an address at sign-up. It lasts 10 minutes and allows five wrong tries. Copy calls it just "code".
+_Avoid_: Login code, OTP, magic link
 
 **Sign in with Sokosumi**:
 Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
@@ -385,8 +407,16 @@ The event that the current user is no longer a member of a room — by remote re
 _Avoid_: Access revoke (when meaning coworker workspace pilot access, not room membership)
 
 **Organization exit (chat)**:
-When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore prior room memberships. Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
+When a user leaves or is removed from an Organization, they lose every chat room membership on rooms owned by that Organization (channels and org directs, including external). They do not keep host-org rooms as guests. Personal rooms and rooms of other organizations are unchanged. Rejoining the organization does not restore Channel memberships; it does restore the Org Directs that still exist and were started with them (see Former member). Channels left with no human members are soft-archived; empty org directs are removed so a new direct can be created later. Rooms left with no human members also lose their pending guest invitations and live invite links.
 _Avoid_: Soft demote to guest on org leave (retired for org exit), cascade-strip other guests when last host exits org (not part of this rule)
+
+**Former member** (Direct):
+A human a Direct was started for who is no longer in it, usually through Organization exit. Read from the Direct's participant key, which outlives the membership. The Direct is still shown as being with them (name and dimmed face), never as the reader alone. A deleted account leaves no profile to show.
+_Avoid_: Ex-member, removed user (when meaning the Direct's view of them), treating the remaining reader as the Direct's other party
+
+**Read-only Direct**:
+A Direct whose every other participant (human, coworker or Soko Bot) is gone, with at least one Former member. Its history stays readable and searchable; Core refuses new messages, uploads and Reactions (editing or deleting one's own messages still works), and clients show a notice in place of the composer and offer no Reactions, Quotes or new Threads (a Thread that already has replies still opens). Pinned messages are Channel-only, so a Direct never had them. A group Direct with anyone else still in it stays writable. When a Former member rejoins the Organization they are put back in with their Room last-read set to that moment (Thread Look markers are kept), and the Direct is writable again.
+_Avoid_: Archived direct (archiving is a different, reversible action), locked chat
 
 ### Chat pins
 

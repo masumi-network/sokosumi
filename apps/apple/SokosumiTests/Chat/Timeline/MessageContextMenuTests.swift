@@ -9,7 +9,7 @@
   import Testing
 
   /// Records every menu AppKit starts tracking, then closes it, so a posted right-click never blocks the run.
-  @MainActor private final class MenuRecorder {
+  @MainActor final class MenuRecorder {
     private(set) var menus: [NSMenu] = []
     private var observer: NSObjectProtocol?
 
@@ -43,7 +43,7 @@
   }
 
   /// "Title[action]" per item and "|" per separator.
-  @MainActor private func outline(_ menu: NSMenu?) -> [String] {
+  @MainActor func outline(_ menu: NSMenu?) -> [String] {
     menu?.items.map { item in
       item.isSeparatorItem ? "|" : "\(item.title)[\(item.action.map(NSStringFromSelector) ?? "-")]"
     } ?? []

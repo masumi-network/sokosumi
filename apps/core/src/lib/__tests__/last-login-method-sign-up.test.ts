@@ -4,6 +4,11 @@ import { lastLoginMethod } from "better-auth/plugins";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
+import {
+  emailCodeSignIn,
+  resolveEmailCodeSignUpLoginMethod,
+} from "../auth-email-code-sign-in.js";
+
 const COOKIE_NAME = "sokosumi.last_used_login_method";
 
 // The sign-in page opens on the method this cookie names, so the way someone
@@ -22,12 +27,17 @@ function createTestAuth() {
     }),
     emailAndPassword: { enabled: true, autoSignIn: true },
     plugins: [
-      emailOTP({
-        sendVerificationOTP: async ({ otp }) => {
-          emailCode = otp;
-        },
+      emailCodeSignIn(
+        emailOTP({
+          sendVerificationOTP: async ({ otp }) => {
+            emailCode = otp;
+          },
+        }),
+      ),
+      lastLoginMethod({
+        cookieName: COOKIE_NAME,
+        customResolveMethod: resolveEmailCodeSignUpLoginMethod,
       }),
-      lastLoginMethod({ cookieName: COOKIE_NAME }),
     ],
     rateLimit: { enabled: false },
   });
@@ -42,12 +52,15 @@ function createTestAuth() {
     );
   }
 
-  async function signUpWithEmailCode(email: string) {
+  async function signUpWithEmailCode(
+    email: string,
+    fields: Record<string, unknown> = {},
+  ) {
     await post("/email-otp/send-verification-otp", { email, type: "sign-in" });
-    return post("/sign-in/email-otp", { email, otp: emailCode });
+    return post("/sign-in/email-otp", { email, otp: emailCode, ...fields });
   }
 
-  return { post, signUpWithEmailCode };
+  return { signUpWithEmailCode };
 }
 
 function lastLoginMethodCookie(response: Response) {
@@ -59,13 +72,12 @@ function lastLoginMethodCookie(response: Response) {
 }
 
 describe("last login method on sign-up", () => {
+  // Password sign-up sends the password with the email code.
   it("remembers a password sign-up as email", async () => {
-    const { post } = createTestAuth();
+    const { signUpWithEmailCode } = createTestAuth();
 
-    const response = await post("/sign-up/email", {
-      email: "ada@example.com",
+    const response = await signUpWithEmailCode("ada@example.com", {
       password: "Password123!",
-      name: "Ada Lovelace",
     });
 
     expect(response.status).toBe(200);

@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -27,12 +28,18 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { changePassword } from "@/lib/auth/auth.client";
+import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import {
   type PasswordFormType,
   passwordFormSchema,
 } from "@/lib/schemas/account";
 
-export function PasswordForm() {
+interface PasswordFormProps {
+  /** The signed-in address, handed to the reset form. */
+  email?: string | undefined;
+}
+
+export function PasswordForm({ email }: PasswordFormProps) {
   const t = useTranslations("App.Account.Password");
 
   const form = useForm<PasswordFormType>({
@@ -80,7 +87,18 @@ export function PasswordForm() {
                 name="currentPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("currentPassword")}</FormLabel>
+                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+                      <FormLabel>{t("currentPassword")}</FormLabel>
+                      <Link
+                        href="/forgot-password"
+                        onClick={(event) =>
+                          rememberAuthEmailHintOnClick(event, email ?? "")
+                        }
+                        className="text-muted-foreground hover:text-foreground text-sm hover:underline"
+                      >
+                        {t("forgotPassword")}
+                      </Link>
+                    </div>
                     <FormControl>
                       <Input type="password" {...field} />
                     </FormControl>

@@ -1,8 +1,10 @@
 "use client";
 
+import { EMAIL_CODE_SIGN_IN_METHODS_REMOVED } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
+import { ACCOUNT_HREF } from "@/app/account/constants";
 import type { EmailCodeError } from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
@@ -14,6 +16,12 @@ export interface EmailCodeSignUpFields {
   lastName: string;
   marketingOptIn: boolean;
   termsAccepted: true;
+  /**
+   * Core adds it to the new account once the code is accepted, so a password
+   * account starts with its address proven. Core refuses it for an address
+   * that already has an account, before the code is spent.
+   */
+  password?: string;
 }
 
 interface UseEmailCodeOptions {
@@ -21,6 +29,28 @@ interface UseEmailCodeOptions {
   returnUrl: string | undefined;
   /** Work that must be on its way before the page leaves. */
   beforeLeaving?: () => Promise<unknown>;
+}
+
+/**
+ * A code sign-in that removed the account's password and provider links,
+ * waiting for the person to read so before the page leaves.
+ */
+export interface RemovedSignInMethods {
+  /** Leaves for where the sign-in was going, or to set a new password. */
+  leave: (to: "returnUrl" | "setPassword") => void;
+}
+
+/**
+ * Core sets it when the address was unproven: Better Auth then deletes the
+ * password and the Google or Microsoft links (`revokeUnprovenAccountAccess`).
+ */
+function didRemoveSignInMethods(data: unknown): boolean {
+  return (
+    typeof data === "object" &&
+    data !== null &&
+    EMAIL_CODE_SIGN_IN_METHODS_REMOVED in data &&
+    data[EMAIL_CODE_SIGN_IN_METHODS_REMOVED] === true
+  );
 }
 
 /**
@@ -43,6 +73,7 @@ export function useEmailCode({
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState(0);
+  const [removed, setRemoved] = useState<RemovedSignInMethods | null>(null);
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
   // chose a code. The pages count the choice. Resolves to the send time, or
@@ -101,13 +132,35 @@ export function useEmailCode({
       return result.error;
     }
 
-    await finishAuthInPlace({
-      eventType,
-      provider: "email-otp",
-      returnUrl,
-      result: result.data,
-      beforeLeaving,
-    });
+    const finish = (destination: string | undefined) =>
+      finishAuthInPlace({
+        eventType,
+        // A password sign-up counts as one, whichever request carried it.
+        provider: fields?.password === undefined ? "email-otp" : "credential",
+        returnUrl: destination,
+        result: result.data,
+        beforeLeaving,
+      });
+
+    if (didRemoveSignInMethods(result.data)) {
+      // Settles once the page is leaving, so the step stays locked.
+      await new Promise<void>((resolve, reject) => {
+        let leaving = false;
+        setRemoved({
+          leave: (to) => {
+            if (leaving) return;
+            leaving = true;
+            finish(to === "setPassword" ? ACCOUNT_HREF : returnUrl).then(
+              resolve,
+              reject,
+            );
+          },
+        });
+      });
+      return undefined;
+    }
+
+    await finish(returnUrl);
     return undefined;
   }
 
@@ -119,6 +172,7 @@ export function useEmailCode({
     sendCode,
     adoptSentCode,
     signInWithCode,
+    removedSignInMethods: removed,
   };
 }
 

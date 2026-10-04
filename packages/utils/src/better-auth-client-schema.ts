@@ -72,5 +72,9 @@ export const betterAuthOrganizationAdditionalFields = {
   },
 } as const;
 
-export type BetterAuthOrganizationAdditionalFieldKey =
-  keyof typeof betterAuthOrganizationAdditionalFields;
+/**
+ * Set to `true` on a `/sign-in/email-otp` response when the code removed the
+ * account's password and Google or Microsoft links: Better Auth does that when
+ * the address was unproven. Core sets it, the sign-in page tells the person.
+ */
+export const EMAIL_CODE_SIGN_IN_METHODS_REMOVED = "signInMethodsRemoved";

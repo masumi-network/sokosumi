@@ -71,6 +71,8 @@ interface RoomMessageComposerProps {
    * region rather than two announcing the same thing.
    */
   typingLine?: ReactNode;
+  /** Docked content between the typing row and the composer card. */
+  aboveCard?: ReactNode;
   isSending: boolean;
   sendDisabled: boolean;
   sendAriaLabel: string;
@@ -117,6 +119,7 @@ export function RoomMessageComposer({
   toolbarStart,
   aboveEditor,
   typingLine,
+  aboveCard,
   isSending,
   sendDisabled,
   sendAriaLabel,
@@ -144,6 +147,7 @@ export function RoomMessageComposer({
       onSubmit={onSubmit}
     >
       {typingLine}
+      {aboveCard}
       <div className="w-full">
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}

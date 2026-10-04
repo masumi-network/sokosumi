@@ -20,15 +20,15 @@
         kind: Components.Schemas.ChatRoom.KindPayload = .channel
       ) -> Components.Schemas.ChatRoom {
         .init(
-          id: "550e8400-e29b-41d4-a716-446655440131", name: name, kind: kind, isSelfDirect: false, isGroupDirect: false,
+          id: "550e8400-e29b-41d4-a716-446655440131", name: name, kind: kind, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
           topic: topic, discoverability: kind == .channel ? discoverability : nil, createdByUserId: "user_ada",
           createdAt: created, updatedAt: created, unreadCount: 0, unreadMentionCount: 0, markedUnread: false,
-          myAccess: .member,
+          myAccess: .init(value1: .member, value2: "member"),
           userMembers: [
             .init(id: "user_reader", name: "Me", email: "me@example.com", image: nil, presence: .offline),
             .init(id: "user_ada", name: "Ada Lovelace", email: "ada@example.com", image: nil, presence: .offline)
           ],
-          coworkerMembers: [], sokoBotMembers: []
+          formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }
 
@@ -111,6 +111,38 @@
         let items = Self.headerItems(in: window).map(\.itemIdentifier.rawValue)
         #expect(items.count == 1, "The message glyph is the Direct's one title bar item: \(items)")
         #expect(window.subtitle.isEmpty)
+      }
+
+      /// Row 27c: a Self Direct's header draws the reader's own face, not the message glyph, and is named "You"
+      /// (web `room-header-chrome.tsx`:185-189).
+      @Test func aSelfDirectShowsTheReadersFace() async throws {
+        let reader = Components.Schemas.ChatRoomUserParticipant(
+          id: "user_reader", name: "Ada Lovelace", email: "ada@example.com", image: nil, presence: .online
+        )
+        var room = Self.room("Direct", kind: .direct)
+        room.isSelfDirect = true
+        room.userMembers = [reader]
+        let identity = Self.identity(room)
+        #expect(identity.mark == .selfDirect(.init(id: reader.id, name: reader.name, imageURL: nil, presence: .online)))
+        #expect(identity.title == "You")
+        var columns: [[CGImage]] = [[], []]
+        for (column, dark) in [false, true].enumerated() {
+          let window = try await Self.window(identity, dark: dark, width: 420)
+          let items = Self.headerItems(in: window).map(\.itemIdentifier.rawValue)
+          #expect(items.count == 1, "The face is the Self Direct's one title bar item: \(items)")
+          #expect(window.subtitle.isEmpty)
+          let frame = try #require(window.contentView?.superview)
+          let bitmap = try #require(frame.bitmapImageRepForCachingDisplay(in: frame.bounds))
+          frame.cacheDisplay(in: frame.bounds, to: bitmap)
+          window.orderOut(nil)
+          let image = try #require(bitmap.cgImage)
+          let scale = CGFloat(image.width) / frame.bounds.width
+          try columns[column].append(#require(image.cropping(to: CGRect(
+            x: 0, y: 0, width: CGFloat(image.width), height: (Self.titleBarHeight * scale).rounded()
+          ))))
+        }
+        let combined = try Self.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "self-direct-header.png")
       }
 
       /// The recorded picture: each header's title bar band, light beside dark.

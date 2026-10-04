@@ -4,7 +4,8 @@
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
       "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
       "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
-      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut."
+      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+      "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut."
     },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
@@ -54,7 +55,6 @@
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
-      "rememberMe": "Angemeldet bleiben",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1211,9 +1211,6 @@
           "Fields": {
             "Password": {
               "label": "Passwort"
-            },
-            "RememberMe": {
-              "label": "Angemeldet bleiben"
             }
           },
           "forgotPassword": "Passwort vergessen?",
@@ -1226,14 +1223,20 @@
           },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
-            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "Handover": {
+            "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
+            "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
+            "codeNotSentNotice": "Du hast bereits ein Konto.",
+            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
           }
         }
       },
       "SignUp": {
         "Metadata": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
         },
         "Google": {
@@ -1249,7 +1252,7 @@
           "retry": "Erneut versuchen"
         },
         "Header": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
@@ -1261,7 +1264,8 @@
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "error": "Registrierung fehlgeschlagen",
+          "addPassword": "Passwort für künftige Anmeldungen festlegen",
+          "removePassword": "Ohne Passwort registrieren",
           "Fields": {
             "MarketingOptIn": {
               "label": "Ich möchte Updates und Neuigkeiten erhalten"
@@ -1291,8 +1295,13 @@
           "reset_password": "Passwort zurücksetzen",
           "Fields": {
             "Email": {
-              "placeholder": "E-Mail"
+              "label": "E-Mail"
             }
+          },
+          "linkExpired": "Dieser Link zum Zurücksetzen ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
+          "Errors": {
+            "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut.",
+            "generic": "Wir konnten die E-Mail zum Zurücksetzen nicht senden. Versuche es erneut."
           }
         }
       },
@@ -1306,15 +1315,18 @@
         "Form": {
           "submit": "Passwort zurücksetzen",
           "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
-          "error": "Passwort-Reset fehlgeschlagen",
+          "error": "Wir konnten dein Passwort nicht zurücksetzen. Der Link ist vielleicht abgelaufen oder wurde bereits verwendet.",
           "Fields": {
             "Password": {
-              "placeholder": "Neues Passwort"
+              "label": "Neues Passwort"
             },
             "ConfirmPassword": {
-              "placeholder": "Passwort bestätigen"
+              "label": "Passwort bestätigen"
             }
-          }
+          },
+          "requestNewLink": "Neuen Link anfordern",
+          "signOutError": "Passwort geändert. Wir konnten dich in diesem Browser nicht abmelden. Versuche es erneut, um zur Anmeldung zu gelangen.",
+          "continueToSignIn": "Weiter zur Anmeldung"
         }
       }
     },
@@ -1343,7 +1355,19 @@
     "SignInError": {
       "accountNotLinked": "Für diese E-Mail-Adresse gibt es bereits ein Sokosumi-Konto. Melde dich zuerst mit deinem Passwort oder einem E-Mail-Code an und verbinde Google oder Microsoft danach unter Verbindungen.",
       "cancelled": "Die Anmeldung wurde abgebrochen. Wähle, wie du fortfahren möchtest.",
-      "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut."
+      "generic": "Wir konnten dich nicht anmelden. Bitte versuche es erneut.",
+      "expired": "Diese Anmeldung hat zu lange gedauert oder wurde in einem anderen Browser gestartet. Bitte versuche es erneut.",
+      "clientMisconfigured": "Die Anmeldeanfrage dieser App ist nicht richtig eingerichtet. Bitte wende dich an die Entwickler der App und nenne ihnen den Fehlercode.",
+      "title": "Anmeldung fehlgeschlagen",
+      "code": "Fehlercode: {code}",
+      "description": "Details: {description}",
+      "backToSignIn": "Zurück zur Anmeldung"
+    },
+    "SignInMethodsRemoved": {
+      "title": "Deine bisherigen Anmeldemethoden wurden entfernt",
+      "description": "Du hast dich mit einem Code angemeldet. Aus Sicherheitsgründen haben wir dein bisheriges Passwort und deine Google-/Microsoft-Verknüpfungen entfernt. Lege in deinem Konto ein neues Passwort fest.",
+      "setPassword": "Neues Passwort festlegen",
+      "continue": "Weiter"
     }
   },
   "App": {
@@ -1685,18 +1709,18 @@
         "properties": "Eigenschaften",
         "status": "Status",
         "owner": "Eigentümer",
-        "creator": "Ersteller",
         "organization": "Organisation",
         "project": "Projekt",
+        "noProject": "Kein Projekt",
         "personalWorkspace": "Persönlich",
         "coworker": "Coworker",
-        "credits": "Credits",
         "created": "Erstellt",
         "updated": "Aktualisiert",
         "description": "Beschreibung",
         "context": "Kontext",
-        "linkedTasksTitle": "Verknüpfte Aufgaben",
-        "linkedTasksEmpty": "Noch keine verknüpften Aufgaben.",
+        "copyIdentifier": "Task-ID kopieren",
+        "identifierCopied": "{identifier} kopiert",
+        "identifierCopyError": "Task-ID konnte nicht kopiert werden",
         "jobs": "Jobs",
         "jobsEmpty": "Noch keine Jobs.",
         "jobsUntitled": "Unbenannter Job",
@@ -1720,7 +1744,6 @@
         "actorUser": "Nutzer",
         "actorSokoBot": "Assistent",
         "actorSokoBotWithOwner": "{assistant} · Assistent von {owner}",
-        "actorSokoBotRole": "Persönlicher Assistent von {owner}",
         "actorSystem": "System",
         "originFromApp": "von {appName}",
         "channelApp": {
@@ -1832,8 +1855,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
+            "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }
@@ -1868,6 +1891,8 @@
         },
         "files": "Dateien",
         "assignee": "Zuständig",
+        "noAssignee": "Nicht zugewiesen",
+        "memberFallback": "Mitglied",
         "schedule": "Zeitplan",
         "privateSchedule": "Privater Zeitplan",
         "participantsList": "Task-Teilnehmer",
@@ -2157,8 +2182,22 @@
           "description": "Alle Zeitpläne in deinem Workspace. Jeder Lauf erstellt einen neuen Task."
         }
       },
+      "Priority": {
+        "title": "Priorität",
+        "change": "Priorität ändern",
+        "noResults": "Keine passende Priorität",
+        "updateError": "Priorität konnte nicht aktualisiert werden",
+        "levels": {
+          "URGENT": "Dringend",
+          "HIGH": "Hoch",
+          "MEDIUM": "Mittel",
+          "LOW": "Niedrig",
+          "NONE": "Keine Priorität"
+        }
+      },
       "Tags": {
         "autoGenerated": "Automatisch erzeugte Tags:",
+        "autoGeneratedTitle": "Auto-Tags",
         "suggesting": "Tags werden erzeugt…",
         "label": "Tags",
         "empty": "Noch keine Tags",
@@ -2264,7 +2303,12 @@
           "subtitle": "Ein kurzer Titel für die Kampagne oder Initiative.",
           "websiteLabel": "Website",
           "websitePlaceholder": "example.com",
-          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet."
+          "websiteHint": "Optional. Wird für Logo und Markenrichtlinien verwendet.",
+          "identifierLabel": "Kennung",
+          "identifierPlaceholder": "Automatisch",
+          "identifierHint": "Wird in Task-IDs verwendet, z. B. {example}",
+          "identifierInvalid": "2-7 Buchstaben oder Ziffern, beginnend mit einem Buchstaben.",
+          "identifierTaken": "Diese Kennung wird in diesem Workspace bereits verwendet."
         },
         "briefing": {
           "title": "Briefing schreiben",
@@ -2404,7 +2448,6 @@
           "editTitle": "Beitrag bearbeiten",
           "scheduleTitle": "Beitrag planen",
           "rescheduleTitle": "Beitrag neu planen",
-          "description": "Wähle das Ziel, schreibe den Beitrag und lege fest, wann er erscheint.",
           "text": "Text",
           "textPlaceholder": "Was möchtest du posten?",
           "characters": "{count} / {limit}",
@@ -2413,7 +2456,6 @@
             "upload": "Hochladen",
             "uploading": "Wird hochgeladen…",
             "remove": "{name} entfernen",
-            "hint": "Hänge Bilder oder ein Video an, im Rahmen der Limits von {provider}.",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
             "alreadyAttached": "Diese Datei ist bereits angehängt.",
             "uploadDuplicate": "Im Drive existiert bereits eine Datei mit diesem Namen. Benenne sie um und versuche es erneut.",
@@ -2436,9 +2478,8 @@
           "account": "Konto",
           "accounts": "Posten auf",
           "accountOption": "{provider} {handle}",
-          "noAccounts": "Noch keine Konten verbunden. Verbinde eines im Tab Konten.",
+          "noAccounts": "Verbinde eines, um zu posten oder zu planen. Einen Entwurf kannst du trotzdem speichern.",
           "unknownHandle": "Unbekanntes Konto",
-          "scheduledAt": "Geplanter Zeitpunkt",
           "scheduledAtTooSoon": "Wähle einen Zeitpunkt, der mindestens eine Minute in der Zukunft liegt.",
           "saveDraft": "Entwurf speichern",
           "save": "Speichern",
@@ -2458,7 +2499,8 @@
             "pickTime": "Uhrzeit wählen",
             "dateSelected": "Datum: {date}",
             "timeSelected": "Uhrzeit: {time}",
-            "times": "Uhrzeiten"
+            "times": "Uhrzeiten",
+            "now": "Jetzt"
           },
           "timezone": {
             "yours": "Zeiten in deiner Zeitzone, {zone}.",
@@ -2472,7 +2514,16 @@
             "mediaPost": "Bild- oder Videobeitrag",
             "video": "Video (Text wird Titel und Beschreibung)"
           },
-          "publishNow": "Jetzt posten"
+          "publishNow": "Jetzt posten",
+          "when": "Wann",
+          "whenOptional": "Optional. Leer lassen, um einen Entwurf zu behalten.",
+          "scheduleFor": "Planen für {date}",
+          "rescheduleFor": "Neu planen für {date}",
+          "noAccountsTitle": "Noch kein Konto verbunden",
+          "connectAccount": "Konto verbinden",
+          "dismiss": "Abbrechen",
+          "previewEmpty": "Hier erscheint dein Post, während du schreibst.",
+          "pickAccount": "Wähle ein Konto, auf dem gepostet wird."
         },
         "cancelDialog": {
           "title": "Diesen Beitrag abbrechen?",
@@ -2535,6 +2586,7 @@
       "Detail": {
         "back": "Zurück zu Projekten",
         "header": {
+          "identifier": "Kennung",
           "updated": "Aktualisiert",
           "created": "Erstellt",
           "properties": "Eigenschaften",
@@ -3198,6 +3250,10 @@
           "matchedChannels": {
             "title": "Matched Channels",
             "description": "Organisationslose Matched Channels erstellen und deren Roster verwalten."
+          },
+          "badgeCampaigns": {
+            "title": "Feature-Badges",
+            "description": "Zeigt bestehenden Nutzern für eine feste Zeit ein Neu-Badge an einer Funktion in der Seitenleiste."
           }
         }
       },
@@ -3806,6 +3862,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Nach Bot, Besitzername oder E-Mail suchen…",
+          "outOfCredits": "Keine Credits mehr",
           "totalCount": "{count, plural, one {# Bot} other {# Bots}}",
           "loadError": "Soko Bots konnten nicht geladen werden.",
           "empty": "Keine Soko Bots gefunden.",
@@ -4469,6 +4526,58 @@
             "error": "Matched Channel konnte nicht gelöscht werden"
           }
         }
+      },
+      "BadgeCampaigns": {
+        "title": "Feature-Badges",
+        "description": "Eine Kampagne setzt ein Neu-Badge an eine Funktion in der Seitenleiste. Nutzer, die sich vor dem Start registriert haben, sehen es bis zum Ende oder bis sie die Funktion öffnen.",
+        "loadFailed": "Die Kampagnen konnten nicht geladen werden. Lade die Seite neu, um es erneut zu versuchen.",
+        "Status": {
+          "scheduled": "Geplant",
+          "live": "Aktiv",
+          "ended": "Beendet"
+        },
+        "Table": {
+          "feature": "Funktion",
+          "startsAt": "Start",
+          "endsAt": "Ende",
+          "status": "Status",
+          "actions": "Aktionen",
+          "empty": "Noch keine Kampagnen."
+        },
+        "Actions": {
+          "edit": "Daten bearbeiten",
+          "endNow": "Jetzt beenden",
+          "delete": "Löschen",
+          "startNow": "Jetzt starten"
+        },
+        "Form": {
+          "createTitle": "Neue Kampagne",
+          "editTitle": "Daten bearbeiten",
+          "feature": "Funktion",
+          "featurePlaceholder": "Funktion wählen",
+          "featureRequired": "Wähle zuerst eine Funktion.",
+          "startsAt": "Start",
+          "endsAt": "Ende",
+          "audienceHelper": "Nur Nutzer, die sich vor dem Start registriert haben, sehen das Badge.",
+          "create": "Kampagne erstellen",
+          "save": "Daten speichern",
+          "startNow": "Jetzt starten",
+          "timeZoneHelper": "Zeiten sind in deiner Zeitzone ({timeZone}).",
+          "runsFor": "Laufzeit",
+          "weeks": "{count, plural, one {# Woche} other {# Wochen}}",
+          "custom": "Eigene",
+          "endsOn": "Endet {date}",
+          "endsPending": "Wähle einen Start, um das Ende zu sehen."
+        },
+        "Toasts": {
+          "created": "Kampagne erstellt",
+          "updated": "Daten gespeichert",
+          "ended": "Kampagne beendet",
+          "deleted": "Kampagne gelöscht",
+          "saveFailed": "Kampagne konnte nicht gespeichert werden",
+          "deleteFailed": "Kampagne konnte nicht gelöscht werden",
+          "started": "Kampagne gestartet"
+        }
       }
     },
     "Billing": {
@@ -4610,7 +4719,8 @@
         "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
-        "error": "Passwort konnte nicht aktualisiert werden"
+        "error": "Passwort konnte nicht aktualisiert werden",
+        "forgotPassword": "Passwort vergessen?"
       },
       "NewPassword": {
         "title": "Passwort festlegen",
@@ -5898,7 +6008,6 @@
       "Actions": {
         "more": "Nachrichtenaktionen",
         "overflow": "Mehr",
-        "sectionTitle": "Kanal verwalten",
         "leave": "Kanal verlassen",
         "archive": "Kanal archivieren",
         "cancel": "Abbrechen",
@@ -5925,7 +6034,9 @@
         "mute": "Stummschalten",
         "unmute": "Stummschaltung aufheben",
         "roomMenu": "Chat-Aktionen für {name}",
-        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen."
+        "actionFailed": "Dieser Chat konnte nicht aktualisiert werden. Bitte erneut versuchen.",
+        "archiveHint": "Blendet den Kanal für alle aus. Später unter Archiviert in der Seitenleiste wiederherstellen.",
+        "archiveButton": "Archivieren"
       },
       "Metadata": {
         "title": "Chat",
@@ -5974,15 +6085,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Kanal verlassen",
-        "actionsOnlyDescription": "Verlasse diesen Kanal, wenn du ihn nicht mehr brauchst. Die Kanaleinstellungen werden von Admins verwaltet.",
+        "editTitle": "Kanaleinstellungen",
         "name": "Name",
         "nameRequired": "Kanalname ist erforderlich.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "Wofür ist dieser Kanal?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "Du kannst dich nicht selbst entfernen",
@@ -6006,6 +6114,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "readOnlyDirectNotice": "{count, plural, one {{members} hat den Chat verlassen.} other {{members} haben den Chat verlassen.}} Du kannst frühere Nachrichten weiterhin lesen, aber keine neuen senden.",
+      "readOnlyDirectNoticeUnnamed": "Alle anderen haben den Chat verlassen. Du kannst frühere Nachrichten weiterhin lesen, aber keine neuen senden.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Weitere Personen hinzufügen",
@@ -6220,7 +6330,9 @@
         "publicHelp": "Alle in der Organisation können diesen Kanal finden und beitreten.",
         "privateHelp": "Nur eingeladene Mitglieder können diesen Kanal sehen. Organisationsinhaber und Admins können ihn trotzdem finden und beitreten.",
         "external": "Extern",
-        "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft."
+        "externalHelp": "Alle in der Organisation können den Kanal finden und beitreten. Externe treten nur per E-Mail-Einladung als Gäste bei — ohne Organisationsmitgliedschaft.",
+        "externalLocked": "Entferne alle Gäste im Mitgliederbereich, um diesen Kanal öffentlich oder privat zu machen.",
+        "hasGuests": "Hat Gäste"
       },
       "CreateWizard": {
         "title": "Kanal erstellen",
@@ -6250,13 +6362,31 @@
         "open": "Mitglieder",
         "title": "Mitglieder",
         "humansTitle": "Personen",
+        "guestsTitle": "Gäste",
         "agentsTitle": "Coworker",
         "close": "Mitglieder schließen",
         "empty": "Keine Mitglieder vorhanden.",
         "message": "Nachricht an {name}",
         "copy": "{value} kopieren",
         "copySuccess": "In die Zwischenablage kopiert",
-        "copyError": "Kopieren fehlgeschlagen."
+        "copyError": "Kopieren fehlgeschlagen.",
+        "add": "Mitglieder hinzufügen",
+        "memberActions": "Weitere Aktionen für {name}",
+        "remove": "Aus dem Kanal entfernen",
+        "removeConfirmTitle": "{name} aus diesem Kanal entfernen?",
+        "removeConfirmDescription": "{name} sieht diesen Kanal und seine Nachrichten dann nicht mehr.",
+        "removeSuccess": "{name} aus dem Kanal entfernt.",
+        "undo": "Rückgängig"
+      },
+      "AddMembers": {
+        "title": "Mitglieder hinzufügen",
+        "description": "Füge {name} Personen, Coworker und deine persönlichen Assistenten hinzu.",
+        "membersTab": "Aus deiner Organisation",
+        "guestsTab": "Von außen einladen",
+        "submit": "Hinzufügen",
+        "chooseSomeone": "Wähle aus, wen du hinzufügen möchtest.",
+        "nobodyToAdd": "Alle, die du hinzufügen kannst, sind bereits in diesem Kanal.",
+        "success": "{count, plural, one {# Mitglied hinzugefügt.} other {# Mitglieder hinzugefügt.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Von # Person gelesen} other {Von # Personen gelesen}}",
@@ -6294,7 +6424,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} ist beigetreten",
-        "left": "{name} hat den Channel verlassen"
+        "left": "{name} hat den Channel verlassen",
+        "added": "{actor} hat {name} hinzugefügt",
+        "removed": "{actor} hat {name} entfernt"
       },
       "GroupName": {
         "rename": "Umbenennen",
@@ -6325,11 +6457,6 @@
         "send": "Einladung senden",
         "invalidEmail": "Gib eine gültige E-Mail-Adresse ein.",
         "inviteSuccess": "Einladung an {email} gesendet.",
-        "guestsTitle": "Gäste",
-        "guestsEmpty": "Noch keine Gäste.",
-        "removeGuest": "Gast entfernen",
-        "removeGuestAria": "Gast {name} entfernen",
-        "removeGuestSuccess": "{name} aus dem Kanal entfernt.",
         "pendingTitle": "Ausstehende Einladungen",
         "empty": "Keine ausstehenden Einladungen.",
         "loading": "Einladungen werden geladen…",
@@ -6704,7 +6831,8 @@
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
-        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+        "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+        "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
       },
       "Memory": {
         "title": "Gedächtnis",
@@ -6757,7 +6885,12 @@
         "showFewer": "Weniger anzeigen",
         "kindsMail": "Liest deinen Posteingang",
         "kindsCalendar": "Liest deinen Kalender",
-        "kindsMailCalendar": "Liest Posteingang und Kalender"
+        "kindsMailCalendar": "Liest Posteingang und Kalender",
+        "connectedNotRead": "Verbunden · wird gelesen, wenn ein Briefing oder Termin es braucht",
+        "lastRead": "Verbunden · gelesen {when}",
+        "connectedTools": "Verbunden",
+        "manage": "Verwalten",
+        "browseAll": "Alle Apps ansehen"
       },
       "Schedules": {
         "builtIn": "Eingebaut",
@@ -6803,7 +6936,8 @@
           "timezoneTitle": "Zeitzone",
           "timezoneDescription": "Für Stand-up, Wochenrückblick und \"heute\" in Briefings.",
           "error": "Einstellung konnte nicht gespeichert werden.",
-          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
+          "spendNotice": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht deine Credits. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren.",
+          "spendNoticeOrganization": "Dein Assistent arbeitet selbstständig. Er prüft deine Mails und deinen Kalender, schickt tägliche Briefings und kann Arbeit an Coworker und Agents übergeben. Jede Aktion verbraucht die Credits deiner Organisation. In seinen Einstellungen kannst du jederzeit ein Tageslimit setzen oder ihn pausieren."
         },
         "title": "Einstellungen",
         "followBoardTitle": "Das ganze Board verfolgen",
@@ -7021,13 +7155,19 @@
         },
         "Usage": {
           "title": "Nutzung",
-          "description": "Alles, was dieser Assistent seit seiner Erstellung verbraucht hat.",
+          "description": "Alles, was dieser Assistent seit seiner Erstellung ausgegeben hat, einschließlich der beauftragten Coworker und Agents.",
           "credits": "Verbrauchte Credits",
           "turns": "in {count, plural, one {# Durchlauf} other {# Durchläufen}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} rein · {output} raus",
           "modelCost": "Modellkosten",
-          "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf"
+          "modelCostHint": "Was die Tokens gekostet haben, vor dem Mindestbetrag pro Durchlauf",
+          "creditSplit": "{own} für eigene Durchläufe · {delegated} für Coworker und Agents",
+          "creditsOwnOnly": "Alles für eigene Durchläufe"
+        },
+        "Connectors": {
+          "title": "Tools",
+          "description": "Apps, die er für dich nutzen kann. Mail und Kalender werden nur gelesen; andere Apps handeln in deinem Namen, wenn du darum bittest."
         }
       },
       "Avatar": {
@@ -7418,6 +7558,14 @@
     "title": "Wartungsmodus",
     "description": "Wir führen derzeit Wartungsarbeiten durch",
     "message": "Wir arbeiten daran, dein Erlebnis zu verbessern. Schau bald wieder vorbei."
+  },
+  "EmailConfirmed": {
+    "title": "E-Mail bestätigt",
+    "message": "Deine E-Mail-Adresse ist bestätigt. Du kannst diesen Tab schließen.",
+    "messageFor": "Deine E-Mail-Adresse ist bestätigt. Du kannst jetzt zu {client} zurückkehren.",
+    "returnTo": "Zurück zu {client}",
+    "errorTitle": "E-Mail nicht bestätigt",
+    "errorMessage": "Dieser Link ist abgelaufen oder nicht mehr gültig."
   },
   "AppleAppCallback": {
     "title": "Zurück zur Sokosumi-App",

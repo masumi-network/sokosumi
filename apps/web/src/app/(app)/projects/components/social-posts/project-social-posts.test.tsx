@@ -150,6 +150,13 @@ const MESSAGES: Record<string, string> = {
   "composer.cancel": "Cancel post",
   "composer.edit": "Edit",
   "composer.close": "Close",
+  "composer.dismiss": "Cancel",
+  "composer.when": "When",
+  "composer.scheduleFor": "Schedule for {date}",
+  "composer.rescheduleFor": "Reschedule for {date}",
+  "composer.connectAccount": "Connect account",
+  "composer.previewEmpty": "Your post shows here as you write.",
+  now: "Now",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
@@ -180,8 +187,8 @@ const MESSAGES: Record<string, string> = {
   dateSelected: "Date: {date}",
   timeSelected: "Time: {time}",
   times: "Times",
-  "toasts.unauthenticated": "Please sign in to continue.",
-  "toasts.unauthenticatedAction": "Sign in",
+  "toasts.unauthenticated": "Please log in to continue.",
+  "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
@@ -737,7 +744,7 @@ describe("ProjectSocialPosts", () => {
     ).toContain("text-destructive");
     expect(saveDraft).toBeDisabled();
     expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
+      within(dialog).getByRole("button", { name: "Post now" }),
     ).toBeDisabled();
 
     await user.type(textarea, "{backspace}");
@@ -1145,14 +1152,71 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Hello world");
 
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    // With nowhere to post, saving a draft is the main action.
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeEnabled();
-    expect(schedule).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "Now" }),
+    ).not.toBeInTheDocument();
 
     await pickInAnHour(user, dialog);
-    expect(schedule).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeDisabled();
+  });
+
+  it("offers to connect an account when the project has none", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Connect account",
+      }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("names the scheduled time on the main button", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeEnabled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Now" }));
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
   });
 
   it("saves a draft through the create action and lists it", async () => {
@@ -1367,7 +1431,7 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
     await pickInAnHour(user, dialog);
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    const schedule = within(dialog).getByRole("button", { name: /^Schedule/ });
     await waitFor(() => expect(schedule).toBeEnabled());
     await user.click(schedule);
 
@@ -1459,7 +1523,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(preview).getByText("Scheduled text")).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     expect(
@@ -1491,7 +1555,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(dialog).queryByLabelText("Text")).not.toBeInTheDocument();
     await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
@@ -1532,7 +1596,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "pick launch.png" }));
     await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
@@ -2214,7 +2278,7 @@ describe("ProjectSocialPosts", () => {
       "time",
     );
     await user.click(within(times).getByRole("option", { name: twoThirty }));
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
 
     await waitFor(() => {
       expect(createProjectSocialPost).toHaveBeenCalledWith(
@@ -2250,7 +2314,7 @@ describe("ProjectSocialPosts", () => {
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Please sign in to continue.",
+        "Please log in to continue.",
         expect.objectContaining({ action: expect.any(Object) }),
       ),
     );
@@ -2336,7 +2400,7 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
     await pickInAnHour(user, dialog);
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(

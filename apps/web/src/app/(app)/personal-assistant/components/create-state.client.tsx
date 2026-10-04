@@ -21,7 +21,11 @@ import { AvatarPicker } from "./avatar-picker.client";
  * First visit: the bot's orb, what it does, a name, and a picture.
  * Core upserts on the user, so this also reactivates an archived bot.
  */
-export function CreateState() {
+export function CreateState({
+  paidByOrganization,
+}: {
+  paidByOrganization: boolean;
+}) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
   const router = useRouter();
@@ -116,7 +120,7 @@ export function CreateState() {
         </div>
 
         <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
-          {t("spendNotice")}
+          {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
         </p>
 
         <Button

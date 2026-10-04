@@ -67,6 +67,7 @@ const CREATED_PROJECT = {
   id: "project-1",
   workspaceId: "workspace-1",
   name: "Launch plan",
+  identifier: "LAUNCH",
   briefing: null,
   briefingUrl: null,
   websiteUrl: null,
@@ -98,8 +99,11 @@ describe("CreateProjectWizard", () => {
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(
@@ -164,8 +168,11 @@ describe("CreateProjectWizard", () => {
     const onSuccess = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(
@@ -234,8 +241,11 @@ describe("CreateProjectWizard", () => {
     const onOpenChange = vi.fn();
     const createProjectMock = vi.mocked(createProject);
     createProjectMock.mockResolvedValue({
-      projectId: "project-1",
-      project: CREATED_PROJECT,
+      ok: true,
+      value: {
+        projectId: "project-1",
+        project: CREATED_PROJECT,
+      },
     });
 
     render(

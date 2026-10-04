@@ -36,8 +36,14 @@ const MOTION = "duration-200 ease-out motion-reduce:transition-none";
 // A second click of a double-click must not follow it.
 const DETOUR_GRACE_MS = 400;
 
-/** Where the step sends a person instead of continuing, and when. */
-export interface EmailStepDetour {
+/** What Core said about the address, for the step after Continue. */
+export interface EmailStepAccount {
+  /** Sign-in opens on it, since a code could remove an unproven password. */
+  hasPassword: boolean;
+}
+
+/** A notice that turns Continue into a link to the other page. */
+interface EmailStepNoticeDetour {
   /** Sign-up stops at an address that has an account, sign-in at one without. */
   when: "exists" | "missing";
   title: string;
@@ -50,6 +56,20 @@ export interface EmailStepDetour {
    */
   follow?: (email: string, signal: AbortSignal) => Promise<void>;
 }
+
+/** Continue itself takes the person to the other page, without a notice. */
+interface EmailStepHandOver {
+  when: "exists" | "missing";
+  /** Navigates away; Continue spins until the page has gone. */
+  handOver: (
+    email: string,
+    signal: AbortSignal,
+    account: EmailStepAccount,
+  ) => Promise<void>;
+}
+
+/** Where the step sends a person instead of continuing, and when. */
+export type EmailStepDetour = EmailStepNoticeDetour | EmailStepHandOver;
 
 interface EmailStepProps {
   defaultEmail: string;
@@ -67,9 +87,17 @@ interface EmailStepProps {
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
   /** Runs while the button still spins, e.g. to email a code. */
-  onContinue: (email: string, signal: AbortSignal) => Promise<void> | void;
+  onContinue: (
+    email: string,
+    signal: AbortSignal,
+    account: EmailStepAccount,
+  ) => Promise<void> | void;
   /** The check the work after Continue needs, shown beside this step's. */
   continueCaptcha?: ReactNode;
+  /** Another sign-in is starting, e.g. with Google; the step waits. */
+  disabled?: boolean | undefined;
+  /** Whether Continue, or following the detour, is still running. */
+  onPendingChange?: ((pending: boolean) => void) | undefined;
 }
 
 /**
@@ -80,6 +108,7 @@ interface EmailStepProps {
  * When they are, the button stays where it is and a notice grows around it:
  * title and description unfold above, a frame fades in, and the button
  * becomes the way to the other page. Editing the address plays it back.
+ * A hand-over skips the notice: Continue goes to the other page itself.
  */
 export function EmailStep({
   defaultEmail,
@@ -93,6 +122,8 @@ export function EmailStep({
   onEmailChange,
   onContinue,
   continueCaptcha,
+  disabled = false,
+  onPendingChange,
 }: EmailStepProps) {
   const t = useTranslations("Auth.Email.Form");
   const oauthT = useTranslations("Auth.OAuthHandBack");
@@ -102,12 +133,16 @@ export function EmailStep({
     getErrorMessage,
   } = useAuthCaptcha(captchaEntry);
   const [isDetoured, setIsDetoured] = useState(false);
-  const [isFollowing, setIsFollowing] = useState(false);
+  const [followingState, setFollowingState] = useState<
+    "preparing" | "navigating" | null
+  >(null);
+  const isFollowing = followingState !== null;
   // Set at once, so a second click before the spinner renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
+  const notice = "handOver" in detour ? null : detour;
   const mounted = useRef(false);
   const pending = useRef<AbortController | null>(null);
   const form = useForm<EmailStepFormSchemaType>({
@@ -156,19 +191,30 @@ export function EmailStep({
     detourLinkRef.current?.focus();
   }, [isDetoured, isSubmitting]);
 
+  // Following the detour and Continue never overlap: the detour only shows
+  // once Continue is done. Each tells the parent from the event that changes it.
+  function changeFollowing(state: "preparing" | "navigating" | null) {
+    setFollowingState(state);
+    onPendingChange?.(state !== null);
+  }
+
   async function followDetour(
     email: string,
-    follow: NonNullable<EmailStepDetour["follow"]>,
+    follow: NonNullable<EmailStepNoticeDetour["follow"]>,
   ) {
     const controller = new AbortController();
     pending.current = controller;
     isFollowingRef.current = true;
-    setIsFollowing(true);
+    changeFollowing("preparing");
     await follow(email, controller.signal);
+    if (pending.current !== controller) return;
     // Done, the page is leaving; keep spinning until it has.
-    if (!controller.signal.aborted) return;
+    if (!controller.signal.aborted) {
+      if (mounted.current) changeFollowing("navigating");
+      return;
+    }
     isFollowingRef.current = false;
-    if (mounted.current) setIsFollowing(false);
+    if (mounted.current) changeFollowing(null);
   }
 
   async function handleSubmit({ email }: EmailStepFormSchemaType) {
@@ -182,47 +228,69 @@ export function EmailStep({
         form.getValues("email").trim() === email
       );
     }
-    await runWithCaptcha(async (fetchOptions) => {
-      if (!isCurrent()) return;
-      const result = await authClient.$fetch<{ exists: boolean }>(
-        "/sign-up/email-status",
-        { method: "POST", body: { email }, headers: fetchOptions.headers },
-      );
+    onPendingChange?.(true);
+    let handedOver = false;
+    try {
+      await runWithCaptcha(async (fetchOptions) => {
+        if (!isCurrent()) return;
+        const result = await authClient.$fetch<{
+          exists: boolean;
+          hasPassword: boolean;
+        }>("/sign-up/email-status", {
+          method: "POST",
+          body: { email },
+          headers: fetchOptions.headers,
+        });
 
-      if (!isCurrent()) return;
-      if (result.error) {
-        // The auth client adds the page's OAuth request to every call, this
-        // one included, and Core refuses the call when that request is stale.
-        if (isRejectedOAuthRequestError(result.error)) {
-          toast.error(oauthT("errorDescription"));
+        if (!isCurrent()) return;
+        if (result.error) {
+          // The auth client adds the page's OAuth request to every call, this
+          // one included, and Core refuses the call when that request is stale.
+          if (isRejectedOAuthRequestError(result.error)) {
+            toast.error(oauthT("errorDescription"));
+            return;
+          }
+
+          // Core puts the captcha's error code on the body; the client types
+          // only the transport fields.
+          const error: { code?: string; message?: string } = result.error;
+          toast.error(getErrorMessage(error, error.message ?? t("error")));
           return;
         }
 
-        // Core puts the captcha's error code on the body; the client types
-        // only the transport fields.
-        const error: { code?: string; message?: string } = result.error;
-        toast.error(getErrorMessage(error, error.message ?? t("error")));
-        return;
-      }
+        const account = { hasPassword: result.data.hasPassword };
+        if (result.data.exists === (detour.when === "exists")) {
+          if ("handOver" in detour) {
+            await detour.handOver(email, controller.signal, account);
+            if (!isCurrent()) return;
+            // The page is leaving; keep spinning until it has.
+            handedOver = true;
+            isFollowingRef.current = true;
+            changeFollowing("navigating");
+            return;
+          }
+          detouredSince.current = performance.now();
+          setIsDetoured(true);
+          return;
+        }
 
-      if (result.data.exists === (detour.when === "exists")) {
-        detouredSince.current = performance.now();
-        setIsDetoured(true);
-        return;
-      }
-
-      await onContinue(email, controller.signal);
-    });
+        await onContinue(email, controller.signal, account);
+      });
+    } finally {
+      // Also after Continue has swapped this step out for the next one.
+      if (!handedOver) onPendingChange?.(false);
+    }
   }
 
   return (
     <BaseForm
       form={form}
       onSubmit={handleSubmit}
+      disabled={disabled || followingState === "navigating"}
       onChange={() => {
         pending.current?.abort();
         isFollowingRef.current = false;
-        setIsFollowing(false);
+        changeFollowing(null);
         // The answer was about the address as it was.
         setIsDetoured(false);
         onFormStart();
@@ -233,7 +301,7 @@ export function EmailStep({
       {/* Announces the notice. The visible copy below is the same text, so
           it is hidden from assistive technology rather than read twice. */}
       <p id={noticeId} role="status" className="sr-only">
-        {isDetoured ? `${detour.title}. ${detour.description}` : null}
+        {isDetoured && notice ? `${notice.title}. ${notice.description}` : null}
       </p>
       <div
         data-testid="email-step-detour"
@@ -258,8 +326,8 @@ export function EmailStep({
         >
           <div className="min-h-0 overflow-hidden">
             <div className="grid gap-0.5 pb-3">
-              <p className="font-medium tracking-tight">{detour.title}</p>
-              <p className="text-muted-foreground">{detour.description}</p>
+              <p className="font-medium tracking-tight">{notice?.title}</p>
+              <p className="text-muted-foreground">{notice?.description}</p>
             </div>
           </div>
         </div>
@@ -272,7 +340,8 @@ export function EmailStep({
               be too, or it would paint below. */}
           <div className="grid">
             <SubmitButton
-              isSubmitting={isSubmitting}
+              // A hand-over has no link to spin; Continue does until it leaves.
+              isSubmitting={isSubmitting || (isFollowing && !notice)}
               spinnerPosition="start"
               label={t("continueWithEmail")}
               className="col-start-1 row-start-1 w-full"
@@ -286,46 +355,52 @@ export function EmailStep({
                 {lastUsedLabel}
               </span>
             ) : null}
-            <Button
-              asChild
-              variant="primary"
-              className={cn(
-                "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
-                !isDetoured && "opacity-0",
-              )}
-            >
-              <Link
-                ref={detourLinkRef}
-                href={detour.href}
-                inert={!isDetoured}
-                aria-describedby={isDetoured ? noticeId : undefined}
-                aria-busy={isFollowing || undefined}
-                aria-disabled={isFollowing || undefined}
-                onAuxClick={() => takeAuthEmailHint()}
-                onClick={(event) => {
-                  const shownFor = performance.now() - detouredSince.current;
-                  if (shownFor < DETOUR_GRACE_MS || isFollowingRef.current) {
-                    event.preventDefault();
-                    return;
-                  }
-                  const email = emailLocked ? "" : form.getValues("email");
-                  if (detour.follow && email && isSameTabClick(event)) {
-                    event.preventDefault();
-                    void followDetour(email, detour.follow);
-                    return;
-                  }
-                  rememberAuthEmailHintOnClick(event, email);
-                }}
+            {notice ? (
+              <Button
+                asChild
+                variant="primary"
+                className={cn(
+                  "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
+                  !isDetoured && "opacity-0",
+                )}
               >
-                {isFollowing ? (
-                  <Loader2
-                    aria-hidden="true"
-                    className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
-                  />
-                ) : null}
-                {detour.label}
-              </Link>
-            </Button>
+                <Link
+                  ref={detourLinkRef}
+                  href={notice.href}
+                  inert={!isDetoured || disabled}
+                  aria-describedby={isDetoured ? noticeId : undefined}
+                  aria-busy={isFollowing || undefined}
+                  aria-disabled={isFollowing || undefined}
+                  onAuxClick={() => takeAuthEmailHint()}
+                  onClick={(event) => {
+                    const shownFor = performance.now() - detouredSince.current;
+                    if (shownFor < DETOUR_GRACE_MS || isFollowingRef.current) {
+                      event.preventDefault();
+                      return;
+                    }
+                    const email = emailLocked ? "" : form.getValues("email");
+                    if (notice.follow && email && isSameTabClick(event)) {
+                      event.preventDefault();
+                      void followDetour(email, notice.follow);
+                      return;
+                    }
+                    rememberAuthEmailHintOnClick(event, email);
+                    if (isSameTabClick(event)) {
+                      isFollowingRef.current = true;
+                      changeFollowing("navigating");
+                    }
+                  }}
+                >
+                  {isFollowing ? (
+                    <Loader2
+                      aria-hidden="true"
+                      className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
+                    />
+                  ) : null}
+                  {notice.label}
+                </Link>
+              </Button>
+            ) : null}
           </div>
         </div>
       </div>

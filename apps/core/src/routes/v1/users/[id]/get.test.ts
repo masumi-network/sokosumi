@@ -83,7 +83,7 @@ describe("GET /users/{id}", () => {
 
   it.each([
     { firstName: "Ada", lastName: "Lovelace" },
-    // Users from before the name parts, or from magic-link sign-up.
+    // Users from before the name parts, or created by an email code sent without names.
     { firstName: null, lastName: null },
   ])(
     "returns the session user's name parts $firstName $lastName",

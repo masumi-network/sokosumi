@@ -34,6 +34,28 @@ interface SocialButtonsProps {
   returnUrl?: string;
   lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
+  /** Which intent the provider buttons report to Vercel Analytics. */
+  eventType?: "signIn" | "signUp";
+  /** Another sign-in is starting, e.g. with the email; every button waits. */
+  disabled?: boolean;
+  /** Whether a sign-in started here is still running. */
+  onPendingChange?: (pending: boolean) => void;
+}
+
+/** Stands in for the provider's logo while its sign-in starts, at the logo's size. */
+function SocialButtonSpinner({
+  size,
+}: {
+  size: string | number;
+  color: string;
+}) {
+  return (
+    <Loader2
+      aria-hidden="true"
+      size={size}
+      className="animate-spin motion-reduce:animate-pulse"
+    />
+  );
 }
 
 const socialButtons: Array<{
@@ -53,10 +75,27 @@ const socialButtons: Array<{
   },
 ];
 
+/**
+ * The person closed the browser's passkey prompt, let it time out, or another
+ * prompt replaced it. Better Auth passes simplewebauthn's code on without the
+ * underlying error, so a `NotAllowedError` (the passthrough code) cannot be
+ * told apart further; by spec it means cancelled, timed out or not permitted.
+ */
+function isPasskeyPromptDismissed(code: string | undefined): boolean {
+  return (
+    code === "AUTH_CANCELLED" ||
+    code === "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY" ||
+    code === "ERROR_CEREMONY_ABORTED"
+  );
+}
+
 export default function SocialButtons({
   returnUrl,
   lastUsedMethod = null,
   showPasskey = false,
+  eventType = "signIn",
+  disabled = false,
+  onPendingChange,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
@@ -64,7 +103,27 @@ export default function SocialButtons({
     () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
     [returnUrl, searchParams],
   );
-  const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
+  // The sign-in that is starting. Every button waits while one runs.
+  const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
+    null,
+  );
+
+  const isWaiting = pendingMethod !== null || disabled;
+
+  // Every change goes through here, so the parent hears it from the same event.
+  function changePendingMethod(method: ProviderAuthMethod | null) {
+    setPendingMethod(method);
+    onPendingChange?.(method !== null);
+  }
+
+  // Back from the provider restores this page as it was left, mid sign-in.
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) changePendingMethod(null);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   const finishPasskeySignIn = useCallback(
     (result: unknown) =>
@@ -85,7 +144,7 @@ export default function SocialButtons({
 
     if (!autoFill) {
       track("Sign In", { provider: "passkey", direct_signup_link: false });
-      setIsSigningInWithPasskey(true);
+      changePendingMethod("passkey");
     }
 
     try {
@@ -97,7 +156,7 @@ export default function SocialButtons({
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
-        if (showErrors && errorCode !== "AUTH_CANCELLED") {
+        if (showErrors && !isPasskeyPromptDismissed(errorCode)) {
           toast.error(t("passkeyError"));
         }
         return;
@@ -110,7 +169,7 @@ export default function SocialButtons({
       }
     } finally {
       if (!autoFill) {
-        setIsSigningInWithPasskey(false);
+        changePendingMethod(null);
       }
     }
   };
@@ -159,23 +218,32 @@ export default function SocialButtons({
   }, [finishPasskeySignIn, showPasskey]);
 
   const handleClick = async (key: SocialButtonProviderId) => {
-    track("Sign In", { provider: key, direct_signup_link: false });
-
-    const result = await authClient.signIn.social({
+    if (isWaiting) return;
+    changePendingMethod(key);
+    track(eventType === "signUp" ? "Sign Up" : "Sign In", {
       provider: key,
-      callbackURL: buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        key,
-        effectiveReturnUrl,
-      ),
-      newUserCallbackURL: buildAuthCallbackUrl(
-        "/auth/callback/signup",
-        key,
-        effectiveReturnUrl,
-      ),
-      errorCallbackURL: buildAuthErrorCallbackUrl(),
+      direct_signup_link: false,
     });
+
+    // On success the browser leaves for the provider, so the buttons stay busy.
+    const result = await authClient.signIn
+      .social({
+        provider: key,
+        callbackURL: buildAuthCallbackUrl(
+          "/auth/callback/signin",
+          key,
+          effectiveReturnUrl,
+        ),
+        newUserCallbackURL: buildAuthCallbackUrl(
+          "/auth/callback/signup",
+          key,
+          effectiveReturnUrl,
+        ),
+        errorCallbackURL: buildAuthErrorCallbackUrl(),
+      })
+      .catch(() => ({ error: { message: undefined } }));
     if (result.error) {
+      changePendingMethod(null);
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
     }
@@ -187,19 +255,23 @@ export default function SocialButtons({
         const isLastUsed = lastUsedMethod === socialButton.key;
 
         return (
-          <div className="relative" key={socialButton.key}>
+          <div className="group/provider relative" key={socialButton.key}>
             {isLastUsed && (
               <span
                 aria-hidden="true"
-                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
               >
                 {t("lastUsed")}
               </span>
             )}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
+              disabled={isWaiting}
+              {...(pendingMethod === socialButton.key && {
+                icon: SocialButtonSpinner,
+              })}
               className={cn(
-                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
                 isLastUsed
                   ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
@@ -211,11 +283,11 @@ export default function SocialButtons({
         );
       })}
       {showPasskey && (
-        <div className="relative">
+        <div className="group/provider relative">
           {lastUsedMethod === "passkey" && (
             <span
               aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
+              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
             >
               {t("lastUsed")}
             </span>
@@ -229,12 +301,12 @@ export default function SocialButtons({
                 ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
-            disabled={isSigningInWithPasskey}
+            disabled={isWaiting}
             onClick={() => {
               void handlePasskeySignIn();
             }}
           >
-            {isSigningInWithPasskey ? (
+            {pendingMethod === "passkey" ? (
               <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
             ) : (
               <KeyRound className="size-4" />

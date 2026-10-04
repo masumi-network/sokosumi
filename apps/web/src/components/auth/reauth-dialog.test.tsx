@@ -165,27 +165,11 @@ describe("ReauthDialog", () => {
     });
   });
 
-  it("carries a cleared Keep me signed in through to the new session", async () => {
+  // SOK-1259: every log-in is persistent, so there is nothing to choose.
+  it("offers no Keep me logged in choice", () => {
     renderDialog([passwordAccount]);
 
-    const user = userEvent.setup();
-    // Better Auth defaults rememberMe to true, so a new session would
-    // otherwise upgrade a deliberately non-persistent cookie.
-    await user.click(screen.getByRole("checkbox", { name: "rememberMe" }));
-    await user.type(
-      screen.getByTestId("reauth-field-currentPassword"),
-      "correct horse",
-    );
-    await user.click(screen.getByRole("button", { name: "confirm" }));
-
-    await waitFor(() => {
-      expect(mockSignInEmail).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
-        email: "owner@example.com",
-        password: "correct horse",
-        rememberMe: false,
-      });
-    });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("keeps the dialog open and shows why when the password is wrong", async () => {
@@ -328,7 +312,7 @@ describe("ReauthDialog", () => {
     await act(async () => {});
   });
 
-  it("announces a refused code and sends it again only once it changes", async () => {
+  it("announces a refused code, empties the field and sends the same code again", async () => {
     mockSignInEmailCode.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", message: "Invalid OTP" },
@@ -344,21 +328,15 @@ describe("ReauthDialog", () => {
     // description, which now names the refusal, is what gets read out.
     await waitFor(() => expect(code).toHaveFocus());
     expect(code).toBeEnabled();
+    expect(code).toHaveValue("");
     expect(code).toHaveAccessibleDescription(/invalid$/);
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    // Taking a digit back and typing it again is still the refused code.
-    await user.type(code, "{Backspace}0");
-    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
 
-    // Confirm still sends the same code on purpose.
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
+    await user.type(code, "000000");
     await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
-
-    await user.type(code, "{Backspace}7");
-    await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(3));
     expect(mockSignInEmailCode).toHaveBeenLastCalledWith({
       email: "owner@example.com",
-      otp: "000007",
+      otp: "000000",
     });
   });
 
@@ -373,7 +351,6 @@ describe("ReauthDialog", () => {
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
     await user.type(code, "000000");
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
 
     await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
     expect(onReauthenticated).not.toHaveBeenCalled();
@@ -390,7 +367,6 @@ describe("ReauthDialog", () => {
 
     const code = await screen.findByRole("textbox", { name: "codeLabel" });
     await user.type(code, "042917");
-    await user.click(screen.getByRole("button", { name: "confirmCode" }));
 
     await waitFor(() =>
       expect(code).toHaveAccessibleDescription(/termsNotAccepted$/),

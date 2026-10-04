@@ -7,9 +7,10 @@ public struct RoomHeaderIdentity: Equatable, Sendable {
   public enum Mark: Equatable, Sendable {
     /// A Channel, guests' view included: the discoverability glyph.
     case channel(ChannelMark)
-    /// Every Direct — one-to-one, group, Self, coworker and Soko Bot — draws the message glyph. Web draws a Self
-    /// Direct's own avatar there instead (a recorded deviation in `PARITY.md`, row 31a).
+    /// Every other Direct — one-to-one, group, coworker and Soko Bot — draws the message glyph.
     case direct
+    /// A Self Direct draws its owner's face, the reader's own (web `DirectRoomAvatarStack`, row 27c).
+    case selfDirect(DirectRoomAvatarParticipant)
   }
 
   public let mark: Mark
@@ -30,7 +31,8 @@ public struct RoomHeaderIdentity: Equatable, Sendable {
       mark = .channel(ChannelMark(room.discoverability))
       topic = roomHeaderTopic(room.topic)
     } else {
-      mark = .direct
+      let owner = room.isSelfDirect ? directRoomAvatarParticipants(room, currentUserId: currentUserId).first : nil
+      mark = owner.map(Mark.selfDirect) ?? .direct
       topic = nil
     }
   }
