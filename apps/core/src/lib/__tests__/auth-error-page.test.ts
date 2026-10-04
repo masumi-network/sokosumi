@@ -7,9 +7,10 @@ import { describe, expect, it } from "vitest";
 const CORE = "https://auth.example.com";
 const WEB = "https://app.example.com";
 
-// Better Auth's own dispatcher on an in-memory store, with Core's error page
-// (`onAPIError` in `auth.ts`). auth.test.ts mocks Better Auth, so it cannot
-// see which failures honour it.
+// Better Auth's own dispatcher on an in-memory store, with an error page
+// shaped like Core's. auth.test.ts pins the URL `auth.ts` passes as
+// `onAPIError`, but it mocks Better Auth, so it cannot see which failures
+// honour it.
 function createCore() {
   const auth = betterAuth({
     baseURL: CORE,
