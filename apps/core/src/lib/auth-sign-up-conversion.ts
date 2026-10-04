@@ -108,8 +108,14 @@ export function oauthSignUpOptions(
 ): NonNullable<OAuthOptions<Scope[]>["signup"]> {
   return {
     page: `${webAppBaseUrl}/signup`,
-    shouldRedirect: ({ user }) =>
-      takeSignUpConversionRedirect(user.id).catch(() => false),
+    shouldRedirect: async ({ user }) => {
+      console.log("[signin-debug] shouldRedirect start");
+      const result = await takeSignUpConversionRedirect(user.id).catch(
+        () => false,
+      );
+      console.log("[signin-debug] shouldRedirect done", result);
+      return result;
+    },
   };
 }
 

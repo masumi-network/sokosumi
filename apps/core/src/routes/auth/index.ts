@@ -52,7 +52,9 @@ app.get("/.well-known/openid-configuration", (c) =>
 // client_secret_post requests into the client_secret_basic form Better Auth
 // requires — see oauth2-token-secret-shim.ts.
 app.on(["POST", "GET"], "*", async (c) => {
-  return handleOAuthRefreshTokenRequest(
+  const debug = c.req.path.endsWith("/sign-in/email");
+  if (debug) console.log("[signin-debug] route start");
+  const response = await handleOAuthRefreshTokenRequest(
     await withClientSecretPostShim(c.req.raw),
     auth.handler,
     (body, request) =>
@@ -73,6 +75,13 @@ app.on(["POST", "GET"], "*", async (c) => {
           }),
       ),
   );
+  if (debug)
+    console.log(
+      "[signin-debug] route returned",
+      response.status,
+      response.headers.get("content-type"),
+    );
+  return response;
 });
 
 export default app;
