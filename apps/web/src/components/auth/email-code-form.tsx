@@ -13,7 +13,7 @@ import {
   UNANSWERED_CODE_CHECK,
   useEmailCodeRefusal,
 } from "./email-code-field";
-import { ResendCodeButton } from "./resend-code-button";
+import { ResendButton } from "./resend-button";
 
 interface EmailCodeFormProps {
   /** Where the code went, when the page does not already show it. */
@@ -143,7 +143,7 @@ export function EmailCodeForm({
         {isVerifying ? t("checking") : error}
       </div>
       <div className="mt-4">
-        <ResendCodeButton
+        <ResendButton
           sentAt={sentAt}
           onResend={onResend}
           isSending={isResending || isLocked}

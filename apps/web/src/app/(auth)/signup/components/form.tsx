@@ -26,7 +26,7 @@ import {
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { PasswordInput } from "@/components/auth/password-input";
-import { ResendCodeButton } from "@/components/auth/resend-code-button";
+import { ResendButton } from "@/components/auth/resend-button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
@@ -234,7 +234,7 @@ export default function SignUpForm({
       }
       links={
         <>
-          <ResendCodeButton
+          <ResendButton
             sentAt={emailCode.sentAt}
             onResend={() => {
               void emailCode.sendCode(email);

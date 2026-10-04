@@ -1,14 +1,14 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ResendCodeButton } from "./resend-code-button";
+import { ResendButton } from "./resend-button";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: { seconds?: number }) =>
     values?.seconds === undefined ? key : `${key} ${values.seconds}`,
 }));
 
-describe("ResendCodeButton", () => {
+describe("ResendButton", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-10-01T10:00:00Z"));
@@ -21,7 +21,7 @@ describe("ResendCodeButton", () => {
   it("waits 30 seconds after a code was sent before offering a new one", () => {
     const onResend = vi.fn();
     render(
-      <ResendCodeButton
+      <ResendButton
         sentAt={Date.now()}
         onResend={onResend}
         isSending={false}
@@ -47,11 +47,7 @@ describe("ResendCodeButton", () => {
 
   it("starts the wait again once the new code is sent", () => {
     const { rerender } = render(
-      <ResendCodeButton
-        sentAt={Date.now()}
-        onResend={vi.fn()}
-        isSending={false}
-      />,
+      <ResendButton sentAt={Date.now()} onResend={vi.fn()} isSending={false} />,
     );
     act(() => {
       vi.advanceTimersByTime(45_000);
@@ -59,11 +55,7 @@ describe("ResendCodeButton", () => {
     expect(screen.getByRole("button")).toBeEnabled();
 
     rerender(
-      <ResendCodeButton
-        sentAt={Date.now()}
-        onResend={vi.fn()}
-        isSending={false}
-      />,
+      <ResendButton sentAt={Date.now()} onResend={vi.fn()} isSending={false} />,
     );
 
     expect(screen.getByRole("button")).toHaveTextContent("resendIn 30");
@@ -71,7 +63,7 @@ describe("ResendCodeButton", () => {
   });
 
   it("stays unavailable while a code is on its way", () => {
-    render(<ResendCodeButton sentAt={0} onResend={vi.fn()} isSending={true} />);
+    render(<ResendButton sentAt={0} onResend={vi.fn()} isSending={true} />);
 
     expect(screen.getByRole("button")).toHaveTextContent("resend");
     expect(screen.getByRole("button")).toBeDisabled();

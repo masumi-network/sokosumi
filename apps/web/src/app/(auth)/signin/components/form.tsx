@@ -28,7 +28,7 @@ import {
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { PasswordInput } from "@/components/auth/password-input";
-import { ResendCodeButton } from "@/components/auth/resend-code-button";
+import { ResendButton } from "@/components/auth/resend-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
@@ -247,7 +247,7 @@ export default function SignInForm({
         statusIsError: !isPending && (codeError !== undefined || isCodeUnsent),
         links: (
           <>
-            <ResendCodeButton
+            <ResendButton
               sentAt={emailCode.sentAt}
               onResend={() => {
                 void emailCode.sendCode(email);

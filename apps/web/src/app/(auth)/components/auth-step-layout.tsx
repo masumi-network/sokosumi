@@ -118,13 +118,13 @@ export function AuthStepLayout({
  * focus on the disabled form), and out of the flow until there is one. A div,
  * so it can hold a link.
  */
-export function AuthStepErrorLine({
-  id,
-  children,
-}: {
+interface AuthStepErrorLineProps {
   id: string;
+  /** The reason; the line takes no space without one. */
   children?: ReactNode;
-}) {
+}
+
+export function AuthStepErrorLine({ id, children }: AuthStepErrorLineProps) {
   return (
     <div
       id={id}

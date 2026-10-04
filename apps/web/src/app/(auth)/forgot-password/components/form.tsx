@@ -15,7 +15,7 @@ import {
 import { EmailChip } from "@/auth/components/email-chip";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { ResendCodeButton } from "@/components/auth/resend-code-button";
+import { ResendButton } from "@/components/auth/resend-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { FormControl, FormField, FormItem } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -162,7 +162,7 @@ export default function ForgotPasswordForm({
           securityCheck={captcha}
           links={
             <>
-              <ResendCodeButton
+              <ResendButton
                 sentAt={sentAt}
                 onResend={() => {
                   void resend(sentTo);
