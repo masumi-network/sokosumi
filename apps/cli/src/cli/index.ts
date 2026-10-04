@@ -14,11 +14,8 @@ import {
 } from "../auth/bootstrap.js";
 import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
-import {
-  isNetworkSelectionLocked,
-  renderStatusApp,
-  type StatusAppOptions,
-} from "../tui/status-app.js";
+import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
+import { isNetworkSelectionLocked } from "../tui/status-network.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
