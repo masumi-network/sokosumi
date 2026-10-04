@@ -20,22 +20,31 @@ import { decryptOAuthToken } from "better-auth/oauth2";
 import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { unstable_rethrow } from "next/navigation";
 
-import { readCmoAuthConfig } from "./auth-config";
-import {
-  SOKOSUMI_OAUTH_PROVIDER_ID,
-  type SokosumiSignInOptions,
-  sokosumiSignInBody,
-} from "./sokosumi-oauth";
+import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
 
-export interface CmoAuthConfig {
-  /** CMO's own public origin, the base of its OAuth callback. */
-  baseURL: string;
-  /** Core's origin, for example `https://api.sokosumi.com`. */
-  coreBaseUrl: string;
-  clientId: string;
-  clientSecret: string;
-  /** Encrypts CMO's session and token cookies. */
-  secret: string;
+/**
+ * The Better Auth generic OAuth provider id for Core. It names the callback
+ * every CMO OAuth client registers: `<origin>/api/auth/callback/sokosumi`.
+ */
+const SOKOSUMI_OAUTH_PROVIDER_ID = "sokosumi";
+
+export interface SokosumiSignInOptions {
+  createAccount: boolean;
+}
+
+/**
+ * What CMO sends to start Sign in with Sokosumi. "Create account" adds the
+ * OpenID Connect `prompt=create`, which makes Core open Sokosumi's sign-up
+ * page instead of its sign-in page. Sign in sends no prompt, so a person
+ * still signed in to Sokosumi goes straight back to CMO.
+ */
+export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+  return {
+    provider: SOKOSUMI_OAUTH_PROVIDER_ID,
+    callbackURL: "/",
+    errorCallbackURL: "/",
+    ...(createAccount ? { additionalParams: { prompt: "create" } } : {}),
+  };
 }
 
 /** Vercel's client IP headers, as Core reads them. */
@@ -52,6 +61,10 @@ const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
 
 /** Renewal requests whose refresh grant got no answer from Core. */
 const unansweredRefreshes = new WeakSet<Request>();
+
+function coreDiscoveryUrl(coreBaseUrl: string): string {
+  return `${coreBaseUrl}/auth/.well-known/openid-configuration`;
+}
 
 /** False while Core's discovery failed on this instance. */
 function hasSokosumiProvider({
@@ -114,7 +127,7 @@ function personName(user: User): string {
  * and the Sokosumi tokens live in encrypted httpOnly cookies (ADR 0045).
  */
 export function createCmoAuth(config: CmoAuthConfig) {
-  const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+  const discoveryUrl = coreDiscoveryUrl(config.coreBaseUrl);
   const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
   let revocationEndpoint: Promise<string> | undefined;
 
@@ -314,18 +327,12 @@ export function getAuth(): CmoAuth {
   const created = createCmoAuth(config);
   auth = created;
   created.$context.then((context) => {
-    if (
-      context.socialProviders.some(
-        (provider) => provider.id === SOKOSUMI_OAUTH_PROVIDER_ID,
-      )
-    ) {
-      return;
-    }
+    if (hasSokosumiProvider(context)) return;
     // Better Auth discovers Core once per instance. A preview's first request
     // can beat its branch's Core deploy, so discover again on the next one.
     if (auth === created) auth = undefined;
     // Better Auth only says it skipped the provider, not which URL failed.
-    const discoveryUrl = `${config.coreBaseUrl}/auth/.well-known/openid-configuration`;
+    const discoveryUrl = coreDiscoveryUrl(config.coreBaseUrl);
     fetch(discoveryUrl).then(
       (response) =>
         console.error(

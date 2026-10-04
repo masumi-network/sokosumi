@@ -18,9 +18,9 @@ import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
+  buildAuthPageUrl,
   buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
-  buildSignUpUrlFromSignIn,
 } from "@/lib/auth/auth.utils";
 import {
   rememberAuthEmailHint,
@@ -81,7 +81,7 @@ export default function SignInFlow({
   // The invitation whose address this page locked; sign-up locks it too.
   const lockedInvitationId =
     invitationId && prefilledEmail ? invitationId : undefined;
-  const signUpHref = buildSignUpUrlFromSignIn({
+  const signUpHref = buildAuthPageUrl("/signup", {
     returnUrl,
     oauthQuery: returnUrl
       ? undefined

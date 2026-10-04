@@ -28,10 +28,7 @@ export {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
-export {
-  resolveBetterAuthProductionUrl,
-  resolveBetterAuthPublicBaseUrl,
-} from "./better-auth-public-url.js";
+export { resolveBetterAuthPublicBaseUrl } from "./better-auth-public-url.js";
 export type {
   Account,
   Session,

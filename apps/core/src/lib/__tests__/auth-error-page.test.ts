@@ -4,13 +4,12 @@ import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
 import { describe, expect, it } from "vitest";
 
-import { authErrorPageOptions } from "./auth-error-page";
-
 const CORE = "https://auth.example.com";
 const WEB = "https://app.example.com";
 
-// Better Auth's own dispatcher on an in-memory store, with Core's error page.
-// auth.test.ts mocks Better Auth, so it cannot see which failures honour it.
+// Better Auth's own dispatcher on an in-memory store, with Core's error page
+// (`onAPIError` in `auth.ts`). auth.test.ts mocks Better Auth, so it cannot
+// see which failures honour it.
 function createCore() {
   const auth = betterAuth({
     baseURL: CORE,
@@ -40,7 +39,7 @@ function createCore() {
         consentPage: `${WEB}/oauth/consent`,
       }),
     ],
-    onAPIError: authErrorPageOptions(WEB),
+    onAPIError: { errorURL: `${WEB}/auth/error` },
     trustedOrigins: [WEB],
     rateLimit: { enabled: false },
   });
@@ -52,7 +51,7 @@ function createCore() {
   };
 }
 
-describe("authErrorPageOptions", () => {
+describe("Better Auth error page", () => {
   it("sends a social callback whose state is gone to Sokosumi's error page", async () => {
     const handle = createCore();
 

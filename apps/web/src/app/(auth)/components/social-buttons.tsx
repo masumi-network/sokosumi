@@ -28,7 +28,7 @@ import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-export type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
+type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
   returnUrl?: string;

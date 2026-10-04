@@ -15,10 +15,6 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import {
-  signUpMarketingFormData,
-  signUpPasswordFormData,
-} from "@/auth/signup/data";
-import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
   useEmailCodeRefusal,
@@ -29,9 +25,35 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
-import { signUpFormSchema } from "@/lib/schemas/auth";
+import type { FormData } from "@/lib/form";
+import {
+  type SignUpFormSchemaType,
+  signUpFormSchema,
+} from "@/lib/schemas/auth";
 
 import { useSignInHref } from "./sign-in-link";
+
+type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
+
+// An email code replaces the password, so the two are rendered apart.
+const signUpPasswordFormData: SignUpFormData = [
+  {
+    name: "password",
+    labelKey: "Fields.Password.label",
+    // Shown up front, so the rule is known before a submit fails on it.
+    descriptionKey: "Fields.Password.description",
+    type: "password",
+    autoComplete: "new-password",
+  },
+];
+
+const signUpMarketingFormData: SignUpFormData = [
+  {
+    name: "marketingOptIn",
+    type: "checkbox",
+    labelKey: "Fields.MarketingOptIn.label",
+  },
+];
 
 interface SignUpFormProps {
   /** Confirmed on the step before this one. */
