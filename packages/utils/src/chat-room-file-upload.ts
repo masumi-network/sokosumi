@@ -83,6 +83,46 @@ function isOwnedPrefixUrl(url: string, prefix: string): boolean {
   }
 }
 
+const CHAT_ROOM_FILE_PATH =
+  /^(?:users|coworkers|soko-bots)\/[^/]+\/chats\/([0-9a-f-]{36})\/([^/]+)$/i;
+
+/**
+ * The room a chat attachment was uploaded to, read from its public Blob URL
+ * (`{sender}/{id}/chats/{roomId}/{file}`); null for any other URL.
+ */
+export function parseChatRoomFileUrl(
+  url: string,
+): { roomId: string; fileName: string } | null {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== "https:") return null;
+    if (!isVercelBlobPublicHost(parsed.hostname)) return null;
+    const match = CHAT_ROOM_FILE_PATH.exec(
+      decodeURIComponent(parsed.pathname.replace(/^\/+/, "")),
+    );
+    return match?.[1] && match[2]
+      ? { roomId: match[1].toLowerCase(), fileName: match[2] }
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Chat attachments linked in a message's markdown, in order, without repeats. */
+export function chatRoomFileLinks(
+  content: string,
+): { name: string; url: string }[] {
+  const links = new Map<string, string>();
+  for (const match of content.matchAll(
+    /!?\[([^\]]*)\]\((https:\/\/[^)\s]+)\)/g,
+  )) {
+    const [, label = "", url = ""] = match;
+    const file = parseChatRoomFileUrl(url);
+    if (file && !links.has(url)) links.set(url, label.trim() || file.fileName);
+  }
+  return [...links].map(([url, name]) => ({ name, url }));
+}
+
 export function isOwnedUserChatRoomFileUrl(
   url: string,
   userId: string,
