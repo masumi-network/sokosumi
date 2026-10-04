@@ -83,6 +83,7 @@ import {
 import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
+  answerCreatePromptWithNewSession,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
@@ -525,6 +526,7 @@ export const auth = betterAuth({
       }
 
       await keepNewSessionPersistent(ctx);
+      await answerCreatePromptWithNewSession(ctx);
     }),
   },
   emailAndPassword: {

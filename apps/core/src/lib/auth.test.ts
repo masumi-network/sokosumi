@@ -284,12 +284,14 @@ vi.mock("@better-auth/i18n", () => ({
 
 // Keep the real APIError (the hooks throw it and tests assert its shape) but
 // reduce createAuthMiddleware to an identity wrapper so the terms guards can be
-// invoked directly with a plain context in unit tests.
+// invoked directly with a plain context in unit tests. Those run outside a
+// request, so there is no social OAuth state to read.
 vi.mock("better-auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("better-auth/api")>();
   return {
     ...actual,
     createAuthMiddleware: (callback: unknown) => callback,
+    getOAuthState: async () => null,
   };
 });
 
@@ -3238,7 +3240,7 @@ describe("core auth config", () => {
           };
         };
         newSession?: {
-          session: { impersonatedBy?: string | null };
+          session: { id?: string; impersonatedBy?: string | null };
           user?: { termsAccepted?: boolean };
         };
         returned?: unknown;
@@ -3350,6 +3352,22 @@ describe("core auth config", () => {
 
       expect(setSessionCookieMock).not.toHaveBeenCalled();
       expect(setCookie).not.toHaveBeenCalled();
+    });
+
+    // The provider's after hook runs next and continues this request.
+    it("lets a session started for an OAuth request answer its Create account prompt", async () => {
+      const oauthRequest = { query: "client_id=cmo&prompt=create+consent" };
+      getOAuthProviderStateMock.mockResolvedValue(oauthRequest);
+
+      await runAfterHook("/sign-in/email-otp", {
+        newSession: {
+          session: { id: "session-new" },
+          user: { termsAccepted: true },
+        },
+        returned: { token: "session-token" },
+      });
+
+      expect(oauthRequest.query).toBe("client_id=cmo&prompt=consent");
     });
   });
   it("delivers the committed Calendar revocation after leaving an organization", async () => {

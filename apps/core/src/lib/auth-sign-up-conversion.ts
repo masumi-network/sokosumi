@@ -138,8 +138,8 @@ export async function claimSignUpConversion(
     if (count !== 1) {
       return null;
     }
-    // Counted: a `prompt=create` request already passed through Web's sign-up
-    // page without taking the redirect, and must not pass through it again.
+    // Counted: a later authorization must not detour through Web's sign-up
+    // page to count it again.
     await tx.verification.deleteMany({
       where: { identifier: redirectIdentifierFor(userId) },
     });
