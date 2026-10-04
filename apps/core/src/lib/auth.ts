@@ -239,6 +239,9 @@ const APP_TOKEN_REVOKING_PATHS = new Set([
   "/revoke-other-sessions",
 ]);
 
+/** Sessions whose cookie the after hook already rewrote as persistent. */
+const persistedSessions = new WeakSet<object>();
+
 export const auth = betterAuth({
   appName: "Sokosumi",
   advanced: {
@@ -529,13 +532,18 @@ export const auth = betterAuth({
       // drops with the home-screen app. Rewrite this session as persistent
       // and expire that cookie. The OAuth callback succeeds by throwing a
       // redirect, so only an error status counts as a failure. Impersonation
-      // stays session-only on purpose.
+      // stays session-only on purpose. Once per session: a sign-in inside an
+      // OAuth flow resumes `/oauth2/authorize` with this same context, and a
+      // second session cookie there re-triggers the provider's resume hook,
+      // which resumes authorize again, until the request times out.
       const returned = ctx.context.returned;
       if (
         ctx.context.newSession &&
         !ctx.context.newSession.session.impersonatedBy &&
-        !(returned instanceof APIError && returned.statusCode >= 400)
+        !(returned instanceof APIError && returned.statusCode >= 400) &&
+        !persistedSessions.has(ctx.context.newSession.session)
       ) {
+        persistedSessions.add(ctx.context.newSession.session);
         await setSessionCookie(ctx, ctx.context.newSession, false);
         expireCookie(ctx, ctx.context.authCookies.dontRememberToken);
       }
