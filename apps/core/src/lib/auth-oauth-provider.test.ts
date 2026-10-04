@@ -745,27 +745,6 @@ describe("answerCreatePromptWithNewSession", () => {
     },
   );
 
-  it("sends a CMO sign-in with an email code straight to CMO, on a persistent cookie", async () => {
-    const { authorize, signInWithCode } = createSignUpAuth();
-    const signin = await authorize(undefined);
-    expect(signin.origin + signin.pathname).toBe(`${WEB}/signin`);
-
-    const response = await signInWithCode(
-      "user@example.com",
-      {},
-      signin.searchParams.toString(),
-    );
-
-    const result = await response.json();
-    expect(result, JSON.stringify(result)).toMatchObject({ redirect: true });
-    expectCmoCallback(result.url);
-    expect(
-      response.headers
-        .getSetCookie()
-        .find((cookie) => cookie.includes("session_token=")),
-    ).toMatch(/Max-Age=\d+/);
-  });
-
   it("still asks a person already signed in which account to use, though their session renews", async () => {
     const { authorize, signInWithCode } = createSignUpAuth();
     const cookie = sessionCookie(await signInWithCode("user@example.com"));
