@@ -297,6 +297,23 @@ describe("SignInForm", () => {
       );
     });
 
+    it("explains a code check that fails without an answer, so the code can be typed again", async () => {
+      const user = userEvent.setup();
+      mockSignInEmailCode.mockRejectedValueOnce(
+        new TypeError("Failed to fetch"),
+      );
+      render(<SignInCodeStep />);
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+      await user.type(code, "042917");
+
+      // As for a refused code: the field clears and says why.
+      await waitFor(() => expect(code).toHaveAccessibleDescription(/generic$/));
+      expect(code).toHaveValue("");
+      await user.type(code, "042917");
+      await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
+    });
+
     it("shares a synchronous lock between completion and manual submit", async () => {
       const emailCode = fakeEmailCode({
         signInWithCode: vi.fn(() => new Promise<undefined>(() => {})),
