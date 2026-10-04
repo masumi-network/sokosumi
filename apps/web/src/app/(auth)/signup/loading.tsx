@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
+import { AuthHeader } from "@/auth/components/auth-header";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import SignInLink from "./components/sign-in-link";
@@ -10,14 +11,7 @@ export default function RegisterLoadingPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="p-6">
-        <h1 className="text-2xl font-light text-balance tracking-tight">
-          {t("Header.title")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t("Header.description")}
-        </p>
-      </div>
+      <AuthHeader mode="signUp" />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* First step: the email field and its button, then two providers. */}
         <div className="flex flex-col gap-3">

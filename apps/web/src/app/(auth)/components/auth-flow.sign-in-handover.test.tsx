@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth/auth-email-hint";
 import { captchaFetchOptions } from "@/test/auth-captcha-mock";
 
-import SignInFlow from "./sign-in-flow";
+import AuthFlow from "./auth-flow";
 
 const emailStatusMock = vi.fn();
 const sendEmailCodeMock = vi.fn();
@@ -48,7 +48,7 @@ function codeField() {
 
 // Register found an account for the address and handed it over, so Log in
 // opens on its second step with a line saying why.
-describe("SignInFlow after Register handed over", () => {
+describe("AuthFlow signIn after Register handed over", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
@@ -63,7 +63,7 @@ describe("SignInFlow after Register handed over", () => {
       signIn: { method: "code", codeSentAt: Date.now() },
     });
 
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
@@ -89,7 +89,7 @@ describe("SignInFlow after Register handed over", () => {
       signIn: { method: "password" },
     });
 
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(screen.getByLabelText("Fields.Password.label")).toBeVisible();
     expect(screen.getByText("Handover.password")).toBeVisible();
@@ -108,7 +108,7 @@ describe("SignInFlow after Register handed over", () => {
       signIn: { method: "code", codeSentAt: null },
     });
 
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
@@ -146,7 +146,8 @@ describe("SignInFlow after Register handed over", () => {
     });
 
     render(
-      <SignInFlow
+      <AuthFlow
+        mode="signIn"
         lastUsedMethod={null}
         prefilledEmail="invited@example.com"
         invitationId="inv_1"
@@ -173,7 +174,8 @@ describe("SignInFlow after Register handed over", () => {
     });
 
     render(
-      <SignInFlow
+      <AuthFlow
+        mode="signIn"
         lastUsedMethod={null}
         prefilledEmail="invited@example.com"
         invitationId="inv_1"
@@ -194,7 +196,8 @@ describe("SignInFlow after Register handed over", () => {
     });
 
     render(
-      <SignInFlow
+      <AuthFlow
+        mode="signIn"
         lastUsedMethod={null}
         prefilledEmail="invited@example.com"
         invitationId="inv_1"
@@ -214,7 +217,7 @@ describe("SignInFlow after Register handed over", () => {
   it("opens on the email step without a handover", () => {
     rememberAuthEmailHint("ada@example.com");
 
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(screen.getByLabelText("label")).toBeEnabled();
     expect(
