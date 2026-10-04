@@ -92,7 +92,7 @@ public func hasThoughtView(_ message: Components.Schemas.ChatRoomMessage) -> Boo
 }
 
 /// Coworker sender, not a person, Soko Bot, or unknown.
-public func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   switch message.sender {
   case .case2:
     true
