@@ -61,7 +61,10 @@ import {
   buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathname,
   buildUserDriveFilePathnameWithFolder,
+  CHAT_ROOM_FILE_MAX_SIZE_BYTES,
   createDataTableSchema,
+  parseChatRoomFileUrl,
+  resolveUserUploadContentType,
   socialPostMediaKindForMime,
   tableBatchSchema,
   tableMutationSchema,
@@ -2034,11 +2037,27 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: {
       filename: string;
-      content: string;
+      content?: string;
+      attachmentUrl?: string;
       contentType?: string;
       overwrite?: boolean;
     },
   ) {
+    if (input.attachmentUrl) {
+      if (input.content !== undefined)
+        throw new SokoBotRefusedUnsentError(
+          "Give either content or attachmentUrl, not both",
+        );
+      return this.saveChatAttachment(authorized, {
+        filename: input.filename,
+        url: input.attachmentUrl,
+        overwrite: input.overwrite,
+      });
+    }
+    if (input.content === undefined)
+      throw new SokoBotRefusedUnsentError(
+        "Give the file's text as content, or a chat attachment's link as attachmentUrl",
+      );
     const drive = await this.ownerDrive(authorized);
     const pathname = drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
@@ -2093,6 +2112,92 @@ export class SokoBotRuntimeService {
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
+      savedTo:
+        drive.key.scope === "organization"
+          ? "Files in this organization's workspace, visible to its members"
+          : "Files in the owner's personal workspace",
+    };
+  }
+
+  /**
+   * Copy a file someone attached in chat into the owner's Drive. Chat
+   * attachments live under the sender's chat prefix, out of reach of
+   * list_files and the Social tools, so "post these screenshots" had no way
+   * to use them. Only a link posted in a room both the bot and its owner are
+   * in qualifies, so a link cannot pull in an arbitrary file.
+   */
+  private async saveChatAttachment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { filename: string; url: string; overwrite?: boolean },
+  ) {
+    const file = parseChatRoomFileUrl(input.url);
+    if (!file)
+      throw new SokoBotRefusedUnsentError(
+        "That link is not a file attached in a Sokosumi chat",
+      );
+    const room = await this.requireChatMembership(authorized, file.roomId);
+    const posted = await prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId: room.id,
+        deletedAt: null,
+        content: { contains: input.url },
+        room: { userMembers: { some: { userId: authorized.turn.userId } } },
+      },
+      select: { id: true },
+    });
+    if (!posted)
+      throw new SokoBotRefusedUnsentError(
+        "That attachment was not posted in a chat you and your owner are in",
+      );
+    const meta = await head(input.url);
+    if (meta.size > CHAT_ROOM_FILE_MAX_SIZE_BYTES)
+      throw new SokoBotRefusedUnsentError("That attachment is too large");
+    const contentType =
+      resolveUserUploadContentType(input.filename, meta.contentType) ??
+      meta.contentType;
+    const drive = await this.ownerDrive(authorized);
+    const pathname = drive.pathname(input.filename);
+    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
+      (blob) => blob.pathname === pathname,
+    );
+    if (existing && !input.overwrite)
+      throw new SokoBotRefusedUnsentError(
+        `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
+      );
+    const response = await fetch(meta.url, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok)
+      throw new SokoBotRuntimeValidationError(
+        "The attachment could not be read; try again",
+      );
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const key = { ...drive.key, pathname };
+    const displayName = pathname.split("/").pop() ?? input.filename;
+    await reserveDriveUploadResource({
+      key,
+      displayName,
+      mimeType: contentType,
+      sizeBytes: bytes.byteLength,
+    });
+    await put(pathname, bytes, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+      allowOverwrite: Boolean(existing),
+    });
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes: bytes.byteLength,
+      mimeType: contentType,
+    });
+    nudgeFileIndexing();
+    return {
+      id: activated?.resourceId ?? null,
+      filename: displayName,
+      replaced: Boolean(existing),
+      link: activated ? `/drive/files/${activated.resourceId}` : null,
+      size: bytes.byteLength,
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"

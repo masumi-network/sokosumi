@@ -2647,6 +2647,7 @@ function RoomView({
         parentMessageId: job.parentMessageId,
         quote: job.quote,
         clientMessageId: job.clientMessageId,
+        skillIds: job.skillIds,
       },
     );
     if (!result.ok) {
@@ -2875,6 +2876,7 @@ function RoomView({
                 snippet: "",
               }
             : null,
+        skills: request.skills,
       });
 
       setMessagesState((current) => appendMessage(current, pending));
@@ -2888,6 +2890,7 @@ function RoomView({
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,
+        skillIds: request.skills?.map((skill) => skill.id),
       });
 
       // Composer must not restore draft — failure lives on the pending shell.
@@ -2974,6 +2977,7 @@ function RoomView({
                 snippet: "",
               }
             : null,
+        skills: request.skills,
       });
 
       setThreadMessages((current) => appendMessage(current, pending));
@@ -2987,6 +2991,7 @@ function RoomView({
         quote: request.quote,
         clientMessageId: request.clientMessageId,
         parentMessageId,
+        skillIds: request.skills?.map((skill) => skill.id),
       });
 
       return { ok: true };
@@ -3342,6 +3347,7 @@ function RoomView({
                   onSetPendingQuote={setPendingQuote}
                   onResolveMessageLink={handleResolveMessageLink}
                   requireBody={isCoworkerStreamRoom}
+                  allowSkills={!isCoworkerStreamRoom}
                   // Autofocus only after history settles. Send stays enabled so
                   // optimistic posts work during progressive open (merge into list).
                   focusOnMount={!messagesPending}
