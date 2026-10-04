@@ -29,6 +29,7 @@ import prisma from "@/lib/db/prisma";
 import {
   type ChatRoom,
   type ChatRoomMessageQuote,
+  type ChatRoomMessageSkill,
   chatRoomSchema,
 } from "@/schemas/chat-room.schema";
 
@@ -767,7 +768,39 @@ export function mapChatRoomMessage(
       ? null
       : readGroupNameChangeFromMetadata(metadata),
     unfurls: isDeleted ? null : readUnfurlsFromMetadata(metadata),
+    ...(isDeleted ? {} : readSkillsFromMetadata(metadata)),
   };
+}
+
+/** Soft-parses `metadata.skills`; absent when the message has none. */
+export function readSkillsFromMetadata(metadata: unknown): {
+  skills?: ChatRoomMessageSkill[];
+} {
+  const raw =
+    metadata && typeof metadata === "object" && !Array.isArray(metadata)
+      ? (metadata as Record<string, unknown>).skills
+      : undefined;
+  if (!Array.isArray(raw)) return {};
+  const skills = raw.flatMap((item): ChatRoomMessageSkill[] => {
+    if (!item || typeof item !== "object") return [];
+    const skill = item as Record<string, unknown>;
+    if (
+      typeof skill.id !== "string" ||
+      typeof skill.name !== "string" ||
+      typeof skill.url !== "string"
+    )
+      return [];
+    return [
+      {
+        id: skill.id,
+        name: skill.name,
+        description:
+          typeof skill.description === "string" ? skill.description : null,
+        url: skill.url,
+      },
+    ];
+  });
+  return skills.length > 0 ? { skills } : {};
 }
 
 export function mergeChatRoomMessageMetadata(

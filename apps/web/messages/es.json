@@ -6183,6 +6183,21 @@
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato"
       },
+      "Skills": {
+        "add": "Añadir una skill",
+        "limitReached": "Hasta 3 skills por mensaje",
+        "searchPlaceholder": "Buscar skills",
+        "listLabel": "Skills de skills.sh",
+        "loading": "Cargando skills…",
+        "unavailable": "No se pudieron cargar las skills. Inténtalo de nuevo.",
+        "noResults": "No se encontraron skills",
+        "installs": "{count} instalaciones",
+        "added": "Añadida",
+        "remove": "Quitar {name}",
+        "chipLabel": "Skill: {name}",
+        "previewKicker": "Skill de skills.sh, enviada a los agentes a los que llega este mensaje",
+        "viewOnSkillsSh": "Ver en skills.sh"
+      },
       "Reactions": {
         "add": "Add reaction",
         "toggle": "React with {emoji}",

@@ -1,10 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt, oAuthProxy } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   claimSignUpConversion,
   oauthSignUpOptions,
@@ -167,6 +169,7 @@ function createAuth(origin = CORE, proxy = false) {
         create: { after: (user, ctx) => recordSignUpConversion(user.id, ctx) },
       },
     },
+    hooks: { after: createAuthMiddleware(keepNewSessionPersistent) },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       oauthProvider({

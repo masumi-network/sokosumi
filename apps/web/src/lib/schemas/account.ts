@@ -13,13 +13,6 @@ import {
   passwordSchema,
 } from "@/lib/auth/data";
 
-export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    name: nameSchema(t),
-  });
-
-export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
-
 export const firstAndLastNameFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) => firstAndLastNameSchema(t);
