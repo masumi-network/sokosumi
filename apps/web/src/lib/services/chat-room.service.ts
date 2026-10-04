@@ -16,6 +16,7 @@ import type {
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
   ChatRoomThreadUnreadReplyCount,
+  ChatSkillCatalogItem,
   ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
@@ -613,6 +614,11 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function searchSkills(q: string): Promise<ChatSkillCatalogItem[]> {
+    const response = await coreClient.searchChatSkills(q);
+    return response.data;
+  }
+
   /** Idempotent: repeating either direction leaves the Reaction as asked. */
   async function setReaction(
     roomId: string,
@@ -723,6 +729,7 @@ export const chatRoomService = (() => {
     removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
+    searchSkills,
     revokeRoomGuestInviteLink,
     revokeRoomInvitation,
     unpinMessage,

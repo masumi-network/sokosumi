@@ -45,6 +45,7 @@ import {
   SOKO_BOT_MAX_STEPS,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
@@ -157,7 +158,7 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: stored.userMessage,
+    message: await withTurnSkills(claims.turnId, stored.userMessage),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: SOKO_BOT_MAX_STEPS,
   };

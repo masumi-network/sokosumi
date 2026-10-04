@@ -661,6 +661,40 @@ export const chatRoomMessageUnfurlSchema = z
   })
   .openapi("ChatRoomMessageUnfurl");
 
+/** A skill attached to a message, stored under metadata.skills and promoted on the DTO. The content goes only to the agents the message reaches. */
+export const chatRoomMessageSkillSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "skills.sh id: owner/repo/skill.",
+      example: "vercel-labs/agent-skills/vercel-react-best-practices",
+    }),
+    name: z.string().openapi({ example: "vercel-react-best-practices" }),
+    description: z.string().nullable().openapi({
+      example: "React and Next.js performance guidelines.",
+    }),
+    url: z.string().url().openapi({
+      example:
+        "https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices",
+    }),
+  })
+  .openapi("ChatRoomMessageSkill");
+
+/** One skills.sh skill in the chat skill picker. */
+export const chatSkillCatalogItemSchema = z
+  .object({
+    id: z.string().openapi({
+      description: "skills.sh id: owner/repo/skill.",
+      example: "vercel-labs/agent-skills/vercel-react-best-practices",
+    }),
+    name: z.string().openapi({ example: "vercel-react-best-practices" }),
+    source: z.string().openapi({ example: "vercel-labs/agent-skills" }),
+    description: z.string().nullable().openapi({
+      example: "React and Next.js performance guidelines.",
+    }),
+    installs: z.number().int().openapi({ example: 761642 }),
+  })
+  .openapi("ChatSkillCatalogItem");
+
 export const removeChatRoomMessageUnfurlRequestSchema = z
   .object({
     url: z.string().url().openapi({ example: "https://example.com/article" }),
@@ -706,6 +740,10 @@ export const chatRoomMessageSchema = z
     unfurls: z.array(chatRoomMessageUnfurlSchema).max(3).nullable().openapi({
       description:
         "Link preview cards scraped from message URLs (absent while pending).",
+    }),
+    skills: z.array(chatRoomMessageSkillSchema).max(3).optional().openapi({
+      description:
+        "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.",
     }),
   })
   .openapi("ChatRoomMessage");
@@ -785,6 +823,15 @@ export const createChatRoomMessageRequestSchema = z
         "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
       example: "019fbee7-676b-771f-ab7a-998f25f1f16b",
     }),
+    skillIds: z
+      .array(z.string().trim().min(1).max(200))
+      .max(3)
+      .optional()
+      .openapi({
+        description:
+          "skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.",
+        example: ["vercel-labs/agent-skills/vercel-react-best-practices"],
+      }),
   })
   .refine((body) => body.content.length > 0 || body.quote !== undefined, {
     path: ["content"],
@@ -966,6 +1013,7 @@ export type DiscoverableChatRoom = z.infer<typeof discoverableChatRoomSchema>;
 export type ChatRoomMessage = z.infer<typeof chatRoomMessageSchema>;
 export type ChatRoomMessageQuote = z.infer<typeof chatRoomMessageQuoteSchema>;
 export type ChatRoomMessageUnfurl = z.infer<typeof chatRoomMessageUnfurlSchema>;
+export type ChatRoomMessageSkill = z.infer<typeof chatRoomMessageSkillSchema>;
 export type ChatRoomMessageMembership = z.infer<
   typeof chatRoomMessageMembershipSchema
 >;
