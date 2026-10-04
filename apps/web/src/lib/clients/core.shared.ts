@@ -467,6 +467,7 @@ import {
   runMySokoBotLabIngest as coreRunMySokoBotLabIngest,
   searchAdminOrganizations as coreSearchAdminOrganizations,
   searchAdminUsers as coreSearchAdminUsers,
+  searchChatSkills as coreSearchChatSkills,
   searchSokoBotIntegrationCatalog as coreSearchSokoBotIntegrationCatalog,
   searchSokoBotSkills as coreSearchSokoBotSkills,
   sendMySokoBotTurnFeedback as coreSendMySokoBotTurnFeedback,
@@ -5123,6 +5124,14 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function searchChatSkills(q: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) => coreSearchChatSkills({ client, query: q ? { q } : {} }),
+      "Failed to search skills",
+    );
+  }
+
   async function listMySokoBotLabRuns(query?: {
     versionId?: string;
     limit?: number;
@@ -6141,6 +6150,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     installMySokoBotSkill,
     removeMySokoBotSkill,
     searchSokoBotSkills,
+    searchChatSkills,
     browseSokoBotSkills,
     updateMySokoBotVersion,
     updateMySokoBotBoardFollowing,

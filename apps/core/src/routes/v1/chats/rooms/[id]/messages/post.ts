@@ -31,6 +31,10 @@ import {
   chatRoomMessageSchema,
   createChatRoomMessageRequestSchema,
 } from "@/schemas/chat-room.schema";
+import {
+  resolveAttachedSkills,
+  skillMetadata,
+} from "@/services/chat-message-skills.service";
 import { dispatchChatRoomMention } from "@/services/chat-room-coworker-dispatch.service";
 import { scheduleChatRoomMessageUnfurls } from "@/services/chat-room-message-unfurl.service";
 
@@ -237,6 +241,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserAuthContext(authContext);
+    // Read from GitHub before the transaction, which must not wait on it.
+    const skills = await resolveAttachedSkills(body.skillIds);
     const trimmedClientId =
       typeof body.clientMessageId === "string"
         ? body.clientMessageId.trim()
@@ -323,7 +329,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
                 body.quote?.messageId,
               );
         const metadata = mergeChatRoomMessageMetadata(
-          clientId ? { client_message_id: clientId } : null,
+          {
+            ...(clientId ? { client_message_id: clientId } : {}),
+            ...(skills.length > 0 ? { skills: skills.map(skillMetadata) } : {}),
+          },
           quote,
         );
 
@@ -424,6 +433,14 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             userMentionsAsSource: {
               create: mentionedUserIds.map((mentionedUserId) => ({
                 userId: mentionedUserId,
+              })),
+            },
+            attachedSkills: {
+              create: skills.map((skill, position) => ({
+                position,
+                skillId: skill.id,
+                name: skill.name,
+                content: skill.content,
               })),
             },
           },

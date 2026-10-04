@@ -2,6 +2,7 @@ import type {
   ChatRoomMessage,
   ChatRoomMessageMention,
   ChatRoomMessageQuote,
+  ChatRoomMessageSkill,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
 import { ChatRoomMentionStatus } from "@sokosumi/core-client";
@@ -130,6 +131,8 @@ export interface CreatePendingRoomMessageParams {
   mentionedCoworkerIds?: readonly string[];
   /** Personal-assistant ids mentioned on this send. */
   mentionedSokoBotIds?: readonly string[];
+  /** Skills attached on this send, shown as chips until confirm. */
+  skills?: ChatRoomMessageSkill[];
 }
 
 /** Build provisional mention rows for a pending shell (no blink on confirm). */
@@ -189,6 +192,7 @@ export function createPendingRoomMessage(
     membership: null,
     groupNameChange: null,
     unfurls: null,
+    ...(params.skills?.length ? { skills: params.skills } : {}),
   };
 }
 
