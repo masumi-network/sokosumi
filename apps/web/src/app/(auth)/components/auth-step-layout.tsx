@@ -60,7 +60,7 @@ export function AuthStepLayout({
   footer,
 }: AuthStepLayoutProps) {
   return (
-    <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-8 py-6 text-center contain-inline-size">
+    <div className="flex w-full min-w-0 flex-1 flex-col items-center gap-8 p-6 text-center contain-inline-size">
       <div className="flex w-full flex-col items-center gap-2">
         {client ? (
           <OAuthClientBackLink client={client} className="self-center" />
