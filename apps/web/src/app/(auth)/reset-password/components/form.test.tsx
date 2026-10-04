@@ -57,6 +57,61 @@ describe("ResetPasswordForm", () => {
     });
   });
 
+  it("asks for the new password twice in fields named by their placeholders", () => {
+    render(<ResetPasswordForm />);
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "title",
+    );
+    expect(screen.getByText("description")).toBeInTheDocument();
+    for (const label of [
+      "Fields.Password.label",
+      "Fields.ConfirmPassword.label",
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "placeholder",
+        label,
+      );
+      expect(screen.queryByText(label)).not.toBeInTheDocument();
+    }
+    expect(screen.getByRole("alert")).toBeEmptyDOMElement();
+  });
+
+  it("goes back to Log in, keeping the page context", () => {
+    searchParams.current = new URLSearchParams(OAUTH_QUERY);
+    render(<ResetPasswordForm />);
+
+    expect(screen.getByRole("link", { name: "backToLogIn" })).toHaveAttribute(
+      "href",
+      `/signin?${OAUTH_QUERY}`,
+    );
+  });
+
+  it("explains a refused field in the error line and marks it", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm />);
+    await user.type(
+      screen.getByLabelText("Fields.Password.label"),
+      "N3wPass!x",
+    );
+    await user.type(
+      screen.getByLabelText("Fields.ConfirmPassword.label"),
+      "N3wPass!y",
+    );
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    const confirm = screen.getByLabelText("Fields.ConfirmPassword.label");
+    await waitFor(() =>
+      expect(confirm).toHaveAttribute("aria-invalid", "true"),
+    );
+    expect(screen.getByRole("alert")).not.toBeEmptyDOMElement();
+    expect(confirm).toHaveAccessibleDescription(
+      screen.getByRole("alert").textContent ?? "",
+    );
+    expect(resetPasswordWithToken).not.toHaveBeenCalled();
+  });
+
   it("labels both fields as a new password for password managers", () => {
     render(<ResetPasswordForm />);
 
@@ -114,9 +169,13 @@ describe("ResetPasswordForm", () => {
 
       await submitNewPassword();
 
-      expect(await screen.findByRole("alert")).toHaveTextContent(
-        "signOutError",
+      await waitFor(() =>
+        expect(screen.getByRole("alert")).toHaveTextContent("signOutError"),
       );
+      // Only the sign-out leads on while this browser still holds the session.
+      expect(
+        screen.queryByRole("link", { name: "backToLogIn" }),
+      ).not.toBeInTheDocument();
       expect(push).not.toHaveBeenCalled();
       expect(
         screen.queryByLabelText("Fields.Password.label"),
@@ -261,8 +320,9 @@ describe("ResetPasswordForm", () => {
 
     await submitNewPassword();
 
-    const alert = await screen.findByRole("alert");
-    expect(alert).toHaveTextContent("error");
+    await waitFor(() =>
+      expect(screen.getByRole("alert")).toHaveTextContent("error"),
+    );
     expect(
       screen.getByRole("link", { name: "requestNewLink" }),
     ).toHaveAttribute("href", `/forgot-password?${OAUTH_QUERY}`);

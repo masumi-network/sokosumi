@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { INVALID_RESET_LINK_ERROR } from "@/lib/auth/auth.utils";
 
 import ForgotPasswordForm from "./components/form";
-import ForgotPasswordHeader from "./components/header";
 
 export const instant = false;
 
@@ -27,11 +26,6 @@ export default async function ForgotPassword({
   const { error } = await searchParams;
 
   return (
-    <div className="flex flex-1 flex-col">
-      <ForgotPasswordHeader />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ForgotPasswordForm linkExpired={error === INVALID_RESET_LINK_ERROR} />
-      </div>
-    </div>
+    <ForgotPasswordForm linkExpired={error === INVALID_RESET_LINK_ERROR} />
   );
 }

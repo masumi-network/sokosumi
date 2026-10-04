@@ -11,6 +11,7 @@ import * as z from "zod";
 
 import {
   AUTH_STEP_LINK_CLASS,
+  AuthStepErrorLine,
   AuthStepLayout,
   AuthStepLinkSeparator,
 } from "@/auth/components/auth-step-layout";
@@ -27,7 +28,7 @@ import {
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { PasswordInput } from "@/components/auth/password-input";
-import { ResendCodeButton } from "@/components/auth/resend-code-button";
+import { ResendButton } from "@/components/auth/resend-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
@@ -246,7 +247,7 @@ export default function SignInForm({
         statusIsError: !isPending && (codeError !== undefined || isCodeUnsent),
         links: (
           <>
-            <ResendCodeButton
+            <ResendButton
               sentAt={emailCode.sentAt}
               onResend={() => {
                 void emailCode.sendCode(email);
@@ -397,20 +398,9 @@ export default function SignInForm({
                 />
               )}
             />
-            {/* Always rendered, so a screen reader hears what appears in it: a
-                submit leaves focus on the disabled form. Out of the flow, so
-                it takes no space, until there is an error. */}
-            <p
-              id={passwordErrorId}
-              role="alert"
-              className={
-                passwordLine
-                  ? "text-destructive text-center text-sm"
-                  : "sr-only"
-              }
-            >
+            <AuthStepErrorLine id={passwordErrorId}>
               {passwordLine}
-            </p>
+            </AuthStepErrorLine>
             <div className="mt-3 flex flex-col gap-4">
               {captcha}
               <SubmitButton

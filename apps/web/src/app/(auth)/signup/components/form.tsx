@@ -10,16 +10,15 @@ import { toast } from "sonner";
 import * as z from "zod";
 import {
   AUTH_STEP_LINK_CLASS,
+  AuthStepErrorLine,
   AuthStepLayout,
   AuthStepLinkSeparator,
 } from "@/auth/components/auth-step-layout";
 import { EmailChip } from "@/auth/components/email-chip";
 import { BaseForm } from "@/auth/components/form/base-form";
-import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
-import { signUpMarketingFormData } from "@/auth/signup/data";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeInput,
@@ -27,8 +26,14 @@ import {
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { PasswordInput } from "@/components/auth/password-input";
-import { ResendCodeButton } from "@/components/auth/resend-code-button";
-import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { ResendButton } from "@/components/auth/resend-button";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+} from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
@@ -229,7 +234,7 @@ export default function SignUpForm({
       }
       links={
         <>
-          <ResendCodeButton
+          <ResendButton
             sentAt={emailCode.sentAt}
             onResend={() => {
               void emailCode.sendCode(email);
@@ -345,17 +350,7 @@ export default function SignUpForm({
             </div>
           )}
         />
-        {/* Always rendered, so a screen reader hears what appears in it. A
-            div: it can hold the link to Log in. */}
-        <div
-          id={errorLineId}
-          role="alert"
-          className={
-            errorLine ? "text-destructive text-center text-sm" : "sr-only"
-          }
-        >
-          {errorLine}
-        </div>
+        <AuthStepErrorLine id={errorLineId}>{errorLine}</AuthStepErrorLine>
         <div className="mt-3 flex flex-col gap-4">
           {emailCode.captcha}
           <SubmitButton
@@ -364,13 +359,21 @@ export default function SignUpForm({
             label={t("submit")}
             className="w-full"
           />
-          <div className="flex justify-center">
-            <FormFields
-              form={form}
-              formData={signUpMarketingFormData}
-              namespace="Auth.Pages.SignUp.Form"
-            />
-          </div>
+          <FormField
+            control={form.control}
+            name="marketingOptIn"
+            render={({ field }) => (
+              <FormItem className="flex items-center justify-center gap-2">
+                <FormControl>
+                  <Checkbox
+                    checked={field.value}
+                    onCheckedChange={field.onChange}
+                  />
+                </FormControl>
+                <FormLabel>{t("Fields.MarketingOptIn.label")}</FormLabel>
+              </FormItem>
+            )}
+          />
         </div>
         <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
       </BaseForm>

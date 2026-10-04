@@ -1,15 +1,24 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useForm } from "react-hook-form";
-import { AuthForm } from "@/auth/components/form/auth-form";
+import {
+  AUTH_STEP_LINK_CLASS,
+  AuthStepErrorLine,
+  AuthStepLayout,
+  AuthStepLinkSeparator,
+} from "@/auth/components/auth-step-layout";
+import { EmailChip } from "@/auth/components/email-chip";
+import { BaseForm } from "@/auth/components/form/base-form";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { forgotPasswordFormData } from "@/auth/forgot-password/data";
+import { ResendButton } from "@/components/auth/resend-button";
 import { useAuthCaptcha } from "@/components/auth-captcha";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { FormControl, FormField, FormItem } from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { requestPasswordReset } from "@/lib/auth/auth.client";
 import {
@@ -17,7 +26,10 @@ import {
   getAbsoluteAuthRedirectUrl,
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
-import { takeAuthEmailHint } from "@/lib/auth/auth-email-hint";
+import {
+  rememberAuthEmailHintOnClick,
+  takeAuthEmailHint,
+} from "@/lib/auth/auth-email-hint";
 import {
   type ForgotPasswordFormSchemaType,
   forgotPasswordFormSchema,
@@ -28,17 +40,30 @@ interface ForgotPasswordFormProps {
   linkExpired?: boolean;
 }
 
+/**
+ * Asks for the address and emails a link to set a new password, then says
+ * where it went: "Check your email", with the address as a chip that goes
+ * back to change it, and the link sent again after the usual wait.
+ */
 export default function ForgotPasswordForm({
   linkExpired = false,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
+  const headerT = useTranslations("Auth.Pages.ForgotPassword.Header");
   const {
     widget: captcha,
     runWithCaptcha,
     getErrorMessage,
   } = useAuthCaptcha("forgot-password");
-  const searchParams = useSearchParams();
-  const [isEmailSent, setIsEmailSent] = useState(false);
+  const context = readAuthPageContext(useSearchParams());
+  const signInHref = buildAuthPageUrl("/signin", context);
+  const errorLineId = useId();
+  const statusId = useId();
+  // The address the last link went to; the page then says to check it.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [sentAt, setSentAt] = useState(0);
+  const [isResending, setIsResending] = useState(false);
+  const [cameBack, setCameBack] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const form = useForm<ForgotPasswordFormSchemaType>({
@@ -58,25 +83,22 @@ export default function ForgotPasswordForm({
     }
   });
 
-  async function handleSubmit(values: ForgotPasswordFormSchemaType) {
-    setIsEmailSent(false);
+  async function sendLink(email: string) {
     setError(null);
+    let sent = false;
     try {
       await runWithCaptcha(async (fetchOptions) => {
         const result = await requestPasswordReset({
           fetchOptions,
-          email: values.email,
+          email,
           // The emailed link returns to the sign-in this request started from.
           redirectTo: getAbsoluteAuthRedirectUrl(
-            buildAuthPageUrl(
-              "/reset-password/exchange",
-              readAuthPageContext(searchParams),
-            ),
+            buildAuthPageUrl("/reset-password/exchange", context),
           ),
         });
 
         if (!result.error) {
-          setIsEmailSent(true);
+          sent = true;
           return;
         }
 
@@ -89,35 +111,149 @@ export default function ForgotPasswordForm({
     } catch {
       setError(t("Errors.generic"));
     }
+    if (sent) {
+      setSentTo(email);
+      setSentAt(Date.now());
+    }
   }
 
-  const { isSubmitting } = form.formState;
+  async function handleSubmit(values: ForgotPasswordFormSchemaType) {
+    await sendLink(values.email);
+  }
+
+  async function resend(email: string) {
+    setIsResending(true);
+    try {
+      await sendLink(email);
+    } finally {
+      setIsResending(false);
+    }
+  }
+
+  // Mounted on both steps, so a screen reader hears the step change: the
+  // focused button leaves with the form.
+  const announcement = (
+    <p role="status" className="sr-only">
+      {sentTo ? `${t("Sent.title")}. ${t("Sent.subtitle")} ${sentTo}.` : null}
+    </p>
+  );
+
+  if (sentTo) {
+    return (
+      <>
+        {announcement}
+        <AuthStepLayout
+          title={t("Sent.title")}
+          subtitle={t("Sent.subtitle")}
+          chip={
+            <EmailChip
+              email={sentTo}
+              onChange={() => {
+                setError(null);
+                setCameBack(true);
+                setSentTo(null);
+              }}
+              disabled={isResending}
+            />
+          }
+          status={error}
+          statusId={statusId}
+          statusIsError
+          securityCheck={captcha}
+          links={
+            <>
+              <ResendButton
+                sentAt={sentAt}
+                onResend={() => {
+                  void resend(sentTo);
+                }}
+                isSending={isResending}
+                labels={{
+                  resend: t("Sent.resend"),
+                  resendIn: (seconds) => t("Sent.resendIn", { seconds }),
+                }}
+              />
+              <AuthStepLinkSeparator />
+              <Link
+                href={signInHref}
+                onClick={(event) => rememberAuthEmailHintOnClick(event, sentTo)}
+                className={AUTH_STEP_LINK_CLASS}
+              >
+                {t("Sent.backToLogIn")}
+              </Link>
+            </>
+          }
+        >
+          <p className="text-muted-foreground text-sm">{t("Sent.expiry")}</p>
+        </AuthStepLayout>
+      </>
+    );
+  }
+
+  const { errors, isSubmitting } = form.formState;
+  const errorLine = errors.email?.message ?? error;
 
   return (
     <>
-      {/* A new link replaces the dead one, so the notice goes with it. */}
-      {linkExpired && !isEmailSent ? (
-        <Alert>
-          <AlertDescription>{t("linkExpired")}</AlertDescription>
-        </Alert>
-      ) : null}
-      <AuthForm
-        form={form}
-        formData={forgotPasswordFormData}
-        namespace="Auth.Pages.ForgotPassword.Form"
-        onSubmit={handleSubmit}
+      {announcement}
+      <AuthStepLayout
+        title={headerT("title")}
+        subtitle={headerT("description")}
+        // A new link replaces the dead one, so the notice goes with it.
+        notice={linkExpired && sentAt === 0 ? t("linkExpired") : undefined}
+        links={
+          <span>
+            {t("remembered")}{" "}
+            <Link
+              href={signInHref}
+              // The typed address travels back as a hint, as it came.
+              onClick={(event) =>
+                rememberAuthEmailHintOnClick(event, form.getValues("email"))
+              }
+              className={AUTH_STEP_LINK_CLASS}
+            >
+              {t("logIn")}
+            </Link>
+          </span>
+        }
       >
-        <p role="status" className="text-sm text-muted-foreground empty:-mt-3">
-          {isEmailSent ? t("success") : null}
-        </p>
-        {error ? (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        ) : null}
-        {captcha}
-        <SubmitButton isSubmitting={isSubmitting} label={t("reset_password")} />
-      </AuthForm>
+        <BaseForm form={form} onSubmit={handleSubmit} className="w-full">
+          <FormField
+            control={form.control}
+            name="email"
+            render={({ field }) => (
+              <FormItem>
+                <FormControl>
+                  <Input
+                    {...field}
+                    variant="underlined"
+                    data-testid="auth-field-email"
+                    type="email"
+                    autoComplete="email"
+                    // Phones would otherwise capitalise and autocorrect it.
+                    autoCapitalize="none"
+                    spellCheck={false}
+                    placeholder={t("Fields.Email.label")}
+                    aria-label={t("Fields.Email.label")}
+                    // Back from "Check your email" to change the address.
+                    autoFocus={cameBack}
+                    aria-describedby={errorLine ? errorLineId : undefined}
+                  />
+                </FormControl>
+              </FormItem>
+            )}
+          />
+          <AuthStepErrorLine id={errorLineId}>{errorLine}</AuthStepErrorLine>
+          <div className="mt-3 flex flex-col gap-4">
+            {captcha}
+            <SubmitButton
+              isSubmitting={isSubmitting}
+              label={t("submit")}
+              className="w-full"
+            />
+          </div>
+        </BaseForm>
+      </AuthStepLayout>
     </>
   );
 }

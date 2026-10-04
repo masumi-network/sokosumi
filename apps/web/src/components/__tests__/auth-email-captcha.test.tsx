@@ -34,7 +34,7 @@ describe.each([
   {
     name: "password reset",
     Component: ForgotPasswordForm,
-    submit: "reset_password",
+    submit: "submit",
     send: requestPasswordReset,
     errorFallback: "Errors.generic",
   },

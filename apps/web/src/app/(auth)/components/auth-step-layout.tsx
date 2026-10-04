@@ -112,6 +112,30 @@ export function AuthStepLayout({
   );
 }
 
+/**
+ * A step's one line for a refusal, between its fields and its button. Always
+ * rendered, so a screen reader hears what appears in it (a submit leaves
+ * focus on the disabled form), and out of the flow until there is one. A div,
+ * so it can hold a link.
+ */
+interface AuthStepErrorLineProps {
+  id: string;
+  /** The reason; the line takes no space without one. */
+  children?: ReactNode;
+}
+
+export function AuthStepErrorLine({ id, children }: AuthStepErrorLineProps) {
+  return (
+    <div
+      id={id}
+      role="alert"
+      className={children ? "text-destructive text-center text-sm" : "sr-only"}
+    >
+      {children}
+    </div>
+  );
+}
+
 /** The dot between two links in the links row. */
 export function AuthStepLinkSeparator() {
   return <span aria-hidden>·</span>;

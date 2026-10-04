@@ -17,11 +17,6 @@ vi.mock("./components/form", () => ({
   default: () => <div data-testid="reset-password-form" />,
 }));
 
-vi.mock("./components/header", () => ({
-  __esModule: true,
-  default: () => <div data-testid="reset-password-header" />,
-}));
-
 describe("ResetPasswordPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();

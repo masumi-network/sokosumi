@@ -1290,16 +1290,15 @@
       },
       "ForgotPassword": {
         "Metadata": {
-          "title": "Reset password",
+          "title": "Reset your password",
           "description": "Reset your password to regain access to your account"
         },
         "Header": {
-          "title": "Reset password",
-          "description": "Enter your email address and we'll send you a link to reset your password"
+          "title": "Reset your password",
+          "description": "We'll email you a link to set a new one."
         },
         "Form": {
-          "success": "We've sent you an email to reset your password",
-          "reset_password": "Reset password",
+          "submit": "Send reset link",
           "Fields": {
             "Email": {
               "label": "Email"
@@ -1309,18 +1308,28 @@
           "Errors": {
             "rateLimited": "Too many requests in a row. Wait a minute, then try again.",
             "generic": "We could not send the reset email. Try again."
+          },
+          "remembered": "Remembered it?",
+          "logIn": "Log in",
+          "Sent": {
+            "title": "Check your email",
+            "subtitle": "We sent a link to set a new password to",
+            "expiry": "The link works once and expires after an hour.",
+            "resend": "Send the link again",
+            "resendIn": "Send the link again in {seconds}s",
+            "backToLogIn": "Back to log in"
           }
         }
       },
       "ResetPassword": {
         "Metadata": {
-          "title": "Reset password",
+          "title": "Set a new password",
           "description": "Set a new password for your account"
         },
-        "title": "Reset password",
-        "description": "Enter your new password below",
+        "title": "Set a new password",
+        "description": "You'll be logged out on all your devices.",
         "Form": {
-          "submit": "Reset password",
+          "submit": "Save password",
           "success": "Password reset. You have been signed out on all devices.",
           "error": "We could not reset your password. The link may have expired or been used already.",
           "Fields": {
@@ -1333,7 +1342,8 @@
           },
           "requestNewLink": "Request a new link",
           "signOutError": "Password changed. We could not finish signing out of this browser. Try again to continue to sign-in.",
-          "continueToSignIn": "Continue to sign-in"
+          "continueToSignIn": "Continue to sign-in",
+          "backToLogIn": "Back to log in"
         }
       }
     },
