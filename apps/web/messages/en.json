@@ -1290,7 +1290,7 @@
       },
       "ForgotPassword": {
         "Metadata": {
-          "title": "Reset password",
+          "title": "Reset your password",
           "description": "Reset your password to regain access to your account"
         },
         "Header": {
@@ -1323,7 +1323,7 @@
       },
       "ResetPassword": {
         "Metadata": {
-          "title": "Reset password",
+          "title": "Set a new password",
           "description": "Set a new password for your account"
         },
         "title": "Set a new password",

@@ -1290,7 +1290,7 @@
       },
       "ForgotPassword": {
         "Metadata": {
-          "title": "Restablecer contraseña",
+          "title": "Restablece tu contraseña",
           "description": "Restablece tu contraseña para recuperar el acceso a tu cuenta"
         },
         "Header": {
@@ -1323,7 +1323,7 @@
       },
       "ResetPassword": {
         "Metadata": {
-          "title": "Restablecer contraseña",
+          "title": "Crea una contraseña nueva",
           "description": "Establece una nueva contraseña para tu cuenta"
         },
         "title": "Crea una contraseña nueva",

@@ -1290,7 +1290,7 @@
       },
       "ForgotPassword": {
         "Metadata": {
-          "title": "Passwort zurücksetzen",
+          "title": "Setze dein Passwort zurück",
           "description": "Setze dein Passwort zurück, um wieder Zugang zu deinem Konto zu erhalten"
         },
         "Header": {
@@ -1323,7 +1323,7 @@
       },
       "ResetPassword": {
         "Metadata": {
-          "title": "Passwort zurücksetzen",
+          "title": "Lege ein neues Passwort fest",
           "description": "Lege ein neues Passwort für dein Konto fest"
         },
         "title": "Lege ein neues Passwort fest",
