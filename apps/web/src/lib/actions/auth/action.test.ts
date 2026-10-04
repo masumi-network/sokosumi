@@ -3,9 +3,17 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const setPasswordViaCoreMock = vi.fn();
 const resetPasswordViaCoreMock = vi.fn();
 const getResetPasswordTokenMock = vi.fn();
-const clearResetPasswordTokenMock = vi.fn();
 const handleUTMConversionMock = vi.fn();
 const claimMySignUpConversionMock = vi.fn();
+const cookieMutationMock = vi.fn();
+
+vi.mock("next/headers", () => ({
+  cookies: async () => ({
+    get: vi.fn(),
+    set: cookieMutationMock,
+    delete: cookieMutationMock,
+  }),
+}));
 
 vi.mock("@/lib/auth/core-auth-http.server", () => ({
   setPasswordViaCore: (...args: unknown[]) => setPasswordViaCoreMock(...args),
@@ -15,7 +23,6 @@ vi.mock("@/lib/auth/core-auth-http.server", () => ({
 
 vi.mock("@/lib/reset-password-token-cookie", () => ({
   getResetPasswordToken: () => getResetPasswordTokenMock(),
-  clearResetPasswordToken: () => clearResetPasswordTokenMock(),
 }));
 
 vi.mock("@/lib/services/utm.service", () => ({
@@ -90,11 +97,12 @@ describe("resetPasswordWithToken", () => {
   beforeEach(() => {
     resetPasswordViaCoreMock.mockReset();
     getResetPasswordTokenMock.mockReset();
-    clearResetPasswordTokenMock.mockReset();
     vi.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
-  it("reads the token on the server and clears it after success", async () => {
+  // Clearing it would re-render the page, which leaves for "request a new
+  // link" before a failed sign-out can be retried; Core spent the token.
+  it("reads the token on the server and leaves the spent cookie alone", async () => {
     getResetPasswordTokenMock.mockResolvedValue("reset_token_1");
     resetPasswordViaCoreMock.mockResolvedValue(undefined);
 
@@ -109,7 +117,7 @@ describe("resetPasswordWithToken", () => {
       "Password-123456",
       "reset_token_1",
     );
-    expect(clearResetPasswordTokenMock).toHaveBeenCalledTimes(1);
+    expect(cookieMutationMock).not.toHaveBeenCalled();
   });
 
   it("rejects a submission without the server cookie", async () => {
@@ -123,7 +131,6 @@ describe("resetPasswordWithToken", () => {
 
     expect(result.ok).toBe(false);
     expect(resetPasswordViaCoreMock).not.toHaveBeenCalled();
-    expect(clearResetPasswordTokenMock).not.toHaveBeenCalled();
   });
 
   it("keeps the cookie after a Core request failure so the user can retry", async () => {
@@ -137,7 +144,6 @@ describe("resetPasswordWithToken", () => {
     });
 
     expect(result.ok).toBe(false);
-    expect(clearResetPasswordTokenMock).not.toHaveBeenCalled();
   });
 });
 

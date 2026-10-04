@@ -10,6 +10,8 @@ interface ResendCodeButtonProps {
   sentAt: number;
   onResend: () => void;
   isSending: boolean;
+  /** What is sent again, e.g. a reset link; a code when absent. */
+  labels?: { resend: string; resendIn: (seconds: number) => string };
 }
 
 function secondsLeft(sentAt: number, now: number): number {
@@ -26,6 +28,7 @@ export function ResendCodeButton({
   sentAt,
   onResend,
   isSending,
+  labels,
 }: ResendCodeButtonProps) {
   const t = useTranslations("Components.EmailCodeForm");
   const [now, setNow] = useState(() => Date.now());
@@ -50,7 +53,9 @@ export function ResendCodeButton({
       disabled={left > 0 || isSending}
       onClick={onResend}
     >
-      {left > 0 ? t("resendIn", { seconds: left }) : t("resend")}
+      {left > 0
+        ? (labels?.resendIn(left) ?? t("resendIn", { seconds: left }))
+        : (labels?.resend ?? t("resend"))}
     </button>
   );
 }

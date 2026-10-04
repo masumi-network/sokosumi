@@ -1294,12 +1294,11 @@
           "description": "Setze dein Passwort zurück, um wieder Zugang zu deinem Konto zu erhalten"
         },
         "Header": {
-          "title": "Passwort zurücksetzen",
-          "description": "Gib deine E-Mail-Adresse ein und wir senden dir einen Link zum Zurücksetzen deines Passworts"
+          "title": "Setze dein Passwort zurück",
+          "description": "Wir senden dir per E-Mail einen Link, um ein neues festzulegen."
         },
         "Form": {
-          "success": "Wir haben dir eine E-Mail zum Zurücksetzen deines Passworts gesendet",
-          "reset_password": "Passwort zurücksetzen",
+          "submit": "Link senden",
           "Fields": {
             "Email": {
               "label": "E-Mail"
@@ -1309,6 +1308,16 @@
           "Errors": {
             "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut.",
             "generic": "Wir konnten die E-Mail zum Zurücksetzen nicht senden. Versuche es erneut."
+          },
+          "remembered": "Doch wieder eingefallen?",
+          "logIn": "Anmelden",
+          "Sent": {
+            "title": "Prüfe deine E-Mails",
+            "subtitle": "Wir haben einen Link für ein neues Passwort gesendet an",
+            "expiry": "Der Link funktioniert einmal und läuft nach einer Stunde ab.",
+            "resend": "Link erneut senden",
+            "resendIn": "Link erneut senden in {seconds} s",
+            "backToLogIn": "Zurück zur Anmeldung"
           }
         }
       },
@@ -1317,10 +1326,10 @@
           "title": "Passwort zurücksetzen",
           "description": "Lege ein neues Passwort für dein Konto fest"
         },
-        "title": "Passwort zurücksetzen",
-        "description": "Gib dein neues Passwort ein",
+        "title": "Lege ein neues Passwort fest",
+        "description": "Du wirst auf allen deinen Geräten abgemeldet.",
         "Form": {
-          "submit": "Passwort zurücksetzen",
+          "submit": "Passwort speichern",
           "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
           "error": "Wir konnten dein Passwort nicht zurücksetzen. Der Link ist vielleicht abgelaufen oder wurde bereits verwendet.",
           "Fields": {
@@ -1333,7 +1342,8 @@
           },
           "requestNewLink": "Neuen Link anfordern",
           "signOutError": "Passwort geändert. Wir konnten dich in diesem Browser nicht abmelden. Versuche es erneut, um zur Anmeldung zu gelangen.",
-          "continueToSignIn": "Weiter zur Anmeldung"
+          "continueToSignIn": "Weiter zur Anmeldung",
+          "backToLogIn": "Zurück zur Anmeldung"
         }
       }
     },

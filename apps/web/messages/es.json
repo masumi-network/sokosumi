@@ -1294,12 +1294,11 @@
           "description": "Restablece tu contraseña para recuperar el acceso a tu cuenta"
         },
         "Header": {
-          "title": "Restablecer contraseña",
-          "description": "Introduce tu email y te enviaremos un enlace para restablecer tu contraseña"
+          "title": "Restablece tu contraseña",
+          "description": "Te enviaremos por email un enlace para crear una nueva."
         },
         "Form": {
-          "success": "Te hemos enviado un email para restablecer tu contraseña",
-          "reset_password": "Restablecer contraseña",
+          "submit": "Enviar enlace",
           "Fields": {
             "Email": {
               "label": "Email"
@@ -1309,6 +1308,16 @@
           "Errors": {
             "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo.",
             "generic": "No pudimos enviar el email para restablecer la contraseña. Vuelve a intentarlo."
+          },
+          "remembered": "¿Ya la recuerdas?",
+          "logIn": "Iniciar sesión",
+          "Sent": {
+            "title": "Revisa tu correo",
+            "subtitle": "Enviamos un enlace para crear una contraseña nueva a",
+            "expiry": "El enlace funciona una vez y caduca en una hora.",
+            "resend": "Enviar el enlace de nuevo",
+            "resendIn": "Enviar el enlace de nuevo en {seconds} s",
+            "backToLogIn": "Volver a iniciar sesión"
           }
         }
       },
@@ -1317,10 +1326,10 @@
           "title": "Restablecer contraseña",
           "description": "Establece una nueva contraseña para tu cuenta"
         },
-        "title": "Restablecer contraseña",
-        "description": "Introduce tu nueva contraseña",
+        "title": "Crea una contraseña nueva",
+        "description": "Se cerrará tu sesión en todos tus dispositivos.",
         "Form": {
-          "submit": "Restablecer contraseña",
+          "submit": "Guardar contraseña",
           "success": "Contraseña restablecida. Se ha cerrado tu sesión en todos los dispositivos.",
           "error": "No pudimos restablecer tu contraseña. Puede que el enlace haya caducado o ya se haya usado.",
           "Fields": {
@@ -1333,7 +1342,8 @@
           },
           "requestNewLink": "Solicitar un enlace nuevo",
           "signOutError": "Contraseña cambiada. No pudimos terminar de cerrar la sesión en este navegador. Vuelve a intentarlo para continuar al inicio de sesión.",
-          "continueToSignIn": "Continuar al inicio de sesión"
+          "continueToSignIn": "Continuar al inicio de sesión",
+          "backToLogIn": "Volver a iniciar sesión"
         }
       }
     },

@@ -11,6 +11,7 @@ import * as z from "zod";
 
 import {
   AUTH_STEP_LINK_CLASS,
+  AuthStepErrorLine,
   AuthStepLayout,
   AuthStepLinkSeparator,
 } from "@/auth/components/auth-step-layout";
@@ -397,20 +398,9 @@ export default function SignInForm({
                 />
               )}
             />
-            {/* Always rendered, so a screen reader hears what appears in it: a
-                submit leaves focus on the disabled form. Out of the flow, so
-                it takes no space, until there is an error. */}
-            <p
-              id={passwordErrorId}
-              role="alert"
-              className={
-                passwordLine
-                  ? "text-destructive text-center text-sm"
-                  : "sr-only"
-              }
-            >
+            <AuthStepErrorLine id={passwordErrorId}>
               {passwordLine}
-            </p>
+            </AuthStepErrorLine>
             <div className="mt-3 flex flex-col gap-4">
               {captcha}
               <SubmitButton
