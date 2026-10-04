@@ -967,6 +967,31 @@ describe("SignUpForm email code", () => {
     expect(emailedCodes[1]).toBe(emailedCodes[0]);
   });
 
+  it("explains a code check that fails without an answer, so the code can be typed again", async () => {
+    mockEmailCodeSignIn
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue({
+        data: null,
+        error: { code: "INVALID_OTP", status: 400 },
+      });
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "042917");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    // As on Log in's code step: the slots clear and the reason shows.
+    await waitFor(() => expect(errorLine()).toHaveTextContent("generic"));
+    expect(code).toHaveValue("");
+    expect(code).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
+    await user.type(code, "042917");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
+  });
+
   it("marks the missing names and the short code, explaining one at a time in the error line", async () => {
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);

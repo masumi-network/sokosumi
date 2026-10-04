@@ -22,6 +22,7 @@ import type { EmailCode } from "@/auth/components/use-email-code";
 import {
   EMAIL_CODE_LENGTH,
   EmailCodeInput,
+  UNANSWERED_CODE_CHECK,
   useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
@@ -146,14 +147,21 @@ export default function SignUpForm({
   const handleSubmit = async (values: z.infer<typeof passwordSchema>) => {
     track("Sign Up", { provider: withPassword ? "credential" : "email-otp" });
     setAccountExists(false);
-    const error = await emailCode.signInWithCode(email, values.code, {
-      firstName: values.firstName,
-      lastName: values.lastName,
-      // Unset is a no; Better Auth's own default would be yes.
-      marketingOptIn: values.marketingOptIn ?? false,
-      termsAccepted: true,
-      ...(withPassword ? { password: values.password } : {}),
-    });
+    let error: Awaited<ReturnType<EmailCode["signInWithCode"]>>;
+    try {
+      error = await emailCode.signInWithCode(email, values.code, {
+        firstName: values.firstName,
+        lastName: values.lastName,
+        // Unset is a no; Better Auth's own default would be yes.
+        marketingOptIn: values.marketingOptIn ?? false,
+        termsAccepted: true,
+        ...(withPassword ? { password: values.password } : {}),
+      });
+    } catch {
+      // No answer, as on Log in's code step: refused like an unknown one,
+      // so the slots clear and the same code can go again.
+      error = UNANSWERED_CODE_CHECK;
+    }
     if (error) {
       if (isRejectedOAuthRequestError(error)) {
         toast.error(oauthT("errorDescription"));
