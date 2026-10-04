@@ -380,7 +380,8 @@ describe("SignUp page", () => {
         searchParams: Promise.resolve({
           ...OAUTH_SEARCH_PARAMS,
           prompt: "create",
-          // Core signed it (`ba_iat`, milliseconds) as the session started.
+          // Signed 300 ms after the session started: the case the removed
+          // `ba_iat` grace period answered without asking.
           ba_iat: String(NOW),
         }),
       }),
