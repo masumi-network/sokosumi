@@ -477,11 +477,13 @@ describe("SignUpForm with a password", () => {
 
       await submitValidSignUpForm();
 
+      const password = screen.getByLabelText("Fields.Password.label");
       await waitFor(() =>
-        expect(
-          screen.getByLabelText("Fields.Password.label"),
-        ).toHaveAccessibleDescription(`Fields.Password.description ${message}`),
+        expect(password).toHaveAccessibleDescription(
+          `Fields.Password.description ${message}`,
+        ),
       );
+      await waitFor(() => expect(password).toHaveFocus());
       expect(
         screen.getByRole("textbox", { name: "codeLabel" }),
       ).not.toHaveAttribute("aria-invalid", "true");

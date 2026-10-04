@@ -119,6 +119,11 @@ export default function SignUpForm({
     shouldFocusError: false,
   });
 
+  // After the submit unlocks the fieldset, as React Hook Form does.
+  function focusLineField(name: (typeof ERROR_LINE_ORDER)[number]) {
+    setTimeout(() => form.setFocus(name));
+  }
+
   const { isSubmitting } = form.formState;
   const isPending = isSubmitting || isLeaving;
   const codeRefusal = useEmailCodeRefusal({
@@ -165,6 +170,7 @@ export default function SignUpForm({
               : "Password.max",
           ),
         });
+        focusLineField("password");
         return;
       }
       form.setError("code", { message: codeRefusal.refuse(error) });
@@ -249,8 +255,7 @@ export default function SignUpForm({
         onSubmit={handleSubmit}
         onInvalid={(refused) => {
           const first = ERROR_LINE_ORDER.find((name) => refused[name]);
-          // After the submit unlocks the fieldset, as React Hook Form does.
-          if (first) setTimeout(() => form.setFocus(first));
+          if (first) focusLineField(first);
         }}
         onChange={onFormStart}
         className="w-full"
