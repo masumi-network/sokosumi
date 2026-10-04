@@ -123,7 +123,7 @@ export function BrandBrainEditor({ brandBrain, save }: BrandBrainEditorProps) {
         />
       </label>
       <div className="actions">
-        <button type="submit" disabled={pending}>
+        <button type="submit" className="button" disabled={pending}>
           {pending ? "Saving" : "Save Brand Brain"}
         </button>
         {saved && !pending ? <span className="note">Saved</span> : null}

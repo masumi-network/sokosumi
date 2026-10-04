@@ -28,14 +28,19 @@ export function CmoWorkspace({
 }: CmoWorkspaceProps) {
   const { brandBrain, strategy } = overview;
   return (
-    <main className="workspace">
+    <main className="page">
       <header className="topbar">
         <div>
           <h1>{overview.businessName}</h1>
           <p className="note">{overview.websiteUrl}</p>
         </div>
         <form action={actions.signOut}>
-          <button type="submit">Sign out</button>
+          <button
+            type="submit"
+            className="button button-secondary button-small"
+          >
+            Sign out
+          </button>
         </form>
       </header>
 
@@ -68,6 +73,13 @@ export function CmoWorkspace({
               strategy={strategy}
               setAutonomy={actions.setAutonomy}
             />
+          ) : brandBrain && overview.botStatus === "RUNNING" ? (
+            <section className="stack">
+              <h2>Your first month</h2>
+              <p className="note">
+                Cuso is working. The plan shows here when it is ready.
+              </p>
+            </section>
           ) : brandBrain ? (
             <form action={actions.planMonth} className="stack">
               <h2>Your first month</h2>
@@ -83,7 +95,9 @@ export function CmoWorkspace({
                   placeholder="Optional: a launch, an event, a channel to skip"
                 />
               </label>
-              <button type="submit">Plan my month</button>
+              <button type="submit" className="button">
+                Plan my month
+              </button>
             </form>
           ) : null}
         </div>

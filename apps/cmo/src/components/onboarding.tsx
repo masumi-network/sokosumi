@@ -6,7 +6,7 @@ interface OnboardingProps {
 /** First visit: the business and its goals. Cuso takes it from there. */
 export function Onboarding({ name, onboard }: OnboardingProps) {
   return (
-    <main>
+    <main className="page page-narrow">
       <h1>Meet Cuso</h1>
       <p>
         Hi {name}. Cuso is your CMO. Tell him where your business lives and what
@@ -36,7 +36,9 @@ export function Onboarding({ name, onboard }: OnboardingProps) {
             placeholder="More demo requests from mid size companies, a steady LinkedIn presence"
           />
         </label>
-        <button type="submit">Start</button>
+        <button type="submit" className="button">
+          Start
+        </button>
       </form>
     </main>
   );

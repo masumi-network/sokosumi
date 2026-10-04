@@ -57,7 +57,12 @@ export function StrategyCalendar({
                   </option>
                 ))}
               </select>
-              <button type="submit">Save</button>
+              <button
+                type="submit"
+                className="button button-secondary button-small"
+              >
+                Save
+              </button>
             </form>
           </li>
         ))}

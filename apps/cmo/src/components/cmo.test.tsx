@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { toCusoMessages } from "../lib/chat-messages";
 import { brandBrainFromForm } from "./brand-brain-editor";
+import { renderBold } from "./cuso-chat";
 import { Onboarding } from "./onboarding";
 import { groupCalendar, StrategyCalendar } from "./strategy-calendar";
 
@@ -123,5 +124,16 @@ describe("toCusoMessages", () => {
     ]);
     expect(messages.map((message) => message.id)).toEqual(["1", "2"]);
     expect(messages[1]?.fromCuso).toBe(true);
+  });
+});
+
+describe("renderBold", () => {
+  it("turns **bold** into strong text and leaves the rest", () => {
+    const html = renderToStaticMarkup(
+      <p>{renderBold("I'm **Cuso**, your CMO. 2 * 3 stays.")}</p>,
+    );
+    expect(html).toBe(
+      "<p>I&#x27;m <strong>Cuso</strong>, your CMO. 2 * 3 stays.</p>",
+    );
   });
 });
