@@ -12,8 +12,7 @@ interface SubmitButtonProps {
 /**
  * Submits its form with its own action. Every button in the form stays
  * disabled while any of them runs; only the one that was pressed shows the
- * spinner, once the wait passes 300ms (see `.button-spinner`), so a quick
- * action never flashes it.
+ * spinner.
  */
 export function SubmitButton({
   className,
