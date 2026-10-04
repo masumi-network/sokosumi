@@ -6166,6 +6166,21 @@
         "showFormatting": "Formatierung anzeigen",
         "hideFormatting": "Formatierung ausblenden"
       },
+      "Skills": {
+        "add": "Skill hinzufügen",
+        "limitReached": "Bis zu 3 Skills pro Nachricht",
+        "searchPlaceholder": "Skills suchen",
+        "listLabel": "Skills von skills.sh",
+        "loading": "Skills werden geladen…",
+        "unavailable": "Skills konnten nicht geladen werden. Versuche es erneut.",
+        "noResults": "Keine Skills gefunden",
+        "installs": "{count} Installationen",
+        "added": "Hinzugefügt",
+        "remove": "{name} entfernen",
+        "chipLabel": "Skill: {name}",
+        "previewKicker": "Skill von skills.sh, geht an die Agenten, die diese Nachricht erreicht",
+        "viewOnSkillsSh": "Auf skills.sh ansehen"
+      },
       "Reactions": {
         "add": "Add reaction",
         "toggle": "React with {emoji}",

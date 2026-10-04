@@ -83,6 +83,7 @@ import {
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2508,7 +2509,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     !isOutboundLocal &&
     message.threadReplyCount > 0 &&
     onOpenThread != null;
-  const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
+  const hasUnfurlRow =
+    !isDeleted &&
+    ((message.unfurls ?? []).length > 0 || (message.skills ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
   const contentEndsTheRow =
@@ -2879,6 +2882,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       }
                     />
                   )}
+                  <MessageSkillChips skills={message.skills} />
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}

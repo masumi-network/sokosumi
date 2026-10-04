@@ -10,6 +10,7 @@ import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
   roomMessagePromptText,
+  withAttachmentNote,
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
@@ -191,9 +192,12 @@ export async function runSokoBotMentionDispatch(params: {
   // failed somewhere the reader could not see.
   let message: string;
   try {
-    const said = roomMessagePromptText(
+    const said = withAttachmentNote(
+      roomMessagePromptText(
+        mention.message.content,
+        readQuoteFromMetadata(mention.message.metadata),
+      ),
       mention.message.content,
-      readQuoteFromMetadata(mention.message.metadata),
     );
     message =
       mention.message.room.kind === "direct"
