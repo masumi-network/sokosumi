@@ -4076,6 +4076,7 @@ model ChatRoomMessage {
   reactions            ChatRoomReaction[]
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
+  attachedSkills       ChatRoomMessageSkill[]
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -4415,6 +4416,42 @@ model SokoBotInstalledSkill {
   @@unique([sokoBotId, name])
   @@index([sokoBotId])
   @@map("soko_bot_installed_skill")
+}
+
+/// A skills.sh leaderboard entry, refreshed daily so the chat skill picker
+/// searches locally. `markdown` caches the resolved SKILL.md for sends.
+model SkillCatalogEntry {
+  /// skills.sh id: owner/repo/skill.
+  id                String    @id
+  source            String
+  name              String
+  description       String?
+  installs          Int       @default(0)
+  rank              Int?
+  markdown          String?
+  markdownFetchedAt DateTime?
+  refreshedAt       DateTime  @default(now())
+
+  @@index([installs])
+  @@map("skill_catalog_entry")
+}
+
+/// A skill attached to a chat message: its SKILL.md as it was when sent.
+/// Display fields live in the message's metadata.skills; the content stays
+/// off every message read and goes only to the agents the message reaches.
+model ChatRoomMessageSkill {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime        @default(now())
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  position  Int
+  /// skills.sh id: owner/repo/skill.
+  skillId   String
+  name      String
+  content   String
+
+  @@unique([messageId, skillId])
+  @@map("chat_room_message_skill")
 }
 
 model SokoBotEventInbox {

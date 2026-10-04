@@ -340,7 +340,9 @@ export function capabilitiesForClassification(
       "update_table_columns",
     ],
     INTEGRATION: ["run_integration_tool"],
-    SOCIAL: SOCIAL_WRITE_CAPABILITIES,
+    // A post's media must be in Files first; images sent in chat get there
+    // through upload_file.
+    SOCIAL: [...SOCIAL_WRITE_CAPABILITIES, "upload_file"],
   };
   return [...OWNER_BASE_CAPABILITIES, ...writes[classification.writeScope]];
 }
