@@ -16,7 +16,10 @@ import { authClient } from "@/lib/auth/auth.client";
 import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
-import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
+import type {
+  LastUsedAuthMethod,
+  ProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
 type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
@@ -26,7 +29,7 @@ interface SocialButtonsProps {
    * back to resuming the page's OAuth request.
    */
   returnUrl?: string;
-  lastUsedMethod?: ProviderAuthMethod | null;
+  lastUsedMethod?: LastUsedAuthMethod | null;
   showPasskey?: boolean;
   /** Which intent the provider buttons report to Vercel Analytics. */
   eventType?: "signIn" | "signUp";

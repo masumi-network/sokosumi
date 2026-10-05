@@ -8,8 +8,8 @@ import {
   appendQueryParam,
   buildAuthPageUrl,
   buildRequestNewResetLinkUrl,
-  getRedirectQueryString,
   readAuthPageContext,
+  readSearchParams,
 } from "@/lib/auth/auth.utils";
 import { getResetPasswordToken } from "@/lib/reset-password-token-cookie";
 
@@ -33,7 +33,7 @@ interface ResetPasswordPageProps {
 export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const query = new URLSearchParams(await getRedirectQueryString(searchParams));
+  const query = await readSearchParams(searchParams);
   const token = query.get("token");
   query.delete("token");
   const context = readAuthPageContext(query);

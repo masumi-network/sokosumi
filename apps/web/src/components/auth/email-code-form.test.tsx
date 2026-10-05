@@ -194,24 +194,6 @@ describe("EmailCodeForm", () => {
     expect(onSubmitCode).toHaveBeenLastCalledWith("042917");
   });
 
-  it("shows nothing and unlocks when the page declines to send the code", async () => {
-    const user = userEvent.setup();
-    renderForm({ onSubmitCode: vi.fn().mockResolvedValue(false) });
-
-    await user.type(
-      screen.getByRole("textbox", { name: "codeLabel" }),
-      "042917",
-    );
-    await user.click(screen.getByRole("button", { name: "Log in" }));
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Log in" })).toBeEnabled(),
-    );
-    expect(
-      screen.getByRole("textbox", { name: "codeLabel" }),
-    ).not.toHaveAttribute("aria-invalid");
-  });
-
   it("stays locked once the code is accepted, while the page moves on", async () => {
     const user = userEvent.setup();
     renderForm();

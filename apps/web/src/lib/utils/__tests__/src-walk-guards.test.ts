@@ -673,7 +673,7 @@ describe("historic status badges", () => {
  * This guard keys on the PROP DECLARATION, not on how the promise is later
  * awaited. An earlier sweep grepped for `await params` / `await searchParams`
  * and silently missed `await Promise.all([params, searchParams])` and a
- * promise handed to a helper (`await getRedirectQueryString(searchParams)`),
+ * promise handed to a helper (`await readSearchParams(searchParams)`),
  * which left five blocking pages without an opt-out.
  */
 const URL_DATA_PROP = /(?:^|[\s,{(])(?:params|searchParams)\s*:\s*Promise</m;

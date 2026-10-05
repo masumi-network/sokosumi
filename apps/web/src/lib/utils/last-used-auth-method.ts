@@ -34,12 +34,6 @@ export function isEmailAuthMethod(
   return method === "email" || method === "email-otp";
 }
 
-export function toProviderAuthMethod(
-  method: LastUsedAuthMethod | null,
-): ProviderAuthMethod | null {
-  return isEmailAuthMethod(method) ? null : method;
-}
-
 /** How the second step of Log in signs in with an email. */
 export type SignInMethod = "code" | "password";
 
