@@ -14,6 +14,7 @@ import {
 import { AuthHeader } from "@/auth/components/auth-header";
 import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import SignInForm from "@/auth/signin/components/form";
@@ -229,6 +230,7 @@ export default function AuthFlow({
             onPendingChange={setIsFinishPending}
           />
         )}
+        <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
       </>,
     );
   }

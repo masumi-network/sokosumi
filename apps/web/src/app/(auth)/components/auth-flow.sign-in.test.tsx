@@ -29,6 +29,7 @@ const socialButtonsMock = vi.fn();
 const signInFormMock = vi.fn();
 const emailStatusMock = vi.fn();
 const sendEmailCodeMock = vi.fn();
+const signInEmailCodeMock = vi.fn();
 const pushMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
@@ -56,6 +57,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
     $fetch: (...args: unknown[]) => emailStatusMock(...args),
     emailOtp: {
       sendVerificationOtp: (...args: unknown[]) => sendEmailCodeMock(...args),
+    },
+    signIn: {
+      emailOtp: (...args: unknown[]) => signInEmailCodeMock(...args),
     },
   },
 }));
@@ -127,6 +131,30 @@ describe("AuthFlow signIn", () => {
       expect.objectContaining({ showPasskey: true, lastUsedMethod: null }),
     );
     expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
+  });
+
+  it("says so when the code sign-in removed the old sign-in methods", async () => {
+    signInEmailCodeMock.mockResolvedValue({
+      data: {
+        token: "token",
+        user: { id: "user-1" },
+        signInMethodsRemoved: true,
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+
+    const { emailCode } = signInFormMock.mock.lastCall?.[0];
+    act(() => {
+      void emailCode.signInWithCode("ada@example.com", "042917");
+    });
+
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "SignInMethodsRemoved.title",
+    );
   });
 
   it("checks the address and emails a code on Continue when no method is remembered", async () => {
