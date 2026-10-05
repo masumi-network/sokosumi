@@ -13,7 +13,7 @@ compatibility: "Portable repo skill. The required artifact is SKILL.md."
 ## Load the Skill and CLI
 
 [CORRECTION, VERIFIED: `apps/cli/package.json`] The earlier private-package description was stale.
-The manifest defines `@masumi_network/sokosumi` version `1.0.2` with public npm access. It requires Node.js 24 and packages `dist` and `skills`.
+The manifest defines `@masumi_network/sokosumi` version `1.0.3` with public npm access. It requires Node.js 24 and packages `dist` and `skills`.
 Skill installation and CLI installation are separate. Build this checkout from the repository root with its dependencies:
 
 ```bash
