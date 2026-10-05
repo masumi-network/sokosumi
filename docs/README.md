@@ -16,7 +16,7 @@ Root [`AGENTS.md`](../AGENTS.md) is the loading table and trigger list. Task-spe
 
 ## Soko Bot
 
-- [`soko-bot/`](./soko-bot/) — in-process Core runtime (deployment and operations)
+- [`soko-bot/`](./soko-bot/) — sandbox loop, Core as the control plane, in-process as the eval adapter
 
 ## Project image studio
 

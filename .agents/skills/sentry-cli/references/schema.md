@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-schema
-version: 0.45.0
+version: 0.46.0
 description: Browse the Sentry API schema
 requires:
   bins: ["sentry"]
@@ -30,6 +30,12 @@ sentry schema issues
 
 # View details for a specific operation
 sentry schema issues list
+
+# Look up an endpoint by its exact operation ID
+sentry schema listOrganizationEvents
+
+# Look up an endpoint by HTTP method and path
+sentry schema "GET /api/0/organizations/{organization_id_or_slug}/issues/"
 
 # Search for monitoring-related endpoints
 sentry schema --search monitor

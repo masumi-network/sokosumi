@@ -25,6 +25,10 @@ import {
 interface PendingInvitesQueueProps {
   items: WorkspaceGateQueueItem[];
   initialName: string;
+  initialFirstName?: string | null;
+  initialLastName?: string | null;
+  /** Where setup ends: a sanitized same-origin path. */
+  returnUrl: string;
 }
 
 interface AcceptedQueueOrganization {
@@ -43,6 +47,9 @@ function failedQueueItemLabel(
 export function PendingInvitesQueue({
   items,
   initialName,
+  initialFirstName,
+  initialLastName,
+  returnUrl,
 }: PendingInvitesQueueProps) {
   const t = useTranslations("WorkspaceGate.Pending");
   const router = useRouter();
@@ -52,7 +59,11 @@ export function PendingInvitesQueue({
   );
   const [retryTarget, setRetryTarget] =
     useState<AcceptedQueueOrganization | null>(null);
-  const { persistIfNeeded, NameFields } = useCollectUserName(initialName);
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    initialName,
+    initialFirstName,
+    initialLastName,
+  );
   const showBatchActions = shouldShowPendingInvitesBatchActions(items.length);
 
   async function leaveGateAfterOrganization(input: {
@@ -73,7 +84,7 @@ export function PendingInvitesQueue({
       organizationSlug: input.organizationSlug,
       acceptedJoinToken: input.acceptedJoinToken,
     });
-    router.replace("/");
+    router.replace(returnUrl);
     router.refresh();
   }
 

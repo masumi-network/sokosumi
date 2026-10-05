@@ -37,7 +37,6 @@ export {
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRoute,
@@ -48,6 +47,7 @@ export {
   isSokoBotSilentAnswer,
   SOKO_BOT_PROACTIVE_RULES,
   SOKO_BOT_SYSTEM_SCHEDULES,
+  upcomingFollowUps,
 } from "./proactive.js";
 export type {
   IndexedRuntimeEvent,

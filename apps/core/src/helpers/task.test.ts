@@ -1,7 +1,13 @@
-import { Channel, GrantResumeStatus, TaskStatus } from "@sokosumi/database";
+import {
+  Channel,
+  GrantResumeStatus,
+  TaskPriority,
+  TaskStatus,
+} from "@sokosumi/database";
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -9,7 +15,6 @@ import {
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
-  taskAssigneeKind,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -45,6 +50,15 @@ const defaultNestedJobUserOrg = {
 };
 
 describe("validateStatusTransition", () => {
+  it.each(taskStatusSchema.options)(
+    "rejects %s to CREATED, which is only the first event",
+    (from) => {
+      expect(() => validateStatusTransition(from, TaskStatus.CREATED)).toThrow(
+        "CREATED is reserved",
+      );
+    },
+  );
+
   it("rejects same-status transition", () => {
     expect(() => {
       validateStatusTransition(TaskStatus.RUNNING, TaskStatus.RUNNING);
@@ -71,16 +85,6 @@ describe("validateStatusTransition", () => {
 });
 
 describe("validateTaskAssigneeAssignment", () => {
-  it("resolves coworker, human, and unset kinds", () => {
-    expect(taskAssigneeKind({ assigneeId: "cow_1" })).toBe("coworker");
-    expect(
-      taskAssigneeKind({ assigneeId: null, assigneeUserId: "user_1" }),
-    ).toBe("human");
-    expect(taskAssigneeKind({ assigneeId: null, assigneeUserId: null })).toBe(
-      "unset",
-    );
-  });
-
   it("allows DRAFT tasks without a coworker", () => {
     expect(() =>
       validateTaskAssigneeAssignment({
@@ -458,6 +462,106 @@ describe("mapTask", () => {
     const result = mapTask(task, TEST_USER_AUTH);
 
     expect(result.share).toEqual(share);
+  });
+
+  it("exposes the stored priority", () => {
+    const task = {
+      id: "tsk_priority",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      projectId: null,
+      project: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Prioritised",
+      description: null,
+      status: TaskStatus.READY,
+      priority: TaskPriority.URGENT,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(task, TEST_USER_AUTH).priority).toBe(TaskPriority.URGENT);
+  });
+
+  it("builds the identifier from the project prefix and the task number", () => {
+    const projectId = "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa";
+    const base = {
+      id: "tsk_numbered",
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      ownerId: "user_123",
+      organizationId: null,
+      owner: defaultTaskUser,
+      organization: null,
+      assigneeId: "cow_123",
+      assignee: defaultTaskCoworker,
+      creatorUserId: "user_123",
+      creatorUser: defaultTaskUser,
+      creatorCoworkerId: null,
+      creatorCoworker: null,
+      creatorSokoBotId: null,
+      creatorSokoBot: null,
+      name: "Numbered",
+      description: null,
+      status: TaskStatus.READY,
+      share: null,
+      jobs: [],
+      files: [],
+      linksFrom: [],
+      linksTo: [],
+      events: [],
+      workspace: {
+        id: "11111111-1111-7111-8111-111111111111",
+        organizationId: null,
+        organization: null,
+      },
+    };
+    const inProject = {
+      ...base,
+      projectId,
+      project: {
+        id: projectId,
+        name: "Sokosumi",
+        identifier: "SOK",
+        logo: null,
+      },
+      number: 123,
+    } as unknown as TaskWithIncludes;
+    const loose = {
+      ...base,
+      projectId: null,
+      project: null,
+      number: null,
+    } as unknown as TaskWithIncludes;
+
+    expect(mapTask(inProject, TEST_USER_AUTH)).toMatchObject({
+      number: 123,
+      identifier: "SOK-123",
+    });
+    expect(mapTask(loose, TEST_USER_AUTH)).toMatchObject({
+      number: null,
+      identifier: null,
+    });
   });
 
   it("exposes grant fields only while status is GRANT_PENDING", () => {

@@ -1,0 +1,11 @@
+# A merge that moves pnpm-lock.yaml or the Prisma schema leaves node_modules
+# and the generated client stale; refresh them so the next hook run is honest.
+changed() { ! git diff --quiet ORIG_HEAD HEAD -- "$@"; }
+if changed pnpm-lock.yaml; then
+  echo "post-merge: pnpm-lock.yaml changed, running pnpm install --frozen-lockfile"
+  pnpm install --frozen-lockfile
+fi
+if changed packages/database/prisma; then
+  echo "post-merge: Prisma schema changed, running pnpm prisma:generate"
+  pnpm prisma:generate
+fi

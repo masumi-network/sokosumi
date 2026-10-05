@@ -21,7 +21,16 @@ public final class WorkspaceState: ObservableObject {
   public struct MessageJump: Equatable, Sendable {
     public let roomId: String
     public let messageId: String
+    /// The open Thread's parent after a reply jump (row 25c). The Thread covers the room, so the room marks it on
+    /// arrival and lands on it when the Thread closes; any other jump marks its row once it scrolls into view.
+    public let isThreadParent: Bool
     public let requestId = UUID()
+
+    init(roomId: String, messageId: String, isThreadParent: Bool = false) {
+      self.roomId = roomId
+      self.messageId = messageId
+      self.isThreadParent = isThreadParent
+    }
   }
 
   @Published public internal(set) var messageJump: MessageJump?
@@ -83,6 +92,12 @@ public final class WorkspaceState: ObservableObject {
   public var roomsLoading: Bool {
     get { sidebar.isLoading }
     set { sidebar.isLoading = newValue }
+  }
+
+  /// The workspace whose Archived section and pending invitations the sidebar loads once; nil while it loads or
+  /// switches. A list refresh leaves it alone: each collection is re-read by `sidebarRecovery` (web SOK-986).
+  public var collectionsLoadContext: UUID? {
+    phase == .ready && !workspaceSession.isSwitching ? compositionContext : nil
   }
 
   /// Selected room. Launch and workspace switches restore the saved room,
@@ -202,6 +217,8 @@ public final class WorkspaceState: ObservableObject {
   /// `WorkspaceState+Typing`. Not forwarded to `objectWillChange`: only the Typing line reads it.
   public let typing = RoomTyping()
   var typingSweepTask: Task<Void, Never>?
+  /// The open room's live read marks (row 31b1); see `WorkspaceState+ReadReceipts`.
+  let roomReads = RoomReadMarks()
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {
@@ -221,7 +238,9 @@ public final class WorkspaceState: ObservableObject {
   }
 
   let transcriptRecovery = ChatRefreshScheduler()
-  let sidebarRecovery = ChatRefreshScheduler()
+  let sidebarRecovery = SidebarCollectionsRecovery()
+  /// Re-reads the open room while it still counts unread (row 07e); see `WorkspaceState+OpenRoomUnreadRecheck`.
+  let openRoomUnreadRecheck: OpenRoomUnreadRecheck
   private var connectionHealthy = false
   private(set) var roomsRefreshTask: Task<Void, Never>?
   private var roomsRefreshID = UUID()
@@ -243,12 +262,14 @@ public final class WorkspaceState: ObservableObject {
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
-    unreadsFilter: UnreadsFilterPreference = .transient
+    unreadsFilter: UnreadsFilterPreference = .transient,
+    openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck()
   ) {
     self.clientProvider = clientProvider
+    self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
     realtimeClientInstanceId = getOrCreateRealtimeClientInstanceId(store: instanceStore)
-    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange] {
+    for publisher in [archivedChannels.objectWillChange, pendingInvitations.objectWillChange, threadOverview.objectWillChange, chatDisplay.objectWillChange, pins.objectWillChange, thread.objectWillChange, thread.timeline.objectWillChange, thread.outbox.objectWillChange, directStream.objectWillChange, presence.objectWillChange, roomReads.objectWillChange] {
       publisher.sink { [weak self] in self?.objectWillChange.send() }.store(in: &threadObservations)
     }
     // Rows need editor identity changes; draft and save state are observed by the editor itself.
@@ -272,6 +293,7 @@ public final class WorkspaceState: ObservableObject {
     workspaceObservation = workspaceSession.objectWillChange.sink { [weak self] in
       self?.objectWillChange.send()
     }
+    watchOpenRoomUnread()
   }
 
   private let clientProvider: (AuthState) -> Client?
@@ -381,20 +403,21 @@ public final class WorkspaceState: ObservableObject {
     return true
   }
 
-  /// Editing reconciles the room in place and never navigates: the sidebar row and any open transcript keep their identity.
-  public func updateChannel(_ draft: ChannelEditDraft, roomId: String, permissions: ChannelEditPermissions, context: UUID, auth: AuthState) async throws -> Bool {
-    guard context == compositionContext, phase == .ready, !workspaceSession.isSwitching, permissions.canEditMembers, draft.isValid,
-          !roomMutationInFlight else { return false }
+  /// Settings edits reconcile the room in place and never navigate: the sidebar row and any open transcript keep their identity.
+  public func updateChannel(_ draft: ChannelEditDraft, roomId: String, context: UUID, auth: AuthState) async throws -> Bool {
+    guard canStartMutation(context: context), draft.isValid, rooms.contains(where: { $0.id == roomId }) else { return false }
     updatingRoom = true
     defer {
       if context == compositionContext {
         updatingRoom = false
       }
     }
-    let request = draft.updateRequest(permissions: permissions, currentUserId: currentUserId)
+    let request = draft.updateRequest
     let room = try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: request, organizationSlug: slug)
     }
+    // A list read already in flight predates this settings edit.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }
@@ -414,6 +437,8 @@ public final class WorkspaceState: ObservableObject {
     let room = try await workspaceOperation(context: context, auth: auth) { client in
       try await ChatService().updateRoom(client: client, roomId: roomId, request: draft.updateRequest, organizationSlug: slug)
     }
+    // A list read already in flight predates this rename.
+    sidebar.invalidateRefresh()
     if let index = rooms.firstIndex(where: { $0.id == room.id }) {
       rooms[index] = room
     }
@@ -551,8 +576,11 @@ public final class WorkspaceState: ObservableObject {
     guard phase == .ready, context == compositionContext, !workspaceSession.isSwitching,
           let client = resolveClient(auth: auth) else { throw CancellationError() }
     do {
+      let yourself = currentUserId.isEmpty ? nil : ChatRecipientTarget.messageYourself(
+        userId: currentUserId, name: currentUserName.isEmpty ? currentUserEmail : currentUserName, imageURL: currentUserImageURL
+      )
       let roster = try await ChatService().directRecipients(
-        client: client, currentUserId: currentUserId,
+        client: client, yourself: yourself,
         organizationId: selection?.workspace.organizationId,
         organizationSlug: selection?.workspace.organizationSlug
       )
@@ -570,7 +598,7 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   public func openParticipantDirect(_ recipient: DirectRecipient, auth: AuthState) async throws -> Bool {
     guard canOpenDirect(recipient) else { return false }
-    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil)
+    var recipients = DirectConversationSelection(hasOrganization: selection?.workspace.organizationId != nil, currentUserId: currentUserId)
     recipients.add(recipient)
     return try await openDirect(recipients, context: compositionContext, auth: auth)
   }
@@ -700,16 +728,14 @@ public final class WorkspaceState: ObservableObject {
 
   /// Wait for history/pagination before the recovery read. The scheduler's
   /// interval starts after the HTTP request and read-attention work finish.
+  /// The scheduler decides whether a read may start while no chat window is
+  /// active (row 07d); read attention keeps its own visibility gate.
   private func recoverTranscript(auth: AuthState, generation: Int) async {
     while generation == transcriptGeneration,
           let task = transcriptLoadTask ?? olderPageTask ?? transcriptRefreshTask {
       await task.value
     }
     guard generation == transcriptGeneration else { return }
-    guard readAttention.isVisible else {
-      transcriptRecovery.requestRefresh()
-      return
-    }
     refreshTranscript(auth: auth)
     while generation == transcriptGeneration, let task = transcriptRefreshTask {
       await task.value
@@ -857,12 +883,14 @@ public final class WorkspaceState: ObservableObject {
       applyRealtimeNotification(notification)
     case let .revoked(roomId):
       applyMembershipRevoked(roomId: roomId)
+    case let .roomsChanged(collections):
+      sidebarRecovery.requestRefresh(collections)
     case let other:
       handleLiveStateEvent(other)
     }
   }
 
-  /// Who is reachable, present or typing right now: state no HTTP read would return.
+  /// Who is reachable, present, typing or reading right now: state no HTTP read would return yet.
   private func handleLiveStateEvent(_ event: ResolvedRealtimeDelivery) {
     switch event {
     case let .connectionHealth(healthy):
@@ -875,6 +903,8 @@ public final class WorkspaceState: ObservableObject {
       applyTyping(roomId: roomId, signal: signal, now: Date())
     case let .typingChannel(roomId, canPublish):
       applyTypingChannel(roomId: roomId, canPublish: canPublish)
+    case let .roomRead(event):
+      applyRoomRead(event)
     default:
       break
     }
@@ -926,7 +956,7 @@ public final class WorkspaceState: ObservableObject {
       threadAttentionRevision += 1
     }
     if eventType == .create, roomId != transcriptRoomId {
-      sidebarRecovery.requestRefresh()
+      sidebarRecovery.requestRefresh([.active])
     }
     // Another member's rename retitles the open room now; other rows follow the sidebar refresh.
     if eventType == .create, roomId == transcriptRoomId, let index = rooms.firstIndex(where: { $0.id == roomId }),
@@ -961,7 +991,7 @@ public final class WorkspaceState: ObservableObject {
         transcriptRecovery.requestRefresh()
       }
       if envelope.eventType == .create {
-        sidebarRecovery.requestRefresh()
+        sidebarRecovery.requestRefresh([.active])
       }
       return
     case let .tombstone(messageId):
@@ -1245,7 +1275,7 @@ public final class WorkspaceState: ObservableObject {
   @discardableResult
   func signOutIfUnauthorized(_ error: ChatServiceError, auth: AuthState) -> Bool {
     if case let .unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
       return true
     }
     return false
@@ -1355,18 +1385,22 @@ public final class WorkspaceState: ObservableObject {
     await task.value
   }
 
+  /// Web reads Archived in organization workspaces only; the live list and the invitations in every workspace.
   private func startSidebarRecovery(auth: AuthState) {
     let generation = UUID()
     sidebarRecoveryGeneration = generation
-    sidebarRecovery.start(foreground: readAttention.isVisible, healthy: connectionHealthy,
-                          fallbackInterval: .seconds(15), refreshOnRecovery: true) { [weak self, weak auth] in
+    let collections: Set<ChatRoomCollection> = selection?.workspace.organizationId == nil ? [.active, .invitations] : Set(ChatRoomCollection.allCases)
+    sidebarRecovery.start(collections, foreground: readAttention.isVisible, healthy: connectionHealthy) { [weak self, weak auth] collection in
       guard let self, let auth else { return }
-      await roomsRefreshTask?.value
-      guard generation == sidebarRecoveryGeneration else { return }
-      guard readAttention.isVisible else { sidebarRecovery.requestRefresh()
-        return
+      if collection == .active {
+        await roomsRefreshTask?.value
       }
-      await refreshRooms(auth: auth)
+      guard generation == sidebarRecoveryGeneration else { return }
+      switch collection {
+      case .active: await refreshRooms(auth: auth)
+      case .archived: await loadArchivedChannels(auth: auth)
+      case .invitations: await loadPendingInvitations(auth: auth)
+      }
     }
   }
 
@@ -1387,7 +1421,7 @@ public final class WorkspaceState: ObservableObject {
 
   private func handleWorkspaceError(_ error: Error, auth: AuthState) {
     if case let ChatServiceError.unauthorized(message) = error {
-      auth.signOut(message: "Core rejected the session (\(message)). Sign in again.")
+      auth.signOut(message: "Core rejected the session (\(message)). Log in again.")
     }
   }
 }

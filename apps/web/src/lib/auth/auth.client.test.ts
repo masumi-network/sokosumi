@@ -11,7 +11,7 @@ const inferOrgAdditionalFieldsMock = vi.fn(
 );
 const jwtClientMock = vi.fn(() => "jwt-plugin");
 const lastLoginMethodClientMock = vi.fn(() => "last-login-method-plugin");
-const magicLinkClientMock = vi.fn(() => "magic-link-plugin");
+const emailOTPClientMock = vi.fn(() => "email-otp-plugin");
 const organizationClientMock = vi.fn(() => "organization-plugin");
 const oauthProviderClientMock = vi.fn(() => "oauth-plugin");
 const passkeyClientMock = vi.fn(() => "passkey-plugin");
@@ -24,11 +24,11 @@ vi.mock("better-auth/react", () => ({
 
 vi.mock("better-auth/client/plugins", () => ({
   adminClient: adminClientMock,
+  emailOTPClient: emailOTPClientMock,
   inferAdditionalFields: inferAdditionalFieldsMock,
   inferOrgAdditionalFields: inferOrgAdditionalFieldsMock,
   jwtClient: jwtClientMock,
   lastLoginMethodClient: lastLoginMethodClientMock,
-  magicLinkClient: magicLinkClientMock,
   organizationClient: organizationClientMock,
 }));
 

@@ -142,31 +142,44 @@ describe("CreateOrganizationWizard", () => {
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
-  it("activates via the workspace switcher when no onOrganizationReady is provided", async () => {
-    const user = userEvent.setup();
-    render(<WizardHarness />);
+  it.each(["Close", "Finish"])(
+    "selects and closes via %s without onOrganizationReady, even while selection is pending",
+    async (method) => {
+      const user = userEvent.setup();
+      handleSelectWorkspaceMock.mockReturnValue(new Promise<void>(() => {}));
+      render(<WizardHarness />);
 
-    await user.type(
-      screen.getByPlaceholderText("Details.namePlaceholder"),
-      "Acme",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Details.urlPlaceholder"),
-      "acme.com",
-    );
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+      await user.type(
+        screen.getByPlaceholderText("Details.namePlaceholder"),
+        "Acme",
+      );
+      await user.type(
+        screen.getByPlaceholderText("Details.urlPlaceholder"),
+        "acme.com",
+      );
+      await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
-    await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
-    });
+      await waitFor(() => {
+        expect(organizationCreateMock).toHaveBeenCalledOnce();
+      });
 
-    await user.click(screen.getByRole("button", { name: /close/i }));
+      if (method === "Finish") {
+        await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+        await user.click(
+          screen.getByRole("button", { name: /Nav.finishSetup/i }),
+        );
+        await user.click(screen.getByRole("button", { name: /Nav.finish$/i }));
+      } else {
+        await user.click(screen.getByRole("button", { name: /close/i }));
+      }
 
-    expect(handleSelectWorkspaceMock).toHaveBeenCalledWith("org-1", {
-      shouldRedirectAgentJobsBasePath: false,
-    });
-    expect(onOrganizationReadyMock).not.toHaveBeenCalled();
-  });
+      expect(handleSelectWorkspaceMock).toHaveBeenCalledWith("org-1", {
+        shouldRedirectAgentJobsBasePath: false,
+      });
+      expect(onOrganizationReadyMock).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
 
   it("completes the created organization when the dialog is dismissed after step 0", async () => {
     const user = userEvent.setup();
@@ -189,6 +202,58 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /close/i }));
 
     expect(onOrganizationReadyMock).toHaveBeenCalledWith("org-1");
+  });
+
+  it("stays open on Finish while onOrganizationReady leaves", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(organizationCreateMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(onOrganizationReadyMock).toHaveBeenCalledOnce();
+  });
+
+  it("shows the ready step while leaving when dismissed after create", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(organizationCreateMock).toHaveBeenCalledOnce();
+    });
+
+    await user.click(screen.getByRole("button", { name: /close/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
   });
 
   it("lets logo and brand steps advance empty", async () => {

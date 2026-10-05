@@ -30,7 +30,7 @@ import {
 } from "@/lib/job-input/date-value";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 
-const MIN_CREDITS_PER_MONTH = 60_000;
+export const MIN_CREDITS_PER_MONTH = 60_000;
 const MIN_PERIODS = 1;
 const MIN_SEATS = 1;
 

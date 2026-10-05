@@ -6,7 +6,7 @@ import { parseTask, type Task } from "../models/task.js";
 
 const TASKS_PATH = "/v1/tasks";
 
-export interface FetchTasksOptions {
+interface FetchTasksOptions {
   q?: string;
   status?: string | readonly string[];
   scope?: string;
@@ -14,14 +14,14 @@ export interface FetchTasksOptions {
   take?: number | string;
 }
 
-export interface CreateTaskData {
+interface CreateTaskData {
   name?: string;
   description?: string | null;
   coworkerId?: string | null;
   status?: string;
 }
 
-export interface CreateTaskEventData {
+interface CreateTaskEventData {
   status?: string;
   comment?: string;
 }

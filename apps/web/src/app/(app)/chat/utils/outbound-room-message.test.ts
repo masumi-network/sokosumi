@@ -88,6 +88,31 @@ describe("outbound room message", () => {
     ]);
   });
 
+  it("shows the attached skills on the pending shell, and none when there are none", () => {
+    const skill = {
+      id: "mattpocock/skills/grill-me",
+      name: "grill-me",
+      description: null,
+      url: "https://skills.sh/mattpocock/skills/grill-me",
+    };
+    const withSkill = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "sharpen this",
+      senderUser,
+      skills: [skill],
+    });
+    const without = createPendingRoomMessage({
+      clientTurnId: "turn-2",
+      roomId: "room-1",
+      content: "hi",
+      senderUser,
+    });
+
+    expect(withSkill.skills).toEqual([skill]);
+    expect(without).not.toHaveProperty("skills");
+  });
+
   it("confirms a pending shell in place without duplicating", () => {
     const pending = createPendingRoomMessage({
       clientTurnId: "turn-1",

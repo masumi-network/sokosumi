@@ -46,6 +46,7 @@ export async function AdminSchedulesPanel({
                   {schedule.enabled ? t("enabled") : t("disabled")}
                 </StatusBadge>
                 <span className="text-muted-foreground font-mono text-xs">
+                  {schedule.runOnce ? `${t("runOnce")} · ` : null}
                   {schedule.cronExpression} · {schedule.timezone}
                 </span>
                 <span className="text-muted-foreground text-xs">

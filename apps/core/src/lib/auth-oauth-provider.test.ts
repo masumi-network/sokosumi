@@ -2,12 +2,19 @@ import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { isProductionEnvironment } from "@/config/env";
+import { emailCodeSignIn } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
-  handleOAuthRefreshTokenRequest,
+  acceptCmoPreviewCallback,
+  handleOAuthTokenRequest,
   isRefreshTokenRotating,
+  jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
 
@@ -108,7 +115,7 @@ function createTestAuth(
     rateLimit: { enabled: rateLimitEnabled, storage: "memory" },
   });
 
-  const retry = vi.fn<Parameters<typeof handleOAuthRefreshTokenRequest>[2]>(
+  const retry = vi.fn<Parameters<typeof handleOAuthTokenRequest>[2]>(
     (body, request) =>
       auth.api.oauth2Token({
         body,
@@ -135,7 +142,7 @@ function createTestAuth(
   }
 
   async function refresh(refreshToken: string) {
-    const response = await handleOAuthRefreshTokenRequest(
+    const response = await handleOAuthTokenRequest(
       new Request("https://auth.example.com/auth/oauth2/token", {
         method: "POST",
         headers: {
@@ -271,23 +278,19 @@ describe("oauthRefreshTokenOptions", () => {
   });
 });
 
-describe("handleOAuthRefreshTokenRequest", () => {
+describe("handleOAuthTokenRequest", () => {
   it.each([
-    {
-      url: "https://auth.example.com/auth/sign-in/email",
-      body: "grant_type=refresh_token",
-    },
     { body: "grant_type=authorization_code" },
     { body: "grant_type=refresh_token&client_assertion=single-use-assertion" },
     { body: "grant_type=refresh_token", headers: { dpop: "single-use-proof" } },
   ])(
     "leaves other grants and single-use proofs untouched (%j)",
-    async ({ url, body, headers }) => {
+    async ({ body, headers }) => {
       const response = new Response("{}", { status: 400 });
       const handler = vi.fn().mockResolvedValue(response);
       const retry = vi.fn();
       const request = new Request(
-        url ?? "https://auth.example.com/auth/oauth2/token",
+        "https://auth.example.com/auth/oauth2/token",
         {
           method: "POST",
           headers: {
@@ -299,7 +302,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
       );
 
       expect(
-        await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+        await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
       ).toBe(response);
       expect(handler).toHaveBeenCalledExactlyOnceWith(request);
       expect(retry).not.toHaveBeenCalled();
@@ -327,7 +330,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+      await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
     ).toBe(response);
     expect(handler).toHaveBeenCalledOnce();
     expect(retry).not.toHaveBeenCalled();
@@ -348,7 +351,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, isRotating),
+      await handleOAuthTokenRequest(request, handler, retry, isRotating),
     ).toBe(response);
     expect(isRotating).toHaveBeenCalledExactlyOnceWith("expired-token");
     expect(retry).not.toHaveBeenCalled();
@@ -410,5 +413,344 @@ describe("isRefreshTokenRotating", () => {
     expect(
       await isRefreshTokenRotating(token, prefix, async () => rotation),
     ).toBe(expected);
+  });
+});
+
+describe("acceptCmoPreviewCallback", () => {
+  const CMO_CALLBACK = "https://app.cmo.xyz/api/auth/callback/sokosumi";
+  const PREVIEW_CALLBACK =
+    "https://sokosumi-cmo-git-feat-x.preview.cmo.xyz/api/auth/callback/sokosumi";
+
+  // Better Auth's authorize endpoint on an in-memory store, with the hook.
+  async function authorize(registeredUris: string[], redirectUri: string) {
+    const db = createDb();
+    db.oauthClient[0].redirectUris = registeredUris;
+    const auth = betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret: "test-secret-that-is-long-enough-for-better-auth",
+      database: memoryAdapter(db),
+      plugins: [
+        jwt({ disableSettingJwtHeader: true }),
+        oauthProvider({
+          loginPage: "https://app.example.com/signin",
+          consentPage: "https://app.example.com/oauth/consent",
+          validateRedirectUri: acceptCmoPreviewCallback,
+        }),
+      ],
+    });
+    const query = new URLSearchParams({
+      response_type: "code",
+      client_id: CLIENT_ID,
+      redirect_uri: redirectUri,
+      scope: "openid",
+      state: "state-1",
+      code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGcSZ7j9Gc",
+      code_challenge_method: "S256",
+    });
+    const response = await auth.handler(
+      new Request(`https://auth.example.com/auth/oauth2/authorize?${query}`),
+    );
+    return response.headers.get("location") ?? "";
+  }
+
+  it("sends a CMO preview's sign-in on to the login page", async () => {
+    expect(await authorize([CMO_CALLBACK], PREVIEW_CALLBACK)).toMatch(
+      /^https:\/\/app\.example\.com\/signin\?/,
+    );
+  });
+
+  it("still signs the CLI in at a loopback port", async () => {
+    expect(
+      await authorize(
+        ["http://127.0.0.1/oauth/callback"],
+        "http://127.0.0.1:53682/oauth/callback",
+      ),
+    ).toMatch(/^https:\/\/app\.example\.com\/signin\?/);
+  });
+
+  it("refuses a preview callback for a client that is not CMO", async () => {
+    expect(
+      await authorize(["https://other.example.com/callback"], PREVIEW_CALLBACK),
+    ).toContain("error=invalid_redirect");
+  });
+
+  it("keeps exact matches for every client", () => {
+    expect(
+      acceptCmoPreviewCallback(
+        "https://other.example.com/callback",
+        ["https://other.example.com/callback"],
+        true,
+      ),
+    ).toBe(true);
+  });
+
+  it("accepts a branch alias Vercel truncated with a hash", () => {
+    expect(
+      acceptCmoPreviewCallback(
+        "https://sokosumi-cmo-git-claude-sidebar-new-badge-featu-fceb86.preview.cmo.xyz/api/auth/callback/sokosumi",
+        [CMO_CALLBACK],
+        false,
+      ),
+    ).toBe(true);
+  });
+
+  it.each([
+    ["a production host", "https://app.cmo.xyz/api/auth/callback/other"],
+    [
+      "a per-deployment URL",
+      "https://sokosumi-knutofq4p.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
+      "another project on the suffix",
+      "https://evil-git-x.preview.cmo.xyz/api/auth/callback/sokosumi",
+    ],
+    [
+      "a lookalike domain",
+      "https://sokosumi-cmo-git-x.preview.cmo.xyz.evil.com/api/auth/callback/sokosumi",
+    ],
+    ["plain HTTP", PREVIEW_CALLBACK.replace("https:", "http:")],
+    ["a port", PREVIEW_CALLBACK.replace(".xyz/", ".xyz:8443/")],
+    ["user info", PREVIEW_CALLBACK.replace("https://", "https://user@")],
+    ["a query", `${PREVIEW_CALLBACK}?next=/`],
+    ["a fragment", `${PREVIEW_CALLBACK}#x`],
+    [
+      "another path",
+      PREVIEW_CALLBACK.replace("/callback/sokosumi", "/callback/google"),
+    ],
+  ])("refuses %s", (_label, redirectUri) => {
+    expect(acceptCmoPreviewCallback(redirectUri, [CMO_CALLBACK], false)).toBe(
+      false,
+    );
+  });
+});
+
+describe("jwtKeyStoreOptions", () => {
+  const PRODUCTION_SECRET = "production-secret-that-is-long-enough-for-tests";
+  const PREVIEW_SECRET = "preview-secret-that-is-long-enough-for-the-tests";
+
+  function createSigner(db: MemoryDb, secret: string, isProduction: boolean) {
+    return betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret,
+      database: memoryAdapter(db),
+      plugins: [
+        jwt({
+          disableSettingJwtHeader: true,
+          ...jwtKeyStoreOptions(isProduction),
+        }),
+      ],
+    });
+  }
+
+  function sign(auth: ReturnType<typeof createSigner>) {
+    return auth.api.signJWT({ body: { payload: { sub: USER_ID } } });
+  }
+
+  // A database forked from production: one key, under production's secret.
+  async function forkedDb() {
+    const db = createDb();
+    await sign(createSigner(db, PRODUCTION_SECRET, true));
+    expect(db.jwks).toHaveLength(1);
+    return db;
+  }
+
+  it("signs with a key of its own when the stored key is another secret's", async () => {
+    const db = await forkedDb();
+    const preview = createSigner(db, PREVIEW_SECRET, false);
+
+    await expect(sign(preview)).resolves.toHaveProperty("token");
+    expect(db.jwks).toHaveLength(2);
+
+    // The new key is reused, not minted again.
+    await sign(preview);
+    expect(db.jwks).toHaveLength(2);
+  });
+
+  it("publishes only the keys it can sign with", async () => {
+    const db = await forkedDb();
+    const preview = createSigner(db, PREVIEW_SECRET, false);
+    await sign(preview);
+
+    const { keys } = await preview.api.getJwks();
+
+    expect(keys.map((key) => key.kid)).toEqual([db.jwks[1].id]);
+  });
+
+  it("fails loudly in production instead of replacing the key", async () => {
+    const db = await forkedDb();
+
+    await expect(sign(createSigner(db, PREVIEW_SECRET, true))).rejects.toThrow(
+      "Failed to decrypt private key",
+    );
+    expect(db.jwks).toHaveLength(1);
+  });
+
+  it.each([
+    ["production", "production", false],
+    // Vercel runs previews with NODE_ENV=production.
+    ["preview", "production", true],
+    [undefined, "development", true],
+    [undefined, "production", false],
+  ] as const)(
+    "with VERCEL_ENV=%s and NODE_ENV=%s skips foreign keys: %s",
+    (VERCEL_ENV, NODE_ENV, skips) => {
+      expect(
+        "adapter" in
+          jwtKeyStoreOptions(isProductionEnvironment({ VERCEL_ENV, NODE_ENV })),
+      ).toBe(skips);
+    },
+  );
+});
+
+describe("answerCreatePromptWithNewSession", () => {
+  const WEB = "https://app.example.com";
+  const CMO_CALLBACK = "https://cmo.example.com/callback";
+  const EMAIL = "new@example.com";
+
+  // Core's sign-up path on an in-memory store: the email code endpoint that
+  // also takes password sign-ups, the provider, and the after hook.
+  function createSignUpAuth() {
+    const db = createDb();
+    db.oauthClient[0].skipConsent = true;
+    const codes = new Map<string, string>();
+    const auth = betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret: "test-secret-that-is-long-enough-for-better-auth",
+      database: memoryAdapter(db),
+      trustedOrigins: [WEB],
+      // Every session lookup renews the cookie, as a day-old session's does.
+      session: { updateAge: 0 },
+      emailAndPassword: { enabled: true },
+      hooks: {
+        after: createAuthMiddleware(afterNewSession),
+      },
+      plugins: [
+        jwt({ disableSettingJwtHeader: true }),
+        emailCodeSignIn(
+          emailOTP({
+            sendVerificationOTP: async ({ email, otp }) => {
+              codes.set(email, otp);
+            },
+          }),
+        ),
+        oauthProvider({
+          loginPage: `${WEB}/signin`,
+          consentPage: `${WEB}/oauth/consent`,
+          signup: { page: `${WEB}/signup` },
+        }),
+      ],
+      rateLimit: { enabled: false },
+    });
+
+    function post(path: string, body: object, cookie = "") {
+      return auth.handler(
+        new Request(`https://auth.example.com/auth${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: WEB, cookie },
+          body: JSON.stringify(body),
+        }),
+      );
+    }
+
+    // CMO's authorize request; returns where the provider sends the browser.
+    async function authorize(prompt: string | undefined, cookie = "") {
+      const query = new URLSearchParams({
+        response_type: "code",
+        client_id: CLIENT_ID,
+        redirect_uri: CMO_CALLBACK,
+        scope: "openid",
+        state: "state-1",
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGcSZ7j9Gc",
+        code_challenge_method: "S256",
+        ...(prompt ? { prompt } : {}),
+      });
+      const response = await auth.handler(
+        new Request(`https://auth.example.com/auth/oauth2/authorize?${query}`, {
+          headers: {
+            cookie,
+            accept: "text/html",
+            "sec-fetch-mode": "navigate",
+          },
+        }),
+      );
+      return new URL(response.headers.get("location") ?? "");
+    }
+
+    // Signs in with an emailed code; `extra` turns it into a password sign-up.
+    async function signInWithCode(
+      email: string,
+      extra: object = {},
+      oauthQuery?: string,
+    ) {
+      await post("/email-otp/send-verification-otp", {
+        email,
+        type: "sign-in",
+      });
+      return post("/sign-in/email-otp", {
+        email,
+        otp: codes.get(email),
+        ...extra,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      });
+    }
+
+    return { authorize, post, signInWithCode };
+  }
+
+  function sessionCookie(response: Response) {
+    return response.headers
+      .getSetCookie()
+      .map((header) => header.split(";", 1)[0])
+      .join("; ");
+  }
+
+  function expectCmoCallback(url: string) {
+    const target = new URL(url);
+    expect(target.origin + target.pathname).toBe(CMO_CALLBACK);
+    expect(target.searchParams.get("state")).toBe("state-1");
+    expect(target.searchParams.has("code")).toBe(true);
+  }
+
+  it.each([
+    ["an email code", {}],
+    [
+      "a password",
+      {
+        password: "a-password-long-enough",
+        termsAccepted: true,
+        firstName: "New",
+        lastName: "Person",
+      },
+    ],
+  ])(
+    "sends a Create account sign-up with %s straight to CMO",
+    async (_label, extra) => {
+      const { authorize, signInWithCode } = createSignUpAuth();
+      const signup = await authorize("create");
+      expect(signup.origin + signup.pathname).toBe(`${WEB}/signup`);
+
+      const response = await signInWithCode(
+        EMAIL,
+        extra,
+        signup.searchParams.toString(),
+      );
+
+      const result = await response.json();
+      expect(result, JSON.stringify(result)).toMatchObject({ redirect: true });
+      expectCmoCallback(result.url);
+    },
+  );
+
+  it("still asks a person already signed in which account to use, though their session renews", async () => {
+    const { authorize, signInWithCode } = createSignUpAuth();
+    const cookie = sessionCookie(await signInWithCode("user@example.com"));
+
+    const signup = await authorize("create", cookie);
+
+    expect(signup.origin + signup.pathname).toBe(`${WEB}/signup`);
+    expect(signup.searchParams.get("prompt")).toBe("create");
   });
 });

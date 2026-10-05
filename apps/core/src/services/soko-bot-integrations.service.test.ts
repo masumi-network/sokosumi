@@ -275,6 +275,36 @@ describe("Soko Bot OAuth replacement", () => {
     );
   });
 
+  it("searches Outlook without $filter or $orderby and applies since itself", async () => {
+    mocks.findMany.mockResolvedValue([{ ...existing, provider: "outlook" }]);
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        successful: true,
+        data: {
+          value: [
+            { id: "new", receivedDateTime: "2026-09-01T00:00:00Z" },
+            { id: "old", receivedDateTime: "2024-01-01T00:00:00Z" },
+          ],
+        },
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const [integration] = await activeIntegrationsForBot("bot", "email");
+    const messages = await fetchInboxMessages(integration, {
+      query: "participants:anna@acme.com",
+      since: new Date("2025-10-01T00:00:00Z"),
+      limit: 5,
+    });
+    const { arguments: args } = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(args).toEqual({
+      max_results: 5,
+      search: '"participants:anna@acme.com"',
+      top: 5,
+    });
+    expect(messages.map((m) => m.id)).toEqual(["new"]);
+  });
+
   it("disconnects both selected and pending accounts", async () => {
     mocks.deleteRow.mockResolvedValue({
       ...existing,

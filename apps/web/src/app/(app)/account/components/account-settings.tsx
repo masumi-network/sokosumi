@@ -28,6 +28,10 @@ interface AccountSettingsProps {
   billingDetailsLoadError?: ReactNode;
   designMdValue?: DesignMdProfileValue;
   credentialAccountsLoadError?: ReactNode;
+  userName?: string;
+  userEmail?: string;
+  userFirstName?: null | string;
+  userLastName?: null | string;
   userImage?: null | string;
   userLogo?: null | string;
   userMetadata?: null | string;
@@ -48,6 +52,10 @@ export function AccountSettings({
   billingDetailsLoadError,
   designMdValue,
   credentialAccountsLoadError,
+  userName = "",
+  userEmail,
+  userFirstName,
+  userLastName,
   userImage,
   userLogo,
   userMetadata,
@@ -71,13 +79,17 @@ export function AccountSettings({
         <div className="md:col-span-2">
           <ProfileImageSection userImage={userImage} />
         </div>
-        <NameForm />
+        <NameForm
+          name={userName}
+          firstName={userFirstName ?? ""}
+          lastName={userLastName ?? ""}
+        />
         <EmailForm />
         <div className="md:col-span-2">
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
           ) : hasCredentialAccount ? (
-            <PasswordForm />
+            <PasswordForm email={userEmail} />
           ) : (
             <NewPasswordForm />
           )}
@@ -138,6 +150,13 @@ export function AccountSettings({
         <div className="mx-auto w-full space-y-4">
           {deletionPreflightLoadError}
           <DeleteAccountForm
+            accounts={accounts}
+            // A failed accounts read keeps the password field: falling back
+            // to the email path would let a password user delete without it.
+            hasPassword={
+              hasCredentialAccount || Boolean(credentialAccountsLoadError)
+            }
+            userEmail={userEmail}
             blockers={deletionBlockers}
             preflightFailed={deletionPreflightFailed}
             ownedOrganizationSlug={ownedOrganizationSlug}

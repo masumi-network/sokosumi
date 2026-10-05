@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 
 import { test } from "vitest";
 
-import {
-  resolveBetterAuthProductionUrl,
-  resolveBetterAuthPublicBaseUrl,
-} from "./better-auth-public-url.js";
+import { resolveBetterAuthPublicBaseUrl } from "./better-auth-public-url.js";
 
 test("preview prefers VERCEL_BRANCH_URL over VERCEL_URL", () => {
   assert.equal(
@@ -162,61 +159,5 @@ test("strips trailing slashes from result", () => {
       fallbackUrl: "https://app.example.com/",
     }),
     "https://sokosumi-core-preprod-git-x.preview.sokosumi.com",
-  );
-});
-
-test("production URL uses VERCEL_PROJECT_PRODUCTION_URL when set", () => {
-  assert.equal(
-    resolveBetterAuthProductionUrl({
-      vercelProductionUrl: "https://core.example.com///",
-      fallbackUrl: "https://stale.example.com/auth",
-    }),
-    "https://core.example.com",
-  );
-});
-
-test("production URL falls back to fallback URL when Vercel URL missing", () => {
-  assert.equal(
-    resolveBetterAuthProductionUrl({
-      vercelProductionUrl: undefined,
-      fallbackUrl: "https://app.example.com/auth/",
-    }),
-    "https://app.example.com/auth",
-  );
-});
-
-// Core hands both values to the OAuth proxy, which steps aside only when they
-// match. If they drift apart, production proxies its own sign-ins.
-test.each(["https://core.example.com/", undefined])(
-  "production's public base URL is the production URL (VERCEL_PROJECT_PRODUCTION_URL: %s)",
-  (vercelProductionUrl) => {
-    const fallbackUrl = "https://app.example.com/";
-
-    assert.equal(
-      resolveBetterAuthPublicBaseUrl({
-        vercelEnv: "production",
-        vercelUrl: "https://core-abc123.preview.example.com",
-        vercelBranchUrl: "https://core-git-x.preview.example.com",
-        vercelProductionUrl,
-        fallbackUrl,
-      }),
-      resolveBetterAuthProductionUrl({ vercelProductionUrl, fallbackUrl }),
-    );
-  },
-);
-
-test("a preview's public base URL is never the production URL", () => {
-  const vercelProductionUrl = "https://core.example.com";
-  const fallbackUrl = "https://app.example.com";
-
-  assert.notEqual(
-    resolveBetterAuthPublicBaseUrl({
-      vercelEnv: "preview",
-      vercelUrl: "https://core-abc123.preview.example.com",
-      vercelBranchUrl: "https://core-git-x.preview.example.com",
-      vercelProductionUrl,
-      fallbackUrl,
-    }),
-    resolveBetterAuthProductionUrl({ vercelProductionUrl, fallbackUrl }),
   );
 });

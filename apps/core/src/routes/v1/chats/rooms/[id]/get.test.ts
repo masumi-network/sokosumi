@@ -66,6 +66,9 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomReadState: {
       findMany: readStateFindManyMock,
     },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,
   },

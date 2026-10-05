@@ -15,6 +15,7 @@ import { ok } from "@/helpers/response";
 import { mapTaskEvent } from "@/helpers/task";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import { isCoworkerAuthContext } from "@/middleware/auth";
 import {
   type CursorPaginationMeta,
   cursorPaginationMetaSchema,
@@ -185,7 +186,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z.array(taskEventSchema).parse(pagedEvents.map((e) => mapTaskEvent(e))),
+      z.array(taskEventSchema).parse(
+        pagedEvents.map((e) =>
+          mapTaskEvent(e, {
+            onBehalfOfOwner: isCoworkerAuthContext(c.var.authContext),
+          }),
+        ),
+      ),
       paginationMeta as CursorPaginationMeta,
     );
   });

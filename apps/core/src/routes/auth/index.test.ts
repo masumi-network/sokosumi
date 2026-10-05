@@ -95,3 +95,41 @@ describe("auth router oauth issuer metadata", () => {
     expect(oauthOpenIdConfigMetadataMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("auth router token requests", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  async function handled(path: string) {
+    const { default: app } = await import("./index.js");
+    const { auth } = await import("@/lib/auth.js");
+    vi.mocked(auth.handler).mockResolvedValue(new Response("{}"));
+
+    await app.request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "grant_type=authorization_code&client_id=c&client_secret=s",
+    });
+
+    expect(auth.handler).toHaveBeenCalledOnce();
+    const [request] = vi.mocked(auth.handler).mock.calls[0] ?? [];
+    return request;
+  }
+
+  it("moves a token request's body secret into the Basic header", async () => {
+    const request = await handled("/oauth2/token");
+
+    expect(request?.headers.get("authorization")).toBe(
+      `Basic ${Buffer.from("c:s").toString("base64")}`,
+    );
+  });
+
+  it("hands every other request to Better Auth as it came", async () => {
+    const request = await handled("/oauth2/revoke");
+
+    expect(request?.headers.get("authorization")).toBeNull();
+    expect(await request?.text()).toContain("client_secret=s");
+  });
+});
