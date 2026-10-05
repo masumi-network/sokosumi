@@ -585,6 +585,20 @@ export async function finalizeCmoChannel(input: {
   });
 }
 
+/** The founder connected or skipped the Accounts step; a reload resumes on the plan. */
+export async function finishCmoAccountsStep(userId: string): Promise<void> {
+  const workspace = await getCmoWorkspaceForUser(userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  if (!workspace.strategyApprovedAt) {
+    throw new CmoConflictError("Approve the strategy first");
+  }
+  if (workspace.accountsDoneAt) return;
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { accountsDoneAt: new Date() },
+  });
+}
+
 /** The founder finished onboarding: CMO opens on the chat from now on. */
 export async function completeCmoOnboarding(userId: string): Promise<void> {
   const workspace = await getCmoWorkspaceForUser(userId);

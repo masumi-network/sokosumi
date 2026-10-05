@@ -28,6 +28,7 @@ import {
   completeCmoOnboarding,
   connectCmoChannel,
   finalizeCmoChannel,
+  finishCmoAccountsStep,
   getCmoOverview,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
@@ -63,6 +64,7 @@ function mapOverview(overview: CmoOverview) {
     work: overview.work,
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
+    accountsDoneAt: workspace.accountsDoneAt,
     onboardedAt: workspace.onboardedAt,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
@@ -163,6 +165,29 @@ app.openapi(
     const body = c.req.valid("json");
     await startCmoOnboarding({ userId, ...body }).catch(rethrow);
     return created(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/onboarding/accounts-done",
+    operationId: "finishCmoAccountsStep",
+    tags: ["CMO"],
+    description:
+      "The founder connected or skipped the Accounts step: onboarding resumes on the plan.",
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Accounts step done"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No CMO workspace yet"),
+      409: jsonErrorResponse("The strategy is not approved yet"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    await finishCmoAccountsStep(userId).catch(rethrow);
+    return ok(c, await requireOverview(userId));
   },
 );
 

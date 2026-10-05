@@ -12,7 +12,14 @@ import {
   Share2,
   Target,
 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  useTransition,
+} from "react";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
 import { BusinessMark, businessDisplayName } from "../business-mark";
@@ -37,6 +44,23 @@ import {
 import { UpNext } from "./up-next";
 
 const POLL_MS = 4_000;
+
+/** Below this width Up next is a drawer with its own open state. */
+const DRAWER_QUERY = "(max-width: 860px)";
+
+function subscribeToDrawerQuery(onChange: () => void): () => void {
+  const query = window.matchMedia(DRAWER_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function useDrawerLayout(): boolean {
+  return useSyncExternalStore(
+    subscribeToDrawerQuery,
+    () => window.matchMedia(DRAWER_QUERY).matches,
+    () => false,
+  );
+}
 
 const VIEWS = [
   ["chat", "Cuso", MessageSquare],
@@ -147,6 +171,7 @@ export function CmoApp({
   const [view, setView] = useState<View>(initialView);
   const [upNextOpen, setUpNextOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const drawerLayout = useDrawerLayout();
   const [draft, setDraft] = useState("");
   const [sending, startSending] = useTransition();
   const [highlight, setHighlight] = useState<string | null>(null);
@@ -314,9 +339,9 @@ export function CmoApp({
             <button
               type="button"
               className="button button-secondary button-small"
-              aria-pressed={upNextOpen}
+              aria-pressed={drawerLayout ? drawerOpen : upNextOpen}
               onClick={() => {
-                if (window.matchMedia("(max-width: 860px)").matches) {
+                if (drawerLayout) {
                   setDrawerOpen((open) => !open);
                 } else {
                   setUpNextOpen((open) => !open);

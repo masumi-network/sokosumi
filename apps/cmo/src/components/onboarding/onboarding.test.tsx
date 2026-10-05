@@ -89,6 +89,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
       designMdUrl: null,
     },
     projectLogo: null,
+    accountsDoneAt: null,
     onboardedAt: null,
     routines: [],
     subscriptionActive: false,
@@ -142,6 +143,28 @@ describe("onboarding steps", () => {
     expect(onboardingStep(overview({ strategyApprovedAt: new Date() }))).toBe(
       "connect",
     );
+  });
+
+  it("resumes on the plan after the Accounts step, even on a reload", () => {
+    expect(
+      onboardingStep(
+        overview({
+          strategyApprovedAt: new Date(),
+          accountsDoneAt: new Date(),
+        }),
+      ),
+    ).toBe("pricing");
+  });
+
+  it("skips Accounts when the plan has no social network", () => {
+    expect(
+      onboardingStep(
+        overview({
+          strategyApprovedAt: new Date(),
+          strategy: { ...strategy, channels: [] },
+        }),
+      ),
+    ).toBe("pricing");
   });
 
   it("offers to connect only the social networks in the plan", () => {

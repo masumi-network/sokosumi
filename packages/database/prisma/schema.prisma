@@ -2187,6 +2187,9 @@ model CmoWorkspace {
   updates             Json?
   /// The brand's look, read from the site at signup: logo, colours, fonts.
   brandVisual         Json?
+  /// The owner connected or skipped the Accounts step, so onboarding resumes
+  /// on the plan step.
+  accountsDoneAt      DateTime?
   /// The owner finished onboarding (strategy, accounts, plan) and landed in
   /// the chat; until then CMO shows the onboarding steps.
   onboardedAt         DateTime?

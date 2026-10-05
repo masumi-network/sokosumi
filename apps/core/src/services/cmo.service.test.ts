@@ -51,6 +51,7 @@ import {
   cmoLearningState,
   cmoUpNext,
   describeCmoStep,
+  finishCmoAccountsStep,
   hasActiveCmoSubscription,
   isCmoAppUrl,
   listCmoChannels,
@@ -187,6 +188,34 @@ describe("approveCmoStrategy", () => {
   it("needs a strategy", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
+  });
+});
+
+describe("finishCmoAccountsStep", () => {
+  it("records the step once, so a reload resumes on the plan", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      accountsDoneAt: null,
+    });
+    await finishCmoAccountsStep("user-1");
+    expect(cmoUpdate.mock.calls[0]?.[0].data.accountsDoneAt).toBeInstanceOf(
+      Date,
+    );
+
+    cmoUpdate.mockClear();
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      accountsDoneAt: new Date("2026-10-02T09:00:00Z"),
+    });
+    await finishCmoAccountsStep("user-1");
+    expect(cmoUpdate).not.toHaveBeenCalled();
+  });
+
+  it("needs an approved strategy", async () => {
+    cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategyApprovedAt: null });
+    await expect(finishCmoAccountsStep("user-1")).rejects.toThrow(/approve/i);
   });
 });
 

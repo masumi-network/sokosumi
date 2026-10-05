@@ -30,6 +30,8 @@ export interface OnboardingActions {
     error: string | null;
   }>;
   approveStrategy: () => Promise<CmoOverview>;
+  /** Records that the founder connected or skipped the Accounts step. */
+  finishAccounts: () => Promise<CmoOverview>;
   connectChannel: (
     provider:
       | "x"
@@ -70,7 +72,11 @@ export function onboardingStep(overview: CmoOverview): OnboardingStep {
       : "brain";
   }
   if (!overview.strategyApprovedAt) return "strategy";
-  return "connect";
+  // Saved in Core, so a reload after the Accounts step resumes on the plan.
+  return overview.accountsDoneAt ||
+    strategySocialChannels(overview).length === 0
+    ? "pricing"
+    : "connect";
 }
 
 function stepIndex(step: OnboardingStep): number {
@@ -86,7 +92,7 @@ interface OnboardingFlowProps {
   messages: CusoMessage[];
   plans: SubscriptionCatalog | null;
   name: string;
-  /** "connect" or "pricing": where a redirect (OAuth, checkout) returns to. */
+  /** "connect" when a network's connection sends the founder back. */
   initialStep?: string;
   actions: OnboardingActions;
 }
@@ -105,13 +111,14 @@ export function OnboardingFlow({
 }: OnboardingFlowProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
-  const [afterApproval, setAfterApprovalState] = useState<
-    "connect" | "pricing"
-  >(initialStep === "pricing" ? "pricing" : "connect");
-  // In the URL, so a reload or a return from checkout lands on the same step.
-  const setAfterApproval = useCallback((next: "connect" | "pricing") => {
-    setAfterApprovalState(next);
-    window.history.replaceState(null, "", `/?step=${next}`);
+  // Back from the plan, or returning from a connection: show Accounts again.
+  const [revisitAccounts, setRevisitAccounts] = useState(
+    initialStep === "connect",
+  );
+
+  // The connection redirect's query has been read; a reload routes from Core.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, "", "/");
   }, []);
 
   const refresh = useCallback(async () => {
@@ -135,11 +142,10 @@ export function OnboardingFlow({
 
   const derived = onboardingStep(overview);
   const step: OnboardingStep =
-    derived === "connect"
-      ? afterApproval === "pricing" ||
-        strategySocialChannels(overview).length === 0
-        ? "pricing"
-        : "connect"
+    derived === "pricing" &&
+    revisitAccounts &&
+    strategySocialChannels(overview).length > 0
+      ? "connect"
       : derived;
   const current = stepIndex(step);
 
@@ -232,7 +238,10 @@ export function OnboardingFlow({
           <ConnectStep
             overview={overview}
             onConnect={actions.connectChannel}
-            onContinue={() => setAfterApproval("pricing")}
+            onContinue={async () => {
+              setOverview(await actions.finishAccounts());
+              setRevisitAccounts(false);
+            }}
           />
         ) : (
           <PricingStep
@@ -240,7 +249,7 @@ export function OnboardingFlow({
             plans={plans}
             onBack={
               strategySocialChannels(overview).length > 0
-                ? () => setAfterApproval("connect")
+                ? () => setRevisitAccounts(true)
                 : undefined
             }
             onStart={actions.completeOnboarding}

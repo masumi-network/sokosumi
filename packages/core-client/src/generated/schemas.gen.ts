@@ -21786,6 +21786,18 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        accountsDoneAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         onboardedAt: {
             anyOf: [
                 {
@@ -22311,6 +22323,7 @@ export const CmoOverviewSchema = {
         'work',
         'brandVisual',
         'projectLogo',
+        'accountsDoneAt',
         'onboardedAt',
         'routines',
         'brandBrain',

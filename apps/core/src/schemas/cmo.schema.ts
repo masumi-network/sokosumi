@@ -120,6 +120,7 @@ export const cmoOverviewSchema = z
     work: z.union([cmoWorkSchema, z.null()]),
     brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
     projectLogo: z.union([z.string(), z.null()]),
+    accountsDoneAt: z.union([dateTimeSchema, z.null()]),
     onboardedAt: z.union([dateTimeSchema, z.null()]),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),

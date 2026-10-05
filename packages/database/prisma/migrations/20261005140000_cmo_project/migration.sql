@@ -28,6 +28,7 @@ CREATE TABLE "cmo_workspace" (
     "strategyHistory" JSONB,
     "updates" JSONB,
     "brandVisual" JSONB,
+    "accountsDoneAt" TIMESTAMP(3),
     "onboardedAt" TIMESTAMP(3),
 
     CONSTRAINT "cmo_workspace_pkey" PRIMARY KEY ("id")

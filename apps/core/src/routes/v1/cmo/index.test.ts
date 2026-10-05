@@ -51,6 +51,7 @@ function overview() {
       brandBrainUpdatedAt: null,
       strategyUpdatedAt: NOW,
       strategyApprovedAt: NOW,
+      accountsDoneAt: NOW,
       onboardedAt: NOW,
       createdAt: NOW,
     },

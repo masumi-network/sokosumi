@@ -27,7 +27,7 @@ interface ConnectStepProps {
   onConnect: (
     provider: Provider,
   ) => Promise<{ url: string | null; error: string | null }>;
-  onContinue: () => void;
+  onContinue: () => Promise<void>;
 }
 
 /** Connect the networks in the plan, so Cuso can post. Each one is optional. */
@@ -46,6 +46,7 @@ export function ConnectStep({
   const [pending, setPending] = useState<Provider | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
+  const [continuing, startContinuing] = useTransition();
   const allConnected = providers.every((provider) => connected.has(provider));
 
   useEffect(() => {
@@ -141,7 +142,16 @@ export function ConnectStep({
         <button
           type="button"
           className="ob-button ob-button-lg"
-          onClick={onContinue}
+          disabled={continuing}
+          onClick={() =>
+            startContinuing(async () => {
+              try {
+                await onContinue();
+              } catch {
+                setError("Could not continue. Try again.");
+              }
+            })
+          }
         >
           {allConnected ? "Continue" : "Skip for now"}
           <ArrowRight size={16} aria-hidden="true" />

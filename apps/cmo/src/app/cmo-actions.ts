@@ -6,6 +6,7 @@ import {
   completeCmoOnboarding,
   connectCmoChannel,
   finalizeCmoChannel,
+  finishCmoAccountsStep,
   getChatsRoomsByIdMessages,
   getCmoOverview,
   getSubscriptionCatalog,
@@ -183,6 +184,14 @@ export async function requestStrategy(note?: string): Promise<{
 }
 
 /** The founder is done with onboarding: CMO opens on the chat. */
+/** The founder connected or skipped the Accounts step. */
+export async function finishAccounts(): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data, error } = await finishCmoAccountsStep(core);
+  if (!data) throw new Error(errorText(error, "Could not continue"));
+  return data.data;
+}
+
 export async function completeOnboarding(): Promise<void> {
   const core = await requireCore();
   const { error } = await completeCmoOnboarding(core);

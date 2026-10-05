@@ -59,6 +59,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     work: null,
     brandVisual: null,
     projectLogo: null,
+    accountsDoneAt: new Date("2026-10-02T00:00:00Z"),
     onboardedAt: new Date("2026-10-02T00:00:00Z"),
     routines: [
       {

@@ -6383,6 +6383,7 @@ export type CmoOverview = {
     work: CmoWork | null;
     brandVisual: CmoBrandVisual | null;
     projectLogo: string | null;
+    accountsDoneAt: Date | null;
     onboardedAt: Date | null;
     routines: Array<CmoRoutine>;
     brandBrain: {
@@ -45269,6 +45270,94 @@ export type StartCmoOnboardingResponses = {
 };
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
+
+export type FinishCmoAccountsStepData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding/accounts-done';
+};
+
+export type FinishCmoAccountsStepErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The strategy is not approved yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinishCmoAccountsStepError = FinishCmoAccountsStepErrors[keyof FinishCmoAccountsStepErrors];
+
+export type FinishCmoAccountsStepResponses = {
+    /**
+     * Accounts step done
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinishCmoAccountsStepResponse = FinishCmoAccountsStepResponses[keyof FinishCmoAccountsStepResponses];
 
 export type CompleteCmoOnboardingData = {
     body?: never;
