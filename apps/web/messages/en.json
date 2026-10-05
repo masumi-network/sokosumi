@@ -7578,14 +7578,6 @@
     "description": "We're currently performing maintenance",
     "message": "We're working hard to improve your experience. Please check back soon."
   },
-  "EmailConfirmed": {
-    "title": "Email confirmed",
-    "message": "Your email address is confirmed. You can close this tab.",
-    "messageFor": "Your email address is confirmed. You can go back to {client} now.",
-    "returnTo": "Return to {client}",
-    "errorTitle": "Email not confirmed",
-    "errorMessage": "This link has expired or is no longer valid."
-  },
   "AppleAppCallback": {
     "title": "Return to the Sokosumi app",
     "message": "Sign-in did not finish in the app. Close this window, open the Sokosumi app and log in again."
