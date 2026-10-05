@@ -680,7 +680,7 @@ describe("TaskActivitySection", () => {
 
     render(<TaskActivitySection {...baseProps} events={events} />);
 
-    expect(screen.getByText("created this task")).toBeInTheDocument();
+    expect(screen.getByText("created the task")).toBeInTheDocument();
     expect(screen.getByText("updated status")).toBeInTheDocument();
     expect(
       screen.queryByTestId("status-dot-created-milestone"),
