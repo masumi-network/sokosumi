@@ -38,6 +38,21 @@ it("moves a preview's deployment URL to its branch alias, where sign in lands", 
   expect(renewSession).not.toHaveBeenCalled();
 });
 
+it("keeps a protocol-relative path on the branch alias", async () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  cmo.baseURL = BRANCH_ALIAS;
+
+  const response = await proxy(
+    new NextRequest(
+      "https://sokosumi-cmo-abc123.preview.cmo.xyz//evil.example/x",
+    ),
+  );
+
+  expect(response.headers.get("location")).toBe(
+    `${BRANCH_ALIAS}//evil.example/x`,
+  );
+});
+
 it.each([
   ["a preview on its branch alias", "preview", `${BRANCH_ALIAS}/`],
   // Behind a local proxy, Next.js sees its own host, not CMO's origin.
