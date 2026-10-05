@@ -9,7 +9,7 @@ describe("parseLastUsedAuthMethod", () => {
     "google",
     "microsoft",
     "passkey",
-    "magic-link",
+    "email-otp",
     "email",
   ])("returns %s for supported values", (value) => {
     expect(parseLastUsedAuthMethod(value)).toBe(value);

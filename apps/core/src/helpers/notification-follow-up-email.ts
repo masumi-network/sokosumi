@@ -1,11 +1,5 @@
 import type { NotificationKind } from "@sokosumi/database";
-import {
-  type BillingFollowUpReason,
-  renderBillingFollowUpEmail,
-  renderChatDirectMessageFollowUpEmail,
-  renderChatMentionFollowUpEmail,
-  renderTaskFollowUpEmail,
-} from "@sokosumi/email";
+import type { BillingFollowUpReason } from "@sokosumi/email";
 import {
   BILLING_FOLLOW_UP_MESSAGE_KEY,
   BILLING_PAYMENT_FAILED_MESSAGE_KEY,
@@ -90,6 +84,13 @@ export async function buildFollowUpEmail(
   input: FollowUpEmailInput,
   locale = "en",
 ): Promise<null | SendEmailInput> {
+  // Loaded on first send, as in `notification-email.ts`.
+  const {
+    renderBillingFollowUpEmail,
+    renderChatDirectMessageFollowUpEmail,
+    renderChatMentionFollowUpEmail,
+    renderTaskFollowUpEmail,
+  } = await import("@sokosumi/email");
   const actionUrl = notificationEmailLink(input);
   const recipientName = input.recipientName;
   const shared = {

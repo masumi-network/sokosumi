@@ -31,16 +31,16 @@ private func makeRoom(id: String) -> Components.Schemas.ChatRoom {
   .init(
     id: id,
     name: id,
-    kind: .channel, isSelfDirect: false, isGroupDirect: false,
+    kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
     createdByUserId: "user_1",
     createdAt: Date(timeIntervalSince1970: 1_700_000_000),
     updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
     unreadCount: 0,
     unreadMentionCount: 0,
     markedUnread: false,
-    myAccess: .member,
+    myAccess: .init(value1: .member, value2: "member"),
     userMembers: [],
-    coworkerMembers: [],
+    formerUserMembers: [], coworkerMembers: [],
     sokoBotMembers: []
   )
 }
@@ -408,6 +408,8 @@ struct ChatRealtimeTests {
     #expect(userChatControlChannelName(userId: "user_1") == "chat_control:user_user_1")
     #expect(chatRoomMessageEventName == "chat_room_message")
     #expect(chatMembershipRevokedEventName == "chat_membership_revoked")
+    #expect(chatRoomsChangedEventName == "chat_rooms_changed")
+    #expect(ChatRoomCollection.allCases.map(\.rawValue) == ["active", "archived", "invitations"])
     #expect(parseChatRoomId(fromChannelName: "chat_rooms:room_abc") == "abc")
     #expect(parseChatRoomId(fromChannelName: "chat_control:user_user_1") == nil)
     #expect(parseChatRoomId(fromChannelName: "chat_rooms:room_") == nil)

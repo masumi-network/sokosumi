@@ -179,6 +179,43 @@ export type PatchAdminAgentMetadataOverrideBody = {
     exampleOutputs?: Array<AdminAgentMetadataOverrideExample>;
 };
 
+export type AdminBadgeCampaignList = Array<BadgeCampaign>;
+
+export type BadgeCampaign = {
+    id: string;
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+    createdAt: Date;
+};
+
+export const AnnouncedFeature = {
+    SOKO_BOTS: 'SOKO_BOTS',
+    NEW_TASK: 'NEW_TASK',
+    SEARCH: 'SEARCH',
+    AGENTS: 'AGENTS',
+    TASKS: 'TASKS',
+    SCHEDULES: 'SCHEDULES',
+    CONTENT_STUDIO: 'CONTENT_STUDIO',
+    SOCIAL: 'SOCIAL',
+    DRIVE: 'DRIVE',
+    THREADS: 'THREADS',
+    UNREADS: 'UNREADS'
+} as const;
+
+export type AnnouncedFeature = typeof AnnouncedFeature[keyof typeof AnnouncedFeature];
+
+export type CreateBadgeCampaignRequest = {
+    feature: AnnouncedFeature;
+    startsAt: Date;
+    endsAt: Date;
+};
+
+export type UpdateBadgeCampaignRequest = {
+    startsAt: Date;
+    endsAt: Date;
+};
+
 export type AdminOrganizationOption = {
     id: string;
     name: string;
@@ -202,6 +239,7 @@ export type AdminSokoBotListItem = {
     lastSucceededAt: Date | null;
     lastFailedAt: Date | null;
     consecutiveTurnFailures: number;
+    outOfCredits: boolean;
     turnCount: number;
     pendingDecisionCount: number;
     scheduleCount: number;
@@ -434,6 +472,229 @@ export type AdminSokoBotVersionMigrationRequest = {
     notifyOwners?: boolean;
 };
 
+export type AdminSokoBotChatRoom = {
+    id: string;
+    isOwnerRoom: boolean;
+    participants: Array<{
+        id: string;
+        name: string | null;
+    }>;
+    archived: boolean;
+    lastActivityAt: string;
+};
+
+export type ChatRoomMessage = {
+    id: string;
+    roomId: string;
+    parentMessageId: string | null;
+    content: string;
+    createdAt: Date;
+    deletedAt: Date | null;
+    editedAt: Date | null;
+    /**
+     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
+     */
+    pinnedAt: Date | null;
+    sender: ChatRoomMessageSender;
+    mentions: Array<ChatRoomMessageMention>;
+    reactions: Array<ChatRoomMessageReaction>;
+    threadReplyCount: number;
+    /**
+     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
+     */
+    threadUnreadReplyCount?: number;
+    threadLastReplyAt: Date | null;
+    /**
+     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
+     */
+    threadRepliers?: Array<ChatRoomMessageSender>;
+    metadata: {
+        [key: string]: unknown;
+    } | null;
+    quote: ChatRoomMessageQuote;
+    membership: ChatRoomMessageMembership;
+    groupNameChange: ChatRoomMessageGroupNameChange;
+    /**
+     * Link preview cards scraped from message URLs (absent while pending).
+     */
+    unfurls: Array<ChatRoomMessageUnfurl> | null;
+    /**
+     * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+     */
+    skills?: Array<ChatRoomMessageSkill>;
+};
+
+export type ChatRoomMessageSender = {
+    type: 'user';
+    user: ChatRoomUserParticipant;
+} | {
+    type: 'coworker';
+    coworker: ChatRoomCoworkerParticipant;
+} | {
+    type: 'sokoBot';
+    sokoBot: ChatRoomSokoBotParticipant;
+} | {
+    type: 'unknown';
+};
+
+export type ChatRoomUserParticipant = {
+    id: string;
+    name: string;
+    email: string;
+    image: string | null;
+    presence: ChatRoomPresence;
+    access?: ChatRoomAccess;
+    /**
+     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
+     */
+    lastReadAt?: Date | null;
+};
+
+export const ChatRoomPresence = {
+    ONLINE: 'online',
+    AFK: 'afk',
+    OFFLINE: 'offline'
+} as const;
+
+export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
+
+/**
+ * Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).
+ */
+export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
+
+export type ChatRoomCoworkerParticipant = {
+    id: string;
+    name: string;
+    slug: string;
+    caption: string | null;
+    image: string | null;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomSokoBotParticipant = {
+    id: string;
+    name: string;
+    caption: string | null;
+    image: string | null;
+    avatarSeed: string | null;
+    /**
+     * The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.
+     */
+    ownerUserId: string;
+    presence: ChatRoomPresence;
+};
+
+export type ChatRoomMessageMention = {
+    id: string;
+    coworkerId: string | null;
+    sokoBotId: string | null;
+    status: ChatRoomMentionStatus;
+    responseMessageId: string | null;
+};
+
+export const ChatRoomMentionStatus = {
+    PENDING: 'pending',
+    SENT: 'sent',
+    RESPONDED: 'responded',
+    FAILED: 'failed'
+} as const;
+
+export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
+
+export type ChatRoomMessageReaction = {
+    emoji: string;
+    count: number;
+    reactedByCurrentUser: boolean;
+    /**
+     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
+     */
+    reactors: Array<ChatRoomMessageReactor>;
+};
+
+export type ChatRoomMessageReactor = {
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageQuote = {
+    messageId: string;
+    authorName: string;
+    snippet: string;
+    attachment?: ChatRoomMessageQuoteAttachment;
+    /**
+     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
+     */
+    roomId?: string;
+} | null;
+
+export type ChatRoomMessageQuoteAttachment = {
+    fileName: string;
+    url: string;
+    mediaKind: 'image' | 'file';
+} | null;
+
+export type ChatRoomMessageMembership = {
+    action: 'joined' | 'left';
+    subject: ChatRoomMessageMembershipSubject;
+    /**
+     * Who added or removed the subject. Absent when the subject joined or left on their own.
+     */
+    actor?: {
+        id: string;
+        name: string;
+    };
+} | null;
+
+export type ChatRoomMessageMembershipSubject = {
+    type: 'user';
+    id: string;
+    name: string;
+} | {
+    type: 'coworker';
+    id: string;
+    name: string;
+} | {
+    type: 'sokoBot';
+    id: string;
+    name: string;
+};
+
+export type ChatRoomMessageGroupNameChange = {
+    action: 'named' | 'cleared';
+    /**
+     * The new Group name; null when it was cleared.
+     */
+    name: string | null;
+    actor: {
+        id: string;
+        name: string;
+    };
+} | null;
+
+export type ChatRoomMessageUnfurl = {
+    url: string;
+    title: string;
+    description: string | null;
+    imageUrl: string | null;
+    siteName: string | null;
+};
+
+export type ChatRoomMessageSkill = {
+    /**
+     * skills.sh id: owner/repo/skill.
+     */
+    id: string;
+    name: string;
+    description: string | null;
+    url: string;
+};
+
 export type AdminSokoBotDetail = SokoBot & {
     schedules: Array<AdminSokoBotSchedule>;
     adminPausedAt: Date | null;
@@ -507,6 +768,7 @@ export type SokoBotSchedule = {
     enabled: boolean;
     timezone: string;
     cronExpression: string;
+    runOnce?: boolean;
     prompt: string;
     systemKey?: string | null;
     nextRunAt: Date;
@@ -723,6 +985,8 @@ export type SokoBotUsage = {
     costUsd: number;
     billableCostUsd: number;
     credits: number;
+    delegatedCredits: number;
+    totalCredits: number;
 };
 
 export type SokoBot = {
@@ -763,6 +1027,10 @@ export type AdminSokoBotActionRequest = {
     targetId?: string;
     versionId?: string;
     reason: string;
+};
+
+export type ClaimSokoBotAvatarRequest = {
+    avatarId: string;
 };
 
 export type AdminUserOverviewItem = {
@@ -1227,10 +1495,19 @@ export type Task = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
     visibility: TaskVisibility;
+    priority: TaskPriority;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -1278,6 +1555,10 @@ export type OrganizationSummary = {
 export type ProjectSummary = {
     id: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     logo: string | null;
 };
 
@@ -1382,6 +1663,22 @@ export const TaskVisibility = { PUBLIC: 'PUBLIC', PRIVATE: 'PRIVATE' } as const;
  */
 export type TaskVisibility = typeof TaskVisibility[keyof typeof TaskVisibility];
 
+/**
+ * URGENT, HIGH, MEDIUM, LOW, or NONE (default).
+ */
+export const TaskPriority = {
+    URGENT: 'URGENT',
+    HIGH: 'HIGH',
+    MEDIUM: 'MEDIUM',
+    LOW: 'LOW',
+    NONE: 'NONE'
+} as const;
+
+/**
+ * URGENT, HIGH, MEDIUM, LOW, or NONE (default).
+ */
+export type TaskPriority = typeof TaskPriority[keyof typeof TaskPriority];
+
 export type TaskEvent = {
     id: string;
     taskId: string;
@@ -1445,7 +1742,7 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     channel: Channel;
     origin: Channel & unknown;
-    status?: TaskStatus | null;
+    status?: TaskEventStatus | null;
 };
 
 /**
@@ -1494,6 +1791,26 @@ export const Channel = {
  * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
  */
 export type Channel = typeof Channel[keyof typeof Channel];
+
+export const TaskEventStatus = {
+    DRAFT: 'DRAFT',
+    QUEUED: 'QUEUED',
+    READY: 'READY',
+    GRANT_PENDING: 'GRANT_PENDING',
+    INPUT_REQUIRED: 'INPUT_REQUIRED',
+    APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+    AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
+    OUT_OF_CREDITS: 'OUT_OF_CREDITS',
+    CREDITS_TOPPED_UP: 'CREDITS_TOPPED_UP',
+    RUNNING: 'RUNNING',
+    AWAITING_EXTERNAL: 'AWAITING_EXTERNAL',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCELED: 'CANCELED',
+    CREATED: 'CREATED'
+} as const;
+
+export type TaskEventStatus = typeof TaskEventStatus[keyof typeof TaskEventStatus];
 
 export type JobSummary = {
     id: string;
@@ -1618,6 +1935,10 @@ export type TaskLinkPeerTask = {
     name: string;
     status: TaskStatus & unknown;
     archivedAt: Date | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the peer has no project.
+     */
+    identifier: string | null;
 };
 
 export type TaskFile = {
@@ -2352,6 +2673,10 @@ export type ChatRoom = {
      */
     isGroupDirect: boolean;
     /**
+     * Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.
+     */
+    isReadOnly: boolean;
+    /**
      * Group name shared by every member of a group Direct, shown in place of the member list. Null when unnamed, and always null for Channels and other Directs.
      */
     groupName: string | null;
@@ -2422,63 +2747,25 @@ export type ChatRoom = {
      * True when the current user marked this room unread. Cleared on mark-read.
      */
     markedUnread: boolean;
-    myAccess: ChatRoomAccess;
+    myAccess: ChatRoomAccess & unknown;
     /**
      * True when every other human on a Direct is a Member of the caller's active organization. False with no active organization.
      */
     peerInActiveOrganization?: boolean;
     userMembers: Array<ChatRoomUserParticipant>;
+    /**
+     * Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.
+     */
+    formerUserMembers: Array<ChatRoomFormerUserMember>;
     coworkerMembers: Array<ChatRoomCoworkerParticipant>;
     sokoBotMembers: Array<ChatRoomSokoBotParticipant>;
 };
 
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export const ChatRoomAccess = { MEMBER: 'member', GUEST: 'guest' } as const;
-
-/**
- * Caller's membership on this room. Guests are not host-org members.
- */
-export type ChatRoomAccess = typeof ChatRoomAccess[keyof typeof ChatRoomAccess];
-
-export type ChatRoomUserParticipant = {
+export type ChatRoomFormerUserMember = {
     id: string;
     name: string;
     email: string;
     image: string | null;
-    presence: ChatRoomPresence;
-    access?: ChatRoomAccess & unknown;
-    /**
-     * Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer's room access is `guest`. Absent on message senders.
-     */
-    lastReadAt?: Date | null;
-};
-
-export const ChatRoomPresence = {
-    ONLINE: 'online',
-    AFK: 'afk',
-    OFFLINE: 'offline'
-} as const;
-
-export type ChatRoomPresence = typeof ChatRoomPresence[keyof typeof ChatRoomPresence];
-
-export type ChatRoomCoworkerParticipant = {
-    id: string;
-    name: string;
-    slug: string;
-    caption: string | null;
-    image: string | null;
-    presence: ChatRoomPresence;
-};
-
-export type ChatRoomSokoBotParticipant = {
-    id: string;
-    name: string;
-    caption: string | null;
-    image: string | null;
-    avatarSeed: string | null;
-    presence: ChatRoomPresence;
 };
 
 /**
@@ -2681,108 +2968,11 @@ export type ChatRoomPinnedMessageListItem = {
          * Link preview cards scraped from message URLs (absent while pending).
          */
         unfurls: Array<ChatRoomMessageUnfurl> | null;
+        /**
+         * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+         */
+        skills?: Array<ChatRoomMessageSkill>;
     } | null;
-};
-
-export type ChatRoomMessageSender = {
-    type: 'user';
-    user: ChatRoomUserParticipant;
-} | {
-    type: 'coworker';
-    coworker: ChatRoomCoworkerParticipant;
-} | {
-    type: 'sokoBot';
-    sokoBot: ChatRoomSokoBotParticipant;
-} | {
-    type: 'unknown';
-};
-
-export type ChatRoomMessageMention = {
-    id: string;
-    coworkerId: string | null;
-    sokoBotId: string | null;
-    status: ChatRoomMentionStatus;
-    responseMessageId: string | null;
-};
-
-export const ChatRoomMentionStatus = {
-    PENDING: 'pending',
-    SENT: 'sent',
-    RESPONDED: 'responded',
-    FAILED: 'failed'
-} as const;
-
-export type ChatRoomMentionStatus = typeof ChatRoomMentionStatus[keyof typeof ChatRoomMentionStatus];
-
-export type ChatRoomMessageReaction = {
-    emoji: string;
-    count: number;
-    reactedByCurrentUser: boolean;
-    /**
-     * First reactors by createdAt ascending (capped). count may exceed reactors.length.
-     */
-    reactors: Array<ChatRoomMessageReactor>;
-};
-
-export type ChatRoomMessageReactor = {
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageQuote = {
-    messageId: string;
-    authorName: string;
-    snippet: string;
-    attachment?: ChatRoomMessageQuoteAttachment;
-    /**
-     * Source room of a message quoted from another room. Absent when the quoted message is in the same room.
-     */
-    roomId?: string;
-} | null;
-
-export type ChatRoomMessageQuoteAttachment = {
-    fileName: string;
-    url: string;
-    mediaKind: 'image' | 'file';
-} | null;
-
-export type ChatRoomMessageMembership = {
-    action: 'joined' | 'left';
-    subject: ChatRoomMessageMembershipSubject;
-} | null;
-
-export type ChatRoomMessageMembershipSubject = {
-    type: 'user';
-    id: string;
-    name: string;
-} | {
-    type: 'coworker';
-    id: string;
-    name: string;
-} | {
-    type: 'sokoBot';
-    id: string;
-    name: string;
-};
-
-export type ChatRoomMessageGroupNameChange = {
-    action: 'named' | 'cleared';
-    /**
-     * The new Group name; null when it was cleared.
-     */
-    name: string | null;
-    actor: {
-        id: string;
-        name: string;
-    };
-} | null;
-
-export type ChatRoomMessageUnfurl = {
-    url: string;
-    title: string;
-    description: string | null;
-    imageUrl: string | null;
-    siteName: string | null;
 };
 
 export type UpdateChatRoomRequest = {
@@ -2793,15 +2983,6 @@ export type UpdateChatRoomRequest = {
     slug?: string;
     topic?: string | null;
     discoverability?: OrgChannelDiscoverability;
-    /**
-     * Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.
-     */
-    memberUserIds?: Array<string>;
-    coworkerIds?: Array<string>;
-    /**
-     * Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.
-     */
-    sokoBotIds?: Array<string>;
     /**
      * Group name of a group Direct, and the only field a Direct accepts. Any member may set it; an empty string or null clears it. Rejected for Channels and for other Directs.
      */
@@ -2859,6 +3040,21 @@ export type LeftChatRoom = {
     remainingUserMemberCount: number;
 };
 
+export type AddChatRoomMembersRequest = {
+    /**
+     * Organization member user IDs to add to the room.
+     */
+    userIds?: Array<string>;
+    /**
+     * Marketplace AI coworker IDs to add to the room.
+     */
+    coworkerIds?: Array<string>;
+    /**
+     * Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.
+     */
+    sokoBotIds?: Array<string>;
+};
+
 export type ChatRoomThread = {
     parentMessage: ChatRoomMessage;
     /**
@@ -2885,43 +3081,6 @@ export type ChatRoomThread = {
      * When the viewer muted this thread, or null when they have not. A muted thread stops counting toward room unread and stops writing CHAT notifications for them; replies that name them still do. Mute does not change whether they Participate.
      */
     mutedAt: Date | null;
-};
-
-export type ChatRoomMessage = {
-    id: string;
-    roomId: string;
-    parentMessageId: string | null;
-    content: string;
-    createdAt: Date;
-    deletedAt: Date | null;
-    editedAt: Date | null;
-    /**
-     * When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.
-     */
-    pinnedAt: Date | null;
-    sender: ChatRoomMessageSender;
-    mentions: Array<ChatRoomMessageMention>;
-    reactions: Array<ChatRoomMessageReaction>;
-    threadReplyCount: number;
-    /**
-     * Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.
-     */
-    threadUnreadReplyCount?: number;
-    threadLastReplyAt: Date | null;
-    /**
-     * Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.
-     */
-    threadRepliers?: Array<ChatRoomMessageSender>;
-    metadata: {
-        [key: string]: unknown;
-    } | null;
-    quote: ChatRoomMessageQuote;
-    membership: ChatRoomMessageMembership;
-    groupNameChange: ChatRoomMessageGroupNameChange;
-    /**
-     * Link preview cards scraped from message URLs (absent while pending).
-     */
-    unfurls: Array<ChatRoomMessageUnfurl> | null;
 };
 
 export type ChatRoomThreadsUnreadCount = {
@@ -2984,6 +3143,10 @@ export type CreateChatRoomMessageRequest = {
      * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
      */
     clientMessageId?: string;
+    /**
+     * skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.
+     */
+    skillIds?: Array<string>;
 };
 
 export type UpdateChatRoomMessageRequest = {
@@ -3055,6 +3218,17 @@ export type CreateChatRoomFileUploadSessionRequest = {
      * File size in bytes
      */
     size: number;
+};
+
+export type ChatSkillCatalogItem = {
+    /**
+     * skills.sh id: owner/repo/skill.
+     */
+    id: string;
+    name: string;
+    source: string;
+    description: string | null;
+    installs: number;
 };
 
 export type ChatUnreadThread = {
@@ -4573,6 +4747,14 @@ export const NoticeKind = { LEGAL_TERMS: 'LEGAL_TERMS', ANNOUNCEMENT: 'ANNOUNCEM
 
 export type NoticeKind = typeof NoticeKind[keyof typeof NoticeKind];
 
+export type UserBadgeCampaigns = {
+    badgeCampaigns: Array<{
+        id: string;
+        feature: AnnouncedFeature;
+        endsAt: Date;
+    }>;
+};
+
 export type BlobFile = {
     /**
      * Public URL of the uploaded file
@@ -4707,6 +4889,17 @@ export type UtmAttributionRequest = {
     capturedAt: Date;
 };
 
+export type SignUpConversionResponse = {
+    /**
+     * The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.
+     */
+    provider: 'google' | 'microsoft' | null;
+};
+
+export type SignUpConversionRequest = {
+    utmAttribution?: UtmAttributionRequest;
+};
+
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
@@ -4812,6 +5005,14 @@ export type User = {
     createdAt: Date;
     updatedAt: Date;
     name: string;
+    /**
+     * Null when never given: older accounts, or one an email code created without names
+     */
+    firstName: string | null;
+    /**
+     * Null when never given: older accounts, or one an email code created without names
+     */
+    lastName: string | null;
     email: string;
     emailVerified: boolean;
     image?: string | null;
@@ -5109,6 +5310,10 @@ export type Project = {
     id: string;
     workspaceId: string;
     name: string;
+    /**
+     * Task ID prefix; null only for projects without one.
+     */
+    identifier: string | null;
     briefing: string | null;
     briefingUrl: string | null;
     /**
@@ -5157,6 +5362,10 @@ export type CreateProjectRequest = {
      */
     description?: string | null;
     websiteUrl?: string | null;
+    /**
+     * Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.
+     */
+    identifier?: string;
 };
 
 export type ProjectStatsBatch = {
@@ -5246,7 +5455,7 @@ export type WorkspaceCalendarItem = {
     /**
      * Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned
      */
-    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+    taskStatus: TaskStatus | null;
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
@@ -5758,6 +5967,10 @@ export type PatchProjectRequest = {
     description?: string | null;
     websiteUrl?: string | null;
     logo?: string | null;
+    /**
+     * Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.
+     */
+    identifier?: string;
 };
 
 export type Job = {
@@ -6358,10 +6571,6 @@ export type IntroduceSokoBotRequest = {
     roomId: string;
 };
 
-export type ClaimSokoBotAvatarRequest = {
-    avatarId: string;
-};
-
 export type SokoBotVersion = {
     id: string;
     name: string;
@@ -6436,6 +6645,7 @@ export type SokoBotTeam = {
             avatarImageUrl: string | null;
             avatarSeed: string | null;
             status: SokoBotStatus;
+            lastActivityAt: Date | null;
         } | null;
     }>;
 };
@@ -6771,10 +6981,19 @@ export type TaskListItem = {
      */
     sokoBot: SokoBotSummary | null;
     tags?: TaskTags;
+    /**
+     * Sequence number within the project. Null when the task has no project.
+     */
+    number: number | null;
+    /**
+     * Project identifier and number, e.g. SOK-123. Null when the task has no project.
+     */
+    identifier: string | null;
     name: string;
     description: string | null;
     status: TaskStatus & unknown;
     visibility: TaskVisibility;
+    priority: TaskPriority;
     /**
      * Target status after vendor workspace grant approval. Exposed on the task API only while status is GRANT_PENDING; null otherwise.
      */
@@ -6863,6 +7082,10 @@ export type TaskSchedule = {
     assigneeUserId: string | null;
     createdAt: Date;
     updatedAt: Date;
+    /**
+     * Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).
+     */
+    canWrite: boolean;
 };
 
 export const TaskScheduleState = {
@@ -6917,7 +7140,7 @@ export type CreateTaskScheduleRequest = {
 
 export type TaskScheduleRule = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -6971,7 +7194,7 @@ export type UpdateTaskScheduleRequest = {
  */
 export type TaskScheduleRuleReplacement = {
     /**
-     * Cron expression for Runs, read in `timezone`
+     * Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.
      */
     expr: string;
     /**
@@ -7012,15 +7235,19 @@ export type TaskScheduleRun = {
      */
     effectiveScheduledAt: Date;
     /**
+     * Run now: released by hand outside the rule, and not counted toward an end-after-N rule
+     */
+    manual: boolean;
+    /**
      * Task this Run created
      */
     releasedTaskId: string | null;
     /**
-     * Person who last skipped, moved, or restored it
+     * Person who ran it now, or last skipped, moved, or restored it
      */
     actorUserId: string | null;
     /**
-     * Coworker that last skipped, moved, or restored it
+     * Coworker that ran it now, or last skipped, moved, or restored it
      */
     actorCoworkerId: string | null;
     updatedAt: Date;
@@ -7032,6 +7259,13 @@ export type TaskScheduleRunUpdate = {
      */
     revision: number;
     run: TaskScheduleRun;
+};
+
+export type CreateTaskScheduleRunRequest = {
+    /**
+     * Task Schedule revision observed by the caller
+     */
+    expectedRevision: number;
 };
 
 export type UpdateTaskScheduleRunRequest = {
@@ -8417,6 +8651,532 @@ export type PatchAdminAgentMetadataOverrideResponses = {
 
 export type PatchAdminAgentMetadataOverrideResponse = PatchAdminAgentMetadataOverrideResponses[keyof PatchAdminAgentMetadataOverrideResponses];
 
+export type ListAdminBadgeCampaignsData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type ListAdminBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsError = ListAdminBadgeCampaignsErrors[keyof ListAdminBadgeCampaignsErrors];
+
+export type ListAdminBadgeCampaignsResponses = {
+    /**
+     * List of campaigns
+     */
+    200: {
+        data: AdminBadgeCampaignList;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminBadgeCampaignsResponse = ListAdminBadgeCampaignsResponses[keyof ListAdminBadgeCampaignsResponses];
+
+export type CreateAdminBadgeCampaignData = {
+    body?: CreateBadgeCampaignRequest;
+    path?: never;
+    query?: never;
+    url: '/admin/badge-campaigns';
+};
+
+export type CreateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignError = CreateAdminBadgeCampaignErrors[keyof CreateAdminBadgeCampaignErrors];
+
+export type CreateAdminBadgeCampaignResponses = {
+    /**
+     * The created campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CreateAdminBadgeCampaignResponse = CreateAdminBadgeCampaignResponses[keyof CreateAdminBadgeCampaignResponses];
+
+export type DeleteAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type DeleteAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteAdminBadgeCampaignError = DeleteAdminBadgeCampaignErrors[keyof DeleteAdminBadgeCampaignErrors];
+
+export type DeleteAdminBadgeCampaignResponses = {
+    /**
+     * Campaign deleted
+     */
+    204: void;
+};
+
+export type DeleteAdminBadgeCampaignResponse = DeleteAdminBadgeCampaignResponses[keyof DeleteAdminBadgeCampaignResponses];
+
+export type UpdateAdminBadgeCampaignData = {
+    body?: UpdateBadgeCampaignRequest;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}';
+};
+
+export type UpdateAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - another campaign for this feature overlaps, or a started campaign's start moves into the future
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - validation failed
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignError = UpdateAdminBadgeCampaignErrors[keyof UpdateAdminBadgeCampaignErrors];
+
+export type UpdateAdminBadgeCampaignResponses = {
+    /**
+     * The updated campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type UpdateAdminBadgeCampaignResponse = UpdateAdminBadgeCampaignResponses[keyof UpdateAdminBadgeCampaignResponses];
+
+export type EndAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/end';
+};
+
+export type EndAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign is not running
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignError = EndAdminBadgeCampaignErrors[keyof EndAdminBadgeCampaignErrors];
+
+export type EndAdminBadgeCampaignResponses = {
+    /**
+     * The ended campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type EndAdminBadgeCampaignResponse = EndAdminBadgeCampaignResponses[keyof EndAdminBadgeCampaignResponses];
+
+export type StartAdminBadgeCampaignData = {
+    body?: never;
+    path: {
+        /**
+         * Badge campaign ID
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/admin/badge-campaigns/{id}/start';
+};
+
+export type StartAdminBadgeCampaignErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - campaign has started, or starting now overlaps another campaign for this feature
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignError = StartAdminBadgeCampaignErrors[keyof StartAdminBadgeCampaignErrors];
+
+export type StartAdminBadgeCampaignResponses = {
+    /**
+     * The started campaign
+     */
+    200: {
+        data: BadgeCampaign;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type StartAdminBadgeCampaignResponse = StartAdminBadgeCampaignResponses[keyof StartAdminBadgeCampaignResponses];
+
 export type SearchAdminUsersData = {
     body?: never;
     path?: never;
@@ -9610,6 +10370,166 @@ export type MigrateAdminSokoBotVersionsResponses = {
 
 export type MigrateAdminSokoBotVersionsResponse = MigrateAdminSokoBotVersionsResponses[keyof MigrateAdminSokoBotVersionsResponses];
 
+export type ListAdminSokoBotChatsData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/chats';
+};
+
+export type ListAdminSokoBotChatsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsError = ListAdminSokoBotChatsErrors[keyof ListAdminSokoBotChatsErrors];
+
+export type ListAdminSokoBotChatsResponses = {
+    /**
+     * Soko Bot direct chats
+     */
+    200: {
+        data: Array<AdminSokoBotChatRoom>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatsResponse = ListAdminSokoBotChatsResponses[keyof ListAdminSokoBotChatsResponses];
+
+export type ListAdminSokoBotChatMessagesData = {
+    body?: never;
+    path: {
+        sokoBotId: string;
+        roomId: string;
+    };
+    query?: {
+        /**
+         * Oldest message id of the previous page
+         */
+        cursor?: string;
+        /**
+         * Number of items to return (max 100)
+         */
+        limit?: number;
+    };
+    url: '/admin/soko-bots/{sokoBotId}/chats/{roomId}/messages';
+};
+
+export type ListAdminSokoBotChatMessagesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesError = ListAdminSokoBotChatMessagesErrors[keyof ListAdminSokoBotChatMessagesErrors];
+
+export type ListAdminSokoBotChatMessagesResponses = {
+    /**
+     * Chat messages
+     */
+    200: {
+        data: Array<ChatRoomMessage>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination: PaginationMetadata;
+        };
+    };
+};
+
+export type ListAdminSokoBotChatMessagesResponse = ListAdminSokoBotChatMessagesResponses[keyof ListAdminSokoBotChatMessagesResponses];
+
 export type PerformAdminSokoBotActionData = {
     body?: AdminSokoBotActionRequest;
     path: {
@@ -9714,6 +10634,98 @@ export type PerformAdminSokoBotActionResponses = {
 };
 
 export type PerformAdminSokoBotActionResponse = PerformAdminSokoBotActionResponses[keyof PerformAdminSokoBotActionResponses];
+
+export type SetAdminSokoBotAvatarData = {
+    body?: ClaimSokoBotAvatarRequest;
+    path: {
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/admin/soko-bots/{sokoBotId}/avatar';
+};
+
+export type SetAdminSokoBotAvatarErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarError = SetAdminSokoBotAvatarErrors[keyof SetAdminSokoBotAvatarErrors];
+
+export type SetAdminSokoBotAvatarResponses = {
+    /**
+     * The bot's new mascot
+     */
+    200: {
+        data: {
+            avatarImageUrl: string;
+        };
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SetAdminSokoBotAvatarResponse = SetAdminSokoBotAvatarResponses[keyof SetAdminSokoBotAvatarResponses];
 
 export type ListAdminUsersData = {
     body?: never;
@@ -18834,6 +19846,21 @@ export type DeleteChatsRoomsByIdMembersByUserIdErrors = {
         };
     };
     /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Internal Server Error
      */
     500: {
@@ -18854,7 +19881,7 @@ export type DeleteChatsRoomsByIdMembersByUserIdError = DeleteChatsRoomsByIdMembe
 
 export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
     /**
-     * Guest removed
+     * Member removed
      */
     200: {
         data: LeftChatRoom;
@@ -18867,6 +19894,386 @@ export type DeleteChatsRoomsByIdMembersByUserIdResponses = {
 };
 
 export type DeleteChatsRoomsByIdMembersByUserIdResponse = DeleteChatsRoomsByIdMembersByUserIdResponses[keyof DeleteChatsRoomsByIdMembersByUserIdResponses];
+
+export type PostChatsRoomsByIdMembersData = {
+    body?: AddChatRoomMembersRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/members';
+};
+
+export type PostChatsRoomsByIdMembersErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersError = PostChatsRoomsByIdMembersErrors[keyof PostChatsRoomsByIdMembersErrors];
+
+export type PostChatsRoomsByIdMembersResponses = {
+    /**
+     * Members added
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostChatsRoomsByIdMembersResponse = PostChatsRoomsByIdMembersResponses[keyof PostChatsRoomsByIdMembersResponses];
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        coworkerId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/coworkers/{coworkerId}';
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or Coworker not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdError = DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors[keyof DeleteChatsRoomsByIdCoworkersByCoworkerIdErrors];
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses = {
+    /**
+     * Coworker removed
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdCoworkersByCoworkerIdResponse = DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses[keyof DeleteChatsRoomsByIdCoworkersByCoworkerIdResponses];
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        sokoBotId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/soko-bots/{sokoBotId}';
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors = {
+    /**
+     * Invalid request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Room or Soko Bot not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Concurrent membership change
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdError = DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors[keyof DeleteChatsRoomsByIdSokoBotsBySokoBotIdErrors];
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses = {
+    /**
+     * Soko Bot removed
+     */
+    200: {
+        data: ChatRoom;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponse = DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses[keyof DeleteChatsRoomsByIdSokoBotsBySokoBotIdResponses];
 
 export type PostChatsRoomsByIdReadData = {
     body?: never;
@@ -21946,6 +23353,51 @@ export type PostChatsRoomsByIdFilesResponses = {
 };
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
+
+export type SearchChatSkillsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+    };
+    url: '/chats/skills';
+};
+
+export type SearchChatSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchChatSkillsError = SearchChatSkillsErrors[keyof SearchChatSkillsErrors];
+
+export type SearchChatSkillsResponses = {
+    /**
+     * Matching skills
+     */
+    200: {
+        data: Array<ChatSkillCatalogItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchChatSkillsResponse = SearchChatSkillsResponses[keyof SearchChatSkillsResponses];
 
 export type GetChatsThreadsUnreadData = {
     body?: never;
@@ -28021,7 +29473,7 @@ export type PatchEnterpriseContractsByIdError = PatchEnterpriseContractsByIdErro
 
 export type PatchEnterpriseContractsByIdResponses = {
     /**
-     * Update enterprise contract draft
+     * Update enterprise contract
      */
     200: {
         data: EnterpriseContract;
@@ -31021,6 +32473,159 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponses = {
 
 export type PostUsersByIdNoticesByNoticeIdAcknowledgeResponse = PostUsersByIdNoticesByNoticeIdAcknowledgeResponses[keyof PostUsersByIdNoticesByNoticeIdAcknowledgeResponses];
 
+export type GetUserBadgeCampaignsData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns';
+};
+
+export type GetUserBadgeCampaignsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsError = GetUserBadgeCampaignsErrors[keyof GetUserBadgeCampaignsErrors];
+
+export type GetUserBadgeCampaignsResponses = {
+    /**
+     * Campaigns to badge for the user
+     */
+    200: {
+        data: UserBadgeCampaigns;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUserBadgeCampaignsResponse = GetUserBadgeCampaignsResponses[keyof GetUserBadgeCampaignsResponses];
+
+export type MarkUserBadgeCampaignSeenData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Badge campaign ID
+         */
+        campaignId: string;
+    };
+    query?: never;
+    url: '/users/{id}/badge-campaigns/{campaignId}/seen';
+};
+
+export type MarkUserBadgeCampaignSeenErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - campaign missing
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type MarkUserBadgeCampaignSeenError = MarkUserBadgeCampaignSeenErrors[keyof MarkUserBadgeCampaignSeenErrors];
+
+export type MarkUserBadgeCampaignSeenResponses = {
+    /**
+     * Campaign marked seen
+     */
+    204: void;
+};
+
+export type MarkUserBadgeCampaignSeenResponse = MarkUserBadgeCampaignSeenResponses[keyof MarkUserBadgeCampaignSeenResponses];
+
 export type GetUsersByIdFilesData = {
     body?: never;
     path: {
@@ -31364,6 +32969,99 @@ export type PostUsersByIdUtmAttributionResponses = {
 };
 
 export type PostUsersByIdUtmAttributionResponse = PostUsersByIdUtmAttributionResponses[keyof PostUsersByIdUtmAttributionResponses];
+
+export type PostUsersByIdSignUpConversionData = {
+    body?: SignUpConversionRequest;
+    path: {
+        /**
+         * Only the literal me is accepted, for the interactive session user.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up-conversion';
+};
+
+export type PostUsersByIdSignUpConversionErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionError = PostUsersByIdSignUpConversionErrors[keyof PostUsersByIdSignUpConversionErrors];
+
+export type PostUsersByIdSignUpConversionResponses = {
+    /**
+     * The claimed sign-up's provider, or null
+     */
+    200: {
+        data: SignUpConversionResponse;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
 
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;
@@ -36288,6 +37986,21 @@ export type PostProjectsErrors = {
             method: string;
         };
     };
+    /**
+     * Project identifier already in use
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
 };
 
 export type PostProjectsError = PostProjectsErrors[keyof PostProjectsErrors];
@@ -37167,7 +38880,7 @@ export type GetProjectsByIdCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */
@@ -41081,6 +42794,21 @@ export type PatchProjectsByIdErrors = {
      * Not Found
      */
     404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Project identifier already in use
+     */
+    409: {
         error: string;
         message: string;
         kind?: string;
@@ -48671,7 +50399,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED'>;
+        status?: Array<TaskStatus>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -48681,9 +50409,9 @@ export type GetTasksData = {
          */
         projectId?: string | 'null';
         /**
-         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable.
+         * createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.
          */
-        sort?: 'createdAt' | 'updatedAt';
+        sort?: 'createdAt' | 'updatedAt' | 'priority';
         /**
          * Filter by task visibility. Omitted applies no visibility restriction beyond the caller access predicate. Explicit PUBLIC or PRIVATE narrows the list. PRIVATE still respects the caller visibility predicate.
          */
@@ -48811,6 +50539,7 @@ export type PostTasksData = {
         channel?: Channel;
         origin?: Channel & unknown;
         context?: CreateTaskContext;
+        priority?: TaskPriority & unknown;
         /**
          * Omit or PUBLIC for workspace-visible Tasks. PRIVATE is allowed only in organization workspaces and is immutable after create.
          */
@@ -50062,6 +51791,10 @@ export type GetTasksSchedulesByIdRunsData = {
          * Only Runs before this time
          */
         to?: Date;
+        /**
+         * Only Run now Runs (true) or only the rule's Runs (false)
+         */
+        manual?: 'true' | 'false';
     };
     url: '/tasks/schedules/{id}/runs';
 };
@@ -50131,6 +51864,125 @@ export type GetTasksSchedulesByIdRunsResponses = {
 };
 
 export type GetTasksSchedulesByIdRunsResponse = GetTasksSchedulesByIdRunsResponses[keyof GetTasksSchedulesByIdRunsResponses];
+
+export type PostTasksSchedulesByIdRunsData = {
+    body?: CreateTaskScheduleRunRequest;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+        /**
+         * Optional workspace user id when authenticating as a coworker. Selects which user workspace the request runs in for user-scoped operations. Must be set if X-Context-Organization-Id is present. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-User-Id'?: string;
+        /**
+         * Optional workspace organization id when authenticating as a coworker. Requires X-Context-User-Id; the user must be a member of this organization. Only documented on operations that accept coworker context auth.
+         */
+        'X-Context-Organization-Id'?: string;
+    };
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/tasks/schedules/{id}/runs';
+};
+
+export type PostTasksSchedulesByIdRunsErrors = {
+    /**
+     * Bad Request
+     */
+    400: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsError = PostTasksSchedulesByIdRunsErrors[keyof PostTasksSchedulesByIdRunsErrors];
+
+export type PostTasksSchedulesByIdRunsResponses = {
+    /**
+     * Run created
+     */
+    201: {
+        data: TaskScheduleRunUpdate;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostTasksSchedulesByIdRunsResponse = PostTasksSchedulesByIdRunsResponses[keyof PostTasksSchedulesByIdRunsResponses];
 
 export type PatchTasksSchedulesByIdRunsByRunIdData = {
     body?: UpdateTaskScheduleRunRequest;
@@ -51005,6 +52857,9 @@ export type DeleteTasksByIdResponse = DeleteTasksByIdResponses[keyof DeleteTasks
 export type GetTasksByIdData = {
     body?: never;
     path: {
+        /**
+         * Task id, or a project identifier such as SOK-123 (case-insensitive, resolved in the active workspace, including a prefix the project has since changed; a trailing slug like SOK-123-fix-login is ignored).
+         */
         id: string;
     };
     query?: never;
@@ -51077,6 +52932,7 @@ export type PatchTasksByIdData = {
         coworkerId?: string | null;
         assigneeSokoBotId?: string | null;
         assigneeUserId?: string | null;
+        priority?: TaskPriority;
         /**
          * Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.
          */
@@ -51772,7 +53628,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus;
         comment?: string;
         /**
          * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
@@ -51880,7 +53736,7 @@ export type PostTasksByIdEventsErrors = {
         retryAfterSeconds?: number;
         data?: TaskEvent;
         attemptedCredits?: number;
-        requestedStatus?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+        requestedStatus?: TaskStatus | null;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -56181,7 +58037,7 @@ export type GetWorkspacesCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */

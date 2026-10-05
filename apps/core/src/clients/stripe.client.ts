@@ -32,7 +32,11 @@ export interface CreditPrice {
   currency: string;
 }
 
-const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
+/**
+ * Core's one Stripe SDK client, also handed to Better Auth's Stripe plugin.
+ * It makes no automatic network retries.
+ */
+export const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
   maxNetworkRetries: 0,
 });
 

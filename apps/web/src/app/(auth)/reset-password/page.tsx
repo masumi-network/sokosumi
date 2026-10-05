@@ -1,10 +1,19 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+
+import { AuthPage, AuthPageHeader } from "@/auth/components/auth-page";
+import {
+  type AuthRedirectSearchParams,
+  appendQueryParam,
+  buildAuthPageUrl,
+  buildRequestNewResetLinkUrl,
+  getRedirectQueryString,
+  readAuthPageContext,
+} from "@/lib/auth/auth.utils";
 import { getResetPasswordToken } from "@/lib/reset-password-token-cookie";
 
 import ResetPasswordForm from "./components/form";
-import ResetPasswordHeader from "./components/header";
 
 export const instant = false;
 
@@ -18,28 +27,41 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface ResetPasswordPageProps {
-  searchParams: Promise<{ token?: string }>;
+  searchParams: Promise<AuthRedirectSearchParams & { token?: string }>;
 }
 
 export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const { token } = await searchParams;
+  const query = new URLSearchParams(await getRedirectQueryString(searchParams));
+  const token = query.get("token");
+  query.delete("token");
+  const context = readAuthPageContext(query);
 
   if (token) {
-    redirect(`/reset-password/exchange?token=${encodeURIComponent(token)}`);
+    redirect(
+      appendQueryParam(
+        buildAuthPageUrl("/reset-password/exchange", context),
+        "token",
+        token,
+      ),
+    );
   }
 
   if (!(await getResetPasswordToken())) {
-    redirect("/signin");
+    redirect(buildRequestNewResetLinkUrl(context));
   }
 
+  const t = await getTranslations("Auth.Pages.ResetPassword");
+
   return (
-    <div className="flex flex-1 flex-col" data-sentry-block>
-      <ResetPasswordHeader />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ResetPasswordForm />
-      </div>
-    </div>
+    <AuthPage
+      header={
+        <AuthPageHeader title={t("title")} description={t("description")} />
+      }
+      blockReplay
+    >
+      <ResetPasswordForm />
+    </AuthPage>
   );
 }

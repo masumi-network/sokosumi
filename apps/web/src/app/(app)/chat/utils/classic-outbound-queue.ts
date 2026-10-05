@@ -19,6 +19,7 @@ export interface ClassicOutboundJob {
   quote?: { messageId: string; roomId?: string };
   clientMessageId: string;
   parentMessageId?: string;
+  skillIds?: string[];
 }
 
 export type ClassicOutboundSendResult =

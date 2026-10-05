@@ -15,7 +15,8 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTranslations: () => (key: string) => key,
   useFormatter: () => ({
-    number: (value: number) => value.toLocaleString("en-US"),
+    number: (value: number, options?: Intl.NumberFormatOptions) =>
+      value.toLocaleString("en-US", options),
   }),
 }));
 
@@ -105,6 +106,22 @@ describe("HistoryListItem", () => {
     });
 
     expect(screen.getByText("5 credits")).toBeInTheDocument();
+  });
+
+  it("keeps two decimals so a charge under one credit isn't shown as 0", () => {
+    renderItem({
+      ...base,
+      kind: "job",
+      id: "tx-4",
+      title: "Research competitors",
+      credits: 0.4269,
+      jobId: "job-1",
+      agentId: "agent-1",
+      agentName: "Research Agent",
+      agentIcon: null,
+    });
+
+    expect(screen.getByText("0.42 credits")).toBeInTheDocument();
   });
 
   it("uses the singular unit for exactly one credit", () => {

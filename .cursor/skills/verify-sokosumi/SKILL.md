@@ -81,7 +81,7 @@ Prefer the helper over hand-rolled browser clicks. `auto` (default):
 
 1. Probe Core email sign-in for the fixture (`alice@sokosumi.test` unless overridden).
 2. If the fixture works: UI Enter-submit. Cookie bootstrap runs **only if UI fails**, not as a second step on success.
-3. If the fixture fails: coworker vault `agent-browser auth login sokosumi` with `[data-testid="auth-field-email"]` / `[data-testid="auth-field-currentPassword"]`. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
+3. If the fixture fails: the harness types the vault profile's username on step 1, then `agent-browser auth login sokosumi --no-navigate` with `[data-testid="auth-field-username"]` / `[data-testid="auth-field-currentPassword"]` on step 2. Persist check is `/agents` — do not wait `networkidle` on Welcome `/` or `/chat` (Ably can hang that wait).
 
 ```bash
 export AGENT_BROWSER_SESSION_NAME=sokosumi
@@ -100,7 +100,7 @@ Artifacts land under `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.
 
 Harness: **agent-browser** (see `.agents/skills/agent-browser/SKILL.md` and `apps/web/AGENTS.md` Browser Automation). No Playwright/Cypress in this repo.
 
-Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. **Auth order:** (1) `verify-sokosumi doctor` → read `verify_credentials_*=set|unset`; (2) prefer `verify-sokosumi sign-in` so the harness reads `VERIFY_SOKOSUMI_*` from the process env; (3) only then drive UI with computer-use. **Never invent** random `/signup` users when secrets are missing or fixtures fail — stop and report. `VERIFY_SOKOSUMI_EMAIL` must be an Environment Variable (Runtime Secret redacts the email so the model cannot learn which account to use). A Runtime Secret password cannot be typed by computer-use; use the harness. Computer-use pitfalls (live-proved): Magic Link’s email field sits above the password form; JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
+Cloud Agent **computer-use** (GUI browser subagent) is a fallback when `agent-browser` is unavailable — **same auth and env rules apply**. **Auth order:** (1) `verify-sokosumi doctor` → read `verify_credentials_*=set|unset`; (2) prefer `verify-sokosumi sign-in` so the harness reads `VERIFY_SOKOSUMI_*` from the process env; (3) only then drive UI with computer-use. **Never invent** random `/signup` users when secrets are missing or fixtures fail — stop and report. `VERIFY_SOKOSUMI_EMAIL` must be an Environment Variable (Runtime Secret redacts the email so the model cannot learn which account to use). A Runtime Secret password cannot be typed by computer-use; use the harness. Computer-use pitfalls (live-proved): `/signin` asks for the email alone first, then opens step 2 on the code or the password (switch with **Use a password instead**); JS `value=` does not satisfy react-hook-form (type keys); Chrome “Save password?” after login steals clicks — dismiss it. Full recipe in [sign-in.md](./features/sign-in.md).
 
 Session reuse:
 
@@ -112,9 +112,9 @@ export AGENT_BROWSER_SESSION_NAME=sokosumi
 export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NAME}"
 ```
 
-Stable auth selectors: `[data-testid="auth-field-email"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-submit"]`.
+Stable auth selectors: `[data-testid="auth-field-email"]` (step 1), `[data-testid="auth-use-password"]`, `[data-testid="auth-field-currentPassword"]`, `[data-testid="auth-field-username"]` (hidden), `[data-testid="auth-submit"]` (step 2).
 
-**Login rule (manual drive):** fill email/password fields only, then **press Enter** — do not click submit, Google, Microsoft, Passkey, or Magic Link. react-hook-form can race a programmatic click; social/passkey controls sit **above** the password form and steal automation focus. After login, expect Welcome `/` (or `returnUrl`); open `/agents` to prove the session. Do not `wait --load networkidle` on Welcome `/` or `/chat`.
+**Login rule (manual drive):** fill the email, **press Enter**; on step 2 click `auth-use-password` if the code shows, fill the password, **press Enter** — do not click submit, Google, Microsoft, or Passkey. react-hook-form can race a programmatic click; social/passkey controls sit under the email field and can steal automation focus. After login, expect Welcome `/` (or `returnUrl`); open `/agents` to prove the session. Do not `wait --load networkidle` on Welcome `/` or `/chat`.
 
 If UI login leaves you on `/signin` or bounces back after a “success” (classic `BETTER_AUTH_COOKIE_DOMAIN` trap, or passkey/OAuth interference), fix env first, then `verify-sokosumi sign-in --method cookie` when fixtures work, or `--method vault` on a coworker machine (see [sign-in.md](./features/sign-in.md)). API bootstrap alone is not UI proof — reopen a protected page in the browser after injecting cookies.
 
@@ -129,7 +129,7 @@ Credentials (pick **in this order** — do not skip to signup):
 | Coworker vault | `agent-browser auth save sokosumi …` | machine-local | Shared/preprod Neon or local DB — never seed Alice here |
 | Local signup | unique `*@sokosumi.test` via `/signup` | choose once | **Only** when testing signup itself — never as a computer-use fallback |
 
-OAuth, magic-link, and passkey do **not** work with placeholder credentials. Skip those paths.
+OAuth and passkey do **not** work with placeholder credentials. Skip those paths. Email codes do work in development: Core prints each one as `[email code] <address>: <code>`, in `.cursor/verify-sokosumi-artifacts/state/logs/core.log` (or `$VERIFY_SOKOSUMI_STATE_DIR/logs/core.log`) when the launch helper started it.
 
 API drive (secondary): `curl` against Core with session cookies from the browser when needed; public smoke is OpenAPI JSON only.
 
@@ -197,5 +197,5 @@ Each git worktree gets its own named URLs (`https://web.sokosumi.localhost` on t
 - Fixtures exist only on agent Neon branches, not production/`main`. `fixture_auth=fail` on a coworker/shared Neon → vault or signup; never seed Alice onto that DB
 - After login, prove the session on `/agents` (or `/setup` for brand-new users without a workspace). `wait --load networkidle` on Welcome `/` or `/chat` can hang (Ably)
 - Node **24.x** required
-- `/signin` shows Google / Microsoft / Passkey / Magic Link **above** the password form — automation must target `[data-testid="auth-field-*"]` only
+- `/signin` is two steps: email first (Google / Microsoft / Passkey below it), then the code or the password — automation must target `[data-testid="auth-*"]` only
 - New signup users may land on `/setup` (workspace onboarding) before `/agents` works — still authenticated if not bounced to `/signin`

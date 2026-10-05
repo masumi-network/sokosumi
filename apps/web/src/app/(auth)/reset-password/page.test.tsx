@@ -17,9 +17,8 @@ vi.mock("./components/form", () => ({
   default: () => <div data-testid="reset-password-form" />,
 }));
 
-vi.mock("./components/header", () => ({
-  __esModule: true,
-  default: () => <div data-testid="reset-password-header" />,
+vi.mock("next-intl/server", () => ({
+  getTranslations: async () => (key: string) => key,
 }));
 
 describe("ResetPasswordPage", () => {
@@ -37,5 +36,44 @@ describe("ResetPasswordPage", () => {
 
     expect(container.querySelector("[data-sentry-block]")).not.toBeNull();
     expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  it("moves a token on the page URL to the exchange with its context", async () => {
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+    const { default: ResetPasswordPage } = await import("./page");
+
+    await expect(
+      ResetPasswordPage({
+        searchParams: Promise.resolve({
+          token: "reset_token_1",
+          returnUrl: "/chat",
+        }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/reset-password/exchange?returnUrl=%2Fchat&token=reset_token_1",
+    );
+  });
+
+  // The token cookie lasts an hour; a later reload is a dead link too.
+  it("sends a reset without a token to request a new link", async () => {
+    getResetPasswordTokenMock.mockResolvedValue(null);
+    redirectMock.mockImplementation(() => {
+      throw new Error("NEXT_REDIRECT");
+    });
+    const { default: ResetPasswordPage } = await import("./page");
+
+    await expect(
+      ResetPasswordPage({
+        searchParams: Promise.resolve({ returnUrl: "/chat" }),
+      }),
+    ).rejects.toThrow("NEXT_REDIRECT");
+
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/forgot-password?returnUrl=%2Fchat&error=INVALID_TOKEN",
+    );
   });
 });

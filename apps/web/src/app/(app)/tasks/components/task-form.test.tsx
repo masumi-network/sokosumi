@@ -422,8 +422,12 @@ const projectOptions = [
   },
 ];
 
-function createTaskSuccess(taskId: string, name: string) {
-  return { ok: true as const, value: { taskId, name } };
+function createTaskSuccess(
+  taskId: string,
+  name: string,
+  identifier: string | null = null,
+) {
+  return { ok: true as const, value: { taskId, name, identifier } };
 }
 
 function updateTaskSuccess(taskId: string) {
@@ -1497,7 +1501,11 @@ describe("TaskForm", () => {
     expect(onSuccess).not.toHaveBeenCalled();
 
     await user.click(goToTask);
-    expect(onSuccess).toHaveBeenCalledWith("task-1");
+    expect(onSuccess).toHaveBeenCalledWith({
+      id: "task-1",
+      identifier: null,
+      name: "Task one",
+    });
   });
 
   it("hides humans and locks Unassigned on tasks with a Run at", async () => {
