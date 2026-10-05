@@ -665,8 +665,8 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
 
 const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
   // Loaded on first use: this middleware is in every route's graph, and the
-  // auth module drags better-auth, Stripe and email rendering into suites
-  // that never reach a session. Same reason as `middleware/organization.ts`.
+  // auth module drags better-auth, its plugins and Stripe into suites that
+  // never reach a session. Same reason as `middleware/organization.ts`.
   const { auth } = await import("@/lib/auth");
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
