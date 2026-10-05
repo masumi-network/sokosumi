@@ -127,7 +127,7 @@ async function getExpiredRequestClient(
  * Names a client to a person who is signed in, through Core's session-only
  * lookup. `undefined` without a session, or when Core cannot name it.
  */
-export async function getSignedInOAuthClient(
+async function getSignedInOAuthClient(
   clientId: string,
 ): Promise<OAuthRequestClient | undefined> {
   if (!(await getSession())) {

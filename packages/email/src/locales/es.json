@@ -16,13 +16,7 @@
       "message": "Verifica tu dirección de email con el botón de abajo. Así mantenemos tu cuenta segura.",
       "button": "Verificar email",
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-      "footer": "Si no creaste una cuenta, puedes ignorar este email.",
-      "client": {
-        "subject": "Confirma tu email para {client}",
-        "title": "Confirma tu email para {client}",
-        "message": "Te registraste en {client} con una cuenta de Sokosumi. Confirma tu dirección de email con el botón de abajo.",
-        "button": "Confirmar email"
-      }
+      "footer": "Si no creaste una cuenta, puedes ignorar este email."
     },
     "invitation": {
       "subject": "Sokosumi - Invitación a organización",
