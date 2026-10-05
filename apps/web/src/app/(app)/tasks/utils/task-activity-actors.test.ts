@@ -1,4 +1,9 @@
-import type { Task, TaskEvent } from "@sokosumi/core-client";
+import {
+  type Task,
+  type TaskEvent,
+  TaskEventStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
@@ -104,6 +109,42 @@ describe("getEventActorInfo", () => {
       avatarSeed: "orb:jewel-sky:user_123",
       ownerName: "Ada Lovelace",
     });
+  });
+});
+
+describe("getEventActorInfo creation fallback", () => {
+  const owner = { name: "Ada Lovelace", image: null };
+  const userById = { "owner-1": owner };
+
+  it("attributes an actorless creation event to the task owner", () => {
+    const event = { status: TaskEventStatus.CREATED, actor: null } as TaskEvent;
+
+    expect(
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
+    ).toEqual(owner);
+  });
+
+  it("keeps the event's own actor on a creation event", () => {
+    const event = {
+      status: TaskEventStatus.CREATED,
+      actor: {
+        type: "user",
+        id: "user-2",
+        user: { id: "user-2", name: "Grace Hopper", image: null },
+      },
+    } as TaskEvent;
+
+    expect(
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
+    ).toEqual({ name: "Grace Hopper", image: null });
+  });
+
+  it("leaves other actorless events without an actor", () => {
+    const event = { status: TaskStatus.RUNNING, actor: null } as TaskEvent;
+
+    expect(
+      getEventActorInfo(event, userById, undefined, undefined, "owner-1"),
+    ).toBeUndefined();
   });
 });
 

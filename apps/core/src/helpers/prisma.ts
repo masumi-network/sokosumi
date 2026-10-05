@@ -122,6 +122,16 @@ export function isSlugUniqueConstraintError(error: unknown): boolean {
 }
 
 /**
+ * Returns true if the error is a Prisma unique constraint violation (P2002)
+ * on `identifier` (the composite `workspaceId` + `identifier` on Project).
+ */
+export function isProjectIdentifierUniqueConstraintError(
+  error: unknown,
+): boolean {
+  return isPrismaUniqueViolationOnField(error, "identifier");
+}
+
+/**
  * Self-service vendor cap. One non-null createdByUserId per user.
  */
 export function isCreatedByUserUniqueConstraintError(error: unknown): boolean {

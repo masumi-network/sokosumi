@@ -9,6 +9,7 @@ see [Vendor workspace grants](./vendor-workspace-grants-api.md).
 
 - **Source of truth (behavior):**
   `apps/core/src/helpers/coworker-workspace-access.ts`,
+  `apps/core/src/helpers/coworker-workspace-access-grant.ts`,
   `apps/core/src/helpers/access-control.ts`
   (`buildCoworkerUsableInWorkspaceWhere`,
   `findUsableCoworkerByCapabilityInWorkspace`)
@@ -41,10 +42,10 @@ chat). Access rows govern **human-side** pick/use in a workspace.
 | Status | Meaning | Human usable in that workspace? |
 | --- | --- | --- |
 | *(no row)* | Never proposed / granted | No (unless globally whitelisted) |
-| `PENDING` | Vendor proposed foreign workspace; awaiting owner | No |
+| `PENDING` | Vendor proposed access; awaiting workspace approval | No |
 | `GRANTED` | Pilot enabled for this workspace | **Yes** (with capability rules) |
-| `DENIED` | Owner denied | No — **terminal** for foreign vendor propose only |
-| `REVOKED` | Owner revoked a prior grant | No — **terminal** for foreign vendor propose only |
+| `DENIED` | Owner denied | No. Terminal for Vendor proposals without workspace approval authority |
+| `REVOKED` | Owner revoked a prior grant | No. Terminal for Vendor proposals without workspace approval authority |
 
 **Terminal reopen (v1)** — who may force `GRANTED` on `DENIED` / `REVOKED`
 via the create path (`POST …/workspace-access`):
@@ -52,12 +53,13 @@ via the create path (`POST …/workspace-access`):
 | Actor | Terminal `DENIED` / `REVOKED` |
 | --- | --- |
 | Platform admin | May force `GRANTED` (reopen) |
-| Vendor admin + belongs to workspace | May force `GRANTED` via direct enable (reopen) |
-| Vendor admin + foreign workspace | Cannot re-request; `400` until platform or member path |
+| Vendor admin + personal owner or organization owner/admin | May force `GRANTED` via direct enable (reopen) |
+| Vendor admin + regular organization member or foreign workspace | Cannot re-request; `400` until an authorized direct grant |
 | Workspace owner | Can deny/revoke; does **not** force reopen |
 
-Only **foreign** propose is terminal. Direct enable (platform, or vendor admin
-who belongs to the workspace) reopens the same row to `GRANTED`.
+Proposals without workspace approval authority cannot reopen terminal rows.
+Direct grants by platform admins, or Vendor admins who own the personal
+workspace or hold organization OWNER/ADMIN roles, reopen the row to `GRANTED`.
 
 **Idempotency:** duplicate create for the same `(coworkerId, workspaceId)`
 returns the existing row when status is already `PENDING` or `GRANTED`.
@@ -100,11 +102,16 @@ workspace do not leak into user B’s personal chat.
 
 ## Write rules
 
+VERIFIED: Grant authority checks the organization role, not membership alone.
+See `apps/core/src/helpers/coworker-workspace-access-grant.ts:19`,
+`userCanGrantCoworkerWorkspaceAccess`. This corrects the previous membership-based
+direct-grant rule. Regular organization members now create `PENDING` requests.
+
 | Actor | Action | Result |
 | --- | --- | --- |
 | Platform admin | `POST …/workspace-access` any coworker × any workspace | Immediate `GRANTED` (reopens terminal) |
-| Vendor admin (own-vendor coworker) × workspace they **belong to** | Same create path | Immediate `GRANTED` (reopens terminal) |
-| Vendor admin (own-vendor coworker) × **foreign** workspace | Same create path | Upsert `PENDING` if not terminal; `400` if `DENIED` / `REVOKED` |
+| Vendor admin (own-vendor coworker) × personal workspace they **own**, or organization where they are **OWNER/ADMIN** | Same create path | Immediate `GRANTED` (reopens terminal) |
+| Vendor admin (own-vendor coworker) × regular-member organization or **foreign** workspace | Same create path | Upsert `PENDING` if not terminal; `400` if `DENIED` / `REVOKED` |
 | Workspace owner / org owner-admin | Approve / deny / revoke on their workspace | `PENDING` → `GRANTED` or `DENIED`; `GRANTED` → `REVOKED` (no force reopen) |
 | Platform / vendor admin | Force-revoke by `(coworkerId, workspace)` | `GRANTED` → `REVOKED` |
 | Anyone else | — | `403` |
@@ -249,7 +256,7 @@ Force-sets `GRANTED` → `REVOKED` for that pair (ops undo of a pilot grant with
 | --- | --- |
 | End user | Pickers show available-for-workspace coworkers only |
 | Workspace owner/admin | Account / org settings: coworker early access list; approve / deny / revoke |
-| Vendor admin | Vendor coworker surface: enable for member workspace; propose foreign; list statuses |
+| Vendor admin | Vendor coworker surface: enable for own personal workspace or OWNER/ADMIN organization; request approval elsewhere; list statuses |
 | Platform admin | Admin coworker detail: direct grant **and force-revoke** by workspace; global whitelist toggle unchanged |
 
 ---

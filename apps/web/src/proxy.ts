@@ -21,9 +21,7 @@ const EXCLUDED_PATHS = [
   "/.well-known/",
   "/auth/",
   "/signin",
-  "/login",
   "/signup",
-  "/register",
   "/forgot-password",
   "/reset-password",
   "/accept-invitation",
@@ -92,25 +90,6 @@ export async function proxy(request: NextRequest) {
       );
       applyDocumentSecurityHeaders(maintenanceRedirect, securityHeaderOptions);
       return maintenanceRedirect;
-    }
-  }
-
-  // Unauthenticated `/` → sign-in with returnUrl (same as other protected
-  // routes) so Welcome queries (e.g. `/?notice=…`) survive login.
-  // Authenticated `/` is Welcome — fall through to Next (do not redirect;
-  // landing path is `/` and would loop forever).
-  if (pathname === "/") {
-    const sessionCookie = getSessionCookie(request, {
-      cookiePrefix: betterAuthCookiePrefix,
-    });
-    if (!sessionCookie) {
-      const currentUrl = pathname + searchParams;
-      const returnUrl = encodeURIComponent(currentUrl);
-      const redirectResponse = NextResponse.redirect(
-        new URL(`/signin?returnUrl=${returnUrl}`, request.url),
-      );
-      applyDocumentSecurityHeaders(redirectResponse, securityHeaderOptions);
-      return redirectResponse;
     }
   }
 

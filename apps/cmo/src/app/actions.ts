@@ -3,15 +3,18 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getAuth } from "../lib/auth";
-import { sokosumiSignInBody } from "../lib/sokosumi-oauth";
+import {
+  getAuth,
+  type SokosumiSignInOptions,
+  startSokosumiSignIn,
+} from "../lib/auth";
 
-async function startSignIn(options: { createAccount: boolean }) {
-  const { url } = await getAuth().api.signInSocial({
-    body: sokosumiSignInBody(options),
-    headers: await headers(),
-  });
-  if (!url) throw new Error("Sign in with Sokosumi returned no URL");
+async function startSignIn(options: SokosumiSignInOptions) {
+  const { url } = await startSokosumiSignIn(
+    getAuth(),
+    await headers(),
+    options,
+  );
   redirect(url);
 }
 

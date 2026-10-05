@@ -83,12 +83,19 @@ async function destinationStillAuthorized(
   turn: {
     sokoBotId: string;
     userId: string;
+    requestedByUserId?: string | null;
     workspaceId: string;
     source: string;
     destinationAudience: Prisma.JsonValue;
   },
   roomId: string,
 ): Promise<boolean> {
+  // A chat reply goes back to whoever asked: the owner, or a teammate who
+  // messaged someone else's bot in their own direct chat with it.
+  const recipientId =
+    turn.source === "CHAT"
+      ? (turn.requestedByUserId ?? turn.userId)
+      : turn.userId;
   const bot = await tx.sokoBot.findFirst({
     where: {
       id: turn.sokoBotId,
@@ -116,7 +123,7 @@ async function destinationStillAuthorized(
       archivedAt: null,
       ...(turn.source === "CHAT" ? {} : { kind: "direct" }),
       sokoBotMembers: { some: { sokoBotId: turn.sokoBotId } },
-      userMembers: { some: { userId: turn.userId } },
+      userMembers: { some: { userId: recipientId } },
     },
     select: {
       id: true,
@@ -176,7 +183,17 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
       if (owned.count !== 1) return null;
       const delivery = await tx.sokoBotDelivery.findUniqueOrThrow({
         where: { id },
-        include: { turn: true },
+        include: {
+          turn: {
+            include: {
+              scheduleRun: {
+                select: {
+                  schedule: { select: { name: true, systemKey: true } },
+                },
+              },
+            },
+          },
+        },
       });
       const turn = delivery.turn;
       if (
@@ -260,7 +277,19 @@ export async function deliverSokoBotDelivery(id: string): Promise<boolean> {
             clientMessageId: `soko-bot:${turn.id}:${delivery.purpose === "FINAL" ? "final" : delivery.id}`,
             senderSokoBotId: turn.sokoBotId,
             content: turn.finalAnswer?.trim() ?? "",
-            metadata: { soko_bot: { turn_id: turn.id, source: turn.source } },
+            metadata: {
+              soko_bot: {
+                turn_id: turn.id,
+                source: turn.source,
+                // Lets the chat say where an unprompted message came from.
+                ...(turn.scheduleRun
+                  ? {
+                      schedule_name: turn.scheduleRun.schedule.name,
+                      schedule_key: turn.scheduleRun.schedule.systemKey,
+                    }
+                  : {}),
+              },
+            },
           },
           update: {},
           select: { id: true },

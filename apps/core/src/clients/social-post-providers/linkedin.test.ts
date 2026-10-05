@@ -15,7 +15,10 @@ const {
 }));
 
 vi.mock("@/lib/evlog", () => ({ tryUseLogger: () => ({ set: logSetMock }) }));
-vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: ssrfSafeFetchMock,
+}));
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@/helpers/social-post-media", () => ({
   downloadSocialPostMedia: downloadSocialPostMediaMock,

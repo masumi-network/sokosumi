@@ -1,0 +1,230 @@
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
+import prisma from "@/lib/db/prisma";
+
+const enabled =
+  process.env.RUN_DATABASE_INTEGRATION_TESTS === "true" &&
+  process.env.DATABASE_URL?.startsWith("postgres");
+
+const migrationSql = readFileSync(
+  new URL(
+    "../../../../packages/database/prisma/migrations/20261002085134_project_identifier/migration.sql",
+    import.meta.url,
+  ),
+  "utf8",
+);
+
+const workspaceA = randomUUID();
+const workspaceB = randomUUID();
+const userIds: string[] = [];
+
+// A workspace needs an owner (DB check), so each one comes with a user.
+async function createWorkspace(id: string): Promise<void> {
+  const userId = randomUUID();
+  userIds.push(userId);
+  await prisma.user.create({
+    data: {
+      id: userId,
+      name: "Project identifier fixture",
+      email: `${userId}@example.test`,
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      workspace: { create: { id } },
+    },
+  });
+}
+
+async function identifiers(workspaceId: string): Promise<string[]> {
+  const rows = await prisma.project.findMany({
+    where: { workspaceId },
+    orderBy: { createdAt: "asc" },
+    select: { identifier: true },
+  });
+  return rows.map((row) => row.identifier ?? "<null>");
+}
+
+// Real migration SQL, real Prisma. The backfill test replays the migration on
+// a stub table holding pre-migration rows; the rest uses the migrated schema.
+describe.skipIf(!enabled)("project identifier against PostgreSQL", () => {
+  beforeAll(async () => {
+    await createWorkspace(workspaceA);
+    await createWorkspace(workspaceB);
+  });
+
+  afterAll(async () => {
+    await prisma.user.deleteMany({ where: { id: { in: userIds } } });
+    await prisma.$disconnect();
+  });
+
+  it("backfills existing projects uniquely per workspace, oldest first", async () => {
+    const wsOne = randomUUID();
+    const wsTwo = randomUUID();
+    const wsThree = randomUUID();
+    await prisma.$transaction(
+      async (tx) => {
+        const schema = `identifier_test_${randomUUID().replaceAll("-", "")}`;
+        await tx.$executeRawUnsafe(`CREATE SCHEMA "${schema}"`);
+        await tx.$executeRawUnsafe(`SET LOCAL search_path TO "${schema}"`);
+        await tx.$executeRawUnsafe(
+          'CREATE TABLE project (id text PRIMARY KEY, "workspaceId" uuid NOT NULL, name text NOT NULL, "createdAt" timestamp NOT NULL)',
+        );
+        await tx.$executeRaw`INSERT INTO project VALUES
+          ('c', ${wsOne}::uuid, 'sok', '2026-01-03'),
+          ('a', ${wsOne}::uuid, 'Sokosumi', '2026-01-01'),
+          ('b', ${wsOne}::uuid, 'Sokosumi Web', '2026-01-02'),
+          ('d', ${wsTwo}::uuid, 'Sokosumi', '2026-01-01'),
+          ('e', ${wsOne}::uuid, '42 Labs', '2026-01-04'),
+          ('f', ${wsOne}::uuid, '🚀', '2026-01-05'),
+          ('g', ${wsOne}::uuid, 'A', '2026-01-06'),
+          ('h', ${wsThree}::uuid, 'Sōkosumi', '2026-01-02'),
+          ('i', ${wsTwo}::uuid, 'Café', '2026-01-03')`;
+
+        await tx.$executeRawUnsafe(migrationSql);
+
+        const rows = await tx.$queryRaw<{ id: string; identifier: string }[]>`
+          SELECT id, identifier FROM project ORDER BY id`;
+        expect(
+          Object.fromEntries(rows.map((r) => [r.id, r.identifier])),
+        ).toEqual({
+          a: "SOK",
+          b: "SOK2",
+          c: "SOK3",
+          d: "SOK",
+          e: "P42",
+          f: "PRJ",
+          g: "AX",
+          h: "SOK",
+          i: "CAF",
+        });
+        await tx.$executeRawUnsafe(`DROP SCHEMA "${schema}" CASCADE`);
+      },
+      { timeout: 20000 },
+    );
+  });
+
+  it("derives the identifier from the name on insert and suffixes collisions", async () => {
+    for (const name of ["Sokosumi", "Sokosumi Web", "sok"]) {
+      await prisma.project.create({ data: { workspaceId: workspaceA, name } });
+    }
+    await prisma.project.create({
+      data: { workspaceId: workspaceB, name: "Sokosumi" },
+    });
+
+    expect(await identifiers(workspaceA)).toEqual(["SOK", "SOK2", "SOK3"]);
+    expect(await identifiers(workspaceB)).toEqual(["SOK"]);
+  });
+
+  it("keeps an explicit identifier and skips it when deriving", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      await prisma.project.create({
+        data: { workspaceId: ws, name: "Whatever", identifier: "ABC" },
+      });
+      await prisma.project.create({ data: { workspaceId: ws, name: "abc" } });
+      expect(await identifiers(ws)).toEqual(["ABC", "ABC2"]);
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
+  it("stays unique when many projects are created at once", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      await Promise.all(
+        Array.from({ length: 12 }, () =>
+          prisma.project.create({ data: { workspaceId: ws, name: "Race" } }),
+        ),
+      );
+      const values = await identifiers(ws);
+      expect(new Set(values).size).toBe(12);
+      expect(values).toContain("RAC");
+      expect(values).toContain("RAC12");
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
+  it("rejects a duplicate explicit identifier with a recognisable error", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      await prisma.project.create({
+        data: { workspaceId: ws, name: "One", identifier: "DUP" },
+      });
+      const error = await prisma.project
+        .create({ data: { workspaceId: ws, name: "Two", identifier: "DUP" } })
+        .catch((e: unknown) => e);
+      expect(isProjectIdentifierUniqueConstraintError(error)).toBe(true);
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
+  it("allocates past a retired prefix instead of reusing it", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      const retired = await prisma.project.create({
+        data: { workspaceId: ws, name: "Home", identifier: "HOM" },
+      });
+      await prisma.project.update({
+        where: { id: retired.id },
+        data: { identifier: "AWAY" },
+      });
+
+      const next = await prisma.project.create({
+        data: { workspaceId: ws, name: "Home" },
+      });
+
+      expect(next.identifier).toBe("HOM2");
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+
+  it("rejects identifiers outside the allowed format", async () => {
+    for (const identifier of ["sok", "S", "1AB", "ABCDEFGH", "S-K"]) {
+      await expect(
+        prisma.project.create({
+          data: { workspaceId: workspaceB, name: "Bad", identifier },
+        }),
+      ).rejects.toThrow();
+    }
+  });
+
+  it("keeps auto-alloc when a concurrent PATCH claims the same identifier", async () => {
+    const ws = randomUUID();
+    await createWorkspace(ws);
+    try {
+      const holder = await prisma.project.create({
+        data: { workspaceId: ws, name: "Holder", identifier: "HOLD" },
+      });
+
+      const outcomes = await Promise.allSettled([
+        prisma.project.create({ data: { workspaceId: ws, name: "Foo" } }),
+        prisma.project.update({
+          where: { id: holder.id },
+          data: { identifier: "FOO" },
+        }),
+      ]);
+
+      const createResult = outcomes[0];
+      expect(createResult.status).toBe("fulfilled");
+      if (createResult.status !== "fulfilled") return;
+
+      const values = await identifiers(ws);
+      expect(new Set(values).size).toBe(values.length);
+      expect(values).toContain("FOO");
+      expect(values.some((value) => value === "FOO" || value === "FOO2")).toBe(
+        true,
+      );
+    } finally {
+      await prisma.project.deleteMany({ where: { workspaceId: ws } });
+    }
+  });
+});

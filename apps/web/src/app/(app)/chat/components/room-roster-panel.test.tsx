@@ -40,6 +40,11 @@ const labels = {
   copyError: "Could not copy.",
   readAt: (time: string) => `Read ${time}`,
   notRead: "Not read yet",
+  guestsTitle: "Guests",
+  add: "Add members",
+  memberActions: (name: string) => `More actions for ${name}`,
+  remove: "Remove from channel",
+  leave: "Leave channel",
 };
 
 /** Default: the panel says nothing about reading. */
@@ -497,5 +502,103 @@ describe("RoomRosterPanel", () => {
 
       expect(names[0]).toContain("Me");
     });
+  });
+});
+
+describe("RoomRosterPanel membership", () => {
+  const guestGus: ChatParticipantHoverProfile = {
+    kind: "human",
+    id: "user-gus",
+    name: "Gus",
+    email: "gus@example.com",
+    image: null,
+    presence: "offline",
+  };
+
+  function renderPanel(
+    props: Partial<Parameters<typeof RoomRosterPanel>[0]> = {},
+  ) {
+    return render(
+      <OrganizationSeatContext value={true}>
+        <RoomRosterPanel
+          participants={[humanSelf, humanAda, guestGus, coworkerHannah]}
+          currentUserId="user-self"
+          canOpenHumanDirect
+          onOpenDirect={vi.fn()}
+          openingDirectKey={null}
+          onClose={vi.fn()}
+          readStateFor={noReadState}
+          guestIds={new Set(["user-gus"])}
+          labels={labels}
+          {...props}
+        />
+      </OrganizationSeatContext>,
+    );
+  }
+
+  it("lists guests under their own heading with a count", () => {
+    renderPanel();
+
+    const guests = screen.getByTestId("room-roster-section-guests");
+    expect(guests).toHaveTextContent("Guests1");
+    const section = guests.closest("section");
+    expect(section).not.toBeNull();
+    expect(within(section as HTMLElement).getByText("Gus")).toBeInTheDocument();
+    expect(screen.getByTestId("room-roster-section-humans")).toHaveTextContent(
+      "People2",
+    );
+  });
+
+  it("offers no Add, row menu or Leave on a read-only roster", () => {
+    renderPanel();
+
+    expect(screen.queryByTestId("room-roster-add")).toBeNull();
+    expect(screen.queryByTestId("room-roster-member-actions")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Leave channel" })).toBeNull();
+  });
+
+  it("opens the picker from the header Add button", async () => {
+    const user = userEvent.setup();
+    const onAdd = vi.fn();
+    renderPanel({
+      management: { onAdd, canRemove: () => false, onRemove: vi.fn() },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Add members" }));
+
+    expect(onAdd).toHaveBeenCalledTimes(1);
+  });
+
+  it("offers Remove only on the rows it is allowed for", async () => {
+    const user = userEvent.setup();
+    const onRemove = vi.fn();
+    renderPanel({
+      management: {
+        canRemove: (participant) => participant.id === "user-gus",
+        onRemove,
+      },
+    });
+
+    expect(screen.getAllByTestId("room-roster-member-actions")).toHaveLength(1);
+    await user.click(
+      screen.getByRole("button", { name: "More actions for Gus" }),
+    );
+    await user.click(
+      screen.getByRole("menuitem", { name: "Remove from channel" }),
+    );
+
+    expect(onRemove).toHaveBeenCalledWith(guestGus);
+  });
+
+  it("offers Leave in the footer when the reader can leave", async () => {
+    const user = userEvent.setup();
+    const onLeave = vi.fn();
+    renderPanel({
+      management: { canRemove: () => false, onRemove: vi.fn(), onLeave },
+    });
+
+    await user.click(screen.getByRole("button", { name: "Leave channel" }));
+
+    expect(onLeave).toHaveBeenCalledTimes(1);
   });
 });

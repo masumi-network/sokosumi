@@ -1,24 +1,18 @@
 "use client";
 
 import { Eye, EyeOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import * as React from "react";
 import { useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-interface PasswordInputProps extends React.ComponentProps<"input"> {
-  hideLabel: string;
-  showLabel: string;
-}
-
 export const PasswordInput = React.forwardRef<
   HTMLInputElement,
-  PasswordInputProps
->(function PasswordInput(
-  { className, disabled, hideLabel, showLabel, ...props },
-  ref,
-) {
+  React.ComponentProps<"input">
+>(function PasswordInput({ className, disabled, ...props }, ref) {
+  const t = useTranslations("Auth.PasswordToggle");
   const [isVisible, setIsVisible] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -69,12 +63,13 @@ export const PasswordInput = React.forwardRef<
         ref={handleInputRef}
         disabled={disabled}
         type={isVisible ? "text" : "password"}
-        className={cn("pr-10", className)}
+        // Even sides, so centered text sits in the middle of the field.
+        className={cn("px-10", className)}
       />
       <button
         type="button"
         disabled={disabled}
-        aria-label={isVisible ? hideLabel : showLabel}
+        aria-label={isVisible ? t("hide") : t("show")}
         aria-pressed={isVisible}
         onPointerDown={(event) => event.preventDefault()}
         onClick={handleToggleVisibility}

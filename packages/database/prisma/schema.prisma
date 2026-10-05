@@ -167,6 +167,7 @@ model Workspace {
   socialPosts              SocialPost[]
   taskSchedules            TaskSchedule[]
   projects                 Project[]
+  projectIdentifierAliases ProjectIdentifierAlias[]
   taskScheduleRuns         TaskScheduleRun[]
   scheduleCreateOperations TaskScheduleCreateOperation[]
   notifications            Notification[]
@@ -442,6 +443,9 @@ model Project {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   name                    String
+  /// Short task-id prefix (e.g. SOK), unique per workspace. Filled by the
+  /// project_set_identifier trigger when omitted. Format enforced by a DB CHECK.
+  identifier              String?
   filesToken              String?
   briefing                String?
   briefingUrl             String?
@@ -487,8 +491,36 @@ model Project {
 
   fileLinks FileProjectLink[]
 
+  /// Last task number handed out. Advanced by the task_assign_number trigger.
+  taskCounter Int @default(0)
+
+  taskIdentifierAliases TaskIdentifierAlias[]
+  /// Prefixes this project used before the current identifier.
+  identifierAliases     ProjectIdentifierAlias[]
+
+  @@unique([workspaceId, identifier])
   @@index([workspaceId])
   @@map("project")
+}
+
+/// A prefix a project used to hold, so /tasks/OLD-123 still opens its task
+/// after the identifier changes. Another project in the workspace cannot take
+/// the prefix. Written by project_alias_old_identifier. Format matches
+/// Project.identifier via a CHECK Prisma cannot express.
+model ProjectIdentifierAlias {
+  createdAt DateTime @default(now())
+
+  workspaceId String    @db.Uuid
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  identifier String
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@id([workspaceId, identifier])
+  @@index([projectId])
+  @@map("project_identifier_alias")
 }
 
 /// One user's Pin on one project: personal, private, and not shared with the
@@ -2758,6 +2790,9 @@ model SokoBotSchedule {
   enabled             Boolean   @default(true)
   timezone            String
   cronExpression      String
+  /// Fires once at `nextRunAt`, then disables itself. `cronExpression` then
+  /// only mirrors that wall-clock time for display.
+  runOnce             Boolean   @default(false)
   prompt              String
   /// External Hermes schedule id. Cutover imports use it for idempotency.
   legacyScheduleId    String?   @unique
@@ -2891,6 +2926,8 @@ model Task {
   /// Private is meaningful only in organization workspaces (SOK-1046).
   visibility TaskVisibility @default(PUBLIC)
 
+  priority TaskPriority @default(NONE)
+
   /// Marketplace coworker assignee. XOR with assigneeSokoBotId (DB check).
   assigneeId String?
   assignee   Coworker? @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -2942,6 +2979,13 @@ model Task {
   projectId String?  @db.Uuid
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
+  /// Per-project sequence number. Set by the task_assign_number trigger (null
+  /// outside a project); never write it directly.
+  number Int?
+
+  /// Former numbers of this Task in projects it has left.
+  identifierAliases TaskIdentifierAlias[]
+
   /// The Run whose release created this Task.
   releasedScheduleRun TaskScheduleRun? @relation("TaskScheduleRunReleasedTask")
 
@@ -2953,6 +2997,7 @@ model Task {
   /// The one time this Task is set to start instead of now. Never repeats.
   runAt DateTime?
 
+  @@unique([projectId, number])
   @@index([organizationId])
   @@index([workspaceId])
   @@index([archivedAt])
@@ -3069,6 +3114,24 @@ model TaskSchedule {
 
 /// A workspace member pulled onto a Task by @ in comment activity.
 /// Distinct from Chat Participant. Unique per Task and user. createdAt is join time.
+/// A number a Task held in a project it later left, so old identifiers still
+/// resolve. Written by the task_alias_old_number trigger.
+model TaskIdentifierAlias {
+  createdAt DateTime @default(now())
+
+  projectId String  @db.Uuid
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  number Int
+
+  taskId String
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@id([projectId, number])
+  @@index([taskId])
+  @@map("task_identifier_alias")
+}
+
 model TaskParticipant {
   id        String   @id @default(uuid(7))
   createdAt DateTime @default(now())
@@ -3168,7 +3231,7 @@ enum TaskScheduleRunState {
 
 /// SQL-only checks (Prisma cannot express them): a released Run has its Task
 /// and only a released one does; at most one actor; a PROJECT source has its
-/// project and no other source does.
+/// project and no other source does; a manual Run is released.
 model TaskScheduleRun {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
@@ -3186,7 +3249,10 @@ model TaskScheduleRun {
   originalScheduledAt  DateTime
   effectiveScheduledAt DateTime
 
-  state TaskScheduleRunState
+  state  TaskScheduleRunState
+  /// Run now (ADR 0047): released by hand, outside the rule, and not counted
+  /// toward an end-after-N rule.
+  manual Boolean              @default(false)
 
   sourceWorkspaceId String             @db.Uuid
   sourceWorkspace   Workspace          @relation(fields: [sourceWorkspaceId], references: [id], onDelete: Cascade)
@@ -3194,8 +3260,8 @@ model TaskScheduleRun {
   sourceProjectId   String?            @db.Uuid
   sourceProject     Project?           @relation(fields: [sourceProjectId], references: [id], onDelete: Restrict)
 
-  /// Who last skipped, moved, or restored this Run: a person or a
-  /// Coworker vendor, at most one of them.
+  /// Who ran this Run now, or last skipped, moved, or restored it: a person
+  /// or a Coworker vendor, at most one of them.
   actorUserId     String?
   actorUser       User?     @relation("TaskScheduleRunActor", fields: [actorUserId], references: [id], onDelete: SetNull)
   actorCoworkerId String?
@@ -3343,11 +3409,22 @@ enum TaskStatus {
   COMPLETED
   FAILED
   CANCELED
+  /// Event-only: the first event of a Task. Never a Task.status; nobody sets it.
+  CREATED
 }
 
 enum TaskVisibility {
   PUBLIC
   PRIVATE
+}
+
+/// Declaration order is sort order: ORDER BY priority ASC lists urgent first, none last.
+enum TaskPriority {
+  URGENT
+  HIGH
+  MEDIUM
+  LOW
+  NONE
 }
 
 enum Channel {
@@ -4053,6 +4130,7 @@ model ChatRoomMessage {
   reactions            ChatRoomReaction[]
   pins                 ChatRoomPinnedMessage[]
   threadReadStates     ChatRoomThreadReadState[]
+  attachedSkills       ChatRoomMessageSkill[]
 
   // DB uniqueness is the safety net for concurrent stream POSTs (Redis lock is
   // happy-path only). Nullable columns: Postgres unique allows multiple NULLs.
@@ -4392,6 +4470,42 @@ model SokoBotInstalledSkill {
   @@unique([sokoBotId, name])
   @@index([sokoBotId])
   @@map("soko_bot_installed_skill")
+}
+
+/// A skills.sh leaderboard entry, refreshed daily so the chat skill picker
+/// searches locally. `markdown` caches the resolved SKILL.md for sends.
+model SkillCatalogEntry {
+  /// skills.sh id: owner/repo/skill.
+  id                String    @id
+  source            String
+  name              String
+  description       String?
+  installs          Int       @default(0)
+  rank              Int?
+  markdown          String?
+  markdownFetchedAt DateTime?
+  refreshedAt       DateTime  @default(now())
+
+  @@index([installs])
+  @@map("skill_catalog_entry")
+}
+
+/// A skill attached to a chat message: its SKILL.md as it was when sent.
+/// Display fields live in the message's metadata.skills; the content stays
+/// off every message read and goes only to the agents the message reaches.
+model ChatRoomMessageSkill {
+  id        String          @id @default(uuid(7)) @db.Uuid
+  createdAt DateTime        @default(now())
+  messageId String          @db.Uuid
+  message   ChatRoomMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  position  Int
+  /// skills.sh id: owner/repo/skill.
+  skillId   String
+  name      String
+  content   String
+
+  @@unique([messageId, skillId])
+  @@map("chat_room_message_skill")
 }
 
 model SokoBotEventInbox {

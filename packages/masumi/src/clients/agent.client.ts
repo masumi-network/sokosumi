@@ -166,131 +166,94 @@ export function createAgentClient(config?: AgentClientConfig) {
     });
   }
 
+  async function requestStartJob<T>(
+    agent: Agent,
+    body: unknown,
+    responseSchema: {
+      safeParse(
+        data: unknown,
+      ): { success: true; data: T } | { success: false; error: unknown };
+    },
+    failLabel: string,
+    parseFailLabel: string,
+  ): Promise<Result<T, AgentJobStartFailure>> {
+    const startJobUrlResult = getAgentUrlWithPathComponent(agent, "start_job");
+    if (startJobUrlResult.isErr()) {
+      return err(unreachable(startJobUrlResult.error));
+    }
+    const startJobUrl = startJobUrlResult.value;
+
+    let startJobResponse: Response;
+    try {
+      startJobResponse = await ssrfSafeFetch(startJobUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+        maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
+      });
+    } catch (error) {
+      return err(ambiguous(String(error)));
+    }
+
+    if (!startJobResponse.ok) {
+      return err(classifyStartJobHttpFailure(startJobResponse, failLabel));
+    }
+    // A 2xx means the seller accepted the job; every failure from here on
+    // leaves it running on the seller's side.
+    let responseJson: unknown;
+    try {
+      responseJson = await startJobResponse.json();
+    } catch (error) {
+      return err(
+        invalidResponse(`start_job response was not valid JSON: ${error}`),
+      );
+    }
+
+    const parsedResult = responseSchema.safeParse(responseJson);
+    if (!parsedResult.success) {
+      return err(
+        invalidResponse(
+          `${parseFailLabel}: ${JSON.stringify(parsedResult.error)}`,
+        ),
+      );
+    }
+
+    return ok(parsedResult.data);
+  }
+
   return {
     async startPaidAgentJob(
       agent: Agent,
       identifierFromPurchaser: string,
       inputData: InputSchemaType,
     ): Promise<Result<StartPaidJobResponseSchemaType, AgentJobStartFailure>> {
-      const startJobUrlResult = getAgentUrlWithPathComponent(
+      return requestStartJob(
         agent,
-        "start_job",
+        {
+          identifier_from_purchaser: identifierFromPurchaser,
+          input_data: inputData,
+        },
+        startPaidJobResponseSchema,
+        "Failed to start agent job",
+        "Failed to parse start job response",
       );
-      if (startJobUrlResult.isErr()) {
-        return err(unreachable(startJobUrlResult.error));
-      }
-      const startJobUrl = startJobUrlResult.value;
-
-      let startJobResponse: Response;
-      try {
-        startJobResponse = await ssrfSafeFetch(startJobUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            identifier_from_purchaser: identifierFromPurchaser,
-            input_data: inputData,
-          }),
-          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
-        });
-      } catch (error) {
-        return err(ambiguous(String(error)));
-      }
-
-      if (!startJobResponse.ok) {
-        return err(
-          classifyStartJobHttpFailure(
-            startJobResponse,
-            "Failed to start agent job",
-          ),
-        );
-      }
-      // A 2xx means the seller accepted the job; every failure from here on
-      // leaves it running on the seller's side.
-      let responseJson: unknown;
-      try {
-        responseJson = await startJobResponse.json();
-      } catch (error) {
-        return err(
-          invalidResponse(`start_job response was not valid JSON: ${error}`),
-        );
-      }
-
-      const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
-      if (!parsedResult.success) {
-        return err(
-          invalidResponse(
-            `Failed to parse start job response: ${JSON.stringify(
-              parsedResult.error,
-            )}`,
-          ),
-        );
-      }
-
-      return ok(parsedResult.data);
     },
 
     async startFreeAgentJob(
       agent: Agent,
       inputData: InputSchemaType,
     ): Promise<Result<StartFreeJobResponseSchemaType, AgentJobStartFailure>> {
-      const startJobUrlResult = getAgentUrlWithPathComponent(
+      return requestStartJob(
         agent,
-        "start_job",
+        {
+          input_data: inputData,
+        },
+        startFreeJobResponseSchema,
+        "Failed to start free agent job",
+        "Failed to parse start free job response",
       );
-      if (startJobUrlResult.isErr()) {
-        return err(unreachable(startJobUrlResult.error));
-      }
-      const startJobUrl = startJobUrlResult.value;
-
-      let startJobResponse: Response;
-      try {
-        startJobResponse = await ssrfSafeFetch(startJobUrl, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            input_data: inputData,
-          }),
-          maxResponseBytes: MAX_AGENT_RESPONSE_BYTES,
-        });
-      } catch (error) {
-        return err(ambiguous(String(error)));
-      }
-
-      if (!startJobResponse.ok) {
-        return err(
-          classifyStartJobHttpFailure(
-            startJobResponse,
-            "Failed to start free agent job",
-          ),
-        );
-      }
-      // A 2xx means the seller accepted the job; every failure from here on
-      // leaves it running on the seller's side.
-      let responseJson: unknown;
-      try {
-        responseJson = await startJobResponse.json();
-      } catch (error) {
-        return err(
-          invalidResponse(`start_job response was not valid JSON: ${error}`),
-        );
-      }
-
-      const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
-      if (!parsedResult.success) {
-        return err(
-          invalidResponse(
-            `Failed to parse start free job response: ${JSON.stringify(
-              parsedResult.error,
-            )}`,
-          ),
-        );
-      }
-
-      return ok(parsedResult.data);
     },
 
     async fetchAgentJobStatus(

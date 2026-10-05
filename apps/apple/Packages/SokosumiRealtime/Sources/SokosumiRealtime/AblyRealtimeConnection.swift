@@ -73,8 +73,10 @@ public final class AblyRealtimeConnection: RealtimeConnection, @unchecked Sendab
     let realtime = ARTRealtime(options: options)
     let control = realtime.channels.get(userChatControlChannelName(userId: userId))
     let controlName = control.name
-    control.subscribe(chatMembershipRevokedEventName) { [weak self] message in
-      self?.forward(channelName: controlName, message: message, generation: generation)
+    for eventName in [chatMembershipRevokedEventName, chatRoomsChangedEventName] {
+      control.subscribe(eventName) { [weak self] message in
+        self?.forward(channelName: controlName, message: message, generation: generation)
+      }
     }
     // Core names the notifications channel per deployment, so it is read from
     // the granted capability once a token exists rather than built here.

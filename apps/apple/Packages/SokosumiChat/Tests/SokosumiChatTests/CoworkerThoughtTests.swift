@@ -1,6 +1,6 @@
 import CoreAPI
 import Foundation
-import SokosumiChat
+@testable import SokosumiChat
 import Testing
 
 struct CoworkerThoughtTests {
@@ -37,4 +37,34 @@ struct CoworkerThoughtTests {
     #expect(CoworkerThought.durationLabel(seconds: 63) == "1m 3s")
     #expect(CoworkerThought.durationLabel(seconds: 120) == "2m")
   }
+
+  @Test func coworkerSenderIsTheCoworkerCase() async throws {
+    let coworker = try await decode(id: "m", sender: coworkerSender)
+    let bot = try await decode(id: "m", sender: sokoBotSender)
+    let person = try await decode(id: "m", sender: testUserSender(name: "Me", email: "me@example.com"))
+    var unknown = person
+    unknown.sender = .case4(.init(_type: .unknown))
+    #expect(isCoworkerSender(coworker))
+    #expect(!isCoworkerSender(bot))
+    #expect(!isCoworkerSender(person))
+    #expect(!isCoworkerSender(unknown))
+  }
+
+  @Test func coworkerStreamOverlayNeedsTheStreamPrefixAndACoworker() async throws {
+    let overlay = try await decode(id: "stream:turn", sender: coworkerSender)
+    let persisted = try await decode(id: "m", sender: coworkerSender)
+    let userTurn = try await decode(id: "stream:turn", sender: testUserSender(name: "Me", email: "me@example.com"))
+    let botOverlay = try await decode(id: "stream:turn", sender: sokoBotSender)
+    #expect(isCoworkerStreamOverlay(overlay))
+    #expect(!isCoworkerStreamOverlay(persisted))
+    #expect(!isCoworkerStreamOverlay(userTurn))
+    #expect(!isCoworkerStreamOverlay(botOverlay))
+  }
+}
+
+private let coworkerSender = #"{"type":"coworker","coworker":{"id":"cow_1","name":"Elena","slug":"elena","caption":null,"image":null,"presence":"online"}}"#
+private let sokoBotSender = #"{"type":"sokoBot","sokoBot":{"id":"bot_1","name":"Soko","caption":"Me's personal assistant","image":null,"avatarSeed":"orb:user_2","ownerUserId":"user_2","presence":"online"}}"#
+
+private func decode(id: String, sender: String) async throws -> Components.Schemas.ChatRoomMessage {
+  try #require(try await fetchTestMessages([testMessageJSON(id: id, content: "", sender: sender)]).first)
 }

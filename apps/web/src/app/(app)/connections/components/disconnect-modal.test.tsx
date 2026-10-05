@@ -92,6 +92,10 @@ describe("DisconnectModal", () => {
     await waitFor(() => {
       expect(mockToastSuccess).toHaveBeenCalledWith("success");
     });
+    // Better Auth's accountId selects the local account row, not providerId.
+    expect(mockUnlinkAccount).toHaveBeenCalledWith({
+      accountId: "account-google",
+    });
     expect(
       screen.queryByTestId("reauth-field-currentPassword"),
     ).not.toBeInTheDocument();

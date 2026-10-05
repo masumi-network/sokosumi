@@ -11,7 +11,6 @@ import { getHistoryItemHref } from "@/app/history/utils/history-item-href";
 import { getHistoryRowSubtitle } from "@/app/history/utils/history-row-subtitle";
 import type { TransactionHistoryItem } from "@/lib/services/history.service";
 import { cn } from "@/lib/utils";
-import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface HistoryListItemLabels {
@@ -47,15 +46,15 @@ export function HistoryListItem({
   const credits = formatHistoryCredits(item, labels, formatter.number);
   const href = getHistoryItemHref(item);
   const showOwner = activeOrganizationId !== null;
-  // Main's grid minus the status column. The amount column takes 110px rather
-  // than main's 80px because a ledger amount runs to five or six digits
-  // ("14,568 credits") where a task's was three; at 80px it wrapped onto a
-  // second line and gave every row a ragged right edge.
+  // Main's grid minus the status column. The amount column takes 130px rather
+  // than main's 80px because a ledger amount runs to five or six digits plus
+  // decimals ("14,568.25 credits"); narrower, it wraps onto a second line and
+  // gives every row a ragged right edge.
   const rowClassName = cn(
     "group grid grid-cols-[auto_minmax(0,1fr)] bg-background gap-x-3 gap-y-2 rounded-lg border border-border px-4 py-3 transition-colors",
     showOwner
-      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_110px] sm:items-center sm:gap-4"
-      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_110px] sm:items-center sm:gap-4",
+      ? "sm:grid-cols-[100px_minmax(0,1fr)_32px_110px_130px] sm:items-center sm:gap-4"
+      : "sm:grid-cols-[100px_minmax(0,1fr)_110px_130px] sm:items-center sm:gap-4",
     href ? "hover:bg-card-background-hover press content-in" : "cursor-default",
   );
   const content = (
@@ -69,7 +68,7 @@ export function HistoryListItem({
     />
   );
 
-  // Coworker seats, Soko Bot usage and unattributed spends have no page behind
+  // Coworker seats, top ups and unattributed spends have no page behind
   // them, so those rows are text rather than a link to nowhere.
   if (!href) {
     return <div className={rowClassName}>{content}</div>;
@@ -168,7 +167,8 @@ export function HistoryTypeColumn({
 }
 
 /**
- * A spend reads exactly as it did on main. A top up carries a leading `+`, so
+ * Amounts keep two decimals, so a Soko Bot turn under one credit isn't shown
+ * as 0, and totals match the assistant page. A top up carries a leading `+`, so
  * the two directions are told apart by the sign and the source chip rather than
  * by a colour: the app has no green/red convention for a credit amount, and
  * inventing one here would be a new accent role on a surface that has none.
@@ -176,11 +176,14 @@ export function HistoryTypeColumn({
 function formatHistoryCredits(
   item: TransactionHistoryItem,
   labels: Pick<HistoryListItemLabels, "credit" | "credits">,
-  formatNumber: (value: number) => string,
+  formatNumber: (
+    value: number,
+    options: { maximumFractionDigits: number },
+  ) => string,
 ): string {
-  const formattedCredits = formatCreditsForDisplay(item.credits);
-  const unit = formattedCredits === 1 ? labels.credit : labels.credits;
-  const amount = `${formatNumber(formattedCredits)} ${unit}`;
+  const credits = Math.trunc(item.credits * 100) / 100;
+  const unit = credits === 1 ? labels.credit : labels.credits;
+  const amount = `${formatNumber(credits, { maximumFractionDigits: 2 })} ${unit}`;
 
   return item.kind === "topUp" ? `+${amount}` : amount;
 }

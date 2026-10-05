@@ -1,6 +1,6 @@
 export {
   renderChatRoomInvitationEmail,
-  renderMagicLinkEmail,
+  renderEmailCodeEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,

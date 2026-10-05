@@ -12,6 +12,7 @@ import {
 } from "@sokosumi/database";
 
 import { computeNextRun } from "@/helpers/cron";
+import { taskCreationEvents } from "@/helpers/task-creation-events";
 import { notifyTaskHumanAssignee } from "@/helpers/task-notifications";
 import { computeIntervalNextRun } from "@/helpers/task-schedule";
 import { publishTaskEventData } from "@/lib/ably/publish";
@@ -424,17 +425,48 @@ function createTaskFromBlueprint(
       creatorSokoBotId: schedule.creatorSokoBotId,
       status: TaskStatus.READY,
       events: {
-        create: {
+        create: taskCreationEvents({
           status: TaskStatus.READY,
           channel: Channel.SOKOSUMI,
-          userId: schedule.creatorUserId,
-          coworkerId: schedule.creatorCoworkerId,
-          sokoBotId: schedule.creatorSokoBotId,
-        },
+          actorFields: {
+            userId: schedule.creatorUserId,
+            coworkerId: schedule.creatorCoworkerId,
+            sokoBotId: schedule.creatorSokoBotId,
+          },
+        }),
       },
     },
     select: { id: true, ownerId: true, assigneeUserId: true },
   });
+}
+
+/**
+ * Run now (ADR 0047): a Run released at `now` with its Task, outside the
+ * rule. It plans nothing and leaves `releasedCount` alone, so an end-after-N
+ * rule still makes all of its own Runs.
+ */
+export async function releaseManualTaskScheduleRun(
+  tx: Prisma.TransactionClient,
+  schedule: TaskSchedule,
+  now: Date,
+  actor: Pick<TaskScheduleRun, "actorUserId" | "actorCoworkerId">,
+): Promise<{ run: TaskScheduleRun; task: ReleasedTask }> {
+  const task = await createTaskFromBlueprint(tx, schedule);
+  const run = await tx.taskScheduleRun.create({
+    data: {
+      scheduleId: schedule.id,
+      epochId: schedule.epochId,
+      originalScheduledAt: now,
+      effectiveScheduledAt: now,
+      state: TaskScheduleRunState.RELEASED,
+      manual: true,
+      releasedTaskId: task.id,
+      ...getRunSource(schedule),
+      ...actor,
+      timezone: schedule.timezone,
+    },
+  });
+  return { run, task };
 }
 
 /**

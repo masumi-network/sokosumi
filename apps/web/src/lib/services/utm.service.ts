@@ -1,6 +1,9 @@
 import "server-only";
 
-import { postUsersByIdUtmAttribution } from "@sokosumi/core-client";
+import {
+  postUsersByIdSignUpConversion,
+  postUsersByIdUtmAttribution,
+} from "@sokosumi/core-client";
 import { createClient } from "@sokosumi/core-client/client";
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
@@ -40,6 +43,36 @@ export const utmService = (() => {
   }
 
   return {
+    /** Claims the social conversion and writes its UTM attribution atomically in Core. */
+    async claimSignUpConversion() {
+      const cookieStore = await cookies();
+      const utmAttribution = getUTMDataFromCookie(cookieStore);
+      const client = createClient({
+        baseUrl: getServerCoreApiBaseUrl(),
+        headers: {
+          ...buildCalendarClientVersionHeaders(),
+          cookie: cookieStore.toString(),
+        },
+      });
+      const { data } = await postUsersByIdSignUpConversion({
+        client,
+        path: { id: "me" },
+        body: utmAttribution
+          ? {
+              utmAttribution: {
+                ...utmAttribution,
+                capturedAt: new Date(utmAttribution.capturedAt),
+              },
+            }
+          : {},
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+        throwOnError: true,
+      });
+      // Failed writes retain the cookie and pending marker for a later page.
+      if (data.data.provider) cookieStore.delete(UTM_COOKIE_NAME);
+      return data.data.provider;
+    },
     /**
      * Handles the conversion of UTM data for the current session user.
      *

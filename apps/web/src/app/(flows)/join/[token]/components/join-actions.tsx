@@ -18,6 +18,8 @@ interface JoinActionsProps {
   organizationSlug: string;
   isAuthenticated: boolean;
   currentUserName: string;
+  currentUserFirstName?: string | null;
+  currentUserLastName?: string | null;
 }
 
 export function JoinActions({
@@ -26,6 +28,8 @@ export function JoinActions({
   organizationSlug,
   isAuthenticated,
   currentUserName,
+  currentUserFirstName,
+  currentUserLastName,
 }: JoinActionsProps) {
   const t = useTranslations("Join");
   const router = useRouter();
@@ -34,7 +38,11 @@ export function JoinActions({
   const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
     null,
   );
-  const { persistIfNeeded, NameFields } = useCollectUserName(currentUserName);
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    currentUserName,
+    currentUserFirstName,
+    currentUserLastName,
+  );
   const busy = isJoining || isDeclining;
 
   const handleJoin = async () => {
