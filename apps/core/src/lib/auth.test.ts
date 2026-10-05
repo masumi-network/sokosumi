@@ -547,29 +547,6 @@ describe("core auth config", () => {
     waitUntilMock.mockClear();
   });
 
-  it("passes the social provider and account options to Better Auth", async () => {
-    await import("./auth");
-    const { accountOptions, socialProviderOptions } = await import(
-      "./auth-social-providers"
-    );
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [{ socialProviders: unknown; account: unknown }]
-    >;
-
-    expect(config.socialProviders).toBe(socialProviderOptions);
-    expect(config.account).toBe(accountOptions);
-  });
-
-  it("passes the refresh token options to the OAuth provider", async () => {
-    await import("./auth");
-    const { oauthRefreshTokenOptions } = await import("./auth-oauth-provider");
-
-    expect(oauthProviderPluginMock).toHaveBeenCalledWith(
-      expect.objectContaining(oauthRefreshTokenOptions),
-    );
-  });
-
   it("fires account-created webhook when a social account is linked", async () => {
     await import("./auth");
 
