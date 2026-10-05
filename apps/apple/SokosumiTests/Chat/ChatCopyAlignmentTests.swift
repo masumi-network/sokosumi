@@ -59,7 +59,7 @@
           let bitmap = try await draw(dark)
           try columns.append([#require(bitmap.cgImage)])
           if let lines = try recognizedLines(in: bitmap) {
-            texts?.append(Self.undoingLookalikes(lines.joined(separator: " ")))
+            texts?.append(lines.joined(separator: " "))
           } else {
             texts = nil
           }
@@ -82,9 +82,20 @@
         }
         for text in texts ?? [] {
           #expect(text.contains("No messages yet"), "Vision read \(text)")
-          #expect(text.contains("Start the channel with a message or mention an AI coworker."), "Vision read \(text)")
+          // Vision reads "AI" as "Al" at times, so the drawn line is checked around it; `exactCopy` pins the words.
+          #expect(text.contains("Start the channel with a message or mention an") && text.contains("coworker."), "Vision read \(text)")
           #expect(!text.contains("New messages will appear here"), "Vision read \(text)")
         }
+      }
+
+      /// The exact words behind the renders Vision cannot read letter for letter: "AI" against "Al", and the
+      /// Files root (exact in `drivePickerRootNamesTheWorkspacesFiles`).
+      @Test func exactCopy() {
+        #expect(String(localized: RoomTimelineView.emptyDescription) == "Start the channel with a message or mention an AI coworker.")
+        #expect(ParticipantDetailsView.aiKindLabel(.coworker("cow_1")) == "AI coworker")
+        #expect(ParticipantDetailsView.aiKindLabel(.sokoBot("bot_1")) == "Personal assistant")
+        #expect(ParticipantDetailsView.aiKindLabel(.human("user_ada")) == nil)
+        #expect(String(localized: ComposerTooLongHint.message) == "Too long to send as text")
       }
 
       /// Web `RoomSearch.idle`, `RoomSearch.empty` and `RoomSearch.replyBadge` (`room-search-panel.tsx`).
@@ -134,9 +145,10 @@
                                 size: NSSize(width: 520, height: 360), dark: dark)
         }
         for text in texts ?? [] {
+          // The root crumb's words are exact in `drivePickerRootNamesTheWorkspacesFiles`; Vision has read its
+          // "My" with Cyrillic letters.
           #expect(text.contains("Select from Files"), "Vision read \(text)")
-          #expect(text.contains("My Files"), "Vision read \(text)")
-          #expect(text.contains("Oct 5"), "Vision read \(text)")
+          #expect(text.contains("Oct 5") && text.contains("Folder"), "Vision read \(text)")
           #expect(!text.contains("Attach from Files"), "Vision read \(text)")
         }
       }
@@ -232,7 +244,8 @@
         }
         for text in texts ?? [] {
           #expect(text.contains("Ada Lovelace") && !text.contains("Person"), "Vision read \(text)")
-          #expect(text.contains("AI coworker"), "Vision read \(text)")
+          // A kind line is drawn for the coworker; its exact words ("AI", not "Al") are pinned by `exactCopy`.
+          #expect(text.contains(" coworker"), "Vision read \(text)")
         }
       }
 
@@ -290,13 +303,6 @@
           return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
         }
         return nil
-      }
-
-      /// The fast recogniser reads a capital I as a lowercase l before "coworker" and some Latin capitals as their
-      /// Cyrillic twins; undo both so the checks compare words, not glyph shapes.
-      private static func undoingLookalikes(_ text: String) -> String {
-        let latin: [Character: Character] = ["М": "M", "у": "y", "А": "A", "а": "a", "о": "o", "е": "e", "с": "c", "р": "p"]
-        return String(text.map { latin[$0] ?? $0 }).replacingOccurrences(of: "Al coworker", with: "AI coworker")
       }
 
       private static func views<V: NSView>(_ type: V.Type, in view: NSView) -> [V] {

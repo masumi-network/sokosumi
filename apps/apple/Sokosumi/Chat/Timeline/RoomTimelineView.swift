@@ -8,6 +8,9 @@ import SwiftUI
   /// Transcript pane: avatar rail with Slack-style continuation grouping,
   /// day separator pills, membership status rows, and a native composer.
   struct RoomTimelineView: View {
+    /// Web `Empty.noMessagesDescription`, under "No messages yet" in every room but a Self Direct.
+    static let emptyDescription: LocalizedStringResource = "Start the channel with a message or mention an AI coworker."
+
     @EnvironmentObject private var workspaces: WorkspaceState
     @State private var preparedTranscript: PreparedTranscript?
     let roomId: String
@@ -192,7 +195,7 @@ import SwiftUI
           ContentUnavailableView(
             "No messages yet",
             systemImage: "bubble.left",
-            description: Text("Start the channel with a message or mention an AI coworker.")
+            description: Text(RoomTimelineView.emptyDescription)
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }

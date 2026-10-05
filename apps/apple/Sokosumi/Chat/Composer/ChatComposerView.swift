@@ -92,7 +92,7 @@ import UniformTypeIdentifiers
         // Web's `belowEditor` over the limit: the hint, and the conversion where the room takes files.
         if preparedContent.isTooLong {
           HStack {
-            Text("Too long to send as text").font(.caption).foregroundStyle(.red)
+            ComposerTooLongHint()
             Spacer(minLength: 8)
             if !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
               Button("Convert to file", systemImage: "doc.text") { attachOverflow() }
