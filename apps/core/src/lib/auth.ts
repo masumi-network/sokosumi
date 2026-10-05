@@ -13,11 +13,6 @@ import {
   hasConsumableEnterpriseContract,
 } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
-import {
-  renderEmailCodeEmail,
-  renderResetPasswordEmail,
-  renderVerificationEmail,
-} from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
@@ -81,12 +76,14 @@ import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
   jwtKeyStoreOptions,
-  OAUTH_ACCESS_TOKEN_PREFIX,
-  OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
+import {
+  OAUTH_ACCESS_TOKEN_PREFIX,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+} from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
 import {
   oauthSignUpOptions,
@@ -369,7 +366,7 @@ export const auth = betterAuth({
               });
             }),
           );
-          void handleUserUpdateStripeEmailSync(user);
+          waitUntil(handleUserUpdateStripeEmailSync(user));
         },
       },
     },
@@ -498,6 +495,7 @@ export const auth = betterAuth({
       }
     },
     sendResetPassword: async ({ user, url }, request) => {
+      const { renderResetPasswordEmail } = await import("@sokosumi/email");
       const email = await renderResetPasswordEmail({
         locale: getEmailLocale(request),
         name: user.name,
@@ -528,6 +526,7 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }, request) => {
+      const { renderVerificationEmail } = await import("@sokosumi/email");
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
@@ -627,6 +626,7 @@ export const auth = betterAuth({
           if (env.NODE_ENV === "development") {
             process.stdout.write(`[email code] ${email}: ${otp}\n`);
           }
+          const { renderEmailCodeEmail } = await import("@sokosumi/email");
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
             code: otp,

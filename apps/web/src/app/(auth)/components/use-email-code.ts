@@ -1,6 +1,9 @@
 "use client";
 
-import { EMAIL_CODE_SIGN_IN_METHODS_REMOVED } from "@sokosumi/utils";
+import {
+  AUTH_CAPTCHA_HEADER,
+  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
+} from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -90,8 +93,13 @@ export function useEmailCode({
     options: {
       signal?: AbortSignal;
       /**
-       * Another check that covers this send, e.g. the email step's pass or a
-       * widget already on screen. Without it the send uses `captcha`.
+       * The single-use pass Core's email status answer carries, so the code
+       * sent next needs no widget of its own.
+       */
+      captchaPass?: string;
+      /**
+       * A widget already on screen that covers this send. Without it or a
+       * pass, the send uses `captcha`.
        */
       runWithCaptcha?: RunWithCaptcha;
     } = {},
@@ -126,7 +134,11 @@ export function useEmailCode({
         sentAt = Date.now();
         adoptSentCode(email, sentAt);
       };
-      await (options.runWithCaptcha ?? runWithCaptcha)(send);
+      if (options.captchaPass === undefined) {
+        await (options.runWithCaptcha ?? runWithCaptcha)(send);
+      } else {
+        await send({ headers: { [AUTH_CAPTCHA_HEADER]: options.captchaPass } });
+      }
     } catch (_error) {
       if (isLatest() && !options.signal?.aborted) {
         toast.error(t("emailCodeError"));

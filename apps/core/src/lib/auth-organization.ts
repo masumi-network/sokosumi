@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { renderOrganizationInvitationEmail } from "@sokosumi/email";
 import {
   betterAuthOrganizationAdditionalFields,
   getEmailLocale,
@@ -125,19 +124,21 @@ export function createAuthOrganizationPlugin() {
         await ensureWorkspaceForCreatedOrganization(organization);
         await pinPreferredOrganizationIfUnset(user.id, organization.id);
         await ensureFreeSubscriptionForCreatedOrganization(organization);
-        void ensureStripeCustomerForCreatedOrganization(organization).catch(
-          (error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "stripe_organization_customer_creation",
-              },
-              extra: {
-                organizationId: organization.id,
-                organizationName: organization.name,
-                organizationSlug: organization.slug,
-              },
-            });
-          },
+        waitUntil(
+          ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
+                },
+              });
+            },
+          ),
         );
       },
       beforeUpdateOrganization: async ({ organization, member }) => {
@@ -214,6 +215,9 @@ export function createAuthOrganizationPlugin() {
     },
     async sendInvitationEmail(data, request) {
       const inviteLink = `${webAppBaseUrl}/accept-invitation/${data.id}`;
+      const { renderOrganizationInvitationEmail } = await import(
+        "@sokosumi/email"
+      );
       const email = await renderOrganizationInvitationEmail({
         invitationLink: inviteLink,
         invitorUsername: data.inviter.user.name,

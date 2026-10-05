@@ -15,6 +15,7 @@ import { AuthHeader } from "@/auth/components/auth-header";
 import { AuthPage } from "@/auth/components/auth-page";
 import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import SignInForm from "@/auth/signin/components/form";
@@ -22,7 +23,6 @@ import SignUpForm from "@/auth/signup/components/form";
 import SignInLink, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
-import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
@@ -232,6 +232,7 @@ export default function AuthFlow({
             onPendingChange={setIsFinishPending}
           />
         )}
+        <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
       </>,
     );
   }
@@ -262,7 +263,7 @@ export default function AuthFlow({
                 follow: async (newEmail, signal, { captchaPass }) => {
                   const codeSentAt = await emailCode.sendCode(newEmail, {
                     signal,
-                    runWithCaptcha: runWithCaptchaPass(captchaPass),
+                    captchaPass,
                   });
                   if (signal.aborted) return;
                   rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -279,9 +280,7 @@ export default function AuthFlow({
                     method === "code"
                       ? await emailCode.sendCode(knownEmail, {
                           signal,
-                          runWithCaptcha: runWithCaptchaPass(
-                            account.captchaPass,
-                          ),
+                          captchaPass: account.captchaPass,
                         })
                       : null;
                   if (signal.aborted) return;
@@ -306,7 +305,7 @@ export default function AuthFlow({
           if (method === "code") {
             await emailCode.sendCode(confirmedEmail, {
               signal,
-              runWithCaptcha: runWithCaptchaPass(account.captchaPass),
+              captchaPass: account.captchaPass,
             });
           }
           if (!signal.aborted) setStep("finish");

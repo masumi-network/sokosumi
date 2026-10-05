@@ -12,10 +12,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  buildAuthCallbackUrl,
-  buildAuthErrorCallbackUrl,
-} from "@/lib/auth/auth.utils";
+import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
@@ -220,17 +217,7 @@ export default function SocialButtons({
     const result = await authClient.signIn
       .social({
         provider: key,
-        callbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signin",
-          key,
-          returnUrl,
-        ),
-        newUserCallbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signup",
-          key,
-          returnUrl,
-        ),
-        errorCallbackURL: buildAuthErrorCallbackUrl(),
+        ...buildSocialCallbackUrls(key, returnUrl),
       })
       .catch(() => ({ error: { message: undefined } }));
     if (result.error) {

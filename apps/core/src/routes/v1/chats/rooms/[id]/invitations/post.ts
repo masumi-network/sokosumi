@@ -1,5 +1,4 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { renderChatRoomInvitationEmail } from "@sokosumi/email";
 import { getEmailLocale } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 
@@ -190,6 +189,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const inviteLink = `${getWebAppBaseUrl()}/chat/invites/${invitation.id}`;
+    const { renderChatRoomInvitationEmail } = await import("@sokosumi/email");
     const renderedEmail = await renderChatRoomInvitationEmail({
       channelName: invitation.roomName,
       invitationLink: inviteLink,
