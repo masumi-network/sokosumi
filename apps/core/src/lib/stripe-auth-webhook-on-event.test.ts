@@ -245,6 +245,25 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     },
   );
 
+  it("leaves an event it does not handle out of billing", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    try {
+      await handleStripeAuthWebhookOnEvent({
+        id: "evt_customer_updated",
+        type: "customer.updated",
+        data: { object: { id: "cus_123" } },
+      } as never);
+
+      expect(handleEventMock).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith(
+        "Unhandled Stripe event type: customer.updated",
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
+  });
+
   it("handles checkout.session.completed", async () => {
     const session = { id: "cs_123", subscription: "sub_123" };
 
