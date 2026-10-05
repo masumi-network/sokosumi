@@ -22,7 +22,12 @@ import { Label } from "@/components/ui/label";
 import type { FormData } from "@/lib/form";
 
 import { PasswordInput } from "./password-input";
-import type { AuthNamespace } from "./types";
+
+type AuthNamespace =
+  | "Auth.Email.Form"
+  | "Auth.Pages.ForgotPassword.Form"
+  | "Auth.Pages.SignUp.Form"
+  | "Auth.Pages.ResetPassword.Form";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;

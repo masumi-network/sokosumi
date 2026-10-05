@@ -40,8 +40,8 @@ import {
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
+import { inputPasswordSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
-import { signInFormSchema } from "@/lib/schemas/auth";
 import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
 
 interface SignInFormProps {
@@ -112,13 +112,12 @@ export default function SignInForm({
   const isCodeStepRef = useRef(isCodeStep);
   isCodeStepRef.current = isCodeStep;
 
-  const passwordStepSchema = signInFormSchema(schemaT).safeExtend({
+  // The email is confirmed on the step before.
+  const passwordStepSchema = z.object({
+    currentPassword: inputPasswordSchema(schemaT),
     code: z.string(),
   });
-  const codeStepSchema = signInFormSchema(schemaT).safeExtend({
-    currentPassword: z.string(),
-    code,
-  });
+  const codeStepSchema = z.object({ currentPassword: z.string(), code });
   type Values = z.infer<typeof passwordStepSchema>;
   const form = useForm<Values>({
     resolver: (values, context, options) =>
