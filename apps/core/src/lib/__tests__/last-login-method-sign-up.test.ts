@@ -78,6 +78,9 @@ describe("last login method on sign-up", () => {
 
     const response = await signUpWithEmailCode("ada@example.com", {
       password: "Password123!",
+      termsAccepted: true,
+      firstName: "Ada",
+      lastName: "Lovelace",
     });
 
     expect(response.status).toBe(200);
