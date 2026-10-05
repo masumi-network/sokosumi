@@ -8,10 +8,12 @@ import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
-import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes";
+import {
+  hashStoredOAuthToken,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-token-prefixes";
 import {
   COWORKER_API_KEY_PREFIX,
-  hashApiKey,
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
@@ -517,13 +519,6 @@ async function verifyAgentApiKey(
   return true;
 }
 
-const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)
-    ? value.slice(OAUTH_ACCESS_TOKEN_PREFIX.length)
-    : value;
-  return await hashApiKey(tokenWithoutPrefix);
-};
-
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
  * Requires `sokosumi:api` on the access token, consent, and the client's
@@ -539,7 +534,7 @@ async function verifyOAuthToken(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  const hashedToken = await hashAccessToken(token);
+  const hashedToken = hashStoredOAuthToken(token, OAUTH_ACCESS_TOKEN_PREFIX);
   const oauthToken = await prisma.oauthAccessToken.findUnique({
     where: { token: hashedToken },
     include: {
