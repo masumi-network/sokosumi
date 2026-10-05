@@ -1751,6 +1751,7 @@
           "unknown": "Desconocido"
         },
         "actionCommented": "comentó",
+        "actionCreated": "creó esta tarea",
         "actionUpdatedStatus": "Estado cambiado a",
         "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
         "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",

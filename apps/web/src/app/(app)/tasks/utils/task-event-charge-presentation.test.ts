@@ -85,6 +85,22 @@ describe("getTaskEventChargePresentation", () => {
       },
     },
     {
+      name: "CREATED is a creation event, not a status update",
+      event: {
+        comment: null,
+        status: "CREATED",
+        credits: null,
+        transactionId: null,
+      },
+      expected: {
+        hasComment: false,
+        hasCharge: false,
+        isAttemptedCharge: false,
+        actionKind: "created",
+        shouldShowSecondaryChargeLine: false,
+      },
+    },
+    {
       name: "blank comment with settled charge treated as credit-only",
       event: {
         comment: "   ",
