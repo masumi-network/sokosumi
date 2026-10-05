@@ -55,6 +55,8 @@ function overview() {
     brandBrain: null,
     strategy: null,
     botStatus: "IDLE",
+    learning: "done",
+    routines: [],
     updates: [
       {
         id: "u1",

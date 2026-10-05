@@ -611,7 +611,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   save_strategy:
     "Save the marketing strategy for a month: summary, goals, audience, positioning, pillars, channels with cadence, the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. Replaces the saved one, so send the complete strategy. The owner approves the strategy once; your later changes keep that approval.",
   report_update:
-    "Report to the owner as a card in their CMO chat: kind daily (done today, up next), weekly (results and the strategy changes you made; the owner can revert them) or request (what you did for something they asked). Results must use only real numbers; say plainly when there are none.",
+    "Report to the owner as a card in their CMO chat: kind daily (done today, up next), weekly (results and the strategy changes you made; the owner can revert them), monthly (next month's strategy: results and what changes from this month; revertible), brand (what changed in the Brand Brain) or request (what you did for something they asked). Results must use only real numbers; say plainly when there are none.",
   manage_reminder:
     "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:

@@ -10,7 +10,12 @@ import {
 } from "../lib/calendar";
 import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
-import { learningSteps, StrategyCard, UpdateCard } from "./app/cards";
+import {
+  LearningCard,
+  learningSteps,
+  StrategyCard,
+  UpdateCard,
+} from "./app/cards";
 import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
 import { Onboarding } from "./onboarding";
@@ -50,6 +55,16 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     projectId: "project-1",
     roomId: "room-1",
     botStatus: "IDLE",
+    learning: "done",
+    routines: [
+      {
+        key: "cmo-daily-run",
+        name: "Daily marketing run",
+        when: "Every day at 09:00",
+        description: "Prepares what the calendar has due.",
+        nextRunAt: null,
+      },
+    ],
     subscriptionActive: false,
     brandBrain: {
       summary: "Acme sells rockets.",
@@ -78,6 +93,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
 const noop = {
   approve: async () => {},
   revert: async () => {},
+  retryLearning: async () => {},
   compose: () => {},
   open: () => {},
 };
@@ -152,7 +168,12 @@ describe("thread", () => {
   });
 
   it("says what Cuso is waiting for", () => {
-    expect(cusoStatus(overview({ brandBrain: null }))).toBe("Learning");
+    expect(
+      cusoStatus(overview({ brandBrain: null, learning: "running" })),
+    ).toBe("Learning");
+    expect(cusoStatus(overview({ brandBrain: null, learning: "failed" }))).toBe(
+      "Stopped",
+    );
     expect(cusoStatus(overview())).toBe("Waiting for approval");
     expect(
       cusoStatus(
@@ -189,6 +210,51 @@ describe("learning steps", () => {
 });
 
 describe("cards", () => {
+  it("offers to revert a monthly strategy, not a Brand Brain refresh", () => {
+    const base = {
+      id: "u1",
+      at: new Date("2026-10-27T09:00:00Z"),
+      headline: "November",
+      done: [],
+      upNext: [],
+      changes: ["Two LinkedIn posts a week instead of three"],
+      revertedAt: null,
+    };
+    const monthly = renderToStaticMarkup(
+      <UpdateCard
+        update={{ ...base, kind: "monthly", revertible: true }}
+        actions={noop}
+      />,
+    );
+    expect(monthly).toContain("What changes from this month");
+    expect(monthly).toContain("Revert these changes");
+    const brand = renderToStaticMarkup(
+      <UpdateCard
+        update={{ ...base, kind: "brand", revertible: false }}
+        actions={noop}
+      />,
+    );
+    expect(brand).toContain("What changed in the Brand Brain");
+    expect(brand).not.toContain("Revert these changes");
+  });
+
+  it("offers Try again when learning failed or got stuck", () => {
+    const html = renderToStaticMarkup(
+      <LearningCard brain={null} state="failed" actions={noop} />,
+    );
+    expect(html).toContain("Try again");
+    expect(html).toContain("Stopped");
+    expect(html).not.toContain("step run");
+  });
+
+  it("stops the spinner when Cuso finished with questions", () => {
+    const html = renderToStaticMarkup(
+      <LearningCard brain={null} state="done" actions={noop} />,
+    );
+    expect(html).toContain("I have a few questions");
+    expect(html).not.toContain("step run");
+  });
+
   it("offers the only approval in the strategy proposal", () => {
     const html = renderToStaticMarkup(
       <StrategyCard overview={overview()} actions={noop} />,

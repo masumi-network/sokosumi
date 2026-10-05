@@ -70,7 +70,9 @@ export function buildThread(
 
 /** Cuso's state in a word, for the chat header. */
 export function cusoStatus(overview: CmoOverview): string {
-  if (!overview.brandBrain) return "Learning";
+  if (overview.learning === "failed") return "Stopped";
+  if (overview.learning === "running") return "Learning";
+  if (!overview.brandBrain) return "Needs your answers";
   if (overview.billing.availableCredits <= 0 && overview.strategyApprovedAt) {
     return "Paused";
   }

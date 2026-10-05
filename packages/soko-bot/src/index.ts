@@ -9,6 +9,7 @@ export {
   cmoBrandBrainSchema,
   cmoMayExecute,
   cmoReportUpdateInputSchema,
+  cmoRoutineSkipReason,
   cmoStrategySchema,
   isCmoScheduleKey,
   SOKO_BOT_CMO_SCHEDULES,

@@ -21543,8 +21543,23 @@ export const CmoOverviewSchema = {
         botStatus: {
             type: 'string'
         },
+        learning: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ],
+            description: 'Cuso\'s first look at the business: still running, failed or stuck (offer a retry), or done.'
+        },
         subscriptionActive: {
             type: 'boolean'
+        },
+        routines: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoRoutine'
+            }
         },
         brandBrain: {
             anyOf: [
@@ -22009,7 +22024,9 @@ export const CmoOverviewSchema = {
         'projectId',
         'roomId',
         'botStatus',
+        'learning',
         'subscriptionActive',
+        'routines',
         'brandBrain',
         'brandBrainUpdatedAt',
         'strategy',
@@ -22026,6 +22043,43 @@ export const CmoOverviewSchema = {
     ]
 } as const;
 
+export const CmoRoutineSchema = {
+    type: 'object',
+    properties: {
+        key: {
+            type: 'string'
+        },
+        name: {
+            type: 'string'
+        },
+        when: {
+            type: 'string'
+        },
+        description: {
+            type: 'string'
+        },
+        nextRunAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'key',
+        'name',
+        'when',
+        'description',
+        'nextRunAt'
+    ]
+} as const;
+
 export const CmoUpdateSchema = {
     type: 'object',
     properties: {
@@ -22034,6 +22088,8 @@ export const CmoUpdateSchema = {
             enum: [
                 'daily',
                 'weekly',
+                'monthly',
+                'brand',
                 'request'
             ]
         },
@@ -22206,6 +22262,18 @@ export const CmoOnboardingRequestSchema = {
     ]
 } as const;
 
+export const CmoTurnStartedSchema = {
+    type: 'object',
+    properties: {
+        turnId: {
+            type: 'string'
+        }
+    },
+    required: [
+        'turnId'
+    ]
+} as const;
+
 export const CmoBrandBrainRequestSchema = {
     type: 'object',
     properties: {
@@ -22345,18 +22413,6 @@ export const CmoBrandBrainRequestSchema = {
     },
     required: [
         'brandBrain'
-    ]
-} as const;
-
-export const CmoTurnStartedSchema = {
-    type: 'object',
-    properties: {
-        turnId: {
-            type: 'string'
-        }
-    },
-    required: [
-        'turnId'
     ]
 } as const;
 

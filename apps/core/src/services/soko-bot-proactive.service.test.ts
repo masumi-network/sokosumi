@@ -78,7 +78,23 @@ describe("ensureSystemSchedules", () => {
     const keys = scheduleCreateMock.mock.calls.map(
       (call) => call[0].data.systemKey,
     );
-    expect(keys).toEqual(["cmo-daily-run", "cmo-weekly-review"]);
+    expect(keys).toEqual([
+      "cmo-daily-run",
+      "cmo-weekly-review",
+      "cmo-monthly-strategy",
+      "cmo-brand-refresh",
+      "cmo-strategy-nudge",
+    ]);
+    // Never a personal assistant's rhythms.
+    for (const personal of [
+      "standup",
+      "meeting-prep",
+      "end-of-day",
+      "follow-ups",
+      "monday-plan",
+    ]) {
+      expect(keys).not.toContain(personal);
+    }
   });
 });
 

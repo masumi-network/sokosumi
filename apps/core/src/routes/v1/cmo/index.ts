@@ -20,6 +20,7 @@ import {
   type CmoOverview,
   getCmoOverview,
   requestCmoStrategy,
+  retryCmoOnboarding,
   revertCmoUpdate,
   saveCmoBrandBrain,
   startCmoOnboarding,
@@ -46,6 +47,8 @@ function mapOverview(overview: CmoOverview) {
     projectId: workspace.projectId,
     roomId: overview.roomId,
     botStatus: overview.botStatus,
+    learning: overview.learning,
+    routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
     brandBrain: overview.brandBrain,
     brandBrainUpdatedAt: workspace.brandBrainUpdatedAt,
@@ -138,6 +141,29 @@ app.openapi(
     const body = c.req.valid("json");
     await startCmoOnboarding({ userId, ...body }).catch(rethrow);
     return created(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/onboarding/retry",
+    operationId: "retryCmoOnboarding",
+    tags: ["CMO"],
+    description:
+      "Starts Cuso's first look at the business again after it failed or got stuck.",
+    responses: {
+      201: jsonSuccessResponse(cmoTurnStartedSchema, "Cuso is learning again"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No CMO workspace yet"),
+      409: jsonErrorResponse("Cuso is still learning or already done"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const started = await retryCmoOnboarding(userId).catch(rethrow);
+    return created(c, cmoTurnStartedSchema.parse(started));
   },
 );
 

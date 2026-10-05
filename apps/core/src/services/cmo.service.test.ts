@@ -1,26 +1,46 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { cmoFindUnique, cmoUpdate, subscriptionFindFirst } = vi.hoisted(() => ({
+const {
+  cmoFindUnique,
+  cmoUpdate,
+  subscriptionFindFirst,
+  turnFindFirst,
+  eventFindFirst,
+  expireTurn,
+  startTurn,
+} = vi.hoisted(() => ({
   cmoFindUnique: vi.fn(),
   cmoUpdate: vi.fn(),
   subscriptionFindFirst: vi.fn(),
+  turnFindFirst: vi.fn(),
+  eventFindFirst: vi.fn(),
+  expireTurn: vi.fn(),
+  startTurn: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     cmoWorkspace: { findUnique: cmoFindUnique, update: cmoUpdate },
     subscription: { findFirst: subscriptionFindFirst },
+    sokoBotTurn: { findFirst: turnFindFirst },
+    sokoBotRuntimeEvent: { findFirst: eventFindFirst },
   },
+}));
+
+vi.mock("@/services/soko-bot-control-plane.service", () => ({
+  sokoBotControlPlane: { expireTurn, startTurn },
 }));
 
 import {
   approveCmoStrategy,
   cmoBusinessNameFromUrl,
   cmoExecutionRefusal,
+  cmoLearningState,
   cmoUpNext,
   hasActiveCmoSubscription,
   parseCmoUpdates,
   reportCmoUpdate,
+  retryCmoOnboarding,
   revertCmoUpdate,
   saveCmoStrategy,
 } from "./cmo.service";
@@ -64,6 +84,7 @@ const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 beforeEach(() => {
   vi.clearAllMocks();
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
+  expireTurn.mockResolvedValue(true);
 });
 
 describe("strategy approval → execution gate", () => {
@@ -252,5 +273,66 @@ describe("cmoBusinessNameFromUrl", () => {
   it("uses the domain", () => {
     expect(cmoBusinessNameFromUrl("https://www.acme.io/about")).toBe("acme.io");
     expect(cmoBusinessNameFromUrl("not a url")).toBe("not a url");
+  });
+});
+
+describe("learning state", () => {
+  const workspace = {
+    id: "cmo-1",
+    userId: "user-1",
+    workspaceId: "ws-1",
+    sokoBotId: "bot-1",
+    brandBrain: null,
+    businessName: "Acme",
+    websiteUrl: "https://acme.io",
+    goals: "More sales",
+  };
+  const now = new Date("2026-10-05T10:00:00Z");
+  const turn = (status: string, minutesAgo: number) => ({
+    id: "turn-1",
+    status,
+    eveSessionId: "sess-1",
+    createdAt: new Date(now.getTime() - minutesAgo * 60_000),
+  });
+
+  it("is running while the turn keeps making progress", async () => {
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 2));
+    eventFindFirst.mockResolvedValue({
+      occurredAt: new Date(now.getTime() - 10_000),
+    });
+    expect(await cmoLearningState(workspace, now)).toBe("running");
+    expect(expireTurn).not.toHaveBeenCalled();
+  });
+
+  it("settles a turn that stopped making progress and reports it failed", async () => {
+    // Its run died with the process that ran it: last event 7 minutes ago.
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 8));
+    eventFindFirst.mockResolvedValue({
+      occurredAt: new Date(now.getTime() - 7 * 60_000),
+    });
+    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    expect(expireTurn).toHaveBeenCalledWith("turn-1");
+  });
+
+  it("reports a failed turn, and done when Cuso finished with questions", async () => {
+    turnFindFirst.mockResolvedValueOnce(turn("FAILED", 3));
+    expect(await cmoLearningState(workspace, now)).toBe("failed");
+    turnFindFirst.mockResolvedValueOnce(turn("COMPLETED", 3));
+    expect(await cmoLearningState(workspace, now)).toBe("done");
+  });
+
+  it("retries only after a failure, with a fresh turn id", async () => {
+    cmoFindUnique.mockResolvedValue(workspace);
+    turnFindFirst.mockResolvedValue(turn("FAILED", 3));
+    startTurn.mockResolvedValue({ turnId: "turn-2" });
+    expect(await retryCmoOnboarding("user-1")).toEqual({ turnId: "turn-2" });
+    const input = startTurn.mock.calls[0]?.[0];
+    expect(input.clientTurnId).toMatch(/^cmo:onboarding:cmo-1:\d+$/);
+
+    turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
+    eventFindFirst.mockResolvedValue({ occurredAt: new Date() });
+    await expect(retryCmoOnboarding("user-1")).rejects.toThrow(
+      "still learning",
+    );
   });
 });

@@ -347,6 +347,33 @@ export function SettingsPage({
         </p>
       </section>
       <section className="panel">
+        <h3>What Cuso does when</h3>
+        <p className="muted">
+          Every routine works from your strategy. Nothing runs until you approve
+          it.
+        </p>
+        <ul className="list">
+          {overview.routines.map((routine) => (
+            <li key={routine.key} className="li routine">
+              <span className="grow">
+                <b>{routine.name}</b>
+                <br />
+                <span className="note">{routine.description}</span>
+              </span>
+              <span className="note num">
+                {routine.when}
+                {routine.nextRunAt ? (
+                  <>
+                    <br />
+                    Next: {formatRoutineRun(routine.nextRunAt)}
+                  </>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+      <section className="panel">
         <h3>Account</h3>
         <div className="li">
           <span className="grow">
@@ -366,4 +393,14 @@ export function SettingsPage({
       </section>
     </div>
   );
+}
+
+function formatRoutineRun(at: Date | string): string {
+  return new Date(at).toLocaleString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }

@@ -5,11 +5,14 @@ import {
   type CmoBrandBrain,
   type CmoReportUpdateInput,
   type CmoStrategy,
+  type CmoSystemSchedule,
   cmoBrandBrainSchema,
   cmoMayExecute,
   cmoReportUpdateInputSchema,
+  cmoRoutineSkipReason,
   cmoStrategySchema,
   getSokoBotVersion,
+  SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
@@ -148,6 +151,84 @@ function onboardingMessage(input: {
   ].join("\n");
 }
 
+const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
+/**
+ * Learning that shows no progress for this long is stuck: a healthy turn
+ * writes an event every few seconds and ends within the runtime's budget.
+ */
+const LEARNING_STALL_MS = 5 * 60 * 1_000;
+
+/** Where Cuso's first look at the business stands, for the learning card. */
+export type CmoLearningState = "running" | "failed" | "done";
+
+async function lastTurnProgressAt(turn: {
+  eveSessionId: string | null;
+  createdAt: Date;
+}): Promise<Date> {
+  if (!turn.eveSessionId) return turn.createdAt;
+  const latest = await prisma.sokoBotRuntimeEvent.findFirst({
+    where: { sessionId: turn.eveSessionId },
+    orderBy: { startIndex: "desc" },
+    select: { occurredAt: true },
+  });
+  return latest?.occurredAt ?? turn.createdAt;
+}
+
+/**
+ * Reads the newest onboarding turn. A stuck one (its run died, e.g. with
+ * the process that ran it) is settled as failed here, as a deadline would,
+ * so the founder sees "Try again" instead of a spinner and the bot is free
+ * for new turns.
+ */
+export async function cmoLearningState(
+  workspace: Pick<CmoWorkspace, "userId" | "sokoBotId" | "brandBrain">,
+  now: Date = new Date(),
+): Promise<CmoLearningState> {
+  if (workspace.brandBrain) return "done";
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: workspace.sokoBotId,
+      clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, status: true, eveSessionId: true, createdAt: true },
+  });
+  if (!turn) return "failed";
+  // Cuso can finish without a Brand Brain on purpose: it asked questions.
+  if (turn.status === "COMPLETED") return "done";
+  if (turn.status === "FAILED" || turn.status === "CANCELLED") return "failed";
+  const progressAt = await lastTurnProgressAt(turn);
+  if (now.getTime() - progressAt.getTime() < LEARNING_STALL_MS) {
+    return "running";
+  }
+  const { sokoBotControlPlane } = await import(
+    "@/services/soko-bot-control-plane.service"
+  );
+  await sokoBotControlPlane.expireTurn(turn.id).catch(() => undefined);
+  return "failed";
+}
+
+/** Starts learning again after a failed or stuck first look. */
+export async function retryCmoOnboarding(
+  userId: string,
+): Promise<{ turnId: string }> {
+  const workspace = await getCmoWorkspaceForUser(userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  const state = await cmoLearningState(workspace);
+  if (state !== "failed") {
+    throw new CmoConflictError(
+      state === "running"
+        ? "Cuso is still learning the business"
+        : "Cuso already learned the business",
+    );
+  }
+  return startCmoTurn(workspace, {
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${workspace.id}:${Date.now()}`,
+    message: onboardingMessage(workspace),
+    route: CMO_ONBOARDING_ROUTE,
+  });
+}
+
 /**
  * Creates the business's organization, its marketing Project and Cuso, then
  * starts Cuso's first turn. One CMO workspace per person; a second call
@@ -213,7 +294,7 @@ export async function startCmoOnboarding(input: {
   });
 
   await startCmoTurn(created, {
-    clientTurnId: `cmo:onboarding:${created.id}`,
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
     message: onboardingMessage({
       businessName,
       websiteUrl: input.websiteUrl,
@@ -340,7 +421,7 @@ export async function approveCmoStrategy(
 const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
   id: z.string(),
   at: z.string(),
-  /** Weekly: the strategy before this review's changes, for revert. */
+  /** Weekly and monthly: the strategy before this turn's changes, for revert. */
   previousStrategy: z.unknown().optional(),
   revertedAt: z.string().optional(),
 });
@@ -373,7 +454,8 @@ export async function reportCmoUpdate(input: {
     ...update,
     id: randomBytes(8).toString("hex"),
     at: new Date().toISOString(),
-    ...(update.kind === "weekly" && savedThisTurn.length > 0
+    ...((update.kind === "weekly" || update.kind === "monthly") &&
+    savedThisTurn.length > 0
       ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
       : {}),
   };
@@ -389,7 +471,7 @@ export async function reportCmoUpdate(input: {
   return record;
 }
 
-/** Puts back the strategy a weekly review replaced. */
+/** Puts back the strategy a weekly review or monthly strategy replaced. */
 export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
@@ -513,10 +595,21 @@ export async function loadCmoMarketingContext(
 export async function buildCmoBeatPacket(
   sokoBotId: string,
   now: Date,
-): Promise<string> {
-  const context = await loadCmoMarketingContext(sokoBotId, now);
-  if (!context) return "No CMO workspace is linked to this bot.";
+  key: CmoSystemSchedule["key"],
+): Promise<{ packet: string; skip: boolean }> {
   const workspace = await getCmoWorkspaceForBot(sokoBotId);
+  if (!workspace) return { packet: "", skip: true };
+  // Nothing runs without a reason: no approved strategy, no Brand Brain,
+  // or not the reminder's one slot. A skipped run costs no turn.
+  const skipReason = cmoRoutineSkipReason(key, {
+    brandBrain: workspace.brandBrain !== null,
+    strategySavedAt: workspace.strategy ? workspace.strategyUpdatedAt : null,
+    strategyApproved: workspace.strategyApprovedAt !== null,
+    now,
+  });
+  if (skipReason) return { packet: "", skip: true };
+  const context = await loadCmoMarketingContext(sokoBotId, now);
+  if (!context) return { packet: "", skip: true };
   const posts = workspace
     ? await prisma.socialPost.findMany({
         where: {
@@ -560,7 +653,7 @@ export async function buildCmoBeatPacket(
         )
       : ["- none"]),
   ];
-  return lines.join("\n");
+  return { packet: lines.join("\n"), skip: false };
 }
 
 export interface CmoUpNextItem {
@@ -573,6 +666,15 @@ export interface CmoUpNextItem {
 
 export interface CmoOverview {
   workspace: CmoWorkspace;
+  learning: CmoLearningState;
+  /** What Cuso does when, for Settings. */
+  routines: {
+    key: string;
+    name: string;
+    when: string;
+    description: string;
+    nextRunAt: Date | null;
+  }[];
   organizationSlug: string;
   roomId: string;
   subscriptionActive: boolean;
@@ -672,8 +774,25 @@ export async function getCmoOverview(
     tx: prisma,
   });
   const cmoPlan = await activeCmoPlan(workspace.organizationId);
+  const learning = await cmoLearningState(workspace, now);
+  const schedules = await prisma.sokoBotSchedule.findMany({
+    where: { sokoBotId: workspace.sokoBotId, systemKey: { not: null } },
+    select: { systemKey: true, nextRunAt: true, enabled: true },
+  });
+  const routines = SOKO_BOT_CMO_SCHEDULES.map((routine) => {
+    const row = schedules.find((s) => s.systemKey === routine.key);
+    return {
+      key: routine.key,
+      name: routine.name,
+      when: routine.when,
+      description: routine.description,
+      nextRunAt: row?.enabled ? row.nextRunAt : null,
+    };
+  });
   return {
     workspace,
+    learning,
+    routines,
     organizationSlug: organization.slug,
     roomId: room.id,
     subscriptionActive: cmoPlan !== null,

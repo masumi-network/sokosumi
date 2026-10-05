@@ -6282,7 +6282,12 @@ export type CmoOverview = {
     projectId: string;
     roomId: string;
     botStatus: string;
+    /**
+     * Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.
+     */
+    learning: 'running' | 'failed' | 'done';
     subscriptionActive: boolean;
+    routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
         voice: {
@@ -6356,8 +6361,16 @@ export type CmoOverview = {
     createdAt: Date;
 };
 
+export type CmoRoutine = {
+    key: string;
+    name: string;
+    when: string;
+    description: string;
+    nextRunAt: Date | null;
+};
+
 export type CmoUpdate = {
-    kind: 'daily' | 'weekly' | 'request';
+    kind: 'daily' | 'weekly' | 'monthly' | 'brand' | 'request';
     headline: string;
     done?: Array<string>;
     upNext?: Array<string>;
@@ -6391,6 +6404,10 @@ export type CmoOnboardingRequest = {
     businessName?: string;
 };
 
+export type CmoTurnStarted = {
+    turnId: string;
+};
+
 export type CmoBrandBrainRequest = {
     brandBrain: {
         summary: string;
@@ -6413,10 +6430,6 @@ export type CmoBrandBrainRequest = {
             note?: string;
         }>;
     };
-};
-
-export type CmoTurnStarted = {
-    turnId: string;
 };
 
 export type CmoStrategyRequest = {
@@ -44687,6 +44700,94 @@ export type StartCmoOnboardingResponses = {
 };
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
+
+export type RetryCmoOnboardingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding/retry';
+};
+
+export type RetryCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Cuso is still learning or already done
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RetryCmoOnboardingError = RetryCmoOnboardingErrors[keyof RetryCmoOnboardingErrors];
+
+export type RetryCmoOnboardingResponses = {
+    /**
+     * Cuso is learning again
+     */
+    201: {
+        data: CmoTurnStarted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RetryCmoOnboardingResponse = RetryCmoOnboardingResponses[keyof RetryCmoOnboardingResponses];
 
 export type UpdateCmoBrandBrainData = {
     body?: CmoBrandBrainRequest;

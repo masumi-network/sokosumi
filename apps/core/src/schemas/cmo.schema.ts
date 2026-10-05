@@ -56,6 +56,16 @@ export const cmoUpNextItemSchema = z
   })
   .openapi("CmoUpNextItem");
 
+export const cmoRoutineSchema = z
+  .object({
+    key: z.string(),
+    name: z.string(),
+    when: z.string(),
+    description: z.string(),
+    nextRunAt: z.union([dateTimeSchema, z.null()]),
+  })
+  .openapi("CmoRoutine");
+
 export const cmoOverviewSchema = z
   .object({
     id: z.string(),
@@ -69,7 +79,13 @@ export const cmoOverviewSchema = z
     projectId: z.string(),
     roomId: z.string(),
     botStatus: z.string(),
+    learning: z
+      .enum(["running", "failed", "done"])
+      .describe(
+        "Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.",
+      ),
     subscriptionActive: z.boolean(),
+    routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     strategy: z.union([cmoStrategySchema, z.null()]),

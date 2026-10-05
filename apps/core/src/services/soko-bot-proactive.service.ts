@@ -451,11 +451,11 @@ export async function buildSystemBeatMessage(input: {
   const { bot, now } = input;
   if (isCmoScheduleKey(input.key)) {
     const { buildCmoBeatPacket } = await import("@/services/cmo.service");
+    const { packet, skip } = await buildCmoBeatPacket(bot.id, now, input.key);
     return {
-      message: [input.prompt, "", await buildCmoBeatPacket(bot.id, now)]
-        .join("\n")
-        .trim(),
+      message: [input.prompt, "", packet].join("\n").trim(),
       nudgeKeys: [],
+      ...(skip ? { skip: true } : {}),
     };
   }
   const lines: string[] = [input.prompt, ""];

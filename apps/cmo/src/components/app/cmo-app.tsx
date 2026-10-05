@@ -43,6 +43,7 @@ export interface CmoAppActions {
   sendMessage: (content: string) => Promise<void>;
   approveStrategy: () => Promise<CmoOverview>;
   revertUpdate: (id: string) => Promise<CmoOverview>;
+  retryLearning: () => Promise<CmoOverview>;
   signOut: () => Promise<void>;
 }
 
@@ -165,6 +166,7 @@ export function CmoApp({
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
+    retryLearning: async () => setOverview(await actions.retryLearning()),
     compose,
     open: (target) => setView(target),
   };
@@ -435,7 +437,13 @@ function ThreadEntry({
   const card = (() => {
     switch (item.kind) {
       case "learning":
-        return <LearningCard brain={overview.brandBrain} />;
+        return (
+          <LearningCard
+            brain={overview.brandBrain}
+            state={overview.learning}
+            actions={actions}
+          />
+        );
       case "brandBrain":
         return overview.brandBrain ? (
           <BrandBrainCard brandBrain={overview.brandBrain} actions={actions} />

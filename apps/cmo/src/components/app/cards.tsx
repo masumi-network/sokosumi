@@ -12,6 +12,8 @@ type Update = CmoOverview["updates"][number];
 export interface CardActions {
   approve: () => Promise<void>;
   revert: (updateId: string) => Promise<void>;
+  /** Starts Cuso's first look at the business again. */
+  retryLearning: () => Promise<void>;
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
   open: (view: "strategy" | "brain" | "results" | "channels") => void;
@@ -42,39 +44,75 @@ export function learningSteps(brain: BrandBrain | null) {
   ] as const;
 }
 
-export function LearningCard({ brain }: { brain: BrandBrain | null }) {
+export function LearningCard({
+  brain,
+  state,
+  actions,
+}: {
+  brain: BrandBrain | null;
+  state: CmoOverview["learning"];
+  actions: CardActions;
+}) {
+  const [pending, startTransition] = useTransition();
   const steps = learningSteps(brain);
   const missing = steps.filter(([, found]) => !found).length;
+  const running = state === "running";
+  const failed = state === "failed";
+  const status = running
+    ? "In progress"
+    : failed
+      ? "Stopped"
+      : !brain
+        ? "Needs your answers"
+        : missing === 0
+          ? "Done"
+          : `${missing} not confirmed yet`;
   return (
-    <div className="card">
+    <div className={failed ? "card highlight" : "card"}>
       <div className="ch">
         <b>Learning</b>
         <span className="sp" />
-        <span className="note">
-          {!brain
-            ? "In progress"
-            : missing === 0
-              ? "Done"
-              : `${missing} not confirmed yet`}
-        </span>
+        <span className="note">{status}</span>
       </div>
       <div className="cb">
-        <div className="steps">
-          {steps.map(([step, found]) => (
-            <div
-              key={step}
-              className={!brain ? "step run" : found ? "step ok" : "step"}
-            >
-              <span className="dot" aria-hidden="true" />
-              {step}
-              {brain && !found ? (
-                <span className="note">Not confirmed yet</span>
-              ) : null}
-            </div>
-          ))}
-        </div>
+        {failed ? (
+          <p className="txt">
+            I couldn't finish learning your business. Nothing was lost; try
+            again and I'll start over.
+          </p>
+        ) : (
+          <div className="steps">
+            {steps.map(([step, found]) => (
+              <div
+                key={step}
+                className={running ? "step run" : found ? "step ok" : "step"}
+              >
+                <span className="dot" aria-hidden="true" />
+                {step}
+                {brain && !found ? (
+                  <span className="note">Not confirmed yet</span>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
-      {brain && missing > 0 ? (
+      {failed ? (
+        <div className="cf">
+          <button
+            type="button"
+            className="button button-small"
+            disabled={pending}
+            onClick={() => startTransition(() => actions.retryLearning())}
+          >
+            {pending ? "Starting…" : "Try again"}
+          </button>
+        </div>
+      ) : !running && !brain ? (
+        <div className="cf">
+          <span className="note">I have a few questions. Answer below.</span>
+        </div>
+      ) : brain && missing > 0 ? (
         <div className="cf">
           <span className="note">
             Tell me what I missed in the chat, or share a link.
@@ -358,8 +396,21 @@ function ItemList({
 const UPDATE_TITLES = {
   daily: "Daily update",
   weekly: "Weekly results",
+  monthly: "Next month's strategy",
+  brand: "Brand Brain refreshed",
   request: "Done",
 } as const;
+
+const CHANGE_LABELS = {
+  weekly: "What I changed in the strategy",
+  monthly: "What changes from this month",
+  brand: "What changed in the Brand Brain",
+} as const;
+
+/** Updates that change the strategy, which the owner can put back. */
+function changesStrategy(kind: Update["kind"]): boolean {
+  return kind === "weekly" || kind === "monthly";
+}
 
 export function UpdateCard({
   update,
@@ -378,7 +429,7 @@ export function UpdateCard({
         <span className="note num">{formatTime(update.at)}</span>
       </div>
       <div className="cb">
-        {update.kind === "weekly" ? (
+        {changesStrategy(update.kind) ? (
           <div>
             <span className="label">Results</span>
             <p>{update.results ?? "No numbers from the providers yet."}</p>
@@ -398,9 +449,11 @@ export function UpdateCard({
             <ItemList items={update.upNext ?? []} actions={actions} />
           </div>
         ) : null}
-        {update.kind === "weekly" && (update.changes ?? []).length > 0 ? (
+        {update.kind !== "daily" &&
+        update.kind !== "request" &&
+        (update.changes ?? []).length > 0 ? (
           <div>
-            <span className="label">What I changed in the strategy</span>
+            <span className="label">{CHANGE_LABELS[update.kind]}</span>
             <ul className={update.revertedAt ? "list reverted" : "list"}>
               {(update.changes ?? []).map((change) => (
                 <li key={change} className="li">
@@ -415,7 +468,7 @@ export function UpdateCard({
         ) : null}
       </div>
       <div className="cf">
-        {update.kind === "weekly" && update.revertible ? (
+        {changesStrategy(update.kind) && update.revertible ? (
           <button
             type="button"
             className="button button-secondary button-small"
@@ -432,6 +485,22 @@ export function UpdateCard({
             onClick={() => actions.open("results")}
           >
             Open Results
+          </button>
+        ) : update.kind === "monthly" ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => actions.open("strategy")}
+          >
+            Open strategy
+          </button>
+        ) : update.kind === "brand" ? (
+          <button
+            type="button"
+            className="button button-ghost button-small"
+            onClick={() => actions.open("brain")}
+          >
+            Open Brand Brain
           </button>
         ) : null}
         <span className="note">

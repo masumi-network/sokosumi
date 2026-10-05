@@ -6,6 +6,7 @@ import {
   getChatsRoomsByIdMessages,
   getCmoOverview,
   postChatsRoomsByIdMessages,
+  retryCmoOnboarding,
   revertCmoUpdate,
   startCmoOnboarding,
 } from "@sokosumi/core-client";
@@ -53,6 +54,14 @@ export async function approveStrategy(): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await approveCmoStrategy(core);
   if (!data) throw new Error("Could not approve the strategy");
+  return data.data;
+}
+
+export async function retryLearning(): Promise<CmoOverview> {
+  const core = await requireCore();
+  await retryCmoOnboarding(core);
+  const { data } = await getCmoOverview(core);
+  if (!data) throw new Error("Could not load the CMO workspace");
   return data.data;
 }
 

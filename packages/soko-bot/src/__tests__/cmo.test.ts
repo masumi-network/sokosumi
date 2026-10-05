@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   cmoMayExecute,
+  cmoRoutineSkipReason,
   cmoStrategySchema,
   isCmoScheduleKey,
   SOKO_BOT_CMO_SCHEDULES,
@@ -101,9 +102,69 @@ describe("CMO strategy and rhythms", () => {
     expect(SOKO_BOT_CMO_SCHEDULES.map((schedule) => schedule.key)).toEqual([
       "cmo-daily-run",
       "cmo-weekly-review",
+      "cmo-monthly-strategy",
+      "cmo-brand-refresh",
+      "cmo-strategy-nudge",
     ]);
+    for (const schedule of SOKO_BOT_CMO_SCHEDULES) {
+      expect(schedule.when.length).toBeGreaterThan(0);
+    }
     expect(isCmoScheduleKey("cmo-daily-run")).toBe(true);
     expect(isCmoScheduleKey("standup")).toBe(false);
+  });
+});
+
+describe("cmoRoutineSkipReason", () => {
+  const now = new Date("2026-10-10T10:00:00Z");
+  const hoursAgo = (hours: number) =>
+    new Date(now.getTime() - hours * 60 * 60 * 1_000);
+  const state = (
+    patch: Partial<Parameters<typeof cmoRoutineSkipReason>[1]>,
+  ) => ({
+    brandBrain: true,
+    strategySavedAt: hoursAgo(10),
+    strategyApproved: false,
+    now,
+    ...patch,
+  });
+
+  it("runs nothing that executes before the strategy is approved", () => {
+    for (const key of [
+      "cmo-daily-run",
+      "cmo-weekly-review",
+      "cmo-monthly-strategy",
+    ] as const) {
+      expect(cmoRoutineSkipReason(key, state({}))).not.toBeNull();
+      expect(
+        cmoRoutineSkipReason(key, state({ strategyApproved: true })),
+      ).toBeNull();
+    }
+  });
+
+  it("refreshes the Brand Brain only once there is one", () => {
+    expect(cmoRoutineSkipReason("cmo-brand-refresh", state({}))).toBeNull();
+    expect(
+      cmoRoutineSkipReason("cmo-brand-refresh", state({ brandBrain: false })),
+    ).not.toBeNull();
+  });
+
+  it("reminds once, in the one daily slot 48 to 72 hours after the proposal", () => {
+    const nudge = (hours: number, approved = false) =>
+      cmoRoutineSkipReason(
+        "cmo-strategy-nudge",
+        state({ strategySavedAt: hoursAgo(hours), strategyApproved: approved }),
+      );
+    expect(nudge(47)).not.toBeNull();
+    expect(nudge(48)).toBeNull();
+    expect(nudge(71)).toBeNull();
+    expect(nudge(72)).not.toBeNull();
+    expect(nudge(50, true)).not.toBeNull();
+    expect(
+      cmoRoutineSkipReason(
+        "cmo-strategy-nudge",
+        state({ strategySavedAt: null }),
+      ),
+    ).not.toBeNull();
   });
 });
 

@@ -12,6 +12,7 @@ import {
   loadOverview,
   loadState,
   onboard,
+  retryLearning,
   revertUpdate,
   sendMessage,
 } from "./cmo-actions";
@@ -49,6 +50,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           sendMessage,
           approveStrategy,
           revertUpdate,
+          retryLearning,
           signOut,
         }}
       />
