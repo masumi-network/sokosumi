@@ -39,7 +39,7 @@ export interface SokosumiSignInOptions {
  * page instead of its sign-in page. Sign in sends no prompt, so a person
  * still signed in to Sokosumi goes straight back to CMO.
  */
-export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
@@ -77,11 +77,11 @@ function coreDiscoveryUrl(coreBaseUrl: string): string {
   return `${coreBaseUrl}/auth/.well-known/openid-configuration`;
 }
 
-/** False while Core's discovery failed on this instance. */
-function hasSokosumiProvider({
+/** Sokosumi's provider, missing while Core's discovery failed on this instance. */
+function sokosumiProvider({
   socialProviders,
-}: Pick<AuthContext, "socialProviders">): boolean {
-  return socialProviders.some(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
+}: Pick<AuthContext, "socialProviders">) {
+  return socialProviders.find(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
 }
 
 /** Whether a refresh failed without an answer from Core. */
@@ -107,9 +107,7 @@ function isUnanswered(error: unknown): boolean {
 const recordUnansweredRefreshes = {
   id: "cmo-record-unanswered-refreshes",
   init(ctx) {
-    const provider = ctx.socialProviders.find(
-      ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
-    );
+    const provider = sokosumiProvider(ctx);
     const refresh = provider?.refreshAccessToken;
     if (!provider || !refresh) return;
     provider.refreshAccessToken = async (refreshToken, refreshCtx) => {
@@ -225,7 +223,7 @@ export function createCmoAuth(config: CmoAuthConfig) {
           const pageRead = ctx.headers?.has(PAGE_TOKEN_READ_HEADER) ?? false;
           // Without discovery there is no provider, and Better Auth fails
           // before it looks at the token. A valid token needs no provider.
-          if (!pageRead && hasSokosumiProvider(ctx.context)) return;
+          if (!pageRead && sokosumiProvider(ctx.context)) return;
           const [session, account] = await Promise.all([
             getSessionFromCtx(ctx),
             getAccountCookie(ctx),
@@ -358,7 +356,7 @@ export function getAuth(): CmoAuth {
   const created = createCmoAuth(config);
   auth = created;
   created.$context.then((context) => {
-    if (hasSokosumiProvider(context)) return;
+    if (sokosumiProvider(context)) return;
     // Better Auth discovers Core once per instance. A preview's first request
     // can beat its branch's Core deploy, so discover again on the next one.
     if (auth === created) auth = undefined;
@@ -575,7 +573,7 @@ async function renewSessionOnce(
       typeof body === "object" &&
       "code" in body &&
       body.code === "PROVIDER_NOT_SUPPORTED" &&
-      !hasSokosumiProvider(await auth.$context))
+      !sokosumiProvider(await auth.$context))
   ) {
     return withSetCookies(renewed, 503);
   }
