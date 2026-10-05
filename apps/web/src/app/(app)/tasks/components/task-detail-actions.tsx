@@ -956,7 +956,7 @@ export function TaskDetailActions({
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleArchive}
-                disabled={isArchivePending}
+                loading={isArchivePending}
               >
                 {labels.archive}
               </AlertDialogAction>

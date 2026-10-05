@@ -53,7 +53,7 @@ interface EmailStepNoticeDetour {
   label: string;
   href: string;
   /**
-   * Takes the person there, e.g. emailing a code first. The link spins until
+   * Takes the person there, e.g. emailing a code first. The link loads until
    * it has navigated. A click for another tab just opens `href`.
    */
   follow: (
@@ -68,7 +68,7 @@ interface EmailStepNoticeDetour {
  * to Log in, without a notice.
  */
 interface EmailStepHandOver {
-  /** Navigates away; Continue spins until the page has gone. */
+  /** Navigates away; Continue loads until the page has gone. */
   handOver: (
     email: string,
     signal: AbortSignal,
@@ -94,7 +94,7 @@ interface EmailStepProps {
   onFormStart: () => void;
   /** The address as typed, for links outside the step that carry it. */
   onEmailChange?: ((email: string) => void) | undefined;
-  /** Runs while the button still spins, e.g. to email a code. */
+  /** Runs while the button still loads, e.g. to email a code. */
   onContinue: (
     email: string,
     signal: AbortSignal,
@@ -142,7 +142,7 @@ export function EmailStep({
     "preparing" | "navigating" | null
   >(null);
   const isFollowing = followingState !== null;
-  // Set at once, so a second click before the spinner renders is ignored.
+  // Set at once, so a second click before the loading state renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
   // What Core said about the address the notice is about.
@@ -216,7 +216,7 @@ export function EmailStep({
     changeFollowing("preparing");
     await follow(email, controller.signal, account);
     if (pending.current !== controller) return;
-    // Done, the page is leaving; keep spinning until it has.
+    // Done, the page is leaving; keep loading until it has.
     if (!controller.signal.aborted) {
       if (mounted.current) changeFollowing("navigating");
       return;
@@ -275,7 +275,7 @@ export function EmailStep({
           if ("handOver" in detour) {
             await detour.handOver(email, controller.signal, account);
             if (!isCurrent()) return;
-            // The page is leaving; keep spinning until it has.
+            // The page is leaving; keep loading until it has.
             handedOver = true;
             isFollowingRef.current = true;
             changeFollowing("navigating");
@@ -352,7 +352,7 @@ export function EmailStep({
               link must be too, or it would paint below. */}
           <div className="grid">
             <SubmitButton
-              // A hand-over has no link to spin; Continue does until it leaves.
+              // A hand-over has no link to load; Continue does until it leaves.
               isSubmitting={isSubmitting || (isFollowing && !notice)}
               label={t("continueWithEmail")}
               className="col-start-1 row-start-1 w-full"

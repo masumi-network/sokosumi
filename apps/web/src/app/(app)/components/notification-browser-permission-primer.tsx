@@ -302,11 +302,9 @@ export function NotificationBrowserPermissionPrimer({
             }
           }}
           onClick={handleEnable}
-          disabled={isRequesting}
+          loading={isRequesting}
         >
-          {isRequesting
-            ? t("browserPermissionRequesting")
-            : t("browserPermissionEnable")}
+          {t("browserPermissionEnable")}
         </Button>
       ),
     });

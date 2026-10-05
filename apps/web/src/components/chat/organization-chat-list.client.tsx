@@ -1004,7 +1004,7 @@ export function OrganizationChatList({
                     {tActions("cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={deletingRoomId !== null}
+                    loading={deletingRoomId !== null}
                     onClick={(event) => {
                       event.preventDefault();
                       handleConfirmDeleteRoom();

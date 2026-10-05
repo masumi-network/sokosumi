@@ -126,7 +126,7 @@ function AlertDialogAction({
 }: React.ComponentProps<typeof AlertDialogPrimitive.Action> &
   Pick<React.ComponentProps<typeof Button>, "loading">) {
   return (
-    <AlertDialogPrimitive.Action asChild {...props}>
+    <AlertDialogPrimitive.Action {...props} asChild>
       <Button className={className} loading={loading}>
         {children}
       </Button>

@@ -42,6 +42,18 @@ describe("Button loading", () => {
     expect(onClick).not.toHaveBeenCalled();
   });
 
+  it("keeps a loading click from reaching a clickable parent", () => {
+    const onParentClick = vi.fn();
+    render(
+      <div onClick={onParentClick}>
+        <Button loading>Save</Button>
+      </div>,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onParentClick).not.toHaveBeenCalled();
+  });
+
   it("does not submit its form while loading", () => {
     const onSubmit = vi.fn((event: React.FormEvent) => event.preventDefault());
     render(
