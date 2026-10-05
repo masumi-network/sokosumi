@@ -40,22 +40,22 @@ public struct MessageMarkdown: Equatable, Sendable {
   public let imageGallery: MessageImageGallery
 
   public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
-    let linkified = Self.linkified(source)
-    let document = Markdown.Document(parsing: linkified)
+    let normalized = Self.normalized(source)
+    let document = Markdown.Document(parsing: MarkdownBareDomains(normalized).linkified())
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
     let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
     blocks = built
-    let runs = MarkdownBareDomains(linkified).attachmentRuns()
+    let runs = MarkdownBareDomains(normalized).attachmentRuns()
     if runs.isEmpty {
       segments = [MessageMarkdownSegment(id: 0, blocks: built, files: [])]
     } else {
-      let characters = Array(linkified)
+      let characters = Array(normalized)
       var cursor = 0
       var rendered: [MessageMarkdownSegment] = []
       func appendText(through end: Int) {
         let source = String(characters[cursor ..< end])
-        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        let parsed = Markdown.Document(parsing: source)
+        guard !source.allSatisfy(MarkdownBareDomains.isWebWhitespace) else { return }
+        let parsed = Markdown.Document(parsing: MarkdownBareDomains(source).linkified())
         let blocks = parsed.children.flatMap { builder.blocks(for: $0) }
           .map { $0.resolving(mentions: mentions, channels: channels) }
         rendered.append(MessageMarkdownSegment(id: cursor, blocks: blocks, files: []))
@@ -68,8 +68,8 @@ public struct MessageMarkdown: Equatable, Sendable {
       appendText(through: characters.count)
       segments = rendered
     }
-    // Rendering, clamping and the gallery share the same source runs. Parsed HTML images
-    // still participate through their text segment's native Markdown blocks.
+    // Rendering, clamping and the gallery share the same source runs. A file link left in the text is a link
+    // (row 15c); images embedded in the text (Markdown or HTML) still join through their text segment's blocks.
     clampsLongBody = runs.isEmpty
       ? !Self.attachmentRows(in: built).contains { $0.count == 1 && $0[0].kind == .image }
       : !segments.contains(where: \.usesLargeImage)
@@ -82,14 +82,13 @@ public struct MessageMarkdown: Equatable, Sendable {
   /// what the newest row keeps the Seen by corner clear under. Reads the same source runs as `segments` without
   /// parsing the document, so a row can ask before its document is ready.
   public static func endsWithAttachmentRun(_ source: String) -> Bool {
-    let linkified = linkified(source)
-    guard let last = MarkdownBareDomains(linkified).attachmentRuns().last else { return false }
-    return Array(linkified)[last.range.upperBound...].allSatisfy(\.isWhitespace)
+    let normalized = normalized(source)
+    guard let last = MarkdownBareDomains(normalized).attachmentRuns().last else { return false }
+    return Array(normalized)[last.range.upperBound...].allSatisfy(MarkdownBareDomains.isWebWhitespace)
   }
 
-  private static func linkified(_ source: String) -> String {
-    let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    return MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified()
+  private static func normalized(_ source: String) -> String {
+    MessageMarkdownNormalization.applying(to: source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n"))
   }
 }
 
