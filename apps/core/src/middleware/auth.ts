@@ -8,8 +8,7 @@ import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
-import { auth } from "@/lib/auth";
-import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-provider";
+import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -469,6 +468,7 @@ async function verifyApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
+  const { auth } = await import("@/lib/auth");
   const apiKeyResult = await auth.api.verifyApiKey({
     body: { configId: "default", key: token },
   });
@@ -664,6 +664,10 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
 });
 
 const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  // Loaded on first use: this middleware is in every route's graph, and the
+  // auth module drags better-auth, its plugins and Stripe into suites that
+  // never reach a session. Same reason as `middleware/organization.ts`.
+  const { auth } = await import("@/lib/auth");
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });

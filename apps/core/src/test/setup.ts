@@ -1,5 +1,7 @@
 import { vi } from "vitest";
 
+import { workerDatabaseUrl } from "./worker-database-url";
+
 const envDefaults: Record<string, string> = {
   NETWORK: "Preprod",
   NODE_ENV: "development",
@@ -57,6 +59,18 @@ for (const [key, value] of Object.entries(envDefaults)) {
     continue;
   }
   process.env[key] = value;
+}
+
+// The parallel PostgreSQL run gives each worker its own copy of the migrated
+// database (`postgres-worker-databases.ts`); point this worker at its copy.
+const poolId = process.env.VITEST_POOL_ID;
+if (process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true" && poolId) {
+  for (const key of ["DATABASE_URL", "DATABASE_URL_UNPOOLED"]) {
+    const url = process.env[key];
+    if (url?.startsWith("postgres")) {
+      process.env[key] = workerDatabaseUrl(url, poolId);
+    }
+  }
 }
 
 // Tests use BETTER_AUTH_SECRET alone. A BETTER_AUTH_SECRETS value from the
