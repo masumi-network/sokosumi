@@ -32,7 +32,7 @@
         if content.showsCounter {
           HStack(alignment: .firstTextBaseline, spacing: 8) {
             if content.isTooLong {
-              Text("Too long to send as text").font(.caption).foregroundStyle(.red)
+              ComposerTooLongHint()
             }
             Spacer(minLength: 0)
             ComposerCharacterCount(content: content)
