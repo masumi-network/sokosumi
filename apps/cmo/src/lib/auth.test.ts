@@ -15,7 +15,8 @@ import {
   createCmoAuth,
   getAuth,
   renewSession,
-  sokosumiSignInBody,
+  type SokosumiSignInOptions,
+  startSokosumiSignIn,
 } from "./auth";
 
 // The link routes reach the auth each test creates.
@@ -345,16 +346,18 @@ async function send(
 async function startSignIn(
   auth: CmoAuth,
   jar: CookieJar,
-  options: Parameters<typeof sokosumiSignInBody>[0] = {
-    createAccount: false,
-  },
+  options: SokosumiSignInOptions = { createAccount: false },
 ): Promise<string> {
-  const response = await send(auth, jar, "/api/auth/sign-in/social", {
-    method: "POST",
-    body: sokosumiSignInBody(options),
-  });
-  expect(response.status).toBe(200);
-  const { url } = (await response.json()) as { url: string };
+  const { url, setCookies } = await startSokosumiSignIn(
+    auth,
+    browserRequest(jar, "/").headers,
+    options,
+  );
+  jar.store(
+    new Response(null, {
+      headers: setCookies.map((cookie) => ["set-cookie", cookie]),
+    }),
+  );
   return url;
 }
 

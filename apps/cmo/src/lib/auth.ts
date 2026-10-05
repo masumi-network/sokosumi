@@ -39,7 +39,7 @@ export interface SokosumiSignInOptions {
  * page instead of its sign-in page. Sign in sends no prompt, so a person
  * still signed in to Sokosumi goes straight back to CMO.
  */
-export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
