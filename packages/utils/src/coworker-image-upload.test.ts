@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildCoworkerImagePathname,
-  buildCoworkerImagePrefix,
   COWORKER_IMAGE_MAX_SIZE_BYTES,
-  extensionForCoworkerImageMime,
   isCoworkerImageAllowedContentType,
   isOwnedCoworkerImageUrl,
 } from "./coworker-image-upload.js";
@@ -27,16 +25,6 @@ describe("isCoworkerImageAllowedContentType", () => {
 describe("COWORKER_IMAGE_MAX_SIZE_BYTES", () => {
   it("is 2 MiB", () => {
     expect(COWORKER_IMAGE_MAX_SIZE_BYTES).toBe(2 * 1024 * 1024);
-  });
-});
-
-describe("extensionForCoworkerImageMime", () => {
-  it("maps allowed MIME types to file extensions", () => {
-    expect(extensionForCoworkerImageMime("image/png")).toBe("png");
-    expect(extensionForCoworkerImageMime("IMAGE/JPEG")).toBe("jpg");
-    expect(extensionForCoworkerImageMime("image/webp")).toBe("webp");
-    expect(extensionForCoworkerImageMime("image/gif")).toBe("gif");
-    expect(extensionForCoworkerImageMime("image/svg+xml")).toBeNull();
   });
 });
 
@@ -71,12 +59,6 @@ describe("buildCoworkerImagePathname", () => {
         "image/webp",
       ),
     ).toBe("coworkers/01960001-0001-7001-8001-000000000099/image-file.webp");
-  });
-});
-
-describe("buildCoworkerImagePrefix", () => {
-  it("returns the coworkers/{id}/ prefix", () => {
-    expect(buildCoworkerImagePrefix("cow_123")).toBe("coworkers/cow_123/");
   });
 });
 

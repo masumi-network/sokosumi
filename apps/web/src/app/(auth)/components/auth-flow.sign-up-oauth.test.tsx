@@ -12,7 +12,7 @@ import {
 
 import { fireGTMEvent } from "@/lib/gtm-events";
 
-import SignUpFlow from "../sign-up-flow";
+import AuthFlow from "./auth-flow";
 
 // The two steps together, unmocked, on a page that carries a Sign in with
 // Sokosumi request. Core's OAuth provider answers a sign-up from such a page
@@ -125,7 +125,8 @@ describe("stepped sign-up with an OAuth request", () => {
       error: null,
     });
     render(
-      <SignUpFlow
+      <AuthFlow
+        mode="signUp"
         lastUsedMethod={null}
         client={{ name: "CMO", uri: undefined, logoUri: undefined }}
       />,

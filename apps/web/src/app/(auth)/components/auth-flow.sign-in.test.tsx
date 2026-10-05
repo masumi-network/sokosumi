@@ -23,7 +23,7 @@ import {
   requestCaptchaMock,
 } from "@/test/auth-captcha-mock";
 
-import SignInFlow from "./sign-in-flow";
+import AuthFlow from "./auth-flow";
 
 const socialButtonsMock = vi.fn();
 const signInFormMock = vi.fn();
@@ -79,7 +79,7 @@ vi.mock("@/auth/components/social-buttons", () => ({
   },
 }));
 
-vi.mock("./form", () => ({
+vi.mock("@/auth/signin/components/form", () => ({
   __esModule: true,
   default: (props: { onPendingChange: (pending: boolean) => void }) => {
     signInFormMock(props);
@@ -103,7 +103,7 @@ function detour() {
   return screen.getByTestId("email-step-detour");
 }
 
-describe("SignInFlow", () => {
+describe("AuthFlow signIn", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.sessionStorage.clear();
@@ -119,7 +119,7 @@ describe("SignInFlow", () => {
   });
 
   it("opens on the email beside the providers and the passkey", () => {
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(emailField()).toHaveAttribute("autocomplete", "username webauthn");
     expect(screen.getByTestId("social-buttons")).toBeInTheDocument();
@@ -131,7 +131,7 @@ describe("SignInFlow", () => {
 
   it("checks the address and emails a code on Continue when no method is remembered", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -163,7 +163,7 @@ describe("SignInFlow", () => {
 
   it("opens on the password without emailing a code when the password was used last", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod="email" />);
+    render(<AuthFlow mode="signIn" lastUsedMethod="email" />);
 
     expect(screen.getByText("lastUsed")).toBeInTheDocument();
     await continueWith(user, "ada@example.com");
@@ -186,7 +186,7 @@ describe("SignInFlow", () => {
       data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -206,7 +206,7 @@ describe("SignInFlow", () => {
       data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
 
@@ -233,7 +233,7 @@ describe("SignInFlow", () => {
       data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod="email-otp" />);
+    render(<AuthFlow mode="signIn" lastUsedMethod="email-otp" />);
 
     await continueWith(user, "ada@example.com");
 
@@ -247,7 +247,7 @@ describe("SignInFlow", () => {
 
   it("emails a code when the code was used last, and marks Continue", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod="email-otp" />);
+    render(<AuthFlow mode="signIn" lastUsedMethod="email-otp" />);
 
     expect(screen.getByText("lastUsed")).toBeInTheDocument();
     expect(socialButtonsMock).toHaveBeenLastCalledWith(
@@ -265,7 +265,7 @@ describe("SignInFlow", () => {
 
   it("marks the provider used last, not Continue", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod="google" />);
+    render(<AuthFlow mode="signIn" lastUsedMethod="google" />);
 
     expect(socialButtonsMock).toHaveBeenLastCalledWith(
       expect.objectContaining({ lastUsedMethod: "google" }),
@@ -286,7 +286,7 @@ describe("SignInFlow", () => {
       data: null,
       error: { message: "Too many requests" },
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -305,7 +305,7 @@ describe("SignInFlow", () => {
       data: { exists: false, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "new@example.com");
 
@@ -325,7 +325,7 @@ describe("SignInFlow", () => {
       data: { exists: false, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     await continueWith(user, "new@example.com");
     const createAccount = await screen.findByRole("link", {
       name: "NoAccount.createAccount",
@@ -472,7 +472,7 @@ describe("SignInFlow", () => {
       data: { exists: false, captchaPass: CAPTCHA_PASS },
       error: null,
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(screen.getByRole("link", { name: "Register.link" })).toHaveAttribute(
       "href",
@@ -494,7 +494,7 @@ describe("SignInFlow", () => {
       data: null,
       error: { status: 400, error: "invalid_signature" },
     });
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -507,7 +507,7 @@ describe("SignInFlow", () => {
   it("asks Core nothing when the security check is cancelled", async () => {
     const user = userEvent.setup();
     requestCaptchaMock.mockResolvedValue(null);
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -517,7 +517,7 @@ describe("SignInFlow", () => {
 
   it("returns to the email step with the address kept and focused", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
 
@@ -531,7 +531,11 @@ describe("SignInFlow", () => {
   it("locks an invitation's email on both steps", async () => {
     const user = userEvent.setup();
     render(
-      <SignInFlow lastUsedMethod={null} prefilledEmail="invited@example.com" />,
+      <AuthFlow
+        mode="signIn"
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+      />,
     );
 
     expect(emailField()).toHaveValue("invited@example.com");
@@ -547,7 +551,7 @@ describe("SignInFlow", () => {
   it("starts from the email sign-up handed over, editable", async () => {
     rememberAuthEmailHint("ada@example.com");
 
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await waitFor(() => expect(emailField()).toHaveValue("ada@example.com"));
     expect(emailField()).toBeEnabled();
@@ -558,7 +562,11 @@ describe("SignInFlow", () => {
     rememberAuthEmailHint("ada@example.com");
 
     render(
-      <SignInFlow lastUsedMethod={null} prefilledEmail="invited@example.com" />,
+      <AuthFlow
+        mode="signIn"
+        lastUsedMethod={null}
+        prefilledEmail="invited@example.com"
+      />,
     );
 
     expect(emailField()).toHaveValue("invited@example.com");
@@ -569,7 +577,7 @@ describe("SignInFlow", () => {
 
     render(
       <StrictMode>
-        <SignInFlow lastUsedMethod={null} />
+        <AuthFlow mode="signIn" lastUsedMethod={null} />
       </StrictMode>,
     );
 
@@ -585,7 +593,9 @@ describe("SignInFlow", () => {
     it("hands the typed email to sign-up instead of putting it in the link", async () => {
       const user = userEvent.setup();
       mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
-      render(<SignInFlow lastUsedMethod={null} returnUrl="/agents" />);
+      render(
+        <AuthFlow mode="signIn" lastUsedMethod={null} returnUrl="/agents" />,
+      );
 
       await user.type(emailField(), "ada@exmaple.com");
       // A query email is an invitation's fixed address.
@@ -598,7 +608,7 @@ describe("SignInFlow", () => {
 
     it("leaves no email behind when sign-up opens in another tab", async () => {
       const user = userEvent.setup();
-      render(<SignInFlow lastUsedMethod={null} />);
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
       await user.type(emailField(), "ada@example.com");
 
       // The other tab cannot read this tab's hint, so this tab would show it
@@ -609,7 +619,7 @@ describe("SignInFlow", () => {
     });
 
     it("clears an old hint on a middle click", () => {
-      render(<SignInFlow lastUsedMethod={null} />);
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
       rememberAuthEmailHint("stale@example.com");
 
       fireEvent(
@@ -627,7 +637,8 @@ describe("SignInFlow", () => {
         error: null,
       });
       render(
-        <SignInFlow
+        <AuthFlow
+          mode="signIn"
           lastUsedMethod={null}
           returnUrl="/accept-invitation/inv_1"
           prefilledEmail="invited@example.com"
@@ -651,7 +662,8 @@ describe("SignInFlow", () => {
 
     it("hands a locked email without an invitation to sign-up as a starting value", () => {
       render(
-        <SignInFlow
+        <AuthFlow
+          mode="signIn"
           lastUsedMethod={null}
           prefilledEmail="invited@example.com"
         />,
@@ -666,7 +678,7 @@ describe("SignInFlow", () => {
 
   it("counts the login view once and the form start once", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
@@ -678,9 +690,13 @@ describe("SignInFlow", () => {
   it("shows the notice on the email step and the page's children on both", async () => {
     const user = userEvent.setup();
     render(
-      <SignInFlow lastUsedMethod={null} notice={<p>why-you-are-back</p>}>
+      <AuthFlow
+        mode="signIn"
+        lastUsedMethod={null}
+        notice={<p>why-you-are-back</p>}
+      >
         <p>terms</p>
-      </SignInFlow>,
+      </AuthFlow>,
     );
 
     expect(screen.getByText("why-you-are-back")).toBeInTheDocument();
@@ -705,7 +721,7 @@ describe("SignInFlow", () => {
     emailStatusMock.mockReturnValue(
       new Promise((resolve) => (answer = resolve)),
     );
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     expect(lastSocialProps().disabled).toBe(false);
 
     await continueWith(user, "ada@example.com");
@@ -719,7 +735,7 @@ describe("SignInFlow", () => {
 
   it("frees the providers again when the person changes the address", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
     await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
@@ -734,7 +750,7 @@ describe("SignInFlow", () => {
 
   it("holds the email while a provider sign-in starts", async () => {
     const user = userEvent.setup();
-    render(<SignInFlow lastUsedMethod={null} />);
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     await user.type(emailField(), "ada@example.com");
     const continueButton = screen.getByRole("button", {
       name: "continueWithEmail",
