@@ -54,11 +54,14 @@ function ButtonLoadingAnnouncer({ children }: { children: React.ReactNode }) {
 }
 
 function accessibleLabel(control: Element | null | undefined) {
-  return (
-    control?.getAttribute("aria-label") ||
-    control?.textContent ||
-    ""
-  ).trim()
+  const ariaLabel = control?.getAttribute("aria-label")
+  if (ariaLabel || !control) return (ariaLabel ?? "").trim()
+  // Decoration hidden from screen readers is not part of the name either.
+  const copy = control.cloneNode(true) as Element
+  for (const hidden of copy.querySelectorAll('[aria-hidden="true"]')) {
+    hidden.remove()
+  }
+  return (copy.textContent ?? "").trim()
 }
 
 /**
@@ -69,14 +72,23 @@ function accessibleLabel(control: Element | null | undefined) {
  *
  * Also exported for buttons this component cannot render, such as third-party
  * sign-in buttons. The parent needs `relative overflow-hidden` and the
- * button's radius.
+ * button's radius, and `label` names the button, since the bar then sits
+ * outside it.
  */
-function ButtonLoadingBar({ className }: { className?: string }) {
+function ButtonLoadingBar({
+  className,
+  label,
+}: {
+  className?: string
+  label?: string
+}) {
   const announce = React.useContext(ButtonLoadingAnnouncerContext)
   const ref = React.useRef<HTMLSpanElement>(null)
 
   useMountEffect(() =>
-    announce?.(accessibleLabel(ref.current?.closest('[data-slot="button"]')))
+    announce?.(
+      label ?? accessibleLabel(ref.current?.closest('[data-slot="button"]'))
+    )
   )
 
   return (

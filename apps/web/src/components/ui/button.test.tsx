@@ -4,7 +4,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "@/../messages/en.json";
 import { Button } from "@/components/ui/button";
-import { ButtonLoadingAnnouncer } from "@/components/ui/button-loading-bar";
+import {
+  ButtonLoadingAnnouncer,
+  ButtonLoadingBar,
+} from "@/components/ui/button-loading-bar";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 describe("Button loading", () => {
@@ -157,6 +160,29 @@ describe("Button loading announcement", () => {
     flush();
 
     expect(region).toHaveTextContent(/^Refresh, in progress$/);
+  });
+
+  it("leaves aria-hidden decoration out of the label", () => {
+    const { region } = renderAnnounced(
+      <Button loading>
+        Inbox <span aria-hidden="true">12</span>
+      </Button>,
+    );
+    flush();
+
+    expect(region).toHaveTextContent(/^Inbox, in progress$/);
+  });
+
+  it("uses the given label for a bar drawn outside a Button", () => {
+    const { region } = renderAnnounced(
+      <div className="relative">
+        <button type="button">Google</button>
+        <ButtonLoadingBar label="Continue with Google" />
+      </div>,
+    );
+    flush();
+
+    expect(region).toHaveTextContent(/^Continue with Google, in progress$/);
   });
 
   it("announces the same button again on its next run", () => {

@@ -100,4 +100,4 @@ function Button({
   )
 }
 
-export { Button, ButtonLoadingBar, buttonVariants }
+export { Button, buttonVariants }
