@@ -47,7 +47,6 @@ export function FormFields<T extends FieldValues>({
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
-  const authT = useTranslations("Auth");
 
   return (
     <>
@@ -64,12 +63,7 @@ export function FormFields<T extends FieldValues>({
                 </FormLabel>
               ) : null}
               <FormControl>
-                <FormInput
-                  field={field}
-                  formDataItem={formDataItem}
-                  t={t}
-                  authT={authT}
-                />
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
               {formDataItem.descriptionKey ? (
                 <FormDescription className="text-center">
@@ -95,14 +89,12 @@ interface FormInputProps<T extends FieldValues>
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  authT: IntlTranslation<"Auth">;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
-  authT,
   ...controlProps
 }: FormInputProps<T>) {
   const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
@@ -133,8 +125,6 @@ function FormInput<T extends FieldValues>({
         autoComplete={autoComplete}
         placeholder={placeholder}
         className="text-center"
-        showLabel={authT("PasswordToggle.show")}
-        hideLabel={authT("PasswordToggle.hide")}
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
         disabled={disabled}

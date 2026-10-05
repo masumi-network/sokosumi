@@ -77,7 +77,6 @@ export default function SignInForm({
   onPendingChange,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-  const authT = useTranslations("Auth");
   const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
@@ -329,8 +328,6 @@ export default function SignInForm({
                   autoComplete="current-password"
                   placeholder={t("Fields.Password.label")}
                   className="text-center"
-                  showLabel={authT("PasswordToggle.show")}
-                  hideLabel={authT("PasswordToggle.hide")}
                   {...field}
                 />
               </FormControl>
