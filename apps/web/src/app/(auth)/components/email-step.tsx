@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -37,6 +37,11 @@ const DETOUR_GRACE_MS = 400;
 interface EmailStepAccount {
   /** Sign-in opens on it, since a code could remove an unproven password. */
   hasPassword: boolean;
+  /**
+   * Stands in for the captcha on the sign-in code sent next, so a visitor
+   * Cloudflare wants to see is checked once, not again for the code.
+   */
+  captchaPass: string;
 }
 
 /** A notice that turns Continue into a link to the other page. */
@@ -51,7 +56,11 @@ interface EmailStepNoticeDetour {
    * Work that takes the person there, e.g. emailing a code first. The link
    * spins until it has navigated. A click for another tab just opens `href`.
    */
-  follow?: (email: string, signal: AbortSignal) => Promise<void>;
+  follow?: (
+    email: string,
+    signal: AbortSignal,
+    account: EmailStepAccount,
+  ) => Promise<void>;
 }
 
 /** Continue itself takes the person to the other page, without a notice. */
@@ -89,8 +98,6 @@ interface EmailStepProps {
     signal: AbortSignal,
     account: EmailStepAccount,
   ) => Promise<void> | void;
-  /** The check the work after Continue needs, shown beside this step's. */
-  continueCaptcha?: ReactNode;
   /** Another sign-in is starting, e.g. with Google; the step waits. */
   disabled?: boolean | undefined;
   /** Whether Continue, or following the detour, is still running. */
@@ -118,7 +125,6 @@ export function EmailStep({
   onFormStart,
   onEmailChange,
   onContinue,
-  continueCaptcha,
   disabled = false,
   onPendingChange,
 }: EmailStepProps) {
@@ -137,6 +143,8 @@ export function EmailStep({
   // Set at once, so a second click before the spinner renders is ignored.
   const isFollowingRef = useRef(false);
   const detouredSince = useRef(0);
+  // What Core said about the address the notice is about.
+  const detourAccount = useRef<EmailStepAccount | null>(null);
   const detourLinkRef = useRef<HTMLAnchorElement>(null);
   const noticeId = useId();
   const notice = "handOver" in detour ? null : detour;
@@ -198,12 +206,13 @@ export function EmailStep({
   async function followDetour(
     email: string,
     follow: NonNullable<EmailStepNoticeDetour["follow"]>,
+    account: EmailStepAccount,
   ) {
     const controller = new AbortController();
     pending.current = controller;
     isFollowingRef.current = true;
     changeFollowing("preparing");
-    await follow(email, controller.signal);
+    await follow(email, controller.signal, account);
     if (pending.current !== controller) return;
     // Done, the page is leaving; keep spinning until it has.
     if (!controller.signal.aborted) {
@@ -233,6 +242,7 @@ export function EmailStep({
         const result = await authClient.$fetch<{
           exists: boolean;
           hasPassword: boolean;
+          captchaPass: string;
         }>("/sign-up/email-status", {
           method: "POST",
           body: { email },
@@ -255,7 +265,10 @@ export function EmailStep({
           return;
         }
 
-        const account = { hasPassword: result.data.hasPassword };
+        const account = {
+          hasPassword: result.data.hasPassword,
+          captchaPass: result.data.captchaPass,
+        };
         if (result.data.exists === (detour.when === "exists")) {
           if ("handOver" in detour) {
             await detour.handOver(email, controller.signal, account);
@@ -267,6 +280,7 @@ export function EmailStep({
             return;
           }
           detouredSince.current = performance.now();
+          detourAccount.current = account;
           setIsDetoured(true);
           return;
         }
@@ -322,7 +336,7 @@ export function EmailStep({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="grid gap-0.5 pb-3">
+            <div className="grid gap-0.5 pb-3 text-center">
               <p className="font-medium tracking-tight">{notice?.title}</p>
               <p className="text-muted-foreground">{notice?.description}</p>
             </div>
@@ -330,7 +344,6 @@ export function EmailStep({
         </div>
         <div className="flex flex-col gap-4">
           {captcha}
-          {continueCaptcha}
           {/* Both controls share one cell. The submit button stays underneath
               and the link fades in over it, so the fill never dips. The
               submit button is positioned (for its spinner), so the link must
@@ -376,9 +389,15 @@ export function EmailStep({
                       return;
                     }
                     const email = emailLocked ? "" : form.getValues("email");
-                    if (notice.follow && email && isSameTabClick(event)) {
+                    const account = detourAccount.current;
+                    if (
+                      notice.follow &&
+                      email &&
+                      account &&
+                      isSameTabClick(event)
+                    ) {
                       event.preventDefault();
-                      void followDetour(email, notice.follow);
+                      void followDetour(email, notice.follow, account);
                       return;
                     }
                     rememberAuthEmailHintOnClick(event, email);

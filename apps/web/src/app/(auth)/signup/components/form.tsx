@@ -201,6 +201,7 @@ export default function SignUpForm({
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
+        namesInside
       />
       {withPassword ? (
         <FormFields
@@ -214,6 +215,7 @@ export default function SignUpForm({
         name="code"
         render={({ field, fieldState }) => (
           <EmailCodeField
+            centered
             inputRef={field.ref}
             value={field.value}
             // No onComplete: the updates checkbox comes after the code,

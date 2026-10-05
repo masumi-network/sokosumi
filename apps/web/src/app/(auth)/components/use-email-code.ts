@@ -6,7 +6,11 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ACCOUNT_HREF } from "@/app/account/constants";
 import type { EmailCodeError } from "@/components/auth/email-code-field";
-import { useAuthCaptcha } from "@/components/auth-captcha";
+import {
+  type CaptchaFetchOptions,
+  type RunWithCaptcha,
+  useAuthCaptcha,
+} from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 
@@ -83,7 +87,14 @@ export function useEmailCode({
   // `null` when no code went out.
   async function sendCode(
     email: string,
-    options: { signal?: AbortSignal } = {},
+    options: {
+      signal?: AbortSignal;
+      /**
+       * Another check that covers this send, e.g. the email step's pass or a
+       * widget already on screen. Without it the send uses `captcha`.
+       */
+      runWithCaptcha?: RunWithCaptcha;
+    } = {},
   ): Promise<number | null> {
     const generation = ++sendGeneration.current;
     setIsSending(true);
@@ -93,7 +104,7 @@ export function useEmailCode({
     const isLatest = () => generation === sendGeneration.current;
 
     try {
-      await runWithCaptcha(async (fetchOptions) => {
+      const send = async (fetchOptions: CaptchaFetchOptions) => {
         if (!isLatest() || options.signal?.aborted) return;
         const result = await authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
@@ -114,7 +125,8 @@ export function useEmailCode({
 
         sentAt = Date.now();
         adoptSentCode(email, sentAt);
-      });
+      };
+      await (options.runWithCaptcha ?? runWithCaptcha)(send);
     } catch (_error) {
       if (isLatest() && !options.signal?.aborted) {
         toast.error(t("emailCodeError"));

@@ -576,7 +576,14 @@ describe("SignInForm", () => {
       await user.click(
         screen.getByRole("button", { name: "emailCodeInstead" }),
       );
-      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL);
+      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL, {
+        runWithCaptcha: expect.any(Function),
+      });
+      // The password step's check covers the send.
+      const options = vi.mocked(emailCode.sendCode).mock.calls[0]?.[1];
+      const send = vi.fn().mockResolvedValue(undefined);
+      await options?.runWithCaptcha?.(send);
+      expect(send).toHaveBeenCalledWith(captchaFetchOptions);
 
       rerender(
         <SignInForm
@@ -590,6 +597,23 @@ describe("SignInForm", () => {
       expect(codeField()).toBeInTheDocument();
     });
 
+    // A visitor Cloudflare wants to see would otherwise get two checkboxes.
+    it("shows no second security check for emailing a code", () => {
+      renderForm({
+        emailCode: fakeEmailCode({
+          sentTo: null,
+          captcha: <div data-testid="email-code-captcha" />,
+        }),
+      });
+
+      expect(
+        screen.getByRole("button", { name: "emailCodeInstead" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("email-code-captcha"),
+      ).not.toBeInTheDocument();
+    });
+
     it("pairs the password with the address for password managers", () => {
       renderForm();
 
@@ -599,6 +623,35 @@ describe("SignInForm", () => {
         "autocomplete",
         "current-password",
       );
+    });
+
+    it("names the password inside its field and offers the reset beside the code", () => {
+      renderForm();
+
+      expect(passwordField()).toHaveAttribute(
+        "placeholder",
+        "Fields.Password.label",
+      );
+      // One row of ways out under Log in: the reset first, then the code.
+      const reset = screen.getByRole("link", { name: "forgotPassword" });
+      const code = screen.getByRole("button", { name: "emailCodeInstead" });
+      expect(reset.compareDocumentPosition(code)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "submit" })
+          .compareDocumentPosition(reset),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("leaves the reset out of the code step's row", () => {
+      renderForm({ initialMethod: "code", emailCode: fakeEmailCode() });
+      expect(codeField()).toBeInTheDocument();
+
+      expect(
+        screen.queryByRole("link", { name: "forgotPassword" }),
+      ).not.toBeInTheDocument();
     });
 
     // The URL reaches server logs and analytics; the address goes through

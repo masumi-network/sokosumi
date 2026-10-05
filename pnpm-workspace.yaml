@@ -25,16 +25,6 @@ overrides:
   # still depends on esbuild@^0.27.0, which lands 0.27.7 without this pin.
   # Patched floor is 0.28.1; pin latest 0.28.x.
   "esbuild@<0.28.2": "0.28.2"
-  # undici 7.x GHSAs (cache replay of unsafe methods GHSA-8436-99hf-9mmv, plus
-  # earlier SOCKS5 / WebSocket / header injection). @scalar/json-magic@0.15.3
-  # (via openapi-to-markdown 1.5.0) still pins 7.29.0 (vulnerable; floor 7.29.1).
-  # Do not use undici@<7.30.0 — that would also rewrite @vercel/blob's 6.x.
-  # Pin latest 7.x (7.30.0).
-  "undici@>=7.0.0 <7.30.0": "7.30.0"
-  # GHSA-8436-99hf-9mmv covers >=8.0.0 <8.10.2. Direct eve@0.70.0 already
-  # pins patched 8.10.2, but evlog@2.29.0 still pulls eve@0.66.3 → undici
-  # 8.9.0 (vulnerable). Pin latest 8.x. Selector starts at 8 so 6.x/7.x stay.
-  "undici@>=8.0.0 <8.11.2": "8.11.2"
 
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for

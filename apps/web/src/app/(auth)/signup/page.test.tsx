@@ -45,7 +45,7 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("./components/sign-up-flow", () => ({
+vi.mock("@/auth/components/auth-flow", () => ({
   __esModule: true,
   default: ({
     children,
@@ -239,6 +239,7 @@ describe("SignUp page", () => {
     );
 
     expect(signUpFlowMock).toHaveBeenCalledWith({
+      mode: "signUp",
       invitationId: "inv_1",
       client: undefined,
       prefilledEmail: "ada@example.com",

@@ -1,9 +1,7 @@
 import {
   buildEntityImagePathname,
-  buildEntityImagePrefix,
   ENTITY_IMAGE_ALLOWED_MIME_TYPES,
   ENTITY_IMAGE_MAX_SIZE_BYTES,
-  extensionForEntityImageMime,
   isEntityImageAllowedContentType,
   isOwnedEntityImageUrl,
 } from "./entity-image-upload.js";
@@ -21,17 +19,6 @@ export function isCoworkerImageAllowedContentType(
   contentType: string,
 ): boolean {
   return isEntityImageAllowedContentType(contentType);
-}
-
-export function buildCoworkerImagePrefix(coworkerId: string): string {
-  return buildEntityImagePrefix(COWORKER_IMAGES_DIR, coworkerId);
-}
-
-/** File extension for an allowed coworker image MIME type. */
-export function extensionForCoworkerImageMime(
-  contentType: string,
-): string | null {
-  return extensionForEntityImageMime(contentType);
 }
 
 /**
