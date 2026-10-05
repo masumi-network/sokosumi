@@ -261,21 +261,11 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.packages != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
-    services:
-      postgres:
-        image: postgres:17
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: job_sync_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
+      # Booted in the background, as in `core-db` above. The unit tests run
+      # first, so it is long up by the time the job sync test needs it.
+      - *start-postgres
+
       # Depth 2 also fetches the parents of the PR merge commit, which the
       # migration check below reads.
       - name: Checkout repository
@@ -287,9 +277,13 @@ jobs:
       - name: Run Tests
         run: pnpm exec turbo run test:ci --filter="./packages/*"
 
+      - *wait-postgres
+
+      # The fresh container's database is the empty, disposable one the
+      # test asks for.
       - name: Test job sync against PostgreSQL
         env:
-          JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
+          JOB_SYNC_TEST_DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
         run: pnpm --filter @sokosumi/database exec vitest run src/helpers/job-sync.postgres.test.ts
 
       # Prisma applies an older-dated pending folder without warning, so each
