@@ -5067,11 +5067,10 @@
       "OAuthConsent": {
         "invalidRequest": {
           "title": "Invalid OAuth Request",
-          "description": "Missing required parameters: client_id or redirect_uri"
+          "description": "Missing required parameter: client_id"
         },
         "clientNotFound": {
           "title": "Client Not Found",
-          "description": "The OAuth client could not be found.",
           "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
         },
         "loadError": {
@@ -5087,7 +5086,6 @@
           "authorize": "Authorize",
           "deny": "Deny",
           "authorizeError": "Failed to authorize application",
-          "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
           "workspacePrepareError": "Could not prepare your workspace. Please try again.",
           "authorizeSuccess": "Application authorized successfully",

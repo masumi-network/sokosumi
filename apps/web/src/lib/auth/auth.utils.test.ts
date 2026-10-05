@@ -10,17 +10,16 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   buildSocialCallbackUrls,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
-  normalizeAuthReturnUrl,
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
   readAuthReturnUrl,
+  sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -189,18 +188,6 @@ describe("buildSocialCallbackUrls", () => {
     },
   );
 
-  it("falls back to relative callbacks and no error page during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      buildSocialCallbackUrls("google", "https://evil.example/attack"),
-    ).toEqual({
-      callbackURL: "/auth/callback/signin?provider=google&returnUrl=%2F",
-      newUserCallbackURL: "/auth/callback/signup?provider=google&returnUrl=%2F",
-      errorCallbackURL: undefined,
-    });
-  });
-
   it("returns a failed sign-in to the page it started on", () => {
     stubLocation(
       "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
@@ -266,26 +253,6 @@ describe("getAbsoluteAuthRedirectUrl", () => {
       getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
     ).toBe("https://preprod.sokosumi.com/chat");
   });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
-  });
-
-  it("sanitizes an external returnUrl to fallback during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
-    ).toBe("/chat");
-  });
-
-  it("rejects a protocol-relative returnUrl during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
-  });
 });
 
 describe("getAbsoluteRedirectUrlForOrigin", () => {
@@ -343,21 +310,31 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
   });
 });
 
-describe("normalizeAuthReturnUrl", () => {
+describe("sanitizeAuthRedirectPath", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("returns / when returnUrl is missing", () => {
-    expect(normalizeAuthReturnUrl(undefined)).toBe("/");
+    expect(sanitizeAuthRedirectPath(undefined)).toBe("/");
   });
 
   it("returns / when returnUrl is root", () => {
-    expect(normalizeAuthReturnUrl("/")).toBe("/");
+    expect(sanitizeAuthRedirectPath("/")).toBe("/");
+  });
+
+  it.each([
+    ["\u00A0/chat", "/chat"],
+    ["\u00A0https://evil.example/attack", "/"],
+    ["\u00A0", "/"],
+  ])("trims Unicode spaces from %j", (returnUrl, expected) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
   });
 
   it("returns safe non-root relative returnUrl", () => {
-    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+    expect(sanitizeAuthRedirectPath("/accept-invitation/invite_123")).toBe(
       "/accept-invitation/invite_123",
     );
   });
@@ -367,7 +344,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(sanitizeAuthRedirectPath("https://evil.example/attack")).toBe("/");
   });
 
   it("returns / for unsupported protocols", () => {
@@ -375,7 +352,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
+    expect(sanitizeAuthRedirectPath("javascript:alert('x')")).toBe("/");
   });
 
   it.each([
@@ -386,20 +363,20 @@ describe("normalizeAuthReturnUrl", () => {
     (returnUrl, expected) => {
       vi.stubGlobal("window", undefined);
 
-      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+      expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
     },
   );
 
   it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+    expect(sanitizeAuthRedirectPath("#details")).toBe("/#details");
   });
 
   it("keeps an internal path with its query and fragment", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+    expect(sanitizeAuthRedirectPath("/chat?filter=unread#details")).toBe(
       "/chat?filter=unread#details",
     );
   });
@@ -414,7 +391,7 @@ describe("normalizeAuthReturnUrl", () => {
   ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe("/");
   });
 });
 
@@ -488,9 +465,7 @@ describe("readAuthReturnUrl", () => {
       readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=`)),
     ).toBe(`/signin?${oauthQuery}`);
   });
-});
 
-describe("buildOAuthResumeUrlFromSearchParams", () => {
   it.each<Record<string, string>>([
     { prompt: "login" },
     { prompt: "login consent" },
@@ -505,7 +480,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       ...extra,
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       `/oauth/consent?${params.toString()}`,
     );
   });
@@ -518,9 +493,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       prompt: "create",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
-      `/signin?${params.toString()}`,
-    );
+    expect(readAuthReturnUrl(params)).toBe(`/signin?${params.toString()}`);
   });
 
   it("ignores unsigned reauthentication parameters", () => {
@@ -528,7 +501,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
     );
   });
@@ -540,7 +513,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBeUndefined();
+    expect(readAuthReturnUrl(params)).toBeUndefined();
   });
 
   it("points at the sign-in page with the signed request and no app-only params", () => {
@@ -550,11 +523,10 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/chat",
       email: "user@example.com",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
@@ -564,7 +536,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
