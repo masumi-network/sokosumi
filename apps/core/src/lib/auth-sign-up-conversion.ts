@@ -36,17 +36,20 @@ interface AuthRequestContext {
  * Every conversion row's identifier starts with one of these; the purge sync
  * deletes the rows no Web page claimed before they expired.
  */
+const CLAIM_IDENTIFIER_PREFIX = "sign-up-conversion:";
+const REDIRECT_IDENTIFIER_PREFIX = "sign-up-conversion-redirect:";
+
 export const SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES = [
-  "sign-up-conversion:",
-  "sign-up-conversion-redirect:",
+  CLAIM_IDENTIFIER_PREFIX,
+  REDIRECT_IDENTIFIER_PREFIX,
 ] as const;
 
 function identifierFor(userId: string): string {
-  return `${SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES[0]}${userId}`;
+  return `${CLAIM_IDENTIFIER_PREFIX}${userId}`;
 }
 
 function redirectIdentifierFor(userId: string): string {
-  return `${SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES[1]}${userId}`;
+  return `${REDIRECT_IDENTIFIER_PREFIX}${userId}`;
 }
 
 function isSignUpConversionProvider(
