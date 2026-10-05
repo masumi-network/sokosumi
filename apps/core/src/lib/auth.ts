@@ -243,19 +243,10 @@ export const auth = betterAuth({
           }
 
           waitUntil(
-            webhookService
-              .callAccountCreated(account.userId, account.providerId)
-              .catch((error) => {
-                Sentry.captureException(error, {
-                  tags: {
-                    context: "account_created_webhook",
-                  },
-                  extra: {
-                    userId: account.userId,
-                    providerId: account.providerId,
-                  },
-                });
-              }),
+            webhookService.callAccountCreated(
+              account.userId,
+              account.providerId,
+            ),
           );
         },
       },
@@ -327,18 +318,7 @@ export const auth = betterAuth({
                 });
               }),
           );
-          waitUntil(
-            webhookService.callUserCreated(user).catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "user_created_webhook",
-                },
-                extra: {
-                  userId: user.id,
-                },
-              });
-            }),
-          );
+          waitUntil(webhookService.callUserWebhook("userCreated", user));
         },
       },
       update: {
@@ -351,18 +331,7 @@ export const auth = betterAuth({
           return { data: guarded };
         },
         after: async (user, _ctx) => {
-          waitUntil(
-            webhookService.callUserUpdated(user).catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "user_updated_webhook",
-                },
-                extra: {
-                  userId: user.id,
-                },
-              });
-            }),
-          );
+          waitUntil(webhookService.callUserWebhook("userUpdated", user));
           waitUntil(handleUserUpdateStripeEmailSync(user));
         },
       },

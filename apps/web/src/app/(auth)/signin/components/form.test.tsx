@@ -403,6 +403,23 @@ describe("SignInForm", () => {
       },
     );
 
+    it("says to start again, and keeps the code, when the OAuth request has expired", async () => {
+      mockSignInEmailCode.mockResolvedValue({
+        data: null,
+        error: { status: 400, error: "invalid_signature" },
+      });
+      render(<SignInCodeStep />);
+
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+      fireEvent.change(code, { target: { value: "042917" } });
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenLastCalledWith("errorDescription"),
+      );
+      expect(codeField()).toHaveValue("042917");
+      expect(mockLocationReplace).not.toHaveBeenCalled();
+    });
+
     // Better Auth deletes the password and provider links of an account
     // whose address was unproven when a code signs into it. Core says so.
     describe("when the code removed the old sign-in methods", () => {

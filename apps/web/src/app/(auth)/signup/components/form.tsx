@@ -6,13 +6,13 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import * as z from "zod";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { UsernameHint } from "@/auth/components/username-hint";
 import {
   EmailCodeField,
@@ -24,7 +24,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
-import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
 import {
@@ -80,7 +79,7 @@ export default function SignUpForm({
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
-  const oauthT = useTranslations("Auth.OAuthHandBack");
+  const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
   const [isLeaving, setIsLeaving] = useState(false);
   const [withPassword, setWithPassword] = useState(false);
   // Step 1 found no account, but one can appear since, e.g. through Google
@@ -143,10 +142,7 @@ export default function SignUpForm({
     });
     if (error) {
       onPendingChange(false);
-      if (isRejectedOAuthRequestError(error)) {
-        toast.error(oauthT("errorDescription"));
-        return;
-      }
+      if (toastRejectedOAuthRequest(error)) return;
       // Core refused these before spending the code.
       if (error.code === AuthErrorCode.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL) {
         setAccountExists(true);
