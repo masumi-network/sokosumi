@@ -11,7 +11,6 @@ import {
   claimSignUpConversion,
   oauthSignUpOptions,
   recordSignUpConversion,
-  takeSignUpConversionRedirect,
 } from "./auth-sign-up-conversion";
 
 // Owned stateful persistence fixture: tests observe claims and rollback, rather
@@ -352,16 +351,9 @@ describe("installed Better Auth social sign-up flows", () => {
         value: "github",
         expiresAt: new Date(Date.now() + 60_000),
       },
-      {
-        id: "bad-redirect",
-        identifier: "sign-up-conversion-redirect:user-invalid",
-        value: "github",
-        expiresAt: new Date(Date.now() + 60_000),
-      },
     );
     expect(await claimSignUpConversion("user-expired")).toBeNull();
     expect(await claimSignUpConversion("user-invalid")).toBeNull();
-    expect(await takeSignUpConversionRedirect("user-invalid")).toBe(false);
     expect(await claimSignUpConversion("other-user")).toBeNull();
   });
 

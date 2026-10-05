@@ -5,7 +5,7 @@ import {
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
-import { SIGN_UP_CONVERSION_PROVIDERS } from "@/lib/auth-sign-up-conversion";
+import { SOCIAL_PROVIDER_IDS } from "@/lib/auth-social-providers";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -252,7 +252,7 @@ export const utmAttributionResponseSchema = z
 
 export const signUpConversionResponseSchema = z
   .object({
-    provider: z.enum(SIGN_UP_CONVERSION_PROVIDERS).nullable().openapi({
+    provider: z.enum(SOCIAL_PROVIDER_IDS).nullable().openapi({
       description:
         "The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.",
       example: "google",
