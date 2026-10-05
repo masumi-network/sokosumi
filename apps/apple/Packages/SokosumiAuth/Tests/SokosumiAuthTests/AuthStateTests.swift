@@ -64,7 +64,7 @@ struct AuthStateTests {
 
   @Test func restoreUsesStoredSessionWithoutOpeningBrowser() throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let browser = TestBrowser()
     let state = try makeState(store: store, browser: browser)
     #expect(state.isSignedIn)
@@ -174,7 +174,7 @@ struct AuthStateTests {
 
   @Test func failedSignOutDoesNotClaimTokensAreGone() async throws {
     let store = FailingClearStore()
-    store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture, scope: nil))
+    store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture))
     let state = try makeState(store: store, browser: TestBrowser())
     await state.signOut().value
     #expect(state.isSignedIn)
