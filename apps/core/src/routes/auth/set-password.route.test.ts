@@ -4,11 +4,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const setPasswordMock = vi.fn();
 
+const TRUSTED_ORIGIN = "https://app.sokosumi.test";
+
 vi.mock("@/lib/auth.js", () => ({
   auth: {
     api: {
       setPassword: (...args: unknown[]) => setPasswordMock(...args),
     },
+    $context: Promise.resolve({
+      isTrustedOrigin: (url: string) => url === TRUSTED_ORIGIN,
+    }),
   },
 }));
 
@@ -28,6 +33,7 @@ function postSetPassword(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      Origin: TRUSTED_ORIGIN,
       ...headers,
     },
     body: JSON.stringify(body),
@@ -75,7 +81,7 @@ describe("POST /auth/set-password bridge", () => {
 
     const response = await app.request("http://localhost/set-password", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Origin: TRUSTED_ORIGIN },
       body: "not json",
     });
 
@@ -84,6 +90,40 @@ describe("POST /auth/set-password bridge", () => {
       code: "BAD_REQUEST",
       message: "Invalid request body",
     });
+    expect(setPasswordMock).not.toHaveBeenCalled();
+  });
+
+  // Better Auth's router refuses these for its own endpoints; a direct
+  // `auth.api` call skips the router, so the bridge must refuse them itself.
+  it.each([
+    ["another site's origin", { Origin: "https://docs.sokosumi.test" }],
+    ["no origin", { Origin: "" }],
+    ["a null origin", { Origin: "null" }],
+  ])("refuses a request from %s", async (_case, headers) => {
+    const app = await createApp();
+
+    const response = await postSetPassword(
+      app,
+      { newPassword: "Password-123456" },
+      { cookie: "session=test", ...headers },
+    );
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "INVALID_ORIGIN" });
+    expect(setPasswordMock).not.toHaveBeenCalled();
+  });
+
+  it("refuses a body that is not sent as JSON", async () => {
+    // A form or `text/plain` post needs no CORS preflight.
+    const app = await createApp();
+
+    const response = await app.request("http://localhost/set-password", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain", Origin: TRUSTED_ORIGIN },
+      body: JSON.stringify({ newPassword: "Password-123456" }),
+    });
+
+    expect(response.status).toBe(415);
     expect(setPasswordMock).not.toHaveBeenCalled();
   });
 
