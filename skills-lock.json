@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "address-review": {
+      "source": "mrosberghaus/skills",
+      "sourceType": "github",
+      "skillPath": "address-review/SKILL.md",
+      "computedHash": "dbcfa3a3f17c10bd52b9c6612a3e3f8542cdc17b6c02e54462e8da83378005c7"
+    },
     "agent-browser": {
       "source": "vercel-labs/agent-browser",
       "sourceType": "github",
@@ -299,6 +305,12 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/retro/SKILL.md",
       "computedHash": "b8d55851a2909e26c2dbb2e8563719c87b3b700559f604e4df344f8c27e21047"
+    },
+    "review-bot": {
+      "source": "mrosberghaus/skills",
+      "sourceType": "github",
+      "skillPath": "review-bot/SKILL.md",
+      "computedHash": "23b647dfaf04518b50088c51405ec3e6e1f1f1401ebdd35d502aad7e4de0abe6"
     },
     "safe-refactor": {
       "source": "juliusbrussee/caveman",
