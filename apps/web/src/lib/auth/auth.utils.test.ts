@@ -299,6 +299,15 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
     );
   });
 
+  it("keeps a full URL on the provided origin, not the page's", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "https://preprod.sokosumi.com/jobs#latest",
+      ),
+    ).toBe("https://preprod.sokosumi.com/jobs#latest");
+  });
+
   it("rejects external returnUrl values", () => {
     expect(
       getAbsoluteRedirectUrlForOrigin(

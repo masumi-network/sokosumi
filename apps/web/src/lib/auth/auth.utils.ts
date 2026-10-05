@@ -240,25 +240,30 @@ export function appendQueryParam(
 // while genuine same-origin relative paths are preserved.
 const SSR_REDIRECT_ORIGIN = "https://localhost.invalid";
 
-function sanitizeAuthRedirectPath(
+/**
+ * `returnUrl` as a path on `origin`, or `fallback` when it leads elsewhere.
+ * `origin` defaults to the page's own on the client and a reserved
+ * placeholder during SSR.
+ */
+export function sanitizeAuthRedirectPath(
   returnUrl: string | undefined,
   fallback: string = "/",
+  origin?: string,
 ): string {
   if (!returnUrl) {
     return fallback;
   }
 
-  // Validate against the real origin on the client and a reserved placeholder
-  // origin during SSR. Either way, only same-origin relative paths survive —
-  // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
-  // a different origin and fall back, closing the open-redirect vector in both
-  // contexts. A survivor comes back as its path alone: a value naming the
-  // placeholder origin must not reach the browser with it, and a bare
-  // `#fragment` must leave the current page.
+  // Only same-origin paths survive: absolute (`https://evil`) and
+  // protocol-relative (`//evil`) URLs resolve to a different origin and fall
+  // back, closing the open-redirect vector. A survivor comes back as its path
+  // alone: a value naming the placeholder origin must not reach the browser
+  // with it, and a bare `#fragment` must leave the current page.
   const baseOrigin =
-    typeof window !== "undefined"
+    origin ??
+    (typeof window !== "undefined"
       ? window.location.origin
-      : SSR_REDIRECT_ORIGIN;
+      : SSR_REDIRECT_ORIGIN);
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
@@ -270,6 +275,15 @@ function sanitizeAuthRedirectPath(
   }
 }
 
+export function getAbsoluteRedirectUrlForOrigin(
+  origin: string,
+  returnUrl: string | undefined,
+  fallback: string = "/",
+): string {
+  return new URL(sanitizeAuthRedirectPath(returnUrl, fallback, origin), origin)
+    .href;
+}
+
 /**
  * Absolute callback/redirect URL for `authClient` when Better Auth runs on Core.
  *
@@ -277,36 +291,6 @@ function sanitizeAuthRedirectPath(
  * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
  * Falls back to a relative path when `window` is unavailable (SSR).
  */
-export function sanitizeAuthRedirectPathForOrigin(
-  returnUrl: string | undefined,
-  origin: string,
-  fallback: string = "/",
-): string {
-  if (!returnUrl) {
-    return fallback;
-  }
-
-  try {
-    const parsedUrl = new URL(returnUrl, origin);
-    return parsedUrl.origin === origin ? returnUrl : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-export function getAbsoluteRedirectUrlForOrigin(
-  origin: string,
-  returnUrl: string | undefined,
-  fallback: string = "/",
-): string {
-  const safePath = sanitizeAuthRedirectPathForOrigin(
-    returnUrl,
-    origin,
-    fallback,
-  );
-  return new URL(safePath, origin).href;
-}
-
 export function getAbsoluteAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",
