@@ -72,7 +72,7 @@
 
       /// Rows of the transcript's viewport whose pixel `column` points in differs from the viewport's top row
       /// there. Left of the avatars the only thing drawn is the mark.
-      private static func markedRows(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> Int {
+      static func markedRows(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> Int {
         try columnDifferences(in: host, scroll: scroll, column: column).count { $0 > 0.04 }
       }
 
@@ -84,7 +84,7 @@
       /// Each viewport row's colour difference, in `column` points, from the viewport's top row. Only a strip
       /// around the column is drawn: drawing the whole window in software takes a fifth of a second once the
       /// spotlight (row 25b2) blurs the other rows, which is longer than the leave fade these reads have to catch.
-      private static func columnDifferences(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> [CGFloat] {
+      static func columnDifferences(in host: NSView, scroll: NSScrollView, column: CGFloat) throws -> [CGFloat] {
         host.layoutSubtreeIfNeeded()
         let strip = NSRect(x: column - 2, y: 0, width: 4, height: host.bounds.height)
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: strip))
@@ -105,7 +105,7 @@
       }
 
       /// A clear layer that is hit by the pointer, so the rows under it never hover.
-      private static var hoverBlocker: some View {
+      static var hoverBlocker: some View {
         Color.clear.contentShape(.rect)
       }
 
