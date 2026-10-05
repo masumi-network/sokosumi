@@ -61,28 +61,17 @@ function renderAuthActionEmail({
 }
 
 export async function renderVerificationEmail({
-  clientName,
   locale,
   name,
   verificationLink,
 }: VerificationEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
-  const copy = clientName
-    ? {
-        actionLabel: t("auth.verification.client.button"),
-        body: t("auth.verification.client.message", { client: clientName }),
-        subject: t("auth.verification.client.subject", { client: clientName }),
-        title: t("auth.verification.client.title", { client: clientName }),
-      }
-    : {
-        actionLabel: t("auth.verification.button"),
-        body: t("auth.verification.message"),
-        subject: t("auth.verification.subject"),
-        title: t("auth.verification.title"),
-      };
 
   return renderAuthActionEmail({
-    ...copy,
+    actionLabel: t("auth.verification.button"),
+    body: t("auth.verification.message"),
+    subject: t("auth.verification.subject"),
+    title: t("auth.verification.title"),
     lang,
     actionUrl: verificationLink,
     footer: t("auth.verification.footer"),

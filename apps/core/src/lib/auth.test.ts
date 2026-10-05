@@ -127,9 +127,6 @@ const {
     verification: {
       createMany: prismaVerificationCreateManyMock,
     },
-    oauthClient: {
-      findFirst: vi.fn(),
-    },
   };
 
   return {
@@ -491,7 +488,6 @@ describe("core auth config", () => {
     sendEmailMock.mockResolvedValue({ id: "email_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
     getOAuthProviderStateMock.mockResolvedValue(null);
-    prismaMock.oauthClient.findFirst.mockResolvedValue(null);
     renderVerificationEmailMock.mockResolvedValue({
       html: "<html>verification</html>",
       subject: "Sokosumi - Verify your email address",
@@ -1984,7 +1980,7 @@ describe("core auth config", () => {
       >;
       await config.emailVerification.sendVerificationEmail(
         { user, url: VERIFY_URL },
-        new Request("https://example.com/auth/sign-up/email", {
+        new Request("https://example.com/auth/send-verification-email", {
           headers: { "accept-language": "en" },
         }),
       );
@@ -1998,82 +1994,21 @@ describe("core auth config", () => {
       return new URL(props.verificationLink).searchParams.get("callbackURL");
     }
 
-    it("names the app a sign-up came from and sends the link back to it", async () => {
-      getOAuthProviderStateMock.mockResolvedValue({
-        query: "response_type=code&client_id=cmo-client&scope=openid",
-      });
-      prismaMock.oauthClient.findFirst.mockResolvedValue({ name: "CMO" });
-
+    it("sends Sokosumi's email with the link anchored to the web app", async () => {
       await sendVerificationEmail();
 
-      expect(prismaMock.oauthClient.findFirst).toHaveBeenCalledWith({
-        where: { clientId: "cmo-client", disabled: false },
-        select: { name: true },
-      });
-      expect(renderVerificationEmailMock).toHaveBeenCalledWith(
-        expect.objectContaining({ name: "Ada", clientName: "CMO" }),
-      );
-      expect(renderedLinkCallback()).toBe(
-        "https://preprod.sokosumi.com/auth/email-confirmed?client_id=cmo-client",
-      );
-      expect(sendEmailMock).toHaveBeenCalledWith({
-        to: "ada@example.com",
-        tag: "verification-email",
-        subject: "Sokosumi - Verify your email address",
-        html: "<html>verification</html>",
-      });
-    });
-
-    it("keeps Sokosumi's email and link for a sign-up without an OAuth request", async () => {
-      await sendVerificationEmail();
-
-      expect(prismaMock.oauthClient.findFirst).not.toHaveBeenCalled();
       expect(renderVerificationEmailMock).toHaveBeenCalledWith({
         locale: "en",
         name: "Ada",
         verificationLink: expect.any(String),
       });
       expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
-    });
-
-    it.each([null, "", "   "])(
-      "keeps Sokosumi's email and link when the client has no name (%j)",
-      async (name) => {
-        getOAuthProviderStateMock.mockResolvedValue({
-          query: "response_type=code&client_id=unnamed",
-        });
-        prismaMock.oauthClient.findFirst.mockResolvedValue({ name });
-
-        await sendVerificationEmail();
-
-        expect(renderVerificationEmailMock).toHaveBeenCalledWith({
-          locale: "en",
-          name: "Ada",
-          verificationLink: expect.any(String),
-        });
-        expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
-      },
-    );
-
-    it("still sends Sokosumi's email when the client lookup fails", async () => {
-      getOAuthProviderStateMock.mockResolvedValue({
-        query: "response_type=code&client_id=cmo-client",
+      expect(sendEmailMock).toHaveBeenCalledWith({
+        to: "ada@example.com",
+        tag: "verification-email",
+        subject: "Sokosumi - Verify your email address",
+        html: "<html>verification</html>",
       });
-      const lookupError = new Error("database unavailable");
-      prismaMock.oauthClient.findFirst.mockRejectedValue(lookupError);
-
-      await sendVerificationEmail();
-
-      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
-      expect(sendEmailMock).toHaveBeenCalledWith(
-        expect.objectContaining({ to: "ada@example.com" }),
-      );
-      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
-        lookupError,
-        expect.objectContaining({
-          tags: { context: "verification_email_client" },
-        }),
-      );
     });
   });
 
