@@ -5031,11 +5031,10 @@
       "OAuthConsent": {
         "invalidRequest": {
           "title": "Ungültige OAuth-Anfrage",
-          "description": "Erforderliche Parameter fehlen: client_id oder redirect_uri"
+          "description": "Erforderlicher Parameter fehlt: client_id"
         },
         "clientNotFound": {
           "title": "Client nicht gefunden",
-          "description": "Der OAuth-Client konnte nicht gefunden werden.",
           "descriptionWithId": "Der OAuth-Client mit der ID {clientId} existiert nicht."
         },
         "loadError": {
@@ -5050,7 +5049,6 @@
           "authorize": "Autorisieren",
           "deny": "Ablehnen",
           "authorizeError": "Anwendung konnte nicht autorisiert werden",
-          "authorizeErrorRedirectUri": "Anwendung konnte nicht autorisiert werden. Bitte überprüfe deine Redirect-URI.",
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
           "workspacePrepareError": "Dein Workspace konnte nicht vorbereitet werden. Bitte versuche es erneut.",
           "authorizeSuccess": "Anwendung erfolgreich autorisiert",
