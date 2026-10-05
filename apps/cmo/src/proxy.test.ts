@@ -85,7 +85,7 @@ it("returns Core outages without rendering the page or losing rotated cookies", 
   expect(response.headers.has("x-middleware-next")).toBe(false);
 });
 
-// The proxy does not branch on the path, so one page stands for all.
+// Renewal's caching does not depend on the path, so one page stands for all.
 it("keeps renewal redirects and outages uncached", async () => {
   const cookie =
     "__Secure-cmo.account_data=rotated; Expires=Wed, 21 Oct 2026 07:28:00 GMT; HttpOnly; Secure; SameSite=Lax; Path=/";

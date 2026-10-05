@@ -651,6 +651,7 @@ describe("CMO auth handler", () => {
 
     const response = await renew(auth, jar);
 
+    expect(response.status).toBe(204);
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(core.refreshCount()).toBe(0);
     expect(core.userLookups).toBe(lookupsAtSignIn);
