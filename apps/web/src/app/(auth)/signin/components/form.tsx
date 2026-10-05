@@ -15,6 +15,7 @@ import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { UsernameHint } from "@/auth/components/username-hint";
 import {
   EmailCodeField,
@@ -33,11 +34,7 @@ import {
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
-import {
-  buildAuthPageUrl,
-  isRejectedOAuthRequestError,
-  readAuthPageContext,
-} from "@/lib/auth/auth.utils";
+import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import { inputPasswordSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -78,7 +75,7 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
-  const oauthT = useTranslations("Auth.OAuthHandBack");
+  const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
   const code = useEmailCodeSchema();
   const [isLeaving, setIsLeaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -148,7 +145,10 @@ export default function SignInForm({
     track("Sign In", { provider: "email-otp" });
     const error = await emailCode.signInWithCode(email, values.code);
     if (error) {
-      form.setError("code", { message: codeRefusal.refuse(error) });
+      // The code is not to blame, so it stays in the field.
+      if (!toastRejectedOAuthRequest(error)) {
+        form.setError("code", { message: codeRefusal.refuse(error) });
+      }
       return;
     }
     // The page is leaving; keep the step locked until it has.
@@ -173,10 +173,7 @@ export default function SignInForm({
         });
 
         if (result.error) {
-          if (isRejectedOAuthRequestError(result.error)) {
-            toast.error(oauthT("errorDescription"));
-            return;
-          }
+          if (toastRejectedOAuthRequest(result.error)) return;
 
           const errorCode =
             "code" in result.error ? result.error.code : undefined;
