@@ -11,11 +11,11 @@ import { toast } from "sonner";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
+import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
-import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import {
   isSameTabClick,
   rememberAuthEmailHintOnClick,
@@ -129,7 +129,7 @@ export function EmailStep({
   onPendingChange,
 }: EmailStepProps) {
   const t = useTranslations("Auth.Email.Form");
-  const oauthT = useTranslations("Auth.OAuthHandBack");
+  const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
   const {
     widget: captcha,
     runWithCaptcha,
@@ -251,12 +251,8 @@ export function EmailStep({
 
         if (!isCurrent()) return;
         if (result.error) {
-          // The auth client adds the page's OAuth request to every call, this
-          // one included, and Core refuses the call when that request is stale.
-          if (isRejectedOAuthRequestError(result.error)) {
-            toast.error(oauthT("errorDescription"));
-            return;
-          }
+          // The auth client sends the page's OAuth request with this call too.
+          if (toastRejectedOAuthRequest(result.error)) return;
 
           // Core puts the captcha's error code on the body; the client types
           // only the transport fields.
