@@ -7,10 +7,10 @@ import {
 } from "@sokosumi/utils";
 import { waitUntil } from "@vercel/functions";
 import { organization } from "better-auth/plugins";
-import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import { getWebAppBaseUrl } from "@/config/env";
+import { sendEmailInBackground } from "@/helpers/background-email";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import { upgradeGuestChatRoomMembershipsToMember } from "@/helpers/chat-room-guest-upgrade";
 import {
@@ -28,7 +28,6 @@ import {
 import { prepareOrganizationForDeletion } from "@/helpers/organization-deletion";
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import prisma from "@/lib/db/prisma";
-import { captureExternalServiceError } from "@/lib/external-service-errors";
 
 async function ensureWorkspaceForCreatedOrganization(organization: {
   id: string;
@@ -217,26 +216,20 @@ export function createAuthOrganizationPlugin() {
         organizationName: data.organization.name,
       });
 
-      waitUntil(
-        sendEmail({
+      sendEmailInBackground(
+        {
           to: data.email,
           tag: "invitation-email",
           subject: email.subject,
           html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "organization_invitation_email",
-            sentry: {
-              tags: {
-                context: "organization_invitation_email",
-              },
-            },
-            extra: {
-              invitationId: data.id,
-              organizationId: data.organization.id,
-            },
-          });
-        }),
+        },
+        {
+          label: "organization_invitation_email",
+          extra: {
+            invitationId: data.id,
+            organizationId: data.organization.id,
+          },
+        },
       );
     },
     invitationLimit: LIMITS.ORGANIZATION_INVITATION_LIMIT,
