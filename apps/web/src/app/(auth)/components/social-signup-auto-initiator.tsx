@@ -11,9 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
-  buildAuthCallbackUrl,
-  buildAuthErrorCallbackUrl,
   buildOAuthResumeUrlFromSearchParams,
+  buildSocialCallbackUrls,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
@@ -41,19 +40,9 @@ export default function SocialSignupAutoInitiator({
 
         const result = await authClient.signIn.social({
           provider,
-          callbackURL: buildAuthCallbackUrl(
-            "/auth/callback/signin",
-            provider,
-            effectiveReturnUrl,
-          ),
-          newUserCallbackURL: buildAuthCallbackUrl(
-            "/auth/callback/signup",
-            provider,
-            effectiveReturnUrl,
-          ),
-          // Back to this page would start the sign-in again; /signup
-          // explains the error and offers every method.
-          errorCallbackURL: buildAuthErrorCallbackUrl("/signup"),
+          // An error back on this page would start the sign-in again; /signup
+          // explains it and offers every method.
+          ...buildSocialCallbackUrls(provider, effectiveReturnUrl, "/signup"),
           // Leave with `replace`, so Back from the provider skips this page
           // instead of starting the sign-in again.
           disableRedirect: true,
