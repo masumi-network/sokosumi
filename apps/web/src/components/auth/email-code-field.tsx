@@ -236,7 +236,8 @@ export function EmailCodeField({
           }
         }}
         onBlur={onBlur}
-        aria-invalid={shownError ? true : undefined}
+        // A code that never went out is no fault of the empty field.
+        aria-invalid={error ? true : undefined}
         aria-describedby={
           [
             notice ? noticeId : null,
