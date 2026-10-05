@@ -73,10 +73,12 @@ export function EmailCodeSwitch({
   return (
     <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm">
       {willSend ? emailCode.captcha : null}
-      {/* Stacked: in German and Spanish the two links do not fit one row of
-          the auth column, and a wrapped row squeezes each into two lines. */}
-      {forgotPassword}
-      {action}
+      {/* One row on wider screens; a link that does not fit (German, Spanish,
+          or the longer "code still works" line) wraps whole onto its own row. */}
+      <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3">
+        {forgotPassword}
+        {action}
+      </div>
     </div>
   );
 }
