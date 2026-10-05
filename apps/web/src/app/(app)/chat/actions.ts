@@ -147,7 +147,7 @@ export async function loadChatComposeRosterAction(): Promise<
 > {
   const session = await getSession();
   if (!session) {
-    return roomFail("Sign in required.");
+    return roomFail("Log in required.");
   }
 
   const self = {
@@ -832,6 +832,8 @@ export async function sendRoomMessageAction(
      * creates at most one row (unique on roomId + clientMessageId).
      */
     clientMessageId?: string;
+    /** skills.sh skills to attach; Core hands them to the agents addressed. */
+    skillIds?: string[];
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
@@ -857,6 +859,9 @@ export async function sendRoomMessageAction(
       }),
       ...(options?.clientMessageId && {
         clientMessageId: options.clientMessageId,
+      }),
+      ...(options?.skillIds?.length && {
+        skillIds: cleanIds(options.skillIds),
       }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating

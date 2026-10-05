@@ -518,6 +518,10 @@ export type ChatRoomMessage = {
      * Link preview cards scraped from message URLs (absent while pending).
      */
     unfurls: Array<ChatRoomMessageUnfurl> | null;
+    /**
+     * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+     */
+    skills?: Array<ChatRoomMessageSkill>;
 };
 
 export type ChatRoomMessageSender = {
@@ -679,6 +683,16 @@ export type ChatRoomMessageUnfurl = {
     description: string | null;
     imageUrl: string | null;
     siteName: string | null;
+};
+
+export type ChatRoomMessageSkill = {
+    /**
+     * skills.sh id: owner/repo/skill.
+     */
+    id: string;
+    name: string;
+    description: string | null;
+    url: string;
 };
 
 export type AdminSokoBotDetail = SokoBot & {
@@ -2954,6 +2968,10 @@ export type ChatRoomPinnedMessageListItem = {
          * Link preview cards scraped from message URLs (absent while pending).
          */
         unfurls: Array<ChatRoomMessageUnfurl> | null;
+        /**
+         * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
+         */
+        skills?: Array<ChatRoomMessageSkill>;
     } | null;
 };
 
@@ -3125,6 +3143,10 @@ export type CreateChatRoomMessageRequest = {
      * Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).
      */
     clientMessageId?: string;
+    /**
+     * skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.
+     */
+    skillIds?: Array<string>;
 };
 
 export type UpdateChatRoomMessageRequest = {
@@ -3196,6 +3218,17 @@ export type CreateChatRoomFileUploadSessionRequest = {
      * File size in bytes
      */
     size: number;
+};
+
+export type ChatSkillCatalogItem = {
+    /**
+     * skills.sh id: owner/repo/skill.
+     */
+    id: string;
+    name: string;
+    source: string;
+    description: string | null;
+    installs: number;
 };
 
 export type ChatUnreadThread = {
@@ -4973,11 +5006,11 @@ export type User = {
     updatedAt: Date;
     name: string;
     /**
-     * Null when never given, as for magic-link sign-up
+     * Null when never given: older accounts, or one an email code created without names
      */
     firstName: string | null;
     /**
-     * Null when never given, as for magic-link sign-up
+     * Null when never given: older accounts, or one an email code created without names
      */
     lastName: string | null;
     email: string;
@@ -23204,6 +23237,51 @@ export type PostChatsRoomsByIdFilesResponses = {
 };
 
 export type PostChatsRoomsByIdFilesResponse = PostChatsRoomsByIdFilesResponses[keyof PostChatsRoomsByIdFilesResponses];
+
+export type SearchChatSkillsData = {
+    body?: never;
+    path?: never;
+    query?: {
+        q?: string;
+    };
+    url: '/chats/skills';
+};
+
+export type SearchChatSkillsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type SearchChatSkillsError = SearchChatSkillsErrors[keyof SearchChatSkillsErrors];
+
+export type SearchChatSkillsResponses = {
+    /**
+     * Matching skills
+     */
+    200: {
+        data: Array<ChatSkillCatalogItem>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type SearchChatSkillsResponse = SearchChatSkillsResponses[keyof SearchChatSkillsResponses];
 
 export type GetChatsThreadsUnreadData = {
     body?: never;

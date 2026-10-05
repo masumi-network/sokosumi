@@ -9,6 +9,7 @@ const AUTH_ERROR_QUERY_KEYS = ["error", "error_description"];
 const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set([
   "returnUrl",
   "email",
+  "invitationId",
   ...AUTH_ERROR_QUERY_KEYS,
 ]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
@@ -127,12 +128,13 @@ export async function waitForAuthSession<TSession = unknown>({
   return retrySession ?? null;
 }
 
-interface BuildAuthPageUrlParams {
+/** Where an auth page sends the person once they are through. */
+export interface AuthPageContext {
   returnUrl?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;
-  /** An invitation's fixed address, which the next page locks. */
-  invitation?: { id: string; email: string } | undefined;
+  /** The invitation whose address the next page looks up and locks. */
+  invitationId?: string | undefined;
 }
 
 export interface AuthRedirectSearchParams {
@@ -161,37 +163,74 @@ export async function getRedirectQueryString(
   return preservedSearchParams.toString();
 }
 
-function buildAuthPageUrl(
-  path: "/signin" | "/signup",
-  { returnUrl, oauthQuery, invitation }: BuildAuthPageUrlParams,
+/**
+ * The returnUrl, or else the signed OAuth request, and the invitation; each
+ * auth page passes them on to the next.
+ */
+export function readAuthPageContext(
+  searchParams: URLSearchParams,
+): AuthPageContext {
+  const returnUrl = searchParams.get("returnUrl") ?? undefined;
+  return {
+    returnUrl,
+    oauthQuery: returnUrl
+      ? undefined
+      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    invitationId: searchParams.get("invitationId") ?? undefined,
+  };
+}
+
+// Typed emails travel as editable session hints, never in the query, which
+// reaches server logs and analytics. An invitation travels as its id; each
+// page looks up the address and locks it.
+export function buildAuthPageUrl(
+  path:
+    | "/signin"
+    | "/signup"
+    | "/forgot-password"
+    | "/reset-password"
+    | "/reset-password/exchange",
+  { returnUrl, oauthQuery, invitationId }: AuthPageContext,
 ): string {
   const searchParams = new URLSearchParams(oauthQuery);
 
   if (returnUrl) {
     searchParams.set("returnUrl", returnUrl);
   }
-  if (invitation) {
-    searchParams.set("email", invitation.email);
-    searchParams.set("invitationId", invitation.id);
+  if (invitationId) {
+    searchParams.set("invitationId", invitationId);
   }
 
   const query = searchParams.toString();
   return query ? `${path}?${query}` : path;
 }
 
-// Typed emails travel as editable session hints. Only an invitation's
-// address travels in the query with its id, keeping both auth links bound
-// to the same invitation.
-export function buildSignUpUrlFromSignIn(
-  params: BuildAuthPageUrlParams,
-): string {
-  return buildAuthPageUrl("/signup", params);
+/** Better Auth's `error` for an expired, used or unknown reset link. */
+export const INVALID_RESET_LINK_ERROR = "INVALID_TOKEN";
+
+/**
+ * Where a dead reset link goes: the request form, which explains the link
+ * expired and keeps the sign-in it started from.
+ */
+export function buildRequestNewResetLinkUrl(context: AuthPageContext): string {
+  return appendQueryParam(
+    buildAuthPageUrl("/forgot-password", context),
+    "error",
+    INVALID_RESET_LINK_ERROR,
+  );
 }
 
-export function buildSignInUrlFromSignUp(
-  params: BuildAuthPageUrlParams,
+/**
+ * Adds one parameter to a built auth page URL without re-serializing the
+ * signed OAuth query already in it.
+ */
+export function appendQueryParam(
+  url: string,
+  name: string,
+  value: string,
 ): string {
-  return buildAuthPageUrl("/signin", params);
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${name}=${encodeURIComponent(value)}`;
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable

@@ -15,7 +15,6 @@ import {
   mapTaskEvent,
   mapTaskEventActor,
   mapTaskFile,
-  taskAssigneeKind,
   validateQueuedRequiresRunAt,
   validateStatusTransition,
   validateTaskAssigneeAssignment,
@@ -86,16 +85,6 @@ describe("validateStatusTransition", () => {
 });
 
 describe("validateTaskAssigneeAssignment", () => {
-  it("resolves coworker, human, and unset kinds", () => {
-    expect(taskAssigneeKind({ assigneeId: "cow_1" })).toBe("coworker");
-    expect(
-      taskAssigneeKind({ assigneeId: null, assigneeUserId: "user_1" }),
-    ).toBe("human");
-    expect(taskAssigneeKind({ assigneeId: null, assigneeUserId: null })).toBe(
-      "unset",
-    );
-  });
-
   it("allows DRAFT tasks without a coworker", () => {
     expect(() =>
       validateTaskAssigneeAssignment({

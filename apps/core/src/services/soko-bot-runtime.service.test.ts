@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { isDeepStrictEqual } from "node:util";
 
 import { TaskStatus } from "@sokosumi/database";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const {
   botFindFirstMock,
@@ -78,6 +78,7 @@ const {
   chatCoworkerMemberFindManyMock,
   chatSokoBotMemberFindManyMock,
   chatMessageCountMock,
+  chatMessageFindFirstMock,
   memberFindManyMock,
   toolCallCountMock,
   createOrGetDirectRoomMock,
@@ -187,6 +188,7 @@ const {
   chatCoworkerMemberFindManyMock: vi.fn(),
   chatSokoBotMemberFindManyMock: vi.fn(),
   chatMessageCountMock: vi.fn(),
+  chatMessageFindFirstMock: vi.fn(),
   memberFindManyMock: vi.fn(),
   toolCallCountMock: vi.fn(),
   createOrGetDirectRoomMock: vi.fn(),
@@ -335,6 +337,7 @@ vi.mock("@/lib/db/prisma", () => ({
     chatRoomMessage: {
       findMany: chatMessageFindManyMock,
       count: chatMessageCountMock,
+      findFirst: chatMessageFindFirstMock,
     },
     chatRoomCoworkerMember: { findMany: chatCoworkerMemberFindManyMock },
     chatRoomSokoBotMember: {
@@ -5464,6 +5467,165 @@ describe("Drive file tools", () => {
     );
     expect(result).toMatchObject({
       savedTo: "Files in this organization's workspace, visible to its members",
+    });
+  });
+
+  describe("saving a chat attachment", () => {
+    const roomId = "01a0f500-0000-7000-8000-000000000001";
+    const url = `https://abc.public.blob.vercel-storage.com/users/${SCOPE.userId}/chats/${roomId}/1-sign-in-x7Yq.png`;
+    const chatAuthorized = {
+      turn: {
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        sokoBotId: SCOPE.sokoBotId,
+      },
+    };
+    const bytes = new Uint8Array([137, 80, 78, 71]);
+
+    beforeEach(() => {
+      chatRoomFindFirstMock.mockReset().mockResolvedValue({
+        id: roomId,
+        name: null,
+        groupName: null,
+        kind: "direct",
+        organizationId: null,
+        sokoBotMembers: [],
+      });
+      chatMessageFindFirstMock.mockReset().mockResolvedValue({ id: "m-1" });
+      files.head.mockReset().mockResolvedValue({
+        url,
+        size: bytes.byteLength,
+        contentType: "image/png",
+      });
+      files.list.mockReset().mockResolvedValue({ blobs: [] });
+      files.put
+        .mockReset()
+        .mockResolvedValue({ url: "https://blob.example/x" });
+      files.reserve.mockResolvedValue({
+        resourceId: "file-7",
+        versionId: "v1",
+      });
+      files.activate.mockResolvedValue({ resourceId: "file-7" });
+      vi.stubGlobal(
+        "fetch",
+        vi.fn().mockResolvedValue(new Response(bytes, { status: 200 })),
+      );
+    });
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it("copies the attachment into the owner's Files and returns its id", async () => {
+      const result = await service["uploadFile"](chatAuthorized as never, {
+        filename: "1-sign-in.png",
+        attachmentUrl: url,
+      });
+      expect(chatRoomFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            id: roomId,
+            sokoBotMembers: { some: { sokoBotId: SCOPE.sokoBotId } },
+          }),
+        }),
+      );
+      expect(chatMessageFindFirstMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({
+            roomId,
+            content: { contains: url },
+            room: { userMembers: { some: { userId: SCOPE.userId } } },
+          }),
+        }),
+      );
+      expect(files.put).toHaveBeenCalledWith(
+        expect.stringContaining("1-sign-in.png"),
+        Buffer.from(bytes),
+        expect.objectContaining({ contentType: "image/png" }),
+      );
+      expect(result).toMatchObject({
+        id: "file-7",
+        filename: "1-sign-in.png",
+        link: "/drive/files/file-7",
+        size: 4,
+      });
+      expect(JSON.stringify(result)).not.toContain("blob.vercel-storage");
+    });
+
+    it("refuses a link that is not a chat attachment", async () => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "x.png",
+          attachmentUrl: "https://evil.example/users/u/chats/r/x.png",
+        }),
+      ).rejects.toThrow("not a file attached in a Sokosumi chat");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("refuses an attachment from a room the bot is not in", async () => {
+      chatRoomFindFirstMock.mockResolvedValue(null);
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "x.png",
+          attachmentUrl: url,
+        }),
+      ).rejects.toThrow("not a member of that chat room");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("refuses a link never posted where the bot and its owner both are", async () => {
+      chatMessageFindFirstMock.mockResolvedValue(null);
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "x.png",
+          attachmentUrl: url,
+        }),
+      ).rejects.toThrow("not posted in a chat you and your owner are in");
+      expect(files.put).not.toHaveBeenCalled();
+    });
+
+    it("needs content or an attachment, not both", async () => {
+      await expect(
+        service["uploadFile"](chatAuthorized as never, {
+          filename: "x.png",
+          content: "hi",
+          attachmentUrl: url,
+        }),
+      ).rejects.toThrow("not both");
+      await expect(
+        service["uploadFile"](chatAuthorized as never, { filename: "x.md" }),
+      ).rejects.toThrow("attachmentUrl");
+    });
+
+    it("gives a saved chat image to a Social post as media", async () => {
+      const saved = await service["uploadFile"](chatAuthorized as never, {
+        filename: "1-sign-in.png",
+        attachmentUrl: url,
+      });
+      const pathname = files.put.mock.calls.at(-1)?.[0] as string;
+      files.loadLive.mockResolvedValue([
+        {
+          id: saved.id,
+          displayName: "1-sign-in.png",
+          mimeType: "image/png",
+          sizeBytes: 4,
+          sourceKind: "DRIVE_UPLOAD",
+          sourceId: pathname,
+        },
+      ]);
+      files.head.mockResolvedValue({
+        url: `https://abc.public.blob.vercel-storage.com/${pathname}`,
+      });
+      await expect(
+        service["resolveSocialMedia"](chatAuthorized as never, [
+          { fileId: saved.id as string },
+        ]),
+      ).resolves.toEqual([
+        expect.objectContaining({
+          pathname,
+          kind: "image",
+          mimeType: "image/png",
+        }),
+      ]);
     });
   });
 });

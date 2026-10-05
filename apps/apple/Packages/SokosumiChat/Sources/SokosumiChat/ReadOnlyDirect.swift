@@ -1,7 +1,7 @@
 import CoreAPI
 
 /// Web `getFormerMemberNames`: a Direct's Former members by the name each is shown under.
-public func formerMemberNames(_ room: Components.Schemas.ChatRoom) -> [String] {
+func formerMemberNames(_ room: Components.Schemas.ChatRoom) -> [String] {
   room.formerUserMembers.map { $0.name.isEmpty ? $0.email : $0.name }
 }
 

@@ -4,7 +4,8 @@
       "error": "No se pudo cargar la comprobación de seguridad. Desactiva los bloqueadores de contenido o vuelve a cargar la página.",
       "verificationFailed": "La verificación de seguridad falló. Vuelve a intentarlo.",
       "missingResponse": "Completa la verificación de seguridad y vuelve a intentarlo.",
-      "requestFailed": "No se pudo completar la solicitud. Vuelve a intentarlo más tarde."
+      "requestFailed": "No se pudo completar la solicitud. Vuelve a intentarlo más tarde.",
+      "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo."
     },
     "EmailCodeForm": {
       "sent": "Enviamos un código de 6 dígitos a {email}.",
@@ -54,7 +55,6 @@
       "orSocial": "O continúa con una cuenta conectada.",
       "passwordError": "No hemos podido verificar esa contraseña.",
       "passwordLabel": "Contraseña actual",
-      "rememberMe": "Mantener la sesión iniciada",
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
       "sessionLost": "Abre la página de inicio de sesión e inicia sesión de nuevo.",
       "socialError": "No hemos podido iniciar ese acceso.",
@@ -1109,8 +1109,8 @@
     "Footer": {
       "termsOfServices": "Términos de uso",
       "privacyPolicy": "Política de privacidad",
-      "imprint": "Imprint",
-      "acceptableUse": "Acceptable Use"
+      "imprint": "Aviso legal",
+      "acceptableUse": "Uso aceptable"
     },
     "Aside": {
       "titleLine1": "AI Coworkers",
@@ -1183,7 +1183,6 @@
       "Form": {
         "label": "Email",
         "continueWithEmail": "Continuar con email",
-        "change": "Cambiar",
         "changeEmail": "Cambiar email",
         "usePasswordInstead": "Usar una contraseña en su lugar",
         "emailCodeInstead": "Envíame un código en su lugar",
@@ -1211,9 +1210,6 @@
           "Fields": {
             "Password": {
               "label": "Contraseña"
-            },
-            "RememberMe": {
-              "label": "Mantenerme conectado"
             }
           },
           "forgotPassword": "¿Olvidaste tu contraseña?",
@@ -1226,14 +1222,20 @@
           },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
-            "description": "Crea una ahora con este email.",
+            "description": "Comprueba que no tenga errores o crea una ahora.",
             "createAccount": "Crear cuenta"
+          },
+          "Handover": {
+            "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
+            "password": "Ya tienes una cuenta. Introduce tu contraseña para iniciar sesión.",
+            "codeNotSentNotice": "Ya tienes una cuenta.",
+            "codeNotSent": "No pudimos enviar un código. Inténtalo de nuevo."
           }
         }
       },
       "SignUp": {
         "Metadata": {
-          "title": "Registrarse",
+          "title": "Crea tu cuenta",
           "description": "Usa coworkers de IA para tus tareas más complejas"
         },
         "Google": {
@@ -1249,7 +1251,7 @@
           "retry": "Intentar de nuevo"
         },
         "Header": {
-          "title": "Registrarse",
+          "title": "Crea tu cuenta",
           "viaInvitation": "(por invitación)",
           "description": "Contrata Agents en nuestra plataforma",
           "descriptionFor": "Crea tu cuenta de Sokosumi para continuar a {client}"
@@ -1261,7 +1263,7 @@
             "description": "Inicia sesión con este email o introduce otro para registrarte.",
             "logIn": "Iniciar sesión"
           },
-          "addPassword": "Establecer también una contraseña",
+          "addPassword": "Añadir una contraseña para futuros inicios de sesión",
           "removePassword": "Registrarse sin contraseña",
           "Fields": {
             "MarketingOptIn": {
@@ -1292,8 +1294,13 @@
           "reset_password": "Restablecer contraseña",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             }
+          },
+          "linkExpired": "Ese enlace para restablecer la contraseña ha caducado o ya se usó. Solicita uno nuevo.",
+          "Errors": {
+            "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo.",
+            "generic": "No pudimos enviar el email para restablecer la contraseña. Vuelve a intentarlo."
           }
         }
       },
@@ -1307,15 +1314,18 @@
         "Form": {
           "submit": "Restablecer contraseña",
           "success": "Contraseña restablecida. Se ha cerrado tu sesión en todos los dispositivos.",
-          "error": "Error al restablecer la contraseña",
+          "error": "No pudimos restablecer tu contraseña. Puede que el enlace haya caducado o ya se haya usado.",
           "Fields": {
             "Password": {
-              "placeholder": "Nueva contraseña"
+              "label": "Nueva contraseña"
             },
             "ConfirmPassword": {
-              "placeholder": "Confirmar contraseña"
+              "label": "Confirmar contraseña"
             }
-          }
+          },
+          "requestNewLink": "Solicitar un enlace nuevo",
+          "signOutError": "Contraseña cambiada. No pudimos terminar de cerrar la sesión en este navegador. Vuelve a intentarlo para continuar al inicio de sesión.",
+          "continueToSignIn": "Continuar al inicio de sesión"
         }
       }
     },
@@ -1844,8 +1854,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Inicia sesión para gestionar cómo se comparte la tarea",
+            "unauthenticatedAction": "Iniciar sesión",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }
@@ -2411,7 +2421,6 @@
           "attention": "Requiere atención",
           "accounts": "Cuentas"
         },
-        "selectedPost": "Publicación seleccionada",
         "empty": {
           "drafts": "Aún no hay borradores."
         },
@@ -2864,7 +2873,6 @@
     },
     "Social": {
       "title": "Programación social",
-      "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
@@ -2882,11 +2890,11 @@
       },
       "accountsNeedProject": {
         "title": "Conectar X, YouTube, LinkedIn…",
-        "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+        "body": "Las cuentas se conectan por proyecto. Elige un proyecto en la barra lateral para conectar o gestionar sus cuentas."
       },
       "draftsNeedProject": {
         "title": "Borradores",
-        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto para ver y terminar sus borradores."
+        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto en la barra lateral para ver y terminar sus borradores."
       },
       "loading": "Cargando Social…"
     },
@@ -4708,7 +4716,8 @@
         "revokeOtherSessionsHelp": "Finaliza todas las demás sesiones. Este dispositivo permanece conectado.",
         "submit": "Actualizar contraseña",
         "success": "Contraseña actualizada correctamente",
-        "error": "No se pudo actualizar la contraseña"
+        "error": "No se pudo actualizar la contraseña",
+        "forgotPassword": "¿Olvidaste tu contraseña?"
       },
       "NewPassword": {
         "title": "Establecer contraseña",
@@ -6154,6 +6163,21 @@
         "showFormatting": "Mostrar formato",
         "hideFormatting": "Ocultar formato"
       },
+      "Skills": {
+        "add": "Añadir una skill",
+        "limitReached": "Hasta 3 skills por mensaje",
+        "searchPlaceholder": "Buscar skills",
+        "listLabel": "Skills de skills.sh",
+        "loading": "Cargando skills…",
+        "unavailable": "No se pudieron cargar las skills. Inténtalo de nuevo.",
+        "noResults": "No se encontraron skills",
+        "installs": "{count} instalaciones",
+        "added": "Añadida",
+        "remove": "Quitar {name}",
+        "chipLabel": "Skill: {name}",
+        "previewKicker": "Skill de skills.sh, enviada a los agentes a los que llega este mensaje",
+        "viewOnSkillsSh": "Ver en skills.sh"
+      },
       "Reactions": {
         "add": "Add reaction",
         "toggle": "React with {emoji}",
@@ -7546,14 +7570,6 @@
     "title": "Modo mantenimiento",
     "description": "Estamos realizando tareas de mantenimiento",
     "message": "Estamos trabajando para mejorar tu experiencia. Vuelve pronto."
-  },
-  "EmailConfirmed": {
-    "title": "Email confirmado",
-    "message": "Tu dirección de email está confirmada. Puedes cerrar esta pestaña.",
-    "messageFor": "Tu dirección de email está confirmada. Ya puedes volver a {client}.",
-    "returnTo": "Volver a {client}",
-    "errorTitle": "Email no confirmado",
-    "errorMessage": "Este enlace ha caducado o ya no es válido."
   },
   "AppleAppCallback": {
     "title": "Vuelve a la app de Sokosumi",

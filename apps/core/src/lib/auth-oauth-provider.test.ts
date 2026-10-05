@@ -2,10 +2,14 @@ import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt } from "better-auth/plugins";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
+import { emailCodeSignIn } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
   handleOAuthRefreshTokenRequest,
@@ -602,4 +606,147 @@ describe("jwtKeyStoreOptions", () => {
       ).toBe(skips);
     },
   );
+});
+
+describe("answerCreatePromptWithNewSession", () => {
+  const WEB = "https://app.example.com";
+  const CMO_CALLBACK = "https://cmo.example.com/callback";
+  const EMAIL = "new@example.com";
+
+  // Core's sign-up path on an in-memory store: the email code endpoint that
+  // also takes password sign-ups, the provider, and the after hook.
+  function createSignUpAuth() {
+    const db = createDb();
+    db.oauthClient[0].skipConsent = true;
+    const codes = new Map<string, string>();
+    const auth = betterAuth({
+      baseURL: "https://auth.example.com",
+      basePath: "/auth",
+      secret: "test-secret-that-is-long-enough-for-better-auth",
+      database: memoryAdapter(db),
+      trustedOrigins: [WEB],
+      // Every session lookup renews the cookie, as a day-old session's does.
+      session: { updateAge: 0 },
+      emailAndPassword: { enabled: true },
+      hooks: {
+        after: createAuthMiddleware(afterNewSession),
+      },
+      plugins: [
+        jwt({ disableSettingJwtHeader: true }),
+        emailCodeSignIn(
+          emailOTP({
+            sendVerificationOTP: async ({ email, otp }) => {
+              codes.set(email, otp);
+            },
+          }),
+        ),
+        oauthProvider({
+          loginPage: `${WEB}/signin`,
+          consentPage: `${WEB}/oauth/consent`,
+          signup: { page: `${WEB}/signup` },
+        }),
+      ],
+      rateLimit: { enabled: false },
+    });
+
+    function post(path: string, body: object, cookie = "") {
+      return auth.handler(
+        new Request(`https://auth.example.com/auth${path}`, {
+          method: "POST",
+          headers: { "content-type": "application/json", origin: WEB, cookie },
+          body: JSON.stringify(body),
+        }),
+      );
+    }
+
+    // CMO's authorize request; returns where the provider sends the browser.
+    async function authorize(prompt: string | undefined, cookie = "") {
+      const query = new URLSearchParams({
+        response_type: "code",
+        client_id: CLIENT_ID,
+        redirect_uri: CMO_CALLBACK,
+        scope: "openid",
+        state: "state-1",
+        code_challenge: "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGcSZ7j9Gc",
+        code_challenge_method: "S256",
+        ...(prompt ? { prompt } : {}),
+      });
+      const response = await auth.handler(
+        new Request(`https://auth.example.com/auth/oauth2/authorize?${query}`, {
+          headers: {
+            cookie,
+            accept: "text/html",
+            "sec-fetch-mode": "navigate",
+          },
+        }),
+      );
+      return new URL(response.headers.get("location") ?? "");
+    }
+
+    // Signs in with an emailed code; `extra` turns it into a password sign-up.
+    async function signInWithCode(
+      email: string,
+      extra: object = {},
+      oauthQuery?: string,
+    ) {
+      await post("/email-otp/send-verification-otp", {
+        email,
+        type: "sign-in",
+      });
+      return post("/sign-in/email-otp", {
+        email,
+        otp: codes.get(email),
+        ...extra,
+        ...(oauthQuery ? { oauth_query: oauthQuery } : {}),
+      });
+    }
+
+    return { authorize, post, signInWithCode };
+  }
+
+  function sessionCookie(response: Response) {
+    return response.headers
+      .getSetCookie()
+      .map((header) => header.split(";", 1)[0])
+      .join("; ");
+  }
+
+  function expectCmoCallback(url: string) {
+    const target = new URL(url);
+    expect(target.origin + target.pathname).toBe(CMO_CALLBACK);
+    expect(target.searchParams.get("state")).toBe("state-1");
+    expect(target.searchParams.has("code")).toBe(true);
+  }
+
+  it.each([
+    ["an email code", {}],
+    ["a password", { password: "a-password-long-enough", name: "New Person" }],
+  ])(
+    "sends a Create account sign-up with %s straight to CMO",
+    async (_label, extra) => {
+      const { authorize, signInWithCode } = createSignUpAuth();
+      const signup = await authorize("create");
+      expect(signup.origin + signup.pathname).toBe(`${WEB}/signup`);
+
+      const response = await signInWithCode(
+        EMAIL,
+        extra,
+        signup.searchParams.toString(),
+      );
+
+      const result = await response.json();
+      expect(result, JSON.stringify(result)).toMatchObject({ redirect: true });
+      expectCmoCallback(result.url);
+    },
+  );
+
+  it("still asks a person already signed in which account to use, though their session renews", async () => {
+    const { authorize, signInWithCode } = createSignUpAuth();
+    const cookie = sessionCookie(await signInWithCode("user@example.com"));
+
+    const signup = await authorize("create", cookie);
+
+    expect(signup.origin + signup.pathname).toBe(`${WEB}/signup`);
+    expect(signup.searchParams.get("prompt")).toBe("create");
+  });
 });

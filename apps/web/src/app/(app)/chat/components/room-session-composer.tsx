@@ -2,6 +2,7 @@
 
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomMessageSkill,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
 } from "@sokosumi/core-client";
@@ -61,6 +62,8 @@ export interface RoomSessionSendRequest {
   mentionedIds: string[];
   quote?: { messageId: string; roomId?: string };
   clientMessageId: string;
+  /** skills.sh skills attached to this send. */
+  skills?: ChatRoomMessageSkill[];
 }
 
 export interface RoomSessionSendResult {
@@ -74,6 +77,7 @@ interface ComposerSnapshot {
   mentionedIds: string[];
   pendingQuote: PendingRoomQuote | null;
   quotedLink: QuotedLink | null;
+  skills: ChatRoomMessageSkill[];
 }
 
 /** A pasted Message link that became the pending quote. */
@@ -114,6 +118,8 @@ interface RoomSessionComposerProps {
   isSending: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
+  /** Shows the skill picker; false where the send path cannot carry skills. */
+  allowSkills?: boolean;
   /**
    * Autofocus editor. Progressive room open keeps this false while history is
    * pending so Instant→shell does not open the OSK / jump selection early.
@@ -152,6 +158,7 @@ export function RoomSessionComposer({
   isSending,
   showMentionShortcut,
   allowAttachments,
+  allowSkills = true,
   focusOnMount = true,
   ref,
   onBeforeSend,
@@ -175,6 +182,9 @@ export function RoomSessionComposer({
     RoomComposerAttachment[]
   >([]);
   const [mentionedIds, setMentionedIds] = useState<string[]>([]);
+  const [composerSkills, setComposerSkills] = useState<ChatRoomMessageSkill[]>(
+    [],
+  );
   /** Set while a toolbar control inserts text, so it is not read as typing. */
   const toolbarInsertRef = useRef(false);
 
@@ -253,6 +263,7 @@ export function RoomSessionComposer({
       setComposerValue(snapshot.value);
       setComposerAttachments(snapshot.attachments);
       setMentionedIds(snapshot.mentionedIds);
+      setComposerSkills(snapshot.skills);
       if (snapshot.pendingQuote) {
         onSetPendingQuote?.(snapshot.pendingQuote);
         setQuotedLink(snapshot.quotedLink);
@@ -353,12 +364,14 @@ export function RoomSessionComposer({
       mentionedIds,
       pendingQuote,
       quotedLink,
+      skills: allowSkills ? composerSkills : [],
     };
     const sentDraftKey = draftKey;
 
     setComposerValue("");
     setComposerAttachments([]);
     setMentionedIds([]);
+    setComposerSkills([]);
     onClearPendingQuote?.();
     latest.current.paste += 1;
     setQuotedLink(null);
@@ -372,6 +385,7 @@ export function RoomSessionComposer({
       mentionedIds: snapshot.mentionedIds,
       quote: quotePayload,
       clientMessageId,
+      ...(snapshot.skills.length > 0 ? { skills: snapshot.skills } : {}),
     });
 
     if (!result.ok) {
@@ -429,6 +443,8 @@ export function RoomSessionComposer({
         canOpenHumanDirect={canOpenHumanDirect}
         onOpenDirectMessage={onOpenDirectMessage}
         openingDirectParticipantKey={openingDirectParticipantKey}
+        skills={composerSkills}
+        onSkillsChange={allowSkills ? setComposerSkills : undefined}
       />
     </div>
   );

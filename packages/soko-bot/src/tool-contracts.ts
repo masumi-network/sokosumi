@@ -255,8 +255,10 @@ export const sokoBotReadFileInputSchema = z
 export const sokoBotUploadFileInputSchema = z.object({
   /** File name including extension, e.g. "launch-brief.md". */
   filename: z.string().min(1).max(200),
-  /** Text content to store. */
-  content: z.string().min(1).max(200_000),
+  /** Text content to store. Give this or attachmentUrl, not both. */
+  content: z.string().min(1).max(200_000).optional(),
+  /** Link of a file someone attached in a chat you are in, to save as is (any type). */
+  attachmentUrl: z.string().url().max(2_000).optional(),
   /** MIME type; defaults to text/markdown. */
   contentType: z.string().max(120).optional(),
   /** Replace an existing text file of the same name with this content. */
@@ -629,7 +631,7 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   read_file:
     "Read the text Sokosumi extracted from a Drive file, by id from list_files. Says so when the file has no text yet (still being processed, or an image or unsupported type).",
   upload_file:
-    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. The result says where it was saved: tell the owner that, not more.",
+    "Write a text file into the owner\u2019s Files, also called Drive (a brief, a summary, notes). Give a filename with an extension; it appears there straight away. To update a file already there, write the full new content with overwrite: true. When the owner asked for the file, write it; no need to confirm first. A file someone attached in chat (an image, PDF, any type) is saved by passing its link as attachmentUrl instead of content; the result's id then works as media in create_social_post or update_social_post. The result says where it was saved: tell the owner that, not more.",
   list_integrations:
     "Which external accounts (Gmail, Outlook, Google Calendar, …) the owner connected to you, and when you last ingested them.",
   search_inbox:

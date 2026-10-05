@@ -10,8 +10,9 @@ implicitly through task and job endpoints.
 > pickable in chat/tasks for humans uses `CoworkerWorkspaceAccess` instead —
 > see [`coworker-workspace-access-api.md`](./coworker-workspace-access-api.md).
 
-> **Soko Bot** does not authenticate as a coworker. Its in-process Core loop
-> receives short-lived, turn-scoped grants and invokes capability tools.
+> **Soko Bot** does not authenticate as a coworker. Its sandbox loop
+> ([ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md)) receives
+> short-lived, turn-scoped grants and invokes capability tools through Core.
 > Delegated Coworker work still follows this vendor-grant model.
 
 - **Source of truth (behavior):** `apps/core/src/helpers/access-control.ts`,

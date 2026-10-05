@@ -80,7 +80,7 @@ Consent Mode gates whether GTM forwards them to GA4/Ads.
 | Event                 | Fires when…                                    | Where |
 |-----------------------|------------------------------------------------|-------|
 | `sign_up` `{provider}`| account created. Credential and email code fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts`. A password sign-up is sent with the email code ([ADR 0050](../../docs/adr/0050-password-sign-up-proves-the-address.md)) and still counts once, as `credential`. Social fires once per new account, on whichever page claims it first: the callback page, or the OAuth hand-back during a Sign in with Sokosumi request — see [Social sign-ups](#social-sign-ups) | `components/use-email-code.ts` (from `signup/components/form.tsx`), `components/social-auth-callback.tsx`, `components/oauth-hand-back.tsx` |
-| `login` `{provider}`  | signed in. Social fires on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`), passkey and email code (`social-buttons.tsx`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx` |
+| `login` `{provider}`  | signed in. Social fires on `/auth/callback/signin` after the full page load. Credential (`signin/components/form.tsx`), passkey (`social-buttons.tsx`) and email code (`use-email-code.ts`) fire in place, before the full-document leave in `lib/auth/finish-auth.client.ts` | `components/social-auth-callback.tsx`, `signin/components/form.tsx`, `components/social-buttons.tsx`, `components/use-email-code.ts` |
 | `message_start` `{room_id}` | **a coworker DM is started** (first send per room) | `app/(app)/chat/hooks/use-coworker-direct-room-stream.ts` |
 | `begin_checkout` `{plan?, seats?}` | Stripe checkout opened — credits/coupon (no params) and subscription upgrade (`plan`, org `seats`) | `components/credits/*-form.tsx`, `components/billing/*-subscription-section.tsx` |
 | `purchase` `{transaction_id, value, currency, items}` | **a checkout succeeds**: credits/coupon (Stripe returns with `session_id`) or subscription (returns with `checkout_session_id`) — see [Purchase tracking](#purchase-tracking) | `components/billing/purchase-tracker.tsx`, mounted by `credits-checkout-return.tsx` and `subscription-checkout-return.tsx` |
@@ -157,11 +157,12 @@ started it can count it. Core is the one place that sees every new account:
    `sign-up-conversion-redirect:<userId>`, valid one hour
    (`apps/core/src/lib/auth-sign-up-conversion.ts`).
 2. Outside an OAuth request the browser lands on `/auth/callback/signup`.
-   During one, a `prompt=create` request lands on `/signup` anyway; otherwise
-   the OAuth provider's `signup.shouldRedirect` takes the redirect row and
-   sends the authorization to `/signup`. There the hand-back counts the
-   sign-up before `/oauth2/continue`. The redirect row is single-use, so a
-   claim that keeps failing cannot loop the browser back to `/signup`.
+   During one, the OAuth provider's `signup.shouldRedirect` takes the
+   redirect row and sends the authorization to `/signup`, also for
+   `prompt=create`, which the new session answered. There the hand-back
+   counts the sign-up before `/oauth2/continue`. The redirect row is
+   single-use, so a claim that keeps failing cannot loop the browser back to
+   `/signup`.
 3. Either page calls `claimSignUpConversion`, which asks Core
    (`POST /v1/users/me/sign-up-conversion`) with the existing UTM cookie data.
    Only an interactive session may claim its own conversion through `me`.

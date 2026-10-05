@@ -63,8 +63,8 @@ struct ReadOnlyDirectTests {
     #expect(roomDisplayName(room, currentUserId: "me") == "Ada")
   }
 
-  @Test func aSelfDirectStillShowsTheViewer() {
-    #expect(roomDisplayName(direct(readOnly: false, isSelfDirect: true), currentUserId: "me") == "Andreas")
+  @Test func aSelfDirectIsYou() {
+    #expect(roomDisplayName(direct(readOnly: false, isSelfDirect: true), currentUserId: "me") == "You")
   }
 
   // MARK: Faces

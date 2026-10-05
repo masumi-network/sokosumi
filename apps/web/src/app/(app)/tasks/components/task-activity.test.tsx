@@ -666,6 +666,28 @@ describe("TaskActivitySection", () => {
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
   });
 
+  it("uses created copy for CREATED events instead of a status update", () => {
+    const events: TaskEvent[] = [
+      createEvent("created-milestone", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskEventStatus.CREATED,
+      }),
+      createEvent("initial-status", {
+        createdAt: "2026-01-01T10:00:00.001Z",
+        status: TaskStatus.READY,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("created this task")).toBeInTheDocument();
+    expect(screen.getByText("updated status")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("status-dot-created-milestone"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-dot-initial-status")).toBeInTheDocument();
+  });
+
   it("uses charged credits as action for credit-only settled events", () => {
     const events: TaskEvent[] = [
       createEvent("credit-only-settled", {

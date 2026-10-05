@@ -45,8 +45,8 @@ export default async function WorkspaceGatePage({
   searchParams,
 }: WorkspaceGatePageProps) {
   // Same shape as the app shell. `getSessionOrRedirect` throws on a Core
-  // outage, and `(flows)` has no `error.tsx`, so that throw would land on the
-  // bare "Application error" page instead of a themed notice.
+  // outage; reading the session here shows the shell's outage notice instead
+  // of the generic card in `(flows)/error.tsx`.
   const sessionRead = await readRouteSession();
   if (sessionRead.status === "unavailable") {
     return <CoreUnavailableNotice />;
