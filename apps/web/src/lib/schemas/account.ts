@@ -7,7 +7,6 @@ import * as z from "zod";
 import {
   confirmPasswordSchema,
   currentPasswordSchema,
-  emailSchema,
   firstAndLastNameSchema,
   nameSchema,
   passwordSchema,
@@ -67,13 +66,6 @@ export const accountNameFormSchema = (
 export type AccountNameFormType = z.infer<
   ReturnType<typeof accountNameFormSchema>
 >;
-
-export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    email: emailSchema(t),
-  });
-
-export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
 
 export const passwordFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
