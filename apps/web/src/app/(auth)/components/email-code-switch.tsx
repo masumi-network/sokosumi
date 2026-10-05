@@ -3,6 +3,8 @@
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
+import type { RunWithCaptcha } from "@/components/auth-captcha";
+
 import type { EmailCode } from "./use-email-code";
 
 /** A text button under the second step, e.g. to switch the method. */
@@ -15,6 +17,11 @@ interface EmailCodeSwitchProps {
   emailCode: EmailCode;
   isCodeStep: boolean;
   onSwitch: (method: "password" | "code") => void;
+  /**
+   * The password step's check, for a code asked for here. One widget on the
+   * step, so a visitor Cloudflare wants to see is not asked twice.
+   */
+  runWithCaptcha: RunWithCaptcha;
   /** The way to a new password, above the switch. */
   forgotPassword?: ReactNode;
 }
@@ -29,12 +36,12 @@ export function EmailCodeSwitch({
   emailCode,
   isCodeStep,
   onSwitch,
+  runWithCaptcha,
   forgotPassword,
 }: EmailCodeSwitchProps) {
   const t = useTranslations("Auth.Email.Form");
   const wasCodeSent = emailCode.sentTo === email;
 
-  const willSend = !isCodeStep && !wasCodeSent;
   const action = isCodeStep ? (
     <button
       type="button"
@@ -61,7 +68,7 @@ export function EmailCodeSwitch({
       className={STEP_LINK_BUTTON_CLASS}
       disabled={emailCode.isSending}
       onClick={async () => {
-        await emailCode.sendCode(email);
+        await emailCode.sendCode(email, { runWithCaptcha });
         onSwitch("code");
       }}
     >
@@ -69,10 +76,8 @@ export function EmailCodeSwitch({
     </button>
   );
 
-  // A div, not a p: the captcha widget may render inside it.
   return (
     <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm">
-      {willSend ? emailCode.captcha : null}
       {/* One row on wider screens; a link that does not fit (German, Spanish,
           or the longer "code still works" line) wraps whole onto its own row. */}
       <div className="flex flex-col items-center gap-2 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3">
