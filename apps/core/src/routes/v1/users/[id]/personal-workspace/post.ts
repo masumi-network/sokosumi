@@ -1,14 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import {
-  vendorGrantRepository,
-  workspaceRepository,
-} from "@sokosumi/database/repositories";
 
-import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { created } from "@/helpers/response";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -24,8 +18,9 @@ const params = z.object({
 const route = createRoute({
   method: "post",
   path: "/personal-workspace",
+  deprecated: true,
   description:
-    "Create exactly one personal workspace for the user (path `me` for the session user, or a user id the caller may access). Clears preferredOrganizationId so personal context is ready for activation. Conflicts if a personal workspace already exists.",
+    'Deprecated: use `POST /users/{id}/workspaces` with `{ kind: "personal" }` (ADR 0051). Create exactly one personal workspace for the user (path `me` for the session user, or a user id the caller may access). Clears preferredOrganizationId so personal context is ready for activation. Conflicts if a personal workspace already exists.',
   tags: ["Users"],
   request: { params },
   responses: {
@@ -55,46 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const workspace = await prisma.$transaction(async (tx) => {
-      const existing = await tx.workspace.findUnique({
-        where: { userId: resolvedUserId },
-      });
-
-      if (existing) {
-        throw conflict("Personal workspace already exists");
-      }
-
-      let createdWorkspace;
-      try {
-        createdWorkspace = await tx.workspace.create({
-          data: { userId: resolvedUserId },
-        });
-      } catch (error) {
-        if (isPrismaUniqueViolation(error)) {
-          throw conflict("Personal workspace already exists");
-        }
-        throw error;
-      }
-
-      await vendorGrantRepository.ensureServiceplanWorkspaceGrantOnCreate({
-        workspaceId: createdWorkspace.id,
-        resolvedByUserId: resolvedUserId,
-        tx,
-      });
-
-      // The same seed the repository's two creation paths use. A workspace
-      // with no Files vocabulary produces no tags at all, silently, and this
-      // is the one creation path that does not go through
-      // `workspaceRepository`.
-      await workspaceRepository.seedCuratedVocabulary(createdWorkspace.id, tx);
-
-      await tx.user.update({
-        where: { id: resolvedUserId },
-        data: { preferredOrganizationId: null },
-      });
-
-      return createdWorkspace;
-    });
+    const workspace = await createPersonalWorkspace(resolvedUserId);
 
     return created(
       c,

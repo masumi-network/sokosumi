@@ -4697,6 +4697,65 @@ export const WorkspaceGateStatus = {
  */
 export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
 
+export type UserWorkspaces = {
+    /**
+     * Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding
+     */
+    workspaces: Array<UserWorkspace>;
+    /**
+     * Non-expired pending organization invitations for the person's email
+     */
+    pendingInvitationCount: number;
+};
+
+export type UserWorkspace = {
+    /**
+     * Workspace id
+     */
+    id: string;
+    /**
+     * Whether the person owns the workspace or acts in it as an organization member
+     */
+    kind: 'personal' | 'organization';
+    /**
+     * The person's name for a personal workspace, the organization's name otherwise
+     */
+    name: string;
+    /**
+     * Organization id, or null for a personal workspace
+     */
+    organizationId: string | null;
+    /**
+     * Organization slug, or null for a personal workspace
+     */
+    slug: string | null;
+    /**
+     * Whether a new session opens this workspace
+     */
+    preferred: boolean;
+};
+
+export type CreateUserWorkspace = {
+    kind: 'personal';
+} | {
+    kind: 'organization';
+    /**
+     * Organization name
+     */
+    name: string;
+    /**
+     * The organization's website. `https://` is added when missing
+     */
+    websiteUrl: string;
+};
+
+export type SetPreferredUserWorkspace = {
+    /**
+     * Id of a workspace the person can act in
+     */
+    workspaceId: string;
+};
+
 export type UserPendingOrganizationInvitations = Array<UserPendingOrganizationInvitation>;
 
 export type UserPendingOrganizationInvitation = {
@@ -5017,6 +5076,11 @@ export type User = {
     emailVerified: boolean;
     image?: string | null;
     role: string;
+};
+
+export type UpdateUserName = {
+    firstName: string;
+    lastName: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -32053,6 +32117,330 @@ export type GetUsersByIdWorkspaceAccessResponses = {
 
 export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
+export type GetUsersByIdWorkspacesData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces';
+};
+
+export type GetUsersByIdWorkspacesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesError = GetUsersByIdWorkspacesErrors[keyof GetUsersByIdWorkspacesErrors];
+
+export type GetUsersByIdWorkspacesResponses = {
+    /**
+     * The user's workspaces
+     */
+    200: {
+        data: UserWorkspaces;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesResponse = GetUsersByIdWorkspacesResponses[keyof GetUsersByIdWorkspacesResponses];
+
+export type PostUsersByIdWorkspacesData = {
+    body?: CreateUserWorkspace;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces';
+};
+
+export type PostUsersByIdWorkspacesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The organization limit is reached
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Personal workspace already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdWorkspacesError = PostUsersByIdWorkspacesErrors[keyof PostUsersByIdWorkspacesErrors];
+
+export type PostUsersByIdWorkspacesResponses = {
+    /**
+     * The created workspace
+     */
+    201: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdWorkspacesResponse = PostUsersByIdWorkspacesResponses[keyof PostUsersByIdWorkspacesResponses];
+
+export type PutUsersByIdWorkspacesPreferredData = {
+    body?: SetPreferredUserWorkspace;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/preferred';
+};
+
+export type PutUsersByIdWorkspacesPreferredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The user is not a member of the organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Workspace not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutUsersByIdWorkspacesPreferredError = PutUsersByIdWorkspacesPreferredErrors[keyof PutUsersByIdWorkspacesPreferredErrors];
+
+export type PutUsersByIdWorkspacesPreferredResponses = {
+    /**
+     * The preferred workspace
+     */
+    200: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutUsersByIdWorkspacesPreferredResponse = PutUsersByIdWorkspacesPreferredResponses[keyof PutUsersByIdWorkspacesPreferredResponses];
+
 export type GetUsersByIdPendingOrganizationInvitationsData = {
     body?: never;
     path: {
@@ -34309,6 +34697,114 @@ export type GetUsersByIdResponses = {
 };
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
+
+export type PatchUsersByIdData = {
+    body?: UpdateUserName;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type PatchUsersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchUsersByIdError = PatchUsersByIdErrors[keyof PatchUsersByIdErrors];
+
+export type PatchUsersByIdResponses = {
+    /**
+     * The updated user
+     */
+    200: {
+        data: User;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchUsersByIdResponse = PatchUsersByIdResponses[keyof PatchUsersByIdResponses];
 
 export type GetOrganizationBySlugData = {
     body?: never;
