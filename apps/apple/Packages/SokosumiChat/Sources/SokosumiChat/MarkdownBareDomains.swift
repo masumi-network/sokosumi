@@ -122,6 +122,10 @@ struct MarkdownBareDomains {
     while end < text.count, Self.isHost(text[end]) {
       end += 1
     }
+    // Email local part (`name.in@gmail.com`), not a host.
+    if end < text.count, text[end] == "@" {
+      return nil
+    }
     if end < text.count, "/?#".contains(text[end]) {
       while end < text.count, !Self.stops.contains(text[end]) {
         end += 1
