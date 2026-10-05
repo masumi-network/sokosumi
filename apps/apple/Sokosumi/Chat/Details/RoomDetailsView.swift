@@ -9,12 +9,11 @@ struct RoomDetailsView: View {
   let close: () -> Void
   @EnvironmentObject private var workspaces: WorkspaceState
   @EnvironmentObject private var auth: AuthState
+  @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
   @State private var errorMessage: String?
   @State private var directRequestId: UUID?
   @State private var selectedProfile: ChatParticipantProfile?
-  @State private var editChannel: RoomEditPresentation?
   @State private var addMembers: RoomEditPresentation?
-  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var removal: RoomRosterMember?
   @State private var notice: ChannelMembershipNotice?
@@ -50,7 +49,7 @@ struct RoomDetailsView: View {
             }
             if permissions.canManageSettings {
               Button("Channel settings…") {
-                editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
+                roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
               }
             }
             if ChannelEditPermissions.canLeave(room) {
@@ -67,7 +66,7 @@ struct RoomDetailsView: View {
               Text(groupName).font(.headline)
             }
             Button {
-              nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+              roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
             } label: {
               NameGroupLabel()
             }
@@ -103,9 +102,7 @@ struct RoomDetailsView: View {
       }
     }
     .popover(item: $selectedProfile) { ParticipantDetailsView(profile: $0) }
-    .modifier(EditChannelSheet(presentation: $editChannel))
     .modifier(AddChannelMembersSheet(presentation: $addMembers) { post(.added(count: $0)) })
-    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     .alert(removalTitle, isPresented: Binding(get: { removal != nil }, set: {
       if !$0 {
@@ -122,9 +119,7 @@ struct RoomDetailsView: View {
       directRequestId = nil
       errorMessage = nil
       selectedProfile = nil
-      editChannel = nil
       addMembers = nil
-      nameGroup = nil
       lifecycle = nil
       removal = nil
       notice = nil

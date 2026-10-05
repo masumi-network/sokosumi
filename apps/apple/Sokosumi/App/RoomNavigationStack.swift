@@ -6,6 +6,7 @@ import SwiftUI
 
 /// The detail pane for a selected room: its transcript, with an open Thread pushed over it. The room stays
 /// mounted under the Thread, so a jump can put it on the Thread's parent while the Thread covers it (row 25c).
+/// The room's title bar header comes from its toolbar owner, `RoomToolsModifier` (row 31c).
 struct RoomNavigationStack: View {
   @EnvironmentObject private var auth: AuthState
   @EnvironmentObject private var workspaces: WorkspaceState
@@ -14,7 +15,6 @@ struct RoomNavigationStack: View {
   var body: some View {
     NavigationStack {
       RoomTimelineView(roomId: room.id)
-        .modifier(RoomHeaderModifier(identity: RoomHeaderIdentity(room: room, currentUserId: workspaces.currentUserId)))
         .navigationDestination(isPresented: Binding(
           get: { workspaces.thread.parent != nil },
           set: { presented in
