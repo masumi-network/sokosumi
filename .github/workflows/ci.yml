@@ -62,11 +62,19 @@ jobs:
           predicate-quantifier: "every"
           filters: .github/js-paths-filter.yml
 
-  web:
-    name: Test Web
+  # Web's suite is ~1000 files and ran 5+ minutes on one runner, the longest
+  # leg by far, so it runs as three Vitest shards. A matrix is fine here
+  # because nothing requires these checks: `web` below carries the required
+  # `Test Web` name and reports skipped when the shards skip.
+  web-shard:
+    name: Test Web (${{ matrix.shard }}/3)
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     # id-token lets Setup exchange OIDC for the Turborepo remote cache.
     permissions: &turbo-permissions
       contents: read
@@ -82,10 +90,27 @@ jobs:
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
-      # CMO rides this leg: a Next.js app with no workspace dependencies,
-      # too small for a job of its own.
+      # Exactly what `test:ci`'s `^build` builds for web and cmo, through
+      # turbo so it replays from the remote cache. `turbo run test:ci --
+      # --shard=…` would instead change every task's hash, dependencies
+      # included, and rebuild them on each shard.
+      - name: Build test dependencies
+        run: pnpm exec turbo run build --filter='web^...' --filter='cmo^...'
+
+      # CMO rides this leg: a small Next.js app, too small for a job of
+      # its own. pnpm appends `--shard` to both `test:ci` scripts, so CMO's
+      # files spread across the shards too.
       - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=web --filter=cmo
+        run: pnpm --filter=web --filter=cmo run test:ci --shard=${{ matrix.shard }}/3
+
+  web:
+    name: Test Web
+    needs: [changes, web-shard]
+    if: ${{ !cancelled() && needs.changes.outputs.web != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check every shard passed
+        run: test "${{ needs.web-shard.result }}" = success
 
   core:
     name: Test Core
