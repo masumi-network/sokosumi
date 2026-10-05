@@ -97,9 +97,9 @@ jobs:
       - name: Build test dependencies
         run: pnpm exec turbo run build --filter='web^...' --filter='cmo^...'
 
-      # CMO rides this leg: a Next.js app with no workspace dependencies,
-      # too small for a job of its own. pnpm appends `--shard` to both
-      # `test:ci` scripts, so CMO's files spread across the shards too.
+      # CMO rides this leg: a small Next.js app, too small for a job of
+      # its own. pnpm appends `--shard` to both `test:ci` scripts, so CMO's
+      # files spread across the shards too.
       - name: Run Tests
         run: pnpm --filter=web --filter=cmo run test:ci --shard=${{ matrix.shard }}/3
 

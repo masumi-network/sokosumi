@@ -313,6 +313,32 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
+  it("web shards cover every slice of the suite", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    const block = jobBlock(test, "web-shard");
+    // The count lives in the matrix, the name and the command. If they
+    // disagree, `--shard=n/N` for a missing n drops files and every shard
+    // that did run still passes.
+    const shards = block.match(/\n        shard: \[([\d, ]+)\]\n/);
+    assert.ok(shards, "web-shard must list its shards");
+    const list = shards[1].split(",").map(Number);
+    const count = list.length;
+    assert.deepEqual(
+      list,
+      Array.from({ length: count }, (_, i) => i + 1),
+    );
+    assert.match(
+      block,
+      new RegExp(
+        `\\n    name: Test Web \\(\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\)\\n`,
+      ),
+    );
+    assert.match(
+      block,
+      new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\n`),
+    );
+  });
+
   it("per-leg filters only drop what the leg cannot reach", async () => {
     const filter = await readRepoFile(".github", "js-paths-filter.yml");
     assert.match(filter, /^web:\n  - \*js\n  - "!apps\/core\/\*\*"\n\n/m);
