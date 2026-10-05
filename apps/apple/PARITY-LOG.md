@@ -3843,4 +3843,10 @@ Verification, all from `apps/apple` on `124d25d80` plus this change:
 - After it: `ChatCopyAlignmentTests`, `MessageContextMenuTests/deleteAsksWithWebsWords()`, `CoworkerLiveThoughtViewTests`, `ComposerTooLongHintTests` — **13 tests, 14 executions, all passed** (`ax-green.log`).
 - macOS build **BUILD SUCCEEDED**; `mint run swiftformat --lint .` **0/542 files require formatting**; `mint run swiftlint lint --strict` **0 violations in 542 files**. No test host remained running.
 
-Unverified: VoiceOver actually speaking the hint (the test host has none; the test records what would be posted), and whether VoiceOver repeats the announcement when SwiftUI re-creates the hint while the composer stays over the limit (a room switch remounts the composer).
+Main merge: `origin/main` `d6686b51f` (#5776, web only) and `b93b945a6` (#5774, row 15c's Apple slice: MessageMarkdown, MarkdownBareDomains, MessageAttachment, and this file and PARITY.md) merged into `46cc18820` as `164b98632`. Only PARITY.md and this file conflicted. Kept: both Resume bullets (41 above 15c's, which is as main has it); 15c's row as main has it; one Work order (**31b2**, 42, 10d; 15c and 41 in review); this branch's Known-flaky bullet; 15c's slice section before this one. On the merge:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO` — **1,681 tests, 1,681 passed, 0 failed, 0 skipped** (2,311 executions; CoreAPI 1, Auth 35, Chat 1,031, Realtime 57, Workspace 184, app 373; `full-review.log`), first run.
+- macOS build **BUILD SUCCEEDED**; `mint run swiftformat --lint .` **0/543 files require formatting**; `mint run swiftlint lint --strict` **0 violations in 543 files**. No test host remained running.
+
+Still read from pixels: no copy assertion. The renders are only attachments, and the repo's existing OCR helpers (other slices' tests) are unchanged.
+
+Unverified: VoiceOver actually speaking the hint (the test host has none; the test records what would be posted), and whether VoiceOver repeats the announcement when SwiftUI re-creates the hint while the composer stays over the limit (a room switch remounts the composer). `hostedTexts` on the CI runner is proven only by the next `Xcode test` run there.
