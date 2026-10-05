@@ -508,14 +508,6 @@ export function messageDayKey(value: Date | string): string {
   return new Date(value).toDateString();
 }
 
-export function getDirectRoomTarget(room: ChatRoom, currentUserId: string) {
-  return (
-    room.userMembers.find((member) => member.id !== currentUserId) ??
-    room.userMembers[0] ??
-    null
-  );
-}
-
 export function getDirectRoomParticipants(
   room: ChatRoom,
   currentUserId: string,
@@ -591,6 +583,19 @@ export function shouldUseCoworkerRoomStream(room: {
   return isCoworkerOnlyDirectRoom(room);
 }
 
+/** Skills only reach an agent: offer them when a coworker or Soko Bot is in the room. */
+export function shouldAllowRoomSkills(room: {
+  kind: string;
+  userMembers: { id?: string; userId?: string }[];
+  coworkerMembers: { id?: string; coworkerId?: string }[];
+  sokoBotMembers?: { id?: string; sokoBotId?: string }[];
+}): boolean {
+  return (
+    !shouldUseCoworkerRoomStream(room) &&
+    room.coworkerMembers.length + (room.sokoBotMembers?.length ?? 0) > 0
+  );
+}
+
 /**
  * Thread chrome on room messages.
  * Stream overlays never show threads (ephemeral stream ids).
@@ -658,6 +663,11 @@ export function formatDirectParticipantNames(
   );
 }
 
+/** Former members of a Direct by the name each is shown under. */
+export function getFormerMemberNames(room: ChatRoom): string[] {
+  return room.formerUserMembers.map((member) => member.name || member.email);
+}
+
 export function getRoomDisplayName(
   room: ChatRoom,
   currentUserId: string,
@@ -673,9 +683,11 @@ export function getRoomDisplayName(
   if (room.groupName) {
     return room.groupName;
   }
+  // With nobody else left, name it after who it was with (Former members),
+  // never the viewer.
   return formatDirectParticipantNames(
     getDirectRoomParticipants(room, currentUserId),
-    getDirectRoomTarget(room, currentUserId)?.name || room.name,
+    formatParticipantNameList(getFormerMemberNames(room)) || room.name,
   );
 }
 

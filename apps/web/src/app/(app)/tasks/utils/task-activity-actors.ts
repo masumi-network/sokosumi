@@ -1,4 +1,8 @@
-import type { Task, TaskEvent } from "@sokosumi/core-client";
+import {
+  type Task,
+  type TaskEvent,
+  TaskEventStatus,
+} from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
 
@@ -63,7 +67,30 @@ export function resolveTaskEventActorKind(
   return null;
 }
 
+/**
+ * The creation event can come from the system or a schedule and then has no
+ * actor; it is attributed to the Task owner (`taskOwnerId`) instead.
+ */
 export function getEventActorInfo(
+  event: TaskEvent,
+  userById?: Record<string, TaskActivityActorInfo>,
+  coworkerById?: Record<string, TaskActivityActorInfo>,
+  sokoBotById?: Record<string, TaskActivityActorInfo>,
+  taskOwnerId?: string,
+): TaskActivityActorInfo | undefined {
+  const actor = resolveEventActorInfo(
+    event,
+    userById,
+    coworkerById,
+    sokoBotById,
+  );
+  if (actor || event.status !== TaskEventStatus.CREATED || !taskOwnerId) {
+    return actor;
+  }
+  return userById?.[taskOwnerId];
+}
+
+function resolveEventActorInfo(
   event: TaskEvent,
   userById?: Record<string, TaskActivityActorInfo>,
   coworkerById?: Record<string, TaskActivityActorInfo>,

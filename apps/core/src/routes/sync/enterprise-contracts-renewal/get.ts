@@ -1,7 +1,7 @@
 import { runEnterpriseContractSchedulerPass } from "@sokosumi/database/helpers";
 import type { Hono } from "hono";
 
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 
 import { handleSyncRequest } from "../handler.js";
 
@@ -18,8 +18,10 @@ export default function mount(app: Hono) {
           "[sync/enterprise-contracts-renewal] Starting enterprise contract renewal",
         );
         const startedAt = Date.now();
-        const result = await prisma.$transaction((tx) =>
-          runEnterpriseContractSchedulerPass(tx),
+        // The period amount read here must serialize with admin credit edits.
+        const result = await serializableTransaction(
+          (tx) => runEnterpriseContractSchedulerPass(tx),
+          "Enterprise contract changed concurrently; retry renewal",
         );
 
         console.info("[sync/enterprise-contracts-renewal] Completed sync", {

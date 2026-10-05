@@ -1,9 +1,10 @@
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import type { ReactElement, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getScheduleMock = vi.fn();
 const listUpcomingRunsMock = vi.fn();
+const listManualRunsMock = vi.fn();
 const listTasksMock = vi.fn();
 const getSessionMock = vi.fn();
 const getProjectFilterOptionsMock = vi.fn();
@@ -36,7 +37,7 @@ vi.mock("@/app/components/project-scope/project-scope-marker", () => ({
 }));
 
 vi.mock("@/app/tasks/components/task-schedule-actions", () => ({
-  TaskScheduleActions: () => null,
+  TaskScheduleActions: () => <button type="button">schedule actions</button>,
 }));
 
 vi.mock("@/app/tasks/components/task-schedule-state-badge", () => ({
@@ -75,6 +76,8 @@ vi.mock("@/lib/services/task-schedule.service", () => ({
     getSchedule: (scheduleId: string) => getScheduleMock(scheduleId),
     listUpcomingRuns: (scheduleId: string, params: unknown) =>
       listUpcomingRunsMock(scheduleId, params),
+    listManualRuns: (scheduleId: string, params: unknown) =>
+      listManualRunsMock(scheduleId, params),
   },
 }));
 
@@ -85,8 +88,9 @@ const SCHEDULE = {
   name: "Weekly report",
   description: null,
   ownerId: "user-owner",
+  canWrite: false,
   state: "ACTIVE",
-  visibility: "WORKSPACE",
+  visibility: "PUBLIC",
   nextRunAt: null,
   releasedCount: 0,
   rule: {
@@ -120,6 +124,7 @@ describe("TaskScheduleDetailPage", () => {
     });
     getProjectFilterOptionsMock.mockResolvedValue([]);
     listUpcomingRunsMock.mockResolvedValue([]);
+    listManualRunsMock.mockResolvedValue([]);
     listTasksMock.mockResolvedValue({ tasks: [] });
   });
 
@@ -139,5 +144,48 @@ describe("TaskScheduleDetailPage", () => {
     await renderPage();
 
     expect(projectScopeMarkerMock).toHaveBeenCalledWith({ projectId: null });
+  });
+
+  it.each([
+    { ownerId: "user-owner", canWrite: true },
+    { ownerId: "user-1", canWrite: false },
+  ])(
+    "uses Core's canWrite=$canWrite instead of owner identity",
+    async (permission) => {
+      getScheduleMock.mockResolvedValue({ ...SCHEDULE, ...permission });
+
+      await renderPage();
+
+      expect(
+        screen.queryAllByRole("button", { name: "schedule actions" }),
+      ).toHaveLength(permission.canWrite ? 1 : 0);
+    },
+  );
+
+  it("labels manual Tasks from the complete Run list", async () => {
+    getScheduleMock.mockResolvedValue({ ...SCHEDULE, projectId: null });
+    const createdAt = new Date("2026-10-01T09:00:00Z");
+    listTasksMock.mockResolvedValue({
+      tasks: [
+        {
+          id: "manual-task",
+          name: "Manual report",
+          createdAt,
+          status: "READY",
+        },
+        { id: "rule-task", name: "Rule report", createdAt, status: "READY" },
+      ],
+    });
+    listManualRunsMock.mockResolvedValue([{ releasedTaskId: "manual-task" }]);
+
+    await renderPage();
+
+    expect(screen.getAllByText("Detail.taskRunNow")).toHaveLength(1);
+    expect(
+      screen.getByRole("link", { name: /Manual report/ }),
+    ).toHaveTextContent("Detail.taskRunNow");
+    expect(
+      screen.getByRole("link", { name: /Rule report/ }),
+    ).not.toHaveTextContent("Detail.taskRunNow");
   });
 });

@@ -43,6 +43,7 @@ function directRoom(overrides: {
   isSelfDirect?: boolean;
   isGroupDirect?: boolean;
   groupName?: string | null;
+  formerUserMembers?: ChatRoom["formerUserMembers"];
 }): ChatRoom {
   return {
     id: "room-1",
@@ -68,6 +69,8 @@ function directRoom(overrides: {
     myAccess: "member",
     coworkerMembers: [],
     sokoBotMembers: [],
+    formerUserMembers: [],
+    isReadOnly: false,
     ...overrides,
   } as ChatRoom;
 }
@@ -211,5 +214,42 @@ describe("Group name", () => {
         "You",
       ),
     ).toBe("You");
+  });
+});
+
+describe("Direct whose peers have left", () => {
+  const self = human({ id: CURRENT_USER_ID, name: "Andreas" });
+
+  it("is named after the former members, not the viewer", () => {
+    const room = directRoom({
+      userMembers: [self],
+      formerUserMembers: [
+        {
+          id: "sarthi",
+          name: "Sarthi",
+          email: "sarthi@example.com",
+          image: null,
+        },
+      ],
+    });
+
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Sarthi");
+  });
+
+  it("falls back to the stored name when no former profile is left", () => {
+    const room = directRoom({ userMembers: [self] });
+
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Direct");
+  });
+
+  it("keeps naming the people still in a group", () => {
+    const room = directRoom({
+      userMembers: [self, human({ id: "ada", name: "Ada" })],
+      formerUserMembers: [
+        { id: "ben", name: "Ben", email: "ben@example.com", image: null },
+      ],
+    });
+
+    expect(getRoomDisplayName(room, CURRENT_USER_ID, "You")).toBe("Ada");
   });
 });

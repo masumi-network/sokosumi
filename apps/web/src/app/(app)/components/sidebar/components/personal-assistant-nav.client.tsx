@@ -1,5 +1,6 @@
 "use client";
 
+import { AnnouncedFeature } from "@sokosumi/core-client";
 import { Bot } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -24,6 +25,11 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { SOKO_BOT_ROUTE, SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
+import {
+  SIDEBAR_FEATURE_LABEL_CLASS,
+  SidebarFeatureLabel,
+} from "./sidebar-feature-label";
+
 /**
  * Soko Bots entry at the top of the sidebar: the team chart of everyone's
  * assistants, and where a person creates their own. Set apart from the rest
@@ -47,7 +53,7 @@ export default function PersonalAssistantNav({
   );
 
   useMountEffect(() => {
-    // Session memory for Instant `/chat` (SOK-903): mount means beta chrome is on.
+    // Session memory for Instant `/chat` (SOK-903): mount means the row is shown.
     publishPersonalAssistantChromeVisible(true);
   });
 
@@ -82,10 +88,14 @@ export default function PersonalAssistantNav({
                     className={cn(
                       SIDEBAR_ROW_LABEL_CLASS,
                       SIDEBAR_ROW_FIXED_LABEL_CLASS,
+                      SIDEBAR_FEATURE_LABEL_CLASS,
                       "font-medium",
                     )}
                   >
-                    {t("sokoBot")}
+                    <SidebarFeatureLabel
+                      label={t("sokoBot")}
+                      feature={AnnouncedFeature.SOKO_BOTS}
+                    />
                   </span>
                 </Link>
               </SheetClose>

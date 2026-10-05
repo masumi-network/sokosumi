@@ -12,13 +12,13 @@
   extension NativeWindowTests {
     /// Row 38a: web's message row resolves the coworker Thought view for a Soko Bot sender too (#5304). The
     /// settled reply shows the collapsed "Thought for Ns" disclosure over its capability beats; the mention
-    /// placeholder, drawn on its own, the live Thinking trace; a failed turn "Failed to reply". The transcript
-    /// still drops both bodiless shells, as web's does (`SokoBotMessageMetadataTests`).
+    /// placeholder the live Thinking trace; a failed turn "Failed to reply". Since row 38d the transcript keeps
+    /// both bodiless shells, as web's does after #5617 (`SokoBotShellTranscriptTests`).
     @MainActor struct SokoBotThoughtViewTests {
       private static let beats = ["Finding Coworkers", "Creating a Task", "Assigning a Task"]
 
       private static let sokoBot = Components.Schemas.ChatRoomMessageSender.case3(.init(_type: .sokoBot, sokoBot: .init(
-        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", presence: .online
+        id: "bot_1", name: "Soko", caption: "Ada's personal assistant", image: nil, avatarSeed: "orb:user_2", ownerUserId: "user_2", presence: .online
       )))
       private static let coworker = Components.Schemas.ChatRoomMessageSender.case2(.init(_type: .coworker, coworker: .init(
         id: "cow_1", name: "Soko", slug: "soko", caption: nil, image: nil, presence: .online

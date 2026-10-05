@@ -130,11 +130,13 @@ jobs:
     name: Closed preview
     # workflow_run is default-branch YAML. Skip failed/cancelled signals and
     # fork heads. The script re-checks the PR is closed and same-repo.
+    # Match the signal by path: its run-name (the PR number) replaces
+    # workflow_run.name, so a name check never matches.
     if: >
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.name == 'PR closed' &&
+      github.event.workflow_run.path == '.github/workflows/pr-closed.yml' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     # Closed runs have an empty pull_requests array. display_title is the
     # signal run-name (the PR number) so this stays on the deploy/reset queue.
@@ -183,7 +185,7 @@ jobs:
       github.event_name == 'workflow_run' &&
       github.event.workflow_run.conclusion == 'success' &&
       github.event.workflow_run.event == 'pull_request' &&
-      github.event.workflow_run.name == 'PR synchronize' &&
+      github.event.workflow_run.path == '.github/workflows/pr-synchronize.yml' &&
       github.event.workflow_run.head_repository.full_name == github.repository
     # Same queue key as closed. pull_requests[0] when present, else the
     # signal run-name via display_title. workflow_run.id is not a PR key.

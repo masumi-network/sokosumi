@@ -43,7 +43,9 @@ export default async function AuthLayout({
   // Pathname and query from proxy (`x-pathname`, `x-search-params`). OAuth
   // consent pages never redirect away on an existing session, and a page that
   // carries an OAuth request hands a signed-in person back to the provider
-  // itself, so both skip the Core session read here.
+  // itself, so both skip the Core session read here. Password reset serves
+  // signed-in people too: someone who signed in with a code because they
+  // forgot the password still needs the emailed link to work.
   await connection();
   const headersList = await headers();
   const pathname = headersList.get("x-pathname") || "";
@@ -52,7 +54,10 @@ export default async function AuthLayout({
       new URLSearchParams(headersList.get("x-search-params") ?? ""),
     ) !== undefined;
   const shouldSkipSessionCheck =
-    pathname.startsWith("/oauth") || carriesOAuthRequest;
+    pathname.startsWith("/oauth") ||
+    pathname.startsWith("/forgot-password") ||
+    pathname.startsWith("/reset-password") ||
+    carriesOAuthRequest;
 
   if (!shouldSkipSessionCheck) {
     // Cookie-cache session is enough for "already signed in → leave auth UI".
@@ -65,20 +70,25 @@ export default async function AuthLayout({
     }
   }
 
+  const logo = (
+    <ThemedLogo LogoComponent={SokosumiLogo} priority width={100} height={13} />
+  );
+
   return (
     <ClientMessageBoundary paths={AUTH_MESSAGE_PATHS}>
       <div
         className={cn("flex h-dvh gap-6", AUTH_SHELL_SAFE_AREA_PADDING_CLASS)}
       >
         <div className="flex h-full flex-1 flex-col gap-6">
-          <Link href="/" className="inline-flex min-h-6 items-center">
-            <ThemedLogo
-              LogoComponent={SokosumiLogo}
-              priority
-              width={100}
-              height={13}
-            />
-          </Link>
+          {carriesOAuthRequest ? (
+            // Leaving for Sokosumi's home would drop the OAuth request; the
+            // header links back to the product instead.
+            <div className="inline-flex min-h-6 items-center">{logo}</div>
+          ) : (
+            <Link href="/" className="inline-flex min-h-6 items-center">
+              {logo}
+            </Link>
+          )}
           <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
             {children}
           </div>

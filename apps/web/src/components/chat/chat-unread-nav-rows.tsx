@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChatRoom } from "@sokosumi/core-client";
+import { AnnouncedFeature, type ChatRoom } from "@sokosumi/core-client";
 import { CheckCheck, Inbox, Loader2, MessagesSquare } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,11 @@ import { toast } from "sonner";
 import { markAllChatUnreadReadAction } from "@/app/chat/actions";
 import { CHAT_COMPOSE_PLUS_TRIGGER_CLASSNAME } from "@/app/chat/components/chat-compose-dialog";
 import { CHAT_THREADS_PATH } from "@/app/chat/utils/chat-route-base";
+import { useMarkFeatureSeen } from "@/app/components/sidebar/components/feature-badges";
+import {
+  SIDEBAR_FEATURE_LABEL_CLASS,
+  SidebarFeatureLabel,
+} from "@/app/components/sidebar/components/sidebar-feature-label";
 import { RailAttentionPill } from "@/components/chat/chat-room-sidebar-row";
 import { RowCountMark } from "@/components/chat/mention-count-pill";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
@@ -100,9 +105,12 @@ export function ChatUnreadNavRows({
   const shortcutLabel = isApplePlatform ? "⌘⇧U" : "Ctrl+Shift+U";
   const shortcutKeys = isApplePlatform ? "Meta+Shift+U" : "Control+Shift+U";
   const shortcutHint = t("allUnreadsShortcut", { shortcut: shortcutLabel });
-  const toggleFromKeyboard = useEffectEvent(() => {
+  const markFeatureSeen = useMarkFeatureSeen();
+  function toggleUnreadOnly() {
+    markFeatureSeen(AnnouncedFeature.UNREADS);
     onUnreadOnlyChange(!unreadOnly);
-  });
+  }
+  const toggleFromKeyboard = useEffectEvent(toggleUnreadOnly);
 
   // The same toggle the button runs, from the keyboard: ⌘⇧U / Ctrl+Shift+U is
   // no browser default (checked against Chrome, Safari, Firefox and Edge).
@@ -180,11 +188,14 @@ export function ChatUnreadNavRows({
       <span
         className={cn(
           SIDEBAR_ROW_LABEL_CLASS,
-          "truncate",
+          SIDEBAR_FEATURE_LABEL_CLASS,
           hasCount && "text-foreground font-semibold",
         )}
       >
-        {t("threads")}
+        <SidebarFeatureLabel
+          label={t("threads")}
+          feature={AnnouncedFeature.THREADS}
+        />
       </span>
       {hasCount ? (
         <span className="group-data-[collapsible=icon]:hidden sr-only">
@@ -334,13 +345,21 @@ export function ChatUnreadNavRows({
                 : undefined
             }
             data-filter-on={unreadOnly ? "true" : undefined}
-            onClick={() => onUnreadOnlyChange(!unreadOnly)}
+            onClick={toggleUnreadOnly}
           >
             <SidebarRowSlot>
               <Inbox className="size-4" aria-hidden />
             </SidebarRowSlot>
-            <span className={cn(SIDEBAR_ROW_LABEL_CLASS, "truncate")}>
-              {t("allUnreads")}
+            <span
+              className={cn(
+                SIDEBAR_ROW_LABEL_CLASS,
+                SIDEBAR_FEATURE_LABEL_CLASS,
+              )}
+            >
+              <SidebarFeatureLabel
+                label={t("allUnreads")}
+                feature={AnnouncedFeature.UNREADS}
+              />
             </span>
             {unreadOnly ? (
               <span className="sr-only">{t("filterOn")}</span>

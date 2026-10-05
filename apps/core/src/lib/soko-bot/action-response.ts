@@ -11,6 +11,10 @@ import {
 /** Turns an owner asked for; the rest the bot started itself. */
 const OWNER_STARTED_SOURCES = new Set(["CHAT", "ADMIN_RETRY"]);
 
+/** Shown when the claim check could not run; meant for someone who asked. */
+export const HELD_BACK_REPLY =
+  "I held back this reply because it could not be checked just now.";
+
 export const ACTION_LABELS: Record<string, string> = {
   manage_reminder: "Updated reminder",
   create_task: "Created task",
@@ -60,6 +64,14 @@ const TABLE_CAPABILITIES = new Set([
   "create_table",
   "write_table_rows",
   "update_table_columns",
+]);
+
+const SOCIAL_POST_CAPABILITIES = new Set([
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
 ]);
 
 const TASK_TARGET_CAPABILITIES = new Set([
@@ -121,6 +133,14 @@ function actionTarget(
   const id = call.targetId ?? "";
   if (TABLE_CAPABILITIES.has(call.capability))
     return `([Open table](/drive/tables/${encodeURIComponent(id)}))`;
+  if (SOCIAL_POST_CAPABILITIES.has(call.capability)) {
+    const post = z
+      .object({ projectId: z.string().min(1) })
+      .safeParse(call.result);
+    return post.success
+      ? `([Open post](/social?projectId=${encodeURIComponent(post.data.projectId)}&postId=${encodeURIComponent(id)}))`
+      : "";
+  }
   if (call.capability === "generate_image") {
     const studio = z
       .object({ studioUrl: z.string().startsWith("/studio?") })
@@ -157,6 +177,72 @@ function actionTarget(
   return namesAssignee && task.assignee
     ? `${link} → ${linkText(task.assignee)}`
     : link;
+}
+
+/** Names are listed up to this many; past it a count says enough. */
+const MAX_NAMED_TARGETS = 5;
+
+/**
+ * What the owner asked for on a Task, said as not done ("Couldn't archive …")
+ * or, when it ran but left no proof, as unconfirmed ("Couldn't confirm I
+ * archived …").
+ */
+const UNDONE_TASK_VERBS: Record<string, [string, string]> = {
+  create_task: ["create", "created"],
+  update_task: ["update", "updated"],
+  archive_task: ["archive", "archived"],
+  assign_task: ["assign", "assigned"],
+  reply_to_task: ["comment on", "commented on"],
+  update_assigned_task: ["update", "updated"],
+};
+
+/** The target a call was aimed at, even one refused before it had a receipt. */
+function attemptedTarget(call: {
+  targetId: string | null;
+  input?: unknown;
+}): string | null {
+  return (
+    call.targetId ??
+    z.object({ taskId: z.string().min(1) }).safeParse(call.input).data
+      ?.taskId ??
+    null
+  );
+}
+
+/** "a Task", one linked Task, or a count that names a few. */
+function missedTasks(links: string[]): string {
+  if (links.length === 1) return links[0] || "a Task";
+  const label = `${links.length} Tasks`;
+  return links.every(Boolean) && links.length <= MAX_NAMED_TARGETS
+    ? `${label}: ${links.join(", ")}`
+    : label;
+}
+
+/** "Archived task" ×4 → "Archived 4 Tasks"; other labels keep a count. */
+function countedLabel(label: string, count: number): string {
+  if (count === 1) return label;
+  const task = /^(.*) task$/i.exec(label);
+  return task ? `${task[1]} ${count} Tasks` : `${label} (${count}×)`;
+}
+
+function collapseActionLines(
+  lines: { head: string; target: string }[],
+): string[] {
+  const groups = new Map<string, string[]>();
+  for (const { head, target } of lines) {
+    const targets = groups.get(head) ?? [];
+    if (!targets.includes(target)) targets.push(target);
+    groups.set(head, targets);
+  }
+  return [...groups].map(([head, targets]) => {
+    if (targets.length === 1)
+      return `${[head, targets[0]].filter(Boolean).join(" ")}.`;
+    const named = targets.filter(Boolean);
+    const label = countedLabel(head, targets.length);
+    return named.length && targets.length <= MAX_NAMED_TARGETS
+      ? `${label}: ${named.join(", ")}.`
+      : `${label}.`;
+  });
 }
 
 const QUESTIONS = {
@@ -460,14 +546,22 @@ export async function buildActionResponse(
       receiptId: call.id,
       reason: call.disposition === "UNKNOWN" ? "UNKNOWN" : "NOT_VERIFIED",
     }));
-  const tasks = await taskLabels(
-    tx,
-    unique.flatMap((call) =>
+  const unfulfilledTargets = new Map(
+    calls.map((call) => [call.id, attemptedTarget(call)]),
+  );
+  const tasks = await taskLabels(tx, [
+    ...unique.flatMap((call) =>
       TASK_TARGET_CAPABILITIES.has(call.capability) && call.targetId
         ? [call.targetId]
         : [],
     ),
-  );
+    ...unfulfilledActions.flatMap((action) => {
+      const target = unfulfilledTargets.get(action.receiptId);
+      return TASK_TARGET_CAPABILITIES.has(action.action) && target
+        ? [target]
+        : [];
+    }),
+  ]);
   const hiredJobIds = unique.flatMap((call) =>
     call.capability === "hire_agent" && call.targetId ? [call.targetId] : [],
   );
@@ -486,23 +580,18 @@ export async function buildActionResponse(
       .filter((call) => call.capability === "assign_task")
       .map((call) => call.targetId),
   );
-  // One line per effect: a hire the runtime executed on its accepted call and
-  // recorded twice, or one Task reached two ways, is still one thing done.
-  const actionText = [
-    ...new Set(
-      unique.map(
-        (call) =>
-          `${call.turnId !== turnId ? "Previously verified: " : ""}${[
-            call.disposition === "ALREADY_SATISFIED"
-              ? "Already satisfied"
-              : actionLabel(call),
-            actionTarget(call, tasks, jobAgents, assignedTaskIds),
-          ]
-            .filter(Boolean)
-            .join(" ")}.`,
-      ),
-    ),
-  ];
+  // One line per kind of effect: a hire recorded twice, or one Task reached
+  // two ways, is still one thing done, and thirteen archives are one line.
+  const actionText = collapseActionLines(
+    unique.map((call) => ({
+      head: `${call.turnId !== turnId ? "Previously verified: " : ""}${
+        call.disposition === "ALREADY_SATISFIED"
+          ? "Already satisfied"
+          : actionLabel(call)
+      }`,
+      target: actionTarget(call, tasks, jobAgents, assignedTaskIds),
+    })),
+  );
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -521,20 +610,68 @@ export async function buildActionResponse(
   // A refused attempt matters to an owner who asked for it. On a turn the bot
   // started itself nobody did, and "Not confirmed: …" read as a failure notice
   // at the top of a morning update. An unknown outcome is always said.
+  let ownerStarted: boolean | undefined;
+  const isOwnerStarted = async () => {
+    ownerStarted ??= await tx.sokoBotTurn
+      .findUnique({ where: { id: turnId }, select: { source: true } })
+      .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source));
+    return ownerStarted;
+  };
   const ownerAsked = unfulfilledActions.some(
     (action) => action.reason !== "UNKNOWN",
   )
-    ? await tx.sokoBotTurn
-        .findUnique({ where: { id: turnId }, select: { source: true } })
-        .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source))
+    ? await isOwnerStarted()
     : true;
+  // One line per kind of miss, counting each target once: a model that
+  // retried an archive three times still missed one Task, not three.
+  const ranIds = new Set(
+    calls.filter((call) => call.status === "COMPLETED").map((call) => call.id),
+  );
+  const unfulfilledGroups = new Map<
+    string,
+    { reason: string; action: string; ran: boolean; targets: Set<string> }
+  >();
   for (const action of unfulfilledActions) {
-    const label = (ACTION_LABELS[action.action] ?? action.action).toLowerCase();
-    if (action.reason === "UNKNOWN")
-      actionText.push(
-        `I couldn't confirm whether this went through: ${label}. Check before trying again.`,
+    if (action.reason !== "UNKNOWN" && !ownerAsked) continue;
+    const didRun = ranIds.has(action.receiptId);
+    const key = `${action.reason}:${didRun}:${action.action}`;
+    const group = unfulfilledGroups.get(key) ?? {
+      reason: action.reason,
+      action: action.action,
+      ran: didRun,
+      targets: new Set<string>(),
+    };
+    group.targets.add(
+      unfulfilledTargets.get(action.receiptId) ?? action.receiptId,
+    );
+    unfulfilledGroups.set(key, group);
+  }
+  for (const { reason, action, ran, targets } of unfulfilledGroups.values()) {
+    const label = countedLabel(
+      (ACTION_LABELS[action] ?? action).toLowerCase(),
+      targets.size,
+    );
+    const verbs = UNDONE_TASK_VERBS[action];
+    const what = () =>
+      missedTasks(
+        [...targets].map((id) =>
+          actionTarget(
+            { capability: action, targetId: id },
+            tasks,
+            jobAgents,
+            assignedTaskIds,
+          ),
+        ),
       );
-    else if (ownerAsked) actionText.push(`Not confirmed: ${label}.`);
+    actionText.push(
+      reason === "UNKNOWN"
+        ? `I couldn't confirm whether this went through: ${label}. Check before trying again.`
+        : !verbs
+          ? `Not confirmed: ${label}.`
+          : ran
+            ? `Couldn't confirm I ${verbs[1]} ${what()}.`
+            : `Couldn't ${verbs[0]} ${what()}.`,
+    );
   }
   const narrative =
     parseActionNarrative(narrativeInput) ??
@@ -562,7 +699,11 @@ export async function buildActionResponse(
       observations.push(...describeRead(read.capability, read.result));
     }
   }
-  const message = narrative?.message || null;
+  // A turn the bot started itself has nobody waiting on a held-back reply.
+  const message =
+    narrative?.message === HELD_BACK_REPLY && !(await isOwnerStarted())
+      ? null
+      : narrative?.message || null;
   const question =
     !message && narrative?.kind === "CLARIFY" && narrative.question
       ? QUESTIONS[narrative.question]
@@ -576,9 +717,15 @@ export async function buildActionResponse(
         ? [question]
         : []
       : [...observations, ...(question ? [question] : [])];
+  // On a turn nobody asked for, "nothing changed" is not news: the turn ends
+  // silent like "Nothing to add." instead of posting a placeholder.
+  const nothingToSay =
+    !calls.length && !narrativeText.length && !actionText.length;
   const silent =
     !calls.length &&
-    (narrative?.kind === "SILENT" || isSokoBotSilentAnswer(answerText));
+    (narrative?.kind === "SILENT" ||
+      isSokoBotSilentAnswer(answerText) ||
+      (actionRequested && nothingToSay && !(await isOwnerStarted())));
   return {
     appliedReceiptIds,
     narrative,

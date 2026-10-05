@@ -11,6 +11,7 @@ import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-stor
 
 import { fetchSidebarRoomCollection } from "./fetch-sidebar-room-collection";
 import {
+  getLatestMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
   registerMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
@@ -78,7 +79,19 @@ export function useOrganizationChatRooms({
   const latestAppliedRefreshRef = useRef(0);
   const latestArchivedRefreshRef = useRef(0);
   const latestInvitationsRefreshRef = useRef(0);
-  const [roomRows, setRoomRows] = useState(() => applyRoomReadOverlays(rooms));
+  const [roomRows, setRoomRows] = useState(() => {
+    const snapshot = getLatestMembershipVisibleRoomsSnapshot();
+    // Closing the mobile Sheet unmounts this list. Its unchanged RSC seed must
+    // not replace a roster already fetched in this session while Core refreshes.
+    const remountRooms =
+      !paintOnly &&
+      snapshot?.organizationId === organizationId &&
+      snapshot.currentUserId === currentUserId &&
+      snapshot.sourceRooms === rooms
+        ? [...snapshot.rooms]
+        : rooms;
+    return applyRoomReadOverlays(remountRooms);
+  });
   const [archivedRows, setArchivedRows] = useState(archivedRooms);
   const [pendingRows, setPendingRows] = useState(pendingInvitations);
   const [prevRooms, setPrevRooms] = useState(rooms);
@@ -332,8 +345,13 @@ export function useOrganizationChatRooms({
     if (paintOnly) {
       return;
     }
-    publishMembershipVisibleRooms(roomRows, organizationId, currentUserId);
-  }, [currentUserId, organizationId, paintOnly, roomRows]);
+    publishMembershipVisibleRooms(
+      roomRows,
+      organizationId,
+      currentUserId,
+      rooms,
+    );
+  }, [currentUserId, organizationId, paintOnly, roomRows, rooms]);
 
   useEffect(() => {
     if (paintOnly) {

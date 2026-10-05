@@ -63,11 +63,12 @@ describe("GET /tasks/schedules/{id}", () => {
         assigneeId: COWORKER_ID,
         rule: { expr: "0 9 * * 1", timezone: "UTC", endsMode: "NEVER" },
         nextRunAt: "2030-01-07T09:00:00.000Z",
+        canWrite: true,
       },
     });
   });
 
-  it("shows a workspace-visible schedule to other members", async () => {
+  it("shows a workspace-visible schedule to other members, who may change it", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await get(
@@ -76,6 +77,7 @@ describe("GET /tasks/schedules/{id}", () => {
     );
 
     expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ data: { canWrite: true } });
   });
 
   it("hides a private schedule from other members", async () => {
@@ -117,7 +119,13 @@ describe("GET /tasks/schedules/{id}", () => {
     it("reads a workspace-visible schedule with a workspace grant", async () => {
       const schedule = seedTaskSchedule();
 
-      expect((await coworkerGet(schedule.id)).status).toBe(200);
+      const response = await coworkerGet(schedule.id);
+
+      expect(response.status).toBe(200);
+      // It neither created the schedule nor runs on its vendor family.
+      expect(await response.json()).toMatchObject({
+        data: { canWrite: false },
+      });
     });
 
     it("reads a private schedule assigned to its vendor family", async () => {
