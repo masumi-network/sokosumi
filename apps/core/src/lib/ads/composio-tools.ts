@@ -70,13 +70,37 @@ export async function withAdsToolSession<T>(
   }
 }
 
+function findRows(
+  payload: Record<string, unknown> | null,
+  key: string,
+): unknown[] | null {
+  const rows = payload?.[key];
+  return Array.isArray(rows) ? rows : null;
+}
+
 /** Rows a tool returned under `key`; none when the key is missing. */
 export function toolRows(
   payload: Record<string, unknown> | null,
   key: string,
 ): unknown[] {
-  const rows = payload?.[key];
-  return Array.isArray(rows) ? rows : [];
+  return findRows(payload, key) ?? [];
+}
+
+/** Like {@link toolRows}, but a payload without the `key` list is an unusable response. */
+export function requireToolRows(
+  payload: Record<string, unknown> | null,
+  key: string,
+  context: string,
+): unknown[] {
+  const rows = findRows(payload, key);
+  if (!rows) {
+    throw new ComposioApiError(
+      502,
+      undefined,
+      `${context} returned an invalid response`,
+    );
+  }
+  return rows;
 }
 
 /** Parses every row, treating one that does not match as an unusable response. */

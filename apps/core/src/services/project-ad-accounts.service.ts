@@ -24,9 +24,13 @@ import {
   notFound,
 } from "@/helpers/error";
 import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import type { AdCampaign, AdRange } from "@/lib/ads/campaigns";
 import type { AvailableAdAccount } from "@/lib/ads/composio-tools";
-import { listGoogleAdAccounts } from "@/lib/ads/google-ads";
-import { listMetaAdAccounts } from "@/lib/ads/meta-ads";
+import {
+  listGoogleAdAccounts,
+  listGoogleCampaigns,
+} from "@/lib/ads/google-ads";
+import { listMetaAdAccounts, listMetaCampaigns } from "@/lib/ads/meta-ads";
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
 import { projectAdConnectionStatusSchema } from "@/schemas/project-ad-account.schema";
@@ -333,6 +337,45 @@ export async function listProjectAdAccounts(
     where: { projectId: input.projectId },
     orderBy: [{ createdAt: "asc" }, { id: "asc" }],
   });
+}
+
+/** Campaigns of an attached ad account with metrics over the range. */
+export async function listProjectAdCampaigns(
+  input: ProjectScope & { accountId: string; range: AdRange },
+): Promise<{ campaigns: AdCampaign[]; range: AdRange; currency: string }> {
+  await requireScopedProject(input);
+  const account = await prisma.projectAdAccount.findFirst({
+    where: { id: input.accountId, projectId: input.projectId },
+    select: {
+      provider: true,
+      externalAccountId: true,
+      currency: true,
+      connection: {
+        select: { status: true, composioConnectedAccountId: true },
+      },
+    },
+  });
+  if (!account) throw notFound("Ad account not found");
+  if (account.connection.status !== "active") {
+    throw conflict("Ad connection is not active");
+  }
+  const providerInput = {
+    connectedAccountId: account.connection.composioConnectedAccountId,
+    executorUserId: projectExecutorUserId(input.projectId),
+    range: input.range,
+  };
+  const campaigns =
+    adProviderOf(account) === "google_ads"
+      ? await listGoogleCampaigns({
+          ...providerInput,
+          customerId: account.externalAccountId,
+        })
+      : await listMetaCampaigns({
+          ...providerInput,
+          adAccountId: account.externalAccountId,
+          currency: account.currency,
+        });
+  return { campaigns, range: input.range, currency: account.currency };
 }
 
 /**

@@ -10,7 +10,7 @@ import { conflict, forbidden, notFound } from "@/helpers/error";
 import { defaultValidationHook, type EnvVariables } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
-
+import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
 import mountListAccounts from "./accounts/get.js";
 import mountAttachAccounts from "./accounts/post.js";
@@ -24,6 +24,7 @@ const m = vi.hoisted(() => ({
   attach: vi.fn(),
   list: vi.fn(),
   detach: vi.fn(),
+  campaigns: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -35,6 +36,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   attachProjectAdAccounts: m.attach,
   listProjectAdAccounts: m.list,
   detachProjectAdAccount: m.detach,
+  listProjectAdCampaigns: m.campaigns,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -71,6 +73,26 @@ const account = {
   projectId: PROJECT_ID,
 };
 
+const campaignsResult = {
+  campaigns: [
+    {
+      id: "1",
+      name: "Brand",
+      status: "ACTIVE",
+      objective: "SEARCH",
+      dailyBudget: 12.5,
+      spend: 20,
+      impressions: 1000,
+      clicks: 40,
+      ctr: 0.04,
+      cpc: 0.5,
+      conversions: null,
+    },
+  ],
+  range: "LAST_30_DAYS",
+  currency: "EUR",
+};
+
 function createApp(
   authContext: AuthenticationContext = SESSION_AUTH,
   workspaceContext: WorkspaceContext | null = WORKSPACE_CONTEXT,
@@ -89,6 +111,7 @@ function createApp(
   mountFinalize(app);
   mountAttachAccounts(app);
   mountDeleteAccount(app);
+  mountListCampaigns(app);
   return app;
 }
 
@@ -128,6 +151,7 @@ describe("Project ads routes", () => {
     m.attach.mockResolvedValue([account]);
     m.list.mockResolvedValue([account]);
     m.detach.mockResolvedValue(undefined);
+    m.campaigns.mockResolvedValue(campaignsResult);
   });
 
   it.each(["google_ads", "meta_ads"] as const)(
@@ -249,6 +273,64 @@ describe("Project ads routes", () => {
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       accountId: ACCOUNT_UUID,
+    });
+  });
+
+  describe("list campaigns", () => {
+    const campaignsUrl = (query = "") =>
+      `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns${query}`;
+
+    it("returns campaigns, defaulting the range to the last 30 days", async () => {
+      const response = await createApp().request(campaignsUrl());
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ data: campaignsResult });
+      expect(m.campaigns).toHaveBeenCalledWith({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+        accountId: ACCOUNT_UUID,
+        range: "LAST_30_DAYS",
+      });
+    });
+
+    it("passes the requested range", async () => {
+      const response = await createApp().request(
+        campaignsUrl("?range=LAST_7_DAYS"),
+      );
+      expect(response.status).toBe(200);
+      expect(m.campaigns).toHaveBeenCalledWith(
+        expect.objectContaining({ range: "LAST_7_DAYS" }),
+      );
+    });
+
+    it("rejects an unknown range", async () => {
+      const response = await createApp().request(
+        campaignsUrl("?range=LAST_YEAR"),
+      );
+      expect(response.status).toBe(422);
+      expect(m.campaigns).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["foreign account", notFound("Ad account not found"), 404],
+      ["disconnected connection", conflict("Ad connection is not active"), 409],
+      [
+        "Composio tool error",
+        new ComposioToolError({ message: "secret detail" }),
+        502,
+      ],
+      ["missing Composio configuration", new ComposioConfigError("nope"), 503],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.campaigns.mockRejectedValue(error);
+      const response = await createApp().request(campaignsUrl());
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const response = await createApp().request(campaignsUrl());
+      expect(response.status).toBe(403);
+      expect(m.campaigns).not.toHaveBeenCalled();
     });
   });
 
