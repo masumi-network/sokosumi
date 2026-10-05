@@ -339,8 +339,8 @@ export function ConnectCard({ overview }: { overview: CmoOverview }) {
       </div>
       <div className="cb">
         <p>
-          I can not publish anything yet. Connect at least one social account
-          and I start.
+          I can't publish anything yet. Connect at least one social account and
+          I start.
         </p>
       </div>
       <div className="cf">

@@ -12,6 +12,7 @@ import {
   loadOverview,
   loadState,
   onboard,
+  pauseEntry,
   retryLearning,
   revertUpdate,
   sendMessage,
@@ -51,6 +52,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           approveStrategy,
           revertUpdate,
           retryLearning,
+          pauseEntry,
           signOut,
         }}
       />

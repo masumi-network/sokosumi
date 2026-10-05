@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { channelLabel } from "../../lib/calendar";
+import { channelLabel, entryReadiness } from "../../lib/calendar";
 import { formatMonth } from "./cards";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
@@ -21,6 +21,9 @@ function Empty({ children }: { children: React.ReactNode }) {
 
 export function StrategyPage({ overview }: PageProps) {
   const strategy = overview.strategy;
+  const connected = overview.channels
+    .filter((channel) => channel.status === "ACTIVE")
+    .map((channel) => channel.provider);
   if (!strategy) {
     return <Empty>Cuso is still writing the strategy.</Empty>;
   }
@@ -47,12 +50,22 @@ export function StrategyPage({ overview }: PageProps) {
         <section className="panel">
           <h3>Channels</h3>
           <ul className="plain">
-            {strategy.channels.map((channel) => (
-              <li key={channel.channel}>
-                <b>{channelLabel(channel.channel)}</b>{" "}
-                <span className="note">{channel.cadence}</span>
-              </li>
-            ))}
+            {strategy.channels.map((channel) => {
+              const readiness = entryReadiness(channel.channel, connected);
+              return (
+                <li key={channel.channel}>
+                  <b>{channelLabel(channel.channel)}</b>{" "}
+                  {readiness === "ready" ? (
+                    <span className="tag ok">Running</span>
+                  ) : readiness === "connect" ? (
+                    <span className="tag warn">Connect to run</span>
+                  ) : (
+                    <span className="tag">Coming soon</span>
+                  )}{" "}
+                  <span className="note">{channel.cadence}</span>
+                </li>
+              );
+            })}
           </ul>
         </section>
       </div>
@@ -60,13 +73,7 @@ export function StrategyPage({ overview }: PageProps) {
         <h3>{formatMonth(strategy.month)}</h3>
         <CalendarLegend />
         <div className="cal-scroll">
-          <MonthCalendar
-            strategy={strategy}
-            big
-            connected={overview.channels
-              .filter((channel) => channel.status === "ACTIVE")
-              .map((channel) => channel.provider)}
-          />
+          <MonthCalendar strategy={strategy} big connected={connected} />
         </div>
       </section>
       <p className="note">

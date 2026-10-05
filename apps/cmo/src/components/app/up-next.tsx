@@ -1,11 +1,15 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { useTransition } from "react";
+
 import { channelLabel, relativeDay } from "../../lib/calendar";
 
 interface UpNextProps {
   overview: CmoOverview;
   today: string;
   compose: (text: string) => void;
+  /** Cancels the entry's post and takes it out of the plan. */
+  pause: (id: string) => Promise<void>;
   close: () => void;
 }
 
@@ -16,7 +20,13 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 /** What Cuso is doing now and what comes next, from the real calendar. */
-export function UpNext({ overview, today, compose, close }: UpNextProps) {
+export function UpNext({
+  overview,
+  today,
+  compose,
+  pause,
+  close,
+}: UpNextProps) {
   const working = overview.botStatus === "RUNNING";
   const paused = overview.billing.availableCredits <= 0;
   const runningToday = overview.upNext.filter((item) => item.date === today);
@@ -66,6 +76,7 @@ export function UpNext({ overview, today, compose, close }: UpNextProps) {
                 today={today}
                 paused={paused}
                 compose={compose}
+                pause={pause}
               />
             ))}
           </section>
@@ -80,6 +91,7 @@ export function UpNext({ overview, today, compose, close }: UpNextProps) {
                 today={today}
                 paused={paused}
                 compose={compose}
+                pause={pause}
               />
             ))}
           </section>
@@ -94,12 +106,15 @@ function Item({
   today,
   paused,
   compose,
+  pause,
 }: {
   item: CmoOverview["upNext"][number];
   today: string;
   paused: boolean;
   compose: (text: string) => void;
+  pause: (id: string) => Promise<void>;
 }) {
+  const [pending, startTransition] = useTransition();
   return (
     <div className={paused ? "uitem paused" : "uitem"}>
       <div className="top">
@@ -122,9 +137,10 @@ function Item({
           <button
             type="button"
             className="button button-ghost button-small"
-            onClick={() => compose(`Pause "${item.title}"`)}
+            disabled={pending}
+            onClick={() => startTransition(() => pause(item.id))}
           >
-            Pause
+            {pending ? "Pausing" : "Pause"}
           </button>
         </span>
       </div>

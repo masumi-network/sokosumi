@@ -44,6 +44,7 @@ export interface CmoAppActions {
   approveStrategy: () => Promise<CmoOverview>;
   revertUpdate: (id: string) => Promise<CmoOverview>;
   retryLearning: () => Promise<CmoOverview>;
+  pauseEntry: (id: string) => Promise<CmoOverview>;
   signOut: () => Promise<void>;
 }
 
@@ -392,6 +393,7 @@ export function CmoApp({
         overview={overview}
         today={today}
         compose={compose}
+        pause={async (id) => setOverview(await actions.pauseEntry(id))}
         close={() => {
           setUpNextOpen(false);
           setDrawerOpen(false);

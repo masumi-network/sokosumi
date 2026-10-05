@@ -19,6 +19,7 @@ import {
   CmoNotFoundError,
   type CmoOverview,
   getCmoOverview,
+  pauseCmoCalendarEntry,
   requestCmoStrategy,
   retryCmoOnboarding,
   revertCmoUpdate,
@@ -265,6 +266,31 @@ app.openapi(
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     await revertCmoUpdate({ userId, updateId: id }).catch(rethrow);
+    return ok(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/calendar/{id}/pause",
+    operationId: "pauseCmoCalendarEntry",
+    tags: ["CMO"],
+    description:
+      "Pauses one calendar entry: cancels its scheduled post and takes it out of the plan.",
+    request: { params: cmoUpdateIdParamsSchema },
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Entry paused"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No such calendar entry"),
+      409: jsonErrorResponse("The post can no longer be canceled"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+    await pauseCmoCalendarEntry({ userId, entryId: id }).catch(rethrow);
     return ok(c, await requireOverview(userId));
   },
 );

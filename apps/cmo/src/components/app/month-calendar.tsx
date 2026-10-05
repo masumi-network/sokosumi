@@ -16,7 +16,7 @@ interface MonthCalendarProps {
 
 const READINESS_NOTES = {
   ready: null,
-  connect: "needs connection",
+  connect: "connect to run",
   soon: "coming soon",
 } as const;
 

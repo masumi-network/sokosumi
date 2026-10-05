@@ -5,6 +5,7 @@ import {
   type CmoOverview,
   getChatsRoomsByIdMessages,
   getCmoOverview,
+  pauseCmoCalendarEntry,
   postChatsRoomsByIdMessages,
   retryCmoOnboarding,
   revertCmoUpdate,
@@ -54,6 +55,13 @@ export async function approveStrategy(): Promise<CmoOverview> {
   const core = await requireCore();
   const { data } = await approveCmoStrategy(core);
   if (!data) throw new Error("Could not approve the strategy");
+  return data.data;
+}
+
+export async function pauseEntry(id: string): Promise<CmoOverview> {
+  const core = await requireCore();
+  const { data } = await pauseCmoCalendarEntry({ ...core, path: { id } });
+  if (!data) throw new Error("Could not pause this entry");
   return data.data;
 }
 
