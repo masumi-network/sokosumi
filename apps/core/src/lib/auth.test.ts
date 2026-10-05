@@ -2540,6 +2540,12 @@ describe("core auth config", () => {
 
   // The response does not wait for Stripe, but the function must.
   it("keeps the new organization's Stripe customer creation alive past the response", async () => {
+    let finishStripe!: () => void;
+    stripeCreateOrganizationCustomerMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishStripe = resolve;
+      }),
+    );
     await import("./auth");
 
     const [[config]] = organizationPluginMock.mock.calls as Array<
@@ -2570,7 +2576,21 @@ describe("core auth config", () => {
       },
     });
 
+    // The hook returned while Stripe is still working; the kept promise
+    // settles only once Stripe does.
     expect(waitUntilMock).toHaveBeenCalledOnce();
+    const [[kept]] = waitUntilMock.mock.calls;
+    let settled = false;
+    void kept.then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    finishStripe();
+    await kept;
+    expect(settled).toBe(true);
   });
 
   it("creates a personal workspace before creating an organization and keeps preferred org", async () => {
