@@ -90,9 +90,7 @@ export async function recordSignUpConversion(
  * Whether to send this user's authorization through Web's sign-up page:
  * true once per pending conversion, false ever after.
  */
-export async function takeSignUpConversionRedirect(
-  userId: string,
-): Promise<boolean> {
+async function takeSignUpConversionRedirect(userId: string): Promise<boolean> {
   const { count } = await prisma.verification.deleteMany({
     where: {
       identifier: redirectIdentifierFor(userId),

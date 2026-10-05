@@ -9,7 +9,6 @@ import {
   claimSignUpConversion,
   oauthSignUpOptions,
   recordSignUpConversion,
-  takeSignUpConversionRedirect,
 } from "./auth-sign-up-conversion";
 
 const { createManyMock, findFirstMock, deleteManyMock } = vi.hoisted(() => ({
@@ -88,22 +87,6 @@ describe("social sign-up conversion", () => {
     await recordSignUpConversion(USER_ID, ctx);
 
     expect(createManyMock).not.toHaveBeenCalled();
-  });
-
-  it("hands out the redirect through Web once", async () => {
-    deleteManyMock
-      .mockResolvedValueOnce({ count: 1 })
-      .mockResolvedValueOnce({ count: 0 });
-
-    await expect(takeSignUpConversionRedirect(USER_ID)).resolves.toBe(true);
-    await expect(takeSignUpConversionRedirect(USER_ID)).resolves.toBe(false);
-    expect(deleteManyMock).toHaveBeenCalledWith({
-      where: {
-        identifier: `sign-up-conversion-redirect:${USER_ID}`,
-        expiresAt: { gt: NOW },
-        value: { in: ["google", "microsoft"] },
-      },
-    });
   });
 
   it("hands the provider to the first claim only", async () => {
@@ -237,6 +220,14 @@ describe("oauthSignUpOptions", () => {
 
     expect(location.startsWith(`${WEB}/signup?`)).toBe(true);
     expect(new URL(location).searchParams.get("client_id")).toBe("cmo-client");
+    // Taking the redirect spends the row, so it is handed out once.
+    expect(deleteManyMock).toHaveBeenCalledWith({
+      where: {
+        identifier: expect.stringMatching(/^sign-up-conversion-redirect:/),
+        expiresAt: { gt: NOW },
+        value: { in: ["google", "microsoft"] },
+      },
+    });
   });
 
   it("lets the authorization go on when the lookup fails", async () => {
