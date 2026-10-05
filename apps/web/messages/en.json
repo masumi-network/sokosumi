@@ -1708,7 +1708,6 @@
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
-        "owner": "Owner",
         "organization": "Organization",
         "project": "Project",
         "noProject": "No project",
@@ -1762,8 +1761,8 @@
           "unknown": "Unknown"
         },
         "actionCommented": "commented",
-        "actionCreated": "created this task",
         "actionUpdatedStatus": "changed status to",
+        "actionCreatedTask": "created the task",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "actionTriedChargedCredits": "tried to charge {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {

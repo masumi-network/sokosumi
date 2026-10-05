@@ -30,7 +30,6 @@ interface TaskMetadataLabels {
   privateBadge: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
-  owner: string;
   organization: string;
   personalWorkspace: string;
   project: string;
@@ -47,7 +46,6 @@ interface TaskMetadataTask {
   priority: Task["priority"];
   visibility?: Task["visibility"];
   selectableStatuses: Task["selectableStatuses"];
-  owner: Task["owner"];
   organization: Task["organization"];
   assignee: Task["assignee"];
 }
@@ -120,10 +118,6 @@ export function TaskMetadata({
   priorityLabels,
   editable,
 }: TaskMetadataProps) {
-  const owner: PersonDisplay = {
-    name: task.owner.name,
-    image: task.owner.image ? resolveIpfsOrHttpUrl(task.owner.image) : null,
-  };
   const assignee = task.assignee
     ? resolveTaskAssigneeDisplay(
         task.assignee,
@@ -204,17 +198,6 @@ export function TaskMetadata({
               {labels.noAssignee}
             </span>
           )}
-        </PropertyRow>
-
-        <PropertyRow
-          label={labels.owner}
-          value={owner.name}
-          icon={<PersonAvatar person={owner} />}
-        >
-          <span className="truncate">{owner.name}</span>
-          <span className="text-muted-foreground shrink-0 text-xs">
-            {labels.owner}
-          </span>
         </PropertyRow>
 
         <PropertyRow
