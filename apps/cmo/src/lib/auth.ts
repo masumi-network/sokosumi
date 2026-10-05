@@ -474,7 +474,8 @@ function withSetCookies(from: Response, status: number): Response {
   return new Response(null, { status, headers });
 }
 
-// ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
+// Within one process. Across instances, Core replays a rotated refresh token's
+// answer for 30s, so a second instance renewing the same session gets it too.
 const RENEWAL_REPLAY_MS = 30_000;
 // Inside Core's 30s rotation replay, so the first retry after a lost answer
 // still receives the rotated token instead of revoking the family.
