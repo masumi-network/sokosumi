@@ -1,8 +1,16 @@
 import { InvalidPromptError } from "@ai-sdk/provider";
+import type { SsrfSafeFetchInit } from "@sokosumi/net";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { COWORKER_AGENT_ERROR_SNIPPET } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
+
+const { ssrfSafeStreamFetchMock } = vi.hoisted(() => ({
+  ssrfSafeStreamFetchMock:
+    vi.fn<(url: string | URL, init: SsrfSafeFetchInit) => Promise<Response>>(),
+}));
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeStreamFetch: ssrfSafeStreamFetchMock,
+}));
 
 async function collectStreamText(
   stream: ReadableStream<import("@ai-sdk/provider").LanguageModelV4StreamPart>,
@@ -41,14 +49,22 @@ function coworkerSseResponse(delta: string): Response {
 }
 
 describe("SokosumiLanguageModel coworker Conversations mode", () => {
-  const originalFetch = globalThis.fetch;
-
   beforeEach(() => {
-    vi.clearAllMocks();
+    ssrfSafeStreamFetchMock.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        throw new Error("Unsafe coworker fetch is forbidden");
+      }),
+    );
   });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    for (const [, init] of ssrfSafeStreamFetchMock.mock.calls) {
+      expect(init.maxResponseBytes).toBe(16 * 1024 * 1024);
+      expect(init.headers?.["Accept-Encoding"]).toBe("identity");
+    }
+    vi.unstubAllGlobals();
   });
 
   it("rejects coworker mode without providerConversationId or previousResponseId", async () => {
@@ -73,7 +89,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("sends conversation only and omits previous_response_id when both are set", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async (_url, init) => {
+    ssrfSafeStreamFetchMock.mockImplementation(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
@@ -89,6 +105,9 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
       expect(headers["X-Coworker-Slug"]).toBe("agent");
       expect(headers["X-Sokosumi-User-Id"]).toBe("user-1");
       expect(headers["X-Sokosumi-Organization-Id"]).toBe("org-1");
+      expect(headers["Accept-Encoding"]).toBe("identity");
+      expect(headers["accept-encoding"]).toBeUndefined();
+      expect(headers["X-Client-Test"]).toBe("retained");
       return new Response(
         new ReadableStream({
           start(controller) {
@@ -100,13 +119,18 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           headers: { "Content-Type": "text/event-stream" },
         },
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
     });
 
     await model.doStream({
+      headers: {
+        "accept-encoding": "gzip",
+        "Accept-Encoding": "br",
+        "X-Client-Test": "retained",
+      },
       prompt: [
         {
           role: "user",
@@ -139,7 +163,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("sends previous_response_id without conversation when only previousResponseId is set", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async (_url, init) => {
+    ssrfSafeStreamFetchMock.mockImplementation(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
@@ -165,7 +189,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           headers: { "Content-Type": "text/event-stream" },
         },
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -201,9 +225,9 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
   });
 
   it("preserves error body on previous_response_id-only failures (no double response.text)", async () => {
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       return new Response("previous_response_not_found", { status: 400 });
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -233,7 +257,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
   it("retries without conversation when the API rejects the conversation", async () => {
     const onInvalidProviderConversationId = vi.fn();
     let call = 0;
-    globalThis.fetch = vi.fn(async (_url, init) => {
+    ssrfSafeStreamFetchMock.mockImplementation(async (_url, init) => {
       call++;
       const body = init?.body ? JSON.parse(String(init.body)) : {};
       const headers = (init?.headers ?? {}) as Record<string, string>;
@@ -272,7 +296,7 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
           headers: { "Content-Type": "text/event-stream" },
         },
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -305,14 +329,14 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("retries conversation-mode streams that return Elena agent error text", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       call++;
       const delta =
         call === 1
           ? `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`
           : "This is a complete coworker reply with enough text.";
       return coworkerSseResponse(delta);
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -343,14 +367,14 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("retries conversation-mode streams that return suspiciously short text", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       call++;
       const delta =
         call === 1
           ? "Done"
           : "This is a complete coworker reply with enough text.";
       return coworkerSseResponse(delta);
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -381,12 +405,12 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("does not retry previous_response_id-only coworker streams", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       call++;
       return coworkerSseResponse(
         `${COWORKER_AGENT_ERROR_SNIPPET}. Please try again.`,
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
@@ -417,12 +441,12 @@ describe("SokosumiLanguageModel coworker Conversations mode", () => {
 
   it("streams good conversation output without duplicate POSTs", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       call++;
       return coworkerSseResponse(
         "This is a complete coworker reply with enough text.",
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
