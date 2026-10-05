@@ -212,7 +212,13 @@ export function createCmoAuth(config: CmoAuthConfig) {
       ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
     },
     // Better Auth only enables this in production by default; keep tests honest.
-    rateLimit: { enabled: true },
+    rateLimit: {
+      enabled: true,
+      // Every page load renews through this path, signed in or not, and a
+      // refused renewal signs the person out. Browsers cannot reach it
+      // (`api/auth/[...all]`), and Core limits the refresh itself.
+      customRules: { "/get-access-token": false },
+    },
     // Where a failure goes when it carries no errorCallbackURL: a callback
     // whose state is gone (expired, another browser, Back). The signed-out
     // page explains it; Better Auth's bare error page does not.
@@ -550,7 +556,8 @@ async function renewSessionOnce(
     origin,
     "content-type": "application/json",
   });
-  // Rate-limit renewals per visitor, not in one bucket for the whole server.
+  // Better Auth reads the visitor from these, e.g. to rate-limit the sign-out
+  // below per visitor, not in one bucket for the whole server.
   for (const name of CLIENT_IP_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
