@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useReducedMotion } from "motion/react";
+import Image from "next/image";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -36,20 +37,29 @@ function TemplateButton({
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
         large
           ? "border-border w-full flex-col overflow-hidden border p-2"
-          : "shrink-0 items-center p-1 pr-3",
+          : "min-h-11 shrink-0 items-center p-1 pr-3",
       )}
       onClick={() => onApplyTemplate(template)}
       type="button"
     >
-      <img
-        alt=""
+      <span
         className={cn(
-          "bg-muted rounded-lg object-cover",
+          "bg-muted relative shrink-0 overflow-hidden rounded-lg",
           large ? "aspect-4/3 w-full" : "size-8",
         )}
-        loading="lazy"
-        src={`/studio/templates/${template.id}.jpg`}
-      />
+      >
+        <Image
+          alt=""
+          className="object-cover"
+          fill
+          sizes={
+            large
+              ? "(min-width: 1024px) 18rem, (min-width: 640px) 26rem, 75vw"
+              : "2rem"
+          }
+          src={`/studio/templates/${template.id}.jpg`}
+        />
+      </span>
       <span
         className={
           large ? "px-1 py-1 text-sm font-medium" : "text-xs font-medium"
@@ -144,6 +154,7 @@ export function StudioTemplateCarousel({
                   ? labels.startTemplateRotation
                   : labels.pauseTemplateRotation
               }
+              className="size-11"
               data-rotation-control
               onClick={() => setPaused((current) => !current)}
               size="icon"
@@ -158,6 +169,7 @@ export function StudioTemplateCarousel({
           ) : null}
           <Button
             aria-label={labels.previousTemplate}
+            className="size-11"
             onClick={() => api?.scrollPrev()}
             size="icon"
             variant="outline"
@@ -166,6 +178,7 @@ export function StudioTemplateCarousel({
           </Button>
           <Button
             aria-label={labels.nextTemplate}
+            className="size-11"
             onClick={() => api?.scrollNext()}
             size="icon"
             variant="outline"
