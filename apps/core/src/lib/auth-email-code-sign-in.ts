@@ -9,6 +9,8 @@ import {
 
 import type { emailOTP } from "better-auth/plugins/email-otp";
 
+import { resolveSignUpNameBody } from "./auth-user-name";
+
 const EMAIL_CODE_SIGN_IN_PATH = "/sign-in/email-otp";
 
 // Hands the before hook's finding to the after hook. A context key the request
@@ -40,7 +42,8 @@ export function resolveEmailCodeSignUpLoginMethod(ctx: {
  * the code, so the account is created with its address proven and the
  * password is added once the code is accepted. Plain `/sign-up/email` is
  * closed (`disabledPaths` in `auth.ts`): it created accounts whose address
- * nobody had proven.
+ * nobody had proven. Every sign-up rule lives here and runs before the code
+ * is spent, so a refused sign-up leaves the code to sign in with.
  *
  * A code sign-in to an account whose address is unproven deletes its password
  * and provider links (Better Auth's `revokeUnprovenAccountAccess`). That stays,
@@ -144,11 +147,25 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
         {
           matcher: isEmailCodeSignIn,
           handler: createAuthMiddleware(async (ctx) => {
+            const password: unknown = ctx.body?.password;
+            // Refused in this order: terms, names, password, then an address
+            // that has an account.
+            if (password !== undefined && !ctx.body?.termsAccepted) {
+              throw new APIError("BAD_REQUEST", { code: "TERMS_NOT_ACCEPTED" });
+            }
+            // A password sign-up needs both names. A code alone may send none,
+            // and a new address then gets a nameless account that setup
+            // names; the sign-in page sends new addresses to sign-up instead.
+            const body =
+              password !== undefined ||
+              ctx.body?.firstName !== undefined ||
+              ctx.body?.lastName !== undefined
+                ? resolveSignUpNameBody(ctx.body)
+                : ctx.body;
             const email =
               typeof ctx.body?.email === "string"
                 ? ctx.body.email.toLowerCase()
                 : "";
-            const password: unknown = ctx.body?.password;
             const found = await ctx.context.internalAdapter.findUserByEmail(
               email,
               { includeAccounts: true },
@@ -172,18 +189,18 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
                   message: "Password too long",
                 });
               }
-              // Checked before the code is spent, so it still signs in.
               if (found) {
                 throw new APIError("UNPROCESSABLE_ENTITY", {
                   code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
                   message: "User already exists. Use another email.",
                 });
               }
-              return;
+              return { context: { body } };
             }
 
             return {
               context: {
+                body,
                 [REMOVES_SIGN_IN_METHODS]: Boolean(
                   found &&
                     !found.user.emailVerified &&
