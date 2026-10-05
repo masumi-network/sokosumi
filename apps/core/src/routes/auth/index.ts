@@ -1,7 +1,3 @@
-import {
-  oauthProviderAuthServerMetadata,
-  oauthProviderOpenIdConfigMetadata,
-} from "@better-auth/oauth-provider";
 import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -10,15 +6,16 @@ import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
 import {
+  handleOAuthAuthServerMetadata,
+  handleOpenIdConfiguration,
+} from "@/lib/auth-issuer-metadata.js";
+import {
   handleOAuthTokenRequest,
   isRefreshTokenRotating,
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "@/lib/auth-oauth-provider.js";
 import prisma from "@/lib/db/prisma";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
-
-const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
-const oauthOpenIdConfigHandler = oauthProviderOpenIdConfigMetadata(auth);
 
 const app = new Hono();
 
@@ -41,10 +38,10 @@ app.post("/set-password", handleSetPassword);
 
 // OAuth issuer metadata (mounted under /auth). Must register before the catch-all.
 app.get("/.well-known/oauth-authorization-server", (c) =>
-  oauthAuthServerMetadataHandler(c.req.raw),
+  handleOAuthAuthServerMetadata(c.req.raw),
 );
 app.get("/.well-known/openid-configuration", (c) =>
-  oauthOpenIdConfigHandler(c.req.raw),
+  handleOpenIdConfiguration(c.req.raw),
 );
 
 // Mount Auth routes. Token requests are adjusted first: see
