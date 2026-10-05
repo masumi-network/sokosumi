@@ -174,7 +174,7 @@ interface MascotProps {
 }
 
 /**
- * The CMO.XYZ mascot. The still image shows at once and stays if WebGL is
+ * Cuso, the CMO.XYZ mascot. The still image shows at once and stays if WebGL is
  * missing; the 3D model fades in over it once loaded.
  */
 export function Mascot({ className }: MascotProps) {
