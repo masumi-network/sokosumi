@@ -138,11 +138,19 @@ export function SocialPostComposerDialog({
     retry: false,
     refetchOnWindowFocus: false,
   });
-  const connections =
-    refreshedConnections?.filter(
-      (connection) => connection.status === "active",
-    ) ?? initialConnections;
-
+  // Refresh only pictures: cached query data must not reintroduce disconnected accounts.
+  const connections = initialConnections.map((connection) => ({
+    ...connection,
+    avatarUrl:
+      connection.avatarUrl ??
+      refreshedConnections?.find(
+        (fresh) =>
+          fresh.id === connection.id &&
+          fresh.provider === connection.provider &&
+          fresh.externalHandle === connection.externalHandle,
+      )?.avatarUrl ??
+      null,
+  }));
   const driveStore = driveStoreForActiveWorkspace(
     session?.session.activeOrganizationId ?? null,
   );
