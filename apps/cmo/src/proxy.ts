@@ -1,6 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 
 import { getAuth, renewSession } from "./lib/auth";
+import { CMO_SIGN_IN_ERROR } from "./lib/sign-in-errors";
 
 /**
  * Renews Sokosumi access before a page renders. When renewal changes the
@@ -38,7 +39,9 @@ export async function proxy(request: NextRequest) {
 
   const target = request.nextUrl.clone();
   // CMO ended the session (a ban, a revoked token, a failed refresh).
-  if (renewal.status === 401) target.searchParams.set("error", "signed_out");
+  if (renewal.status === 401) {
+    target.searchParams.set("error", CMO_SIGN_IN_ERROR.signedOut);
+  }
   return NextResponse.redirect(target, { headers });
 }
 
@@ -49,7 +52,9 @@ export const config = {
       source: "/((?!api/|_next/|.*\\.[a-z0-9]+$).*)",
       // Server actions sign in and out themselves. Prefetch must not rotate
       // the refresh token. Next strips these headers before proxy() runs, so
-      // only the matcher can see them.
+      // only the matcher can see them. Next reads the matcher as a literal,
+      // so `sokosumiSignInRedirect` in `lib/auth.ts` repeats the prefetch
+      // headers; change both together.
       missing: [
         { type: "header", key: "next-action" },
         { type: "header", key: "next-router-prefetch" },
