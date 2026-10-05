@@ -130,7 +130,11 @@ export function SokoBotFleetTable({
           size="sm"
         >
           {FLEET_KINDS.map((option) => (
-            <ToggleGroupItem key={option} value={option} className="px-3">
+            <ToggleGroupItem
+              key={option}
+              value={option}
+              className="min-w-fit px-3"
+            >
               {t(`kind.${option}`)}
             </ToggleGroupItem>
           ))}
