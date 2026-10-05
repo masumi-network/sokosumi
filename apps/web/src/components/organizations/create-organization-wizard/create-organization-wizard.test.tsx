@@ -59,9 +59,11 @@ vi.mock("@/lib/auth/auth.client", () => ({
   },
 }));
 
+const toastErrorMock = vi.fn();
+
 vi.mock("sonner", () => ({
   toast: {
-    error: vi.fn(),
+    error: (...args: unknown[]) => toastErrorMock(...args),
     success: vi.fn(),
   },
 }));
@@ -277,5 +279,63 @@ describe("CreateOrganizationWizard", () => {
     expect(screen.getByText("Brand.title")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
     expect(screen.getByText("Invite.title")).toBeTruthy();
+  });
+
+  it.each([
+    [
+      "offers sign in when the person is signed out",
+      { code: "UNAUTHENTICATED" },
+      "Errors.createFailed",
+      true,
+    ],
+    [
+      "shows Core's message at the organization limit",
+      {
+        code: "ORGANIZATION_LIMIT_REACHED",
+        message: "You have reached the maximum number of organizations",
+      },
+      "You have reached the maximum number of organizations",
+      false,
+    ],
+    [
+      "falls back to the generic message",
+      { code: "INTERNAL_SERVER_ERROR" },
+      "Errors.createFailed",
+      false,
+    ],
+  ])("%s", async (_label, error, message, offersSignIn) => {
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error,
+    });
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledOnce();
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      message,
+      ...(offersSignIn
+        ? [
+            expect.objectContaining({
+              action: expect.objectContaining({
+                label: "Errors.unauthorizedAction",
+              }),
+            }),
+          ]
+        : []),
+    );
+    expect(onOrganizationReadyMock).not.toHaveBeenCalled();
   });
 });

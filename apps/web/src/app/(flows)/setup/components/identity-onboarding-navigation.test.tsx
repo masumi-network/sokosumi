@@ -277,10 +277,10 @@ describe("IdentityOnboardingForm navigation", () => {
   it("allows retry after creation fails", async () => {
     mocks.create.mockResolvedValueOnce({
       ok: false,
-      error: { code: "INTERNAL_SERVER_ERROR", message: "creation offline" },
+      error: { code: "INTERNAL_SERVER_ERROR" },
     });
     const user = await openCreatedWizard();
-    expect(mocks.toast).toHaveBeenCalledWith("creation offline");
+    expect(mocks.toast).toHaveBeenCalledWith("Errors.createFailed");
     expect(mocks.setActive).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await waitFor(() => expect(mocks.create).toHaveBeenCalledTimes(2));

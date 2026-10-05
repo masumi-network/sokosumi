@@ -1,6 +1,7 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -12,6 +13,8 @@ import {
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
+import { CoreAuthUnavailableError } from "@/lib/auth/errors";
+import { readRouteSession } from "@/lib/auth/route-session";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
@@ -200,8 +203,12 @@ export const updatePreferredOrganization = withSession<
       }),
     );
   } catch (error) {
-    // The membership ended between the list and the write.
-    if (error instanceof CoreApiRequestError && error.status === 404) {
+    // The membership or organization ended between the list and the write.
+    if (
+      error instanceof CoreApiRequestError &&
+      (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED ||
+        error.status === 404)
+    ) {
       return toActionResult(err(notMember));
     }
 
@@ -214,21 +221,28 @@ const createOrganizationWorkspaceSchema = z.object({
   websiteUrl: z.string().trim().min(1),
 });
 
-interface CreateOrganizationWorkspaceParameters extends AuthenticatedRequest {
-  name: string;
-  websiteUrl: string;
-}
-
 /**
  * Creates an organization owned by the signed-in user through Core's
  * workspaces resource (ADR 0051): Core generates the slug, stores the website
  * in its metadata and makes it preferred. Core's message is kept for the
- * person, as Better Auth's was.
+ * person, as Better Auth's was. A signed-out person gets UNAUTHENTICATED back
+ * rather than a throw, so the wizard can offer sign in.
  */
-export const createOrganizationWorkspaceAction = withSession<
-  CreateOrganizationWorkspaceParameters,
-  ActionResultDto<{ organizationId: string }, ActionError>
->(async ({ name, websiteUrl }) => {
+export async function createOrganizationWorkspaceAction({
+  name,
+  websiteUrl,
+}: {
+  name: string;
+  websiteUrl: string;
+}): Promise<ActionResultDto<{ organizationId: string }, ActionError>> {
+  const sessionRead = await readRouteSession();
+  if (sessionRead.status === "unavailable") {
+    throw new CoreAuthUnavailableError(sessionRead.reason);
+  }
+  if (sessionRead.status === "signedOut") {
+    return toActionResult(err({ code: CommonErrorCode.UNAUTHENTICATED }));
+  }
+
   const parsedResult = createOrganizationWorkspaceSchema.safeParse({
     name,
     websiteUrl,
@@ -253,7 +267,7 @@ export const createOrganizationWorkspaceAction = withSession<
           ? CommonErrorCode.UNAUTHENTICATED
           : error.status === 403
             ? OrganizationErrorCode.ORGANIZATION_LIMIT_REACHED
-            : error.status === 422
+            : error.status === 400 || error.status === 422
               ? CommonErrorCode.BAD_INPUT
               : null;
       if (code) {
@@ -263,4 +277,4 @@ export const createOrganizationWorkspaceAction = withSession<
     console.error("Failed to create organization", error);
     return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
   }
-});
+}
