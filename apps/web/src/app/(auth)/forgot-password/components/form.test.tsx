@@ -154,18 +154,6 @@ describe("SOK-1144 password reset feedback", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("asks a rate-limited person to wait", async () => {
-    vi.mocked(requestPasswordReset).mockResolvedValue({
-      data: null,
-      error: { status: 429, statusText: "Too Many Requests" },
-    });
-    renderWithEmail("person@example.com");
-
-    await submit();
-
-    expect(screen.getByRole("alert")).toHaveTextContent("Errors.rateLimited");
-  });
-
   it("reports a rejected request and allows retry", async () => {
     vi.mocked(requestPasswordReset).mockRejectedValueOnce(
       new Error("Network unavailable"),

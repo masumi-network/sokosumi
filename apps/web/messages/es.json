@@ -1258,7 +1258,6 @@
           },
           "linkExpired": "Ese enlace para restablecer la contraseña ha caducado o ya se usó. Solicita uno nuevo.",
           "Errors": {
-            "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo.",
             "generic": "No pudimos enviar el email para restablecer la contraseña. Vuelve a intentarlo."
           }
         }
