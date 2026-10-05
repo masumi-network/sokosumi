@@ -3937,7 +3937,7 @@ export const getCoworkersMeEvents = <ThrowOnError extends boolean = false>(optio
 });
 
 /**
- * Create usage for the current coworker
+ * Create usage for the current coworker. Bills `userId` only when the coworker is bound to that user's workspace: a granted vendor workspace grant, or an assigned or same-vendor sibling task owned by the user. A denied or revoked grant always rejects.
  */
 export const postCoworkersMeUsage = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersMeUsageData, ThrowOnError>): RequestResult<PostCoworkersMeUsageResponses, PostCoworkersMeUsageErrors, ThrowOnError> => (options?.client ?? client).post<PostCoworkersMeUsageResponses, PostCoworkersMeUsageErrors, ThrowOnError>({
     url: '/coworkers/me/usage',
