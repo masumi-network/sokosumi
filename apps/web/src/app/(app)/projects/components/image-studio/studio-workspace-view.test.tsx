@@ -1,8 +1,9 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
+import { STUDIO_TEMPLATES } from "./studio-templates";
 import type { StudioAsset } from "./types";
 
 /**
@@ -128,6 +129,100 @@ function generate(prompt = "a fox") {
 beforeEach(() => vi.clearAllMocks());
 
 describe("the workspace view", () => {
+  it("opens the same empty studio without requiring a project", () => {
+    mount(null, []);
+    expect(screen.getByRole("region", { name: "templates" })).toHaveAttribute(
+      "aria-roledescription",
+      "carousel",
+    );
+    expect(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("moves the styles above the prompt as images appear, then returns them when empty", () => {
+    const props = {
+      catalog: TEST_CATALOG,
+      initialSelectedAssetId: null,
+      labels: TEST_LABELS,
+      projectId: null,
+    };
+    const view = render(
+      <ImageStudio
+        {...props}
+        initialState={{ assets: [], jobs: [], nextCursor: null } as never}
+      />,
+    );
+    expect(
+      screen.getByRole("region", { name: "templates" }),
+    ).toBeInTheDocument();
+    const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.change(box, { target: { value: "keep my draft" } });
+
+    view.rerender(
+      <ImageStudio
+        {...props}
+        initialState={{ assets: [LAUNCH], jobs: [], nextCursor: null } as never}
+      />,
+    );
+    expect(
+      screen.queryByRole("region", { name: "templates" }),
+    ).not.toBeInTheDocument();
+    const styles = screen.getByRole("group", { name: "templates" });
+    expect(
+      styles.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "poster" })).toHaveLength(1);
+    expect(box).toHaveValue("keep my draft");
+
+    view.rerender(
+      <ImageStudio
+        {...props}
+        initialState={{ assets: [], jobs: [], nextCursor: null } as never}
+      />,
+    );
+    expect(
+      screen.getByRole("region", { name: "templates" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: "templates" }),
+    ).not.toBeInTheDocument();
+    expect(box).toHaveValue("keep my draft");
+  });
+
+  it("preserves the selected style and frame after cancelling the project picker", async () => {
+    mount(null, []);
+    fireEvent.click(screen.getByRole("button", { name: "headshot" }));
+    const template = STUDIO_TEMPLATES.find(
+      (candidate) => candidate.id === "headshot",
+    )!;
+    const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    expect(box).toHaveValue(template.prompt);
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    fireEvent.keyDown(screen.getByText("Picked project"), { key: "Escape" });
+    await waitFor(() =>
+      expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument(),
+    );
+    expect(box).toHaveValue(template.prompt);
+    expect(screen.getByText("4:5 · 1K · png")).toBeInTheDocument();
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    const [[requests]] = mocks.enqueue.mock.calls;
+    expect(requests).toHaveLength(2);
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        projectId: "project-picked",
+        prompt: template.prompt,
+        settings: { aspectRatio: "4:5", resolution: "1K", outputFormat: "png" },
+      });
+    }
+  });
+
   it("labels every image with the project it lives in", () => {
     mount(null);
     expect(screen.getByText("Launch")).toBeInTheDocument();

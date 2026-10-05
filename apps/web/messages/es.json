@@ -2688,8 +2688,8 @@
     "Studio": {
       "back": "Volver al proyecto",
       "updated": "Actualizado",
-      "emptyTitle": "Aún no hay imágenes",
-      "emptyBody": "Escribe un prompt abajo y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
+      "emptyTitle": "Crea tu primera imagen",
+      "emptyBody": "Elige un estilo para empezar o escribe tu propio prompt abajo.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",
@@ -2818,7 +2818,11 @@
         "megapixels": "megapíxel",
         "processedMegapixels": "megapíxel procesado"
       },
-      "creditsCheckedOn": "Precio comprobado el {date}"
+      "creditsCheckedOn": "Precio comprobado el {date}",
+      "previousTemplate": "Estilo anterior",
+      "nextTemplate": "Estilo siguiente",
+      "pauseTemplateRotation": "Pausar carrusel de estilos",
+      "startTemplateRotation": "Iniciar carrusel de estilos"
     },
     "Social": {
       "title": "Programación social",

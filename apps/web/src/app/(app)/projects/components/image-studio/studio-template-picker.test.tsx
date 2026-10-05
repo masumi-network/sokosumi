@@ -1,0 +1,106 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TEST_LABELS } from "./studio-fixtures";
+import { StudioTemplateCarousel } from "./studio-template-picker";
+
+const mocks = vi.hoisted(() => ({
+  reduceMotion: false,
+  api: {
+    scrollNext: vi.fn(),
+    scrollPrev: vi.fn(),
+    canScrollPrev: () => true,
+    canScrollNext: () => true,
+    on: vi.fn(),
+    off: vi.fn(),
+  },
+}));
+
+// Embla's measurements need a layout engine. Drive its public navigation seam
+// here while exercising the real carousel controls and browser timer cleanup.
+vi.mock("embla-carousel-react", () => ({
+  default: () => [() => undefined, mocks.api],
+}));
+vi.mock("motion/react", () => ({ useReducedMotion: () => mocks.reduceMotion }));
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  vi.useFakeTimers();
+  mocks.reduceMotion = false;
+});
+afterEach(() => vi.useRealTimers());
+
+function mount() {
+  const apply = vi.fn();
+  const view = render(
+    <StudioTemplateCarousel labels={TEST_LABELS} onApplyTemplate={apply} />,
+  );
+  return { ...view, apply };
+}
+function advance() {
+  act(() => vi.advanceTimersByTime(5000));
+}
+
+describe("the empty studio carousel", () => {
+  it("rotates and navigates without applying a prompt; picking a style stays explicit", () => {
+    const { apply } = mount();
+    advance();
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    fireEvent.click(screen.getByRole("button", { name: "nextTemplate" }));
+    fireEvent.click(screen.getByRole("button", { name: "previousTemplate" }));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
+    expect(mocks.api.scrollPrev).toHaveBeenCalledTimes(1);
+    expect(apply).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "poster" }));
+    expect(apply).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "poster" }),
+    );
+  });
+
+  it("pauses on hover, stops on focus, and restarts only when requested", () => {
+    mount();
+    const carousel = screen.getByRole("region", { name: "templates" });
+    fireEvent.mouseEnter(carousel);
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    fireEvent.mouseLeave(carousel);
+    advance();
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    fireEvent.focus(screen.getByRole("button", { name: "poster" }));
+    fireEvent.blur(screen.getByRole("button", { name: "poster" }));
+    advance();
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: "startTemplateRotation" }),
+    );
+    advance();
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
+    fireEvent.click(
+      screen.getByRole("button", { name: "pauseTemplateRotation" }),
+    );
+    advance();
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not rotate with reduced motion and still allows navigation", () => {
+    mocks.reduceMotion = true;
+    mount();
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    expect(
+      screen.queryByRole("button", { name: "pauseTemplateRotation" }),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "nextTemplate" }));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans up rotation when the gallery replaces it", () => {
+    const { unmount } = mount();
+    unmount();
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    expect(mocks.api.off).toHaveBeenCalledWith(
+      "pointerDown",
+      expect.any(Function),
+    );
+  });
+});

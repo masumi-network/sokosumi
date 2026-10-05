@@ -39,6 +39,7 @@ import {
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
   creditsByAssetId,
@@ -65,9 +66,9 @@ type Viewing = { mode: "single" } | { mode: "compare" } | null;
 /**
  * The studio.
  *
- * Gallery-first: the results are the page. Above them sits one composer with
- * one obvious action, and everything that qualifies a generation is a summary
- * that opens on demand rather than a row of controls that is always there.
+ * An empty studio offers style briefs in the center. Once generation starts,
+ * results fill the feed and the styles sit above the composer below it. Models
+ * and generation settings remain summaries that open on demand.
  *
  * There is no conversational assistant here, by design. Generating images is a
  * form — a brief, some models, a frame — and the thing worth optimising is how
@@ -447,6 +448,7 @@ export function ImageStudio({
       promptRef={promptRef}
       referenceAssets={checkedAssets}
       target={target}
+      showTemplates={!showsNothing}
     />
   );
 
@@ -473,7 +475,12 @@ export function ImageStudio({
       ) : null}
 
       <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
-        <div className="flex min-h-full w-full min-w-0 shrink-0 flex-col justify-end gap-4 pb-2">
+        <div
+          className={cn(
+            "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
+            showsNothing ? "justify-center" : "justify-end",
+          )}
+        >
           <div ref={topRef} />
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
@@ -482,12 +489,10 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="border-border bg-card-background motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-md border border-dashed px-5 py-10 text-center duration-300">
-              <p className="font-medium">{labels.emptyTitle}</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {labels.emptyBody}
-              </p>
-            </div>
+            <StudioTemplateCarousel
+              labels={labels}
+              onApplyTemplate={applyTemplate}
+            />
           ) : (
             <StudioGallery
               activeJobs={activeJobs}

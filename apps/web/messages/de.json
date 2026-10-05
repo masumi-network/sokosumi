@@ -2688,8 +2688,8 @@
     "Studio": {
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
-      "emptyTitle": "Noch keine Bilder",
-      "emptyBody": "Schreibe unten einen Prompt und wähle die Modelle, auf denen er laufen soll. Du bekommst Versionen zurück, die du vergleichen und verfeinern kannst.",
+      "emptyTitle": "Erstelle dein erstes Bild",
+      "emptyBody": "Wähle einen Stil als Ausgangspunkt oder schreibe unten deinen eigenen Prompt.",
       "promptPlaceholder": "Beschreibe das Bild…",
       "generate": "Erzeugen",
       "refine": "Verfeinern",
@@ -2818,7 +2818,11 @@
         "megapixels": "Megapixel",
         "processedMegapixels": "verarbeitetes Megapixel"
       },
-      "creditsCheckedOn": "Preis geprüft am {date}"
+      "creditsCheckedOn": "Preis geprüft am {date}",
+      "previousTemplate": "Vorheriger Stil",
+      "nextTemplate": "Nächster Stil",
+      "pauseTemplateRotation": "Stilkarussell pausieren",
+      "startTemplateRotation": "Stilkarussell starten"
     },
     "Social": {
       "title": "Social-Planung",
