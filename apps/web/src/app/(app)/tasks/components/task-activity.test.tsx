@@ -1,5 +1,5 @@
 import type { TaskEvent } from "@sokosumi/core-client";
-import { Channel, TaskStatus } from "@sokosumi/core-client";
+import { Channel, TaskEventStatus, TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -59,6 +59,7 @@ vi.mock("next-intl", () => ({
       "billingCta.statusUnavailable": "This task is out of credits.",
       actionChargedCredits: "charged {credits} credits",
       actionTriedChargedCredits: "tried to charge {credits} credits",
+      actionCreated: "created this task",
       uploadFileErrorRetry: "Failed to upload file, please try again!",
       fileLabel: "File",
       "channelApp.sokosumi": "Sokosumi",
@@ -229,7 +230,7 @@ function createEvent(
     transactionId = null,
   }: {
     createdAt: string;
-    status: TaskStatus | null;
+    status: TaskEventStatus | null;
     comment?: string | null;
     authenticationUrl?: string | null;
     channel?: Channel;
@@ -663,6 +664,28 @@ describe("TaskActivitySection", () => {
     expect(screen.getByText("from Email")).toBeInTheDocument();
     expect(screen.getByLabelText("from Sokosumi")).toBeInTheDocument();
     expect(screen.getByLabelText("from Email")).toBeInTheDocument();
+  });
+
+  it("uses created copy for CREATED events instead of a status update", () => {
+    const events: TaskEvent[] = [
+      createEvent("created-milestone", {
+        createdAt: "2026-01-01T10:00:00.000Z",
+        status: TaskEventStatus.CREATED,
+      }),
+      createEvent("initial-status", {
+        createdAt: "2026-01-01T10:00:00.001Z",
+        status: TaskStatus.READY,
+      }),
+    ];
+
+    render(<TaskActivitySection {...baseProps} events={events} />);
+
+    expect(screen.getByText("created this task")).toBeInTheDocument();
+    expect(screen.getByText("updated status")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("status-dot-created-milestone"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("status-dot-initial-status")).toBeInTheDocument();
   });
 
   it("uses charged credits as action for credit-only settled events", () => {

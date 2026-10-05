@@ -40,6 +40,7 @@ import {
   sokosumiJobStatusSchema,
   stripeSubscriptionStatusNullableSchema,
   stripeSubscriptionStatusSchema,
+  taskEventStatusSchema,
   taskPrioritySchema,
   taskScheduleEndsModeSchema,
   taskScheduleStateSchema,
@@ -52,9 +53,17 @@ import {
  * Web generated-client drift is guarded separately in apps/web.
  */
 describe("domain enum schemas", () => {
-  it("named TaskStatus schema values match Prisma", () => {
-    expect([...taskStatusSchema.options].sort()).toEqual(
+  it("named TaskEventStatus schema values match Prisma", () => {
+    expect([...taskEventStatusSchema.options].sort()).toEqual(
       Object.values(TaskStatus).sort(),
+    );
+  });
+
+  it("named TaskStatus schema is Prisma's without the event-only CREATED", () => {
+    expect([...taskStatusSchema.options].sort()).toEqual(
+      Object.values(TaskStatus)
+        .filter((status) => status !== TaskStatus.CREATED)
+        .sort(),
     );
   });
 
