@@ -14,13 +14,15 @@ import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { UsernameHint } from "@/auth/components/username-hint";
 import {
-  EMAIL_CODE_LENGTH,
   EmailCodeField,
   useEmailCodeRefusal,
+  useEmailCodeSchema,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
@@ -78,7 +80,6 @@ export default function SignUpForm({
   onPendingChange,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
-  const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
   const [isLeaving, setIsLeaving] = useState(false);
@@ -92,9 +93,7 @@ export default function SignUpForm({
   const withPasswordRef = useRef(withPassword);
   withPasswordRef.current = withPassword;
 
-  const code = z
-    .string()
-    .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") });
+  const code = useEmailCodeSchema();
   const passwordSchema = signUpFormSchema(schemaT).safeExtend({ code });
   const codeOnlySchema = signUpFormSchema(schemaT).safeExtend({
     password: z.string(),
@@ -186,18 +185,7 @@ export default function SignUpForm({
       onSubmit={handleSubmit}
       onChange={onFormStart}
     >
-      {/* Password managers pair the new password with this address. */}
-      <input
-        type="email"
-        autoComplete="username"
-        autoCapitalize="none"
-        spellCheck={false}
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-      />
+      <UsernameHint email={email} />
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
@@ -210,6 +198,14 @@ export default function SignUpForm({
           namespace="Auth.Pages.SignUp.Form"
         />
       ) : null}
+      {/* The updates choice closes the profile; the code and Register below
+          are one motion. */}
+      <FormFields
+        form={form}
+        formData={signUpMarketingFormData}
+        namespace="Auth.Pages.SignUp.Form"
+      />
+      <Separator />
       <Controller
         control={form.control}
         name="code"
@@ -218,8 +214,8 @@ export default function SignUpForm({
             centered
             inputRef={field.ref}
             value={field.value}
-            // No onComplete: the updates checkbox comes after the code,
-            // so only Register sends it.
+            // No onComplete: "Add a password" sits below Register, so only
+            // Register sends the code.
             onChange={(code) => {
               // Typing replaces the reason; checking for a whole code while
               // it is typed would only say it is not yet one.
@@ -236,11 +232,6 @@ export default function SignUpForm({
             disabled={isPending}
           />
         )}
-      />
-      <FormFields
-        form={form}
-        formData={signUpMarketingFormData}
-        namespace="Auth.Pages.SignUp.Form"
       />
       {accountExists ? (
         <Alert>

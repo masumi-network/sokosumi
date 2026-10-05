@@ -217,9 +217,16 @@ describe("SignUpForm with a password", () => {
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    const updates = screen.getByRole("checkbox", {
+      name: "Fields.MarketingOptIn.label",
+    });
+    expect(updates).not.toBeChecked();
+    // The choice closes the profile, so the code leads straight to Register.
     expect(
-      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
-    ).not.toBeChecked();
+      updates.compareDocumentPosition(
+        screen.getByRole("textbox", { name: "codeLabel" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
@@ -243,6 +250,7 @@ describe("SignUpForm with a password", () => {
     // the new password still has to be saved against it.
     expect(screen.queryByTestId("auth-field-email")).not.toBeInTheDocument();
     const username = container.querySelector('input[autocomplete="username"]');
+    expect(username).toBe(screen.getByTestId("auth-field-username"));
     expect(username).toHaveValue("new-user@example.com");
     expect(username).toHaveAttribute("readonly");
     expect(username).toHaveAttribute("aria-hidden", "true");
@@ -337,7 +345,7 @@ describe("SignUpForm with a password", () => {
     expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
   });
 
-  // The updates checkbox comes after the code, so the code never sends.
+  // Only Register sends: the password link sits below it.
   it("waits for Register after the sixth digit follows the names and password", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: { user: { id: "user-1" } },

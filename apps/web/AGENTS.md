@@ -12,7 +12,17 @@ Outside `src/`: `agents/image-studio/` is the Project image studio's eve agent. 
 
 ## App Router Structure
 
-The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth callbacks), `share/`, `(app)/tasks`, `maintenance`.
+The live tree is `src/app/`. `(app)` is protected. `(auth)` is public auth. `(flows)` is invitations and setup. Also `api/`, `auth/` (OAuth `apple`, `callback`, `error`), `share/`, `(app)/tasks`, `maintenance`.
+
+`@/app/*` resolves to `src/app/(app)/*` (`tsconfig.json`), so `@/app/tasks/...` lives in `src/app/(app)/tasks/...`. Other route groups have no alias; open them by their `src/app/(group)/` path.
+
+**Auth flow entry points** (sign-in, sign-up, codes, captcha):
+
+- Web: `src/app/(auth)/components/auth-flow.tsx` drives every step; `email-step.tsx` and `use-email-code.ts` beside it. `src/lib/utils/last-used-auth-method.ts` (`chooseSignInMethod`) picks password vs code. Captcha is `src/components/auth-captcha.tsx`; re-auth is `src/components/auth/reauth-dialog.tsx`.
+- Core: `apps/core/src/lib/auth.ts` wires Better Auth; its plugins sit beside it as `auth-*.ts` (`auth-captcha.ts`, `auth-email-code-sign-in.ts`, `auth-sign-up-email-status.ts`).
+- Intended behaviour: [ADR 0049](../../docs/adr/0049-email-codes-replace-magic-links.md), [ADR 0050](../../docs/adr/0050-password-sign-up-proves-the-address.md), and the sign-in walkthrough in [`.cursor/skills/verify-sokosumi/features/sign-in.md`](../../.cursor/skills/verify-sokosumi/features/sign-in.md).
+- Better Auth source: read `apps/core/node_modules/better-auth/dist/`. `require.resolve('better-auth/package.json')` fails because the package does not export it.
+- Identity onboarding (first workspace) is `src/app/(flows)/setup/`.
 
 ## App-Specific Conventions
 
