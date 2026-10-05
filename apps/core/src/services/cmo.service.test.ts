@@ -50,8 +50,11 @@ import {
   cmoExecutionRefusal,
   cmoLearningState,
   cmoUpNext,
+  describeCmoStep,
   hasActiveCmoSubscription,
+  isCmoAppUrl,
   listCmoChannels,
+  mergeBrandVisual,
   parseCmoUpdates,
   pauseCmoCalendarEntry,
   reportCmoUpdate,
@@ -93,6 +96,7 @@ const strategy = {
     },
   ],
   previews: [],
+  changes: [],
 };
 const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 
@@ -408,5 +412,67 @@ describe("pauseCmoCalendarEntry", () => {
     expect(
       saved.calendar.find((entry: { id: string }) => entry.id === "a").status,
     ).toBe("skipped");
+  });
+});
+
+describe("research feed", () => {
+  const site = "https://linear.app";
+  it("reads tool calls the way a founder would", () => {
+    expect(
+      describeCmoStep("web_fetch", { url: "https://linear.app/pricing" }, site),
+    ).toEqual({
+      kind: "read",
+      label: "Reading linear.app/pricing",
+      url: "https://linear.app/pricing",
+    });
+    expect(
+      describeCmoStep("web_fetch", { url: "https://www.asana.com/" }, site)
+        ?.label,
+    ).toBe("Studying asana.com");
+    expect(
+      describeCmoStep(
+        "web_search",
+        { query: "site:linear.app Linear competitors" },
+        site,
+      )?.label,
+    ).toBe("Searching “Linear competitors”");
+    expect(describeCmoStep("save_brand_brain", {}, site)?.kind).toBe("brain");
+    expect(describeCmoStep("read_memory", {}, site)).toBeNull();
+  });
+});
+
+describe("brand visual", () => {
+  it("lets the DESIGN.md colours lead and keeps the site's logo", () => {
+    const visual = mergeBrandVisual(
+      {
+        logoUrl: "https://acme.io/logo.svg",
+        colors: ["#ff6a00"],
+        fonts: ["Inter"],
+        siteName: "Acme",
+      },
+      "https://blob/icon.png",
+      { url: "https://blob/design.md", content: "Primary: `#6400FF`" },
+    );
+    expect(visual).toEqual({
+      logoUrl: "https://acme.io/logo.svg",
+      colors: ["#6400ff", "#ff6a00"],
+      fonts: ["Inter"],
+      siteName: "Acme",
+      designMdUrl: "https://blob/design.md",
+    });
+  });
+});
+
+describe("CMO return addresses", () => {
+  it("accepts CMO.xyz and its previews, nothing else", () => {
+    expect(isCmoAppUrl("https://app.cmo.xyz/connect/callback")).toBe(true);
+    expect(
+      isCmoAppUrl(
+        "https://sokosumi-cmo-git-x.preview.cmo.xyz/connect/callback",
+      ),
+    ).toBe(true);
+    expect(isCmoAppUrl("https://evil.example/cmo.xyz")).toBe(false);
+    expect(isCmoAppUrl("http://app.cmo.xyz/connect/callback")).toBe(false);
+    expect(isCmoAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
   });
 });

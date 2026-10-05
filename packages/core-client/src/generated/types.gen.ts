@@ -6288,6 +6288,10 @@ export type CmoOverview = {
      */
     learning: 'running' | 'failed' | 'done';
     subscriptionActive: boolean;
+    work: CmoWork | null;
+    brandVisual: CmoBrandVisual | null;
+    projectLogo: string | null;
+    onboardedAt: Date | null;
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -6314,6 +6318,7 @@ export type CmoOverview = {
     strategy: {
         month: string;
         summary: string;
+        why?: string;
         goals: Array<string>;
         audience?: string;
         positioning?: string;
@@ -6321,15 +6326,20 @@ export type CmoOverview = {
         channels: Array<{
             channel: string;
             cadence: string;
+            why?: string;
         }>;
         calendar: Array<{
             id: string;
             date: string;
+            time?: string;
             channel: string;
             title: string;
             format: string;
             status: 'idea' | 'draft' | 'scheduled' | 'published' | 'skipped';
+            hook?: string;
             brief?: string;
+            draft?: string;
+            why?: string;
             socialPostId?: string;
             imageFileId?: string;
             taskId?: string;
@@ -6340,6 +6350,7 @@ export type CmoOverview = {
             title: string;
             body: string;
         }>;
+        changes?: Array<string>;
     } | null;
     strategyUpdatedAt: Date | null;
     strategyApprovedAt: Date | null;
@@ -6360,6 +6371,30 @@ export type CmoOverview = {
         failed: number;
     };
     createdAt: Date;
+};
+
+export type CmoWork = {
+    kind: 'research' | 'strategy';
+    status: 'running' | 'failed' | 'done';
+    startedAt: Date;
+    steps: Array<CmoWorkStep>;
+};
+
+export type CmoWorkStep = {
+    id: string;
+    kind: 'search' | 'read' | 'study' | 'brain' | 'strategy' | 'other';
+    label: string;
+    url: string | null;
+    status: 'running' | 'done' | 'failed';
+    at: Date;
+};
+
+export type CmoBrandVisual = {
+    logoUrl: string | null;
+    colors: Array<string>;
+    fonts: Array<string>;
+    siteName: string | null;
+    designMdUrl: string | null;
 };
 
 export type CmoRoutine = {
@@ -6436,6 +6471,10 @@ export type CmoBrandBrainRequest = {
 
 export type CmoStrategyRequest = {
     note?: string;
+};
+
+export type CmoChannelConnect = {
+    redirectUrl: string;
 };
 
 export type SokoBotApiKey = {
@@ -44707,6 +44746,94 @@ export type StartCmoOnboardingResponses = {
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
 
+export type CompleteCmoOnboardingData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/cmo/onboarding/complete';
+};
+
+export type CompleteCmoOnboardingErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * The strategy is not approved yet
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type CompleteCmoOnboardingError = CompleteCmoOnboardingErrors[keyof CompleteCmoOnboardingErrors];
+
+export type CompleteCmoOnboardingResponses = {
+    /**
+     * Onboarding complete
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type CompleteCmoOnboardingResponse = CompleteCmoOnboardingResponses[keyof CompleteCmoOnboardingResponses];
+
 export type RetryCmoOnboardingData = {
     body?: never;
     path?: never;
@@ -45208,6 +45335,187 @@ export type PauseCmoCalendarEntryResponses = {
 };
 
 export type PauseCmoCalendarEntryResponse = PauseCmoCalendarEntryResponses[keyof PauseCmoCalendarEntryResponses];
+
+export type ConnectCmoChannelData = {
+    body?: {
+        provider: ProjectSocialProvider;
+        callbackUrl: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/channels/connect';
+};
+
+export type ConnectCmoChannelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unknown return address
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Connecting this network is not set up
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ConnectCmoChannelError = ConnectCmoChannelErrors[keyof ConnectCmoChannelErrors];
+
+export type ConnectCmoChannelResponses = {
+    /**
+     * Provider sign-in started
+     */
+    200: {
+        data: CmoChannelConnect;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ConnectCmoChannelResponse = ConnectCmoChannelResponses[keyof ConnectCmoChannelResponses];
+
+export type FinalizeCmoChannelData = {
+    body?: {
+        connectionId: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/cmo/channels/finalize';
+};
+
+export type FinalizeCmoChannelErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unknown or expired connection
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type FinalizeCmoChannelError = FinalizeCmoChannelErrors[keyof FinalizeCmoChannelErrors];
+
+export type FinalizeCmoChannelResponses = {
+    /**
+     * Account connected
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type FinalizeCmoChannelResponse = FinalizeCmoChannelResponses[keyof FinalizeCmoChannelResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

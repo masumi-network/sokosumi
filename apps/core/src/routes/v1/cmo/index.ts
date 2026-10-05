@@ -1,6 +1,12 @@
-import { createRoute } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 
-import { conflict, forbidden, notFound } from "@/helpers/error";
+import { ComposioConfigError } from "@/clients/composio.client";
+import {
+  conflict,
+  forbidden,
+  notFound,
+  serviceUnavailable,
+} from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -13,11 +19,15 @@ import {
   cmoTurnStartedSchema,
   cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
+import { projectSocialProviderSchema } from "@/schemas/project-social-connection.schema";
 import {
   approveCmoStrategy,
   CmoConflictError,
   CmoNotFoundError,
   type CmoOverview,
+  completeCmoOnboarding,
+  connectCmoChannel,
+  finalizeCmoChannel,
   getCmoOverview,
   pauseCmoCalendarEntry,
   requestCmoStrategy,
@@ -50,6 +60,10 @@ function mapOverview(overview: CmoOverview) {
     roomId: overview.roomId,
     botStatus: overview.botStatus,
     learning: overview.learning,
+    work: overview.work,
+    brandVisual: overview.brandVisual,
+    projectLogo: overview.projectLogo,
+    onboardedAt: workspace.onboardedAt,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
     brandBrain: overview.brandBrain,
@@ -98,6 +112,9 @@ function rethrow(error: unknown): never {
   if (error instanceof SokoBotBillingAccessError)
     throw forbidden(error.message);
   if (error instanceof CmoConflictError) throw conflict(error.message);
+  if (error instanceof ComposioConfigError) {
+    throw serviceUnavailable("Connecting this network is not set up");
+  }
   throw error;
 }
 
@@ -146,6 +163,29 @@ app.openapi(
     const body = c.req.valid("json");
     await startCmoOnboarding({ userId, ...body }).catch(rethrow);
     return created(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/onboarding/complete",
+    operationId: "completeCmoOnboarding",
+    tags: ["CMO"],
+    description:
+      "The founder finished onboarding: CMO opens on the chat with Cuso from now on.",
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Onboarding complete"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No CMO workspace yet"),
+      409: jsonErrorResponse("The strategy is not approved yet"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    await completeCmoOnboarding(userId).catch(rethrow);
+    return ok(c, await requireOverview(userId));
   },
 );
 
@@ -295,6 +335,76 @@ app.openapi(
     const { userId } = requireUserAuthContext(c.var.authContext);
     const { id } = c.req.valid("param");
     await pauseCmoCalendarEntry({ userId, entryId: id }).catch(rethrow);
+    return ok(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/channels/connect",
+    operationId: "connectCmoChannel",
+    tags: ["CMO"],
+    description:
+      "Starts connecting a social account to Cuso's Project; the provider sends the owner back to callbackUrl on CMO.xyz.",
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({
+              provider: projectSocialProviderSchema,
+              callbackUrl: z.string().url(),
+            }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(
+        z.object({ redirectUrl: z.string() }).openapi("CmoChannelConnect"),
+        "Provider sign-in started",
+      ),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No CMO workspace yet"),
+      409: jsonErrorResponse("Unknown return address"),
+      503: jsonErrorResponse("Connecting this network is not set up"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const body = c.req.valid("json");
+    const started = await connectCmoChannel({ userId, ...body }).catch(rethrow);
+    return ok(c, started);
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/channels/finalize",
+    operationId: "finalizeCmoChannel",
+    tags: ["CMO"],
+    request: {
+      body: {
+        content: {
+          "application/json": {
+            schema: z.object({ connectionId: z.string().min(1) }),
+          },
+        },
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Account connected"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Unknown or expired connection"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { connectionId } = c.req.valid("json");
+    await finalizeCmoChannel({ userId, connectionId }).catch(rethrow);
     return ok(c, await requireOverview(userId));
   },
 );

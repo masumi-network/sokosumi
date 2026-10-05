@@ -2185,6 +2185,11 @@ model CmoWorkspace {
   strategyHistory     Json?
   /// Cuso's daily, weekly and request reports, newest first (chat cards).
   updates             Json?
+  /// The brand's look, read from the site at signup: logo, colours, fonts.
+  brandVisual         Json?
+  /// The owner finished onboarding (strategy, accounts, plan) and landed in
+  /// the chat; until then CMO shows the onboarding steps.
+  onboardedAt         DateTime?
 
   @@map("cmo_workspace")
 }

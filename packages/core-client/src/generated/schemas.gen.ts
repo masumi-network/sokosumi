@@ -21570,6 +21570,48 @@ export const CmoOverviewSchema = {
         subscriptionActive: {
             type: 'boolean'
         },
+        work: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoWork'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        brandVisual: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/CmoBrandVisual'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectLogo: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        onboardedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         routines: {
             type: 'array',
             items: {
@@ -21742,6 +21784,11 @@ export const CmoOverviewSchema = {
                             minLength: 1,
                             maxLength: 2000
                         },
+                        why: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
                         goals: {
                             type: 'array',
                             items: {
@@ -21785,6 +21832,11 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
                                     }
                                 },
                                 required: [
@@ -21807,6 +21859,10 @@ export const CmoOverviewSchema = {
                                     date: {
                                         type: 'string',
                                         pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                    },
+                                    time: {
+                                        type: 'string',
+                                        pattern: '^\\d{2}:\\d{2}$'
                                     },
                                     channel: {
                                         type: 'string',
@@ -21833,10 +21889,25 @@ export const CmoOverviewSchema = {
                                             'skipped'
                                         ]
                                     },
+                                    hook: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
                                     brief: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 2000
+                                    },
+                                    draft: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 4000
+                                    },
+                                    why: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
                                     },
                                     socialPostId: {
                                         type: 'string',
@@ -21900,6 +21971,16 @@ export const CmoOverviewSchema = {
                                 ]
                             },
                             maxItems: 4,
+                            default: []
+                        },
+                        changes: {
+                            type: 'array',
+                            items: {
+                                type: 'string',
+                                minLength: 1,
+                                maxLength: 400
+                            },
+                            maxItems: 10,
                             default: []
                         }
                     },
@@ -22041,6 +22122,10 @@ export const CmoOverviewSchema = {
         'botStatus',
         'learning',
         'subscriptionActive',
+        'work',
+        'brandVisual',
+        'projectLogo',
+        'onboardedAt',
         'routines',
         'brandBrain',
         'brandBrainUpdatedAt',
@@ -22055,6 +22140,153 @@ export const CmoOverviewSchema = {
         'billing',
         'posts',
         'createdAt'
+    ]
+} as const;
+
+export const CmoWorkSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'research',
+                'strategy'
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'failed',
+                'done'
+            ]
+        },
+        startedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        steps: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoWorkStep'
+            }
+        }
+    },
+    required: [
+        'kind',
+        'status',
+        'startedAt',
+        'steps'
+    ]
+} as const;
+
+export const CmoWorkStepSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'search',
+                'read',
+                'study',
+                'brain',
+                'strategy',
+                'other'
+            ]
+        },
+        label: {
+            type: 'string'
+        },
+        url: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'running',
+                'done',
+                'failed'
+            ]
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'label',
+        'url',
+        'status',
+        'at'
+    ]
+} as const;
+
+export const CmoBrandVisualSchema = {
+    type: 'object',
+    properties: {
+        logoUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        colors: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        fonts: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        siteName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        designMdUrl: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'logoUrl',
+        'colors',
+        'fonts',
+        'siteName',
+        'designMdUrl'
     ]
 } as const;
 
@@ -22450,6 +22682,18 @@ export const CmoStrategyRequestSchema = {
             maxLength: 1000
         }
     }
+} as const;
+
+export const CmoChannelConnectSchema = {
+    type: 'object',
+    properties: {
+        redirectUrl: {
+            type: 'string'
+        }
+    },
+    required: [
+        'redirectUrl'
+    ]
 } as const;
 
 export const SokoBotApiKeySchema = {

@@ -26,16 +26,30 @@ The Brand Brain in your packet (\`workspace.marketing.brandBrain\`) is the owner
       "Plans a month of marketing across the owner's channels and keeps the plan current as things change.",
     content: `# Marketing strategy
 
-The strategy in your packet (\`workspace.marketing.strategy\`) is the plan you execute. You own it.
+The strategy in your packet (\`workspace.marketing.strategy\`) is the plan you execute. You own it. A founder decides whether to hire you from this page alone, so it must read like the work of a senior marketer who studied this business, not a template.
 
-- A strategy covers one month: a short summary, 2–4 goals the owner gave or agreed to, the audience, the positioning in one or two sentences, 3–5 content pillars, each channel with a realistic cadence, a calendar of concrete entries (date, channel, title, format, brief), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter, so the owner sees the voice before approving.
+## What a strategy contains
+- summary: the plan's headline, one sentence of at most 30 words on what the next four weeks do for this business. The detail belongs in why, channels and the calendar.
+- why: three to five sentences tying the plan to the Brand Brain: who the audience is and where they actually spend time, what the goal needs, and how you stand apart from the named competitors.
+- goals (2–4, the owner's goal first), audience (one line), positioning (one or two sentences), pillars (3–5 recurring themes).
+- channels: each with a realistic cadence for a small team and a why (one sentence: why this channel and this cadence for this audience).
+- calendar: the exact plan, day by day, for four weeks from the start date. Every entry has date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, hook (the first line the reader sees, written out), brief, why (one line: which goal or pillar it serves), and status idea. Every entry in the first week also has draft: the finished piece, word for word, ready to publish (for an article: the title, the intro and the outline). Later weeks may carry hook and brief only.
+- previews: one ad (headline and body), one SEO article (title and opening paragraph), one newsletter (subject and body) and one post, all finished copy in the brand's voice.
+- changes: when you revise after a change request, list each difference from the last version in plain words ("LinkedIn now twice a week, not three times"); otherwise leave it empty.
+
+## How to make it good
+- Specific beats generic: name the products, the audience's real problems, the competitors' weaknesses, the offer. A hook that could be posted by any company is wrong.
+- Fewer, better pieces: three strong posts a week beat a daily trickle. Vary formats (a post, a carousel, a short video idea, an article), pillars, days and times across the weeks; the same slot every week reads like a template.
+- Plan around what you can run: most of the calendar goes to the social networks Sokosumi publishes to (linkedin, x, instagram, facebook, tiktok, youtube). Website articles, newsletters and ads stay drafts for now, so keep them to a few entries and say so once.
+- Every why points at something real in the Brand Brain or the goal. Never invent numbers, customers, results or reach.
+- Sound like the brand, not like AI: no filler openers, no hype words the brand does not use, no hashtag walls, no emoji unless the brand uses them.
+
+## Rules
 - The owner approves the strategy once, in CMO. Until then everything stays a draft. After approval you execute on your own: schedule posts on connected channels, create content, and adjust the plan. Never ask for approval of a single post.
-- Channels are concrete: the social networks Sokosumi publishes to by name (linkedin, x, instagram, facebook, tiktok, youtube), plus website, newsletter or ads only as drafts, since you cannot publish those yet. Never a generic "social" or "email".
-- Plan around what you can run: most of the calendar goes to the networks the owner has connected (or will connect first). Keep work you cannot execute (website, newsletter, ads, video) to a few entries, and say once in your message that those stay drafts.
-- Propose a strategy only when the Brand Brain confirms what the business sells, to whom, and the offer. Otherwise ask the founder first (see Brand Brain). Every title, brief and preview is finished copy for this business, never a template with gaps.
-- Base it on the Brand Brain and the owner's goals. Fewer, better posts beat a full calendar of filler.
+- Channels are concrete keys: linkedin, x, instagram, facebook, tiktok, youtube, website, newsletter, ads. Never a generic "social" or "email".
+- Propose a strategy only when the Brand Brain confirms what the business sells, to whom, and the offer. Otherwise ask the founder first (see Brand Brain). Never a template with gaps.
 - Save the whole strategy with save_strategy every time you change it. Keep entry ids stable so later saves update the same entries.
-- Draft the first week's posts as Social post drafts right away (create_social_post without scheduledAt), with images where the format needs one (generate_image, cheap), and link them in the calendar (socialPostId, imageFileId).
+- After approval, the daily run turns each day's entries into Social posts (with images where the format needs one) and links them (socialPostId, imageFileId).
 - Spontaneous requests ("announce the new feature tomorrow", "pause Instagram this week") change the plan: update the calendar and the strategy in the same turn, then report_update kind request with what you did. Remember lasting preferences with update_memory.
 - A refused schedule or publish is not an error to retry. The reason says why (strategy not approved, no subscription, channel not connected); keep the draft and tell the owner in one line.
 `,

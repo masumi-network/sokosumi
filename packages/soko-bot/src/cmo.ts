@@ -10,6 +10,8 @@ import { z } from "zod";
 
 const shortText = z.string().trim().min(1).max(400);
 const longText = z.string().trim().min(1).max(2_000);
+/** A finished post, article excerpt or email, ready to publish. */
+const draftText = z.string().trim().min(1).max(4_000);
 
 export const cmoBrandBrainSchema = z.object({
   /** One paragraph: what the business is and why customers choose it. */
@@ -56,13 +58,24 @@ export const cmoCalendarEntrySchema = z.object({
   /** Stable id Cuso chooses so later saves update the same entry. */
   id: z.string().trim().min(1).max(64),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+  /** When it goes out, HH:MM in the owner's timezone. */
+  time: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/, "Use HH:MM")
+    .optional(),
   /** Lower-case channel key, e.g. linkedin, x, instagram, blog, newsletter. */
   channel: z.string().trim().toLowerCase().min(1).max(40),
   title: shortText,
   /** post, carousel, video, article, newsletter, ad, … */
   format: z.string().trim().min(1).max(40),
   status: z.enum(CMO_CALENDAR_STATUSES),
+  /** The opening line or headline the reader sees first. */
+  hook: shortText.optional(),
   brief: longText.optional(),
+  /** The finished piece, word for word (at least for the first week). */
+  draft: draftText.optional(),
+  /** Why this piece, on this day and channel, tied to the Brand Brain. */
+  why: shortText.optional(),
   socialPostId: z.string().uuid().optional(),
   imageFileId: z.string().max(100).optional(),
   taskId: z.string().max(100).optional(),
@@ -82,6 +95,8 @@ export const cmoStrategySchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
   summary: longText,
+  /** Why this plan, for this business: audience, goal, competitors. */
+  why: longText.optional(),
   goals: z.array(shortText).min(1).max(6),
   audience: shortText.optional(),
   positioning: longText.optional(),
@@ -91,12 +106,16 @@ export const cmoStrategySchema = z.object({
       z.object({
         channel: z.string().trim().toLowerCase().min(1).max(40),
         cadence: shortText,
+        /** Why this channel at this cadence, for this audience. */
+        why: shortText.optional(),
       }),
     )
     .max(10),
   calendar: z.array(cmoCalendarEntrySchema).max(120),
   /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
   previews: z.array(cmoPreviewSchema).max(4).default([]),
+  /** After a change request: what is different from the last version. */
+  changes: z.array(shortText).max(10).default([]),
 });
 export type CmoStrategy = z.infer<typeof cmoStrategySchema>;
 

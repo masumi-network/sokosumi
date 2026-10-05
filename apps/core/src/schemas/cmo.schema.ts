@@ -56,6 +56,36 @@ export const cmoUpNextItemSchema = z
   })
   .openapi("CmoUpNextItem");
 
+export const cmoWorkStepSchema = z
+  .object({
+    id: z.string(),
+    kind: z.enum(["search", "read", "study", "brain", "strategy", "other"]),
+    label: z.string(),
+    url: z.union([z.string(), z.null()]),
+    status: z.enum(["running", "done", "failed"]),
+    at: dateTimeSchema,
+  })
+  .openapi("CmoWorkStep");
+
+export const cmoWorkSchema = z
+  .object({
+    kind: z.enum(["research", "strategy"]),
+    status: z.enum(["running", "failed", "done"]),
+    startedAt: dateTimeSchema,
+    steps: z.array(cmoWorkStepSchema),
+  })
+  .openapi("CmoWork");
+
+export const cmoBrandVisualSchema = z
+  .object({
+    logoUrl: z.union([z.string(), z.null()]),
+    colors: z.array(z.string()),
+    fonts: z.array(z.string()),
+    siteName: z.union([z.string(), z.null()]),
+    designMdUrl: z.union([z.string(), z.null()]),
+  })
+  .openapi("CmoBrandVisual");
+
 export const cmoRoutineSchema = z
   .object({
     key: z.string(),
@@ -87,6 +117,10 @@ export const cmoOverviewSchema = z
         "Cuso's first look at the business: still running, failed or stuck (offer a retry), or done.",
       ),
     subscriptionActive: z.boolean(),
+    work: z.union([cmoWorkSchema, z.null()]),
+    brandVisual: z.union([cmoBrandVisualSchema, z.null()]),
+    projectLogo: z.union([z.string(), z.null()]),
+    onboardedAt: z.union([dateTimeSchema, z.null()]),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),

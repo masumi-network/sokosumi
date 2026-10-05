@@ -14,10 +14,20 @@ import {
   getSokoBotVersion,
   SOKO_BOT_CMO_SCHEDULES,
 } from "@sokosumi/soko-bot";
+import { waitUntil } from "@vercel/functions";
 import { z } from "zod";
+import { isLocalDevHostname } from "@/config/cors-allow-origin";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import type { ProjectSocialProvider } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
+import {
+  type BrandVisual,
+  brandColors,
+  readBrandVisual,
+} from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
+import { uploadDesignMdContent } from "@/lib/design-md-blob";
+import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
 /**
@@ -51,6 +61,118 @@ const CMO_STRATEGY_ROUTE: PresetRoute = {
   writeScope: "WORK",
   reason: "CMO strategy: plan the month and draft the first week.",
 };
+
+export const cmoBrandVisualSchema = z.object({
+  logoUrl: z.string().url().nullable(),
+  colors: z.array(z.string().regex(/^#[0-9a-f]{6}$/)).max(8),
+  fonts: z.array(z.string().max(80)).max(4),
+  siteName: z.string().max(120).nullable(),
+  designMdUrl: z.string().url().nullable(),
+});
+export type CmoBrandVisual = z.infer<typeof cmoBrandVisualSchema>;
+
+export function parseCmoBrandVisual(value: unknown): CmoBrandVisual | null {
+  const parsed = cmoBrandVisualSchema.safeParse(value);
+  return parsed.success ? parsed.data : null;
+}
+
+const DESIGN_MD_POLL_MS = 3_000;
+const DESIGN_MD_BUDGET_MS = 120_000;
+
+/**
+ * The brand's DESIGN.md from the Masumi DESIGN.md API (the service Web uses),
+ * stored on the CMO Project. Null when the API is not configured or fails.
+ */
+async function generateProjectDesignMd(
+  projectId: string,
+  websiteUrl: string,
+): Promise<{ url: string; content: string } | null> {
+  const env = getEnv();
+  if (!env.MASUMI_DESIGN_MD_API_KEY) return null;
+  const { createDesignMdClient } = await import("@sokosumi/masumi/tools");
+  const client = createDesignMdClient({
+    apiKey: env.MASUMI_DESIGN_MD_API_KEY,
+    apiUrl: env.MASUMI_DESIGN_MD_API_URL,
+  });
+  const url = /^https?:\/\//i.test(websiteUrl)
+    ? websiteUrl
+    : `https://${websiteUrl}`;
+  let result = await client.submit({ url });
+  const deadline = Date.now() + DESIGN_MD_BUDGET_MS;
+  while (
+    result.isOk() &&
+    (result.value.status === "queued" || result.value.status === "running") &&
+    Date.now() < deadline
+  ) {
+    await new Promise((resolve) => setTimeout(resolve, DESIGN_MD_POLL_MS));
+    result = await client.pollJob(result.value.jobId);
+  }
+  if (result.isErr() || result.value.status !== "done") return null;
+  const done = result.value;
+  const stored = await uploadDesignMdContent({
+    content: done.designMd,
+    owner: { kind: "project", id: projectId },
+    extractionId: String(done.extractionId),
+  });
+  if (!stored) return null;
+  await prisma.project.update({
+    where: { id: projectId },
+    data: {
+      designMdUrl: stored,
+      designMdExtractionId: String(done.extractionId),
+    },
+  });
+  return { url: stored, content: done.designMd };
+}
+
+/**
+ * Reads how the brand looks and keeps it on the CMO workspace: the logo (the
+ * site's own, else its best icon stored as the Project logo), colours, fonts
+ * and, when the API is configured, a DESIGN.md on the Project.
+ */
+export async function learnCmoBrandVisual(
+  workspace: Pick<CmoWorkspace, "id" | "projectId" | "websiteUrl">,
+): Promise<CmoBrandVisual> {
+  const [site, icon, designMd] = await Promise.all([
+    readBrandVisual(workspace.websiteUrl),
+    resolveSiteIconAsProjectLogo(workspace.websiteUrl, workspace.projectId)
+      .then(async (logo) => {
+        if (logo) {
+          await prisma.project.update({
+            where: { id: workspace.projectId },
+            data: { logo },
+          });
+        }
+        return logo;
+      })
+      .catch(() => null),
+    generateProjectDesignMd(workspace.projectId, workspace.websiteUrl).catch(
+      () => null,
+    ),
+  ]);
+  const visual = mergeBrandVisual(site, icon, designMd);
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { brandVisual: visual as Prisma.InputJsonValue },
+  });
+  return visual;
+}
+
+/** The DESIGN.md's colours lead when there is one; the site fills the rest. */
+export function mergeBrandVisual(
+  site: BrandVisual,
+  iconUrl: string | null,
+  designMd: { url: string; content: string } | null,
+): CmoBrandVisual {
+  const designColors = designMd ? brandColors(designMd.content, 5) : [];
+  return {
+    logoUrl: site.logoUrl ?? iconUrl,
+    colors: [...new Set([...designColors, ...site.colors])].slice(0, 5),
+    fonts: site.fonts,
+    siteName: site.siteName,
+    designMdUrl: designMd?.url ?? null,
+  };
+}
 
 /** The Project's name in Sokosumi: "CMO.xyz · Acme". */
 export function cmoProjectName(businessName: string): string {
@@ -153,19 +275,23 @@ function onboardingMessage(input: {
   websiteUrl: string;
   goals: string;
 }): string {
-  const month = new Date().toISOString().slice(0, 7);
   return [
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
     `Their main marketing goal, in their words: ${input.goals}`,
     "",
-    "1) Learn the business: read the website (home, about, products, pricing), search for the company, its competitors and its existing marketing, then save the Brand Brain with save_brand_brain. Write down only what you found.",
-    `2) If you confirmed what they sell, to whom, and the offer: plan the next month (start ${month}) with save_strategy (summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews: one short post, ad, SEO piece and newsletter in the brand's voice), then tell the owner in two or three lines what you learned and that they approve the plan once in the strategy card.`,
-    "3) If you could not confirm all three, do not plan yet: tell the owner in one line what you found, and ask two or three short questions to fill the gaps.",
-    "The Brand Brain and strategy cards are your report here: do not call report_update, and never mention tool limits or what you may not do this turn.",
+    "Learn the business. Read the website (home, about, products, pricing, blog), search for the company, its competitors and its existing marketing and social profiles, then save the Brand Brain with save_brand_brain. Write down only what you found.",
+    "Do not plan yet: the owner reviews the Brand Brain first, then asks you for the strategy.",
+    "If you could not confirm what they sell, to whom, and the offer, end with two or three short questions; otherwise end with one plain sentence on what stood out.",
+    "The Brand Brain card is your report: do not call report_update, and never mention tool limits or what you may not do this turn.",
   ].join("\n");
 }
 
 const ONBOARDING_TURN_PREFIX = "cmo:onboarding:";
+const STRATEGY_TURN_PREFIX = "cmo:strategy:";
+
+function tomorrow(now: Date = new Date()): string {
+  return new Date(now.getTime() + 86_400_000).toISOString().slice(0, 10);
+}
 /**
  * Learning that shows no progress for this long is stuck: a healthy turn
  * writes an event every few seconds and ends within the runtime's budget.
@@ -194,21 +320,23 @@ async function lastTurnProgressAt(turn: {
  * so the founder sees "Try again" instead of a spinner and the bot is free
  * for new turns.
  */
-export async function cmoLearningState(
-  workspace: Pick<CmoWorkspace, "userId" | "sokoBotId" | "brandBrain">,
-  now: Date = new Date(),
+type TurnRow = {
+  id: string;
+  status: string;
+  eveSessionId: string | null;
+  createdAt: Date;
+  clientTurnId: string | null;
+};
+
+/**
+ * running, done or failed. A turn that stopped making progress (its run died
+ * with the process that ran it) is settled as failed here, as a deadline
+ * would, so the founder sees "Try again" instead of a spinner.
+ */
+async function settledTurnStatus(
+  turn: TurnRow,
+  now: Date,
 ): Promise<CmoLearningState> {
-  if (workspace.brandBrain) return "done";
-  const turn = await prisma.sokoBotTurn.findFirst({
-    where: {
-      sokoBotId: workspace.sokoBotId,
-      clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
-    },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, status: true, eveSessionId: true, createdAt: true },
-  });
-  if (!turn) return "failed";
-  // Cuso can finish without a Brand Brain on purpose: it asked questions.
   if (turn.status === "COMPLETED") return "done";
   if (turn.status === "FAILED" || turn.status === "CANCELLED") return "failed";
   const progressAt = await lastTurnProgressAt(turn);
@@ -220,6 +348,249 @@ export async function cmoLearningState(
   );
   await sokoBotControlPlane.expireTurn(turn.id).catch(() => undefined);
   return "failed";
+}
+
+const TURN_ROW_SELECT = {
+  id: true,
+  status: true,
+  eveSessionId: true,
+  createdAt: true,
+  clientTurnId: true,
+} as const;
+
+export async function cmoLearningState(
+  workspace: Pick<CmoWorkspace, "userId" | "sokoBotId" | "brandBrain">,
+  now: Date = new Date(),
+): Promise<CmoLearningState> {
+  if (workspace.brandBrain) return "done";
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: workspace.sokoBotId,
+      clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+  // Cuso can finish without a Brand Brain on purpose: it asked questions.
+  return turn ? settledTurnStatus(turn, now) : "failed";
+}
+
+/** One thing Cuso did while researching or planning, for the live feed. */
+export interface CmoWorkStep {
+  id: string;
+  kind: "search" | "read" | "study" | "brain" | "strategy" | "other";
+  label: string;
+  url: string | null;
+  status: "running" | "done" | "failed";
+  at: Date;
+}
+
+export interface CmoWork {
+  kind: "research" | "strategy";
+  status: CmoLearningState;
+  startedAt: Date;
+  steps: CmoWorkStep[];
+}
+
+function hostOf(value: string): string | null {
+  try {
+    return new URL(
+      /^https?:\/\//i.test(value) ? value : `https://${value}`,
+    ).hostname.replace(/^www\./, "");
+  } catch {
+    return null;
+  }
+}
+
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1).trimEnd()}…` : text;
+}
+
+/** A tool call as the founder reads it: "Reading linear.app/pricing". */
+export function describeCmoStep(
+  capability: string,
+  input: unknown,
+  siteUrl: string,
+): Pick<CmoWorkStep, "kind" | "label" | "url"> | null {
+  const fields =
+    input && typeof input === "object"
+      ? (input as Record<string, unknown>)
+      : {};
+  if (capability === "web_search" && typeof fields.query === "string") {
+    return {
+      kind: "search",
+      label: `Searching “${clip(fields.query.replace(/site:\S+/g, "").trim(), 60)}”`,
+      url: null,
+    };
+  }
+  if (capability === "web_fetch" && typeof fields.url === "string") {
+    const host = hostOf(fields.url);
+    if (!host) return null;
+    let path = "";
+    try {
+      path = new URL(fields.url).pathname.replace(/\/$/, "");
+    } catch {
+      path = "";
+    }
+    const own = host === hostOf(siteUrl);
+    return {
+      kind: own ? "read" : "study",
+      label: own ? `Reading ${host}${clip(path, 30)}` : `Studying ${host}`,
+      url: fields.url,
+    };
+  }
+  if (capability === "save_brand_brain") {
+    return { kind: "brain", label: "Writing your Brand Brain", url: null };
+  }
+  if (capability === "save_strategy") {
+    return { kind: "strategy", label: "Writing your strategy", url: null };
+  }
+  if (capability === "list_project_social_accounts") {
+    return { kind: "other", label: "Checking your accounts", url: null };
+  }
+  return null;
+}
+
+/** Cuso's latest research or strategy turn, step by step. */
+export async function cmoWork(
+  workspace: Pick<CmoWorkspace, "sokoBotId" | "websiteUrl">,
+  now: Date = new Date(),
+): Promise<CmoWork | null> {
+  const turn = await prisma.sokoBotTurn.findFirst({
+    where: {
+      sokoBotId: workspace.sokoBotId,
+      OR: [
+        { clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX } },
+        { clientTurnId: { startsWith: STRATEGY_TURN_PREFIX } },
+      ],
+    },
+    orderBy: { createdAt: "desc" },
+    select: TURN_ROW_SELECT,
+  });
+  if (!turn) return null;
+  const calls = await prisma.sokoBotToolCall.findMany({
+    where: { turnId: turn.id },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      capability: true,
+      input: true,
+      status: true,
+      createdAt: true,
+    },
+    take: 60,
+  });
+  const steps = calls.flatMap((call): CmoWorkStep[] => {
+    const described = describeCmoStep(
+      call.capability,
+      call.input,
+      workspace.websiteUrl,
+    );
+    if (!described) return [];
+    return [
+      {
+        id: call.id,
+        ...described,
+        status:
+          call.status === "COMPLETED"
+            ? "done"
+            : call.status === "FAILED"
+              ? "failed"
+              : "running",
+        at: call.createdAt,
+      },
+    ];
+  });
+  return {
+    kind: turn.clientTurnId?.startsWith(STRATEGY_TURN_PREFIX)
+      ? "strategy"
+      : "research",
+    status: await settledTurnStatus(turn, now),
+    startedAt: turn.createdAt,
+    steps,
+  };
+}
+
+/**
+ * Pages of CMO.xyz itself: social connect may send the owner back there and
+ * nowhere else. Local CMO runs on localhost in development.
+ */
+export function isCmoAppUrl(value: string): boolean {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return false;
+  }
+  const host = url.hostname.toLowerCase();
+  if (url.protocol === "https:") {
+    return host === "cmo.xyz" || host.endsWith(".cmo.xyz");
+  }
+  return (
+    getEnv().NODE_ENV === "development" &&
+    url.protocol === "http:" &&
+    isLocalDevHostname(host)
+  );
+}
+
+/**
+ * Starts connecting one of the strategy's networks to Cuso's Project through
+ * Sokosumi's Project social flow; the provider returns to CMO afterwards.
+ */
+export async function connectCmoChannel(input: {
+  userId: string;
+  provider: ProjectSocialProvider;
+  callbackUrl: string;
+}): Promise<{ redirectUrl: string }> {
+  if (!isCmoAppUrl(input.callbackUrl)) {
+    throw new CmoConflictError("Unknown return address");
+  }
+  const workspace = await getCmoWorkspaceForUser(input.userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  const { initiateProjectSocialConnection } = await import(
+    "@/services/project-social-connections.service"
+  );
+  const { redirectUrl } = await initiateProjectSocialConnection({
+    projectId: workspace.projectId,
+    workspaceId: workspace.workspaceId,
+    userId: input.userId,
+    action: "connect",
+    provider: input.provider,
+    callbackUrl: input.callbackUrl,
+  });
+  return { redirectUrl };
+}
+
+/** Finishes a connection the provider just confirmed. */
+export async function finalizeCmoChannel(input: {
+  userId: string;
+  connectionId: string;
+}): Promise<void> {
+  const workspace = await getCmoWorkspaceForUser(input.userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  const { finalizeProjectSocialConnection } = await import(
+    "@/services/project-social-connections.service"
+  );
+  await finalizeProjectSocialConnection({
+    projectId: workspace.projectId,
+    workspaceId: workspace.workspaceId,
+    userId: input.userId,
+    connectionId: input.connectionId,
+  });
+}
+
+/** The founder finished onboarding: CMO opens on the chat from now on. */
+export async function completeCmoOnboarding(userId: string): Promise<void> {
+  const workspace = await getCmoWorkspaceForUser(userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  if (!workspace.strategyApprovedAt) {
+    throw new CmoConflictError("Approve the strategy first");
+  }
+  if (workspace.onboardedAt) return;
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { onboardedAt: new Date() },
+  });
 }
 
 /** Starts learning again after a failed or stuck first look. */
@@ -235,6 +606,9 @@ export async function retryCmoOnboarding(
         ? "Cuso is still learning the business"
         : "Cuso already learned the business",
     );
+  }
+  if (!workspace.brandVisual) {
+    waitUntil(learnCmoBrandVisual(workspace).catch(() => undefined));
   }
   return startCmoTurn(workspace, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${workspace.id}:${Date.now()}`,
@@ -303,6 +677,17 @@ export async function startCmoOnboarding(input: {
     },
   });
 
+  // The brand's look (logo, colours, fonts, DESIGN.md) is read alongside
+  // Cuso's research; it never holds up onboarding.
+  waitUntil(
+    learnCmoBrandVisual(created).catch((error) => {
+      console.warn("CMO brand visual failed", {
+        cmoWorkspaceId: created.id,
+        error: error instanceof Error ? error.message : "unknown",
+      });
+    }),
+  );
+
   // A turn that cannot start (no credits yet) leaves the workspace ready:
   // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, {
@@ -337,15 +722,18 @@ export async function requestCmoStrategy(input: {
     where: { id: workspace.id },
     data: { strategyApprovedAt: null },
   });
-  const month = new Date().toISOString().slice(0, 7);
   return startCmoTurn(workspace, {
-    clientTurnId: `cmo:strategy:${workspace.id}:${Date.now()}`,
+    clientTurnId: `${STRATEGY_TURN_PREFIX}${workspace.id}:${Date.now()}`,
     message: [
-      `Plan the marketing for the next month (start ${month}) for ${workspace.businessName}.`,
-      `Goals: ${workspace.goals}`,
-      input.note ? `The owner adds: ${input.note}` : "",
+      `Write ${workspace.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+      `Their main goal, in their words: ${workspace.goals}`,
+      input.note
+        ? `Change request from the owner: ${input.note}\nKeep what still works, change what they asked, and list each difference in changes.`
+        : "",
       "",
-      "Use the Brand Brain in your packet. Save the strategy with save_strategy: summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews (one short post, ad, SEO piece and newsletter in the brand's voice). Draft the first week's posts as Social post drafts in the Marketing project (no scheduledAt). Then tell the owner the plan in two or three lines: they approve it once in the strategy card, and after that you run it.",
+      "Follow your strategy skill exactly. Use the Brand Brain and the channels in your packet. Save the whole strategy with save_strategy: an exact day-by-day calendar (date, time, channel, format, hook, why), full drafts for every entry in the first week, the why for the plan and for each channel, and previews (an ad, an SEO article and a newsletter in the brand's voice, plus one post).",
+      "Do not create Social posts or images yet; that starts after the owner approves.",
+      "Then tell the owner in one or two sentences what the plan does first. The strategy card is your report: do not call report_update.",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -644,10 +1032,13 @@ export async function loadCmoMarketingContext(
       }),
     ),
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),
+    /** The brand's logo, colours and fonts: use them in images and layouts. */
+    brandVisual: parseCmoBrandVisual(workspace.brandVisual),
     strategy: strategy
       ? {
           ...strategy,
-          calendar: calendarWindow(strategy, now, 14),
+          // The whole four-week plan, so a revision keeps every entry.
+          calendar: calendarWindow(strategy, now, 31),
           calendarTotal: strategy.calendar.length,
         }
       : null,
@@ -736,6 +1127,11 @@ export interface CmoOverview {
   organizationSlug: string | null;
   projectName: string;
   learning: CmoLearningState;
+  /** Cuso's latest research or strategy work, step by step. */
+  work: CmoWork | null;
+  brandVisual: CmoBrandVisual | null;
+  /** The Project's logo (the site's best icon), when one was found. */
+  projectLogo: string | null;
   /** What Cuso does when, for Settings. */
   routines: {
     key: string;
@@ -818,7 +1214,7 @@ export async function getCmoOverview(
       : null,
     prisma.project.findUnique({
       where: { id: workspace.projectId },
-      select: { name: true },
+      select: { name: true, logo: true },
     }),
     prisma.sokoBot.findUnique({
       where: { id: workspace.sokoBotId },
@@ -852,6 +1248,7 @@ export async function getCmoOverview(
   });
   const cmoPlan = await activeCmoPlan(payer.referenceId);
   const learning = await cmoLearningState(workspace, now);
+  const work = await cmoWork(workspace, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: workspace.sokoBotId, systemKey: { not: null } },
     select: {
@@ -875,6 +1272,9 @@ export async function getCmoOverview(
   return {
     workspace,
     learning,
+    work,
+    brandVisual: parseCmoBrandVisual(workspace.brandVisual),
+    projectLogo: project.logo,
     routines,
     organizationSlug: organization?.slug ?? null,
     projectName: project.name,

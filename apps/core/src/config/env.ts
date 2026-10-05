@@ -299,6 +299,16 @@ const baseEnvSchema = z.object({
   // Vercel Blob Storage
   BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
   /**
+   * Masumi DESIGN.md API (the same service Web uses for brand DESIGN.md).
+   * CMO onboarding generates the brand's DESIGN.md with it when set; without
+   * it Cuso reads the logo, colours and fonts from the site directly.
+   */
+  MASUMI_DESIGN_MD_API_KEY: z.string().min(1).optional(),
+  MASUMI_DESIGN_MD_API_URL: z
+    .string()
+    .url()
+    .default("https://www.masumi.network/api/v1"),
+  /**
    * Read-write token for the image studio's **own, private-access** Blob
    * store. Deliberately separate from `BLOB_READ_WRITE_TOKEN`.
    *

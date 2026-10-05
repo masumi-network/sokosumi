@@ -10,11 +10,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { approveMock, revertMock, overviewMock } = vi.hoisted(() => ({
-  approveMock: vi.fn(),
-  revertMock: vi.fn(),
-  overviewMock: vi.fn(),
-}));
+const { approveMock, revertMock, overviewMock, connectMock } = vi.hoisted(
+  () => ({
+    approveMock: vi.fn(),
+    revertMock: vi.fn(),
+    overviewMock: vi.fn(),
+    connectMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/services/cmo.service", async (importOriginal) => {
   const actual =
@@ -24,9 +27,11 @@ vi.mock("@/services/cmo.service", async (importOriginal) => {
     approveCmoStrategy: approveMock,
     revertCmoUpdate: revertMock,
     getCmoOverview: overviewMock,
+    connectCmoChannel: connectMock,
   };
 });
 
+import { ComposioConfigError } from "@/clients/composio.client";
 import { CmoConflictError, CmoNotFoundError } from "@/services/cmo.service";
 
 import cmoRouter from "./index";
@@ -46,6 +51,7 @@ function overview() {
       brandBrainUpdatedAt: null,
       strategyUpdatedAt: NOW,
       strategyApprovedAt: NOW,
+      onboardedAt: NOW,
       createdAt: NOW,
     },
     organizationSlug: null,
@@ -56,6 +62,9 @@ function overview() {
     strategy: null,
     botStatus: "IDLE",
     learning: "done",
+    work: null,
+    brandVisual: null,
+    projectLogo: null,
     routines: [],
     updates: [
       {
@@ -148,5 +157,38 @@ describe("CMO routes", () => {
       method: "POST",
     });
     expect(response.status).toBe(404);
+  });
+
+  it("starts connecting a network and returns where to send the founder", async () => {
+    connectMock.mockResolvedValue({ redirectUrl: "https://connect.example/x" });
+    const body = {
+      provider: "x",
+      callbackUrl: "https://app.cmo.xyz/connect/callback",
+    };
+    const response = await createApp().request("/channels/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    expect(response.status).toBe(200);
+    expect(connectMock).toHaveBeenCalledWith({ userId: "user-1", ...body });
+    expect((await response.json()).data.redirectUrl).toBe(
+      "https://connect.example/x",
+    );
+  });
+
+  it("answers 503 when the network is not set up on this server", async () => {
+    connectMock.mockRejectedValue(
+      new ComposioConfigError("missing auth config"),
+    );
+    const response = await createApp().request("/channels/connect", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        provider: "linkedin",
+        callbackUrl: "https://app.cmo.xyz/connect/callback",
+      }),
+    });
+    expect(response.status).toBe(503);
   });
 });
