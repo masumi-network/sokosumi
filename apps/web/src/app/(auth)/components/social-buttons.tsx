@@ -40,15 +40,11 @@ interface SocialButtonsProps {
 }
 
 /** Marks the method used last, in the corner of its button. */
-function LastUsedBadge({ label, busy }: { label: string; busy?: boolean }) {
+function LastUsedBadge({ label }: { label: string }) {
   return (
     <span
       aria-hidden="true"
-      className={cn(
-        "text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium",
-        // The button it marks keeps full contrast while it loads, so does it.
-        !busy && "group-has-[:disabled]/provider:opacity-50",
-      )}
+      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
     >
       {label}
     </span>
@@ -235,15 +231,15 @@ export default function SocialButtons({
             aria-busy={isPending || undefined}
             key={socialButton.key}
           >
-            {isLastUsed && (
-              <LastUsedBadge label={t("lastUsed")} busy={isPending} />
-            )}
+            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
-              disabled={isWaiting}
+              // The pending one stays enabled, so it keeps focus and full
+              // contrast; handleClick already ignores clicks while waiting.
+              disabled={isWaiting && !isPending}
               className={cn(
                 "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
-                isPending && "disabled:opacity-100!",
+                isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",

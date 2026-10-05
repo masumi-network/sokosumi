@@ -323,15 +323,19 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
-  it("keeps the marker at full contrast while its own provider loads", async () => {
+  it("keeps a loading provider enabled, focusable and ignoring clicks", async () => {
     mockSocialSignIn.mockReturnValue(createDeferred<object>().promise);
     render(<SocialButtons lastUsedMethod="google" />);
+    const google = screen.getByRole("button", { name: "continue-with-Google" });
 
     await clickGoogleButton();
+    await clickGoogleButton();
 
-    expect(screen.getByText("last-used")).not.toHaveClass(
-      "group-has-[:disabled]/provider:opacity-50",
-    );
+    // Not natively disabled, so it keeps focus, its contrast and its marker's
+    // contrast (the marker only fades with a disabled button).
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
   });
 
   it("shows an inline marker on the passkey button", () => {
@@ -375,7 +379,9 @@ describe("SocialButtons", () => {
 
     await clickGoogleButton();
 
-    expect(google).toBeDisabled();
+    // The provider that is loading stays enabled; its wrapper reports busy.
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(microsoft).toBeDisabled();
     expect(passkey).toBeDisabled();
     const bar = '[data-slot="button-loading-bar"]';
@@ -386,7 +392,7 @@ describe("SocialButtons", () => {
 
     // Success means the browser is leaving for the provider: stay busy.
     await act(async () => pending.resolve({}));
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -413,17 +419,17 @@ describe("SocialButtons", () => {
     const { google, microsoft } = getButtons();
 
     await clickGoogleButton();
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(false));
     });
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(true));
     });
-    expect(google).toBeEnabled();
+    expect(google.parentElement).not.toHaveAttribute("aria-busy");
     expect(microsoft).toBeEnabled();
     expect(google.querySelector("svg")).toBeNull();
   });
