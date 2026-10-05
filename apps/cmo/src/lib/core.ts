@@ -1,3 +1,6 @@
+import { headers } from "next/headers";
+import { redirect, unstable_rethrow } from "next/navigation";
+
 import { coreClientFor, getAuth, getPageAccessToken } from "./auth";
 import { readCmoAuthConfig } from "./auth-config";
 
@@ -20,6 +23,19 @@ export async function asSignedInPerson(requestHeaders: Headers) {
     headers: requestHeaders,
   });
   return asPerson(accessToken);
+}
+
+/**
+ * The same for CMO's onboarding actions, or home when the session is gone
+ * (signed out in another tab): the home page then shows where they stand.
+ */
+export async function asSignedInPersonOrHome() {
+  try {
+    return await asSignedInPerson(await headers());
+  } catch (error) {
+    unstable_rethrow(error);
+    redirect("/");
+  }
 }
 
 /**

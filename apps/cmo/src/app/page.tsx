@@ -1,6 +1,7 @@
-import { getUsersByIdWorkspaces } from "@sokosumi/core-client";
+import { getUsersById, getUsersByIdWorkspaces } from "@sokosumi/core-client";
 import { headers } from "next/headers";
 
+import { NameSetup } from "../components/name-setup";
 import { OrganizationSetup } from "../components/organization-setup";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
@@ -11,7 +12,9 @@ import {
 } from "../components/workspace-gate";
 import { getAuth } from "../lib/auth";
 import { asSignedInPersonInPage } from "../lib/core";
+import { isValidPersonName } from "../lib/person-name";
 import { createAccount, signIn, signOut } from "./actions";
+import { saveName } from "./name-actions";
 import {
   createOrganizationWorkspace,
   createPersonalWorkspace,
@@ -20,6 +23,11 @@ import {
 /** A repeated query param arrives as a list; the first one counts. */
 function first(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value;
+}
+
+/** Core refused the token: revoked before it expired (a password change, a ban). */
+function isRefused(response: Response | undefined): boolean {
+  return response?.status === 401 || response?.status === 403;
 }
 
 interface HomePageProps {
@@ -50,20 +58,30 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     return signedOut(error === WORKSPACE_FAILED_ERROR ? undefined : error);
   }
 
+  const asPerson = await asSignedInPersonInPage(requestHeaders);
   const { data, response } = await getUsersByIdWorkspaces({
-    ...(await asSignedInPersonInPage(requestHeaders)),
+    ...asPerson,
     path: { id: "me" },
   });
-  // Core revoked the token before it expired (a password change, a ban).
-  if (response?.status === 401 || response?.status === 403) {
-    return signedOut("signed_out");
-  }
+  if (isRefused(response)) return signedOut("signed_out");
   // Never let a person in without knowing they have a workspace.
   if (!data) {
     throw new Error(`Core did not list the workspaces (${response?.status})`);
   }
 
   if (data.data.workspaces.length === 0) {
+    // CMO's session holds only a display name, so the gate reads the parts.
+    const person = await getUsersById({ ...asPerson, path: { id: "me" } });
+    if (isRefused(person.response)) return signedOut("signed_out");
+    if (!person.data) {
+      throw new Error(
+        `Core did not read the person (${person.response?.status})`,
+      );
+    }
+    const { firstName, lastName } = person.data.data;
+    if (!isValidPersonName(firstName ?? "", lastName ?? "")) {
+      return <NameSetup saveName={saveName} signOut={signOut} />;
+    }
     if (step === ORGANIZATION_STEP) {
       return (
         <OrganizationSetup
