@@ -7,7 +7,7 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
+import { afterNewSession } from "./auth-new-session";
 
 const CORE = "https://auth.example.com";
 const WEB = "https://app.example.com";
@@ -58,7 +58,7 @@ function createAuth() {
       oauthConsent: [],
     }),
     trustedOrigins: [WEB],
-    hooks: { after: createAuthMiddleware(keepNewSessionPersistent) },
+    hooks: { after: createAuthMiddleware(afterNewSession) },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       emailCodeSignIn(
@@ -89,7 +89,7 @@ function createAuth() {
   return { auth, codes, post };
 }
 
-describe("keepNewSessionPersistent", () => {
+describe("afterNewSession", () => {
   it("sends a CMO sign-in with an email code to CMO and drops a stale dont_remember cookie", async () => {
     const { auth, codes, post } = createAuth();
     const query = new URLSearchParams({
