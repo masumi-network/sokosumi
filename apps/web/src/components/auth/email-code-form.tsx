@@ -17,7 +17,7 @@ import {
 interface EmailCodeFormProps {
   /** Where the code went. */
   email: string;
-  /** Names what the code does here: sign in, confirm. */
+  /** Names what the code does here, e.g. "Confirm with code". */
   submitLabel: string;
   /** Resolves with Better Auth's error, or nothing once the code worked. */
   onSubmitCode: (code: string) => Promise<EmailCodeError | undefined>;
