@@ -16,11 +16,13 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  assertCoworkerUserContextBindingMock,
   prepareConsumptionMock,
   prismaTransactionMock,
   requireCoworkerCapabilityMock,
   waitUntilCapturedPromises,
 } = vi.hoisted(() => ({
+  assertCoworkerUserContextBindingMock: vi.fn(),
   prepareConsumptionMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   requireCoworkerCapabilityMock: vi.fn(),
@@ -48,6 +50,10 @@ vi.mock("@sokosumi/database/repositories", () => ({
 
 vi.mock("@/helpers/access-control", () => ({
   requireCoworkerCapability: requireCoworkerCapabilityMock,
+}));
+
+vi.mock("@/helpers/coworker-user-context-binding", () => ({
+  assertCoworkerUserContextBinding: assertCoworkerUserContextBindingMock,
 }));
 
 vi.mock("@/helpers/organization-assigned-seat", () => ({
@@ -136,6 +142,7 @@ describe("POST /me/usage", () => {
     vi.clearAllMocks();
     waitUntilCapturedPromises.length = 0;
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
+    assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
   });
 
   afterEach(() => {
@@ -179,7 +186,7 @@ describe("POST /me/usage", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
   });
 
-  it("creates usage and bills the request userId", async () => {
+  it("creates usage and bills the request userId once the coworker is bound to them", async () => {
     const tx: TransactionMock = {
       member: {
         findUnique: vi.fn().mockResolvedValue({
@@ -218,6 +225,20 @@ describe("POST /me/usage", () => {
     });
 
     expect(response.status).toBe(201);
+    expect(assertCoworkerUserContextBindingMock).toHaveBeenCalledWith(
+      {
+        actor: "coworker",
+        coworkerId: COWORKER_ID,
+        vendorId: TEST_VENDOR_ID,
+      },
+      { userId: TARGET_USER_ID, organizationId: ORGANIZATION_ID },
+      tx,
+    );
+    expect(
+      assertCoworkerUserContextBindingMock.mock.invocationCallOrder[0],
+    ).toBeLessThan(
+      prepareConsumptionMock.mock.invocationCallOrder[0] ?? -Infinity,
+    );
     expect(prepareConsumptionMock).toHaveBeenCalledTimes(1);
     expect(prepareConsumptionMock.mock.calls[0]?.[0]).toBe(TARGET_USER_ID);
     expect(prepareConsumptionMock.mock.calls[0]?.[1]).toBe(ORGANIZATION_ID);
@@ -245,6 +266,51 @@ describe("POST /me/usage", () => {
       userId: TARGET_USER_ID,
       organizationId: ORGANIZATION_ID,
     });
+  });
+
+  it("returns 403 and debits nothing when the coworker is not bound to the user", async () => {
+    assertCoworkerUserContextBindingMock.mockRejectedValueOnce(
+      new HTTPException(403, {
+        message:
+          "Coworker cannot act as this user without a granted workspace access or assigned task relationship",
+      }),
+    );
+
+    const tx: TransactionMock = {
+      member: {
+        findUnique: vi.fn().mockResolvedValue({
+          userId: TARGET_USER_ID,
+        }),
+      },
+      coworkerUsage: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        create: vi.fn(),
+      },
+      transaction: {
+        create: vi.fn(),
+      },
+    };
+    mockTransaction(tx);
+
+    const app = createApp();
+    const response = await app.request("http://localhost/me/usage", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        idempotencyKey: "usage_unbound",
+        credits: 2.5,
+        userId: TARGET_USER_ID,
+        organizationId: ORGANIZATION_ID,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(prepareConsumptionMock).not.toHaveBeenCalled();
+    expect(tx.transaction.create).not.toHaveBeenCalled();
+    expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
+    expect(waitUntilCapturedPromises).toHaveLength(0);
   });
 
   it("returns 403 when the member has no assigned organization seat", async () => {
@@ -438,6 +504,7 @@ describe("POST /me/usage", () => {
     expect(response.status).toBe(200);
     expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
     expect(tx.member.findUnique).not.toHaveBeenCalled();
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
     expect(tx.transaction.create).not.toHaveBeenCalled();
     expect(tx.coworkerUsage.create).not.toHaveBeenCalled();
     expect(prepareConsumptionMock).not.toHaveBeenCalled();
@@ -479,6 +546,7 @@ describe("POST /me/usage", () => {
     expect(response.status).toBe(400);
     expect(tx.coworkerUsage.findUnique).toHaveBeenCalledTimes(1);
     expect(tx.member.findUnique).toHaveBeenCalledTimes(1);
+    expect(assertCoworkerUserContextBindingMock).not.toHaveBeenCalled();
     expect(
       tx.coworkerUsage.findUnique.mock.invocationCallOrder[0],
     ).toBeLessThan(
