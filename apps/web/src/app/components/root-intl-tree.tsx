@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
+import { ButtonLoadingAnnouncer } from "@/components/ui/button-loading-bar";
 import { Toaster } from "@/components/ui/sonner";
 import { GLOBAL_MESSAGE_PATHS } from "@/i18n/message-namespaces";
 import { pickMessages } from "@/i18n/pick-messages";
@@ -23,9 +24,11 @@ function RootProviders({ children, locale, messages }: RootProvidersProps) {
       <DocumentLocale />
       <TimeZoneSync />
       <TimeFormatSync />
-      <GlobalModalsContextProvider>
-        <div className="bg-background">{children}</div>
-      </GlobalModalsContextProvider>
+      <ButtonLoadingAnnouncer>
+        <GlobalModalsContextProvider>
+          <div className="bg-background">{children}</div>
+        </GlobalModalsContextProvider>
+      </ButtonLoadingAnnouncer>
       <Toaster />
     </NextIntlClientProvider>
   );

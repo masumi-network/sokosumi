@@ -2,6 +2,7 @@ import * as React from "react"
 import { Slot as SlotPrimitive } from "radix-ui"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -69,6 +70,8 @@ function Button({
      * changes size and its name still says what is busy. It stays focusable
      * (`aria-disabled`, not `disabled`, so it keeps full contrast) and ignores
      * clicks, Enter and form submission until `loading` is false again.
+     * Screen readers hear "<label>, in progress" once, through the polite
+     * region `ButtonLoadingAnnouncer` mounts at the root.
      */
     loading?: boolean
   }) {
@@ -90,13 +93,7 @@ function Button({
       onClick={loading ? preventActivation : onClick}
     >
       <SlotPrimitive.Slottable>{children}</SlotPrimitive.Slottable>
-      {loading && (
-        <span
-          aria-hidden="true"
-          data-slot="button-loading-bar"
-          className="animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse"
-        />
-      )}
+      {loading && <ButtonLoadingBar />}
     </Comp>
   )
 }

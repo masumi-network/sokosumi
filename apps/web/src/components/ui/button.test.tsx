@@ -1,7 +1,11 @@
-import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { NextIntlClientProvider } from "next-intl";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import messages from "@/../messages/en.json";
 import { Button } from "@/components/ui/button";
+import { ButtonLoadingAnnouncer } from "@/components/ui/button-loading-bar";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 
 describe("Button loading", () => {
   it("keeps the label and stays focusable while loading", () => {
@@ -86,5 +90,95 @@ describe("Button loading", () => {
     expect(
       link.querySelector('[data-slot="button-loading-bar"]'),
     ).not.toBeNull();
+  });
+});
+
+describe("Button loading announcement", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function renderAnnounced(ui: React.ReactNode) {
+    const wrap = (node: React.ReactNode) => (
+      <NextIntlClientProvider locale="en" messages={messages}>
+        <ButtonLoadingAnnouncer>{node}</ButtonLoadingAnnouncer>
+      </NextIntlClientProvider>
+    );
+    const view = render(wrap(ui));
+    return {
+      region: screen.getByRole("status"),
+      rerender: (next: React.ReactNode) => view.rerender(wrap(next)),
+    };
+  }
+
+  function flush() {
+    act(() => {
+      vi.advanceTimersByTime(100);
+    });
+  }
+
+  it("politely announces the label once when loading starts", () => {
+    const { region, rerender } = renderAnnounced(<Button>Save</Button>);
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toBeEmptyDOMElement();
+
+    rerender(<Button loading>Save</Button>);
+    flush();
+
+    expect(region).toHaveTextContent(/^Save, in progress$/);
+    // The region sits outside the button, so the button keeps its name.
+    expect(screen.getByRole("button", { name: "Save" })).not.toContainElement(
+      region,
+    );
+  });
+
+  it("names an icon-only button by its aria-label", () => {
+    const { region } = renderAnnounced(
+      <Button loading size="icon" aria-label="Refresh">
+        <svg />
+      </Button>,
+    );
+    flush();
+
+    expect(region).toHaveTextContent(/^Refresh, in progress$/);
+  });
+
+  it("announces the same button again on its next run", () => {
+    const { region, rerender } = renderAnnounced(<Button loading>Save</Button>);
+    flush();
+    rerender(<Button>Save</Button>);
+
+    rerender(<Button loading>Save</Button>);
+    // Emptied first, so screen readers see a change even for the same text.
+    expect(region).toBeEmptyDOMElement();
+    flush();
+    expect(region).toHaveTextContent(/^Save, in progress$/);
+  });
+
+  it("stays silent when loading ends before the announcement", () => {
+    const { region, rerender } = renderAnnounced(<Button loading>Save</Button>);
+    rerender(<Button>Save</Button>);
+    flush();
+
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it("stays audible while a modal dialog hides the page behind it", () => {
+    const { region } = renderAnnounced(
+      <Dialog open>
+        <DialogContent>
+          <DialogTitle>Delete project</DialogTitle>
+          <Button loading>Delete</Button>
+        </DialogContent>
+      </Dialog>,
+    );
+    flush();
+
+    expect(region.closest("[aria-hidden='true']")).toBeNull();
+    expect(region).toHaveTextContent(/^Delete, in progress$/);
   });
 });

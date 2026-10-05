@@ -60,6 +60,10 @@
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
       "title": "Bestätige, dass du es bist"
     },
+    "Button": {
+      "loading": "{label}, wird ausgeführt",
+      "loadingUnnamed": "Wird ausgeführt"
+    },
     "ShareButton": {
       "share": "Teilen",
       "linkCopied": "Link in Zwischenablage kopiert",
