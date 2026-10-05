@@ -8,11 +8,11 @@ import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
-import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
+import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import { UsernameHint } from "@/auth/components/username-hint";
 import {

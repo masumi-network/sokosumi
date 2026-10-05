@@ -10,14 +10,11 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import {
-  EmailCodeSwitch,
-  STEP_LINK_BUTTON_CLASS,
-} from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
+import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import { UsernameHint } from "@/auth/components/username-hint";
 import {
@@ -81,6 +78,7 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const authT = useTranslations("Auth");
+  const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
   const code = useEmailCodeSchema();
@@ -225,6 +223,46 @@ export default function SignInForm({
     setPrefersPassword(method === "password");
   };
 
+  // A code goes out only when it is asked for here or already went out on
+  // Continue.
+  const methodSwitch = isCodeStep ? (
+    <button
+      type="button"
+      data-testid="auth-use-password"
+      className={STEP_LINK_BUTTON_CLASS}
+      onClick={() => switchTo("password")}
+    >
+      {emailT("usePasswordInstead")}
+    </button>
+  ) : wasCodeSent ? (
+    <span>
+      {emailT("codeStillWorks")}{" "}
+      <button
+        type="button"
+        className={STEP_LINK_BUTTON_CLASS}
+        onClick={() => switchTo("code")}
+      >
+        {emailT("useCodeInstead")}
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      className={STEP_LINK_BUTTON_CLASS}
+      disabled={emailCode.isSending}
+      onClick={async () => {
+        // The password step's widget covers it: one widget on the step, so a
+        // visitor Cloudflare wants to see is not asked twice.
+        await emailCode.sendCode(email, { runWithCaptcha });
+        switchTo("code");
+      }}
+    >
+      {emailCode.isSending
+        ? emailT("emailCodeSending")
+        : emailT("emailCodeInstead")}
+    </button>
+  );
+
   return (
     <BaseForm
       form={form}
@@ -312,28 +350,24 @@ export default function SignInForm({
           data-testid="auth-submit"
         />
       </div>
-      <EmailCodeSwitch
-        email={email}
-        emailCode={emailCode}
-        isCodeStep={isCodeStep}
-        onSwitch={switchTo}
-        runWithCaptcha={runWithCaptcha}
-        forgotPassword={
-          isCodeStep ? undefined : (
-            <Link
-              href={buildAuthPageUrl(
-                "/forgot-password",
-                readAuthPageContext(searchParams),
-              )}
-              // The address stays out of the URL, which reaches logs.
-              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
-              className={STEP_LINK_BUTTON_CLASS}
-            >
-              {t("forgotPassword")}
-            </Link>
-          )
-        }
-      />
+      {/* One row on wider screens; a link that does not fit (German, Spanish,
+          or the longer "code still works" line) wraps whole onto its own row. */}
+      <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3">
+        {isCodeStep ? null : (
+          <Link
+            href={buildAuthPageUrl(
+              "/forgot-password",
+              readAuthPageContext(searchParams),
+            )}
+            // The address stays out of the URL, which reaches logs.
+            onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
+            className={STEP_LINK_BUTTON_CLASS}
+          >
+            {t("forgotPassword")}
+          </Link>
+        )}
+        {methodSwitch}
+      </div>
       <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
     </BaseForm>
   );
