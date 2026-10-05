@@ -89,10 +89,10 @@ export async function getCmoWorkspaceForBot(
   return prisma.cmoWorkspace.findUnique({ where: { sokoBotId } });
 }
 
-/** Execution (scheduling, publishing) needs a paid plan on the org. */
-export async function hasActiveCmoSubscription(
+/** The org's active plan that lets Cuso execute, or null. */
+export async function activeCmoPlan(
   organizationId: string,
-): Promise<boolean> {
+): Promise<string | null> {
   const plans = getEnv().CMO_SUBSCRIPTION_PLANS;
   const subscription = await prisma.subscription.findFirst({
     where: {
@@ -100,9 +100,16 @@ export async function hasActiveCmoSubscription(
       plan: { in: plans },
       status: { in: ["active", "trialing"] },
     },
-    select: { id: true },
+    select: { plan: true },
   });
-  return subscription !== null;
+  return subscription?.plan ?? null;
+}
+
+/** Execution (scheduling, publishing) needs a paid plan on the org. */
+export async function hasActiveCmoSubscription(
+  organizationId: string,
+): Promise<boolean> {
+  return (await activeCmoPlan(organizationId)) !== null;
 }
 
 async function startCmoTurn(
@@ -664,13 +671,12 @@ export async function getCmoOverview(
     referenceId: workspace.organizationId,
     tx: prisma,
   });
+  const cmoPlan = await activeCmoPlan(workspace.organizationId);
   return {
     workspace,
     organizationSlug: organization.slug,
     roomId: room.id,
-    subscriptionActive: await hasActiveCmoSubscription(
-      workspace.organizationId,
-    ),
+    subscriptionActive: cmoPlan !== null,
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),
     strategy,
     botStatus: bot.status,
@@ -688,7 +694,8 @@ export async function getCmoOverview(
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
     subscribeUrl: `${web}/billing`,
     billing: {
-      plan: credits.subscription?.plan ?? null,
+      // The plan that gates Cuso first; otherwise whatever the org is on.
+      plan: cmoPlan ?? credits.subscription?.plan ?? null,
       subscriptionStatus: credits.subscription?.status ?? null,
       availableCredits: credits.spendable,
     },

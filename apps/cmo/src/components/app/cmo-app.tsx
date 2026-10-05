@@ -54,17 +54,41 @@ interface CmoAppProps {
   actions: CmoAppActions;
 }
 
-/** Cuso writes Markdown; `**bold**` is the part that reads badly raw. */
-export function renderBold(text: string): React.ReactNode[] {
-  return text
-    .split(/(\*\*[^*\n]+\*\*)/g)
-    .map((part, index) =>
-      part.startsWith("**") && part.endsWith("**") && part.length > 4 ? (
-        <strong key={index}>{part.slice(2, -2)}</strong>
-      ) : (
-        part
-      ),
-    );
+const INLINE = /(\*\*[^*\n]+\*\*|\[[^\]\n]+\]\([^)\s]+\))/g;
+const LINK = /^\[([^\]\n]+)\]\(([^)\s]+)\)$/;
+
+/**
+ * Cuso and Core write Markdown: `**bold**` and `[label](url)` read badly raw.
+ * Core links point into Sokosumi (e.g. `/social?postId=…`), so a relative
+ * link resolves against Sokosumi's web origin and opens there.
+ */
+export function renderInline(
+  text: string,
+  webOrigin: string,
+): React.ReactNode[] {
+  return text.split(INLINE).map((part, index) => {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+      return <strong key={index}>{part.slice(2, -2)}</strong>;
+    }
+    const link = LINK.exec(part);
+    if (link?.[1] && link[2]) {
+      const href = new URL(link[2], webOrigin);
+      if (href.protocol !== "https:" && href.protocol !== "http:") {
+        return link[1];
+      }
+      return (
+        <a key={index} href={href.toString()} target="_blank" rel="noreferrer">
+          {link[1]}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
+/** Sokosumi's web origin, from the connect link Core already builds. */
+export function webOriginOf(overview: CmoOverview): string {
+  return new URL(overview.connectChannelUrl).origin;
 }
 
 /** Starter replies for the moment the owner is in. */
@@ -402,7 +426,9 @@ function ThreadEntry({
     }
     return (
       <CusoSays>
-        <p className="txt">{renderBold(item.message.content)}</p>
+        <p className="txt">
+          {renderInline(item.message.content, webOriginOf(overview))}
+        </p>
       </CusoSays>
     );
   }

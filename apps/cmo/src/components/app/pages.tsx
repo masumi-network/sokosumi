@@ -1,6 +1,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
 import { formatMonth } from "./cards";
+import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
 interface PageProps {
@@ -151,7 +152,9 @@ export function BrandBrainPage({ overview }: PageProps) {
       <div className="grid2">
         <section className="panel">
           <h3>Business</h3>
-          <p>{brain.summary}</p>
+          <p>
+            <ExpandableText text={brain.summary} />
+          </p>
         </section>
         <section className="panel">
           <h3>Voice</h3>

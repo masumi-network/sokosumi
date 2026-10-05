@@ -3,6 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useTransition } from "react";
 
+import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
 type Update = CmoOverview["updates"][number];
@@ -108,7 +109,9 @@ export function BrandBrainCard({
       <div className="cb">
         <dl className="kv">
           <dt>Business</dt>
-          <dd>{brandBrain.summary}</dd>
+          <dd>
+            <ExpandableText text={brandBrain.summary} />
+          </dd>
           <dt>Voice</dt>
           <dd>{brandBrain.voice.tone}</dd>
           <dt>Audience</dt>

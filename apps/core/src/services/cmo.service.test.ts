@@ -83,7 +83,7 @@ describe("strategy approval → execution gate", () => {
 
   it("refuses before the owner approves, even when subscribed", async () => {
     cmoFindUnique.mockResolvedValue(workspace(null));
-    subscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
+    subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toMatch(/approved/);
@@ -99,7 +99,7 @@ describe("strategy approval → execution gate", () => {
 
   it("executes once approved and subscribed, with no per-post approval", async () => {
     cmoFindUnique.mockResolvedValue(workspace(new Date()));
-    subscriptionFindFirst.mockResolvedValue({ id: "sub-1" });
+    subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
     expect(
       await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
     ).toBeNull();

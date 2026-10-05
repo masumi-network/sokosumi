@@ -11,7 +11,7 @@ import {
 import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
 import { learningSteps, StrategyCard, UpdateCard } from "./app/cards";
-import { renderBold } from "./app/cmo-app";
+import { renderInline } from "./app/cmo-app";
 import { ChannelsPage, ResultsPage } from "./app/pages";
 import { Onboarding } from "./onboarding";
 
@@ -273,13 +273,36 @@ describe("pages", () => {
   });
 });
 
-describe("renderBold", () => {
+describe("renderInline", () => {
+  const web = "https://app.sokosumi.com";
+
   it("turns **bold** into strong text and leaves the rest", () => {
     const html = renderToStaticMarkup(
-      <p>{renderBold("I'm **Cuso**, your CMO. 2 * 3 stays.")}</p>,
+      <p>{renderInline("I'm **Cuso**, your CMO. 2 * 3 stays.", web)}</p>,
     );
     expect(html).toBe(
       "<p>I&#x27;m <strong>Cuso</strong>, your CMO. 2 * 3 stays.</p>",
     );
+  });
+
+  it("opens Core's relative links in Sokosumi", () => {
+    const html = renderToStaticMarkup(
+      <p>
+        {renderInline(
+          "Updated social post ([Open post](/social?postId=p1)).",
+          web,
+        )}
+      </p>,
+    );
+    expect(html).toContain('href="https://app.sokosumi.com/social?postId=p1"');
+    expect(html).toContain(">Open post</a>");
+    expect(html).not.toContain("](");
+  });
+
+  it("drops links that are not web links", () => {
+    const html = renderToStaticMarkup(
+      <p>{renderInline("[click](javascript:alert(1))", web)}</p>,
+    );
+    expect(html).not.toContain("href");
   });
 });

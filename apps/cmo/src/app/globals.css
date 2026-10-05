@@ -505,11 +505,47 @@ textarea {
 }
 
 /* ── Shell ── */
+/* The app's type scale: 14px body, 13px secondary, 12px labels. */
 .app {
   display: grid;
   grid-template-columns: 200px minmax(0, 1fr) 280px;
   height: 100dvh;
   overflow: hidden;
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.app p,
+.app li,
+.app dd {
+  max-width: 65ch;
+}
+
+.app .note {
+  font-size: 0.8125rem;
+}
+
+.clamp {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.8125rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.more:hover {
+  color: var(--foreground);
 }
 
 .app.upnext-closed {
@@ -654,6 +690,7 @@ textarea {
 }
 
 .txt {
+  font-size: 0.875rem;
   max-width: 62ch;
   white-space: pre-wrap;
   line-height: 1.55;
