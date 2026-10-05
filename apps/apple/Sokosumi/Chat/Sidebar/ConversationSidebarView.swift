@@ -747,7 +747,7 @@ struct ConversationSidebarView: View {
 
   @ViewBuilder
   private func roomActions(_ room: Components.Schemas.ChatRoom) -> some View {
-    Button("Mark unread", systemImage: "envelope.badge") {
+    Button("Mark as unread", systemImage: "envelope.badge") {
       Task { @MainActor in await workspaces.performSidebarAction(.markUnread, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(.markUnread, roomId: room.id))
