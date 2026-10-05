@@ -1,3 +1,5 @@
+import { vi } from "vitest";
+
 const envDefaults: Record<string, string> = {
   NETWORK: "Preprod",
   NODE_ENV: "development",
@@ -60,3 +62,33 @@ for (const [key, value] of Object.entries(envDefaults)) {
 // Tests use BETTER_AUTH_SECRET alone. A BETTER_AUTH_SECRETS value from the
 // shell would switch Better Auth to versioned keys.
 delete process.env.BETTER_AUTH_SECRETS;
+
+// `@sentry/node` costs ~350ms to load in every test file that reaches it, and
+// helpers import it directly to report errors. A file that asserts on Sentry
+// mocks it itself, which takes precedence over this stub.
+vi.mock("@sentry/node", () => {
+  // Any scope method (setTag, setContext, setTransactionName, …) is a no-op.
+  const scope: Record<string, unknown> = new Proxy(
+    {},
+    {
+      // Not `then`: an awaited scope must not look like a promise.
+      get: (target: Record<string, unknown>, key: string) =>
+        key === "then" ? undefined : (target[key] ??= vi.fn()),
+    },
+  );
+  return {
+    init: vi.fn(),
+    captureException: vi.fn(),
+    captureMessage: vi.fn(),
+    addBreadcrumb: vi.fn(),
+    getCurrentScope: () => scope,
+    getActiveSpan: () => undefined,
+    withScope: (callback: (s: typeof scope) => unknown) => callback(scope),
+    withIsolationScope: (callback: (s: typeof scope) => unknown) =>
+      callback(scope),
+    startSpan: (_options: unknown, callback: (span: undefined) => unknown) =>
+      callback(undefined),
+    httpIntegration: () => ({}),
+    requestDataIntegration: () => ({}),
+  };
+});
