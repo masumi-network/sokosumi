@@ -6,16 +6,25 @@ const setPasswordMock = vi.fn();
 
 const TRUSTED_ORIGIN = "https://app.sokosumi.test";
 
-vi.mock("@/lib/auth.js", () => ({
-  auth: {
-    api: {
-      setPassword: (...args: unknown[]) => setPasswordMock(...args),
+// Origins are matched by a real Better Auth, with Core's wildcard shape.
+vi.mock("@/lib/auth.js", async () => {
+  const { betterAuth } = await import("better-auth");
+  const { memoryAdapter } = await import("better-auth/adapters/memory");
+  const { $context } = betterAuth({
+    baseURL: "https://api.sokosumi.test",
+    secret: "test-secret-that-is-long-enough-for-better-auth",
+    database: memoryAdapter({}),
+    trustedOrigins: [TRUSTED_ORIGIN, "https://*.preview.sokosumi.test"],
+  });
+  return {
+    auth: {
+      api: {
+        setPassword: (...args: unknown[]) => setPasswordMock(...args),
+      },
+      $context,
     },
-    $context: Promise.resolve({
-      isTrustedOrigin: (url: string) => url === TRUSTED_ORIGIN,
-    }),
-  },
-}));
+  };
+});
 
 async function createApp() {
   const { handleSetPassword } = await import("./set-password.route.js");
@@ -99,6 +108,7 @@ describe("POST /auth/set-password bridge", () => {
     ["another site's origin", { Origin: "https://docs.sokosumi.test" }],
     ["no origin", { Origin: "" }],
     ["a null origin", { Origin: "null" }],
+    ["a look-alike host", { Origin: `${TRUSTED_ORIGIN}.evil.example` }],
   ])("refuses a request from %s", async (_case, headers) => {
     const app = await createApp();
 
@@ -113,19 +123,34 @@ describe("POST /auth/set-password bridge", () => {
     expect(setPasswordMock).not.toHaveBeenCalled();
   });
 
-  it("refuses a body that is not sent as JSON", async () => {
-    // A form or `text/plain` post needs no CORS preflight.
+  it("accepts a branch preview's origin", async () => {
     const app = await createApp();
 
-    const response = await app.request("http://localhost/set-password", {
-      method: "POST",
-      headers: { "Content-Type": "text/plain", Origin: TRUSTED_ORIGIN },
-      body: JSON.stringify({ newPassword: "Password-123456" }),
-    });
+    const response = await postSetPassword(
+      app,
+      { newPassword: "Password-123456" },
+      { Origin: "https://my-branch.preview.sokosumi.test" },
+    );
 
-    expect(response.status).toBe(415);
-    expect(setPasswordMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
   });
+
+  // A form or `text/plain` post needs no CORS preflight.
+  it.each(["text/plain", "application/jsonp"])(
+    "refuses a body sent as %s",
+    async (contentType) => {
+      const app = await createApp();
+
+      const response = await app.request("http://localhost/set-password", {
+        method: "POST",
+        headers: { "Content-Type": contentType, Origin: TRUSTED_ORIGIN },
+        body: JSON.stringify({ newPassword: "Password-123456" }),
+      });
+
+      expect(response.status).toBe(415);
+      expect(setPasswordMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("maps Better Auth API errors to JSON responses", async () => {
     setPasswordMock.mockRejectedValue(

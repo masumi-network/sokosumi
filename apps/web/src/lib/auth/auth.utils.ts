@@ -516,7 +516,7 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
 export function readAuthReturnUrl(
   searchParams: URLSearchParams,
 ): string | undefined {
-  // An empty returnUrl counts as none, as in `readAuthPageContext`.
+  // An empty returnUrl counts as none; `readAuthPageContext` drops it too.
   return (
     searchParams.get("returnUrl") ||
     buildOAuthResumeUrlFromSearchParams(searchParams)

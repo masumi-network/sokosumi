@@ -25,8 +25,8 @@ function invalidRequestBody(c: Context): Response {
  * (`fetchCoreAuth`).
  */
 export async function handleSetPassword(c: Context): Promise<Response> {
-  const contentType = c.req.header("content-type") ?? "";
-  if (!contentType.toLowerCase().startsWith("application/json")) {
+  const mediaType = c.req.header("content-type")?.split(";")[0];
+  if (mediaType?.trim().toLowerCase() !== "application/json") {
     return c.json(
       { code: "UNSUPPORTED_MEDIA_TYPE", message: "Expected a JSON body" },
       415,
