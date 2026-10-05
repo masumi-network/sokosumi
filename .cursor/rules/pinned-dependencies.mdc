@@ -9,13 +9,13 @@ All **external** npm dependencies in workspace `package.json` files must use **e
 
 ### Required format
 
-- **Do**: `"react": "19.2.6"`, `"better-auth": "1.6.13"`, `"ioredis": "5.11.0"`
+- **Do**: `"react": "19.3.0"`, `"better-auth": "1.7.7"`, `"ioredis": "6.0.0"`
 - **Do not**: `"^1.6.13"`, `"~4.4.0"`, `">=5.0.0"`, `"*"`, or any other semver range on registry packages
 
 ### Exceptions
 
 - **Workspace packages**: `"@sokosumi/database": "workspace:*"` (and other `workspace:*` links) are allowed for monorepo-internal dependencies.
-- **`packageManager`** in the root `package.json` (e.g. `pnpm@12.6.0`) follows pnpm’s required format.
+- **`packageManager`** in the root `package.json` (e.g. `pnpm@12.8.1`) follows pnpm’s required format.
 
 ### When adding or updating dependencies
 
