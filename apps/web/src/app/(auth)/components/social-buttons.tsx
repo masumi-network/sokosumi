@@ -51,6 +51,18 @@ function SocialButtonSpinner({
   );
 }
 
+/** Marks the method used last, in the corner of its button. */
+function LastUsedBadge({ label }: { label: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
+    >
+      {label}
+    </span>
+  );
+}
+
 const socialButtons: Array<{
   key: SocialButtonProviderId;
   name: string;
@@ -84,12 +96,12 @@ function isPasskeyPromptDismissed(code: string | undefined): boolean {
 
 export default function SocialButtons({
   returnUrl,
-  lastUsedMethod = null,
-  showPasskey = false,
-  eventType = "signIn",
-  disabled = false,
+  lastUsedMethod,
+  showPasskey,
+  eventType,
+  disabled,
   onPendingChange,
-}: SocialButtonsProps = {}) {
+}: SocialButtonsProps) {
   const t = useTranslations("Auth.SocialButtons");
   // The sign-in that is starting. Every button waits while one runs.
   const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
@@ -124,41 +136,28 @@ export default function SocialButtons({
     [returnUrl],
   );
 
-  const handlePasskeySignIn = async (options?: {
-    autoFill?: boolean;
-    showErrors?: boolean;
-  }) => {
-    const { autoFill = false, showErrors = true } = options ?? {};
-
-    if (!autoFill) {
-      track("Sign In", { provider: "passkey", direct_signup_link: false });
-      changePendingMethod("passkey");
-    }
+  const handlePasskeySignIn = async () => {
+    track("Sign In", { provider: "passkey", direct_signup_link: false });
+    changePendingMethod("passkey");
 
     try {
-      const result = await authClient.signIn.passkey({
-        autoFill,
-      });
+      const result = await authClient.signIn.passkey();
 
       if (result.error) {
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
-        if (showErrors && !isPasskeyPromptDismissed(errorCode)) {
+        if (!isPasskeyPromptDismissed(errorCode)) {
           toast.error(t("passkeyError"));
         }
         return;
       }
 
       await finishPasskeySignIn(result.data);
-    } catch (_error) {
-      if (showErrors) {
-        toast.error(t("passkeyError"));
-      }
+    } catch {
+      toast.error(t("passkeyError"));
     } finally {
-      if (!autoFill) {
-        changePendingMethod(null);
-      }
+      changePendingMethod(null);
     }
   };
 
@@ -234,14 +233,7 @@ export default function SocialButtons({
 
         return (
           <div className="group/provider relative" key={socialButton.key}>
-            {isLastUsed && (
-              <span
-                aria-hidden="true"
-                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
-              >
-                {t("lastUsed")}
-              </span>
-            )}
+            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
               disabled={isWaiting}
@@ -263,12 +255,7 @@ export default function SocialButtons({
       {showPasskey && (
         <div className="group/provider relative">
           {lastUsedMethod === "passkey" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
-            >
-              {t("lastUsed")}
-            </span>
+            <LastUsedBadge label={t("lastUsed")} />
           )}
           <Button
             type="button"
