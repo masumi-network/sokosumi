@@ -94,7 +94,7 @@ function Button({
         <span
           aria-hidden="true"
           data-slot="button-loading-bar"
-          className="animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0.5 w-2/5 bg-current motion-reduce:w-full motion-reduce:animate-pulse"
+          className="animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse"
         />
       )}
     </Comp>
