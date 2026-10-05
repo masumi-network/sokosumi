@@ -472,6 +472,50 @@ export async function reportCmoUpdate(input: {
   return record;
 }
 
+/**
+ * The owner pauses one calendar entry from Up next: its scheduled post is
+ * canceled so it cannot go out, and the entry leaves the plan (skipped).
+ */
+export async function pauseCmoCalendarEntry(input: {
+  userId: string;
+  entryId: string;
+}): Promise<void> {
+  const workspace = await getCmoWorkspaceForUser(input.userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
+  const strategy = parseCmoStrategy(workspace.strategy);
+  const entry = strategy?.calendar.find((item) => item.id === input.entryId);
+  if (!strategy || !entry) {
+    throw new CmoNotFoundError("No such calendar entry");
+  }
+  if (entry.socialPostId) {
+    const post = await prisma.socialPost.findFirst({
+      where: { id: entry.socialPostId, projectId: workspace.projectId },
+      select: { status: true, revision: true },
+    });
+    if (post && (post.status === "DRAFT" || post.status === "SCHEDULED")) {
+      const { cancelSocialPost } = await import(
+        "@/services/social-posts.service"
+      );
+      await cancelSocialPost({
+        projectId: workspace.projectId,
+        workspaceId: workspace.workspaceId,
+        userId: input.userId,
+        postId: entry.socialPostId,
+        revision: post.revision,
+      });
+    }
+  }
+  await saveCmoStrategy(
+    { userId: input.userId },
+    {
+      ...strategy,
+      calendar: strategy.calendar.map((item) =>
+        item.id === entry.id ? { ...item, status: "skipped" as const } : item,
+      ),
+    },
+  );
+}
+
 /** Puts back the strategy a weekly review or monthly strategy replaced. */
 export async function revertCmoUpdate(input: {
   userId: string;
@@ -520,7 +564,7 @@ export async function cmoExecutionRefusal(input: {
 
 /** The business's connected social accounts, from Project Social. */
 export async function listCmoChannels(projectId: string) {
-  return prisma.projectSocialConnection.findMany({
+  const rows = await prisma.projectSocialConnection.findMany({
     where: { projectId },
     orderBy: { createdAt: "asc" },
     select: {
@@ -531,6 +575,8 @@ export async function listCmoChannels(projectId: string) {
       status: true,
     },
   });
+  // Project Social stores "active"; CMO reads statuses upper case.
+  return rows.map((row) => ({ ...row, status: row.status.toUpperCase() }));
 }
 
 function calendarWindow(

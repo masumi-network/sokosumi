@@ -5,6 +5,9 @@ const {
   cmoUpdate,
   subscriptionFindFirst,
   turnFindFirst,
+  connectionFindMany,
+  postFindFirst,
+  cancelSocialPost,
   eventFindFirst,
   expireTurn,
   startTurn,
@@ -13,6 +16,9 @@ const {
   cmoUpdate: vi.fn(),
   subscriptionFindFirst: vi.fn(),
   turnFindFirst: vi.fn(),
+  connectionFindMany: vi.fn(),
+  postFindFirst: vi.fn(),
+  cancelSocialPost: vi.fn(),
   eventFindFirst: vi.fn(),
   expireTurn: vi.fn(),
   startTurn: vi.fn(),
@@ -23,9 +29,13 @@ vi.mock("@/lib/db/prisma", () => ({
     cmoWorkspace: { findUnique: cmoFindUnique, update: cmoUpdate },
     subscription: { findFirst: subscriptionFindFirst },
     sokoBotTurn: { findFirst: turnFindFirst },
+    projectSocialConnection: { findMany: connectionFindMany },
+    socialPost: { findFirst: postFindFirst },
     sokoBotRuntimeEvent: { findFirst: eventFindFirst },
   },
 }));
+
+vi.mock("@/services/social-posts.service", () => ({ cancelSocialPost }));
 
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { expireTurn, startTurn },
@@ -38,7 +48,9 @@ import {
   cmoLearningState,
   cmoUpNext,
   hasActiveCmoSubscription,
+  listCmoChannels,
   parseCmoUpdates,
+  pauseCmoCalendarEntry,
   reportCmoUpdate,
   retryCmoOnboarding,
   revertCmoUpdate,
@@ -334,5 +346,49 @@ describe("learning state", () => {
     await expect(retryCmoOnboarding("user-1")).rejects.toThrow(
       "still learning",
     );
+  });
+});
+
+describe("listCmoChannels", () => {
+  it("reads Project Social's lower-case status as ACTIVE", async () => {
+    connectionFindMany.mockResolvedValue([
+      { id: "c1", provider: "linkedin", status: "active" },
+    ]);
+    expect((await listCmoChannels("project-1"))[0]?.status).toBe("ACTIVE");
+  });
+});
+
+describe("pauseCmoCalendarEntry", () => {
+  it("cancels the scheduled post and takes the entry out of the plan", async () => {
+    const postId = "01a10b97-d4d3-7264-b4d5-0a396e87c0ad";
+    const linked = {
+      ...strategy,
+      calendar: strategy.calendar.map((entry) =>
+        entry.id === "a"
+          ? { ...entry, status: "scheduled" as const, socialPostId: postId }
+          : entry,
+      ),
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      strategy: linked,
+      strategyUpdatedAt: new Date(),
+      strategyHistory: [],
+    });
+    postFindFirst.mockResolvedValue({ status: "SCHEDULED", revision: 2 });
+    cancelSocialPost.mockResolvedValue({});
+
+    await pauseCmoCalendarEntry({ userId: "user-1", entryId: "a" });
+
+    expect(cancelSocialPost).toHaveBeenCalledWith(
+      expect.objectContaining({ postId, revision: 2, projectId: "project-1" }),
+    );
+    const saved = cmoUpdate.mock.calls.at(-1)?.[0].data.strategy;
+    expect(
+      saved.calendar.find((entry: { id: string }) => entry.id === "a").status,
+    ).toBe("skipped");
   });
 });
