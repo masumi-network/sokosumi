@@ -22,7 +22,6 @@ import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -712,9 +711,7 @@ export const auth = betterAuth({
       scopes: [...OAUTH_PROVIDER_SCOPES],
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
       // for authenticated create-client and for DCR if enabled later.
-      clientRegistrationDefaultScopes: [
-        ...OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
-      ],
+      clientRegistrationDefaultScopes: ["openid"],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
       // Production keeps exact redirect URI matching (ADR 0045).
