@@ -201,9 +201,10 @@ export default function SignInFlow({
             href: signUpHref,
             // Sign-up's first step would only ask Core again and send this
             // code, so it is sent here and sign-up opens on its second step.
-            follow: async (newEmail, signal) => {
+            follow: async (newEmail, signal, { captchaPass }) => {
               const codeSentAt = await emailCode.sendCode(newEmail, {
                 signal,
+                captchaPass,
               });
               if (signal.aborted) return;
               rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -212,14 +213,16 @@ export default function SignInFlow({
           }}
           onFormStart={handleFormStart}
           onEmailChange={setTypedEmail}
-          continueCaptcha={emailCode.captcha}
           onContinue={async (confirmedEmail, signal, account) => {
             setEmail(confirmedEmail);
             const method = chooseSignInMethod(lastUsedMethod, account);
             setInitialMethod(method);
             // A failed send has said so; step 2 then opens on the password.
             if (method === "code") {
-              await emailCode.sendCode(confirmedEmail, { signal });
+              await emailCode.sendCode(confirmedEmail, {
+                signal,
+                captchaPass: account.captchaPass,
+              });
             }
             if (!signal.aborted) setStep("method");
           }}

@@ -165,7 +165,10 @@ export default function SignUpFlow({
               const method = chooseSignInMethod(lastUsedMethod, account);
               const codeSentAt =
                 method === "code"
-                  ? await emailCode.sendCode(knownEmail, { signal })
+                  ? await emailCode.sendCode(knownEmail, {
+                      signal,
+                      captchaPass: account.captchaPass,
+                    })
                   : null;
               if (signal.aborted) return;
               rememberAuthEmailHint(knownEmail, {
@@ -175,11 +178,10 @@ export default function SignUpFlow({
             },
           }}
           onFormStart={handleFormStart}
-          continueCaptcha={emailCode.captcha}
-          onContinue={async (confirmedEmail, signal) => {
+          onContinue={async (confirmedEmail, signal, { captchaPass }) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
-            await emailCode.sendCode(confirmedEmail, { signal });
+            await emailCode.sendCode(confirmedEmail, { signal, captchaPass });
             if (!signal.aborted) setStep("details");
           }}
           disabled={isProviderPending}

@@ -19,7 +19,9 @@ import {
 } from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
+  CAPTCHA_PASS,
   captchaFetchOptions,
+  captchaPassFetchOptions,
   requestCaptchaMock,
 } from "@/test/auth-captcha-mock";
 
@@ -110,7 +112,10 @@ describe("SignUpFlow", () => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams();
     window.sessionStorage.clear();
-    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
     sendEmailCodeMock.mockResolvedValue({
       data: { success: true },
       error: null,
@@ -127,10 +132,12 @@ describe("SignUpFlow", () => {
       expect(signUpFormMock).toHaveBeenCalled();
     });
     expect(sendEmailCodeMock).toHaveBeenCalledWith({
-      fetchOptions: captchaFetchOptions,
+      fetchOptions: captchaPassFetchOptions,
       email: "ada@example.com",
       type: "sign-in",
     });
+    // The status check's pass covers the code; the visitor is checked once.
+    expect(requestCaptchaMock).toHaveBeenCalledTimes(1);
     expect(signUpFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         emailCode: expect.objectContaining({ sentTo: "ada@example.com" }),
@@ -380,7 +387,7 @@ describe("SignUpFlow", () => {
   it("does not email after leaving while the status check is pending", async () => {
     const user = userEvent.setup();
     let finishStatus!: (result: {
-      data: { exists: boolean };
+      data: { exists: boolean; captchaPass: string };
       error: null;
     }) => void;
     emailStatusMock.mockReturnValueOnce(
@@ -393,37 +400,31 @@ describe("SignUpFlow", () => {
     await waitFor(() => expect(emailStatusMock).toHaveBeenCalledTimes(1));
     view.unmount();
     await act(async () => {
-      finishStatus({ data: { exists: false }, error: null });
+      finishStatus({
+        data: { exists: false, captchaPass: CAPTCHA_PASS },
+        error: null,
+      });
     });
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
   });
 
-  it.each(["status captcha", "code captcha"])(
-    "does not send after leaving during the %s",
-    async (stage) => {
-      const user = userEvent.setup();
-      let finishCaptcha!: (options: typeof captchaFetchOptions) => void;
-      const captcha = new Promise<typeof captchaFetchOptions>((resolve) => {
-        finishCaptcha = resolve;
-      });
-      if (stage === "code captcha")
-        requestCaptchaMock.mockResolvedValueOnce(captchaFetchOptions);
-      requestCaptchaMock.mockReturnValueOnce(captcha);
-      const view = render(<SignUpFlow lastUsedMethod={null} />);
-      await continueWith(user, "ada@example.com");
-      await waitFor(() =>
-        expect(requestCaptchaMock).toHaveBeenCalledTimes(
-          stage === "code captcha" ? 2 : 1,
-        ),
-      );
-      view.unmount();
-      await act(async () => {
-        finishCaptcha(captchaFetchOptions);
-      });
-      expect(sendEmailCodeMock).not.toHaveBeenCalled();
-      expect(signUpFormMock).not.toHaveBeenCalled();
-    },
-  );
+  it("does not send after leaving during the security check", async () => {
+    const user = userEvent.setup();
+    let finishCaptcha!: (options: typeof captchaFetchOptions) => void;
+    const captcha = new Promise<typeof captchaFetchOptions>((resolve) => {
+      finishCaptcha = resolve;
+    });
+    requestCaptchaMock.mockReturnValueOnce(captcha);
+    const view = render(<SignUpFlow lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(requestCaptchaMock).toHaveBeenCalledTimes(1));
+    view.unmount();
+    await act(async () => {
+      finishCaptcha(captchaFetchOptions);
+    });
+    expect(sendEmailCodeMock).not.toHaveBeenCalled();
+    expect(signUpFormMock).not.toHaveBeenCalled();
+  });
 
   it("does not show an abandoned send's transport error on the next page", async () => {
     const user = userEvent.setup();
@@ -446,7 +447,7 @@ describe("SignUpFlow", () => {
   it("ignores a status response for an address that changed", async () => {
     const user = userEvent.setup();
     let finishStatus!: (result: {
-      data: { exists: boolean };
+      data: { exists: boolean; captchaPass: string };
       error: null;
     }) => void;
     emailStatusMock.mockReturnValueOnce(
@@ -460,7 +461,10 @@ describe("SignUpFlow", () => {
     // Programmatic/autofill changes can arrive even while the fieldset is disabled.
     fireEvent.change(emailField(), { target: { value: "bob@example.com" } });
     await act(async () => {
-      finishStatus({ data: { exists: false }, error: null });
+      finishStatus({
+        data: { exists: false, captchaPass: CAPTCHA_PASS },
+        error: null,
+      });
     });
     expect(sendEmailCodeMock).not.toHaveBeenCalled();
     expect(signUpFormMock).not.toHaveBeenCalled();
@@ -483,7 +487,7 @@ describe("SignUpFlow", () => {
   describe("an address that has an account", () => {
     beforeEach(() => {
       emailStatusMock.mockResolvedValue({
-        data: { exists: true, hasPassword: false },
+        data: { exists: true, hasPassword: false, captchaPass: CAPTCHA_PASS },
         error: null,
       });
     });
@@ -499,7 +503,7 @@ describe("SignUpFlow", () => {
         expect(pushMock).toHaveBeenCalledWith("/signin?returnUrl=%2Fagents"),
       );
       expect(sendEmailCodeMock).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
+        fetchOptions: captchaPassFetchOptions,
         email: "ada@example.com",
         type: "sign-in",
       });
@@ -541,7 +545,7 @@ describe("SignUpFlow", () => {
     it("sends no code to an account with a password", async () => {
       const user = userEvent.setup();
       emailStatusMock.mockResolvedValue({
-        data: { exists: true, hasPassword: true },
+        data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
         error: null,
       });
       render(<SignUpFlow lastUsedMethod={null} />);
@@ -817,7 +821,7 @@ describe("SignUpFlow", () => {
   describe("an invited address that has an account", () => {
     beforeEach(() => {
       emailStatusMock.mockResolvedValue({
-        data: { exists: true, hasPassword: false },
+        data: { exists: true, hasPassword: false, captchaPass: CAPTCHA_PASS },
         error: null,
       });
       mockSearchParams = new URLSearchParams({
@@ -846,7 +850,7 @@ describe("SignUpFlow", () => {
         ),
       );
       expect(sendEmailCodeMock).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
+        fetchOptions: captchaPassFetchOptions,
         email: "invited@example.com",
         type: "sign-in",
       });
@@ -869,7 +873,7 @@ describe("SignUpFlow", () => {
     it("sends no code to an invited account with a password", async () => {
       const user = userEvent.setup();
       emailStatusMock.mockResolvedValue({
-        data: { exists: true, hasPassword: true },
+        data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
         error: null,
       });
       render(
