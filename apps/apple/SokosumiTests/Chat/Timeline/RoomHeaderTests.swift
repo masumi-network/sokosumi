@@ -58,9 +58,11 @@
 
       /// The header as the app hosts it: the room pane's `NavigationStack` in a split view's detail column, in a
       /// window of a real SwiftUI scene, so the window's title and subtitle come from the navigation title and the
-      /// title bar is drawn as in the app. `tools` adds the room's four toolbar buttons beside it.
+      /// title bar is drawn as in the app. `tools` adds the room's four toolbar buttons beside it, and `searching`
+      /// Find's search field after its button, as `RoomToolsModifier` draws them.
       private static func window(
-        _ identity: RoomHeaderIdentity, dark: Bool, width: CGFloat = 640, tools: Bool = false, sidebar: Bool = true,
+        _ identity: RoomHeaderIdentity, dark: Bool, width: CGFloat = 640, tools: Bool = false, searching: Bool = false,
+        sidebar: Bool = true,
         open: @escaping (RoomHeaderIdentity.TitleAction) -> Void = { _ in }
       ) async throws -> NSWindow {
         try await SceneWindow.open(width: width, height: 140, dark: dark) {
@@ -72,13 +74,20 @@
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .toolbar {
                   if tools {
-                    ToolbarItem { Button("Find in conversation", systemImage: "magnifyingglass") {} }
+                    ToolbarItem {
+                      HStack(spacing: 6) {
+                        Button("Find in conversation", systemImage: "magnifyingglass") {}
+                        if searching {
+                          RoomSearchField(query: .constant(""), isJumping: false, submit: {}, move: { _ in }, close: {})
+                        }
+                      }
+                    }
                     ToolbarItem { Button("Threads", systemImage: "bubble.left.and.bubble.right") {} }
                     ToolbarItem { Button("Members", systemImage: "person.2") {} }
                     ToolbarItem { Button("Pinned messages", systemImage: "pin") {} }
                   }
                 }
-                .modifier(RoomHeaderModifier(identity: identity, open: open))
+                .modifier(RoomHeaderModifier(identity: identity, searching: searching, open: open))
             }
           }
         } ready: { headerItems(in: $0).first?.view != nil }
@@ -105,6 +114,20 @@
         let sidebar = try #require(split.arrangedSubviews.first)
         let paneMinX = sidebar.isHidden || sidebar.frame.width == 0 ? 0 : sidebar.convert(sidebar.bounds, to: nil).maxX
         return NSPoint(x: max(paneMinX, 140) + 50, y: frame.bounds.height - 26)
+      }
+
+      /// The header items in the overflow menu once the toolbar has settled: a freshly opened window can report an
+      /// item hidden for a moment while it lays out, so wait up to two seconds for that to clear.
+      static func overflowedItems(in window: NSWindow) async throws -> [String] {
+        let clock = ContinuousClock()
+        let deadline = clock.now.advanced(by: .seconds(2))
+        var hidden = headerItems(in: window).filter { !$0.isVisible }.map(\.itemIdentifier.rawValue)
+        while !hidden.isEmpty, clock.now < deadline {
+          try await Task.sleep(for: .milliseconds(50))
+          window.contentView?.superview?.layoutSubtreeIfNeeded()
+          hidden = headerItems(in: window).filter { !$0.isVisible }.map(\.itemIdentifier.rawValue)
+        }
+        return hidden
       }
 
       static func click(_ point: NSPoint, in window: NSWindow) {
@@ -176,7 +199,7 @@
           } detail: {
             NavigationStack {
               Color(nsColor: .windowBackgroundColor)
-                .modifier(RoomHeaderModifier(identity: identity, open: { _ in }))
+                .modifier(RoomHeaderModifier(identity: identity, searching: false, open: { _ in }))
                 .navigationDestination(isPresented: Binding(get: { thread.shown }, set: { thread.shown = $0 })) {
                   Color(nsColor: .windowBackgroundColor).navigationTitle("Thread")
                 }
@@ -215,8 +238,24 @@
         defer { window.close() }
         let items = Self.headerItems(in: window)
         #expect(items.count == 5, "The title and the four room buttons: \(items.map(\.itemIdentifier.rawValue))")
-        let hidden = items.filter { !$0.isVisible }.map(\.itemIdentifier.rawValue)
+        let hidden = try await Self.overflowedItems(in: window)
         #expect(hidden.isEmpty, "No room button moves into the overflow menu: \(hidden)")
+      }
+
+      /// With Find's search field open the title block leaves room for it too: the topic truncates further and the
+      /// field and the room's other buttons stay out of the overflow menu, with the sidebar shown and collapsed.
+      @Test(arguments: [(710.0, true), (900, true), (700, false), (900, false)])
+      func aLongTopicLeavesRoomForAnOpenFindField(example: (CGFloat, Bool)) async throws {
+        let window = try await Self.window(
+          Self.identity(Self.room("launch", topic: Self.longTopic)), dark: false, width: example.0, tools: true, searching: true,
+          sidebar: example.1
+        )
+        defer { window.close() }
+        let items = Self.headerItems(in: window)
+        #expect(items.count == 5, "The title and the four room buttons: \(items.map(\.itemIdentifier.rawValue))")
+        let widths = items.compactMap { $0.view.map { "\($0.frame.width)" } }
+        let hidden = try await Self.overflowedItems(in: window)
+        #expect(hidden.isEmpty, "No room button moves into the overflow menu: \(hidden), item widths \(widths)")
       }
 
       /// The recorded picture: each header's title bar band, light beside dark — Channels by viewer, a long topic

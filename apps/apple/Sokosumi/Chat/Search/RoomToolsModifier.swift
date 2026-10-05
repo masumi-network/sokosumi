@@ -55,7 +55,7 @@ import SwiftUI
     func body(content: Content) -> some View {
       content
         .toolbar { roomToolbar }
-        .modifier(RoomHeaderModifier(identity: header, open: openFromTitle))
+        .modifier(RoomHeaderModifier(identity: header, searching: destination == .search, open: openFromTitle))
         .inspector(isPresented: inspectorPresented) {
           inspectorContent
             .inspectorColumnWidth(min: 280, ideal: 340, max: 420)

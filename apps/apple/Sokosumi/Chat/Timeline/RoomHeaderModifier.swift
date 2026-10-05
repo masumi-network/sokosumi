@@ -8,6 +8,8 @@ import SwiftUI
 struct RoomHeaderModifier: ViewModifier {
   /// Nil while the room is not in the list (left or archived as it closes): no name to draw.
   let identity: RoomHeaderIdentity?
+  /// Find's search field is open beside the room's buttons.
+  let searching: Bool
   let open: (RoomHeaderIdentity.TitleAction) -> Void
 
   /// The room pane's frame in the window, which the title block shares with the window controls and the room's own
@@ -20,11 +22,16 @@ struct RoomHeaderModifier: ViewModifier {
   /// The toolbar item's inset before the title and the room's Find, Threads, Members and Pinned messages buttons
   /// after it. Past them the name and topic truncate, as the window's own title did.
   static let toolbarAllowance: CGFloat = 260
+  /// What Find's search field adds while it is open: its item measures 262.5 pt at every width (an icon-only button
+  /// about 42 pt), because the toolbar keeps the field at its ideal 220 pt (`RoomSearchField`) and never shrinks it
+  /// toward its 140 pt minimum before moving items into the overflow menu.
+  static let searchFieldAllowance: CGFloat = 220
   static let minimumTitleWidth: CGFloat = 120
 
-  /// The widest the title block may be in a pane at `pane` (window coordinates).
-  static func titleWidth(in pane: CGRect) -> CGFloat {
-    max(minimumTitleWidth, pane.maxX - max(pane.minX, windowControlsWidth) - toolbarAllowance)
+  /// The widest the title block may be in a pane at `pane` (window coordinates), with Find's field open or not.
+  static func titleWidth(in pane: CGRect, searching: Bool) -> CGFloat {
+    let allowance = toolbarAllowance + (searching ? searchFieldAllowance : 0)
+    return max(minimumTitleWidth, pane.maxX - max(pane.minX, windowControlsWidth) - allowance)
   }
 
   func body(content: Content) -> some View {
@@ -36,7 +43,7 @@ struct RoomHeaderModifier: ViewModifier {
         if let identity {
           ToolbarItem(placement: .navigation) {
             RoomHeaderTitle(identity: identity, open: open)
-              .frame(maxWidth: Self.titleWidth(in: pane), alignment: .leading)
+              .frame(maxWidth: Self.titleWidth(in: pane, searching: searching), alignment: .leading)
           }
           .sharedBackgroundVisibility(.hidden)
         }
