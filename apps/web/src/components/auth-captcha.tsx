@@ -16,7 +16,7 @@ export interface CaptchaFetchOptions {
 }
 
 /** The fields of a Better Auth error answer that `getErrorMessage` reads. */
-export interface AuthErrorAnswer {
+interface AuthErrorAnswer {
   code?: string;
   status?: number;
 }
