@@ -12,7 +12,7 @@ import { emailCodeSignIn } from "./auth-email-code-sign-in";
 import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
-  handleOAuthRefreshTokenRequest,
+  handleOAuthTokenRequest,
   isRefreshTokenRotating,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
@@ -115,7 +115,7 @@ function createTestAuth(
     rateLimit: { enabled: rateLimitEnabled, storage: "memory" },
   });
 
-  const retry = vi.fn<Parameters<typeof handleOAuthRefreshTokenRequest>[2]>(
+  const retry = vi.fn<Parameters<typeof handleOAuthTokenRequest>[2]>(
     (body, request) =>
       auth.api.oauth2Token({
         body,
@@ -142,7 +142,7 @@ function createTestAuth(
   }
 
   async function refresh(refreshToken: string) {
-    const response = await handleOAuthRefreshTokenRequest(
+    const response = await handleOAuthTokenRequest(
       new Request("https://auth.example.com/auth/oauth2/token", {
         method: "POST",
         headers: {
@@ -278,7 +278,7 @@ describe("oauthRefreshTokenOptions", () => {
   });
 });
 
-describe("handleOAuthRefreshTokenRequest", () => {
+describe("handleOAuthTokenRequest", () => {
   it.each([
     {
       url: "https://auth.example.com/auth/sign-in/email",
@@ -306,7 +306,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
       );
 
       expect(
-        await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+        await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
       ).toBe(response);
       expect(handler).toHaveBeenCalledExactlyOnceWith(request);
       expect(retry).not.toHaveBeenCalled();
@@ -334,7 +334,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+      await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
     ).toBe(response);
     expect(handler).toHaveBeenCalledOnce();
     expect(retry).not.toHaveBeenCalled();
@@ -355,7 +355,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, isRotating),
+      await handleOAuthTokenRequest(request, handler, retry, isRotating),
     ).toBe(response);
     expect(isRotating).toHaveBeenCalledExactlyOnceWith("expired-token");
     expect(retry).not.toHaveBeenCalled();
