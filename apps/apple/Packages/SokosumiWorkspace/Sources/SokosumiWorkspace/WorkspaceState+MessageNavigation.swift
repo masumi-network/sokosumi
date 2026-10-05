@@ -35,9 +35,11 @@ public extension WorkspaceState {
     return try await openMessage(messageId, auth: auth)
   }
 
-  /// Quotes and links resolve replies before choosing the existing context loader.
+  /// Quotes and links resolve replies before choosing the existing context loader. A quote from the same room
+  /// passes `marksThreadParent: false`: web's same-room quote only scrolls, while a link (a cross-room quote
+  /// included) takes web's search jump, which also marks a reply's parent in the room (row 25c).
   @discardableResult
-  func openMessage(_ messageId: String, auth: AuthState) async throws -> MessageNavigationResult {
+  func openMessage(_ messageId: String, auth: AuthState, marksThreadParent: Bool = true) async throws -> MessageNavigationResult {
     guard let roomId = transcriptRoomId, let client = resolveClient(auth: auth) else { return .unavailable }
     let request = UUID()
     messageNavigationRequest = request
@@ -52,7 +54,7 @@ public extension WorkspaceState {
         // A row the transcript drops (a deleted message) can never be landed on.
         guard message.roomId == roomId, shouldKeepPersistedMessage(message) else { return .unavailable }
         if message.parentMessageId != nil {
-          return try await navigateReply(message, request: request, auth: auth)
+          return try await navigateReply(message, request: request, marksParent: marksThreadParent, auth: auth)
         }
       }
       guard try await jumpToMessage(messageId, auth: auth),
@@ -90,7 +92,7 @@ public extension WorkspaceState {
   func openMessageReply(_ hit: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws -> MessageNavigationResult {
     let request = UUID()
     messageNavigationRequest = request
-    return try await navigateReply(hit, request: request, auth: auth)
+    return try await navigateReply(hit, request: request, marksParent: true, auth: auth)
   }
 
   func consumeMessageJump(_ requestId: UUID) {
@@ -99,7 +101,12 @@ public extension WorkspaceState {
     }
   }
 
-  private func navigateReply(_ hit: Components.Schemas.ChatRoomMessage, request: UUID, auth: AuthState) async throws -> MessageNavigationResult {
+  private func navigateReply(
+    _ hit: Components.Schemas.ChatRoomMessage,
+    request: UUID,
+    marksParent: Bool,
+    auth: AuthState
+  ) async throws -> MessageNavigationResult {
     guard hit.roomId == transcriptRoomId, let parentId = hit.parentMessageId else { return .unavailable }
     guard let client = resolveClient(auth: auth) else {
       throw ChatServiceError.unauthorized("Log in to view this reply.")
@@ -117,19 +124,54 @@ public extension WorkspaceState {
       await thread.loadTask?.value
       guard isCurrent(navigation, threadGeneration: threadGeneration),
             thread.parent?.id == parentId else { return .superseded }
-      if let stopped = try await loadReplyIfNeeded(hit, client: client, organizationSlug: slug, generation: threadGeneration) {
-        return stopped
+      // Web lands the room on the parent after the reply's branch, whatever that branch found (row 25c,
+      // `performRoomSearchJump`): a reply that is gone or whose window Core refused still marks it. A transport
+      // failure ends web's jump in its `catch`, so only Core's answer counts here.
+      let markParent = { [self] in
+        if marksParent {
+          markThreadParentInRoom(parentId, navigation: navigation, threadGeneration: threadGeneration)
+        }
       }
-      guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
-      // A search hit keeps its old body; the loaded row says whether the thread still shows it.
-      if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
-        return .unavailable
+      do {
+        let result = try await requestReplyJump(hit, client: client, organizationSlug: slug, navigation: navigation, threadGeneration: threadGeneration)
+        markParent()
+        return result
+      } catch let failure as ChatServiceError {
+        markParent()
+        throw failure
       }
-      thread.requestJump(to: hit.id)
-      return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
     } catch {
       return try currentNavigationFailure(error, navigation: navigation, auth: auth, mapRefusal: false)
     }
+  }
+
+  /// The reply's half of a reply jump: its window when it is not loaded, then the Thread's jump target.
+  private func requestReplyJump(
+    _ hit: Components.Schemas.ChatRoomMessage,
+    client: Client,
+    organizationSlug: String?,
+    navigation: NavigationGuard,
+    threadGeneration: Int
+  ) async throws -> MessageNavigationResult {
+    if let stopped = try await loadReplyIfNeeded(hit, client: client, organizationSlug: organizationSlug, generation: threadGeneration) {
+      return stopped
+    }
+    guard isCurrent(navigation, threadGeneration: threadGeneration) else { return .superseded }
+    // A search hit keeps its old body; the loaded row says whether the thread still shows it.
+    if let loaded = thread.timeline.messages.first(where: { $0.id == hit.id }), !shouldKeepPersistedMessage(loaded) {
+      return .unavailable
+    }
+    thread.requestJump(to: hit.id)
+    return thread.jumpTarget?.messageId == hit.id ? .opened : .unavailable
+  }
+
+  /// Sends the room to the open Thread's parent, which it marks on its own clock (row 25c, web
+  /// `highlightInRoom`). Only for the newest jump in the same room and Thread (web `isNewestJump`), and only when
+  /// the room's loaded rows hold the parent: no window is loaded around it.
+  private func markThreadParentInRoom(_ parentId: String, navigation: NavigationGuard, threadGeneration: Int) {
+    guard isCurrent(navigation, threadGeneration: threadGeneration), thread.parent?.id == parentId,
+          let roomId = transcriptRoomId, displayedTranscript.contains(where: { $0.id == parentId }) else { return }
+    messageJump = MessageJump(roomId: roomId, messageId: parentId, isThreadParent: true)
   }
 
   private func loadReplyIfNeeded(
