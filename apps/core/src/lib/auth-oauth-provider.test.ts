@@ -129,18 +129,22 @@ function createTestAuth(
 
   // The same check the route runs against Prisma, on the in-memory rows.
   function isRotating(refreshToken: string) {
-    return isRefreshTokenRotating(refreshToken, async (storedToken) => {
-      const row = db.oauthRefreshToken.find(
-        (candidate) => candidate.token === storedToken,
-      );
-      return row
-        ? {
-            rotatedAt: (row.rotatedAt as Date | undefined) ?? null,
-            rotationReplayExpiresAt:
-              (row.rotationReplayExpiresAt as Date | undefined) ?? null,
-          }
-        : null;
-    });
+    return isRefreshTokenRotating(
+      refreshToken,
+      OAUTH_REFRESH_TOKEN_PREFIX,
+      async (storedToken) => {
+        const row = db.oauthRefreshToken.find(
+          (candidate) => candidate.token === storedToken,
+        );
+        return row
+          ? {
+              rotatedAt: (row.rotatedAt as Date | undefined) ?? null,
+              rotationReplayExpiresAt:
+                (row.rotationReplayExpiresAt as Date | undefined) ?? null,
+            }
+          : null;
+      },
+    );
   }
 
   async function refresh(refreshToken: string) {
@@ -375,7 +379,13 @@ describe("isRefreshTokenRotating", () => {
   it("looks up the stored digest of the token without its prefix", async () => {
     const findRotation = vi.fn().mockResolvedValue(null);
 
-    expect(await isRefreshTokenRotating(token, findRotation)).toBe(false);
+    expect(
+      await isRefreshTokenRotating(
+        token,
+        OAUTH_REFRESH_TOKEN_PREFIX,
+        findRotation,
+      ),
+    ).toBe(false);
     expect(findRotation).toHaveBeenCalledExactlyOnceWith(
       hashToken("raw-token"),
     );
@@ -384,7 +394,13 @@ describe("isRefreshTokenRotating", () => {
   it("skips the lookup for a token without Core's prefix", async () => {
     const findRotation = vi.fn();
 
-    expect(await isRefreshTokenRotating("raw-token", findRotation)).toBe(false);
+    expect(
+      await isRefreshTokenRotating(
+        "raw-token",
+        OAUTH_REFRESH_TOKEN_PREFIX,
+        findRotation,
+      ),
+    ).toBe(false);
     expect(findRotation).not.toHaveBeenCalled();
   });
 
@@ -407,9 +423,13 @@ describe("isRefreshTokenRotating", () => {
     ],
     ["no rotation", { rotatedAt: null, rotationReplayExpiresAt: null }, false],
   ])("reports %s", async (_label, rotation, expected) => {
-    expect(await isRefreshTokenRotating(token, async () => rotation)).toBe(
-      expected,
-    );
+    expect(
+      await isRefreshTokenRotating(
+        token,
+        OAUTH_REFRESH_TOKEN_PREFIX,
+        async () => rotation,
+      ),
+    ).toBe(expected);
   });
 });
 

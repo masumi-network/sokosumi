@@ -9,10 +9,7 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
-import {
-  hashStoredOAuthToken,
-  OAUTH_REFRESH_TOKEN_PREFIX,
-} from "./auth-oauth-token-prefixes";
+import { hashStoredOAuthToken } from "./auth-oauth-token-prefixes";
 
 export const oauthRefreshTokenOptions = {
   refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
@@ -176,11 +173,12 @@ interface RefreshTokenRotation {
  */
 export async function isRefreshTokenRotating(
   refreshToken: string,
+  prefix: string,
   findRotation: (storedToken: string) => Promise<RefreshTokenRotation | null>,
 ): Promise<boolean> {
-  if (!refreshToken.startsWith(OAUTH_REFRESH_TOKEN_PREFIX)) return false;
+  if (!refreshToken.startsWith(prefix)) return false;
   const rotation = await findRotation(
-    hashStoredOAuthToken(refreshToken, OAUTH_REFRESH_TOKEN_PREFIX),
+    hashStoredOAuthToken(refreshToken, prefix),
   );
   return (
     !!rotation?.rotatedAt &&
