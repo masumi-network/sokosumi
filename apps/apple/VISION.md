@@ -18,14 +18,14 @@ An agent in any tool can resume by reading `AGENTS.md`, this file, and `PARITY.m
 
 ## Iteration loop
 
-This is the agent-facing goal. `PARITY.md` is the authoritative scope, order, status and verification record; [`AGENTS.md`](./AGENTS.md) holds conventions and commands. Read all three before every slice.
+This is the agent-facing goal. `PARITY.md` is the authoritative scope, order and status; slice verification is in [`PARITY-LOG.md`](./PARITY-LOG.md) — open only the slice the row cites. [`AGENTS.md`](./AGENTS.md) holds conventions and commands. Read PARITY, this file and AGENTS before every slice.
 
 Each iteration is one fresh session, started with `/apple-parity-next` ([skill](../../.agents/skills/apple-parity-next/SKILL.md)), which carries the steps below and the subagent brief:
 
 1. Fetch `main`. Verify PARITY's recorded PR on GitHub. If it is open, babysit it: fix CI, address review with a technical reply, never re-request review. Resolve conflicts by merging `main`, never by rebasing or force-pushing. If it was closed unmerged, stop and ask.
 2. Once merged, branch from the current `main` and take the next Todo row in dependency order. Audit the linked web sources and the running web UI first; current web behavior beats stale requirements. Explicit user preferences override web: no welcome screen, keep the toolbar New chat, and native Mac affordances over copied web markup (clickable controls stay, as with the edit composer's compact ✕/✓).
 3. Implement one vertical slice: portable model/networking in the packages, native SwiftUI in the app, tests at the transport/state boundary, light/dark render fixtures inspected. Reuse the existing architecture; no second parallel path.
-4. Done means: the five package suites, app tests (`-enableCodeCoverage NO`), strict SwiftLint/SwiftFormat, the iOS 17 Workspace build and the macOS build all pass; PARITY is updated with evidence and the PR link; one draft PR whose title is the commit subject. State unverified interactions honestly.
+4. Done means: the five package suites, app tests (`-enableCodeCoverage NO`), strict SwiftLint/SwiftFormat, the iOS 17 Workspace build and the macOS build all pass; PARITY is updated with the row status and the PR link, and the slice is appended to `PARITY-LOG.md`; one draft PR whose title is the commit subject. State unverified interactions honestly.
 5. Close task-owned test hosts. Keep disk usage in check.
 
 Constraints: never touch `apps/web`. No Core contract, dependency or pinned-tool changes without a separate approved PR. Selecting an existing Core operation into the Apple OpenAPI snapshot via `scripts/update-core-api.py` is allowed; never hand-edit generated files. Do not file Linear issues. Stop and ask when web is ambiguous or an API is missing. Stop when PARITY has no Todo rows.
