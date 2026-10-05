@@ -323,6 +323,16 @@ describe("sanitizeAuthRedirectPath", () => {
     expect(sanitizeAuthRedirectPath("/")).toBe("/");
   });
 
+  it.each([
+    ["\u00A0/chat", "/chat"],
+    ["\u00A0https://evil.example/attack", "/"],
+    ["\u00A0", "/"],
+  ])("trims Unicode spaces from %j", (returnUrl, expected) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
+  });
+
   it("returns safe non-root relative returnUrl", () => {
     expect(sanitizeAuthRedirectPath("/accept-invitation/invite_123")).toBe(
       "/accept-invitation/invite_123",

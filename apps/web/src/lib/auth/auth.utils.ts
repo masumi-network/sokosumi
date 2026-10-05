@@ -240,7 +240,10 @@ export function sanitizeAuthRedirectPath(
   fallback: string = "/",
   origin?: string,
 ): string {
-  if (!returnUrl) {
+  // `trim` also drops Unicode spaces such as U+00A0, which `new URL` would
+  // keep as part of a same-origin path.
+  const value = returnUrl?.trim();
+  if (!value) {
     return fallback;
   }
 
@@ -256,7 +259,7 @@ export function sanitizeAuthRedirectPath(
       : SSR_REDIRECT_ORIGIN);
 
   try {
-    const parsedUrl = new URL(returnUrl, baseOrigin);
+    const parsedUrl = new URL(value, baseOrigin);
     if (parsedUrl.origin !== baseOrigin) {
       return fallback;
     }
