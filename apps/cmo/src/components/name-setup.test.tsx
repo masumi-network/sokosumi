@@ -22,7 +22,7 @@ it("asks for the first and last name, with Sign out", () => {
     <NameSetup saveName={vi.fn()} signOut={vi.fn()} />,
   );
 
-  expect(html).toContain("<h1>What should we call you?</h1>");
+  expect(html).toContain("<h1>What is your name?</h1>");
   expect(html).toMatch(
     /<label for="first-name">First name<\/label><input id="first-name" required="" autoComplete="given-name" name="firstName" value=""\/>/,
   );
@@ -88,6 +88,64 @@ it("shows errors by their fields and keeps what was typed", async () => {
   expect(container.querySelector('form [role="alert"]')?.textContent).toBe(
     "That did not work. Try again.",
   );
+
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+it("moves focus to the alert when the save failed as a whole", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const saveName = vi.fn(
+    async (previous: NameFormState): Promise<NameFormState> => ({
+      attempt: previous.attempt + 1,
+      firstName: "Ada",
+      lastName: "Lovelace",
+      errors: { form: "That did not work. Try again." },
+    }),
+  );
+  await act(async () => {
+    root.render(<NameSetup saveName={saveName} signOut={vi.fn()} />);
+  });
+  for (const id of ["#first-name", "#last-name"]) {
+    const field = container.querySelector<HTMLInputElement>(id);
+    if (field) field.value = "Ada";
+  }
+  const submit = [
+    ...container.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+  ].find((button) => button.textContent === "Continue");
+  await act(async () => submit?.click());
+
+  expect(document.activeElement).toBe(
+    container.querySelector('form [role="alert"]'),
+  );
+
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+it("disables both buttons while saving and spins only Continue", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const saveName = vi.fn(() => new Promise<NameFormState>(() => {}));
+  await act(async () => {
+    root.render(<NameSetup saveName={saveName} signOut={vi.fn()} />);
+  });
+  for (const id of ["#first-name", "#last-name"]) {
+    const field = container.querySelector<HTMLInputElement>(id);
+    if (field) field.value = "Ada";
+  }
+  const [continueButton, signOutButton] = [
+    ...container.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+  ];
+  await act(async () => continueButton?.click());
+
+  expect(continueButton?.textContent).toBe("Continue");
+  expect(continueButton?.getAttribute("aria-busy")).toBe("true");
+  expect(signOutButton?.disabled).toBe(true);
+  expect(signOutButton?.hasAttribute("aria-busy")).toBe(false);
 
   await act(async () => root.unmount());
   container.remove();

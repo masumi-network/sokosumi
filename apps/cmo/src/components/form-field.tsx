@@ -59,11 +59,23 @@ export function FormField({
 }
 
 /**
+ * A form's own error, after a submit that failed as a whole. Focus moves
+ * here when no field is to blame (useFocusFirstInvalid).
+ */
+export function FormAlert({ message }: { message?: string }) {
+  return message ? (
+    <p role="alert" tabIndex={-1}>
+      {message}
+    </p>
+  ) : null;
+}
+
+/**
  * For a `useActionState` form that remounts with `key={attempt}`, because a
  * form resets after its action: remounting shows the kept values and reads
  * out a repeated alert again. After a failed submit, focus moves to the
- * first field to fix, which reads out its error; the remount would otherwise
- * drop focus to the page.
+ * first field to fix, which reads out its error, or else to the form's
+ * alert; the remount would otherwise drop focus to the page.
  */
 export function useFocusFirstInvalid(
   attempt: number,
@@ -71,9 +83,11 @@ export function useFocusFirstInvalid(
   const formRef = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (attempt === 0) return;
-    formRef.current
-      ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
-      ?.focus();
+    const form = formRef.current;
+    (
+      form?.querySelector<HTMLElement>('[aria-invalid="true"]') ??
+      form?.querySelector<HTMLElement>('[role="alert"]')
+    )?.focus();
   }, [attempt]);
   return formRef;
 }

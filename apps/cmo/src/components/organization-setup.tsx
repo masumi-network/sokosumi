@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import type { OrganizationFormState } from "../app/workspace-actions";
-import { FormField, useFocusFirstInvalid } from "./form-field";
+import { FormAlert, FormField, useFocusFirstInvalid } from "./form-field";
 import { Mascot } from "./mascot";
 import { SubmitButton } from "./submit-button";
 
@@ -46,7 +46,7 @@ export function OrganizationSetup({
           className="fields"
           action={formAction}
         >
-          {errors.form ? <p role="alert">{errors.form}</p> : null}
+          <FormAlert message={errors.form} />
           <FormField
             id="organization-name"
             name="name"

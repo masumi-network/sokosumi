@@ -6,7 +6,7 @@ import { useFormStatus } from "react-dom";
 interface SubmitButtonProps {
   className: string;
   /** Its own action; without one it submits the form's action. */
-  formAction?: () => Promise<void>;
+  formAction?: (formData: FormData) => void | Promise<void>;
   children: ReactNode;
 }
 

@@ -1,4 +1,7 @@
-import { isFirstAndLastNameWithinLimit } from "@sokosumi/utils";
+import {
+  isFirstAndLastNameWithinLimit,
+  USER_NAME_MAX_LENGTH,
+} from "@sokosumi/utils";
 
 export interface PersonNameErrors {
   firstName?: string;
@@ -21,7 +24,8 @@ export function personNameErrors(
     !errors.lastName &&
     !isFirstAndLastNameWithinLimit(firstName, lastName)
   ) {
-    errors.lastName = "Use a shorter name.";
+    // On Last name, as Web and Core report it. The limit counts the space.
+    errors.lastName = `Use up to ${USER_NAME_MAX_LENGTH - 1} characters for both names together.`;
   }
   return errors;
 }

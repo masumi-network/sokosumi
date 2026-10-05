@@ -43,8 +43,9 @@ export async function saveName(
     unstable_rethrow(error);
     console.error("Saving the name failed", error);
   }
-  // 200: home now shows the workspace choice. 401: the token was revoked early.
-  if (status === 200 || status === 401) redirect("/");
+  // 200: home now shows the workspace choice. 401 or 403: Core refused the
+  // token, and home shows the signed-out page.
+  if (status === 200 || status === 401 || status === 403) redirect("/");
 
   return { ...result, errors: { form: "That did not work. Try again." } };
 }

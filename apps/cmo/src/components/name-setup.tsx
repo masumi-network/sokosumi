@@ -3,7 +3,7 @@
 import { useActionState } from "react";
 
 import type { NameFormState } from "../app/name-actions";
-import { FormField, useFocusFirstInvalid } from "./form-field";
+import { FormAlert, FormField, useFocusFirstInvalid } from "./form-field";
 import { Mascot } from "./mascot";
 import { SubmitButton } from "./submit-button";
 
@@ -34,15 +34,12 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
   return (
     <main className="hero">
       <div className="hero-copy">
-        <h1>What should we call you?</h1>
-        {/* Remounts after each submit (useFocusFirstInvalid). */}
-        <form
-          key={state.attempt}
-          ref={formRef}
-          className="fields"
-          action={formAction}
-        >
-          {errors.form ? <p role="alert">{errors.form}</p> : null}
+        <h1>What is your name?</h1>
+        {/* Remounts after each submit (useFocusFirstInvalid). One form, so
+            pressing either button disables both; each has its own action,
+            so only the one pressed spins. */}
+        <form key={state.attempt} ref={formRef} className="fields">
+          <FormAlert message={errors.form} />
           <FormField
             id="first-name"
             name="firstName"
@@ -62,17 +59,16 @@ export function NameSetup({ saveName, signOut }: NameSetupProps) {
             error={errors.lastName}
           />
           <div className="actions">
-            <SubmitButton className="button">Continue</SubmitButton>
+            <SubmitButton className="button" formAction={formAction}>
+              Continue
+            </SubmitButton>
+            <SubmitButton
+              className="button button-secondary"
+              formAction={signOut}
+            >
+              Sign out
+            </SubmitButton>
           </div>
-        </form>
-        {/* Its own form: Continue spins whenever its form runs. */}
-        <form>
-          <SubmitButton
-            className="button button-secondary"
-            formAction={signOut}
-          >
-            Sign out
-          </SubmitButton>
         </form>
       </div>
       <Mascot className="hero-mascot" />

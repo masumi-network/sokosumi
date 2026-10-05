@@ -294,7 +294,7 @@ p {
   font-size: 0.875rem;
 }
 
-/* The organization step's form. */
+/* The onboarding forms: name and organization. */
 .fields {
   display: flex;
   flex-direction: column;

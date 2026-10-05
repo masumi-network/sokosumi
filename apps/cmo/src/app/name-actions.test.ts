@@ -104,7 +104,9 @@ describe("saveName", () => {
   it("rejects a name longer than Sokosumi allows", async () => {
     const state = await saveName(EMPTY, form("A".repeat(64), "B".repeat(64)));
 
-    expect(state.errors).toEqual({ lastName: "Use a shorter name." });
+    expect(state.errors).toEqual({
+      lastName: "Use up to 127 characters for both names together.",
+    });
     expect(patchUsersById).not.toHaveBeenCalled();
   });
 
@@ -136,11 +138,14 @@ describe("saveName", () => {
     expect(patchUsersById).not.toHaveBeenCalled();
   });
 
-  it("goes home when Core refuses the token", async () => {
-    coreAnswers(401);
+  it.each([401, 403])(
+    "goes home when Core refuses the token (%i)",
+    async (status) => {
+      coreAnswers(status);
 
-    await settle(saveName(EMPTY, form("Ada", "Lovelace")));
+      await settle(saveName(EMPTY, form("Ada", "Lovelace")));
 
-    expect(redirectMock).toHaveBeenCalledWith("/");
-  });
+      expect(redirectMock).toHaveBeenCalledWith("/");
+    },
+  );
 });
