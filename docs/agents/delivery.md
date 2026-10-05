@@ -9,6 +9,8 @@ Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit.
 
 `git commit --no-verify` and `HUSKY=0` exist for the case where the hook itself is broken — a missing binary, a worktree without `node_modules`. Fix the cause and commit normally. Passing the checks by hand first is not a reason to bypass the hook: the bypass is indistinguishable from hiding a failure, and only the hook's own run proves the tree is green.
 
+After a merge or pull, `.husky/post-merge` reinstalls when `pnpm-lock.yaml` changed and regenerates Prisma when `packages/database/prisma` changed.
+
 In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
 
 ## Commit & Pull Request Guidelines

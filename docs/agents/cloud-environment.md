@@ -28,7 +28,7 @@ When Neon secrets are absent, provision skips and local Postgres remains the fal
 
 ## Claude Code cloud sessions
 
-Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate` only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
+Claude Code cloud sessions (claude.ai/code, Desktop **Cloud**) run on an Ubuntu 24.04 VM with Node 20/21/22 and `/opt/node22/bin` on `PATH`. The repo `SessionStart` hook in `.claude/settings.json` runs `ensure-pnpm.sh install` and `ensure-pnpm.sh prisma:generate`, then deepens a shallow clone by 500 commits of `main`, only when `CLAUDE_CODE_REMOTE=true`, so local sessions skip it. Both commands write to `/tmp/sokosumi-claude-session-install.log`; `SessionStart` stdout is session context, so the log stays off the prompt.
 
 Node 24 and a prewarmed pnpm store come from the environment's setup script (claude.ai → environment settings), which is not in the repo. Keep **Trusted** network access, set `COREPACK_ENABLE_DOWNLOAD_PROMPT=0`, and use:
 
@@ -52,8 +52,8 @@ Lint, typecheck, and tests need no database or secrets. PostgreSQL 16 is install
 
 ### Sandbox facts
 
-- **Shallow clone.** The checkout holds about 50 commits, so `git diff origin/main...HEAD` or a merge on an older branch can fail with "no merge base". Run `git fetch --deepen=500 origin main <branch>` first.
-- **Install after merging `main`.** The `SessionStart` hook installs once. When a merge changes `pnpm-lock.yaml` (Biome then warns "node_modules are out of sync"), run `pnpm install --frozen-lockfile`, plus `pnpm prisma:generate` when `packages/database/prisma` changed.
+- **Shallow clone.** The checkout starts at about 50 commits and the `SessionStart` hook deepens `main` by 500. A branch older than that still fails `git diff origin/main...HEAD` with "no merge base"; run `git fetch --deepen=500 origin main <branch>` again.
+- **Install after merging `main`.** The husky `post-merge` hook runs `pnpm install --frozen-lockfile` when a merge or pull changes `pnpm-lock.yaml`, and `pnpm prisma:generate` when `packages/database/prisma` changed. A rebase or cherry-pick skips it; run both by hand when Biome warns "node_modules are out of sync".
 - **Not installed:** Swift and Xcode, so `Xcode test` in CI is the proof for `apps/apple` changes. The `linear` CLI and `LINEAR_API_KEY` are absent too; reach Linear through the Linear MCP connector, which the user can connect mid-session. `agent-browser` needs `npm i -g agent-browser`; Chromium is under `/opt/pw-browsers`, and proxy TLS setup is in `/root/.ccr/README.md`.
 - **Previews are a human check.** **Trusted** network access blocks `*.preview.sokosumi.com` and `challenges.cloudflare.com`, and previews serve the live Turnstile key, which an agent must not answer.
 - **Long suites.** The full Core suite (about 9k tests) and Web suite each run 8–10+ minutes, past the 10-minute foreground limit. Run the changed files in the foreground and full suites with `run_in_background`, one workspace at a time.
