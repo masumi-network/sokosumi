@@ -57,7 +57,7 @@ async function submitDetails() {
     "password123",
   );
   await user.type(screen.getByRole("textbox", { name: "codeLabel" }), "042917");
-  // The code waits for Register, so the updates checkbox after it counts.
+  // The code waits for Register, so updates ticked afterwards still count.
   await act(async () => {});
   expect(signUpMock).not.toHaveBeenCalled();
   await user.click(

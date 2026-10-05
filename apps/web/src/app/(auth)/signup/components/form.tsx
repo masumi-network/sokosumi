@@ -21,6 +21,7 @@ import {
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
@@ -210,6 +211,14 @@ export default function SignUpForm({
           namespace="Auth.Pages.SignUp.Form"
         />
       ) : null}
+      {/* The updates choice closes the profile; the code and Register below
+          are one motion. */}
+      <FormFields
+        form={form}
+        formData={signUpMarketingFormData}
+        namespace="Auth.Pages.SignUp.Form"
+      />
+      <Separator />
       <Controller
         control={form.control}
         name="code"
@@ -218,8 +227,8 @@ export default function SignUpForm({
             centered
             inputRef={field.ref}
             value={field.value}
-            // No onComplete: the updates checkbox comes after the code,
-            // so only Register sends it.
+            // No onComplete: "Add a password" sits below Register, so only
+            // Register sends the code.
             onChange={(code) => {
               // Typing replaces the reason; checking for a whole code while
               // it is typed would only say it is not yet one.
@@ -236,11 +245,6 @@ export default function SignUpForm({
             disabled={isPending}
           />
         )}
-      />
-      <FormFields
-        form={form}
-        formData={signUpMarketingFormData}
-        namespace="Auth.Pages.SignUp.Form"
       />
       {accountExists ? (
         <Alert>
