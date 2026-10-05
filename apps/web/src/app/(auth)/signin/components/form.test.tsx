@@ -18,6 +18,7 @@ import {
   vi,
 } from "vitest";
 
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import { type EmailCode, useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -123,20 +124,26 @@ function renderForm(
   return all;
 }
 
-/** Real code hook and finish path, with only external auth/session responses mocked. */
+/**
+ * Real code hook and finish path, with only external auth/session responses
+ * mocked. The dialog sits beside the form, as in `AuthFlow`.
+ */
 function SignInCodeStep() {
   const emailCode = useEmailCode({ eventType: "signIn", returnUrl: "/chat" });
   useMountEffect(() => {
     void emailCode.sendCode(EMAIL);
   });
   return (
-    <SignInForm
-      email={EMAIL}
-      initialMethod="code"
-      emailCode={emailCode}
-      onFormStart={vi.fn()}
-      onPendingChange={vi.fn()}
-    />
+    <>
+      <SignInForm
+        email={EMAIL}
+        initialMethod="code"
+        emailCode={emailCode}
+        onFormStart={vi.fn()}
+        onPendingChange={vi.fn()}
+      />
+      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
+    </>
   );
 }
 
