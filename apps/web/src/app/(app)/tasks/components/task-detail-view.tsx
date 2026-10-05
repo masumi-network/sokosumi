@@ -514,7 +514,6 @@ async function TaskMetadataSection({
           priority: task.priority,
           visibility: task.visibility,
           selectableStatuses: task.selectableStatuses,
-          owner: task.owner,
           organization: task.organization,
           assignee: task.assignee,
         }}
@@ -530,7 +529,6 @@ async function TaskMetadataSection({
           privateBadge: t("privateBadge"),
           status: t("status"),
           statusLabels,
-          owner: t("owner"),
           organization: t("organization"),
           personalWorkspace: t("personalWorkspace"),
           project: t("project"),
@@ -840,6 +838,8 @@ async function TaskActivitySectionContent({
       actorSystemLabel={t("actorSystem")}
       actionCommentedLabel={t("actionCommented")}
       actionUpdatedStatusLabel={t("actionUpdatedStatus")}
+      actionCreatedTaskLabel={t("actionCreatedTask")}
+      taskOwnerId={task.ownerId}
       events={activityEvents.events}
       commentCount={activityEvents.pagination.commentCount}
       latestCommentId={activityEvents.pagination.latestCommentId}
