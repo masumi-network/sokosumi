@@ -8,7 +8,7 @@ import type { AuthEntrySearchParams } from "./auth-entry";
 const cookiesMock = vi.fn();
 const getMock = vi.fn();
 const authFlowMock = vi.fn();
-const getEnvSecretsMock = vi.fn();
+const getEnvPublicConfigMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
@@ -48,8 +48,8 @@ vi.mock("next-intl", () => ({
   useTranslations: () => (key: string) => key,
 }));
 
-vi.mock("@/config/env.secrets", () => ({
-  getEnvSecrets: () => getEnvSecretsMock(),
+vi.mock("@/config/env.public", () => ({
+  getEnvPublicConfig: () => getEnvPublicConfigMock(),
 }));
 
 vi.mock("@/auth/components/auth-flow", () => ({
@@ -124,10 +124,10 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
     vi.clearAllMocks();
     getMock.mockReturnValue(undefined);
     cookiesMock.mockResolvedValue({ get: getMock });
-    getEnvSecretsMock.mockReturnValue({
-      NETWORK: "Preprod",
-      VERCEL_GIT_COMMIT_REF: "",
-      VERCEL_ENV: undefined,
+    getEnvPublicConfigMock.mockReturnValue({
+      NEXT_PUBLIC_NETWORK: "Preprod",
+      NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "",
+      NEXT_PUBLIC_VERCEL_ENV: undefined,
     });
     getSessionMock.mockResolvedValue(null);
     getOAuthClientPublicPreloginMock.mockResolvedValue({
@@ -231,22 +231,22 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
   it.each([
     {
       env: {
-        NETWORK: "Preprod",
-        VERCEL_GIT_COMMIT_REF: "",
-        VERCEL_ENV: undefined,
+        NEXT_PUBLIC_NETWORK: "Preprod",
+        NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "",
+        NEXT_PUBLIC_VERCEL_ENV: undefined,
       },
       cookie: "sokosumi-localhost-preprod.last_used_login_method",
     },
     {
       env: {
-        NETWORK: "Preprod",
-        VERCEL_GIT_COMMIT_REF: "feature/123",
-        VERCEL_ENV: "preview",
+        NEXT_PUBLIC_NETWORK: "Preprod",
+        NEXT_PUBLIC_VERCEL_GIT_COMMIT_REF: "feature/123",
+        NEXT_PUBLIC_VERCEL_ENV: "preview",
       },
       cookie: "sokosumi-preview-preprod-feature-123.last_used_login_method",
     },
   ])("reads the last-login cookie $cookie", async ({ env, cookie }) => {
-    getEnvSecretsMock.mockReturnValue(env);
+    getEnvPublicConfigMock.mockReturnValue(env);
 
     await renderPage();
 

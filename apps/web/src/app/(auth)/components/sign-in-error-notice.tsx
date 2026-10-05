@@ -9,7 +9,7 @@ type SignInErrorMessageKey =
   | "clientMisconfigured";
 
 // Codes Better Auth appends to the `errorCallbackURL` of a social sign-in
-// (see `buildAuthErrorCallbackUrl`), or to Core's `onAPIError.errorURL`, the
+// (see `buildSocialCallbackUrls`), or to Core's `onAPIError.errorURL`, the
 // `/auth/error` page, when the failure has no callback. Any other code gets
 // the generic message.
 const SIGN_IN_ERROR_MESSAGE_KEYS = new Map<string, SignInErrorMessageKey>([

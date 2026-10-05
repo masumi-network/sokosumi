@@ -9,11 +9,10 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 }));
 
 import {
-  buildAuthCallbackUrl,
-  buildAuthErrorCallbackUrl,
   buildAuthPageUrl,
   buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
+  buildSocialCallbackUrls,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
@@ -144,127 +143,91 @@ describe("oauthRequestHasExpired", () => {
   });
 });
 
-describe("buildAuthCallbackUrl", () => {
+describe("buildSocialCallbackUrls", () => {
+  function stubLocation(href: string) {
+    vi.stubGlobal("window", {
+      location: { href, origin: new URL(href).origin },
+    });
+  }
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("anchors the callback to the current web origin so Core redirects back to the web app", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
+  it("anchors the callbacks to the current web origin so Core redirects back to the web app", () => {
+    stubLocation("https://preprod.sokosumi.com/signin");
 
-    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google",
-    );
+    expect(buildSocialCallbackUrls("google", undefined)).toEqual({
+      callbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=google",
+      newUserCallbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signup?provider=google",
+      errorCallbackURL: "https://preprod.sokosumi.com/signin",
+    });
   });
 
   it("includes the returnUrl when provided", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
+    stubLocation("https://preprod.sokosumi.com/signup");
+
+    expect(buildSocialCallbackUrls("microsoft", "/chat")).toMatchObject({
+      callbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=microsoft&returnUrl=%2Fchat",
+      newUserCallbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signup?provider=microsoft&returnUrl=%2Fchat",
     });
-
-    expect(
-      buildAuthCallbackUrl("/auth/callback/signup", "microsoft", "/chat"),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signup?provider=microsoft&returnUrl=%2Fchat",
-    );
   });
 
-  it("sanitizes external returnUrl to fallback", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
+  it.each(["https://evil.example/attack", "//evil.com"])(
+    "sanitizes the returnUrl %s to fallback",
+    (returnUrl) => {
+      stubLocation("https://preprod.sokosumi.com/signin");
 
-    expect(
-      buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        "google",
-        "https://evil.example/attack",
-      ),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
-    );
-  });
+      expect(buildSocialCallbackUrls("google", returnUrl).callbackURL).toBe(
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+      );
+    },
+  );
 
-  it("rejects a protocol-relative returnUrl to fallback", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
-
-    expect(
-      buildAuthCallbackUrl("/auth/callback/signin", "google", "//evil.com"),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
-    );
-  });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
-      "/auth/callback/signin?provider=google",
-    );
-  });
-
-  it("sanitizes external returnUrl to fallback during SSR", () => {
+  it("falls back to relative callbacks and no error page during SSR", () => {
     vi.stubGlobal("window", undefined);
 
     expect(
-      buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        "google",
-        "https://evil.example/attack",
-      ),
-    ).toBe("/auth/callback/signin?provider=google&returnUrl=%2F");
-  });
-});
-
-describe("buildAuthErrorCallbackUrl", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
+      buildSocialCallbackUrls("google", "https://evil.example/attack"),
+    ).toEqual({
+      callbackURL: "/auth/callback/signin?provider=google&returnUrl=%2F",
+      newUserCallbackURL: "/auth/callback/signup?provider=google&returnUrl=%2F",
+      errorCallbackURL: undefined,
+    });
   });
 
   it("returns a failed sign-in to the page it started on", () => {
-    vi.stubGlobal("window", {
-      location: {
-        href: "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
-      },
-    });
+    stubLocation(
+      "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
+    );
 
-    expect(buildAuthErrorCallbackUrl()).toBe(
+    expect(buildSocialCallbackUrls("google", "/chat").errorCallbackURL).toBe(
       "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat",
     );
   });
 
   it("drops the error of an earlier attempt", () => {
-    vi.stubGlobal("window", {
-      location: {
-        href: "https://preprod.sokosumi.com/signup?error=access_denied&error_description=denied&client_id=cmo",
-      },
-    });
+    stubLocation(
+      "https://preprod.sokosumi.com/signup?error=access_denied&error_description=denied&client_id=cmo",
+    );
 
-    expect(buildAuthErrorCallbackUrl()).toBe(
+    expect(buildSocialCallbackUrls("google", undefined).errorCallbackURL).toBe(
       "https://preprod.sokosumi.com/signup?client_id=cmo",
     );
   });
 
   it("returns to another page with the same query when asked", () => {
-    vi.stubGlobal("window", {
-      location: {
-        href: "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
-      },
-    });
-
-    expect(buildAuthErrorCallbackUrl("/signup")).toBe(
-      "https://preprod.sokosumi.com/signup?returnUrl=%2Fchat",
+    stubLocation(
+      "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
     );
-  });
 
-  it("has no page to return to during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(buildAuthErrorCallbackUrl()).toBeUndefined();
+    expect(
+      buildSocialCallbackUrls("google", "/chat", "/signup").errorCallbackURL,
+    ).toBe("https://preprod.sokosumi.com/signup?returnUrl=%2Fchat");
   });
 });
 
