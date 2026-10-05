@@ -124,19 +124,21 @@ export function createAuthOrganizationPlugin() {
         await ensureWorkspaceForCreatedOrganization(organization);
         await pinPreferredOrganizationIfUnset(user.id, organization.id);
         await ensureFreeSubscriptionForCreatedOrganization(organization);
-        void ensureStripeCustomerForCreatedOrganization(organization).catch(
-          (error) => {
-            Sentry.captureException(error, {
-              tags: {
-                context: "stripe_organization_customer_creation",
-              },
-              extra: {
-                organizationId: organization.id,
-                organizationName: organization.name,
-                organizationSlug: organization.slug,
-              },
-            });
-          },
+        waitUntil(
+          ensureStripeCustomerForCreatedOrganization(organization).catch(
+            (error) => {
+              Sentry.captureException(error, {
+                tags: {
+                  context: "stripe_organization_customer_creation",
+                },
+                extra: {
+                  organizationId: organization.id,
+                  organizationName: organization.name,
+                  organizationSlug: organization.slug,
+                },
+              });
+            },
+          ),
         );
       },
       beforeUpdateOrganization: async ({ organization, member }) => {

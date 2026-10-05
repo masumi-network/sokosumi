@@ -2538,6 +2538,61 @@ describe("core auth config", () => {
     );
   });
 
+  // The response does not wait for Stripe, but the function must.
+  it("keeps the new organization's Stripe customer creation alive past the response", async () => {
+    let finishStripe!: () => void;
+    stripeCreateOrganizationCustomerMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishStripe = resolve;
+      }),
+    );
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdAt: Date;
+              };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
+      organization: {
+        id: "org_123",
+        name: "Org One",
+        slug: "org-one",
+        createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      },
+    });
+
+    // The hook returned while Stripe is still working; the kept promise
+    // settles only once Stripe does.
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+    const [[kept]] = waitUntilMock.mock.calls;
+    let settled = false;
+    void kept.then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    finishStripe();
+    await kept;
+    expect(settled).toBe(true);
+  });
+
   it("creates a personal workspace before creating an organization and keeps preferred org", async () => {
     getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
     await import("./auth");
@@ -3573,6 +3628,11 @@ describe("core auth config", () => {
 
     expect(webhookCallUserUpdatedMock).toHaveBeenCalledWith(user);
     expect(handleUserUpdateStripeEmailSyncMock).toHaveBeenCalledWith(user);
+    // Kept alive past the response, like the webhook. Compared by identity:
+    // any two promises are equal to toHaveBeenCalledWith.
+    expect(waitUntilMock.mock.calls.map(([promise]) => promise)).toContain(
+      handleUserUpdateStripeEmailSyncMock.mock.results[0]?.value,
+    );
   });
 
   it("reports user updated webhook failures to Sentry", async () => {

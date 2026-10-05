@@ -366,7 +366,7 @@ export const auth = betterAuth({
               });
             }),
           );
-          void handleUserUpdateStripeEmailSync(user);
+          waitUntil(handleUserUpdateStripeEmailSync(user));
         },
       },
     },
