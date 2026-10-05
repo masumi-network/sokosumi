@@ -3,6 +3,7 @@
 import { REGEXP_ONLY_DIGITS } from "input-otp";
 import { useTranslations } from "next-intl";
 import { type Ref, type RefObject, useEffect, useId, useRef } from "react";
+import * as z from "zod";
 
 import {
   InputOTP,
@@ -16,6 +17,12 @@ import { ResendCodeButton } from "./resend-code-button";
 
 // Core's `otpLength`.
 export const EMAIL_CODE_LENGTH = 6;
+
+/** A form's code: whole, or it says the code is incomplete. */
+export function useEmailCodeSchema() {
+  const t = useTranslations("Components.EmailCodeForm");
+  return z.string().length(EMAIL_CODE_LENGTH, { message: t("incomplete") });
+}
 
 const CODE_SLOTS = Array.from(
   { length: EMAIL_CODE_LENGTH },
