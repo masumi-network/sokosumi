@@ -215,7 +215,7 @@ export default function AuthFlow({
         {isSignIn ? (
           <SignInForm
             email={email}
-            returnUrl={returnUrl}
+            returnUrl={effectiveReturnUrl}
             initialMethod={initialMethod}
             handedOver={handedOver}
             emailCode={emailCode}
