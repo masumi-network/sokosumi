@@ -5,8 +5,6 @@ import { getTranslations } from "next-intl/server";
 import { AuthPage, AuthPageHeader } from "@/auth/components/auth-page";
 import {
   type AuthRedirectSearchParams,
-  appendQueryParam,
-  buildAuthPageUrl,
   buildRequestNewResetLinkUrl,
   readAuthPageContext,
   readSearchParams,
@@ -27,29 +25,20 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface ResetPasswordPageProps {
-  searchParams: Promise<AuthRedirectSearchParams & { token?: string }>;
+  searchParams: Promise<AuthRedirectSearchParams>;
 }
 
 export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const query = await readSearchParams(searchParams);
-  const token = query.get("token");
-  query.delete("token");
-  const context = readAuthPageContext(query);
-
-  if (token) {
+  // Emailed links go to `/reset-password/exchange`, which keeps the token in
+  // a cookie and comes here without it.
+  if (!(await getResetPasswordToken())) {
     redirect(
-      appendQueryParam(
-        buildAuthPageUrl("/reset-password/exchange", context),
-        "token",
-        token,
+      buildRequestNewResetLinkUrl(
+        readAuthPageContext(await readSearchParams(searchParams)),
       ),
     );
-  }
-
-  if (!(await getResetPasswordToken())) {
-    redirect(buildRequestNewResetLinkUrl(context));
   }
 
   const t = await getTranslations("Auth.Pages.ResetPassword");

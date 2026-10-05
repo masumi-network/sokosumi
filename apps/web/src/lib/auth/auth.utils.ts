@@ -219,11 +219,7 @@ export function buildRequestNewResetLinkUrl(context: AuthPageContext): string {
  * Adds one parameter to a built auth page URL without re-serializing the
  * signed OAuth query already in it.
  */
-export function appendQueryParam(
-  url: string,
-  name: string,
-  value: string,
-): string {
+function appendQueryParam(url: string, name: string, value: string): string {
   const separator = url.includes("?") ? "&" : "?";
   return `${url}${separator}${name}=${encodeURIComponent(value)}`;
 }
