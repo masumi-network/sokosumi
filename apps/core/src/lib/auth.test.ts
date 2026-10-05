@@ -2961,33 +2961,6 @@ describe("core auth config", () => {
     });
   });
 
-  it.each(["email-verification", "forget-password"])(
-    "refuses to send an email code for %s",
-    async (type) => {
-      await import("./auth");
-
-      const [[config]] = betterAuthMock.mock.calls as Array<
-        [
-          {
-            hooks: {
-              before: (ctx: {
-                body?: Record<string, unknown>;
-                path: string;
-              }) => Promise<unknown>;
-            };
-          },
-        ]
-      >;
-
-      await expect(
-        config.hooks.before({
-          body: { email: "ada@example.com", type },
-          path: "/email-otp/send-verification-otp",
-        }),
-      ).rejects.toMatchObject({ status: "BAD_REQUEST" });
-    },
-  );
-
   it.each(["/callback/:id/oauth-proxy", "/oauth-proxy-callback"])(
     "refuses a proxied sign-in on %s outside a preview",
     async (path) => {

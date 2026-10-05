@@ -414,21 +414,8 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
-      switch (ctx.path) {
-        case "/email-otp/send-verification-otp": {
-          // Codes only sign people in. Password resets and email
-          // verification keep their links.
-          if (ctx.body?.type !== "sign-in") {
-            throw new APIError("BAD_REQUEST", {
-              message: "Email codes only sign in",
-            });
-          }
-          break;
-        }
-        case "/update-user": {
-          await validateUpdatedUserName(ctx);
-          break;
-        }
+      if (ctx.path === "/update-user") {
+        await validateUpdatedUserName(ctx);
       }
     }),
     after: createAuthMiddleware(async (ctx) => {

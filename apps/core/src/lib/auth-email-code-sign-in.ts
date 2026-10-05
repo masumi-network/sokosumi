@@ -12,6 +12,7 @@ import type { emailOTP } from "better-auth/plugins/email-otp";
 import { resolveSignUpNameBody } from "./auth-user-name";
 
 const EMAIL_CODE_SIGN_IN_PATH = "/sign-in/email-otp";
+export const EMAIL_CODE_SEND_PATH = "/email-otp/send-verification-otp";
 
 // Hands the before hook's finding to the after hook. A context key the request
 // body cannot set.
@@ -36,7 +37,11 @@ export function resolveEmailCodeSignUpLoginMethod(ctx: {
 }
 
 /**
- * Two things around Better Auth's email code sign-in.
+ * Three things around Better Auth's email code sign-in.
+ *
+ * Codes only sign people in. A send for any other purpose is refused, and
+ * `disabledPaths` in `auth.ts` closes the endpoints that would spend one:
+ * password resets and email verification keep their links.
  *
  * Password sign-up goes through it. The sign-up page sends the password with
  * the code, so the account is created with its address proven and the
@@ -144,6 +149,16 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
     id: "email-code-sign-in",
     hooks: {
       before: [
+        {
+          matcher: (ctx) => ctx.path === EMAIL_CODE_SEND_PATH,
+          handler: createAuthMiddleware(async (ctx) => {
+            if (ctx.body?.type !== "sign-in") {
+              throw new APIError("BAD_REQUEST", {
+                message: "Email codes only sign in",
+              });
+            }
+          }),
+        },
         {
           matcher: isEmailCodeSignIn,
           handler: createAuthMiddleware(async (ctx) => {

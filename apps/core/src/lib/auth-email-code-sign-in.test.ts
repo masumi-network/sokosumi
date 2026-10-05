@@ -438,6 +438,28 @@ describe("code sign-in refused after the code was accepted", () => {
   });
 });
 
+describe("sending an email code", () => {
+  it.each(["email-verification", "forget-password"])(
+    "refuses a %s code; codes only sign in",
+    async (type) => {
+      const auth = await createTestAuth({
+        user: [userRow("user-1", "ada@example.com", true)],
+      });
+
+      const send = await auth.post("/email-otp/send-verification-otp", {
+        email: "ada@example.com",
+        type,
+      });
+
+      expect(send.status).toBe(400);
+      expect(await send.json()).toMatchObject({
+        message: "Email codes only sign in",
+      });
+      expect(await auth.sendCode("ada@example.com")).not.toBe("");
+    },
+  );
+});
+
 describe("code sign-in to a verified account", () => {
   it("keeps the password and says nothing", async () => {
     const auth = await createTestAuth({
