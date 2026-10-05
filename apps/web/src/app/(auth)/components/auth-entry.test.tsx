@@ -103,11 +103,13 @@ type Page = (props: {
 const PAGES = [
   {
     mode: "signIn",
-    load: async (): Promise<Page> => (await import("../signin/page")).default,
+    load: async (): Promise<Page> =>
+      (await import("@/auth/signin/page")).default,
   },
   {
     mode: "signUp",
-    load: async (): Promise<Page> => (await import("../signup/page")).default,
+    load: async (): Promise<Page> =>
+      (await import("@/auth/signup/page")).default,
   },
 ] as const;
 
@@ -138,6 +140,8 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
 
   afterEach(() => {
     vi.useRealTimers();
+    // The unreadable-invitation case silences console.error.
+    vi.restoreAllMocks();
   });
 
   it("opens the flow in this page's mode", async () => {
