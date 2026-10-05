@@ -180,14 +180,12 @@ struct ChatRootView: View {
     }
   }
 
-  private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
+  private func blockedMessage(for gate: WorkspaceGate) -> String {
     switch gate {
     case .pendingInvites:
       "You have pending organization invites but no workspace yet. Accept an invite on the web, then check again."
     case .identityOnboarding:
       "Your account has no workspace yet. Finish setup on the web, then check again."
-    case .ready:
-      "Unexpected state. Try again."
     }
   }
 }
