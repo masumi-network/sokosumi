@@ -93,7 +93,11 @@ import {
   recordSignUpConversion,
 } from "./auth-sign-up-conversion";
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
-import { accountOptions, socialProviderOptions } from "./auth-social-providers";
+import {
+  accountOptions,
+  isSocialProviderId,
+  socialProviderOptions,
+} from "./auth-social-providers";
 import {
   validateUpdatedUserName,
   validateUserNameLength,
@@ -238,10 +242,7 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account, _ctx) => {
-          if (
-            account.providerId === "google" ||
-            account.providerId === "microsoft"
-          ) {
+          if (isSocialProviderId(account.providerId)) {
             await prisma.user.updateMany({
               where: { id: account.userId, emailVerified: false },
               data: { emailVerified: true },
