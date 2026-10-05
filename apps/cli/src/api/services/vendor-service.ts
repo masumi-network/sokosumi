@@ -2,7 +2,7 @@ import type { CoreHttpClient } from "../http-client.js";
 import { type ApiResponse, parseApiResponse } from "../models/api-response.js";
 import { parseVendor, type Vendor } from "../models/vendor.js";
 
-export interface FetchVendorMembershipsResult {
+interface FetchVendorMembershipsResult {
   response: ApiResponse<Vendor[]>;
   vendors: Vendor[];
 }
@@ -12,7 +12,7 @@ export interface CreateVendorInput {
   slug: string;
 }
 
-export interface CreateVendorResult {
+interface CreateVendorResult {
   response: ApiResponse<Vendor>;
   vendor: Vendor;
 }
