@@ -1,6 +1,6 @@
 import Foundation
 
-/// In-memory `TokenStore` for tests. Live clients use Keychain.
+/// In-memory `TokenStore` for tests.
 public final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
   public private(set) var saved: OAuthTokens?
   public var saveError: (any Error)?

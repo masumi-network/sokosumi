@@ -129,6 +129,7 @@ export function ThreadPanel({
   onSetPendingQuote,
   onResolveMessageLink,
   requireBody,
+  allowSkills = true,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -188,6 +189,7 @@ export function ThreadPanel({
     link: ChatRoomMessageLink,
   ) => Promise<PendingRoomQuote | null>;
   requireBody?: boolean;
+  allowSkills?: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
@@ -438,9 +440,7 @@ export function ThreadPanel({
             onSetPendingQuote={onSetPendingQuote}
             onResolveMessageLink={onResolveMessageLink}
             requireBody={requireBody}
-            // The coworker 1:1 stream (the rooms that require a body) does
-            // not carry skills.
-            allowSkills={!requireBody}
+            allowSkills={allowSkills}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}

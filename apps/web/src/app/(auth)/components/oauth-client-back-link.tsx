@@ -33,7 +33,11 @@ export default function OAuthClientBackLink({
   ) : null;
 
   if (!client.uri) {
-    return logo ? <div className="mb-4 flex">{logo}</div> : null;
+    // Placed like the link below: at the start of a column, centered in a
+    // centered header.
+    return logo ? (
+      <div className="mb-4 inline-flex self-start">{logo}</div>
+    ) : null;
   }
   return (
     <Link
