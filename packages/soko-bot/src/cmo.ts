@@ -115,6 +115,7 @@ export const cmoReportUpdateInputSchema = z.object({
   kind: z.enum(["daily", "weekly", "monthly", "brand", "request"]),
   headline: shortText,
   done: z.array(shortText).max(12).default([]),
+  /** Concrete next actions only, never status notes such as "awaiting approval". */
   upNext: z.array(shortText).max(12).default([]),
   /** Weekly and monthly: what changed in the strategy; brand: in the Brand Brain. */
   changes: z.array(shortText).max(10).default([]),

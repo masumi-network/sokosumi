@@ -417,11 +417,17 @@ export function UpdateCard({
   update,
   actions,
   approved,
+  superseded = false,
 }: {
   update: Update;
   actions: CardActions;
-  /** Once the strategy is approved, what is up next can be changed or paused. */
+  /**
+   * The report came after the strategy was approved, so what is up next is
+   * real work the owner can change or pause. Earlier reports are history.
+   */
   approved: boolean;
+  /** Reported before the approval that came later: its Up next is history. */
+  superseded?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   return (
@@ -447,7 +453,7 @@ export function UpdateCard({
             <ItemList items={update.done ?? []} />
           </div>
         ) : null}
-        {(update.upNext ?? []).length > 0 ? (
+        {!superseded && (update.upNext ?? []).length > 0 ? (
           <div>
             <span className="label">Up next</span>
             <ItemList

@@ -471,7 +471,15 @@ function ThreadEntry({
             <UpdateCard
               update={item.update}
               actions={actions}
-              approved={overview.strategyApprovedAt !== null}
+              approved={
+                overview.strategyApprovedAt !== null &&
+                new Date(item.update.at) >=
+                  new Date(overview.strategyApprovedAt)
+              }
+              superseded={
+                overview.strategyApprovedAt !== null &&
+                new Date(item.update.at) < new Date(overview.strategyApprovedAt)
+              }
             />
           </div>
         );

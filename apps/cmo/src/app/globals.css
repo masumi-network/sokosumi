@@ -1,5 +1,5 @@
 /*
- * TEMPORARY theme. The CMO.XYZ style guide (DESIGN.md) still lists colours,
+ * TEMPORARY theme. The CMO.xyz style guide (DESIGN.md) still lists colours,
  * logo, shapes, and PP Mori font files as open, and says not to invent brand
  * values. Until design locks them, these tokens are neutral greys that match
  * the black and white mascot and follow the visitor's light or dark setting.
@@ -112,6 +112,7 @@ body {
 }
 
 h1 {
+  text-wrap: balance;
   margin: 0;
   font-size: clamp(2.5rem, 6vw, 4.5rem);
   font-weight: 700;
@@ -1203,6 +1204,7 @@ textarea {
 .grid2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 16px;
 }
 

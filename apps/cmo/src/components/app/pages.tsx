@@ -1,5 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
+import { channelLabel } from "../../lib/calendar";
 import { formatMonth } from "./cards";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
@@ -48,7 +49,7 @@ export function StrategyPage({ overview }: PageProps) {
           <ul className="plain">
             {strategy.channels.map((channel) => (
               <li key={channel.channel}>
-                <b>{channel.channel}</b>{" "}
+                <b>{channelLabel(channel.channel)}</b>{" "}
                 <span className="note">{channel.cadence}</span>
               </li>
             ))}

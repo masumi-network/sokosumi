@@ -232,6 +232,10 @@ describe("cards", () => {
       <UpdateCard update={update} actions={noop} approved />,
     );
     expect(after).toContain(">Pause<");
+    const history = renderToStaticMarkup(
+      <UpdateCard update={update} actions={noop} approved={false} superseded />,
+    );
+    expect(history).not.toContain("Draft the first LinkedIn post");
   });
 
   it("offers to revert a monthly strategy, not a Brand Brain refresh", () => {
