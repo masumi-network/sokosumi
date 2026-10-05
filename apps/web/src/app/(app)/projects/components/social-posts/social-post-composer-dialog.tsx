@@ -56,7 +56,6 @@ import {
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
-import { PreviewAvatar } from "./social-post-preview-parts";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -768,32 +767,13 @@ export function SocialPostComposerDialog({
                         onClick={() => toggleConnection(connection.id)}
                         type="button"
                       >
-                        {connection.avatarUrl ? (
-                          <span className="relative shrink-0">
-                            <PreviewAvatar
-                              account={{
-                                handle: connection.externalHandle,
-                                displayName: connection.displayName,
-                                avatarUrl: connection.avatarUrl,
-                              }}
-                              className="size-6"
-                              name={connection.displayName ?? handle}
-                            />
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="bg-background absolute -end-1 -bottom-1 size-3.5 rounded-full p-px"
-                              provider={connection.provider}
-                            />
-                          </span>
-                        ) : (
-                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={connection.provider}
-                            />
-                          </span>
-                        )}
+                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={connection.provider}
+                          />
+                        </span>
                         <span className="max-w-40 truncate">{handle}</span>
                         {selected ? (
                           <Check className="size-3.5" aria-hidden />
