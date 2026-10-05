@@ -1,6 +1,6 @@
 ---
 name: pr
-description: "Use when writing a PR body."
+description: "Use when opening a pull request or writing/editing its body."
 metadata:
   credits:
     skill: show-me
