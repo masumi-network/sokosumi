@@ -57,8 +57,7 @@ const {
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
   webhookCallAccountCreatedMock,
-  webhookCallUserCreatedMock,
-  webhookCallUserUpdatedMock,
+  webhookCallUserWebhookMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
   deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
@@ -174,8 +173,7 @@ const {
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
     webhookCallAccountCreatedMock: vi.fn(),
-    webhookCallUserCreatedMock: vi.fn(),
-    webhookCallUserUpdatedMock: vi.fn(),
+    webhookCallUserWebhookMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
     deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
@@ -375,10 +373,8 @@ vi.mock("@/services/webhook.service", () => ({
   webhookService: {
     callAccountCreated: (...args: unknown[]) =>
       webhookCallAccountCreatedMock(...args),
-    callUserCreated: (...args: unknown[]) =>
-      webhookCallUserCreatedMock(...args),
-    callUserUpdated: (...args: unknown[]) =>
-      webhookCallUserUpdatedMock(...args),
+    callUserWebhook: (...args: unknown[]) =>
+      webhookCallUserWebhookMock(...args),
   },
 }));
 
@@ -499,8 +495,7 @@ describe("core auth config", () => {
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
-    webhookCallUserCreatedMock.mockResolvedValue(undefined);
-    webhookCallUserUpdatedMock.mockResolvedValue(undefined);
+    webhookCallUserWebhookMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     ensurePersonalWorkspaceKeepingPreferredMock.mockResolvedValue({
@@ -2262,7 +2257,10 @@ describe("core auth config", () => {
 
     expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalled();
-    expect(webhookCallUserCreatedMock).toHaveBeenCalled();
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith(
+      "userCreated",
+      expect.anything(),
+    );
   });
 
   it("does not mark tasks as topped up when the signup bonus already exists", async () => {
@@ -2953,7 +2951,7 @@ describe("core auth config", () => {
     });
 
     await flushWaitUntil();
-    expect(webhookCallUserCreatedMock).toHaveBeenCalledWith({
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith("userCreated", {
       id: "user_123",
       email: "test@example.com",
       name: "Test",
@@ -3603,49 +3601,16 @@ describe("core auth config", () => {
 
     await config.databaseHooks.user.update.after(user);
 
-    expect(webhookCallUserUpdatedMock).toHaveBeenCalledWith(user);
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith(
+      "userUpdated",
+      user,
+    );
     expect(handleUserUpdateStripeEmailSyncMock).toHaveBeenCalledWith(user);
     // Kept alive past the response, like the webhook. Compared by identity:
     // any two promises are equal to toHaveBeenCalledWith.
     expect(waitUntilMock.mock.calls.map(([promise]) => promise)).toContain(
       handleUserUpdateStripeEmailSyncMock.mock.results[0]?.value,
     );
-  });
-
-  it("reports user updated webhook failures to Sentry", async () => {
-    webhookCallUserUpdatedMock.mockRejectedValueOnce(new Error("webhook down"));
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          databaseHooks: {
-            user: {
-              update: {
-                after: (user: {
-                  email: string;
-                  id: string;
-                  name: string;
-                }) => Promise<void>;
-              };
-            };
-          };
-        },
-      ]
-    >;
-
-    await config.databaseHooks.user.update.after({
-      id: "user_123",
-      email: "new@example.com",
-      name: "Andreas",
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: { userId: "user_123" },
-      tags: { context: "user_updated_webhook" },
-    });
   });
 
   it("reports preferred organization resolution failures to Sentry and keeps the session", async () => {

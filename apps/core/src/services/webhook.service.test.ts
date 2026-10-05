@@ -26,7 +26,7 @@ describe("webhookService", () => {
   });
 
   it("forwards a valid user created payload", async () => {
-    await webhookService.callUserCreated(validUser);
+    await webhookService.callUserWebhook("userCreated", validUser);
 
     expect(callWebhookMock).toHaveBeenCalledWith("userCreated", {
       userId: "user_1",
@@ -41,18 +41,18 @@ describe("webhookService", () => {
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
 
-    await webhookService.callUserCreated({ id: "user_1" });
+    await webhookService.callUserWebhook("userCreated", { id: "user_1" });
 
     expect(callWebhookMock).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalledWith(
-      "Invalid user data for user created webhook:",
+      "Invalid user data for userCreated webhook:",
       expect.anything(),
     );
     consoleError.mockRestore();
   });
 
   it("forwards a valid user updated payload", async () => {
-    await webhookService.callUserUpdated({
+    await webhookService.callUserWebhook("userUpdated", {
       ...validUser,
       marketingOptIn: false,
     });
