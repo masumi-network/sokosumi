@@ -124,6 +124,20 @@ export interface UserPendingOrganizationInvitation {
 }
 
 /**
+ * Non-expired PENDING organization invitations for an email (trim +
+ * lowercase, case-insensitive match).
+ */
+export function pendingOrganizationInvitationsWhere(
+  email: string,
+): Prisma.InvitationWhereInput {
+  return {
+    status: InvitationStatus.PENDING,
+    expiresAt: { gt: new Date() },
+    email: { equals: normalizeInvitationEmail(email), mode: "insensitive" },
+  };
+}
+
+/**
  * Lists non-expired pending organization invitations for a user's email.
  * Chat-room guest invitations live on a different table and are not included.
  */
@@ -140,13 +154,8 @@ export async function listPendingOrganizationInvitationsForUser(
     return [];
   }
 
-  const email = normalizeInvitationEmail(user.email);
   const invitations = await tx.invitation.findMany({
-    where: {
-      status: InvitationStatus.PENDING,
-      expiresAt: { gt: new Date() },
-      email: { equals: email, mode: "insensitive" },
-    },
+    where: pendingOrganizationInvitationsWhere(user.email),
     orderBy: { expiresAt: "desc" },
     select: {
       id: true,
