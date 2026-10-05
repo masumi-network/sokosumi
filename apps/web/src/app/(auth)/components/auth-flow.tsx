@@ -27,8 +27,8 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
-  buildSignedOAuthQueryFromSearchParams,
+  readAuthPageContext,
+  readAuthReturnUrl,
 } from "@/lib/auth/auth.utils";
 import {
   rememberAuthEmailHint,
@@ -60,7 +60,6 @@ interface AuthFlowProps {
   prefilledEmail?: string | undefined;
   /** The invitation `prefilledEmail` belongs to. */
   invitationId?: string | undefined;
-  returnUrl?: string | undefined;
   /** How this browser signed in or signed up last, from Better Auth's cookie. */
   lastUsedMethod: LastUsedAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
@@ -83,7 +82,6 @@ export default function AuthFlow({
   client,
   prefilledEmail,
   invitationId,
-  returnUrl,
   lastUsedMethod,
   notice,
   children,
@@ -95,17 +93,14 @@ export default function AuthFlow({
   const searchParams = useSearchParams();
   const router = useRouter();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
+    () => readAuthReturnUrl(searchParams),
+    [searchParams],
   );
   const emailLocked = Boolean(prefilledEmail);
   // The invitation whose address this page locked; the other page locks it too.
   const lockedInvitationId = emailLocked ? invitationId : undefined;
   const signUpHref = buildAuthPageUrl("/signup", {
-    returnUrl,
-    oauthQuery: returnUrl
-      ? undefined
-      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    ...readAuthPageContext(searchParams),
     invitationId: lockedInvitationId,
   });
   const signInHref = useSignInHref();

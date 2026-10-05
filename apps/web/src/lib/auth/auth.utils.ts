@@ -534,6 +534,19 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
  * at consent, whose provider endpoint checks that the new session satisfies
  * the signed request before clearing its login prompt or maximum age.
  */
+/**
+ * Where a finished sign-in or sign-up goes: the page's returnUrl, or else back
+ * into the OAuth request the page carries.
+ */
+export function readAuthReturnUrl(
+  searchParams: URLSearchParams,
+): string | undefined {
+  return (
+    searchParams.get("returnUrl") ??
+    buildOAuthResumeUrlFromSearchParams(searchParams)
+  );
+}
+
 export function buildOAuthResumeUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {

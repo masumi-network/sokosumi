@@ -11,8 +11,8 @@ import { Button } from "@/components/ui/button";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
-  buildOAuthResumeUrlFromSearchParams,
   buildSocialCallbackUrls,
+  readAuthReturnUrl,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
@@ -27,9 +27,7 @@ export default function SocialSignupAutoInitiator({
 }: SocialSignupAutoInitiatorProps) {
   const t = useTranslations("Auth.Pages.SignUp");
   const searchParams = useSearchParams();
-  const returnUrl = searchParams.get("returnUrl") ?? undefined;
-  const effectiveReturnUrl =
-    returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams);
+  const effectiveReturnUrl = readAuthReturnUrl(searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 
