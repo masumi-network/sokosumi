@@ -43,6 +43,7 @@ import mountRevokeUserVendorGrant from "./vendor-grants/[grantId]/revoke/post.js
 import mountGetUserVendorGrants from "./vendor-grants/get.js";
 import mountPostUserVendorGrants from "./vendor-grants/post.js";
 import mountGetUserWorkspaceAccess from "./workspace-access/get.js";
+import mountDeleteUserWorkspace from "./workspaces/[workspaceId]/delete.js";
 import mountGetUserWorkspaces from "./workspaces/get.js";
 import mountPostUserWorkspaces from "./workspaces/post.js";
 import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
@@ -70,6 +71,7 @@ mountGetUserWorkspaceAccess(app);
 mountGetUserWorkspaces(app);
 mountPostUserWorkspaces(app);
 mountPutUserPreferredWorkspace(app);
+mountDeleteUserWorkspace(app);
 mountGetUserPendingOrganizationInvitations(app);
 mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
