@@ -45,14 +45,15 @@ private actor WorkspaceTransport: ClientTransport {
     paths.append(operationID)
     let data: String
     switch operationID {
-    case "get/users/{id}/workspace-access":
-      data = "{\"gate\":\"\(gate)\",\"hasPersonalWorkspace\":true,\"hasOrganizationMembership\":true,\"hasPendingOrganizationInvites\":false}"
-    case "get/users/{id}/organizations":
-      data = #"[{"id":"org_1","createdAt":"2026-01-01T00:00:00.000Z","name":"Acme","slug":"acme","role":"member"}]"#
+    case "get/users/{id}/workspaces":
+      let workspaces = gate == "ready"
+        ? "\(userWorkspaceJSON(nil, preferred: preference == nil)),\(userWorkspaceJSON("org_1", preferred: preference == "org_1"))"
+        : ""
+      data = #"{"workspaces":[\#(workspaces)],"pendingInvitationCount":\#(gate == "pending-invites" ? 1 : 0)}"#
     case "get/users/{id}":
       data = #"{"id":"user_1","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"}"#
-    case "get/users/{id}/preferred-organization", "put/users/{id}/preferred-organization":
-      data = "{\"organizationId\":\(preference.map { "\"\($0)\"" } ?? "null")}"
+    case "put/users/{id}/workspaces/preferred":
+      data = userWorkspaceJSON(preference, preferred: true)
     case "get/chats/rooms":
       if pauseRooms {
         await withCheckedContinuation {
@@ -71,6 +72,13 @@ private actor WorkspaceTransport: ClientTransport {
     let envelope = "{\"data\":\(data),\"meta\":{\"timestamp\":\"2026-01-01T00:00:00.000Z\",\"requestId\":\"req\",\"pagination\":{\"cursor\":null,\"limit\":100,\"total\":0,\"nextCursor\":null}}}"
     return (HTTPResponse(status: .ok), HTTPBody(envelope))
   }
+}
+
+/// One `UserWorkspace`: personal for nil, Acme for `org_1`.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  organizationId == nil
+    ? #"{"id":"11111111-1111-7111-8111-111111111111","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    : #"{"id":"22222222-2222-7222-8222-222222222222","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
 }
 
 private let seededRoomID = "550e8400-e29b-41d4-a716-446655440000"
@@ -159,7 +167,8 @@ struct WorkspaceSessionTests {
     await transport.configure(gate: gate)
     let state = WorkspaceSession()
     await #expect(throws: ChatServiceError.self) { try await state.load(client: client(transport)) }
-    #expect(await transport.paths == ["get/users/{id}/workspace-access"])
+    #expect(await transport.paths == ["get/users/{id}/workspaces"])
+    #expect(state.phase == .blocked(gate: gate == "pending-invites" ? .pendingInvites : .identityOnboarding))
     #expect(state.currentUser == nil)
   }
 
@@ -225,7 +234,7 @@ struct WorkspaceSessionTests {
     switching.cancel()
     await transport.release()
     #expect(try await switching.value == nil)
-    #expect(await transport.paths.filter { $0 == "put/users/{id}/preferred-organization" }.count == 1)
+    #expect(await transport.paths.filter { $0 == "put/users/{id}/workspaces/preferred" }.count == 1)
     #expect(!state.isSwitching)
   }
 
