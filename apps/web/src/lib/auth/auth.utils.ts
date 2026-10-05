@@ -18,10 +18,6 @@ interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
   getSession: () => Promise<TSession | null>;
   logWarning: (message: string) => void;
-  initialDelayMs?: number;
-  retryDelayMs?: number;
-  sessionTimeoutMs?: number;
-  waitForMs?: (ms: number) => Promise<void>;
 }
 
 interface AuthSessionResponse<TSession = unknown> {
@@ -36,7 +32,6 @@ function waitForMs(ms: number): Promise<void> {
 
 async function getSessionOrNull<TSession>(
   getSession: () => Promise<TSession | null>,
-  timeoutMs: number,
 ): Promise<TSession | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -45,7 +40,10 @@ async function getSessionOrNull<TSession>(
         .then(() => getSession())
         .catch(() => null),
       new Promise<null>((resolve) => {
-        timeoutId = setTimeout(() => resolve(null), timeoutMs);
+        timeoutId = setTimeout(
+          () => resolve(null),
+          AUTH_SESSION_GET_TIMEOUT_MS,
+        );
       }),
     ]);
   } finally {
@@ -100,26 +98,22 @@ export async function waitForAuthSession<TSession = unknown>({
   context,
   getSession,
   logWarning,
-  initialDelayMs = AUTH_SESSION_INITIAL_WAIT_MS,
-  retryDelayMs = AUTH_SESSION_RETRY_WAIT_MS,
-  sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
-  waitForMs: waitForMsFn = waitForMs,
 }: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   discardRetiredAblyRealtimeClientAfterSignIn();
 
-  await waitForMsFn(initialDelayMs);
+  await waitForMs(AUTH_SESSION_INITIAL_WAIT_MS);
 
-  const session = await getSessionOrNull(getSession, sessionTimeoutMs);
+  const session = await getSessionOrNull(getSession);
   if (session) {
     return session;
   }
 
   logWarning(
-    `Session not established after ${context}, waiting for ${retryDelayMs}ms`,
+    `Session not established after ${context}, waiting for ${AUTH_SESSION_RETRY_WAIT_MS}ms`,
   );
-  await waitForMsFn(retryDelayMs);
+  await waitForMs(AUTH_SESSION_RETRY_WAIT_MS);
 
-  const retrySession = await getSessionOrNull(getSession, sessionTimeoutMs);
+  const retrySession = await getSessionOrNull(getSession);
   if (!retrySession) {
     logWarning(
       `Session not established after ${context}, proceeding with redirect anyway`,

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { discardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
   discardRetiredAblyRealtimeClient: vi.fn(),
@@ -527,97 +527,92 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
 });
 
 describe("waitForAuthSession", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Runs the wait to its end, through every timer it sets. */
+  async function settle<T>(wait: Promise<T>): Promise<T> {
+    await vi.runAllTimersAsync();
+    return wait;
+  }
+
   /**
    * Every sign-in path waits here and then navigates with `router.replace`, so
    * the document survives and a client the Ably singleton retired for a lost
    * session would survive with it. This is the one seam all four paths share.
    */
   it("discards a retired Ably client, because a sign-in just happened", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     // Every test in this block calls the seam, and nothing clears the
     // module-scoped mock, so the count would otherwise depend on test order.
     discardRetiredAblyRealtimeClient.mockClear();
 
-    await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
-      logWarning: vi.fn(),
-    });
+    await settle(
+      waitForAuthSession({
+        context: "login",
+        getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
+        logWarning: vi.fn(),
+      }),
+    );
     // The import is dynamic and deliberately not awaited, so let it settle.
+    vi.useRealTimers();
     await vi.waitFor(() => {
       expect(discardRetiredAblyRealtimeClient).toHaveBeenCalledOnce();
     });
   });
 
-  it("returns early when session is available after initial wait", async () => {
-    const waitForMs = vi.fn(async () => undefined);
+  it("asks once the cookie has had a moment, and returns the session", async () => {
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
+    const wait = waitForAuthSession({
       context: "login",
-      waitForMs,
       getSession,
       logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
     });
+    await vi.advanceTimersByTimeAsync(199);
+    expect(getSession).not.toHaveBeenCalled();
 
-    expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(1);
-    expect(waitForMs).toHaveBeenCalledWith(10);
+    await expect(settle(wait)).resolves.toEqual({ userId: "user_1" });
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(logWarning).not.toHaveBeenCalled();
   });
 
   it("retries once and logs waiting warning when first session check fails", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi
       .fn()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "signup",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "signup", getSession, logWarning }),
+    );
 
     expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(2);
-    expect(waitForMs).toHaveBeenNthCalledWith(1, 10);
-    expect(waitForMs).toHaveBeenNthCalledWith(2, 20);
     expect(getSession).toHaveBeenCalledTimes(2);
-    expect(logWarning).toHaveBeenCalledTimes(1);
-    expect(logWarning).toHaveBeenCalledWith(
-      "Session not established after signup, waiting for 20ms",
+    expect(logWarning).toHaveBeenCalledExactlyOnceWith(
+      "Session not established after signup, waiting for 500ms",
     );
   });
 
   it("logs second warning when session is still unavailable after retry", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn().mockResolvedValue(null);
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(logWarning).toHaveBeenCalledTimes(2);
     expect(logWarning).toHaveBeenNthCalledWith(
       1,
-      "Session not established after login, waiting for 20ms",
+      "Session not established after login, waiting for 500ms",
     );
     expect(logWarning).toHaveBeenNthCalledWith(
       2,
@@ -626,19 +621,12 @@ describe("waitForAuthSession", () => {
   });
 
   it("treats a hung getSession as missing and continues", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn(() => new Promise(() => {}));
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 0,
-      retryDelayMs: 0,
-      sessionTimeoutMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(getSession).toHaveBeenCalledTimes(2);
