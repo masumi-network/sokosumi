@@ -69,6 +69,14 @@ const { getPendingSocialRevocationMock, revokeSocialForCloseMock } = vi.hoisted(
     revokeSocialForCloseMock: vi.fn(),
   }),
 );
+const { getPendingAdRevocationMock, revokeAdForCloseMock } = vi.hoisted(() => ({
+  getPendingAdRevocationMock: vi.fn(),
+  revokeAdForCloseMock: vi.fn(),
+}));
+vi.mock("@/services/project-ad-accounts.service", () => ({
+  getPendingProjectAdRevocation: getPendingAdRevocationMock,
+  revokeProjectAdConnectionForClose: revokeAdForCloseMock,
+}));
 vi.mock("@/services/project-social-connections.service", () => ({
   getPendingProjectSocialRevocation: getPendingSocialRevocationMock,
   revokeProjectSocialConnectionForClose: revokeSocialForCloseMock,
@@ -167,6 +175,8 @@ describe("project close sync", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     getPendingSocialRevocationMock.mockReset().mockResolvedValue(null);
+    getPendingAdRevocationMock.mockReset().mockResolvedValue(null);
+    revokeAdForCloseMock.mockReset();
     revokeSocialForCloseMock.mockReset().mockResolvedValue(undefined);
     prismaMock.$transaction = transactionMock;
     prismaMock.projectCloseOperation.findFirst =
@@ -369,6 +379,42 @@ describe("project close sync", () => {
     expect(notifyProjectCloseTransitionMock).toHaveBeenCalledWith(
       "project_event_123",
     );
+  });
+
+  it("revokes ad authorizations before closing the project", async () => {
+    const pending = { adConnectionId: "ad_1", connectedAccountId: "ca_ads" };
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    getPendingAdRevocationMock.mockResolvedValueOnce(pending);
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(revokeAdForCloseMock).toHaveBeenCalledWith(pending);
+    expect(getPendingAdRevocationMock).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+    );
+    expect(result).toMatchObject({ closed: 1, failed: 0 });
+    expect(revokeAdForCloseMock.mock.invocationCallOrder[0]).toBeLessThan(
+      projectUpdateMock.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("keeps a failed ad revocation retryable without closing the project", async () => {
+    const pending = { adConnectionId: "ad_1", connectedAccountId: "ca_ads" };
+    taskScheduleFindFirstMock.mockResolvedValue(null);
+    projectCloseOperationFindFirstMock.mockResolvedValue({
+      attempts: 0,
+      projectId: PROJECT_ID,
+    });
+    getPendingAdRevocationMock.mockResolvedValueOnce(pending);
+    revokeAdForCloseMock.mockRejectedValueOnce(
+      new Error("Provider unavailable"),
+    );
+
+    const result = await projectCloseSyncService.syncProjectCloses(options());
+
+    expect(result).toMatchObject({ closed: 0, failed: 0 });
+    expect(projectUpdateMock).not.toHaveBeenCalled();
   });
 
   it("keeps a failed social revocation retryable without closing the project", async () => {

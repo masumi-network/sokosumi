@@ -1,6 +1,7 @@
 import { Composio } from "@composio/core";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
+import { PROJECT_AD_PROVIDERS } from "@/config/ads-providers";
 import { getEnv } from "@/config/env";
 import {
   PROJECT_SOCIAL_PROVIDERS,
@@ -34,7 +35,10 @@ export class ComposioConfigError extends Error {
         failure: "missing_configuration",
         apiKeyConfigured: Boolean(env.COMPOSIO_API_KEY),
         authConfigsConfigured: Object.fromEntries(
-          Object.entries(PROJECT_SOCIAL_PROVIDERS).map(([provider, config]) => [
+          Object.entries({
+            ...PROJECT_SOCIAL_PROVIDERS,
+            ...PROJECT_AD_PROVIDERS,
+          }).map(([provider, config]) => [
             provider,
             Boolean(env[config.authConfigEnv]),
           ]),
@@ -313,7 +317,7 @@ function validateConnectLinkRedirectUrl(redirectUrl: string): string {
   return url.toString();
 }
 
-export async function initiateProjectSocialConnection(input: {
+export async function initiateComposioConnection(input: {
   authConfigId: string;
   callbackUrl: string;
   connectorUserId: string;
@@ -385,7 +389,7 @@ export async function completeComposioAuth(input: {
   return { connectedAccountId, toolkitSlug };
 }
 
-export async function getProjectSocialConnectedAccount(
+export async function getComposioConnectedAccount(
   connectedAccountId: string,
 ): Promise<ProjectSocialConnectedAccount> {
   const response = await projectComposioFetch(
@@ -411,7 +415,7 @@ export async function getProjectSocialConnectedAccount(
  * Deletes a Composio tool-router session. Cleanup must never change the outcome
  * of the work the session did, so a failed delete is logged, not raised.
  */
-export async function deleteProjectSocialSession(
+export async function deleteComposioToolSession(
   sessionId: string,
   context: string,
 ): Promise<void> {
@@ -644,14 +648,14 @@ export async function getConnectedSocialIdentity(input: {
     }
     return identity;
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       `delete Project ${name} identity session`,
     );
   }
 }
 
-export async function revokeProjectSocialConnection(input: {
+export async function revokeComposioConnectedAccount(input: {
   connectedAccountId: string;
 }): Promise<void> {
   const response = await projectComposioFetch(
@@ -660,9 +664,7 @@ export async function revokeProjectSocialConnection(input: {
   );
   if (response.status === 404) return;
   if (response.status === 409) {
-    const account = await getProjectSocialConnectedAccount(
-      input.connectedAccountId,
-    );
+    const account = await getComposioConnectedAccount(input.connectedAccountId);
     if (account.status === "REVOKED") return;
   }
   await projectComposioResponse(response, "revoke Project social connection");

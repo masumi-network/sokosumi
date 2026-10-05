@@ -21,7 +21,7 @@ const {
   requireCoworkerCapabilityMock,
   disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnectionMock,
-  initiateProjectSocialConnectionMock,
+  initiateComposioConnectionMock,
   listProjectSocialConnectionsMock,
   requireSocialBetaAccessMock,
 } = vi.hoisted(() => ({
@@ -29,7 +29,7 @@ const {
   requireCoworkerCapabilityMock: vi.fn(),
   disconnectProjectSocialConnectionMock: vi.fn(),
   finalizeProjectSocialConnectionMock: vi.fn(),
-  initiateProjectSocialConnectionMock: vi.fn(),
+  initiateComposioConnectionMock: vi.fn(),
   listProjectSocialConnectionsMock: vi.fn(),
   requireSocialBetaAccessMock: vi.fn(),
 }));
@@ -37,7 +37,7 @@ const {
 vi.mock("@/services/project-social-connections.service", () => ({
   disconnectProjectSocialConnection: disconnectProjectSocialConnectionMock,
   finalizeProjectSocialConnection: finalizeProjectSocialConnectionMock,
-  initiateProjectSocialConnection: initiateProjectSocialConnectionMock,
+  initiateProjectSocialConnection: initiateComposioConnectionMock,
   listProjectSocialConnections: listProjectSocialConnectionsMock,
 }));
 
@@ -142,7 +142,7 @@ describe("Project social connection routes", () => {
     requireCoworkerCapabilityMock.mockResolvedValue(undefined);
     requireSocialBetaAccessMock.mockResolvedValue(undefined);
     listProjectSocialConnectionsMock.mockResolvedValue([connection]);
-    initiateProjectSocialConnectionMock.mockResolvedValue({
+    initiateComposioConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
     });
@@ -166,7 +166,7 @@ describe("Project social connection routes", () => {
         },
       );
       expect(initiation.status).toBe(201);
-      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+      expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
@@ -235,7 +235,7 @@ describe("Project social connection routes", () => {
   });
 
   it("uses only the session user and workspace when initiating a connection", async () => {
-    initiateProjectSocialConnectionMock.mockResolvedValue({
+    initiateComposioConnectionMock.mockResolvedValue({
       connectionId: CONNECTION_ID,
       redirectUrl: "https://connect.composio.dev/link-token",
       sessionUri: "https://composio.dev/session-secret",
@@ -263,7 +263,7 @@ describe("Project social connection routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("session-secret");
-    expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+    expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
       projectId: PROJECT_ID,
       workspaceId: WORKSPACE_ID,
       userId: USER_ID,
@@ -290,7 +290,7 @@ describe("Project social connection routes", () => {
       );
 
       expect(response.status).toBe(201);
-      expect(initiateProjectSocialConnectionMock).toHaveBeenCalledWith({
+      expect(initiateComposioConnectionMock).toHaveBeenCalledWith({
         projectId: PROJECT_ID,
         workspaceId: WORKSPACE_ID,
         userId: USER_ID,
@@ -431,7 +431,7 @@ describe("Project social connection routes", () => {
       ]);
       expect(requireSocialBetaAccessMock).not.toHaveBeenCalled();
       expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
-      expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+      expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
       expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
       expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
     },
@@ -474,7 +474,7 @@ describe("Project social connection routes", () => {
       expect.anything(),
     );
     expect(listProjectSocialConnectionsMock).not.toHaveBeenCalled();
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
     expect(finalizeProjectSocialConnectionMock).not.toHaveBeenCalled();
     expect(disconnectProjectSocialConnectionMock).not.toHaveBeenCalled();
   });
@@ -503,7 +503,7 @@ describe("Project social connection routes", () => {
     expect(malformedProject.status).toBe(422);
     expect(malformedConnection.status).toBe(422);
     expect(unsupportedProvider.status).toBe(422);
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
   });
 
   it("returns not found when the Project is outside the current workspace", async () => {
@@ -584,6 +584,6 @@ describe("Project social connection routes", () => {
       },
     );
     expect(denied.status).toBe(403);
-    expect(initiateProjectSocialConnectionMock).not.toHaveBeenCalled();
+    expect(initiateComposioConnectionMock).not.toHaveBeenCalled();
   });
 });

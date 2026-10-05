@@ -18822,6 +18822,206 @@ export const DisconnectProjectSocialConnectionResponseSchema = {
     ]
 } as const;
 
+export const ProjectAdAccountSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        connectionId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        },
+        externalAccountId: {
+            type: 'string',
+            description: 'Google customer id or Meta `act_…` id',
+            example: '1234567890'
+        },
+        name: {
+            type: 'string',
+            example: 'Sokosumi Ads'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code; money is a decimal in this currency',
+            example: 'EUR'
+        },
+        timeZone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Berlin'
+        },
+        loginCustomerId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Google manager account reaching this account, if any'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'connectionId',
+        'provider',
+        'externalAccountId',
+        'name',
+        'currency',
+        'timeZone',
+        'loginCustomerId',
+        'createdAt'
+    ]
+} as const;
+
+export const ProjectAdProviderSchema = {
+    type: 'string',
+    enum: [
+        'google_ads',
+        'meta_ads'
+    ],
+    example: 'google_ads'
+} as const;
+
+export const InitiateProjectAdConnectionRequestSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
+export const FinalizeProjectAdConnectionResponseSchema = {
+    type: 'object',
+    properties: {
+        connection: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ProjectAdConnection'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null when the account reaches no ad accounts: nothing is stored and the authorization is revoked'
+        },
+        availableAccounts: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AvailableAdAccount'
+            }
+        }
+    },
+    required: [
+        'connection',
+        'availableAccounts'
+    ]
+} as const;
+
+export const ProjectAdConnectionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Pass this as `adConnectionId` when attaching accounts',
+            example: 'cccccccc-cccc-4ccc-cccc-cccccccccccc'
+        },
+        provider: {
+            $ref: '#/components/schemas/ProjectAdProvider'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'active',
+                'reauthorization_required',
+                'disconnected'
+            ]
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'status',
+        'createdAt'
+    ]
+} as const;
+
+export const AvailableAdAccountSchema = {
+    type: 'object',
+    properties: {
+        externalAccountId: {
+            type: 'string',
+            description: 'Google customer id or Meta `act_…` id',
+            example: '1234567890'
+        },
+        name: {
+            type: 'string',
+            example: 'Sokosumi Ads'
+        },
+        currency: {
+            type: 'string',
+            description: 'ISO 4217 code; money is a decimal in this currency',
+            example: 'EUR'
+        },
+        timeZone: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Europe/Berlin'
+        }
+    },
+    required: [
+        'externalAccountId',
+        'name',
+        'currency',
+        'timeZone'
+    ]
+} as const;
+
+export const AttachProjectAdAccountsRequestSchema = {
+    type: 'object',
+    properties: {
+        adConnectionId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'The connection `id` returned by finalize'
+        },
+        externalAccountIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            minItems: 1,
+            maxItems: 50
+        }
+    },
+    required: [
+        'adConnectionId',
+        'externalAccountIds'
+    ]
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {

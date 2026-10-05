@@ -4,13 +4,13 @@ import {
   socialPostProviderLabel,
 } from "@sokosumi/utils";
 
-import { deleteProjectSocialSession } from "@/clients/composio.client";
+import { deleteComposioToolSession } from "@/clients/composio.client";
 import { socialPostPublishedUrl } from "@/clients/social-post-providers/published-url";
 import {
   ComposioPublishOutcomeUnknownError,
   ComposioToolError,
-  createSocialPublishSession,
-  executeSocialPublishTool,
+  createComposioToolSession,
+  executeComposioTool,
   guardSocialCreateOutcome,
   stageSocialPublishFile,
 } from "@/clients/social-post-providers/tools";
@@ -150,7 +150,7 @@ async function awaitMediaProcessing(
     );
     signal?.throwIfAborted();
     processing = processingState(
-      await executeSocialPublishTool({
+      await executeComposioTool({
         sessionId,
         toolSlug: "TWITTER_GET_MEDIA_UPLOAD_STATUS",
         arguments: { media_id: mediaId },
@@ -184,7 +184,7 @@ async function uploadXMedia(
     file: media,
     signal,
   });
-  const result = await executeSocialPublishTool({
+  const result = await executeComposioTool({
     sessionId,
     toolSlug,
     arguments: {
@@ -222,7 +222,7 @@ export async function publishXPost(
   context: SocialPostPublishContext,
 ): Promise<SocialPostPublishResult> {
   const label = socialPostProviderLabel("x");
-  const sessionId = await createSocialPublishSession({
+  const sessionId = await createComposioToolSession({
     toolkitSlug: "twitter",
     connectedAccountId: context.connectedAccountId,
     executorUserId: context.executorUserId,
@@ -244,7 +244,7 @@ export async function publishXPost(
     }
     const createStep = X_PUBLISH_TOOL_STEPS[X_CREATE_POST_TOOL_SLUG];
     const post = await guardSocialCreateOutcome(label, () =>
-      executeSocialPublishTool({
+      executeComposioTool({
         sessionId,
         toolSlug: X_CREATE_POST_TOOL_SLUG,
         arguments: {
@@ -269,7 +269,7 @@ export async function publishXPost(
       toolSlug: X_CREATE_POST_TOOL_SLUG,
     };
   } finally {
-    await deleteProjectSocialSession(
+    await deleteComposioToolSession(
       sessionId,
       "delete Project X publish session",
     );

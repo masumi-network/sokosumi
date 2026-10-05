@@ -4,10 +4,10 @@ import {
   ComposioApiError,
   ComposioConfigError,
   deleteProjectSocialConnectionIntent,
+  getComposioConnectedAccount,
   getConnectedSocialIdentity,
-  getProjectSocialConnectedAccount,
-  initiateProjectSocialConnection as initiateComposioProjectSocialConnection,
-  revokeProjectSocialConnection,
+  initiateComposioConnection,
+  revokeComposioConnectedAccount,
 } from "@/clients/composio.client";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import {
@@ -89,7 +89,8 @@ interface ProjectSocialConnectionRecord {
   disconnectedAt: Date | null;
 }
 
-function projectConnectorUserId(userId: string): string {
+/** Composio user id that owns a connection the given user authorized. */
+export function projectConnectorUserId(userId: string): string {
   return `sokosumi:user:${userId}`;
 }
 
@@ -209,10 +210,15 @@ function isLiveIntent(
   );
 }
 
-async function requireScopedProject(
+export async function requireScopedProject(
   input: { projectId: string; workspaceId: string },
-  client: Pick<Prisma.TransactionClient, "project"> = prisma,
-  requireOpen = false,
+  {
+    client = prisma,
+    requireOpen = false,
+  }: {
+    client?: Pick<Prisma.TransactionClient, "project">;
+    requireOpen?: boolean;
+  } = {},
 ): Promise<void> {
   const project = await client.project.findFirst({
     where: { id: input.projectId, workspaceId: input.workspaceId },
@@ -222,20 +228,18 @@ async function requireScopedProject(
     throw notFound("Project not found");
   }
   if (requireOpen && (project.closingAt || project.closedAt)) {
-    throw conflict(
-      "Cannot connect social accounts to a closing or closed Project",
-    );
+    throw conflict("Cannot connect accounts to a closing or closed Project");
   }
 }
 
-async function requireLockedOpenProject(
+export async function requireLockedOpenProject(
   tx: Prisma.TransactionClient,
   input: { projectId: string; workspaceId: string },
 ): Promise<void> {
   if (!(await lockCalendarScope(tx, input.workspaceId, [input.projectId]))) {
     throw notFound("Project not found");
   }
-  await requireScopedProject(input, tx, true);
+  await requireScopedProject(input, { client: tx, requireOpen: true });
 }
 
 async function requireTargetConnection(input: {
@@ -320,7 +324,7 @@ async function refreshActiveConnectionStatus(
 
   let account;
   try {
-    account = await getProjectSocialConnectedAccount(
+    account = await getComposioConnectedAccount(
       connection.composioConnectedAccountId,
     );
   } catch (error) {
@@ -372,7 +376,7 @@ async function refreshActiveConnectionStatus(
 export async function initiateProjectSocialConnection(
   input: InitiateProjectSocialConnectionInput,
 ): Promise<{ connectionId: string; redirectUrl: string }> {
-  await requireScopedProject(input, prisma, true);
+  await requireScopedProject(input, { requireOpen: true });
   if (input.action === "connect" && input.socialConnectionId) {
     throw conflict("A new connection cannot target an existing social account");
   }
@@ -417,7 +421,7 @@ export async function initiateProjectSocialConnection(
     await revokeRetiredProjectSocialConnection(retiredConnection);
   }
 
-  const connection = await initiateComposioProjectSocialConnection({
+  const connection = await initiateComposioConnection({
     authConfigId,
     connectorUserId: projectConnectorUserId(input.userId),
     executorUserId: projectExecutorUserId(input.projectId),
@@ -453,7 +457,7 @@ export async function initiateProjectSocialConnection(
 export async function finalizeProjectSocialConnection(
   input: FinalizeProjectSocialConnectionInput,
 ): Promise<ProjectSocialConnectionSummary> {
-  await requireScopedProject(input, prisma, true);
+  await requireScopedProject(input, { requireOpen: true });
   const intent = await prisma.projectSocialConnectionIntent.findUnique({
     where: { connectionId: input.connectionId },
   });
@@ -463,7 +467,7 @@ export async function finalizeProjectSocialConnection(
 
   const authConfigId = intent.authConfigId;
   const connectorUserId = projectConnectorUserId(input.userId);
-  const account = await getProjectSocialConnectedAccount(input.connectionId);
+  const account = await getComposioConnectedAccount(input.connectionId);
   if (
     account.id !== input.connectionId ||
     account.toolkitSlug !==
@@ -677,7 +681,7 @@ async function revokeRetiredProjectSocialConnection(input: {
   }
 
   try {
-    await revokeProjectSocialConnection({
+    await revokeComposioConnectedAccount({
       connectedAccountId: input.connectedAccountId,
     });
     await prisma.projectSocialConnectionAudit.update({
