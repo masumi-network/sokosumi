@@ -6,6 +6,7 @@ import { Paperclip, Play } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { useSocialCalendarPreview } from "@/app/social/components/social-calendar-preview";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   Popover,
@@ -101,6 +102,7 @@ function SocialPostPreviewCard({
   const t = useTranslations("App.Calendar.socialPost");
   const statuses = useTranslations("App.Projects.SocialPosts.status");
   const formatter = useFormatter();
+  const openPreview = useSocialCalendarPreview();
   const scheduler = t("scheduledBy", {
     name: item.scheduledByName ?? t("unknownScheduler"),
   });
@@ -108,12 +110,10 @@ function SocialPostPreviewCard({
   const account = item.externalHandle
     ? `${providerLabel} · @${item.externalHandle}`
     : providerLabel;
-  return (
-    <Link
-      href={socialPostHref(item)}
-      className="bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo"
-      data-testid="calendar-social-post"
-    >
+  const className =
+    "bg-background text-foreground press hover:bg-muted border border-border flex w-full min-w-0 cursor-pointer select-none flex-col items-stretch gap-1 overflow-hidden rounded-md p-1.5 text-left text-xs font-medium motion-safe:transition-colors motion-safe:duration-150 motion-safe:ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring-halo";
+  const content = (
+    <>
       <span className="flex w-full min-w-0 items-center gap-1">
         <span
           className="flex size-4 shrink-0 items-center justify-center"
@@ -174,6 +174,26 @@ function SocialPostPreviewCard({
           </span>
         ) : null}
       </span>
+    </>
+  );
+  return openPreview ? (
+    <button
+      type="button"
+      className={className}
+      data-testid="calendar-social-post"
+      onClick={(event) =>
+        openPreview(item.sourceProjectId, item.postId, event.currentTarget)
+      }
+    >
+      {content}
+    </button>
+  ) : (
+    <Link
+      href={socialPostHref(item)}
+      className={className}
+      data-testid="calendar-social-post"
+    >
+      {content}
     </Link>
   );
 }
