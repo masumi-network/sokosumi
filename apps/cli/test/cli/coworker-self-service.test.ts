@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import type { CoreHttpClient } from "../../src/api/http-client.js";
+import {
+  type CoreHttpClient,
+  createApiError,
+} from "../../src/api/http-client.js";
 import { runCoworkersCommand } from "../../src/cli/commands/coworkers.js";
 
 function fixture(vendorRole = "admin", status = "PENDING") {
@@ -41,6 +44,11 @@ function fixture(vendorRole = "admin", status = "PENDING") {
             isWhitelisted: false,
           },
         } as T;
+      if (path.endsWith("/workspace-access") && status === "TERMINAL")
+        throw createApiError(400, {
+          error: "Bad Request",
+          message: "Cannot re-request after deny/revoke",
+        });
       if (path.endsWith("/workspace-access"))
         return {
           data: {
@@ -188,20 +196,34 @@ test("explicit key creation works while organization access awaits approval", as
   assert.equal(result.apiKey.token, "coworker_fixture_secret");
 });
 
-for (const status of ["DENIED", "REVOKED", "UNKNOWN"]) {
-  test(`connect does not report ${status} as approval requested`, async () => {
-    const f = fixture("admin", status);
-    await assert.rejects(
-      runCoworkersCommand({
-        ...f,
-        target: "preprod",
-        subcommand: "connect",
-        json: true,
-        positionalId: "own-coworker",
-        options: { "vendor-id": "own-vendor", "workspace-id": "event-org" },
-      }),
-      new RegExp(`access is ${status}`),
-    );
-    assert.equal(f.output.length, 0);
-  });
-}
+test("connect gives recovery text when Core refuses a denied or revoked request", async () => {
+  const f = fixture("admin", "TERMINAL");
+  await assert.rejects(
+    runCoworkersCommand({
+      ...f,
+      target: "preprod",
+      subcommand: "connect",
+      json: true,
+      positionalId: "own-coworker",
+      options: { "vendor-id": "own-vendor", "workspace-id": "event-org" },
+    }),
+    /Coworker own-coworker Workspace access was denied or revoked\. Keep this Coworker ID\. Ask a Workspace owner or admin to restore access\. Do not register again\./,
+  );
+  assert.equal(f.output.length, 0);
+});
+
+test("connect does not report an unknown status as approval requested", async () => {
+  const f = fixture("admin", "UNKNOWN");
+  await assert.rejects(
+    runCoworkersCommand({
+      ...f,
+      target: "preprod",
+      subcommand: "connect",
+      json: true,
+      positionalId: "own-coworker",
+      options: { "vendor-id": "own-vendor", "workspace-id": "event-org" },
+    }),
+    /access is UNKNOWN/,
+  );
+  assert.equal(f.output.length, 0);
+});

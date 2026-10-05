@@ -34,7 +34,7 @@ Read each returned `id`, `name`, and `capabilities`:
 
 - One suitable result: use its `id`.
 - Several suitable results: show the candidates and ask the user to choose.
-- No suitable result: report the discovery scope. For private setup, explain the platform-admin provisioning handoff rather than inventing an ID.
+- No suitable result: report the discovery scope. For private setup on Preprod, a Vendor admin can provision the Coworker privately. Never invent an ID.
 
 Never choose the first result, infer an ID, or switch workers silently. The CLI uses `coworkers list`, not `agents search`, for coworker discovery.
 

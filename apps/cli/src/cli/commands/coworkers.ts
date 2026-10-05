@@ -41,6 +41,7 @@ import {
 
 const PENDING_KEY_GUIDANCE =
   "A runtime key identifies this Coworker. It does not grant access to the pending Workspace.";
+const TERMINAL_ACCESS_MESSAGE = "Cannot re-request after deny/revoke";
 
 export interface CoworkersCommandContext extends CommandContext {
   target?: CliTargetConfig["target"];
@@ -75,6 +76,23 @@ function rethrowCoworkerCreationError(
       " Creation may have succeeded. Inspect `sokosumi --preprod coworkers list --scope all` before retrying.";
   }
   throw failure;
+}
+
+function rethrowWorkspaceAccessError(
+  error: unknown,
+  coworkerId: string,
+): never {
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    error.status === 400 &&
+    "body" in error &&
+    record(error.body).message === TERMINAL_ACCESS_MESSAGE
+  )
+    throw new Error(
+      `Coworker ${coworkerId} Workspace access was denied or revoked. Keep this Coworker ID. Ask a Workspace owner or admin to restore access. Do not register again.`,
+    );
+  throw error;
 }
 
 async function buildPayload(
@@ -427,12 +445,17 @@ export async function runCoworkersCommand({
         `Coworker ${coworkerId} belongs to Vendor ${coworker.vendor.id}, but --vendor-id selected ${vendorId}. Check the Coworker ID and Vendor ID with the organizer before retrying.`,
       );
     }
-    const { access } = await grantCoworkerWorkspaceAccess(
-      client,
-      coworkerId,
-      { organizationId: workspace.organizationId },
-      signal,
-    );
+    let access: CoworkerWorkspaceAccess;
+    try {
+      ({ access } = await grantCoworkerWorkspaceAccess(
+        client,
+        coworkerId,
+        { organizationId: workspace.organizationId },
+        signal,
+      ));
+    } catch (error) {
+      rethrowWorkspaceAccessError(error, coworkerId);
+    }
     if (!["GRANTED", "PENDING"].includes(access.status)) {
       throw new Error(
         `Coworker ${coworkerId} Workspace access is ${access.status}. Keep this Coworker ID. A Workspace owner or admin must resolve the access state. Do not register again.`,
