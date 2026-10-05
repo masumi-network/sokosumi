@@ -112,14 +112,17 @@ describe("AdminSokoBotActions", () => {
       };
       expect(first.input.operationId).toMatch(/[0-9a-f-]{36}/);
 
-      // Retry after failure re-sends the same operation.
-      fireEvent.click(
-        await screen.findByRole(
-          "button",
-          { name: "confirm" },
-          { timeout: OPERATION_ASSERTION_TIMEOUT_MS },
-        ),
+      // Retry after failure re-sends the same operation. A loading button
+      // keeps its name but ignores clicks, so wait for the first to settle.
+      const retry = await screen.findByRole(
+        "button",
+        { name: "confirm" },
+        { timeout: OPERATION_ASSERTION_TIMEOUT_MS },
       );
+      await waitFor(() => expect(retry).not.toHaveAttribute("aria-busy"), {
+        timeout: OPERATION_ASSERTION_TIMEOUT_MS,
+      });
+      fireEvent.click(retry);
       await waitFor(() => expect(performMock).toHaveBeenCalledTimes(2), {
         timeout: OPERATION_ASSERTION_TIMEOUT_MS,
       });
