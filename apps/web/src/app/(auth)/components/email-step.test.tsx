@@ -2,6 +2,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CAPTCHA_PASS } from "@/test/auth-captcha-mock";
+
 import { EmailStep } from "./email-step";
 
 const emailStatusMock = vi.fn();
@@ -61,7 +63,7 @@ describe("EmailStep", () => {
   // Sign-in opens on the password for it, rather than emailing a code.
   it("tells Continue whether the account has a password", async () => {
     emailStatusMock.mockResolvedValue({
-      data: { exists: true, hasPassword: true },
+      data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     const onContinue = renderStep();
@@ -72,14 +74,14 @@ describe("EmailStep", () => {
       expect(onContinue).toHaveBeenCalledWith(
         "ada@example.com",
         expect.any(AbortSignal),
-        { hasPassword: true },
+        { hasPassword: true, captchaPass: CAPTCHA_PASS },
       ),
     );
   });
 
   it("tells Continue an account without a password has none", async () => {
     emailStatusMock.mockResolvedValue({
-      data: { exists: true, hasPassword: false },
+      data: { exists: true, hasPassword: false, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     const onContinue = renderStep();
@@ -90,7 +92,7 @@ describe("EmailStep", () => {
       expect(onContinue).toHaveBeenCalledWith(
         "ada@example.com",
         expect.any(AbortSignal),
-        { hasPassword: false },
+        { hasPassword: false, captchaPass: CAPTCHA_PASS },
       ),
     );
   });

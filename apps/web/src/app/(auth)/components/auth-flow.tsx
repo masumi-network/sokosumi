@@ -21,6 +21,7 @@ import SignUpForm from "@/auth/signup/components/form";
 import SignInLink, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
+import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
@@ -256,9 +257,10 @@ export default function AuthFlow({
                 // Register's first step would only ask Core again and send
                 // this code, so it is sent here and Register opens on its
                 // second step.
-                follow: async (newEmail, signal) => {
+                follow: async (newEmail, signal, { captchaPass }) => {
                   const codeSentAt = await emailCode.sendCode(newEmail, {
                     signal,
+                    runWithCaptcha: runWithCaptchaPass(captchaPass),
                   });
                   if (signal.aborted) return;
                   rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -273,7 +275,12 @@ export default function AuthFlow({
                   const method = chooseSignInMethod(lastUsedMethod, account);
                   const codeSentAt =
                     method === "code"
-                      ? await emailCode.sendCode(knownEmail, { signal })
+                      ? await emailCode.sendCode(knownEmail, {
+                          signal,
+                          runWithCaptcha: runWithCaptchaPass(
+                            account.captchaPass,
+                          ),
+                        })
                       : null;
                   if (signal.aborted) return;
                   rememberAuthEmailHint(knownEmail, {
@@ -286,7 +293,6 @@ export default function AuthFlow({
         }
         onFormStart={handleFormStart}
         onEmailChange={setTypedEmail}
-        continueCaptcha={emailCode.captcha}
         onContinue={async (confirmedEmail, signal, account) => {
           setEmail(confirmedEmail);
           // Register always emails a code; Log in may open on the password.
@@ -296,7 +302,10 @@ export default function AuthFlow({
           setInitialMethod(method);
           // A failed send has said so; step 2 then opens on the password.
           if (method === "code") {
-            await emailCode.sendCode(confirmedEmail, { signal });
+            await emailCode.sendCode(confirmedEmail, {
+              signal,
+              runWithCaptcha: runWithCaptchaPass(account.captchaPass),
+            });
           }
           if (!signal.aborted) setStep("finish");
         }}
