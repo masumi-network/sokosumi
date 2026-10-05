@@ -262,7 +262,7 @@ p {
   gap: 4px;
 }
 
-.choice:hover:enabled {
+.choice:hover:enabled:not([aria-disabled="true"]) {
   border-color: var(--foreground);
   background: var(--surface);
 }
@@ -272,7 +272,7 @@ p {
   outline-offset: 2px;
 }
 
-.choice:disabled:not([aria-busy="true"]) {
+.choice[aria-disabled="true"] {
   cursor: not-allowed;
   color: var(--muted);
 }
@@ -378,6 +378,7 @@ p {
 
 @media (prefers-reduced-motion: reduce) {
   .button,
+  .choice,
   .mascot-still,
   .mascot-stage {
     transition: none;

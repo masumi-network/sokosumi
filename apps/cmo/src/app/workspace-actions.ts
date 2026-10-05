@@ -2,8 +2,9 @@
 
 import { postUsersByIdWorkspaces } from "@sokosumi/core-client";
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 
+import { WORKSPACE_FAILED_ERROR } from "../components/workspace-gate";
 import { asSignedInPerson } from "../lib/core";
 
 /**
@@ -20,7 +21,13 @@ export async function createPersonalWorkspace() {
     });
     status = response?.status ?? null;
   } catch (error) {
+    // Preserve Next's control flow and request-time rendering signals.
+    unstable_rethrow(error);
     console.error("Creating the personal workspace failed", error);
   }
-  redirect(status === 201 || status === 409 ? "/" : "/?error=workspace_failed");
+  redirect(
+    status === 201 || status === 409
+      ? "/"
+      : `/?error=${WORKSPACE_FAILED_ERROR}`,
+  );
 }

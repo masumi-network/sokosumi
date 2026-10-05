@@ -39,7 +39,7 @@ it("asks where the person will use CMO, with Just me and Sign out", () => {
 
 it("shows My organization as coming soon, not yet choosable", () => {
   expect(render()).toMatch(
-    /<button class="choice" type="button" disabled=""><span class="choice-title">My organization<\/span><span class="choice-detail">A shared workspace for your team\. Coming soon\.<\/span><\/button>/,
+    /<button class="choice" type="button" aria-disabled="true"><span class="choice-title">My organization<\/span><span class="choice-detail">A shared workspace for your team\. Coming soon\.<\/span><\/button>/,
   );
 });
 

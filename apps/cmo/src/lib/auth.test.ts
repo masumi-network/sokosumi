@@ -14,6 +14,7 @@ import {
   type CmoAuth,
   createCmoAuth,
   getAuth,
+  getPageAccessToken,
   renewSession,
   sokosumiSignInBody,
 } from "./auth";
@@ -1024,6 +1025,37 @@ describe("CMO auth handler", () => {
 
     expect(response.status).toBe(204);
     expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("serves a page the current access token without refreshing it", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S - 60) * 1000);
+
+    const token = await getPageAccessToken(
+      auth,
+      new Headers({ cookie: jar.header() }),
+    );
+
+    expect(token).toEqual(expect.any(String));
+    expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("gives a page no token instead of refreshing an expired one", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+
+    const token = await getPageAccessToken(
+      auth,
+      new Headers({ cookie: cookies }),
+    );
+
+    // A page cannot write cookies: a refresh would rotate Core's refresh
+    // token and lose the new one, so renewal stays with the proxy.
+    expect(token).toBeNull();
+    expect(core.refreshAttempts).toBe(0);
+    await renew(auth, jar);
+    expect(core.refreshCount()).toBe(1);
   });
 
   it("serves a valid access token while a new instance cannot discover Core", async () => {

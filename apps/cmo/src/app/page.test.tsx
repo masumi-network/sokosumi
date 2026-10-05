@@ -13,7 +13,7 @@ vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
 
 vi.mock("../lib/core", () => ({
-  asSignedInPerson: async () => ({
+  asSignedInPersonInPage: async () => ({
     headers: { authorization: "Bearer token_123" },
   }),
 }));
@@ -32,7 +32,9 @@ vi.mock("./workspace-actions", () => ({
 
 const { default: HomePage } = await import("./page");
 
-function render(error?: string): Promise<ReactElement<{ failed?: boolean }>> {
+function render(
+  error?: string,
+): Promise<ReactElement<{ failed?: boolean; error?: string }>> {
   return HomePage({ searchParams: Promise.resolve({ error }) });
 }
 
@@ -88,13 +90,35 @@ describe("CMO home page", () => {
   });
 
   it("fails into the error page when Core cannot list workspaces", async () => {
-    // With throwOnError the generated client rejects on any non-2xx answer.
-    const failure = new Error("Internal Server Error");
-    getUsersByIdWorkspaces.mockRejectedValue(failure);
+    getUsersByIdWorkspaces.mockResolvedValue({
+      error: { error: "Internal Server Error" },
+      response: new Response(null, { status: 500 }),
+    });
 
-    await expect(render()).rejects.toBe(failure);
-    expect(getUsersByIdWorkspaces).toHaveBeenCalledWith(
-      expect.objectContaining({ throwOnError: true }),
-    );
+    await expect(render()).rejects.toThrow("(500)");
+  });
+
+  it.each([401, 403])(
+    "shows the signed-out page when Core refuses the token (%i)",
+    async (status) => {
+      getUsersByIdWorkspaces.mockResolvedValue({
+        error: { error: "Unauthorized" },
+        response: new Response(null, { status }),
+      });
+
+      const page = await render();
+
+      expect(page.type).toBe(SignedOut);
+      expect(page.props).toMatchObject({ error: "signed_out" });
+    },
+  );
+
+  it("does not show a gate error as a sign-in failure after signing out elsewhere", async () => {
+    getSession.mockResolvedValue(null);
+
+    const page = await render("workspace_failed");
+
+    expect(page.type).toBe(SignedOut);
+    expect(page.props).toMatchObject({ error: undefined });
   });
 });

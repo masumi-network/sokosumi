@@ -20,6 +20,7 @@ vi.mock("next/navigation", async (importOriginal) => {
 });
 
 vi.mock("../lib/auth", () => ({
+  coreClientFor: () => ({}),
   getAuth: () => ({ api: { getAccessToken } }),
 }));
 
