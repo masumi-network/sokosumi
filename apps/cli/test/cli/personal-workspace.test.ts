@@ -351,6 +351,83 @@ test("personal Task creation stops when no personal Workspace exists", async () 
   );
   assert.equal(f.posts.length, 0);
 });
+
+// V92/V99/V103: recovery preserves the created identity and error classification.
+for (const failure of [
+  "workspace unavailable",
+  "workspace denied",
+  "network failure",
+  "different Coworker",
+] as const)
+  test(`V92 personal registration preserves recovery after ${failure}`, async () => {
+    const f = fixture();
+    f.setExists(true);
+    const get = f.coreClient.get;
+    const post = f.coreClient.post;
+    f.coreClient.get = async <T>(path: string) => {
+      if (path === `/v1/workspaces/${workspaceId}`) {
+        if (failure === "workspace unavailable")
+          throw createApiError(503, { message: "Service unavailable" });
+        if (failure === "workspace denied")
+          throw createApiError(403, { message: "Access denied" });
+        if (failure === "network failure") throw new TypeError("fetch failed");
+      }
+      return get<T>(path);
+    };
+    f.coreClient.post = async <T>(path: string, body: unknown) => {
+      if (
+        failure === "different Coworker" &&
+        path.endsWith("/workspace-access")
+      ) {
+        await post(path, body);
+        return {
+          data: {
+            id: "access-1",
+            coworkerId: "different-coworker",
+            workspaceId,
+            status: "GRANTED",
+          },
+        } as T;
+      }
+      return post<T>(path, body);
+    };
+    await assert.rejects(
+      f.invoke([
+        "coworkers",
+        "register",
+        "--personal",
+        "--vendor-id",
+        "vendor-1",
+        "--name",
+        "Agent",
+        "--create-api-key",
+      ]),
+      (error: unknown) => {
+        assert.ok(error instanceof Error);
+        assert.match(error.message, /Coworker cw-1 was created/);
+        assert.match(error.message, /Do not register again/);
+        assert.match(
+          error.message,
+          /coworkers connect cw-1 --vendor-id vendor-1 --personal --preprod/,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(
+      f.posts.map(({ path }) => path),
+      ["/v1/coworkers", "/v1/coworkers/cw-1/workspace-access"],
+    );
+    const payload = JSON.parse(f.output.join(""));
+    assert.match(payload.error, /cw-1/);
+    const expected = {
+      "workspace unavailable": { code: "API_ERROR", status: 503 },
+      "workspace denied": { code: "PERMISSION_DENIED", status: 403 },
+      "network failure": { code: "NETWORK", status: undefined },
+      "different Coworker": { code: "UNKNOWN", status: undefined },
+    }[failure];
+    assert.equal(payload.code, expected.code);
+    assert.equal(payload.status, expected.status);
+  });
 // V101: fixed allowlisted recovery text; raw Core body stays private.
 for (const kind of [
   "grant_required",

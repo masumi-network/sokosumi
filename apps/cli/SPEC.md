@@ -165,6 +165,7 @@ V100: [REPORTED: user choice, 2026-10-05] Personal runtime uses Coworker credent
 
 V101: [REPORTED: personal-flow recovery requirement, 2026-10-05] Runtime permission errors expose only allowlisted `grant_required`, `grant_denied`, `grant_revoked` codes with fixed recovery text. Raw Core error body and credentials never enter output. This also applies to personal Workspace authorization callbacks.
 V102: [VERIFIED: source review, 2026-10-05] Personal Task creation validates ownership and personal Workspace fields from the raw Core response. The parsed Task model omits these fields. Failed confirmation retains the created Task ID and warns against retrying before inspection.
+V103: [VERIFIED: `src/cli/errors.ts`, `test/cli/personal-workspace.test.ts`] Personal registration confirmation errors retain the original error code and HTTP status. Recovery text includes the created Coworker ID and connection command. Raw Core error bodies stay out of recovery text.
 
 ## §T TASKS
 
@@ -278,3 +279,5 @@ B55|2026-09-24|INFERRED from spec review: after V89 let a solo admin delete, a P
 B56|2026-10-05|VERIFIED source: `src/coworker/runtime-task.ts` request error wrapper retained HTTP status but discarded `body.kind`; personal-flow guide could not identify the required grant approval|V101
 B57|2026-10-05|VERIFIED source: `src/api/models/task.ts` parseTask omits ownerId and workspace; initial personal creation validation read these omitted fields after a successful POST|V102
 B58|2026-10-05|REPORTED executable review: personal Workspace authorization callback propagated `Core API request failed with status 403` and untrusted server message outside runtime safe error wrapper|V101
+B59|2026-10-05|VERIFIED regression test: personal registration confirmation errors hid created Coworker ID; unchanged source returned `tests 22`, `pass 20`, `fail 2` in `test/cli/personal-workspace.test.ts`|V92
+B60|2026-10-05|VERIFIED regression test: first recovery wrapper replaced API/network errors with plain Error; `test/cli/personal-workspace.test.ts` returned `tests 24`, `pass 21`, `fail 3`|V103

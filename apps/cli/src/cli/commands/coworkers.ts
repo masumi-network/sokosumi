@@ -17,6 +17,7 @@ import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import type { CliTargetConfig } from "../../auth/config.js";
 import { selectCoworkerWorkspaceTarget } from "../coworker-workspace-target.js";
+import { CliError, classifyError } from "../errors.js";
 import {
   requireAdministeredVendorForRegistration,
   requirePreprodCoworkerRegistration,
@@ -371,15 +372,21 @@ export async function runCoworkersCommand({
       );
     }
     if (optionBoolean(options, "personal")) {
-      if (workspaceAccess.coworkerId !== coworkerId)
-        throw new Error(
-          "Core returned access for a different Coworker. Keep the created Coworker ID and inspect access before retrying.",
+      try {
+        if (workspaceAccess.coworkerId !== coworkerId)
+          throw new Error("Core returned access for a different Coworker");
+        await verifyPersonalWorkspace(
+          client,
+          workspaceAccess.workspaceId,
+          signal,
         );
-      await verifyPersonalWorkspace(
-        client,
-        workspaceAccess.workspaceId,
-        signal,
-      );
+      } catch (error) {
+        const message = `Coworker ${coworkerId} was created, but personal Workspace access could not be confirmed. Do not register again. Inspect access, then retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --personal --preprod\`.`;
+        const { code, status } = classifyError(error);
+        throw status === undefined
+          ? new CliError(code, message)
+          : Object.assign(new Error(message), { status });
+      }
     }
     let apiKey: unknown = null;
     if (optionBoolean(options, "create-api-key")) {
