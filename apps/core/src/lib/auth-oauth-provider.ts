@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import {
   getOAuthProviderState,
@@ -10,6 +9,7 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
+import { hashStoredOAuthToken } from "./auth-oauth-token-prefixes";
 
 export const oauthRefreshTokenOptions = {
   refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
@@ -169,8 +169,7 @@ interface RefreshTokenRotation {
 
 /**
  * Whether the provider rotated this refresh token and its replay window is
- * still open. `findRotation` receives the stored token: Better Auth's default
- * `storeTokens: "hashed"` keeps a SHA-256 base64url digest without the prefix.
+ * still open. `findRotation` receives the token as Better Auth stores it.
  */
 export async function isRefreshTokenRotating(
   refreshToken: string,
@@ -179,9 +178,7 @@ export async function isRefreshTokenRotating(
 ): Promise<boolean> {
   if (!refreshToken.startsWith(prefix)) return false;
   const rotation = await findRotation(
-    createHash("sha256")
-      .update(refreshToken.slice(prefix.length))
-      .digest("base64url"),
+    hashStoredOAuthToken(refreshToken, prefix),
   );
   return (
     !!rotation?.rotatedAt &&
