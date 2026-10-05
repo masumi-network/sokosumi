@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -77,11 +76,8 @@ export default function LogoutModal({
               variant="primary"
               className="w-full"
               onClick={handleLogout}
-              disabled={loading}
+              loading={loading}
             >
-              {loading && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-              )}
               {t("logout")}
             </Button>
           </DialogClose>

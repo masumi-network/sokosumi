@@ -129,9 +129,6 @@ vi.mock("next-intl", () => ({
       if (key === "Form.submit") {
         return "Create invoice";
       }
-      if (key === "Form.submitting") {
-        return "Creating…";
-      }
       if (values && "status" in values) {
         return `${key}:${values.status}`;
       }

@@ -361,16 +361,11 @@ export function CreateDirectDialog() {
           <Button
             type="button"
             variant="primary"
-            disabled={isPending || selectedTargets.length === 0}
+            disabled={selectedTargets.length === 0}
+            loading={isPending}
             onClick={handleCreate}
           >
-            {isPending ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
-            ) : null}
-            {isPending ? t("CreateWizard.creating") : t("Dialog.create")}
+            {t("Dialog.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

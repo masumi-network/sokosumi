@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -88,11 +87,8 @@ export default function MemberActionsModal() {
             variant="primary"
             className="w-full"
             onClick={startAction}
-            disabled={loading}
+            loading={loading}
           >
-            {loading && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-            )}
             {t("confirm")}
           </Button>
           <DialogClose asChild>

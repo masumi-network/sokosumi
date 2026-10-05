@@ -147,7 +147,7 @@ it("signs out from the empty form", async () => {
   container.remove();
 });
 
-it("disables both buttons while saving and spins only Continue", async () => {
+it("disables Sign out while saving and shows the bar only on Continue", async () => {
   const container = document.createElement("div");
   document.body.append(container);
   const root = createRoot(container);
@@ -166,6 +166,8 @@ it("disables both buttons while saving and spins only Continue", async () => {
 
   expect(continueButton?.textContent).toBe("Continue");
   expect(continueButton?.getAttribute("aria-busy")).toBe("true");
+  expect(continueButton?.getAttribute("aria-disabled")).toBe("true");
+  expect(continueButton?.querySelector(".button-loading-bar")).not.toBeNull();
   expect(signOutButton?.disabled).toBe(true);
   expect(signOutButton?.hasAttribute("aria-busy")).toBe(false);
 

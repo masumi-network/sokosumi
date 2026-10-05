@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { UserDeletionEvaluation } from "@sokosumi/core-client";
 import type { Account } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -262,7 +261,10 @@ export function DeleteAccountForm({
               </div>
             ) : null}
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)}>
+              <form
+                onSubmit={form.handleSubmit(handleSubmit)}
+                className="space-y-4"
+              >
                 <fieldset className="space-y-4" disabled={isSubmitting}>
                   {hasPassword ? (
                     <FormField
@@ -301,19 +303,19 @@ export function DeleteAccountForm({
                       )}
                     />
                   )}
-                  <DialogFooter>
-                    <Button
-                      type="submit"
-                      variant="destructive"
-                      disabled={isSubmitting || confirmDisabled}
-                    >
-                      {isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-                      )}
-                      {t("confirm")}
-                    </Button>
-                  </DialogFooter>
                 </fieldset>
+                {/* Outside the fieldset: its `disabled` would also disable the
+                    loading submit button, fading it and dropping focus. */}
+                <DialogFooter>
+                  <Button
+                    type="submit"
+                    variant="destructive"
+                    disabled={confirmDisabled}
+                    loading={isSubmitting}
+                  >
+                    {t("confirm")}
+                  </Button>
+                </DialogFooter>
               </form>
             </Form>
           </DialogContent>

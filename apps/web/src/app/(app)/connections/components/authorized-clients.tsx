@@ -157,11 +157,9 @@ export function OAuthAuthorizedClients() {
                   variant="destructive"
                   size="sm"
                   onClick={() => handleRevoke(consent.id, consent.clientId)}
-                  disabled={revoking === consent.clientId}
+                  loading={revoking === consent.clientId}
                 >
-                  {revoking === consent.clientId
-                    ? t("revoking")
-                    : t("revokeAccess")}
+                  {t("revokeAccess")}
                 </Button>
               </div>
             ))}

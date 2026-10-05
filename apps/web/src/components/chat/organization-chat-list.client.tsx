@@ -775,13 +775,12 @@ export function OrganizationChatList({
                                   variant="default"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={acceptBusy}
                                   onClick={() =>
                                     handleAcceptInvitation(invitation)
                                   }
                                 >
-                                  {acceptBusy
-                                    ? t("loading")
-                                    : tExternal("accept")}
+                                  {tExternal("accept")}
                                 </Button>
                                 <Button
                                   type="button"
@@ -789,13 +788,12 @@ export function OrganizationChatList({
                                   variant="outline"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={declineBusy}
                                   onClick={() =>
                                     handleDeclineInvitation(invitation)
                                   }
                                 >
-                                  {declineBusy
-                                    ? t("loading")
-                                    : tExternal("decline")}
+                                  {tExternal("decline")}
                                 </Button>
                               </div>
                             </div>
@@ -961,17 +959,11 @@ export function OrganizationChatList({
                                   : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                               )}
                               disabled={actionBusy}
+                              loading={isRestoring}
                               onClick={() => handleRestoreRoom(room)}
                               aria-label={`${tActions("restore")} ${room.name}`}
                             >
-                              <RotateCcw
-                                className={cn(
-                                  "size-3.5",
-                                  isRestoring &&
-                                    "animate-spin motion-reduce:animate-pulse",
-                                )}
-                                aria-hidden
-                              />
+                              <RotateCcw className="size-3.5" aria-hidden />
                             </Button>
                           )}
                         </SidebarMenuItem>
@@ -1012,7 +1004,7 @@ export function OrganizationChatList({
                     {tActions("cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={deletingRoomId !== null}
+                    loading={deletingRoomId !== null}
                     onClick={(event) => {
                       event.preventDefault();
                       handleConfirmDeleteRoom();

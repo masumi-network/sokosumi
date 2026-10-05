@@ -133,7 +133,6 @@ export function PersonalSubscriptionSection({
               isDisabled={pendingPlan !== null || plan.isCurrent}
               isAnyPlanPending={pendingPlan !== null}
               isPlanPending={pendingPlan === plan.name}
-              loadingLabel={t("upgrading")}
               onAction={handlePlanAction}
               plan={plan}
             />

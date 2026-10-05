@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -49,12 +48,9 @@ export function WorkspaceGateSignOut({ userId }: WorkspaceGateSignOutProps) {
       type="button"
       variant="outline"
       onClick={handleSignOut}
-      disabled={loading}
+      loading={loading}
       data-workspace-gate-sign-out
     >
-      {loading && (
-        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-      )}
       {t("signOut")}
     </Button>
   );
