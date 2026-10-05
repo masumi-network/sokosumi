@@ -3,7 +3,7 @@
   "info": {
     "title": "Sokosumi Core (Apple tracer slice)",
     "version": "1.0.0",
-    "description": "Apple chat operations extracted from Core OpenAPI; includes GET and PUT /users/{id}/preferred-organization for workspace restoration."
+    "description": "Apple chat operations extracted from Core OpenAPI; workspaces are read from GET /users/{id}/workspaces and selected with PUT /users/{id}/workspaces/preferred (ADR 0051)."
   },
   "paths": {
     "/users/{id}": {
@@ -219,1433 +219,6 @@
           },
           "404": {
             "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/users/{id}/workspace-access": {
-      "get": {
-        "description": "Current-user workspace access facts: path `me` for the session user, or a user id when the caller may access that user's data. `ready` if personal workspace and/or any organization membership exists; `pending-invites` if neither and they have non-expired pending organization invitations; `identity-onboarding` if neither and no pending org entry.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-              "example": "me"
-            },
-            "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Retrieve the user's workspace access",
-            "content": {
-              "application/json": {
-                "example": {
-                  "data": {
-                    "gate": "ready",
-                    "hasPersonalWorkspace": true,
-                    "hasOrganizationMembership": false,
-                    "hasPendingOrganizationInvites": false
-                  },
-                  "meta": {
-                    "timestamp": "2025-01-01T00:00:00.000Z",
-                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
-                  }
-                },
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/WorkspaceAccess"
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/users/{id}/organizations": {
-      "get": {
-        "description": "Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "$ref": "#/components/parameters/OrganizationSlug"
-          },
-          {
-            "$ref": "#/components/parameters/ContextUserId"
-          },
-          {
-            "$ref": "#/components/parameters/ContextOrganizationId"
-          },
-          {
-            "schema": {
-              "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-              "example": "me"
-            },
-            "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Retrieve organizations for the user",
-            "content": {
-              "application/json": {
-                "example": {
-                  "data": [
-                    {
-                      "id": "org_123",
-                      "name": "My Organization",
-                      "slug": "my-org",
-                      "logo": "https://example.com/logo.png",
-                      "metadata": {
-                        "url": "https://example.com"
-                      },
-                      "createdAt": "2025-01-01T00:00:00.000Z",
-                      "role": "member"
-                    }
-                  ],
-                  "meta": {
-                    "timestamp": "2025-01-01T00:00:00.000Z",
-                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
-                  }
-                },
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/Organization"
-                      }
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/users/{id}/preferred-organization": {
-      "put": {
-        "description": "Set the user's preferred organization workspace (path `me` for the session user, or a user id the caller may access). Send `{\"organizationId\":null}` to switch to personal — refused when the personal workspace is missing. Omitting the key (`{}`) is 422, not a personal switch. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-              "example": "me"
-            },
-            "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/PreferredOrganization"
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "The persisted preferred organization",
-            "content": {
-              "application/json": {
-                "example": {
-                  "data": {
-                    "organizationId": "org_123"
-                  },
-                  "meta": {
-                    "timestamp": "2025-01-01T00:00:00.000Z",
-                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
-                  }
-                },
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PreferredOrganization"
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden - The user is not a member of the organization",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found - User not found, or personal workspace is missing",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Unprocessable Entity - organizationId key required; send null for personal",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "get": {
-        "description": "Resolve the workspace to restore using the same rules as web sign-in: the saved organization when membership still exists, otherwise personal when available, otherwise the first remaining organization. This read does not update the saved preference or an active session. Check workspace-access first: null means personal only when a personal workspace exists; it also represents no workspace when setup is required. Path `me` selects the authenticated user; explicit user ids follow the existing user-route access rules.",
-        "tags": [
-          "Users"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-              "example": "me"
-            },
-            "required": true,
-            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "The resolved organization selection for workspace restoration",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "$ref": "#/components/schemas/PreferredOrganization"
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "pagination": {
-                          "$ref": "#/components/schemas/PaginationMetadata"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "data",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "error": {
-                      "type": "string",
-                      "example": "Unauthorized"
-                    },
-                    "message": {
-                      "type": "string",
-                      "example": "Authentication required"
-                    },
-                    "kind": {
-                      "type": "string",
-                      "example": "organization_not_found"
-                    },
-                    "retryAfterSeconds": {
-                      "type": "integer",
-                      "minimum": 0,
-                      "example": 7
-                    },
-                    "meta": {
-                      "type": "object",
-                      "properties": {
-                        "timestamp": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2021-01-01T00:00:00.000Z"
-                        },
-                        "requestId": {
-                          "type": "string",
-                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
-                        },
-                        "path": {
-                          "type": "string",
-                          "example": "/v1/agents"
-                        },
-                        "method": {
-                          "type": "string",
-                          "example": "GET"
-                        }
-                      },
-                      "required": [
-                        "timestamp",
-                        "requestId",
-                        "path",
-                        "method"
-                      ]
-                    }
-                  },
-                  "required": [
-                    "error",
-                    "message",
-                    "meta"
-                  ]
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "User not found",
             "content": {
               "application/json": {
                 "schema": {
@@ -28288,6 +26861,736 @@
           }
         }
       }
+    },
+    "/users/{id}/workspaces": {
+      "get": {
+        "description": "List the workspaces the user can act in (path `me` for the session user, or a user id the caller may access): the personal workspace first, then organization workspaces, with the one a new session opens marked `preferred`, and the count of pending organization invitations. An empty list means the user still needs identity onboarding (ADR 0051).",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "example": "me"
+            },
+            "required": true,
+            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The user's workspaces",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "workspaces": [
+                      {
+                        "id": "11111111-1111-7111-8111-111111111111",
+                        "kind": "organization",
+                        "name": "Acme",
+                        "organizationId": "org_123",
+                        "slug": "acme-x1y2z3",
+                        "logo": null,
+                        "websiteUrl": "https://acme.com",
+                        "preferred": true
+                      }
+                    ],
+                    "pendingInvitationCount": 0
+                  },
+                  "meta": {
+                    "timestamp": "2025-01-01T00:00:00.000Z",
+                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserWorkspaces"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{id}/workspaces/preferred": {
+      "put": {
+        "description": "Set the workspace a new session opens for the user (path `me` for the session user, or a user id the caller may access). A personal workspace must be the user's own; an organization workspace requires membership (403). An unknown workspace is 404. See ADR 0051.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+              "example": "me"
+            },
+            "required": true,
+            "description": "Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.",
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetPreferredUserWorkspace"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "The preferred workspace",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": "11111111-1111-7111-8111-111111111111",
+                    "kind": "organization",
+                    "name": "Acme",
+                    "organizationId": "org_123",
+                    "slug": "acme-x1y2z3",
+                    "logo": null,
+                    "websiteUrl": "https://acme.com",
+                    "preferred": true
+                  },
+                  "meta": {
+                    "timestamp": "2025-01-01T00:00:00.000Z",
+                    "requestId": "550e8400-e29b-41d4-a716-446655440000"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/UserWorkspace"
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - The user is not a member of the organization",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found - Workspace not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity - Invalid body",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -28854,6 +28157,14 @@
             },
             "maxItems": 3,
             "description": "Link preview cards scraped from message URLs (absent while pending)."
+          },
+          "skills": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatRoomMessageSkill"
+            },
+            "maxItems": 3,
+            "description": "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers."
           }
         },
         "required": [
@@ -29441,6 +28752,19 @@
             "maxLength": 128,
             "description": "Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).",
             "example": "019fbee7-676b-771f-ab7a-998f25f1f16b"
+          },
+          "skillIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200
+            },
+            "maxItems": 3,
+            "description": "skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.",
+            "example": [
+              "vercel-labs/agent-skills/vercel-react-best-practices"
+            ]
           }
         },
         "required": [
@@ -29456,76 +28780,6 @@
         ],
         "example": "member",
         "description": "Organization member role"
-      },
-      "Organization": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "example": "org_123"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time",
-            "example": "2021-01-01T00:00:00.000Z"
-          },
-          "name": {
-            "type": "string",
-            "example": "My Organization"
-          },
-          "slug": {
-            "type": "string",
-            "example": "my-org"
-          },
-          "logo": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uri"
-              },
-              {
-                "type": "string",
-                "enum": [
-                  ""
-                ]
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "example": "https://example.com/logo.png"
-          },
-          "metadata": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "properties": {
-              "url": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "uri"
-              }
-            },
-            "additionalProperties": {},
-            "example": {
-              "url": "https://example.com"
-            }
-          },
-          "role": {
-            "$ref": "#/components/schemas/MemberRole"
-          }
-        },
-        "required": [
-          "id",
-          "createdAt",
-          "name",
-          "slug",
-          "metadata",
-          "role"
-        ]
       },
       "PaginationMetadata": {
         "type": "object",
@@ -29566,22 +28820,6 @@
           "nextCursor"
         ]
       },
-      "PreferredOrganization": {
-        "type": "object",
-        "properties": {
-          "organizationId": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "example": "org_123",
-            "description": "Organization id of the preferred workspace, or null for personal. GET resolves sign-in fallbacks and also returns null when no workspace exists; check workspace-access first. The key is required: send {\"organizationId\":null} for personal. Omitting it (`{}`) is 422."
-          }
-        },
-        "required": [
-          "organizationId"
-        ]
-      },
       "User": {
         "type": "object",
         "properties": {
@@ -29608,7 +28846,7 @@
               "string",
               "null"
             ],
-            "description": "Null when never given, as for magic-link sign-up",
+            "description": "Null when never given: older accounts, or one an email code created without names",
             "example": "John"
           },
           "lastName": {
@@ -29616,7 +28854,7 @@
               "string",
               "null"
             ],
-            "description": "Null when never given, as for magic-link sign-up",
+            "description": "Null when never given: older accounts, or one an email code created without names",
             "example": "Doe"
           },
           "email": {
@@ -29651,45 +28889,6 @@
           "emailVerified",
           "role"
         ]
-      },
-      "WorkspaceAccess": {
-        "type": "object",
-        "properties": {
-          "gate": {
-            "$ref": "#/components/schemas/WorkspaceGateStatus"
-          },
-          "hasPersonalWorkspace": {
-            "type": "boolean",
-            "description": "Whether the user owns a personal workspace row",
-            "example": true
-          },
-          "hasOrganizationMembership": {
-            "type": "boolean",
-            "description": "Whether the user is a member of at least one organization",
-            "example": false
-          },
-          "hasPendingOrganizationInvites": {
-            "type": "boolean",
-            "description": "Whether the user has at least one non-expired pending organization invitation by email",
-            "example": false
-          }
-        },
-        "required": [
-          "gate",
-          "hasPersonalWorkspace",
-          "hasOrganizationMembership",
-          "hasPendingOrganizationInvites"
-        ]
-      },
-      "WorkspaceGateStatus": {
-        "type": "string",
-        "enum": [
-          "ready",
-          "pending-invites",
-          "identity-onboarding"
-        ],
-        "description": "Derived workspace gate: ready when the user has a personal workspace or any organization membership; pending-invites when they have neither but have non-expired pending organization invitations; identity-onboarding when they have neither and no pending org entry",
-        "example": "ready"
       },
       "ChatRoomThreadReadState": {
         "type": "object",
@@ -30291,6 +29490,14 @@
                 },
                 "maxItems": 3,
                 "description": "Link preview cards scraped from message URLs (absent while pending)."
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatRoomMessageSkill"
+                },
+                "maxItems": 3,
+                "description": "Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers."
               }
             },
             "required": [
@@ -32158,6 +31365,146 @@
           "name",
           "email",
           "image"
+        ]
+      },
+      "ChatRoomMessageSkill": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "skills.sh id: owner/repo/skill.",
+            "example": "vercel-labs/agent-skills/vercel-react-best-practices"
+          },
+          "name": {
+            "type": "string",
+            "example": "vercel-react-best-practices"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "React and Next.js performance guidelines."
+          },
+          "url": {
+            "type": "string",
+            "format": "uri",
+            "example": "https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "url"
+        ]
+      },
+      "UserWorkspaces": {
+        "type": "object",
+        "properties": {
+          "workspaces": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UserWorkspace"
+            },
+            "description": "Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding"
+          },
+          "pendingInvitationCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Non-expired pending organization invitations for the person's email",
+            "example": 0
+          }
+        },
+        "required": [
+          "workspaces",
+          "pendingInvitationCount"
+        ]
+      },
+      "UserWorkspace": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Workspace id",
+            "example": "11111111-1111-7111-8111-111111111111"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "personal",
+              "organization"
+            ],
+            "description": "Whether the person owns the workspace or acts in it as an organization member",
+            "example": "organization"
+          },
+          "name": {
+            "type": "string",
+            "description": "The person's name for a personal workspace, the organization's name otherwise",
+            "example": "Acme"
+          },
+          "organizationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization id, or null for a personal workspace",
+            "example": "org_123"
+          },
+          "slug": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization slug, or null for a personal workspace",
+            "example": "acme-x1y2z3"
+          },
+          "logo": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization logo URL (or IPFS reference), or null for none and for a personal workspace",
+            "example": "https://cdn.example.com/acme.png"
+          },
+          "websiteUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Organization website from its metadata, or null for none and for a personal workspace",
+            "example": "https://acme.com"
+          },
+          "preferred": {
+            "type": "boolean",
+            "description": "Whether a new session opens this workspace",
+            "example": true
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "name",
+          "organizationId",
+          "slug",
+          "logo",
+          "websiteUrl",
+          "preferred"
+        ]
+      },
+      "SetPreferredUserWorkspace": {
+        "type": "object",
+        "properties": {
+          "workspaceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Id of a workspace the person can act in",
+            "example": "11111111-1111-7111-8111-111111111111"
+          }
+        },
+        "required": [
+          "workspaceId"
         ]
       }
     }

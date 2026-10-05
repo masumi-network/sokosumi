@@ -105,15 +105,30 @@ private final class RealtimeScriptedTransport: ClientTransport, @unchecked Senda
   }
 }
 
-private func realtimeAccessBody() -> String {
+private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
+private let acmeWorkspaceId = "22222222-2222-7222-8222-222222222222"
+
+/// One `UserWorkspace`: personal for nil, Acme for `org_1`.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  organizationId == nil
+    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+}
+
+/// `GET /users/me/workspaces`: personal and Acme, `preferring` the one a
+/// session opens (nil is personal).
+private func workspacesBody(preferring organizationId: String? = nil) -> String {
   """
-  {"data":{"gate":"ready","hasPersonalWorkspace":true,"hasOrganizationMembership":true,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  {"data":{"workspaces":[\(userWorkspaceJSON(nil, preferred: organizationId == nil)),\(userWorkspaceJSON("org_1", preferred: organizationId == "org_1"))],"pendingInvitationCount":0},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
   """
 }
 
-private let realtimeOrgsBody = """
-{"data":[{"id":"org_1","createdAt":"\(realtimeTimestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
-"""
+/// `PUT /users/me/workspaces/preferred` reply.
+private func preferredWorkspaceBody(preferring organizationId: String? = nil) -> String {
+  """
+  {"data":\(userWorkspaceJSON(organizationId, preferred: true)),"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+  """
+}
 
 private let realtimeUserBody = """
 {"data":{"id":"user_1","createdAt":"\(realtimeTimestamp)","updatedAt":"\(realtimeTimestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
@@ -295,10 +310,8 @@ struct WorkspaceRealtimeTests {
   /// window is active, without marking it read; the second envelope queues one follow-up, and the return reads nothing.
   @Test func hiddenEnvelopeReadsWithoutMarkingRead() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -323,10 +336,8 @@ struct WorkspaceRealtimeTests {
     let firstId = "550e8400-e29b-41d4-a716-446655440710"
     let liveId = "550e8400-e29b-41d4-a716-446655440711"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -346,10 +357,8 @@ struct WorkspaceRealtimeTests {
 
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA], groupDirect: true)),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: "550e8400-e29b-41d4-a716-446655440716", roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA))
@@ -380,10 +389,8 @@ struct WorkspaceRealtimeTests {
     let targetId = "550e8400-e29b-41d4-a716-446655440712"
     let otherId = "550e8400-e29b-41d4-a716-446655440713"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: targetId, roomId: roomA, content: "hello"),
@@ -412,10 +419,8 @@ struct WorkspaceRealtimeTests {
   @Test func foreignActivityRefreshesSidebarWhileHidden() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440714"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -445,10 +450,8 @@ struct WorkspaceRealtimeTests {
   @Test func ownSendPlusAblyCreateDedupeToOneBubble() async throws {
     let confirmedId = "550e8400-e29b-41d4-a716-446655440716"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -487,8 +490,7 @@ struct WorkspaceRealtimeTests {
   @Test func queuedEnvelopeAfterOlderPageIsRefetched() async throws {
     let messageId = "550e8400-e29b-41d4-a716-446655440717"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [], nextCursor: "older")),
       (200, realtimeReadBody(id: roomA)),
@@ -513,10 +515,8 @@ struct WorkspaceRealtimeTests {
     let oldId = "550e8400-e29b-41d4-a716-446655440717"
     let newId = "550e8400-e29b-41d4-a716-446655440718"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -548,10 +548,8 @@ struct WorkspaceRealtimeTests {
     let oldId = "550e8400-e29b-41d4-a716-446655440742"
     let newId = "550e8400-e29b-41d4-a716-446655440743"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
@@ -581,15 +579,13 @@ struct WorkspaceRealtimeTests {
     let newId = "550e8400-e29b-41d4-a716-446655440745"
     let laterId = "550e8400-e29b-41d4-a716-446655440746"
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: oldId, roomId: roomA, content: "old")])),
       (200, realtimeReadBody(id: roomA)),
       (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """),
       (200, realtimePageBody(messages: [
         realtimeMessageJSON(id: oldId, roomId: roomA, content: "old"),
@@ -630,10 +626,8 @@ struct WorkspaceRealtimeTests {
   @Test func envelopeDeleteDropsOnScreenRow() async throws {
     let targetId = "550e8400-e29b-41d4-a716-446655440719"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: targetId, roomId: roomA, content: "bye")])),
       (200, realtimeReadBody(id: roomA))
@@ -654,10 +648,8 @@ struct WorkspaceRealtimeTests {
   @Test func revokeDropsOpenRoomAndUpdatesMembership() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440720",
@@ -687,8 +679,7 @@ struct WorkspaceRealtimeTests {
     let envelope = { (data: String) in #"{"data":\#(data),"meta":{"timestamp":"\#(realtimeTimestamp)","requestId":"req-1"}}"# }
     let invitation = #"{"id":"inv-1","roomId":"\#(roomC)","roomName":"Partners","organizationId":"org_2","organizationName":"Acme Partners","email":"me@example.com","status":"pending","inviter":{"id":"host","name":"Hannah"},"expiresAt":"\#(realtimeTimestamp)","createdAt":"\#(realtimeTimestamp)"}"#
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"\#(realtimeTimestamp)"}"#)),
@@ -731,12 +722,11 @@ struct WorkspaceRealtimeTests {
   /// every message re-read both; now each collection recovers on its own and only a workspace change reloads them.
   @Test func collectionsLoadContextSurvivesAListRefresh() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
     ])
@@ -766,8 +756,7 @@ struct WorkspaceRealtimeTests {
   @Test func personalWorkspaceIgnoresArchivedInvalidation() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, #"{"data":[],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
@@ -789,10 +778,8 @@ struct WorkspaceRealtimeTests {
   @Test func windowVisibilityDrivesNotificationPresence() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA))
@@ -813,8 +800,7 @@ struct WorkspaceRealtimeTests {
 
   @Test func pendingSidebarResponseCannotRestoreRevokedRoom() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
@@ -836,12 +822,11 @@ struct WorkspaceRealtimeTests {
   @Test func pendingWorkspaceResponseCannotRestoreRevokedDestination() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB]))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -866,8 +851,7 @@ struct WorkspaceRealtimeTests {
   @Test func continuityLossReadsWhileHiddenAndIgnoresOtherRooms() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])), (200, realtimePageBody(messages: []))
@@ -907,10 +891,8 @@ struct WorkspaceRealtimeTests {
 
   @Test func revokeKeepsUnrelatedRoomTranscript() async throws {
     let (state, auth, transport) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(
         id: "550e8400-e29b-41d4-a716-446655440721",
@@ -933,10 +915,8 @@ struct WorkspaceRealtimeTests {
     let firstId = "550e8400-e29b-41d4-a716-446655440740"
     let liveId = "550e8400-e29b-41d4-a716-446655440741"
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -970,10 +950,8 @@ struct WorkspaceRealtimeTests {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState(
       [
-        (200, realtimeAccessBody()),
-        (200, realtimeOrgsBody),
+        (200, workspacesBody()),
         (200, realtimeUserBody),
-        (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
         (200, realtimeRoomsBody(ids: [roomA])),
         (200, realtimePageBody(messages: [])),
         (200, realtimeReadBody(id: roomA)),
@@ -1006,10 +984,8 @@ struct WorkspaceRealtimeTests {
     let liveId = "550e8400-e29b-41d4-a716-446655440731"
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
@@ -1062,16 +1038,12 @@ struct WorkspaceRealtimeTests {
   @Test func workspaceSwitchRetargetsSlugReauthorizesAndRewatches() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()),
-      (200, realtimeOrgsBody),
+      (200, workspacesBody()),
       (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [roomB])),
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomB))
@@ -1096,13 +1068,12 @@ struct WorkspaceRealtimeTests {
   @Test func orgPresenceFollowsTheActiveOrganization() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: [])),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody()),
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -1146,8 +1117,7 @@ struct WorkspaceRealtimeTests {
   @Test func presencePublishesOnVisibilityAndThrottlesActivity() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: []))
     ])
     state.realtimeConnectionFactory = { fake }
@@ -1259,8 +1229,8 @@ struct WorkspaceRealtimeTests {
   @Test func openingANotificationSwitchesToItsWorkspace() async throws {
     let (state, auth, transport) = try realtimeState(notificationLoadScript + [
       (200, realtimeReadBody(id: roomA)),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, realtimeRoomsBody(ids: ["550e8400-e29b-41d4-a716-446655440702"])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: "550e8400-e29b-41d4-a716-446655440702"))
     ])
@@ -1396,8 +1366,7 @@ struct WorkspaceRealtimeTests {
   @Test func seenByFollowsTheOpenRoomsReadEvents() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, _) = try realtimeState([
-      (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, realtimeUserBody),
       (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomB))
@@ -1443,8 +1412,7 @@ private func readAt(minutes: Double) -> Date {
 }
 
 private let notificationLoadScript: [(Int, String)] = [
-  (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
-  (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+  (200, workspacesBody()), (200, realtimeUserBody),
   (200, realtimeRoomsBody(ids: [roomA, roomB])),
   (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
 ]

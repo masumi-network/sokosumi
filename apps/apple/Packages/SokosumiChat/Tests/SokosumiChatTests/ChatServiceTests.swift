@@ -7,10 +7,44 @@ import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
-private func accessBody(gate: String) -> String {
+private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
+
+/// One `UserWorkspace`: personal for nil, an organization otherwise.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  guard let organizationId else {
+    return #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+  }
+  let slug = organizationId == "org_1" ? "acme" : "other"
+  let name = organizationId == "org_1" ? "Acme" : "Other"
+  return #"{"id":"22222222-2222-7222-8222-\#(organizationId == "org_1" ? "000000000001" : "000000000002")","kind":"organization","name":"\#(name)","organizationId":"\#(organizationId)","slug":"\#(slug)","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+}
+
+/// `GET /users/me/workspaces`: the given workspaces (nil is personal) with
+/// `preferred` on the one a session opens.
+private func workspacesBody(
+  _ organizationIds: [String?] = [nil, "org_1"],
+  preferring preferred: String? = nil,
+  pendingInvitationCount: Int = 0
+) -> String {
+  let workspaces = organizationIds.map { userWorkspaceJSON($0, preferred: $0 == preferred) }
+  return """
+  {"data":{"workspaces":[\(workspaces.joined(separator: ","))],"pendingInvitationCount":\(pendingInvitationCount)},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
   """
-  {"data":{"gate":"\(gate)","hasPersonalWorkspace":true,"hasOrganizationMembership":false,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+}
+
+/// `PUT /users/me/workspaces/preferred` reply.
+private func preferredWorkspaceBody(_ organizationId: String?) -> String {
   """
+  {"data":\(userWorkspaceJSON(organizationId, preferred: true)),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  """
+}
+
+private let userBody = """
+{"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+"""
+
+private func requestJSON(_ body: Data) throws -> [String: Any] {
+  try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
 }
 
 private func roomJSON(
@@ -439,68 +473,19 @@ struct ChatServiceTests {
     #expect(requestQuery(transport.requests[1].request).contains("cursor=cursor-2"))
   }
 
-  @Test func fetchOrganizationsReturnsList() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let orgs = try await ChatService().fetchOrganizations(client: makeClient(transport))
-    #expect(orgs.count == 1)
-    #expect(orgs[0].slug == "acme")
-    #expect(transport.requests[0].operationID == "get/users/{id}/organizations")
-  }
-
-  @Test func personalPreferredOrganizationSendsExplicitNull() async throws {
-    // Core requires the key: `{}` is a 422 (defaultValidationHook), so the
-    // personal switch must encode `{"organizationId":null}` explicitly.
-    // Wired with the app's real middleware stack.
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    try await ChatService().setPreferredOrganization(client: client, organizationId: nil)
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization"])
-    let body = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-    #expect(json.keys.contains("organizationId"))
-    #expect(json["organizationId"] is NSNull)
-    // URLSession uploadTask uses this header: a stale length vs the rewritten
-    // body is a protocol error and surfaces as NSURLError -1005.
-    #expect(transport.requests[0].request.headerFields[.contentLength] == "\(body.count)")
-  }
-
-  @Test func organizationPreferredOrganizationKeepsId() async throws {
-    // The rewrite must only fire for empty bodies: a real org id passes
-    // through with its value intact.
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    try await ChatService().setPreferredOrganization(client: client, organizationId: "org_1")
-    let body = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-    #expect(json["organizationId"] as? String == "org_1")
+  @Test func setPreferredWorkspaceSendsWorkspaceId() async throws {
+    let transport = ScriptedTransport([(200, preferredWorkspaceBody(nil))])
+    try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: personalWorkspaceId)
+    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/workspaces/preferred"])
+    #expect(try requestJSON(#require(transport.bodies.first)) as NSDictionary == ["workspaceId": personalWorkspaceId])
   }
 
   @Test func documented500SurfacesFriendlyMessage() async throws {
     let transport = ScriptedTransport([(500, """
-    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
     """)])
     do {
-      try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
+      try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: personalWorkspaceId)
       Issue.record("expected an error")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -514,10 +499,10 @@ struct ChatServiceTests {
     // User symptom (SOK-973 follow-up): a 422 dumped raw response headers
     // into the window. It must surface as a short message instead.
     let transport = ScriptedTransport([(422, """
-    {"error":"Unprocessable Entity","message":"organizationId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    {"error":"Unprocessable Entity","message":"workspaceId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
     """)])
     do {
-      try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: nil)
+      try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: "")
       Issue.record("expected an error")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -542,84 +527,61 @@ struct ChatServiceTests {
   @Test func initialLoadPerformsNoWrites() async throws {
     // Launch must not PUT: re-asserting a default preference on every launch
     // yanks cross-client state and turns every flaky upload into a dead
-    // window (production -1005 on PUT). Only access + organizations are read.
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    // window (production -1005 on PUT). Only workspaces + user are read.
+    let transport = ScriptedTransport([(200, workspacesBody()), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(Set(transport.requests.map(\.operationID)) == ["get/users/{id}/workspace-access", "get/users/{id}/organizations", "get/users/{id}", "get/users/{id}/preferred-organization"])
-    #expect(state.defaultSelection == .personal)
-    #expect(state.organizations.map(\.slug) == ["acme"])
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/workspaces", "get/users/{id}"])
+    #expect(state.defaultSelection.workspace == .personal)
+    #expect(state.options.map(\.id) == ["personal", "org_1"])
+    #expect(state.options.map(\.title) == ["Personal", "Acme"])
+    #expect(state.options.map(\.workspace) == [.personal, .organization(id: "org_1", slug: "acme")])
     #expect(state.currentUserId == "user_1")
     #expect(state.currentUser.name == "Me")
     #expect(state.currentUser.email == "me@example.com")
   }
 
   @Test func initialLoadDefaultsToFirstOrgWithoutPersonal() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"gate":"ready","hasPersonalWorkspace":false,"hasOrganizationMembership":true,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody(["org_1"], preferring: "org_1")), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .organization(id: "org_1", slug: "acme"))
+    #expect(state.defaultSelection.workspace == .organization(id: "org_1", slug: "acme"))
+    #expect(state.options.map(\.id) == ["org_1"])
+  }
+
+  @Test(arguments: [(0, WorkspaceGate.identityOnboarding), (2, .pendingInvites)])
+  func emptyWorkspaceListBlocksBeforeReadingUser(pendingInvitationCount: Int, gate: WorkspaceGate) async throws {
+    let transport = ScriptedTransport([(200, workspacesBody([], pendingInvitationCount: pendingInvitationCount))])
+    await #expect(throws: ChatServiceError.blocked(gate)) {
+      try await ChatService().loadInitialState(client: makeClient(transport))
+    }
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/workspaces"])
   }
 
   @Test func switchWorkspacePersistsThenListsWithSlug() async throws {
     // Explicit user switches are the only writes: PUT, then rooms reloaded
     // under the new slug.
+    let options = try await loadedOptions()
     let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody("org_1")),
       (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440020", name: "launch", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: nil))
     ])
-    let rooms = try await ChatService().switchWorkspace(
-      client: makeClient(transport),
-      selection: .organization(id: "org_1", slug: "acme")
-    )
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization", "get/chats/rooms"])
+    let rooms = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[1])
+    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/workspaces/preferred", "get/chats/rooms"])
+    #expect(try requestJSON(#require(transport.bodies.first))["workspaceId"] as? String == options[1].workspaceId)
     #expect(orgSlugHeader(transport.requests[1].request) == "acme")
     #expect(rooms.map(\.name) == ["launch"])
   }
 
   @Test func switchWorkspaceRestoresPreviousPreferenceWhenRoomsFail() async throws {
+    let options = try await loadedOptions()
     let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody("org_1")),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
       """),
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      (200, preferredWorkspaceBody(nil))
     ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
     do {
-      _ = try await ChatService().switchWorkspace(
-        client: client,
-        selection: .organization(id: "org_1", slug: "acme"),
-        previous: .personal
-      )
+      _ = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[1], previous: options[0])
       Issue.record("expected rooms failure")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -627,32 +589,25 @@ struct ChatServiceTests {
       #expect(message.contains("boom"))
     }
     #expect(transport.requests.map(\.operationID) == [
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/workspaces/preferred",
       "get/chats/rooms",
-      "put/users/{id}/preferred-organization"
+      "put/users/{id}/workspaces/preferred"
     ])
-    let rollback = try #require(transport.bodies.last)
-    let json = try #require(JSONSerialization.jsonObject(with: rollback) as? [String: Any])
-    #expect(json["organizationId"] is NSNull)
+    #expect(try requestJSON(#require(transport.bodies.last))["workspaceId"] as? String == personalWorkspaceId)
   }
 
-  @Test func switchToPersonalSendsExplicitNull() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, roomsPageBody(rooms: [], nextCursor: nil))
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    _ = try await ChatService().switchWorkspace(client: client, selection: .personal)
-    let putBody = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: putBody) as? [String: Any])
-    #expect(json["organizationId"] is NSNull)
+  @Test func switchToPersonalSendsItsWorkspaceIdWithoutSlug() async throws {
+    let options = try await loadedOptions(preferring: "org_1")
+    let transport = ScriptedTransport([(200, preferredWorkspaceBody(nil)), (200, roomsPageBody(rooms: [], nextCursor: nil))])
+    _ = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[0])
+    #expect(try requestJSON(#require(transport.bodies.first))["workspaceId"] as? String == personalWorkspaceId)
     #expect(orgSlugHeader(transport.requests[1].request) == nil)
+  }
+
+  /// Options as launch builds them: personal, then Acme.
+  private func loadedOptions(preferring preferred: String? = nil) async throws -> [WorkspaceSession.Option] {
+    let transport = ScriptedTransport([(200, workspacesBody(preferring: preferred)), (200, userBody)])
+    return try await ChatService().loadInitialState(client: makeClient(transport)).options
   }
 
   @Test func friendlyMessageShortensTransportErrors() {
@@ -707,52 +662,15 @@ struct ChatServiceTests {
   }
 
   @Test func serverWorkspaceRestoresWhenStillPresent() async throws {
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"},{"id":"org_2","createdAt":"\(timestamp)","name":"Other","slug":"other","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":"org_2"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody([nil, "org_1", "org_2"], preferring: "org_2")), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .organization(id: "org_2", slug: "other"))
+    #expect(state.defaultSelection.workspace == .organization(id: "org_2", slug: "other"))
   }
 
   @Test func serverPersonalSelectionRestores() async throws {
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody(preferring: nil)), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .personal)
-  }
-
-  @Test func setPreferredOrganizationSucceeds() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let service = ChatService()
-    await #expect(throws: Never.self) {
-      try await service.setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
-    }
-    await #expect(throws: Never.self) {
-      try await service.setPreferredOrganization(client: makeClient(transport), organizationId: nil)
-    }
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization", "put/users/{id}/preferred-organization"])
+    #expect(state.defaultSelection.workspace == .personal)
   }
 }
 
@@ -829,11 +747,11 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
 
 /// Row 41: the root crumb names whose Files these are (web `driveWorkspaceRootLabel`, `App.Drive.myDrive`).
 @Test @MainActor func drivePickerRootNamesTheWorkspacesFiles() {
-  #expect(DrivePicker.rootTitle(for: .init(id: "personal", title: "Personal", workspace: .personal)) == "My Files")
+  #expect(DrivePicker.rootTitle(for: .init(id: "personal", title: "Personal", workspace: .personal, workspaceId: personalWorkspaceId)) == "My Files")
   #expect(DrivePicker.rootTitle(for: nil) == "My Files")
-  let acme = WorkspaceSession.Option(id: "org_1", title: "Acme", workspace: .organization(id: "org_1", slug: "acme"))
+  let acme = WorkspaceSession.Option(id: "org_1", title: "Acme", workspace: .organization(id: "org_1", slug: "acme"), workspaceId: "w1")
   #expect(DrivePicker.rootTitle(for: acme) == "Acme")
-  let unnamed = WorkspaceSession.Option(id: "org_2", title: "", workspace: .organization(id: "org_2", slug: "unnamed"))
+  let unnamed = WorkspaceSession.Option(id: "org_2", title: "", workspace: .organization(id: "org_2", slug: "unnamed"), workspaceId: "w2")
   #expect(DrivePicker.rootTitle(for: unnamed) == "Organization")
 }
 
