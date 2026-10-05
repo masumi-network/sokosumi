@@ -583,6 +583,19 @@ export function shouldUseCoworkerRoomStream(room: {
   return isCoworkerOnlyDirectRoom(room);
 }
 
+/** Skills only reach an agent: offer them when a coworker or Soko Bot is in the room. */
+export function shouldAllowRoomSkills(room: {
+  kind: string;
+  userMembers: { id?: string; userId?: string }[];
+  coworkerMembers: { id?: string; coworkerId?: string }[];
+  sokoBotMembers?: { id?: string; sokoBotId?: string }[];
+}): boolean {
+  return (
+    !shouldUseCoworkerRoomStream(room) &&
+    room.coworkerMembers.length + (room.sokoBotMembers?.length ?? 0) > 0
+  );
+}
+
 /**
  * Thread chrome on room messages.
  * Stream overlays never show threads (ephemeral stream ids).

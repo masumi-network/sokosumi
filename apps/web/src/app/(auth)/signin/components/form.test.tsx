@@ -601,6 +601,35 @@ describe("SignInForm", () => {
       );
     });
 
+    it("names the password inside its field and offers the reset beside the code", () => {
+      renderForm();
+
+      expect(passwordField()).toHaveAttribute(
+        "placeholder",
+        "Fields.Password.label",
+      );
+      // One row of ways out under Log in: the reset first, then the code.
+      const reset = screen.getByRole("link", { name: "forgotPassword" });
+      const code = screen.getByRole("button", { name: "emailCodeInstead" });
+      expect(reset.compareDocumentPosition(code)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "submit" })
+          .compareDocumentPosition(reset),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("leaves the reset out of the code step's row", () => {
+      renderForm({ initialMethod: "code", emailCode: fakeEmailCode() });
+      expect(codeField()).toBeInTheDocument();
+
+      expect(
+        screen.queryByRole("link", { name: "forgotPassword" }),
+      ).not.toBeInTheDocument();
+    });
+
     // The URL reaches server logs and analytics; the address goes through
     // session storage instead.
     it("hands the address to the password reset outside the URL", () => {
