@@ -4,13 +4,11 @@ import { type FormEventHandler, type ReactNode, type Ref, useRef } from "react";
 import type { FieldValues, UseFormReturn } from "react-hook-form";
 
 import { Form } from "@/components/ui/form";
-import { cn } from "@/lib/utils";
 
 interface BaseFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   onSubmit: (values: T) => Promise<void>;
   children: ReactNode;
-  className?: string;
   onChange?: FormEventHandler<HTMLFormElement>;
   formRef?: Ref<HTMLFormElement>;
   disabled?: boolean;
@@ -20,7 +18,6 @@ export function BaseForm<T extends FieldValues>({
   form,
   onSubmit,
   children,
-  className,
   onChange,
   formRef,
   disabled = false,
@@ -48,7 +45,6 @@ export function BaseForm<T extends FieldValues>({
           }
         }}
         onChange={onChange}
-        className={cn(className)}
       >
         <fieldset
           disabled={isSubmitting || disabled}

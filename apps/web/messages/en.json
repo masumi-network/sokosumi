@@ -1119,37 +1119,6 @@
       "quoteAuthor": "Florian Haller",
       "quoteRole": "CEO, Serviceplan Group"
     },
-    "Schema": {
-      "Email": {
-        "invalid": "Please enter a valid email address.",
-        "required": "Email is required"
-      },
-      "Name": {
-        "min": "Name must be at least 2 characters.",
-        "max": "Name must be at most 128 characters.",
-        "invalid": "Name must be a valid string.",
-        "required": "Name is required"
-      },
-      "Password": {
-        "invalid": "Password must be a valid string.",
-        "min": "Password must be at least 8 characters",
-        "max": "Password must be at most 128 characters",
-        "required": "Password is required"
-      },
-      "CurrentPassword": {
-        "invalid": "Current password must be a valid string.",
-        "required": "Current password is required"
-      },
-      "InputPassword": {
-        "invalid": "Password must be a valid string.",
-        "required": "Password is required"
-      },
-      "ConfirmPassword": {
-        "invalid": "Confirm password must be a valid string.",
-        "match": "Password doesn't match",
-        "required": "Confirm password is required"
-      }
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Log in / Register",
@@ -1161,7 +1130,6 @@
       "continueWith": "Continue with {provider}",
       "orDivider": "or",
       "emailCodeError": "We could not send a code. Please try again.",
-      "success": "Login successful",
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
@@ -1290,7 +1258,6 @@
           },
           "linkExpired": "That reset link expired or was already used. Request a new one.",
           "Errors": {
-            "rateLimited": "Too many requests in a row. Wait a minute, then try again.",
             "generic": "We could not send the reset email. Try again."
           }
         }
@@ -7593,12 +7560,6 @@
         },
         "FullName": {
           "max": "First and last name together must be at most 128 characters, including the space."
-        },
-        "Organization": {
-          "invalid": "Organization must be a valid string.",
-          "required": "Organization is required",
-          "min": "Organization name must be at least 2 characters.",
-          "max": "Organization name must be at most 50 characters."
         },
         "Password": {
           "invalid": "Password must be a valid string.",

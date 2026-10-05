@@ -12,12 +12,14 @@ describe("users workspaces OpenAPI contract (ADR 0051)", () => {
     expect(doc.paths?.["/{id}/workspaces"]?.get).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces"]?.post).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces/preferred"]?.put).toBeDefined();
+    expect(doc.paths?.["/{id}/workspaces/{workspaceId}"]?.delete).toBeDefined();
     expect(doc.paths?.["/{id}"]?.patch).toBeDefined();
   });
 
   it.each([
     ["/{id}/workspace-access", "get"],
     ["/{id}/personal-workspace", "post"],
+    ["/{id}/personal-workspace", "delete"],
     ["/{id}/preferred-organization", "get"],
     ["/{id}/preferred-organization", "put"],
   ] as const)("keeps %s %s as a deprecated fallback", (path, method) => {
