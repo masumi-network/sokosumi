@@ -9,6 +9,7 @@ import {
   type LanguageModelV4StreamResult,
   type SharedV4Warning,
 } from "@ai-sdk/provider";
+import { ssrfSafeStreamFetch } from "@sokosumi/net";
 import { parseSokosumiProviderOptions } from "./parse-provider-options.js";
 import {
   buildResponsesApiWarnings,
@@ -22,6 +23,8 @@ import {
   finishStop,
 } from "./stream/responses-sse-to-v4-stream.js";
 import type { CreateSokosumiOptions } from "./types.js";
+
+const MAX_COWORKER_STREAM_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 const OPENROUTER_RESPONSES_URL = "https://openrouter.ai/api/v1/responses";
 const DEFAULT_OPENROUTER_MODEL_ID = "openai/gpt-5.4";
@@ -363,17 +366,20 @@ async function streamCoworker(
   }
   if (options.headers) {
     for (const [k, v] of Object.entries(options.headers)) {
-      if (v !== undefined) {
+      if (v !== undefined && k.toLowerCase() !== "accept-encoding") {
         headers[k] = v;
       }
     }
   }
 
+  headers["Accept-Encoding"] = "identity";
+
   async function fetchCoworkerResponses(
     requestBody: CoworkerResponsesBody,
   ): Promise<Response> {
-    let response = await fetch(url, {
+    let response = await ssrfSafeStreamFetch(url, {
       method: "POST",
+      maxResponseBytes: MAX_COWORKER_STREAM_RESPONSE_BYTES,
       headers,
       body: JSON.stringify(requestBody),
       signal: options.abortSignal,
@@ -401,8 +407,9 @@ async function streamCoworker(
         };
         body = retryBody;
         requestBodyForError = retryBody;
-        response = await fetch(url, {
+        response = await ssrfSafeStreamFetch(url, {
           method: "POST",
+          maxResponseBytes: MAX_COWORKER_STREAM_RESPONSE_BYTES,
           headers,
           body: JSON.stringify(retryBody),
           signal: options.abortSignal,
