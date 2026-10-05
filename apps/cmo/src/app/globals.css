@@ -352,6 +352,8 @@ p {
 .note {
   color: var(--muted);
   font-size: 0.875rem;
+  /* A long email in a note wraps instead of widening the page. */
+  overflow-wrap: anywhere;
 }
 
 .note a {

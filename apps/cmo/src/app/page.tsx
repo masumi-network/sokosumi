@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 
 import { NameSetup } from "../components/name-setup";
 import { OrganizationSetup } from "../components/organization-setup";
+import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import {
@@ -11,6 +12,7 @@ import {
   WorkspaceGate,
 } from "../components/workspace-gate";
 import { getAuth } from "../lib/auth";
+import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { asSignedInPersonInPage } from "../lib/core";
 import { isValidPersonName } from "../lib/person-name";
 import { createAccount, signIn, signOut } from "./actions";
@@ -69,7 +71,20 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     throw new Error(`Core did not list the workspaces (${response?.status})`);
   }
 
-  if (data.data.workspaces.length === 0) {
+  const { workspaces, pendingInvitationCount } = data.data;
+  if (workspaces.length === 0) {
+    // Invited people join their team on Sokosumi, which asks for any missing
+    // name when they accept.
+    if (pendingInvitationCount > 0) {
+      return (
+        <PendingInvitations
+          count={pendingInvitationCount}
+          sokosumiSetupUrl={`${readSokosumiAppBaseUrl()}/setup`}
+          email={session.user.email}
+          signOut={signOut}
+        />
+      );
+    }
     // CMO's session holds only a display name, so the gate reads the parts.
     const person = await getUsersById({ ...asPerson, path: { id: "me" } });
     if (isRefused(person.response)) return signedOut("signed_out");

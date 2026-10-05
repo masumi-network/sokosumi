@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { NameSetup } from "../components/name-setup";
 import { OrganizationSetup } from "../components/organization-setup";
+import { PendingInvitations } from "../components/pending-invitations";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import { WorkspaceGate } from "../components/workspace-gate";
@@ -14,6 +15,10 @@ const getUsersByIdWorkspaces = vi.fn();
 vi.mock("next/headers", () => ({ headers: async () => new Headers() }));
 
 vi.mock("../lib/auth", () => ({ getAuth: () => ({ api: { getSession } }) }));
+
+vi.mock("../lib/auth-config", () => ({
+  readSokosumiAppBaseUrl: () => "https://app.sokosumi.com",
+}));
 
 vi.mock("../lib/core", () => ({
   asSignedInPersonInPage: async () => ({
@@ -48,9 +53,9 @@ function render(
   return HomePage({ searchParams: Promise.resolve({ error, step }) });
 }
 
-function workspacesAnswer(workspaces: unknown[]) {
+function workspacesAnswer(workspaces: unknown[], pendingInvitationCount = 0) {
   return {
-    data: { data: { workspaces, pendingInvitationCount: 0 } },
+    data: { data: { workspaces, pendingInvitationCount } },
     response: new Response(null, { status: 200 }),
   };
 }
@@ -161,6 +166,36 @@ describe("CMO home page", () => {
     getUsersById.mockResolvedValue(userAnswer(null, null));
 
     expect((await render(undefined, "organization")).type).toBe(NameSetup);
+  });
+
+  it.each([
+    ["", undefined],
+    [" on the organization step", "organization"],
+  ])(
+    "sends a person with no workspace and invitations to Sokosumi%s",
+    async (_label, step) => {
+      getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([], 2));
+      // Sokosumi asks for a missing name when they accept.
+      getUsersById.mockResolvedValue(userAnswer(null, null));
+
+      const page = await render(undefined, step);
+
+      expect(page.type).toBe(PendingInvitations);
+      expect(page.props).toMatchObject({
+        count: 2,
+        sokosumiSetupUrl: "https://app.sokosumi.com/setup",
+        email: "ada@example.com",
+      });
+      expect(getUsersById).not.toHaveBeenCalled();
+    },
+  );
+
+  it("lets a person with a workspace in despite pending invitations", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(
+      workspacesAnswer([{ id: "ws_1", kind: "personal", preferred: true }], 1),
+    );
+
+    expect((await render()).type).toBe(SignedIn);
   });
 
   it("fails into the error page when Core cannot read the person", async () => {
