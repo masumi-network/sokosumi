@@ -20,7 +20,7 @@ import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import SignInForm from "@/auth/signin/components/form";
 import SignUpForm from "@/auth/signup/components/form";
-import SignInLink, {
+import SignInRow, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
 import { useMountEffect } from "@/hooks/use-mount-effect";
@@ -88,7 +88,6 @@ export default function AuthFlow({
 }: AuthFlowProps) {
   const isSignIn = mode === "signIn";
   const signInT = useTranslations("Auth.Pages.SignIn.Form");
-  const signUpT = useTranslations("Auth.Pages.SignUp.Form");
   const socialT = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -345,12 +344,7 @@ export default function AuthFlow({
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-          <span className="text-muted-foreground text-sm">
-            {signUpT("Login.message")}
-          </span>
-          <SignInLink />
-        </div>
+        <SignInRow />
       )}
     </>,
   );
