@@ -1,5 +1,5 @@
 import type { Prisma } from "@sokosumi/database";
-import { isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
+import { getSokoBotVersion, isSokoBotSilentAnswer } from "@sokosumi/soko-bot";
 import { z } from "zod";
 import { cursorPaginationMetaSchema } from "@/schemas/pagination.schema";
 
@@ -440,6 +440,18 @@ function inputCovers(later: unknown, earlier: unknown): boolean {
   );
 }
 
+/** Whether the turn ran on a CMO (Cuso) version. */
+async function isCmoTurn(
+  tx: Prisma.TransactionClient,
+  turnId: string,
+): Promise<boolean> {
+  const turn = await tx.sokoBotTurn.findUnique({
+    where: { id: turnId },
+    select: { versionId: true },
+  });
+  return getSokoBotVersion(turn?.versionId).profile === "cmo";
+}
+
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
@@ -709,14 +721,21 @@ export async function buildActionResponse(
       ? QUESTIONS[narrative.question]
       : null;
   // Observations restate reads in fixed wording; the bot's own message says
-  // the same in plain words, so they are shown only when it wrote none.
+  // the same in plain words, so they are shown only when it wrote none. A
+  // CMO bot (Cuso) never shows them: its reports are cards in the founder's
+  // chat, and raw ids and statuses there read as a leak.
+  const showObservations =
+    !message && observations.length > 0 && !(await isCmoTurn(tx, turnId));
   const narrativeText = message
     ? [message]
     : actionText.length
       ? question
         ? [question]
         : []
-      : [...observations, ...(question ? [question] : [])];
+      : [
+          ...(showObservations ? observations : []),
+          ...(question ? [question] : []),
+        ];
   // On a turn nobody asked for, "nothing changed" is not news: the turn ends
   // silent like "Nothing to add." instead of posting a placeholder.
   const nothingToSay =

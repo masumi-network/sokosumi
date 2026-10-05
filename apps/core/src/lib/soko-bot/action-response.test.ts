@@ -720,6 +720,45 @@ describe("authoritative action responses", () => {
     expect(response.answerText).not.toContain("job");
   });
 
+  it("never posts raw observations to a CMO (Cuso) chat", async () => {
+    const read = receipt({
+      capability: "list_project_social_accounts",
+      result: [
+        {
+          id: "account-one",
+          provider: "linkedin",
+          externalHandle: "acme",
+          status: "active",
+          connectedAt: "2026-09-28T10:00:00Z",
+          disconnectedAt: null,
+        },
+      ],
+    });
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([read]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "cmo-v1",
+    });
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: null,
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    // The read is still recorded; it just never becomes a chat message.
+    expect(response.observations.length).toBeGreaterThan(0);
+    expect(response.answerText).not.toContain("Observed social account");
+    expect(response.answerText).not.toContain("account-one");
+  });
+
   it("shows the bot's own words instead of restating what it read", async () => {
     const read = receipt({
       capability: "list_project_social_accounts",

@@ -165,7 +165,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Every morning: checks the strategy and the calendar, prepares what is due, and schedules it.",
     prompt:
-      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice, with an image where the format needs one; 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId); 4) report with report_update kind daily: what you did today and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. When nothing is due and nothing changed, answer exactly: Nothing to add.",
+      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice, with an image where the format needs one; 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId); 4) report with report_update kind daily: what you did today and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. Then write one short sentence for the owner (the card carries the details). When nothing is due and nothing changed, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",
@@ -174,7 +174,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Every Monday: looks at what was published and how it did, and improves the plan.",
     prompt:
-      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy yourself with save_strategy (the owner approved it and expects you to adjust it), and report with report_update kind weekly: results, and each change you made. The owner can revert your changes from the card. Under 12 lines.",
+      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy yourself with save_strategy (the owner approved it and expects you to adjust it), and report with report_update kind weekly: results, and each change you made. The owner can revert your changes from the card. Then write one short sentence for the owner; the card carries the details.",
   },
 ];
 
