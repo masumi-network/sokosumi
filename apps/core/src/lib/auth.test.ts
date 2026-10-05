@@ -1074,10 +1074,11 @@ describe("core auth config", () => {
     });
   });
 
-  it("uses explicit Sokosumi app trustedOrigins in production", async () => {
+  it("keeps branch previews out of production trustedOrigins", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
       NODE_ENV: "production",
+      VERCEL_ENV: "production",
     });
 
     await import("./auth");
@@ -1089,7 +1090,6 @@ describe("core auth config", () => {
     expect(config.trustedOrigins).toEqual([
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
-      "https://*.preview.sokosumi.com",
     ]);
   });
 
@@ -1108,7 +1108,6 @@ describe("core auth config", () => {
     expect(config.trustedOrigins).toEqual([
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
-      "https://*.preview.sokosumi.com",
       "http://localhost:*",
       "https://localhost:*",
       "http://*.localhost:*",
