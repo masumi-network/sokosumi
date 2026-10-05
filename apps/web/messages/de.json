@@ -558,21 +558,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Organisation erstellen",
           "edit": "Organisation bearbeiten"
         },
         "Form": {
           "Submit": {
-            "create": "Erstellen",
             "edit": "Speichern"
           },
           "cancel": "Abbrechen",
           "Success": {
-            "create": "Organisation erfolgreich erstellt",
             "edit": "Organisation erfolgreich aktualisiert"
           },
           "Error": {
-            "create": "Organisation konnte nicht erstellt werden",
             "edit": "Organisation konnte nicht aktualisiert werden"
           },
           "Errors": {

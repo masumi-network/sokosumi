@@ -66,7 +66,7 @@ export default async function AuthenticatedAppFrame({
   const session = sessionRead.session;
 
   // Workspace gate is the only access decision for product chrome — not
-  // `onboardingCompleted`. Fail closed: not-ready or workspace-access failure → gate
+  // `onboardingCompleted`. Fail closed: not-ready or a failed workspaces read → gate
   // (gate page distinguishes identity vs temporary load failure for the user).
   let workspaceGate: string | null = null;
   try {

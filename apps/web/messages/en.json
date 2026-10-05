@@ -574,21 +574,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Create Organization",
           "edit": "Edit Organization"
         },
         "Form": {
           "Submit": {
-            "create": "Create",
             "edit": "Save"
           },
           "cancel": "Cancel",
           "Success": {
-            "create": "Organization created successfully",
             "edit": "Organization updated successfully"
           },
           "Error": {
-            "create": "Failed to create organization",
             "edit": "Failed to update organization"
           },
           "Errors": {
