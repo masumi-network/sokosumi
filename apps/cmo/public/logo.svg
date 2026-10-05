@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="242 84 334 486">
+  <defs>
+    <path id="p" d="M310 132 290 507 372 427 417 522 470 500 440 405 527 400Z" stroke-linejoin="round"/>
+  </defs>
+  <use href="#p" fill="#fff" stroke="#fff" stroke-width="88"/>
+  <use href="#p" fill="#0a0a0a" stroke="#0a0a0a" stroke-width="56"/>
+  <use href="#p" fill="#fff" stroke="#fff" stroke-width="6"/>
+  <ellipse cx="345" cy="305" rx="13" ry="27" fill="#0a0a0a"/>
+  <ellipse cx="395" cy="297" rx="13" ry="27" fill="#0a0a0a"/>
+</svg>

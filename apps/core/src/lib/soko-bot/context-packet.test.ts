@@ -735,9 +735,9 @@ describe("ContextPacketBuilder", () => {
     }
   });
 
-  it("withholds the owner's private surfaces from a teammate turn", async () => {
-    // A teammate mention runs as the owner and answers into the shared room,
-    // so the packet must not carry what only the owner should see.
+  it("gives a teammate turn the owner's full context", async () => {
+    // A teammate's turn runs as the owner, with the owner's memory, recent
+    // turns and credits, like any owner turn.
     pendingDecisionFindManyMock.mockResolvedValue([
       pendingDecision("decision-1"),
     ]);
@@ -757,13 +757,9 @@ describe("ContextPacketBuilder", () => {
     });
     const serialized = JSON.stringify(result.packet);
 
-    expect(result.packet.memory.markdown).toBe("# Soko Bot memory");
-    expect(result.packet.memory.version).toBe(0);
-    expect(result.packet.recentTurns).toEqual([]);
-    expect(result.packet.pendingDecisions).toEqual([]);
-    expect(result.packet.workspace.availableCredits).toBeNull();
-    expect(serialized).not.toContain("Ship the secret");
-    expect(serialized).not.toContain("Private answer");
+    expect(result.packet.memory.version).toBe(3);
+    expect(serialized).toContain("Ship the secret");
+    expect(serialized).toContain("Private answer");
   });
 
   it("tells the bot what the owner may want when the route was unsure", async () => {

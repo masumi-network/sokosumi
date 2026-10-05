@@ -160,6 +160,8 @@ function channelRoom(): ChatRoom {
     kind: "channel",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,
@@ -192,6 +194,8 @@ function coworkerDirectRoom(): ChatRoom {
     kind: "direct",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: "direct-key",
     topic: null,
@@ -251,6 +255,7 @@ function renderRoomsClient(room: ChatRoom) {
         rooms={[room]}
         organizationMembers={[]}
         currentUserId="user-1"
+        isOrgOwnerOrAdmin={false}
         coworkers={[]}
         selectedRoomId={room.id}
         messageLoadFailed={false}

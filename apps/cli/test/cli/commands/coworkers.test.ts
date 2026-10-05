@@ -310,7 +310,7 @@ test("coworkers register requires a selected member Workspace", async () => {
   assert.equal(createCalled, false);
 });
 
-test("pending workspace access reports the created Coworker and retry command", async () => {
+test("pending workspace access returns the created Coworker without minting a key", async () => {
   const calls: string[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
@@ -341,22 +341,28 @@ test("pending workspace access reports the created Coworker and retry command", 
     patch: async <T>() => ({ data: {} }) as T,
   };
 
-  await assert.rejects(
-    () =>
-      runCoworkersCommand({
-        client,
-        stdout: { write() {} },
-        subcommand: "register",
-        target: "preprod",
-        options: {
-          name: "Ops Agent",
-          "vendor-id": "vendor-1",
-          "workspace-id": "org-1",
-          "create-api-key": true,
-        },
-      }),
-    /Coworker cw-1 was created, but Workspace access is PENDING.*coworkers connect cw-1/,
-  );
+  const output: string[] = [];
+  await runCoworkersCommand({
+    client,
+    stdout: {
+      write(value) {
+        output.push(value);
+      },
+    },
+    json: true,
+    subcommand: "register",
+    target: "preprod",
+    options: {
+      name: "Ops Agent",
+      "vendor-id": "vendor-1",
+      "workspace-id": "org-1",
+    },
+  });
+  const result = JSON.parse(output.join(""));
+  assert.equal(result.coworker.id, "cw-1");
+  assert.equal(result.workspaceAccess.id, "access-1");
+  assert.equal(result.workspaceAccess.status, "PENDING");
+  assert.equal(result.apiKey, null);
   assert.deepEqual(calls, [
     "/v1/coworkers",
     "/v1/coworkers/cw-1/workspace-access",

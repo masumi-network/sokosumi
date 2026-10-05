@@ -2,7 +2,6 @@ import { getSokoBotVersion } from "@sokosumi/soko-bot";
 import { describe, expect, it } from "vitest";
 import {
   createSokoBotCandidate,
-  SokoBotEvaluationBudget,
   sokoBotEvaluationCasesSchema,
 } from "./evaluation-preparation";
 
@@ -68,41 +67,5 @@ describe("offline evaluation preparation", () => {
         { ...item, id: "case-two", split: "held-out" },
       ]).success,
     ).toBe(false);
-  });
-  it("reserves before dispatch, retains unknown costs, and rejects exhausted budgets", () => {
-    const budget = new SokoBotEvaluationBudget();
-    const request = budget.reserve({
-      inputTokens: 8192,
-      outputTokens: 2048,
-      maximumCostUsd: 10,
-    });
-    budget.settle(request, null);
-    expect(budget.totalUsd).toBe(10);
-    expect(() =>
-      budget.reserve({ inputTokens: 1, outputTokens: 1, maximumCostUsd: 0.01 }),
-    ).toThrow();
-    budget.settle(request, 1);
-    expect(budget.totalUsd).toBe(1);
-    expect(() => budget.settle(request, 1)).toThrow();
-    expect(() =>
-      budget.reserve({
-        inputTokens: 8193,
-        outputTokens: 1,
-        maximumCostUsd: 0.01,
-      }),
-    ).toThrow();
-  });
-  it("stops dispatch when actual spend exceeds the reserved price", () => {
-    const budget = new SokoBotEvaluationBudget();
-    const request = budget.reserve({
-      inputTokens: 1,
-      outputTokens: 1,
-      maximumCostUsd: 0.01,
-    });
-    expect(() => budget.settle(request, 0.02)).toThrow();
-    expect(budget.totalUsd).toBe(0.02);
-    expect(() =>
-      budget.reserve({ inputTokens: 1, outputTokens: 1, maximumCostUsd: 0.01 }),
-    ).toThrow();
   });
 });

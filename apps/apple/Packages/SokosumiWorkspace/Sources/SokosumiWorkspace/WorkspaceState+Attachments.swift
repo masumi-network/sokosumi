@@ -4,8 +4,9 @@ import SokosumiAuth
 import SokosumiChat
 
 public extension WorkspaceState {
+  /// Every attachment ingress (drop, paste, picker, Drive) asks this; Core refuses uploads to a Read-only Direct.
   func canAttachFiles(roomId: String) -> Bool {
-    transcriptRoomId == roomId && !transcriptLoading
+    transcriptRoomId == roomId && !transcriptLoading && roomTakesNewMessages(rooms.first { $0.id == roomId })
   }
 
   func driveItems(folder: String, query: String, roomId: String, auth: AuthState) async throws -> [Components.Schemas.DriveItem] {

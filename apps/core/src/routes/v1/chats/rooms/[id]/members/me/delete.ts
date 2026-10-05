@@ -4,10 +4,7 @@ import {
   expireStalePendingInvitations,
   livePendingInvitationWhere,
 } from "@/helpers/chat-room-invitation";
-import {
-  failOpenChatRoomMentions,
-  publishChatRoomMentionStatuses,
-} from "@/helpers/chat-room-mention-status";
+import { publishChatRoomMentionStatuses } from "@/helpers/chat-room-mention-status";
 import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -21,6 +18,7 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
+import { removeOwnedSokoBotsFromChannel } from "../../../channel-membership";
 import {
   membershipAccessForUser,
   requireChatRoomUserAccess,
@@ -66,7 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { result, statusMessages } = await prisma.$transaction(async (tx) => {
       // Doubles as the membership check: it only resolves rooms the caller
       // actually belongs to, so leaving twice 404s.
-      const existing = await requireChatRoomUserAccess(
+      let existing = await requireChatRoomUserAccess(
         id,
         userContext.userId,
         tx,
@@ -98,6 +96,9 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       if (lockedRooms[0]?.archivedAt !== null) {
         throw notFound("Room not found");
       }
+
+      // The pre-lock roster can miss a bot added while this leave waited.
+      existing = await requireChatRoomUserAccess(id, userContext.userId, tx);
 
       // Re-count under the lock — the earlier include snapshot can be stale
       // once a concurrent leave has already deleted its row.
@@ -187,33 +188,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       await tx.chatRoomUserMember.deleteMany({
         where: { roomId: existing.id, userId: userContext.userId },
       });
-      // The assistant goes with its owner. Left behind in a channel it would
-      // stay mentionable by everyone still in the room, answering on behalf of
-      // someone who is no longer there and spending their credits.
-      if (existing.kind === "channel") {
-        const ownBots = await tx.sokoBot.findMany({
-          where: { userId: userContext.userId },
-          select: { id: true },
-        });
-        const ownBotIds = ownBots.map((bot) => bot.id);
-        if (ownBotIds.length > 0) {
-          leftBehindMentionMessageIds.push(
-            ...(await failOpenChatRoomMentions(
-              {
-                where: {
-                  sokoBotId: { in: ownBotIds },
-                  message: { roomId: existing.id },
-                },
-                error: "Personal assistant is no longer a member of this room",
-              },
-              tx,
-            )),
-          );
-          await tx.chatRoomSokoBotMember.deleteMany({
-            where: { roomId: existing.id, sokoBotId: { in: ownBotIds } },
-          });
-        }
-      }
+      leftBehindMentionMessageIds.push(
+        ...(
+          await removeOwnedSokoBotsFromChannel(tx, existing, userContext.userId)
+        ).mentionMessageIds,
+      );
       // Drop the read marker too, so rejoining later starts clean rather than
       // resuming a stale position.
       await tx.chatRoomReadState.deleteMany({

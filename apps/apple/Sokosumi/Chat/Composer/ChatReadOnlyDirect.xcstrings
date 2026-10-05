@@ -1,0 +1,120 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "%@ left. You can still read past messages, but you can't send new ones. %lld" : {
+      "comment" : "Stands in for the composer in a Direct everyone else has left. First argument: the names of who left (\"Ben, Cara\"); second: how many, which agrees the verb.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@left@ You can still read past messages, but you can't send new ones."
+          },
+          "substitutions" : {
+            "left" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ left."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ left."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@left@ Du kannst frühere Nachrichten weiterhin lesen, aber keine neuen senden."
+          },
+          "substitutions" : {
+            "left" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ hat den Chat verlassen."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ haben den Chat verlassen."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%#@left@ Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos."
+          },
+          "substitutions" : {
+            "left" : {
+              "argNum" : 2,
+              "formatSpecifier" : "lld",
+              "variations" : {
+                "plural" : {
+                  "one" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ salió del chat."
+                    }
+                  },
+                  "other" : {
+                    "stringUnit" : {
+                      "state" : "translated",
+                      "value" : "%1$@ salieron del chat."
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "Everyone else left. You can still read past messages, but you can't send new ones." : {
+      "comment" : "Stands in for the composer in a Direct everyone else has left, when none of them has a profile left to name.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Everyone else left. You can still read past messages, but you can't send new ones."
+          }
+        },
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle anderen haben den Chat verlassen. Du kannst frühere Nachrichten weiterhin lesen, aber keine neuen senden."
+          }
+        },
+        "es" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Todos los demás salieron del chat. Puedes seguir leyendo los mensajes anteriores, pero no enviar nuevos."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

@@ -7,16 +7,16 @@ import Testing
 struct GuestAccessTests {
   private func room(access: Components.Schemas.ChatRoomAccess = .member, discoverability: Components.Schemas.ChatRoom.DiscoverabilityPayload? = .external,
                     kind: Components.Schemas.ChatRoom.KindPayload = .channel) throws -> Components.Schemas.ChatRoom {
-    try .init(
-      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, isGroupDirect: false, topic: nil,
+    .init(
+      id: "room", organizationId: "org", name: "Partners", slug: "partners", kind: kind, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, topic: nil,
       discoverability: discoverability, createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast,
-      unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: access,
+      unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: access, value2: .init(stringLiteral: access.rawValue)),
       userMembers: [
-        .init(id: "me", name: "Me", email: "me@example.com", presence: .online, access: .init(value1: .member, value2: .init(unvalidatedValue: "member"))),
-        .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline, access: .init(value1: .guest, value2: .init(unvalidatedValue: "guest"))),
+        .init(id: "me", name: "Me", email: "me@example.com", presence: .online, access: .member),
+        .init(id: "guest", name: "Guest", email: "guest@example.com", presence: .offline, access: .guest),
         .init(id: "peer", name: "Peer", email: "peer@example.com", presence: .afk)
       ],
-      coworkerMembers: [], sokoBotMembers: []
+      formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 
@@ -55,7 +55,6 @@ struct GuestAccessTests {
 
   @Test func loadKeepsPendingInvitationsAndLiveLinksAndFailsSoftly() async throws {
     let model = try GuestAccess(room: room())
-    #expect(model.guests.map(\.id) == ["guest"])
     #expect(model.linkOptions == GuestInviteLinkOptions(expiresInDays: 7, maxUses: nil))
     await model.load {
       GuestAccessSnapshot(invitations: [invitation(id: "a"), invitation(id: "b", status: .accepted)], links: [link(token: "live"), link(token: "gone", revokedAt: .distantPast)])
@@ -128,17 +127,6 @@ struct GuestAccessTests {
       await model.revokeLink("two") { _ in Issue.record("Second link revoke while one runs") }
     }
     #expect(revokedTokens == ["one"] && busy == ["a", "one"] && model.links.map(\.token) == ["two"] && model.revokingLinkToken == nil)
-
-    var removed: [String] = []
-    await model.removeGuest("guest") { userId in
-      removed.append(userId)
-      busy.append(model.removingGuestId)
-      return false
-    }
-    #expect(removed == ["guest"] && busy == ["a", "one", "guest"])
-    #expect(model.guests.map(\.id) == ["guest"] && model.errorMessage == "Couldn’t remove the guest. Try again.", "A refused mutation keeps the guest")
-    await model.removeGuest("guest") { _ in true }
-    #expect(model.guests.isEmpty && model.removingGuestId == nil && model.errorMessage == nil)
   }
 
   @Test func createLinkSendsOptionsAndPrependsTheNewLink() async throws {

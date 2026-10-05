@@ -38,6 +38,10 @@ vi.mock("@/lib/db/prisma", () => ({
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 
+vi.mock("@/services/soko-bot-activity-stats.service", () => ({
+  activityStats: vi.fn().mockResolvedValue(null),
+  activityStatsLines: () => ["## This week in numbers", "- (stats)", ""],
+}));
 vi.mock("@/services/soko-bot-integrations.service", () => ({
   activeIntegrationsForBot: vi.fn(),
   fetchCalendarEvents: vi.fn(),
@@ -46,6 +50,7 @@ vi.mock("@/services/soko-bot-integrations.service", () => ({
 
 import {
   buildSystemBeatMessage,
+  findAttentionItems,
   followUpsBlock,
   proactiveGate,
 } from "./soko-bot-proactive.service";
@@ -53,32 +58,55 @@ import {
 describe("followUpsBlock", () => {
   const ARCHIVED = "01a0efbb-778c-7669-86b6-d50d81e74287";
   const OPEN = "01a0efbb-778c-7669-86b6-d50d81e74288";
+  const KEANUS = "01a08162-3b3b-7099-825a-8a9b987034dc";
+  const owner = { id: "bot-1", userId: "andreas" };
+  const task = (id: string, extra: Record<string, unknown>) => ({
+    id,
+    name: "A task",
+    status: "INPUT_REQUIRED",
+    archivedAt: null,
+    ownerId: "andreas",
+    assigneeSokoBotId: null,
+    owner: { name: "Andreas" },
+    ...extra,
+  });
 
-  it("drops due follow-ups about Tasks that are archived or closed", async () => {
+  it("drops due follow-ups about closed Tasks and other people's Tasks", async () => {
     memoryFindFirstMock.mockResolvedValue({
       markdown: [
         "# Soko Bot memory",
         "## Follow-ups",
         `- 2026-09-29 check Hannah's estimate on ${ARCHIVED}`,
         `- 2026-09-29 chase the review on ${OPEN}`,
+        `- 2026-09-29 resolve INPUT_REQUIRED on Themis task ${KEANUS}`,
         "- 2026-09-29 call the venue",
       ].join("\n\n"),
     });
-    taskFindManyMock.mockResolvedValue([{ id: ARCHIVED }]);
-
-    const lines = await followUpsBlock(
-      "bot-1",
-      "Europe/Vienna",
-      new Date("2026-09-30T08:00:00Z"),
-    );
-
-    expect(lines.join("\n")).not.toContain(ARCHIVED);
-    expect(lines.join("\n")).toContain(OPEN);
-    expect(lines.join("\n")).toContain("call the venue");
-    expect(taskFindManyMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ id: { in: [ARCHIVED, OPEN] } }),
+    taskFindManyMock.mockResolvedValue([
+      task(ARCHIVED, { archivedAt: new Date() }),
+      task(OPEN, {}),
+      task(KEANUS, {
+        name: "Create greeting message",
+        ownerId: "keanu",
+        owner: { name: "Keanu Klestil" },
       }),
+    ]);
+
+    const text = (
+      await followUpsBlock(
+        owner,
+        "Europe/Vienna",
+        new Date("2026-09-30T08:00:00Z"),
+      )
+    ).join("\n");
+
+    expect(text).not.toContain(`estimate on ${ARCHIVED}`);
+    expect(text).toContain(OPEN);
+    expect(text).toContain("call the venue");
+    // Keanu's Task is named as his, never raised as the owner's follow-up.
+    expect(text).not.toContain("resolve INPUT_REQUIRED on Themis");
+    expect(text).toContain(
+      `"Create greeting message" (id ${KEANUS}) belongs to Keanu Klestil.`,
     );
   });
 });
@@ -203,5 +231,107 @@ describe("buildSystemBeatMessage private Task visibility", () => {
     expect(beat.message).toContain("public-1");
     expect(beat.message).not.toContain("Secret acquisition");
     expect(beat.message).not.toContain("secret-1");
+  });
+});
+
+describe("buildSystemBeatMessage stand-up board", () => {
+  it("lists only the owner's open Tasks and adds a short team note", async () => {
+    const integrations = await import(
+      "@/services/soko-bot-integrations.service"
+    );
+    vi.mocked(integrations.activeIntegrationsForBot).mockResolvedValue([]);
+    taskFindManyMock.mockImplementation(
+      async (args: {
+        where?: Record<string, unknown>;
+        select?: Record<string, unknown>;
+      }) => {
+        // The attention query has its own shape; nothing is stuck here.
+        if (args.select?.events) return [];
+        if (args.where?.OR) {
+          return [
+            {
+              id: "mine-1",
+              name: "My launch",
+              status: "READY",
+              assignee: null,
+            },
+          ];
+        }
+        if (args.where?.NOT) {
+          return [
+            {
+              name: "Pricing research",
+              status: "RUNNING",
+              owner: { name: "Albina" },
+              assignee: { name: "Hannah" },
+            },
+          ];
+        }
+        return [];
+      },
+    );
+    const beat = await buildSystemBeatMessage({
+      bot: {
+        id: ALICE_BOT_ID,
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        ingestTimezone: "Europe/Vienna",
+        followWholeBoard: true,
+      },
+      key: "standup",
+      prompt: "Daily stand-up.",
+      now: new Date("2026-09-16T06:00:00.000Z"),
+    });
+    const own = {
+      OR: [{ ownerId: ALICE_USER_ID }, { assigneeSokoBotId: ALICE_BOT_ID }],
+    };
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining(own) }),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          NOT: own,
+          AND: expect.arrayContaining([
+            buildSokoBotOwnerTaskVisibilityWhere(ALICE_USER_ID),
+          ]),
+        }),
+      }),
+    );
+    expect(beat.message).toContain("## Your open Tasks");
+    expect(beat.message).toContain("My launch");
+    expect(beat.message).toContain("## Team activity (last 24h)");
+    expect(beat.message).toContain(
+      'Albina · RUNNING · "Pricing research" · with Hannah',
+    );
+  });
+});
+
+describe("findAttentionItems ownership", () => {
+  it("only chases the owner's Tasks from turns the owner asked for or the bot started", async () => {
+    delegationFindManyMock.mockResolvedValue([{ taskId: "t1" }]);
+    taskFindManyMock.mockResolvedValue([]);
+    await findAttentionItems({
+      id: "bot-1",
+      userId: "andreas",
+      workspaceId: "ws",
+      followWholeBoard: true,
+      now: new Date("2026-10-01T08:00:00Z"),
+    });
+    expect(delegationFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          turn: {
+            sokoBotId: "bot-1",
+            OR: [{ requestedByUserId: null }, { requestedByUserId: "andreas" }],
+          },
+        }),
+      }),
+    );
+    expect(taskFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ ownerId: "andreas" }),
+      }),
+    );
   });
 });

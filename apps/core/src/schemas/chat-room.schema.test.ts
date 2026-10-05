@@ -52,6 +52,7 @@ describe("chatRoomSchema", () => {
     kind: "channel" as const,
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
     groupName: null,
     directKey: null,
     topic: null,
@@ -66,6 +67,7 @@ describe("chatRoomSchema", () => {
     markedUnread: false,
     myAccess: "guest" as const,
     userMembers: [],
+    formerUserMembers: [],
     coworkerMembers: [],
     sokoBotMembers: [],
   };

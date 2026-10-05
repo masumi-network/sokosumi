@@ -17,11 +17,14 @@ export interface MembershipVisibleRoomsSnapshot {
   organizationId: string | null;
   rooms: readonly ChatRoom[];
   currentUserId: string;
+  /** RSC collection that seeded the publisher; identifies stale Sheet remounts. */
+  sourceRooms?: readonly ChatRoom[];
 }
 
 let snapshotOrganizationKey: string | null = null;
 let snapshot: readonly ChatRoom[] = EMPTY_ROOMS;
 let snapshotCurrentUserId = "";
+let snapshotSourceRooms: readonly ChatRoom[] | undefined;
 let latestSnapshot: MembershipVisibleRoomsSnapshot | null = null;
 let livePublisherCount = 0;
 const listeners = new Set<() => void>();
@@ -47,6 +50,9 @@ function rebuildLatestSnapshot(): void {
       snapshotOrganizationKey === "" ? null : snapshotOrganizationKey,
     rooms: snapshot,
     currentUserId: snapshotCurrentUserId,
+    ...(snapshotSourceRooms === undefined
+      ? {}
+      : { sourceRooms: snapshotSourceRooms }),
   };
 }
 
@@ -54,10 +60,12 @@ export function publishMembershipVisibleRooms(
   rooms: readonly ChatRoom[],
   organizationId: string | null,
   currentUserId = "",
+  sourceRooms?: readonly ChatRoom[],
 ): void {
   snapshotOrganizationKey = organizationKey(organizationId);
   snapshot = rooms;
   snapshotCurrentUserId = currentUserId;
+  snapshotSourceRooms = sourceRooms;
   rebuildLatestSnapshot();
   notifyListeners();
 }
@@ -84,6 +92,7 @@ export function clearMembershipVisibleRoomsSnapshot(): void {
   snapshotOrganizationKey = null;
   snapshot = EMPTY_ROOMS;
   snapshotCurrentUserId = "";
+  snapshotSourceRooms = undefined;
   latestSnapshot = null;
   notifyListeners();
 }

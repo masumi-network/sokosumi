@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const tx = vi.hoisted(() => ({
@@ -56,8 +57,19 @@ describe("folderTaskId", () => {
     tx.task.findFirst.mockResolvedValue(null);
     tx.task.create.mockResolvedValue({ id: "t3" });
     expect(await folderTaskId(input)).toBe("t3");
-    expect(tx.task.create.mock.calls[0][0].data.name).toBe(
-      IMAGE_GENERATION_FOLDER_NAME,
+    const { data } = tx.task.create.mock.calls[0][0];
+    expect(data.name).toBe(IMAGE_GENERATION_FOLDER_NAME);
+    const [created, status] = data.events.create;
+    expect(created).toMatchObject({
+      status: TaskStatus.CREATED,
+      userId: input.userId,
+    });
+    expect(status).toMatchObject({
+      status: TaskStatus.COMPLETED,
+      userId: input.userId,
+    });
+    expect(created.createdAt.getTime()).toBeLessThan(
+      status.createdAt.getTime(),
     );
   });
 });

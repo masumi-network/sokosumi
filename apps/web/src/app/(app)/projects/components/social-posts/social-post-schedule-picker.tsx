@@ -10,11 +10,11 @@ import {
   startOfDay,
   startOfMinute,
 } from "date-fns";
-import { CalendarIcon, Clock } from "lucide-react";
+import { CalendarIcon, Clock, Zap } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { scheduleChipClass } from "@/app/tasks/components/task-schedule-when";
 import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
@@ -97,7 +97,21 @@ function atWallClock(day: Date, hours: number, minutes: number): Date {
   );
 }
 
+/** The chip the schedule dialog's When section uses, so both read alike. */
+function chipClass(active: boolean, invalid?: boolean): string {
+  return cn(
+    scheduleChipClass,
+    "disabled:pointer-events-none disabled:opacity-50",
+    active
+      ? "bg-foreground text-background border-transparent"
+      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground",
+    invalid && "border-destructive",
+  );
+}
+
 interface SocialPostSchedulePickerProps {
+  /** Offers "Now" first: no time, so the post goes out at once. */
+  allowNow?: boolean;
   /** Why the value is invalid, for `aria-describedby`. */
   describedBy?: string;
   disabled?: boolean;
@@ -111,11 +125,12 @@ interface SocialPostSchedulePickerProps {
 }
 
 /**
- * When a post goes out: quick picks for the common times, then a date and a
- * time, each a button with a picker, rather than a typed `mm/dd/yyyy --:--`.
+ * When a post goes out, as one row of chips: "Now" where it applies, quick
+ * picks for the common times, then a date and a time, each with a picker.
  * The time list runs in 15-minute slots; times before `earliest` are off.
  */
 export function SocialPostSchedulePicker({
+  allowNow,
   describedBy,
   disabled,
   earliest,
@@ -164,152 +179,149 @@ export function SocialPostSchedulePicker({
     <div
       aria-describedby={describedBy}
       aria-labelledby={labelledBy}
-      className="space-y-2"
+      className="flex flex-wrap items-center gap-2"
       role="group"
     >
-      <div
-        aria-labelledby={quickPicksLabelId}
-        className="flex flex-wrap items-center gap-2"
-        role="group"
-      >
-        <span className="sr-only" id={quickPicksLabelId}>
-          {t("quickPicks")}
-        </span>
-        {(Object.keys(quickPicks) as ScheduleQuickPick[]).map((pick) => {
-          const date = quickPicks[pick];
-          const active = selected?.getTime() === date.getTime();
-          return (
-            <Button
-              aria-pressed={active}
-              className={cn(
-                "rounded-full",
-                active && "border-primary bg-primary-quinary",
-              )}
-              disabled={disabled || isBefore(date, earliest)}
-              key={pick}
-              onClick={() => onChange(toScheduleValue(date))}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              {t(`quick.${pick}`, {
-                time: formatter.dateTime(date, "time"),
-              })}
-            </Button>
-          );
-        })}
-      </div>
+      {allowNow ? (
+        <button
+          aria-pressed={value === ""}
+          className={chipClass(value === "")}
+          disabled={disabled}
+          onClick={() => onChange("")}
+          type="button"
+        >
+          <Zap className="size-3.5" aria-hidden />
+          {t("now")}
+        </button>
+      ) : null}
+      <span className="sr-only" id={quickPicksLabelId}>
+        {t("quickPicks")}
+      </span>
+      {(Object.keys(quickPicks) as ScheduleQuickPick[]).map((pick) => {
+        const date = quickPicks[pick];
+        const active = selected?.getTime() === date.getTime();
+        return (
+          <button
+            aria-describedby={quickPicksLabelId}
+            aria-pressed={active}
+            className={chipClass(active)}
+            disabled={disabled || isBefore(date, earliest)}
+            key={pick}
+            onClick={() => onChange(toScheduleValue(date))}
+            type="button"
+          >
+            {t(`quick.${pick}`, {
+              time: formatter.dateTime(date, "time"),
+            })}
+          </button>
+        );
+      })}
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        <Popover open={dateOpen} onOpenChange={setDateOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              aria-invalid={invalid || undefined}
-              aria-label={
-                selected
-                  ? t("dateSelected", {
-                      date: formatter.dateTime(selected, { dateStyle: "full" }),
-                    })
-                  : t("pickDate")
-              }
-              className={cn(
-                "w-full justify-start font-normal",
-                !selected && "text-muted-foreground",
-              )}
-              disabled={disabled}
-              type="button"
-              variant="outline"
-            >
-              <CalendarIcon className="size-4" aria-hidden />
+      <span aria-hidden className="bg-border mx-1 h-4 w-px" />
+
+      <Popover open={dateOpen} onOpenChange={setDateOpen}>
+        <PopoverTrigger asChild>
+          <button
+            aria-invalid={invalid || undefined}
+            aria-label={
+              selected
+                ? t("dateSelected", {
+                    date: formatter.dateTime(selected, { dateStyle: "full" }),
+                  })
+                : t("pickDate")
+            }
+            className={chipClass(false, invalid)}
+            disabled={disabled}
+            type="button"
+          >
+            <CalendarIcon className="size-3.5" aria-hidden />
+            <span className={cn(selected && "text-foreground")}>
               {selected
                 ? formatter.dateTime(selected, {
                     weekday: "short",
                     month: "short",
                     day: "numeric",
-                    year: "numeric",
                   })
                 : t("pickDate")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-auto p-0">
-            <Calendar
-              autoFocus
-              defaultMonth={selected ?? earliest}
-              disabled={{ before: earliestDay }}
-              mode="single"
-              onSelect={pickDate}
-              selected={selected ?? undefined}
-            />
-          </PopoverContent>
-        </Popover>
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto p-0">
+          <Calendar
+            autoFocus
+            defaultMonth={selected ?? earliest}
+            disabled={{ before: earliestDay }}
+            mode="single"
+            onSelect={pickDate}
+            selected={selected ?? undefined}
+          />
+        </PopoverContent>
+      </Popover>
 
-        <Popover open={timeOpen} onOpenChange={setTimeOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              aria-invalid={invalid || undefined}
-              aria-label={
-                selected
-                  ? t("timeSelected", {
-                      time: formatter.dateTime(selected, "time"),
-                    })
-                  : t("pickTime")
-              }
-              className={cn(
-                "w-full justify-start font-normal",
-                !selected && "text-muted-foreground",
-              )}
-              disabled={disabled}
-              type="button"
-              variant="outline"
-            >
-              <Clock className="size-4" aria-hidden />
+      <Popover open={timeOpen} onOpenChange={setTimeOpen}>
+        <PopoverTrigger asChild>
+          <button
+            aria-invalid={invalid || undefined}
+            aria-label={
+              selected
+                ? t("timeSelected", {
+                    time: formatter.dateTime(selected, "time"),
+                  })
+                : t("pickTime")
+            }
+            className={chipClass(false, invalid)}
+            disabled={disabled}
+            type="button"
+          >
+            <Clock className="size-3.5" aria-hidden />
+            <span className={cn("tabular-nums", selected && "text-foreground")}>
               {selected ? formatter.dateTime(selected, "time") : t("pickTime")}
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="start" className="w-44 p-1">
-            <div
-              aria-label={t("times")}
-              className="app-scrollbar flex max-h-64 flex-col overflow-y-auto"
-              role="listbox"
-            >
-              {slots.map((slot) => {
-                const isSelected = selected?.getTime() === slot.getTime();
-                const tooSoon = isBefore(slot, earliest);
-                return (
-                  <button
-                    aria-disabled={tooSoon || undefined}
-                    aria-selected={isSelected}
-                    className={cn(
-                      "hover:bg-muted focus-visible:ring-ring rounded-md px-2 py-1.5 text-start text-sm tabular-nums outline-none focus-visible:ring-2",
-                      isSelected && "bg-primary-quinary font-medium",
-                      tooSoon &&
-                        "text-muted-foreground pointer-events-none opacity-50",
-                    )}
-                    disabled={tooSoon}
-                    key={slot.getTime()}
-                    onClick={() => pickTime(slot)}
-                    // Open on the chosen time, or the first one still open.
-                    ref={(node) => {
-                      if (
-                        node &&
-                        (isSelected ||
-                          (!selected &&
-                            slot.getTime() === ceilToSlot(earliest).getTime()))
-                      ) {
-                        node.scrollIntoView?.({ block: "center" });
-                      }
-                    }}
-                    role="option"
-                    type="button"
-                  >
-                    {formatter.dateTime(slot, "time")}
-                  </button>
-                );
-              })}
-            </div>
-          </PopoverContent>
-        </Popover>
-      </div>
+            </span>
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-44 p-1">
+          <div
+            aria-label={t("times")}
+            className="app-scrollbar flex max-h-64 flex-col overflow-y-auto"
+            role="listbox"
+          >
+            {slots.map((slot) => {
+              const isSelected = selected?.getTime() === slot.getTime();
+              const tooSoon = isBefore(slot, earliest);
+              return (
+                <button
+                  aria-disabled={tooSoon || undefined}
+                  aria-selected={isSelected}
+                  className={cn(
+                    "hover:bg-muted focus-visible:ring-ring rounded-md px-2 py-1.5 text-start text-sm tabular-nums outline-none focus-visible:ring-2",
+                    isSelected && "bg-primary-quinary font-medium",
+                    tooSoon &&
+                      "text-muted-foreground pointer-events-none opacity-50",
+                  )}
+                  disabled={tooSoon}
+                  key={slot.getTime()}
+                  onClick={() => pickTime(slot)}
+                  // Open on the chosen time, or the first one still open.
+                  ref={(node) => {
+                    if (
+                      node &&
+                      (isSelected ||
+                        (!selected &&
+                          slot.getTime() === ceilToSlot(earliest).getTime()))
+                    ) {
+                      node.scrollIntoView?.({ block: "center" });
+                    }
+                  }}
+                  role="option"
+                  type="button"
+                >
+                  {formatter.dateTime(slot, "time")}
+                </button>
+              );
+            })}
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

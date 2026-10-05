@@ -5,7 +5,6 @@ import {
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
-  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
   OAUTH_SCOPE_CORE_API,
   OAUTH_SCOPE_OFFLINE_ACCESS,
@@ -22,7 +21,6 @@ describe("oauth scopes", () => {
       "sokosumi:api",
       "offline_access",
     ]);
-    expect(OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES).toEqual(["openid"]);
   });
 
   it("builds scope params from API and offline flags", () => {

@@ -732,6 +732,110 @@ export const PatchAdminAgentMetadataOverrideBodySchema = {
     }
 } as const;
 
+export const AdminBadgeCampaignListSchema = {
+    type: 'array',
+    items: {
+        $ref: '#/components/schemas/BadgeCampaign'
+    }
+} as const;
+
+export const BadgeCampaignSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: '01960001-0001-7001-8001-000000000001'
+        },
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'feature',
+        'startsAt',
+        'endsAt',
+        'createdAt'
+    ]
+} as const;
+
+export const AnnouncedFeatureSchema = {
+    type: 'string',
+    enum: [
+        'SOKO_BOTS',
+        'NEW_TASK',
+        'SEARCH',
+        'AGENTS',
+        'TASKS',
+        'SCHEDULES',
+        'CONTENT_STUDIO',
+        'SOCIAL',
+        'DRIVE',
+        'THREADS',
+        'UNREADS'
+    ],
+    example: 'DRIVE'
+} as const;
+
+export const CreateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        feature: {
+            $ref: '#/components/schemas/AnnouncedFeature'
+        },
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'feature',
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
+export const UpdateBadgeCampaignRequestSchema = {
+    type: 'object',
+    properties: {
+        startsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-01T00:00:00.000Z'
+        },
+        endsAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2026-10-22T00:00:00.000Z'
+        }
+    },
+    required: [
+        'startsAt',
+        'endsAt'
+    ]
+} as const;
+
 export const AdminOrganizationOptionSchema = {
     type: 'object',
     properties: {
@@ -845,6 +949,9 @@ export const AdminSokoBotListItemSchema = {
             type: 'integer',
             minimum: 0
         },
+        outOfCredits: {
+            type: 'boolean'
+        },
         turnCount: {
             type: 'integer',
             minimum: 0
@@ -883,6 +990,7 @@ export const AdminSokoBotListItemSchema = {
         'lastSucceededAt',
         'lastFailedAt',
         'consecutiveTurnFailures',
+        'outOfCredits',
         'turnCount',
         'pendingDecisionCount',
         'scheduleCount',
@@ -1837,6 +1945,845 @@ export const AdminSokoBotVersionMigrationRequestSchema = {
     additionalProperties: false
 } as const;
 
+export const AdminSokoBotChatRoomSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        isOwnerRoom: {
+            type: 'boolean'
+        },
+        participants: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    name: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'id',
+                    'name'
+                ]
+            }
+        },
+        archived: {
+            type: 'boolean'
+        },
+        lastActivityAt: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'isOwnerRoom',
+        'participants',
+        'archived',
+        'lastActivityAt'
+    ]
+} as const;
+
+export const ChatRoomMessageSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        content: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        deletedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        editedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        pinnedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: null,
+            description: 'When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.'
+        },
+        sender: {
+            $ref: '#/components/schemas/ChatRoomMessageSender'
+        },
+        mentions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageMention'
+            }
+        },
+        reactions: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReaction'
+            }
+        },
+        threadReplyCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        threadUnreadReplyCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
+            example: 2
+        },
+        threadLastReplyAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        threadRepliers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSender'
+            },
+            maxItems: 3,
+            description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
+        },
+        metadata: {
+            type: [
+                'object',
+                'null'
+            ],
+            additionalProperties: {}
+        },
+        quote: {
+            $ref: '#/components/schemas/ChatRoomMessageQuote'
+        },
+        membership: {
+            $ref: '#/components/schemas/ChatRoomMessageMembership'
+        },
+        groupNameChange: {
+            $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
+        },
+        unfurls: {
+            type: [
+                'array',
+                'null'
+            ],
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageUnfurl'
+            },
+            maxItems: 3,
+            description: 'Link preview cards scraped from message URLs (absent while pending).'
+        },
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSkill'
+            },
+            maxItems: 3,
+            description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
+        }
+    },
+    required: [
+        'id',
+        'roomId',
+        'parentMessageId',
+        'content',
+        'createdAt',
+        'deletedAt',
+        'editedAt',
+        'pinnedAt',
+        'sender',
+        'mentions',
+        'reactions',
+        'threadReplyCount',
+        'threadLastReplyAt',
+        'metadata',
+        'quote',
+        'membership',
+        'groupNameChange',
+        'unfurls'
+    ]
+} as const;
+
+export const ChatRoomMessageSenderSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                user: {
+                    $ref: '#/components/schemas/ChatRoomUserParticipant'
+                }
+            },
+            required: [
+                'type',
+                'user'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                coworker: {
+                    $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
+                }
+            },
+            required: [
+                'type',
+                'coworker'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'sokoBot'
+                    ]
+                },
+                sokoBot: {
+                    $ref: '#/components/schemas/ChatRoomSokoBotParticipant'
+                }
+            },
+            required: [
+                'type',
+                'sokoBot'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'unknown'
+                    ]
+                }
+            },
+            required: [
+                'type'
+            ]
+        }
+    ]
+} as const;
+
+export const ChatRoomUserParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        email: {
+            type: 'string',
+            example: 'jane@example.com'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/avatar.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        },
+        access: {
+            $ref: '#/components/schemas/ChatRoomAccess'
+        },
+        lastReadAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer\'s room access is `guest`. Absent on message senders.'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'email',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomPresenceSchema = {
+    type: 'string',
+    enum: [
+        'online',
+        'afk',
+        'offline'
+    ],
+    example: 'online'
+} as const;
+
+export const ChatRoomAccessSchema = {
+    type: 'string',
+    enum: [
+        'member',
+        'guest'
+    ],
+    description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).',
+    example: 'member'
+} as const;
+
+export const ChatRoomCoworkerParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'cow_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Elena'
+        },
+        slug: {
+            type: 'string',
+            example: 'elena'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Research partner'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/coworker.png'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'slug',
+        'caption',
+        'image',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomSokoBotParticipantSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            example: '01960001-0001-7001-8001-000000000099'
+        },
+        name: {
+            type: 'string',
+            example: 'Soko Bot'
+        },
+        caption: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Jane\'s personal assistant'
+        },
+        image: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'https://example.com/soko-bot.png'
+        },
+        avatarSeed: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'orb:user_123'
+        },
+        ownerUserId: {
+            type: 'string',
+            description: 'The user who owns this Soko Bot. Only the owner may add it to or remove it from a Channel.',
+            example: 'user_123'
+        },
+        presence: {
+            $ref: '#/components/schemas/ChatRoomPresence'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'caption',
+        'image',
+        'avatarSeed',
+        'ownerUserId',
+        'presence'
+    ]
+} as const;
+
+export const ChatRoomMessageMentionSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        coworkerId: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        sokoBotId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        status: {
+            $ref: '#/components/schemas/ChatRoomMentionStatus'
+        },
+        responseMessageId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        }
+    },
+    required: [
+        'id',
+        'coworkerId',
+        'sokoBotId',
+        'status',
+        'responseMessageId'
+    ]
+} as const;
+
+export const ChatRoomMentionStatusSchema = {
+    type: 'string',
+    enum: [
+        'pending',
+        'sent',
+        'responded',
+        'failed'
+    ]
+} as const;
+
+export const ChatRoomMessageReactionSchema = {
+    type: 'object',
+    properties: {
+        emoji: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 24,
+            example: '👍'
+        },
+        count: {
+            type: 'integer',
+            minimum: 0,
+            example: 3
+        },
+        reactedByCurrentUser: {
+            type: 'boolean',
+            example: true
+        },
+        reactors: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageReactor'
+            },
+            maxItems: 20,
+            description: 'First reactors by createdAt ascending (capped). count may exceed reactors.length.',
+            example: [
+                {
+                    id: 'user_123',
+                    name: 'Jane Doe'
+                }
+            ]
+        }
+    },
+    required: [
+        'emoji',
+        'count',
+        'reactedByCurrentUser',
+        'reactors'
+    ]
+} as const;
+
+export const ChatRoomMessageReactorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            example: 'user_123'
+        },
+        name: {
+            type: 'string',
+            example: 'Jane Doe'
+        }
+    },
+    required: [
+        'id',
+        'name'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        messageId: {
+            type: 'string',
+            format: 'uuid',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        },
+        authorName: {
+            type: 'string',
+            example: 'Jane Doe'
+        },
+        snippet: {
+            type: 'string',
+            example: 'Can you summarize this launch risk?'
+        },
+        attachment: {
+            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
+        },
+        roomId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Source room of a message quoted from another room. Absent when the quoted message is in the same room.',
+            example: '550e8400-e29b-41d4-a716-446655440000'
+        }
+    },
+    required: [
+        'messageId',
+        'authorName',
+        'snippet'
+    ]
+} as const;
+
+export const ChatRoomMessageQuoteAttachmentSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        fileName: {
+            type: 'string',
+            example: 'launch.png'
+        },
+        url: {
+            type: 'string',
+            example: 'https://blob.example/launch.png'
+        },
+        mediaKind: {
+            type: 'string',
+            enum: [
+                'image',
+                'file'
+            ],
+            example: 'image'
+        }
+    },
+    required: [
+        'fileName',
+        'url',
+        'mediaKind'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'joined',
+                'left'
+            ]
+        },
+        subject: {
+            $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ],
+            description: 'Who added or removed the subject. Absent when the subject joined or left on their own.'
+        }
+    },
+    required: [
+        'action',
+        'subject'
+    ]
+} as const;
+
+export const ChatRoomMessageMembershipSubjectSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'user'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'coworker'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                type: {
+                    type: 'string',
+                    enum: [
+                        'sokoBot'
+                    ]
+                },
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'type',
+                'id',
+                'name'
+            ]
+        }
+    ]
+} as const;
+
+export const ChatRoomMessageGroupNameChangeSchema = {
+    type: [
+        'object',
+        'null'
+    ],
+    properties: {
+        action: {
+            type: 'string',
+            enum: [
+                'named',
+                'cleared'
+            ]
+        },
+        name: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'The new Group name; null when it was cleared.',
+            example: 'Launch crew'
+        },
+        actor: {
+            type: 'object',
+            properties: {
+                id: {
+                    type: 'string'
+                },
+                name: {
+                    type: 'string'
+                }
+            },
+            required: [
+                'id',
+                'name'
+            ]
+        }
+    },
+    required: [
+        'action',
+        'name',
+        'actor'
+    ]
+} as const;
+
+export const ChatRoomMessageUnfurlSchema = {
+    type: 'object',
+    properties: {
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://example.com/article'
+        },
+        title: {
+            type: 'string',
+            minLength: 1,
+            example: 'Example Article'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'A short summary of the page.'
+        },
+        imageUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uri',
+            example: 'https://cdn.example.com/og.png'
+        },
+        siteName: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'Example'
+        }
+    },
+    required: [
+        'url',
+        'title',
+        'description',
+        'imageUrl',
+        'siteName'
+    ]
+} as const;
+
+export const ChatRoomMessageSkillSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'skills.sh id: owner/repo/skill.',
+            example: 'vercel-labs/agent-skills/vercel-react-best-practices'
+        },
+        name: {
+            type: 'string',
+            example: 'vercel-react-best-practices'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'React and Next.js performance guidelines.'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'url'
+    ]
+} as const;
+
 export const AdminSokoBotDetailSchema = {
     allOf: [
         {
@@ -2219,6 +3166,9 @@ export const SokoBotScheduleSchema = {
         },
         cronExpression: {
             type: 'string'
+        },
+        runOnce: {
+            type: 'boolean'
         },
         prompt: {
             type: 'string'
@@ -3185,6 +4135,14 @@ export const SokoBotUsageSchema = {
         credits: {
             type: 'number',
             minimum: 0
+        },
+        delegatedCredits: {
+            type: 'number',
+            minimum: 0
+        },
+        totalCredits: {
+            type: 'number',
+            minimum: 0
         }
     },
     required: [
@@ -3196,7 +4154,9 @@ export const SokoBotUsageSchema = {
         'totalTokens',
         'costUsd',
         'billableCostUsd',
-        'credits'
+        'credits',
+        'delegatedCredits',
+        'totalCredits'
     ]
 } as const;
 
@@ -3423,6 +4383,19 @@ export const AdminSokoBotActionRequestSchema = {
         'reason'
     ],
     additionalProperties: false
+} as const;
+
+export const ClaimSokoBotAvatarRequestSchema = {
+    type: 'object',
+    properties: {
+        avatarId: {
+            type: 'string',
+            format: 'uuid'
+        }
+    },
+    required: [
+        'avatarId'
+    ]
 } as const;
 
 export const AdminUserOverviewItemSchema = {
@@ -4959,6 +5932,23 @@ export const TaskSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -4983,6 +5973,9 @@ export const TaskSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -5106,10 +6099,13 @@ export const TaskSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
@@ -5188,6 +6184,14 @@ export const ProjectSummarySchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         logo: {
             type: [
                 'string',
@@ -5200,6 +6204,7 @@ export const ProjectSummarySchema = {
     required: [
         'id',
         'name',
+        'identifier',
         'logo'
     ]
 } as const;
@@ -5519,6 +6524,19 @@ export const TaskVisibilitySchema = {
     description: 'PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner\'s Soko Bot, and the assigned coworker\'s vendor family. Set at create; immutable.'
 } as const;
 
+export const TaskPrioritySchema = {
+    type: 'string',
+    enum: [
+        'URGENT',
+        'HIGH',
+        'MEDIUM',
+        'LOW',
+        'NONE'
+    ],
+    example: 'NONE',
+    description: 'URGENT, HIGH, MEDIUM, LOW, or NONE (default).'
+} as const;
+
 export const TaskEventSchema = {
     type: 'object',
     properties: {
@@ -5725,7 +6743,7 @@ export const TaskEventSchema = {
         status: {
             anyOf: [
                 {
-                    $ref: '#/components/schemas/TaskStatus'
+                    $ref: '#/components/schemas/TaskEventStatus'
                 },
                 {
                     type: 'null'
@@ -5855,6 +6873,27 @@ export const ChannelSchema = {
     ],
     example: 'SLACK',
     description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+} as const;
+
+export const TaskEventStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'QUEUED',
+        'READY',
+        'GRANT_PENDING',
+        'INPUT_REQUIRED',
+        'APPROVAL_REQUIRED',
+        'AUTHENTICATION_REQUIRED',
+        'OUT_OF_CREDITS',
+        'CREDITS_TOPPED_UP',
+        'RUNNING',
+        'AWAITING_EXTERNAL',
+        'COMPLETED',
+        'FAILED',
+        'CANCELED',
+        'CREATED'
+    ]
 } as const;
 
 export const JobSummarySchema = {
@@ -6236,7 +7275,8 @@ export const TaskLinkSchema = {
             id: 'tsk_b',
             name: 'Review onboarding copy',
             status: 'READY',
-            archivedAt: null
+            archivedAt: null,
+            identifier: 'SOK-12'
         },
         note: 'Blocked until onboarding copy is approved'
     }
@@ -6283,19 +7323,29 @@ export const TaskLinkPeerTaskSchema = {
             ],
             format: 'date-time',
             example: null
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-12',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the peer has no project.'
         }
     },
     required: [
         'id',
         'name',
         'status',
-        'archivedAt'
+        'archivedAt',
+        'identifier'
     ],
     example: {
         id: 'tsk_b',
         name: 'Review onboarding copy',
         status: 'READY',
-        archivedAt: null
+        archivedAt: null,
+        identifier: 'SOK-12'
     }
 } as const;
 
@@ -8752,6 +9802,11 @@ export const ChatRoomSchema = {
             description: 'Whether this Direct was started for three or more humans. Only group Directs can carry a Group name; a group that later shrank stays one.',
             example: false
         },
+        isReadOnly: {
+            type: 'boolean',
+            description: 'Whether this Direct takes no new messages, uploads or Reactions because every other participant has left it (for example through Organization exit). Its history stays readable, and members can still edit or delete their own messages. Always false for Channels.',
+            example: false
+        },
         groupName: {
             type: [
                 'string',
@@ -8907,7 +9962,14 @@ export const ChatRoomSchema = {
             example: false
         },
         myAccess: {
-            $ref: '#/components/schemas/ChatRoomAccess'
+            allOf: [
+                {
+                    $ref: '#/components/schemas/ChatRoomAccess'
+                },
+                {
+                    description: 'Caller\'s membership on this room. Guests are not host-org members.'
+                }
+            ]
         },
         peerInActiveOrganization: {
             type: 'boolean',
@@ -8920,6 +9982,13 @@ export const ChatRoomSchema = {
             items: {
                 $ref: '#/components/schemas/ChatRoomUserParticipant'
             }
+        },
+        formerUserMembers: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomFormerUserMember'
+            },
+            description: 'Former members of a Direct: humans it was started for who are no longer in it, so a Direct whose peer left still shows who it was with. A deleted account is left out. Always empty for Channels.'
         },
         coworkerMembers: {
             type: 'array',
@@ -8944,6 +10013,7 @@ export const ChatRoomSchema = {
         'isSelfDirect',
         'directKey',
         'isGroupDirect',
+        'isReadOnly',
         'groupName',
         'topic',
         'discoverability',
@@ -8957,22 +10027,13 @@ export const ChatRoomSchema = {
         'markedUnread',
         'myAccess',
         'userMembers',
+        'formerUserMembers',
         'coworkerMembers',
         'sokoBotMembers'
     ]
 } as const;
 
-export const ChatRoomAccessSchema = {
-    type: 'string',
-    enum: [
-        'member',
-        'guest'
-    ],
-    description: 'Caller\'s membership on this room. Guests are not host-org members.',
-    example: 'member'
-} as const;
-
-export const ChatRoomUserParticipantSchema = {
+export const ChatRoomFormerUserMemberSchema = {
     type: 'object',
     properties: {
         id: {
@@ -8993,136 +10054,13 @@ export const ChatRoomUserParticipantSchema = {
                 'null'
             ],
             example: 'https://example.com/avatar.png'
-        },
-        presence: {
-            $ref: '#/components/schemas/ChatRoomPresence'
-        },
-        access: {
-            allOf: [
-                {
-                    $ref: '#/components/schemas/ChatRoomAccess'
-                },
-                {
-                    description: 'Room membership kind: `"member"` (host-org participant) or `"guest"` (external channel only).'
-                }
-            ]
-        },
-        lastReadAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'Room last-read for this member (Room read receipt) on a room roster entry. Null when the member has never opened the room, and null for every member when the viewer\'s room access is `guest`. Absent on message senders.'
         }
     },
     required: [
         'id',
         'name',
         'email',
-        'image',
-        'presence'
-    ]
-} as const;
-
-export const ChatRoomPresenceSchema = {
-    type: 'string',
-    enum: [
-        'online',
-        'afk',
-        'offline'
-    ],
-    example: 'online'
-} as const;
-
-export const ChatRoomCoworkerParticipantSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'cow_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Elena'
-        },
-        slug: {
-            type: 'string',
-            example: 'elena'
-        },
-        caption: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Research partner'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/coworker.png'
-        },
-        presence: {
-            $ref: '#/components/schemas/ChatRoomPresence'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'slug',
-        'caption',
-        'image',
-        'presence'
-    ]
-} as const;
-
-export const ChatRoomSokoBotParticipantSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid',
-            example: '01960001-0001-7001-8001-000000000099'
-        },
-        name: {
-            type: 'string',
-            example: 'Soko Bot'
-        },
-        caption: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Jane\'s personal assistant'
-        },
-        image: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'https://example.com/soko-bot.png'
-        },
-        avatarSeed: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'orb:user_123'
-        },
-        presence: {
-            $ref: '#/components/schemas/ChatRoomPresence'
-        }
-    },
-    required: [
-        'id',
-        'name',
-        'caption',
-        'image',
-        'avatarSeed',
-        'presence'
+        'image'
     ]
 } as const;
 
@@ -9753,6 +10691,14 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     },
                     maxItems: 3,
                     description: 'Link preview cards scraped from message URLs (absent while pending).'
+                },
+                skills: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSkill'
+                    },
+                    maxItems: 3,
+                    description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
                 }
             },
             required: [
@@ -9785,437 +10731,6 @@ export const ChatRoomPinnedMessageListItemSchema = {
     ]
 } as const;
 
-export const ChatRoomMessageSenderSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'user'
-                    ]
-                },
-                user: {
-                    $ref: '#/components/schemas/ChatRoomUserParticipant'
-                }
-            },
-            required: [
-                'type',
-                'user'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'coworker'
-                    ]
-                },
-                coworker: {
-                    $ref: '#/components/schemas/ChatRoomCoworkerParticipant'
-                }
-            },
-            required: [
-                'type',
-                'coworker'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'sokoBot'
-                    ]
-                },
-                sokoBot: {
-                    $ref: '#/components/schemas/ChatRoomSokoBotParticipant'
-                }
-            },
-            required: [
-                'type',
-                'sokoBot'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'unknown'
-                    ]
-                }
-            },
-            required: [
-                'type'
-            ]
-        }
-    ]
-} as const;
-
-export const ChatRoomMessageMentionSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        coworkerId: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        sokoBotId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        status: {
-            $ref: '#/components/schemas/ChatRoomMentionStatus'
-        },
-        responseMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        }
-    },
-    required: [
-        'id',
-        'coworkerId',
-        'sokoBotId',
-        'status',
-        'responseMessageId'
-    ]
-} as const;
-
-export const ChatRoomMentionStatusSchema = {
-    type: 'string',
-    enum: [
-        'pending',
-        'sent',
-        'responded',
-        'failed'
-    ]
-} as const;
-
-export const ChatRoomMessageReactionSchema = {
-    type: 'object',
-    properties: {
-        emoji: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 24,
-            example: '👍'
-        },
-        count: {
-            type: 'integer',
-            minimum: 0,
-            example: 3
-        },
-        reactedByCurrentUser: {
-            type: 'boolean',
-            example: true
-        },
-        reactors: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageReactor'
-            },
-            maxItems: 20,
-            description: 'First reactors by createdAt ascending (capped). count may exceed reactors.length.',
-            example: [
-                {
-                    id: 'user_123',
-                    name: 'Jane Doe'
-                }
-            ]
-        }
-    },
-    required: [
-        'emoji',
-        'count',
-        'reactedByCurrentUser',
-        'reactors'
-    ]
-} as const;
-
-export const ChatRoomMessageReactorSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            example: 'user_123'
-        },
-        name: {
-            type: 'string',
-            example: 'Jane Doe'
-        }
-    },
-    required: [
-        'id',
-        'name'
-    ]
-} as const;
-
-export const ChatRoomMessageQuoteSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        messageId: {
-            type: 'string',
-            format: 'uuid',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        },
-        authorName: {
-            type: 'string',
-            example: 'Jane Doe'
-        },
-        snippet: {
-            type: 'string',
-            example: 'Can you summarize this launch risk?'
-        },
-        attachment: {
-            $ref: '#/components/schemas/ChatRoomMessageQuoteAttachment'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid',
-            description: 'Source room of a message quoted from another room. Absent when the quoted message is in the same room.',
-            example: '550e8400-e29b-41d4-a716-446655440000'
-        }
-    },
-    required: [
-        'messageId',
-        'authorName',
-        'snippet'
-    ]
-} as const;
-
-export const ChatRoomMessageQuoteAttachmentSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        fileName: {
-            type: 'string',
-            example: 'launch.png'
-        },
-        url: {
-            type: 'string',
-            example: 'https://blob.example/launch.png'
-        },
-        mediaKind: {
-            type: 'string',
-            enum: [
-                'image',
-                'file'
-            ],
-            example: 'image'
-        }
-    },
-    required: [
-        'fileName',
-        'url',
-        'mediaKind'
-    ]
-} as const;
-
-export const ChatRoomMessageMembershipSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        action: {
-            type: 'string',
-            enum: [
-                'joined',
-                'left'
-            ]
-        },
-        subject: {
-            $ref: '#/components/schemas/ChatRoomMessageMembershipSubject'
-        }
-    },
-    required: [
-        'action',
-        'subject'
-    ]
-} as const;
-
-export const ChatRoomMessageMembershipSubjectSchema = {
-    oneOf: [
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'user'
-                    ]
-                },
-                id: {
-                    type: 'string'
-                },
-                name: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'type',
-                'id',
-                'name'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'coworker'
-                    ]
-                },
-                id: {
-                    type: 'string'
-                },
-                name: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'type',
-                'id',
-                'name'
-            ]
-        },
-        {
-            type: 'object',
-            properties: {
-                type: {
-                    type: 'string',
-                    enum: [
-                        'sokoBot'
-                    ]
-                },
-                id: {
-                    type: 'string'
-                },
-                name: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'type',
-                'id',
-                'name'
-            ]
-        }
-    ]
-} as const;
-
-export const ChatRoomMessageGroupNameChangeSchema = {
-    type: [
-        'object',
-        'null'
-    ],
-    properties: {
-        action: {
-            type: 'string',
-            enum: [
-                'named',
-                'cleared'
-            ]
-        },
-        name: {
-            type: [
-                'string',
-                'null'
-            ],
-            description: 'The new Group name; null when it was cleared.',
-            example: 'Launch crew'
-        },
-        actor: {
-            type: 'object',
-            properties: {
-                id: {
-                    type: 'string'
-                },
-                name: {
-                    type: 'string'
-                }
-            },
-            required: [
-                'id',
-                'name'
-            ]
-        }
-    },
-    required: [
-        'action',
-        'name',
-        'actor'
-    ]
-} as const;
-
-export const ChatRoomMessageUnfurlSchema = {
-    type: 'object',
-    properties: {
-        url: {
-            type: 'string',
-            format: 'uri',
-            example: 'https://example.com/article'
-        },
-        title: {
-            type: 'string',
-            minLength: 1,
-            example: 'Example Article'
-        },
-        description: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'A short summary of the page.'
-        },
-        imageUrl: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uri',
-            example: 'https://cdn.example.com/og.png'
-        },
-        siteName: {
-            type: [
-                'string',
-                'null'
-            ],
-            example: 'Example'
-        }
-    },
-    required: [
-        'url',
-        'title',
-        'description',
-        'imageUrl',
-        'siteName'
-    ]
-} as const;
-
 export const UpdateChatRoomRequestSchema = {
     type: 'object',
     properties: {
@@ -10240,42 +10755,6 @@ export const UpdateChatRoomRequestSchema = {
         },
         discoverability: {
             $ref: '#/components/schemas/OrgChannelDiscoverability'
-        },
-        memberUserIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 500,
-            description: 'Host-org roster rewrite. Existing guest members are room-scoped and survive this field: ids already `access=guest` on the room are ignored (not 400) unless they are now organization members, in which case they upgrade to `access=member`. Omit a guest to keep them. Do not use this field to add or remove guests.',
-            example: [
-                'user_123',
-                'user_456'
-            ]
-        },
-        coworkerIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                minLength: 1
-            },
-            maxItems: 50,
-            example: [
-                'cow_123'
-            ]
-        },
-        sokoBotIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            },
-            maxItems: 50,
-            description: 'Personal assistant roster rewrite. Only the owner can add their assistant; anyone who can edit the roster may keep or remove existing ones.',
-            example: [
-                '01960001-0001-7001-8001-000000000099'
-            ]
         },
         groupName: {
             type: [
@@ -10450,6 +10929,49 @@ export const LeftChatRoomSchema = {
     ]
 } as const;
 
+export const AddChatRoomMembersRequestSchema = {
+    type: 'object',
+    properties: {
+        userIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 500,
+            description: 'Organization member user IDs to add to the room.',
+            example: [
+                'user_123',
+                'user_456'
+            ]
+        },
+        coworkerIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1
+            },
+            maxItems: 50,
+            description: 'Marketplace AI coworker IDs to add to the room.',
+            example: [
+                'cow_123'
+            ]
+        },
+        sokoBotIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            },
+            maxItems: 50,
+            description: 'Personal assistant (Soko Bot) IDs to add to the room. Only the owner can add their assistant.',
+            example: [
+                '01960001-0001-7001-8001-000000000099'
+            ]
+        }
+    }
+} as const;
+
 export const ChatRoomThreadSchema = {
     type: 'object',
     properties: {
@@ -10506,148 +11028,6 @@ export const ChatRoomThreadSchema = {
         'lastUnreadReplyAt',
         'hasLooked',
         'mutedAt'
-    ]
-} as const;
-
-export const ChatRoomMessageSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        roomId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentMessageId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        content: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        deletedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        editedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        pinnedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: null,
-            description: 'When this message was pinned in its Channel. Null when not pinned or deleted; always null for Directs and thread replies.'
-        },
-        sender: {
-            $ref: '#/components/schemas/ChatRoomMessageSender'
-        },
-        mentions: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageMention'
-            }
-        },
-        reactions: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageReaction'
-            }
-        },
-        threadReplyCount: {
-            type: 'integer',
-            minimum: 0
-        },
-        threadUnreadReplyCount: {
-            type: 'integer',
-            minimum: 0,
-            description: 'Non-self replies under this parent the viewer has not cleared: Participant-gated and mute-gated, after the per-thread look baseline. 0 for lurkers and for viewers with no unread. Present only on the message list; absent from realtime events and single-message responses, which do not compute it. ADR-0013, ADR-0030, ADR-0037.',
-            example: 2
-        },
-        threadLastReplyAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        threadRepliers: {
-            type: 'array',
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageSender'
-            },
-            maxItems: 3,
-            description: 'Up to three distinct reply senders, in the order they first replied. Drawn from the newest dozen replies, so in a longer thread someone who only replied earlier can be left out. Empty when the message has no replies; absent on client-built messages.'
-        },
-        metadata: {
-            type: [
-                'object',
-                'null'
-            ],
-            additionalProperties: {}
-        },
-        quote: {
-            $ref: '#/components/schemas/ChatRoomMessageQuote'
-        },
-        membership: {
-            $ref: '#/components/schemas/ChatRoomMessageMembership'
-        },
-        groupNameChange: {
-            $ref: '#/components/schemas/ChatRoomMessageGroupNameChange'
-        },
-        unfurls: {
-            type: [
-                'array',
-                'null'
-            ],
-            items: {
-                $ref: '#/components/schemas/ChatRoomMessageUnfurl'
-            },
-            maxItems: 3,
-            description: 'Link preview cards scraped from message URLs (absent while pending).'
-        }
-    },
-    required: [
-        'id',
-        'roomId',
-        'parentMessageId',
-        'content',
-        'createdAt',
-        'deletedAt',
-        'editedAt',
-        'pinnedAt',
-        'sender',
-        'mentions',
-        'reactions',
-        'threadReplyCount',
-        'threadLastReplyAt',
-        'metadata',
-        'quote',
-        'membership',
-        'groupNameChange',
-        'unfurls'
     ]
 } as const;
 
@@ -10800,6 +11180,19 @@ export const CreateChatRoomMessageRequestSchema = {
             maxLength: 128,
             description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
             example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
+        },
+        skillIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 200
+            },
+            maxItems: 3,
+            description: 'skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.',
+            example: [
+                'vercel-labs/agent-skills/vercel-react-best-practices'
+            ]
         }
     },
     required: [
@@ -10959,6 +11352,43 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatSkillCatalogItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'skills.sh id: owner/repo/skill.',
+            example: 'vercel-labs/agent-skills/vercel-react-best-practices'
+        },
+        name: {
+            type: 'string',
+            example: 'vercel-react-best-practices'
+        },
+        source: {
+            type: 'string',
+            example: 'vercel-labs/agent-skills'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'React and Next.js performance guidelines.'
+        },
+        installs: {
+            type: 'integer',
+            example: 761642
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'source',
+        'description',
+        'installs'
     ]
 } as const;
 
@@ -15545,6 +15975,39 @@ export const NoticeKindSchema = {
     example: 'LEGAL_TERMS'
 } as const;
 
+export const UserBadgeCampaignsSchema = {
+    type: 'object',
+    properties: {
+        badgeCampaigns: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string'
+                    },
+                    feature: {
+                        $ref: '#/components/schemas/AnnouncedFeature'
+                    },
+                    endsAt: {
+                        type: 'string',
+                        format: 'date-time',
+                        example: '2021-01-01T00:00:00.000Z'
+                    }
+                },
+                required: [
+                    'id',
+                    'feature',
+                    'endsAt'
+                ]
+            }
+        }
+    },
+    required: [
+        'badgeCampaigns'
+    ]
+} as const;
+
 export const BlobFileSchema = {
     type: 'object',
     properties: {
@@ -15800,6 +16263,37 @@ export const UtmAttributionRequestSchema = {
         'utm_source',
         'capturedAt'
     ]
+} as const;
+
+export const SignUpConversionResponseSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'google',
+                'microsoft',
+                null
+            ],
+            description: 'The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.',
+            example: 'google'
+        }
+    },
+    required: [
+        'provider'
+    ]
+} as const;
+
+export const SignUpConversionRequestSchema = {
+    type: 'object',
+    properties: {
+        utmAttribution: {
+            $ref: '#/components/schemas/UtmAttributionRequest'
+        }
+    }
 } as const;
 
 export const CoworkerWorkspaceAccessSchema = {
@@ -16234,6 +16728,22 @@ export const UserSchema = {
             type: 'string',
             example: 'John Doe'
         },
+        firstName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given: older accounts, or one an email code created without names',
+            example: 'John'
+        },
+        lastName: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Null when never given: older accounts, or one an email code created without names',
+            example: 'Doe'
+        },
         email: {
             type: 'string',
             format: 'email',
@@ -16260,6 +16770,8 @@ export const UserSchema = {
         'createdAt',
         'updatedAt',
         'name',
+        'firstName',
+        'lastName',
         'email',
         'emailVerified',
         'role'
@@ -17182,6 +17694,14 @@ export const ProjectSchema = {
             type: 'string',
             example: 'Q1 research'
         },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Task ID prefix; null only for projects without one.',
+            example: 'SOK'
+        },
         briefing: {
             type: [
                 'string',
@@ -17303,6 +17823,7 @@ export const ProjectSchema = {
         'id',
         'workspaceId',
         'name',
+        'identifier',
         'briefing',
         'briefingUrl',
         'latestUpdate',
@@ -17352,6 +17873,12 @@ export const CreateProjectRequestSchema = {
             ],
             maxLength: 2048,
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix. Omit to derive one from the name; 409 when taken in the workspace.',
+            example: 'SOK'
         }
     },
     required: [
@@ -17655,26 +18182,13 @@ export const WorkspaceCalendarItemSchema = {
             example: 'Prepare release notes'
         },
         taskStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCELED',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             description: 'Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned',
             example: 'READY'
@@ -19939,6 +20453,12 @@ export const PatchProjectRequestSchema = {
                 'null'
             ],
             format: 'uri'
+        },
+        identifier: {
+            type: 'string',
+            pattern: '^[A-Z][A-Z0-9]{1,6}$',
+            description: 'Task ID prefix, unique per workspace (e.g. SOK in SOK-123). Uppercased on input.',
+            example: 'SOK'
         }
     }
 } as const;
@@ -22399,19 +22919,6 @@ export const IntroduceSokoBotRequestSchema = {
     ]
 } as const;
 
-export const ClaimSokoBotAvatarRequestSchema = {
-    type: 'object',
-    properties: {
-        avatarId: {
-            type: 'string',
-            format: 'uuid'
-        }
-    },
-    required: [
-        'avatarId'
-    ]
-} as const;
-
 export const SokoBotVersionSchema = {
     type: 'object',
     properties: {
@@ -22723,6 +23230,14 @@ export const SokoBotTeamSchema = {
                             },
                             status: {
                                 $ref: '#/components/schemas/SokoBotStatus'
+                            },
+                            lastActivityAt: {
+                                type: [
+                                    'string',
+                                    'null'
+                                ],
+                                format: 'date-time',
+                                example: '2021-01-01T00:00:00.000Z'
                             }
                         },
                         required: [
@@ -22730,7 +23245,8 @@ export const SokoBotTeamSchema = {
                             'name',
                             'avatarImageUrl',
                             'avatarSeed',
-                            'status'
+                            'status',
+                            'lastActivityAt'
                         ]
                     }
                 },
@@ -23955,6 +24471,23 @@ export const TaskListItemSchema = {
         tags: {
             $ref: '#/components/schemas/TaskTags'
         },
+        number: {
+            type: [
+                'integer',
+                'null'
+            ],
+            exclusiveMinimum: 0,
+            example: 123,
+            description: 'Sequence number within the project. Null when the task has no project.'
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'SOK-123',
+            description: 'Project identifier and number, e.g. SOK-123. Null when the task has no project.'
+        },
         name: {
             type: 'string',
             example: 'Review onboarding'
@@ -23979,6 +24512,9 @@ export const TaskListItemSchema = {
         },
         visibility: {
             $ref: '#/components/schemas/TaskVisibility'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
         },
         grantResumeStatus: {
             type: [
@@ -24056,10 +24592,13 @@ export const TaskListItemSchema = {
         'creator',
         'sokoBotId',
         'sokoBot',
+        'number',
+        'identifier',
         'name',
         'description',
         'status',
         'visibility',
+        'priority',
         'grantResumeStatus',
         'pendingVendorGrantId',
         'runAt',
@@ -24313,6 +24852,10 @@ export const TaskScheduleSchema = {
             type: 'string',
             format: 'date-time',
             example: '2021-01-01T00:00:00.000Z'
+        },
+        canWrite: {
+            type: 'boolean',
+            description: 'Whether the caller may edit, pause, resume, end, delete, or run this schedule and change its Runs (ADR 0048).'
         }
     },
     required: [
@@ -24337,7 +24880,8 @@ export const TaskScheduleSchema = {
         'assigneeSokoBotId',
         'assigneeUserId',
         'createdAt',
-        'updatedAt'
+        'updatedAt',
+        'canWrite'
     ]
 } as const;
 
@@ -24492,7 +25036,7 @@ export const TaskScheduleRuleSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Runs, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -24617,7 +25161,7 @@ export const TaskScheduleRuleReplacementSchema = {
         expr: {
             type: 'string',
             minLength: 1,
-            description: 'Cron expression for Runs, read in `timezone`',
+            description: 'Cron expression for Runs, read in `timezone`. A rule sent on create or replace must have five fields (minute, hour, day of month, month, day of week); `L` and `#` are allowed, a seconds field, `@` macros, and `H` are not. Rules stored before this contract may still have another shape.',
             example: '0 9 * * 1'
         },
         timezone: {
@@ -24707,6 +25251,11 @@ export const TaskScheduleRunSchema = {
             example: '2021-01-01T00:00:00.000Z',
             description: 'Time the Run holds; differs from the rule when moved'
         },
+        manual: {
+            type: 'boolean',
+            description: 'Run now: released by hand outside the rule, and not counted toward an end-after-N rule',
+            example: false
+        },
         releasedTaskId: {
             type: [
                 'string',
@@ -24719,14 +25268,14 @@ export const TaskScheduleRunSchema = {
                 'string',
                 'null'
             ],
-            description: 'Person who last skipped, moved, or restored it'
+            description: 'Person who ran it now, or last skipped, moved, or restored it'
         },
         actorCoworkerId: {
             type: [
                 'string',
                 'null'
             ],
-            description: 'Coworker that last skipped, moved, or restored it'
+            description: 'Coworker that ran it now, or last skipped, moved, or restored it'
         },
         updatedAt: {
             type: 'string',
@@ -24739,6 +25288,7 @@ export const TaskScheduleRunSchema = {
         'state',
         'originalScheduledAt',
         'effectiveScheduledAt',
+        'manual',
         'releasedTaskId',
         'actorUserId',
         'actorCoworkerId',
@@ -24762,6 +25312,21 @@ export const TaskScheduleRunUpdateSchema = {
     required: [
         'revision',
         'run'
+    ]
+} as const;
+
+export const CreateTaskScheduleRunRequestSchema = {
+    type: 'object',
+    properties: {
+        expectedRevision: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Task Schedule revision observed by the caller',
+            example: 3
+        }
+    },
+    required: [
+        'expectedRevision'
     ]
 } as const;
 

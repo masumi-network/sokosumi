@@ -13,6 +13,7 @@ import {
 
 export interface VendorsCommandContext extends CommandContext {
   subcommand?: string;
+  positionalId?: string;
   options?: CommandOptions;
 }
 
@@ -39,9 +40,10 @@ export async function runVendorsCommand({
   json = false,
   signal,
   subcommand,
+  positionalId,
   options,
 }: VendorsCommandContext): Promise<void> {
-  if (subcommand === "create") {
+  if (subcommand === "create" && positionalId === undefined) {
     const name = optionString(options, "name")?.trim() ?? "";
     const slug = optionString(options, "slug")?.trim() ?? "";
     if (!name) throw new Error("Vendor name is required (--name NAME)");
@@ -57,7 +59,7 @@ export async function runVendorsCommand({
     }
     return;
   }
-  if (subcommand !== "me") {
+  if (subcommand !== "me" || positionalId !== undefined) {
     throw new Error(
       "Usage: sokosumi vendors me | vendors create --name NAME --slug SLUG",
     );

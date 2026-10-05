@@ -499,6 +499,30 @@ function CalendarView({
   view: CalendarView;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [mobileHeight, setMobileHeight] = useState<number | null>(null);
+  const fillMobileSpace = isMobile && socialPostVariant === "preview";
+  useEffect(() => {
+    if (!fillMobileSpace || !calendarRef.current) return;
+    const element = calendarRef.current;
+    const measure = () => {
+      setMobileHeight(
+        Math.max(
+          320,
+          window.innerHeight - element.getBoundingClientRect().top - 24,
+        ),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element.parentElement ?? element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [fillMobileSpace]);
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -618,6 +642,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
+        ref={calendarRef}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -643,7 +668,7 @@ function CalendarView({
           }))}
           timeZone={timeZone}
           headerToolbar={false}
-          height="auto"
+          height={fillMobileSpace && mobileHeight ? mobileHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
           // already carries the time, so the dot was the only leftover. Block
           // mode paints the theme's event blue behind the card; the card is
@@ -1138,7 +1163,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(!lockedProjectId
+    ...(!lockedProjectId && !socialPostsOnly
       ? [
           {
             id: "source",
@@ -1189,7 +1214,12 @@ export function WorkspaceCalendar({
       ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
-          <div className="flex items-center gap-1 max-sm:w-full">
+          <div
+            className={cn(
+              "flex items-center gap-1 max-sm:w-full",
+              socialPostsOnly && "max-md:order-2 max-md:w-full",
+            )}
+          >
             <Button
               aria-label={t("previous")}
               size="icon"
@@ -1200,7 +1230,13 @@ export function WorkspaceCalendar({
             </Button>
             {/* On a phone the period leads, left-aligned, with both arrows
                 together at the end of the row. */}
-            <span className="min-w-40 flex-1 text-center text-sm font-medium max-sm:order-first max-sm:min-w-0 max-sm:text-start md:flex-none">
+            <span
+              className={cn(
+                "min-w-40 flex-1 text-center text-sm font-medium max-sm:order-first max-sm:min-w-0 max-sm:text-start md:flex-none",
+                socialPostsOnly &&
+                  "max-md:order-first max-md:min-w-0 max-md:text-start",
+              )}
+            >
               {getRangeLabel(formatDate, date, view)}
             </span>
             <Button
@@ -1219,7 +1255,7 @@ export function WorkspaceCalendar({
           // in, since the zone picker sits behind the filters. On a phone it
           // goes under the controls rather than between their two rows.
           <span
-            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-sm:order-last max-sm:w-full"
+            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-md:order-last max-md:w-full"
             data-testid="calendar-timezone"
           >
             <Clock3 className="size-3.5" aria-hidden />
@@ -1227,7 +1263,13 @@ export function WorkspaceCalendar({
           </span>
         ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between">
+        <div
+          className={cn(
+            "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
+            socialPostsOnly &&
+              "max-md:order-1 max-md:w-full max-md:justify-between",
+          )}
+        >
           <Tabs
             className="min-w-0 max-w-full"
             value={view}

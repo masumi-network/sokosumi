@@ -122,7 +122,7 @@ describe("POST /tasks/schedules/{id}/pause", () => {
     expect(stored(schedule.id)?.state).toBe("ACTIVE");
   });
 
-  it("lets only the owner pause", async () => {
+  it("lets another member pause a workspace-visible schedule", async () => {
     const schedule = seedTaskSchedule();
 
     const response = await send(
@@ -130,7 +130,7 @@ describe("POST /tasks/schedules/{id}/pause", () => {
       createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
     );
 
-    expect(response.status).toBe(403);
-    expect(stored(schedule.id)?.state).toBe("ACTIVE");
+    expect(response.status).toBe(200);
+    expect(stored(schedule.id)?.state).toBe("PAUSED");
   });
 });
