@@ -401,6 +401,8 @@ function tryMatchBareDomain(
 
   if (i < text.length) {
     const next = text[i]!;
+    // Email local part (`name.in@gmail.com`), not a host.
+    if (next === "@") return null;
     if (next === "/" || next === "?" || next === "#") {
       while (i < text.length && !isStopChar(text[i]!)) {
         const ch = text[i]!;
