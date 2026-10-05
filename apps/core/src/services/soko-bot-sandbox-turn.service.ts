@@ -4,6 +4,7 @@ import {
   isSokoBotSandboxCapability,
   redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import {
   badGateway,
@@ -44,6 +45,7 @@ import {
   SOKO_BOT_MAX_STEPS,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
@@ -66,11 +68,50 @@ const FORWARDED_MODEL_HEADERS = [
   "ai-gateway-protocol-version",
 ] as const;
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/**
+ * The reasoning-summary switches a runner request may carry, and nothing
+ * else: a summary is what the provider chooses to show, never raw thoughts.
+ * Replacing the whole `providerOptions` dropped these, so no bot reply ever
+ * had a summary to show.
+ */
+export function reasoningSummaryOptions(
+  value: unknown,
+): Record<string, Record<string, unknown>> {
+  const options = asRecord(value) ?? {};
+  const out: Record<string, Record<string, unknown>> = {};
+  const summary = asRecord(options.openai)?.reasoningSummary;
+  if (summary === "auto" || summary === "detailed")
+    out.openai = { reasoningSummary: summary };
+  const thinking = asRecord(asRecord(options.google)?.thinkingConfig);
+  if (thinking?.includeThoughts === true)
+    out.google = { thinkingConfig: { includeThoughts: true } };
+  return out;
+}
+
 function logFor(claims: TurnTokenClaims): RuntimeEventLog {
   return new RuntimeEventLog(claims.turnId, claims.sessionId);
 }
 
-/** Cancelled, paused or expired turns answer 409; the runner stops on it. */
+/**
+ * Cancelled, paused or expired turns answer 409 with this kind; the runner
+ * stops on it. Any other 409, such as a write that lost a race, is only that
+ * call's failure.
+ */
+function turnInactive(error: unknown) {
+  return conflict(
+    error instanceof Error ? error.message : "Turn is not active",
+    {
+      kind: CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE,
+    },
+  );
+}
+
 async function authorizeTurn(claims: TurnTokenClaims) {
   const { sokoBotRuntimeService } = await import(
     "@/services/soko-bot-runtime.service"
@@ -81,9 +122,7 @@ async function authorizeTurn(claims: TurnTokenClaims) {
       turnId: claims.turnId,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
 }
 
@@ -104,9 +143,7 @@ export async function startSandboxTurn(
       sandbox: true,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
   const started = await prisma.sokoBotRuntimeEvent.findFirst({
     where: { turnId: claims.turnId, type: "turn.started" },
@@ -121,7 +158,7 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: stored.userMessage,
+    message: await withTurnSkills(claims.turnId, stored.userMessage),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: SOKO_BOT_MAX_STEPS,
   };
@@ -358,6 +395,9 @@ export async function proxySandboxModelCall(
     inferenceRegion: version.inferenceRegion,
   });
   payload.providerOptions = {
+    // The runner may only ask for a reasoning summary; routing, region and
+    // retention stay Core's.
+    ...reasoningSummaryOptions(payload.providerOptions),
     gateway: isGatewaySearchCall(payload)
       ? withoutZeroRetention(policy.providerOptions.gateway)
       : policy.providerOptions.gateway,
@@ -430,11 +470,19 @@ async function settleAndStop(log: RuntimeEventLog): Promise<void> {
 /** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
-  input: { text: string; finishReason: string },
+  input: { text: string; finishReason: string; reasoning?: string },
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   const log = logFor(claims);
   try {
+    // The provider's own summary, never raw chain of thought. The event
+    // projection redacts and bounds it before it is stored.
+    const reasoning = input.reasoning?.trim();
+    if (reasoning) {
+      await log.append(
+        runtimeEvent("reasoning.completed", { text: reasoning }),
+      );
+    }
     await finishTurn({
       log,
       turnId: claims.turnId,

@@ -91,6 +91,20 @@
       #expect(MessageMenuAvailability().sections(hasSelection: false).isEmpty)
     }
 
+    /// Row 38b: a Soko Bot reply's thumbs lead its menu as they lead web's hover pill; a selection's Copy stays first.
+    @Test func aSokoBotReplyLeadsWithItsThumbs() {
+      let reply = Self.message(from: "Soko")
+      let row = MessageRowView(message: reply, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                               onReply: {}, onQuote: {}, onToggleReaction: { _ in true }, onSendToSelf: { reply },
+                               sokoBotFeedback: SokoBotFeedback(turnId: "turn_1"), onSokoBotFeedback: { _ in })
+      #expect(row.menuAvailability.sections(hasSelection: false) == [
+        [.useful, .notUseful],
+        [.addReaction, .quote, .reply],
+        [.copyLink, .sendToSelf]
+      ])
+      #expect(row.menuAvailability.sections(hasSelection: true).prefix(2) == [[.copySelection], [.useful, .notUseful]])
+    }
+
     /// A deleted thread root keeps its tombstone row; the actions that need a live message leave its menu.
     @Test func deletedMessageDropsLiveActions() {
       var message = Self.message()

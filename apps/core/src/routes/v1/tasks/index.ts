@@ -21,7 +21,6 @@ import mountGetTaskWorkspace from "./[id]/workspace/get.js";
 import mountPutTaskWorkspace from "./[id]/workspace/put.js";
 import mountPostTaskX402Payment from "./[id]/x402-payments/post.js";
 import mountGetTasks from "./get.js";
-import mountLegacyVendorSchedules from "./legacy-vendor-schedules/index.js";
 import mountMovedTaskScheduleRoutes from "./moved-schedule-routes.js";
 import mountPostTask from "./post.js";
 import mountDeleteTaskScheduleById from "./schedules/[id]/delete.js";
@@ -32,6 +31,7 @@ import mountPostTaskSchedulePause from "./schedules/[id]/pause/post.js";
 import mountPostTaskScheduleResume from "./schedules/[id]/resume/post.js";
 import mountPatchTaskScheduleRun from "./schedules/[id]/runs/[runId]/patch.js";
 import mountGetTaskScheduleRuns from "./schedules/[id]/runs/get.js";
+import mountPostTaskScheduleRun from "./schedules/[id]/runs/post.js";
 import mountGetTaskScheduleAssignees from "./schedules/assignees/get.js";
 import mountGetTaskSchedules from "./schedules/get.js";
 import mountPostTaskSchedule from "./schedules/post.js";
@@ -43,8 +43,6 @@ const app = new OpenAPIHonoWithAuth({
   requireOrganizationProductSeat: true,
 });
 
-// Temporary middleware in front of the routes below; see its index.
-mountLegacyVendorSchedules(app);
 mountGetTasks(app);
 // Before the `/{id}` routes so the literal path cannot be read as a task id.
 mountGetTaskSummary(app);
@@ -59,6 +57,7 @@ mountPostTaskSchedulePause(app);
 mountPostTaskScheduleResume(app);
 mountPostTaskScheduleEnd(app);
 mountGetTaskScheduleRuns(app);
+mountPostTaskScheduleRun(app);
 mountPatchTaskScheduleRun(app);
 mountPostTask(app);
 mountMovedTaskScheduleRoutes(app);

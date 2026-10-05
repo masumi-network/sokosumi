@@ -44,9 +44,7 @@ describe("email translator", () => {
     const { locale, t } = createEmailTranslator("sv-SE");
 
     expect(locale).toBe("en");
-    expect(t("auth.magicLink.subject")).toBe(
-      "Sokosumi - Sign in to your account",
-    );
+    expect(t("auth.emailCode.title")).toBe("Your Sokosumi code");
   });
 
   it("normalizes locale tags before checking locale support", () => {

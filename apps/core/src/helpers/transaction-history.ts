@@ -34,6 +34,10 @@ export interface TransactionHistoryRow {
   coworkerId: string | null;
   coworkerName: string | null;
   sokoBotId: string | null;
+  sokoBotName: string | null;
+  sokoBotTurnSource: string | null;
+  sokoBotScheduleName: string | null;
+  sokoBotScheduleKey: string | null;
   bucketSource: string | null;
   topUpSource: string | null;
   topUpNote: string | null;
@@ -159,6 +163,10 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
       cu."coworkerId" AS "coworkerId",
       cw."name" AS "coworkerName",
       sbu."sokoBotId"::TEXT AS "sokoBotId",
+      sb."name" AS "sokoBotName",
+      sbt."source"::TEXT AS "sokoBotTurnSource",
+      sbs."name" AS "sokoBotScheduleName",
+      sbs."systemKey" AS "sokoBotScheduleKey",
       bucket."referenceType" AS "bucketSource",
       topup."referenceType"::TEXT AS "topUpSource",
       topup."referenceNote" AS "topUpNote",
@@ -171,6 +179,7 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
         tk."name",
         te."comment",
         cw."name",
+        sb."name",
         topup."referenceType"::TEXT,
         topup."referenceNote"
       ) AS "searchText"
@@ -191,6 +200,11 @@ function buildLedgerSql(params: BuildTransactionHistoryParams): PrismaRaw.Sql {
     LEFT JOIN "coworker_usage" AS cu ON cu."transactionId" = t."id"
     LEFT JOIN "coworker" AS cw ON cw."id" = cu."coworkerId"
     LEFT JOIN "soko_bot_usage" AS sbu ON sbu."transactionId" = t."id"
+    LEFT JOIN "soko_bot" AS sb ON sb."id" = sbu."sokoBotId"
+    -- A usage row's reference is the turn it billed.
+    LEFT JOIN "soko_bot_turn" AS sbt ON sbt."id"::TEXT = sbu."referenceId"
+    LEFT JOIN "soko_bot_schedule_run" AS sbr ON sbr."turnId" = sbt."id"
+    LEFT JOIN "soko_bot_schedule" AS sbs ON sbs."id" = sbr."scheduleId"
     -- A spend can draw from several buckets. One is enough to name a source.
     LEFT JOIN LATERAL (
       SELECT b."referenceType"::TEXT AS "referenceType"
@@ -259,6 +273,10 @@ export async function findTransactionHistoryPage(
       ledger."coworkerId",
       ledger."coworkerName",
       ledger."sokoBotId",
+      ledger."sokoBotName",
+      ledger."sokoBotTurnSource",
+      ledger."sokoBotScheduleName",
+      ledger."sokoBotScheduleKey",
       ledger."bucketSource",
       ledger."topUpSource",
       ledger."topUpNote"
@@ -340,6 +358,36 @@ function truncate(value: string, max = 120): string {
   return normalized.length > max
     ? `${normalized.slice(0, max - 1)}…`
     : normalized;
+}
+
+const SOKO_BOT_SYSTEM_SCHEDULE_LABELS: Record<string, string> = {
+  standup: "Daily stand-up",
+  "weekly-wrap": "Weekly wrap",
+  "meeting-prep": "Meeting prep",
+  "end-of-day": "End of day",
+  "follow-ups": "Follow-up check",
+  "monday-plan": "Monday plan",
+  "monthly-review": "Monthly review",
+  "memory-cleanup": "Memory cleanup",
+};
+
+const SOKO_BOT_SOURCE_LABELS: Record<string, string> = {
+  CHAT: "Chat",
+  INGEST: "Inbox and calendar check",
+  EVENT: "Task update",
+  ADMIN_RETRY: "Retry",
+};
+
+/** What a billed turn was for, from its source and schedule. */
+function sokoBotTurnLabel(row: TransactionHistoryRow): string | null {
+  if (row.sokoBotTurnSource === "SCHEDULE") {
+    const key = row.sokoBotScheduleKey ?? "";
+    const named = row.sokoBotScheduleName
+      ? `Scheduled: ${row.sokoBotScheduleName}`
+      : "Scheduled";
+    return SOKO_BOT_SYSTEM_SCHEDULE_LABELS[key] ?? named;
+  }
+  return SOKO_BOT_SOURCE_LABELS[row.sokoBotTurnSource ?? ""] ?? null;
 }
 
 export function mapTransactionHistoryRow(
@@ -424,8 +472,8 @@ export function mapTransactionHistoryRow(
       return {
         ...base,
         kind: "sokoBot",
-        title: "Soko Bot usage",
-        description: null,
+        title: `Soko Bot · ${row.sokoBotName?.trim() || "Unnamed"}`,
+        description: sokoBotTurnLabel(row),
         sokoBotId: row.sokoBotId ?? "",
       };
     case "topUp":

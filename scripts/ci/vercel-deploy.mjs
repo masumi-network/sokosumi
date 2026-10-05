@@ -172,27 +172,6 @@ export function noPreviewChangesMessage() {
   ].join("\n");
 }
 
-function asHttpsUrl(host) {
-  if (!host) {
-    return undefined;
-  }
-  return host.startsWith("https://") || host.startsWith("http://")
-    ? host
-    : `https://${host}`;
-}
-
-export function pickPreviewUrl(deployment) {
-  const aliases = deployment.alias ?? [];
-  const gitPreview = aliases.find(
-    (alias) =>
-      alias.includes("-git-") && alias.endsWith(".preview.sokosumi.com"),
-  );
-  const previewSuffix = aliases.find((alias) =>
-    alias.endsWith(".preview.sokosumi.com"),
-  );
-  return asHttpsUrl(gitPreview ?? previewSuffix ?? deployment.url);
-}
-
 export async function createGitDeployment({
   token,
   teamId,
@@ -229,9 +208,15 @@ export async function createGitDeployment({
     body: JSON.stringify(body),
   });
 
-  const payload = await response.json();
+  const payload = await response.json().catch(() => undefined);
   if (!response.ok) {
-    throw new Error(`Vercel deploy failed (${response.status})`);
+    // Vercel's error body names the cause; without it the log shows only a status.
+    const reason = [payload?.error?.code, payload?.error?.message]
+      .filter(Boolean)
+      .join(": ");
+    throw new Error(
+      `Vercel deploy failed for ${target.name} (${response.status})${reason ? `: ${reason}` : ""}`,
+    );
   }
   return payload;
 }

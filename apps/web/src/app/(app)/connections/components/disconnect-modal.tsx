@@ -19,7 +19,6 @@ import {
 } from "@/components/ui/dialog";
 import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
-import { unlinkSocialAccountInput } from "@/lib/auth/unlink-social-account";
 
 interface DisconnectModalProps {
   account: Account;
@@ -54,9 +53,7 @@ export default function DisconnectModal({
     setLoading(true);
 
     try {
-      const result = await authClient.unlinkAccount(
-        unlinkSocialAccountInput(account),
-      );
+      const result = await authClient.unlinkAccount({ accountId: account.id });
 
       if (!result.error) {
         toast.success(t("success"));

@@ -7,8 +7,8 @@ import OpenAPIRuntime
 /// (`mention_failed`) so "Failed to reply" and Retry can live on it. Mirrors
 /// web's `isPersistedMentionThoughtShell` / `isFailedMentionThoughtShell`
 /// (`coworker-thought.ts`) on a row that resolves the Thought view
-/// (`hasThoughtView`). Which shells a transcript keeps is
-/// `shouldKeepPersistedMessage`'s rule, not this one.
+/// (`hasThoughtView`). A transcript keeps every such shell, as web's
+/// `isMentionThoughtShell` does (`shouldKeepPersistedMessage`).
 public enum MentionThoughtShell: Equatable, Sendable {
   /// Live Thought with no answer yet. `startedAt` comes from
   /// `thought_timing_ms.start`; nil falls back to the row's `createdAt`.

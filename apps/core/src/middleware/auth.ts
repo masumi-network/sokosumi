@@ -8,7 +8,7 @@ import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
-import { auth } from "@/lib/auth";
+import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -468,6 +468,7 @@ async function verifyApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
+  const { auth } = await import("@/lib/auth");
   const apiKeyResult = await auth.api.verifyApiKey({
     body: { configId: "default", key: token },
   });
@@ -517,7 +518,9 @@ async function verifyAgentApiKey(
 }
 
 const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
+  const tokenWithoutPrefix = value.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)
+    ? value.slice(OAUTH_ACCESS_TOKEN_PREFIX.length)
+    : value;
   return await hashApiKey(tokenWithoutPrefix);
 };
 
@@ -642,8 +645,12 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    const apiKeyValid = await verifyApiKey(token, c);
-    if (apiKeyValid) {
+    // An OAuth access token is never an API key. Trying it as one makes
+    // Better Auth log "Failed to validate API key" at error level.
+    if (
+      !token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX) &&
+      (await verifyApiKey(token, c))
+    ) {
       return true;
     }
 
@@ -657,6 +664,10 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
 });
 
 const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  // Loaded on first use: this middleware is in every route's graph, and the
+  // auth module drags better-auth, its plugins and Stripe into suites that
+  // never reach a session. Same reason as `middleware/organization.ts`.
+  const { auth } = await import("@/lib/auth");
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });

@@ -1,3 +1,7 @@
+import {
+  hasCoreApiOAuthScope,
+  hasOfflineAccessOAuthScope,
+} from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
@@ -16,7 +20,6 @@ import {
 } from "@/lib/auth/auth.utils";
 
 import { ConsentActions } from "./consent-actions";
-import { getOAuthConsentScopeFlags } from "./oauth-consent-scope-flags";
 
 export const instant = false;
 
@@ -46,9 +49,9 @@ export default async function ConsentPage({ searchParams }: ConsentPageProps) {
   const redirectQuery = serializeOAuthSearchParams(oauthSearchParams);
   const signedOAuthQuery =
     buildSignedOAuthQueryFromSearchParams(oauthSearchParams);
-  const { requestsCoreApi, requestsOfflineAccess } = getOAuthConsentScopeFlags(
-    oauthSearchParams.get("scope"),
-  );
+  const scope = oauthSearchParams.get("scope");
+  const requestsCoreApi = hasCoreApiOAuthScope(scope);
+  const requestsOfflineAccess = hasOfflineAccessOAuthScope(scope);
 
   if (!client_id) {
     return (

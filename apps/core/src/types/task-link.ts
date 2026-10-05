@@ -11,6 +11,12 @@ export const taskLinkPeerTaskSelect = {
   name: true,
   status: true,
   archivedAt: true,
+  number: true,
+  project: {
+    select: {
+      identifier: true,
+    },
+  },
 } as const;
 
 const taskLinkPeerTaskInclude = {

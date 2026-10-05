@@ -1,3 +1,4 @@
+import { symmetricDecodeJWT, symmetricEncodeJWT } from "better-auth/crypto";
 import {
   calculateJwkThumbprint,
   exportJWK,
@@ -7,24 +8,48 @@ import {
 } from "jose";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { type CmoAuth, createCmoAuth, renewSession } from "./auth";
-import { sokosumiSignInBody } from "./sokosumi-oauth";
+import { GET as signInLink } from "../app/signin/route";
+import { GET as signUpLink } from "../app/signup/route";
+import {
+  type CmoAuth,
+  createCmoAuth,
+  getAuth,
+  renewSession,
+  sokosumiSignInBody,
+} from "./auth";
+
+// The link routes reach the auth each test creates.
+vi.mock("./auth", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./auth")>()),
+  getAuth: vi.fn(),
+}));
 
 const CMO = "https://app.cmo.xyz";
-const PREVIEW = "https://cmo-git-sok-1.preview.sokosumi.com";
-const PROXY_SECRET = "a-proxy-secret-shared-by-production-and-previews";
 const CORE = "https://core.test";
 const ISSUER = `${CORE}/auth`;
 const CLIENT_ID = "cmo-client";
 const CLIENT_SECRET = "cmo-secret";
 const CALLBACK = `${CMO}/api/auth/callback/sokosumi`;
 const TWO_HOURS_S = 7_200;
+/** How long CMO waits before asking an unreachable Core again. */
+const OUTAGE_BACKOFF_MS = 10_000;
+const AUTH_CONFIG = {
+  baseURL: CMO,
+  coreBaseUrl: CORE,
+  clientId: CLIENT_ID,
+  clientSecret: CLIENT_SECRET,
+  secret: "a-cookie-secret-that-is-at-least-32-characters",
+};
 
 interface FakeCore {
   fetch: typeof fetch;
   /** Authorize URL query of the last sign-in, as the browser would send it. */
   approve(authorizeUrl: string): { code: string; state: string };
   refreshCount(): number;
+  /** Refresh grants CMO sent, including ones the token endpoint failed. */
+  refreshAttempts: number;
+  /** The token endpoint fails while set: a network error or that status. */
+  tokenFailure: "network" | number | null;
   revoked: string[];
   revokeAll(): void;
   /** Core refuses the user on `/v1`, as for a banned or deleted account. */
@@ -35,15 +60,8 @@ interface FakeCore {
   userLookupDown: boolean;
   /** How often CMO has called `/v1/users/me`. */
   userLookups: number;
-  /** What `/v1/users/me/workspace-access` answers. */
-  workspaceAccess: {
-    hasPersonalWorkspace: boolean;
-    hasOrganizationMembership: boolean;
-  };
-  /** Status of `POST /v1/users/me/personal-workspace`. */
-  personalWorkspaceStatus: 201 | 409 | 500;
-  /** How often CMO has asked Core to create a personal Workspace. */
-  personalWorkspaceCreates: number;
+  /** The names `/v1/users/me` answers with. */
+  user: { name: string; firstName: string | null; lastName: string | null };
 }
 
 /**
@@ -143,6 +161,25 @@ async function createFakeCore(): Promise<FakeCore> {
         return json({ keys: [publicJwk] });
       case "/auth/oauth2/token": {
         const form = new URLSearchParams(await request.text());
+        if (form.get("grant_type") === "refresh_token") {
+          fake.refreshAttempts += 1;
+        }
+        if (fake.tokenFailure === "network") {
+          throw new TypeError("fetch failed");
+        }
+        if (fake.tokenFailure !== null) {
+          return json(
+            {
+              error:
+                fake.tokenFailure >= 500
+                  ? "server_error"
+                  : fake.tokenFailure === 400
+                    ? "invalid_grant"
+                    : "invalid_client",
+            },
+            fake.tokenFailure,
+          );
+        }
         if (!hasClientCredentials(request, form)) {
           return json({ error: "invalid_client" }, 401);
         }
@@ -181,7 +218,7 @@ async function createFakeCore(): Promise<FakeCore> {
             id: "user_1",
             createdAt: "2026-01-01T00:00:00.000Z",
             updatedAt: "2026-01-01T00:00:00.000Z",
-            name: "Ada Lovelace",
+            ...fake.user,
             email: "ada@example.com",
             emailVerified: true,
             image: null,
@@ -189,40 +226,6 @@ async function createFakeCore(): Promise<FakeCore> {
           },
           meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_1" },
         });
-      }
-      case "/v1/users/me/workspace-access": {
-        const bearer = request.headers.get("authorization")?.slice(7) ?? "";
-        if (!accessTokens.has(bearer)) {
-          return json({ error: "Unauthorized" }, 401);
-        }
-        return json({
-          data: {
-            gate: "ready",
-            ...fake.workspaceAccess,
-            hasPendingOrganizationInvites: false,
-          },
-          meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_2" },
-        });
-      }
-      case "/v1/users/me/personal-workspace": {
-        const bearer = request.headers.get("authorization")?.slice(7) ?? "";
-        if (request.method !== "POST" || !accessTokens.has(bearer)) {
-          return json({ error: "Unauthorized" }, 401);
-        }
-        fake.personalWorkspaceCreates += 1;
-        if (fake.personalWorkspaceStatus !== 201) {
-          return json(
-            { error: "Personal workspace already exists" },
-            fake.personalWorkspaceStatus,
-          );
-        }
-        return json(
-          {
-            data: { workspaceId: "11111111-1111-7111-8111-111111111111" },
-            meta: { timestamp: "2026-10-06T09:00:00.000Z", requestId: "req_3" },
-          },
-          201,
-        );
       }
       case "/auth/oauth2/revoke": {
         const form = new URLSearchParams(await request.text());
@@ -252,6 +255,8 @@ async function createFakeCore(): Promise<FakeCore> {
       return { code, state: query.get("state") ?? "" };
     },
     refreshCount: () => refreshes,
+    refreshAttempts: 0,
+    tokenFailure: null,
     revoked,
     revokeAll() {
       for (const token of refreshTokens) revoked.push(token);
@@ -264,12 +269,7 @@ async function createFakeCore(): Promise<FakeCore> {
     discoveryDown: false,
     userLookupDown: false,
     userLookups: 0,
-    workspaceAccess: {
-      hasPersonalWorkspace: true,
-      hasOrganizationMembership: false,
-    },
-    personalWorkspaceStatus: 201,
-    personalWorkspaceCreates: 0,
+    user: { name: "Ada Lovelace", firstName: "Ada", lastName: "Lovelace" },
   };
   return fake;
 }
@@ -345,7 +345,9 @@ async function send(
 async function startSignIn(
   auth: CmoAuth,
   jar: CookieJar,
-  options: { createAccount: boolean } = { createAccount: false },
+  options: Parameters<typeof sokosumiSignInBody>[0] = {
+    createAccount: false,
+  },
 ): Promise<string> {
   const response = await send(auth, jar, "/api/auth/sign-in/social", {
     method: "POST",
@@ -358,6 +360,24 @@ async function startSignIn(
 
 function callbackPath({ code, state }: { code: string; state: string }) {
   return `/api/auth/callback/sokosumi?code=${code}&state=${encodeURIComponent(state)}&iss=${encodeURIComponent(ISSUER)}`;
+}
+
+const LINK_ROUTES = { "/signin": signInLink, "/signup": signUpLink };
+
+/** A link from cmo.xyz or an email: a cross-site GET with no Origin. */
+async function followLink(
+  jar: CookieJar,
+  path: keyof typeof LINK_ROUTES,
+): Promise<Response> {
+  // Better Auth's origin check needs a request object; the routes pass it
+  // headers only, so a cross-site link without an Origin may start the flow.
+  const response = await LINK_ROUTES[path](
+    new Request(`${jar.origin}${path}`, {
+      headers: { cookie: jar.header(), "x-vercel-forwarded-for": jar.ip },
+    }),
+  );
+  jar.store(response);
+  return response;
 }
 
 async function signIn(auth: CmoAuth, jar: CookieJar, core: FakeCore) {
@@ -391,20 +411,14 @@ describe("CMO auth handler", () => {
     });
     core = await createFakeCore();
     vi.stubGlobal("fetch", core.fetch);
-    // Production runs the proxy for previews and skips it for itself.
-    auth = createCmoAuth({
-      baseURL: CMO,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-cookie-secret-that-is-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-    });
+    auth = createCmoAuth(AUTH_CONFIG);
     jar = new CookieJar();
+    vi.mocked(getAuth).mockReturnValue(auth);
   });
 
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
     vi.useRealTimers();
   });
 
@@ -438,62 +452,180 @@ describe("CMO auth handler", () => {
     expect(url.searchParams.get("prompt")).toBe("create");
   });
 
-  it("creates a personal Workspace at sign-in for a person who has none", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
+  it("starts Create account from a link and signs in on the callback", async () => {
+    const response = await followLink(jar, "/signup");
 
-    await signIn(auth, jar, core);
-
-    expect(core.personalWorkspaceCreates).toBe(1);
-    expect(await sessionUser(auth, jar)).not.toBeNull();
+    expect(response.status).toBe(302);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const stateCookies = response.headers.getSetCookie();
+    expect(stateCookies).toHaveLength(1);
+    expect(stateCookies[0]).toMatch(/^__Secure-cmo.oauth_state=/);
+    for (const attribute of ["HttpOnly", "Secure", "SameSite=Lax", "Path=/"]) {
+      expect(stateCookies[0]).toContain(attribute);
+    }
+    expect(stateCookies[0]).not.toMatch(/domain=/i);
+    const authorizeUrl = response.headers.get("location") ?? "";
+    expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
+    await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
   });
 
-  it("leaves the Workspaces of a person who has a personal one untouched", async () => {
-    await signIn(auth, jar, core);
+  it.each([
+    ["purpose", "prefetch"],
+    ["next-router-prefetch", "1"],
+    ["next-router-segment-prefetch", "/_tree"],
+    ["sec-purpose", "prefetch;prerender"],
+  ])(
+    "keeps an active sign-in usable after speculative link requests (%o)",
+    async (name, value) => {
+      const started = await followLink(jar, "/signin");
+      const approval = core.approve(started.headers.get("location") ?? "");
+      const cookies = jar.header();
 
-    expect(core.personalWorkspaceCreates).toBe(0);
-  });
+      for (const path of ["/signup", "/signin"] as const) {
+        const response = await LINK_ROUTES[path](
+          new Request(`${CMO}${path}`, {
+            headers: { [name]: value, cookie: jar.header() },
+          }),
+        );
+        jar.store(response);
+        // Chrome serves a 2xx prefetch for the click itself, and a 204
+        // swallows that click. Any other status makes it navigate for real.
+        expect(response.status).toBe(403);
+        expect(response.headers.get("cache-control")).toBe("no-store");
+        expect(response.headers.has("location")).toBe(false);
+        expect(response.headers.getSetCookie()).toEqual([]);
+        expect(jar.header()).toBe(cookies);
+      }
 
-  it("leaves the Workspaces of an organization member untouched", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: true,
-    };
+      await send(auth, jar, callbackPath(approval));
+      expect(await sessionUser(auth, jar)).toEqual({
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      });
+    },
+  );
 
-    await signIn(auth, jar, core);
+  it.each(["/signup", "/signin"] as const)(
+    "explains on the signed-out page when Core discovery fails on %s",
+    async (path) => {
+      core.discoveryDown = true;
+      vi.mocked(getAuth).mockReturnValue(
+        createCmoAuth({
+          baseURL: CMO,
+          coreBaseUrl: CORE,
+          clientId: CLIENT_ID,
+          clientSecret: CLIENT_SECRET,
+          secret: "a-cookie-secret-that-is-at-least-32-characters",
+        }),
+      );
 
-    expect(core.personalWorkspaceCreates).toBe(0);
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
+      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
-  it("signs in when another request created the personal Workspace a moment earlier", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
-    core.personalWorkspaceStatus = 409;
+      const response = await followLink(jar, path);
 
-    const response = await signIn(auth, jar, core);
+      expect(response.status).toBe(302);
+      expect(logged).toHaveBeenCalledWith(
+        "Starting Sign in with Sokosumi failed",
+        expect.anything(),
+      );
+      logged.mockRestore();
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(response.headers.get("location")).toBe("/?error=unavailable");
+      expect(response.headers.getSetCookie()).toEqual([]);
+    },
+  );
 
-    expect(response.headers.get("location")).toBe("/");
-    expect(await sessionUser(auth, jar)).not.toBeNull();
-  });
-
-  it("does not sign in when Core cannot create the personal Workspace", async () => {
-    core.workspaceAccess = {
-      hasPersonalWorkspace: false,
-      hasOrganizationMembership: false,
-    };
-    core.personalWorkspaceStatus = 500;
-
-    const response = await signIn(auth, jar, core);
-
-    expect(response.headers.get("location")).toMatch(
-      /^https:\/\/app\.cmo\.xyz\/\?error=/,
+  it("signs in once Core answers after discovery failed at startup", async () => {
+    // A preview's first request can beat its branch's Core preview deploy.
+    vi.stubEnv("BETTER_AUTH_URL", CMO);
+    vi.stubEnv("CORE_APP_BASE_URL", CORE);
+    vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_ID", CLIENT_ID);
+    vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_SECRET", CLIENT_SECRET);
+    vi.stubEnv(
+      "BETTER_AUTH_SECRET",
+      "a-cookie-secret-that-is-at-least-32-characters",
     );
-    expect(await sessionUser(auth, jar)).toBeNull();
+    const { getAuth: getRealAuth } =
+      await vi.importActual<typeof import("./auth")>("./auth");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+    await getRealAuth().$context;
+    core.discoveryDown = false;
+
+    const url = new URL(await startSignIn(getRealAuth(), jar));
+
+    logged.mockRestore();
+    expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
+  });
+
+  it("explains on the signed-out page instead of redirecting to Core when auth returns no URL", async () => {
+    const signInSocial = auth.api.signInSocial;
+    vi.spyOn(auth.api, "signInSocial").mockImplementation(async (input) => {
+      const result = await signInSocial(input);
+      if (
+        "response" in result &&
+        result.response &&
+        typeof result.response === "object" &&
+        "url" in result.response
+      ) {
+        result.response.url = "";
+      }
+      return result;
+    });
+
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await followLink(jar, "/signin");
+
+    logged.mockRestore();
+    expect(response.status).toBe(302);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.get("location")).toBe("/?error=unavailable");
+    expect(response.headers.getSetCookie()).toEqual([]);
+  });
+
+  it("rejects a link callback when the browser drops its forwarded state cookie", async () => {
+    const response = await followLink(jar, "/signin");
+    const approval = core.approve(response.headers.get("location") ?? "");
+    const emptyJar = new CookieJar();
+
+    const callback = await send(auth, emptyJar, callbackPath(approval));
+
+    expect(callback.headers.get("location")).toBe(
+      `${CMO}/?error=state_mismatch`,
+    );
+    expect(await sessionUser(auth, emptyJar)).toBeNull();
+  });
+
+  it("starts a new link flow when the CMO session has expired", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + 91 * 24 * 60 * 60 * 1000);
+
+    const response = await followLink(jar, "/signin");
+    const authorizeUrl = response.headers.get("location") ?? "";
+
+    expect(new URL(authorizeUrl).pathname).toBe("/auth/oauth2/authorize");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("sends a link home when the person is already signed in to CMO", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+
+    for (const path of ["/signup", "/signin"] as const) {
+      const response = await followLink(jar, path);
+
+      expect(response.status).toBe(302);
+      expect(response.headers.get("location")).toBe("/");
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      expect(jar.header()).toBe(cookies);
+    }
   });
 
   it("signs in on the callback and returns name and email from the session", async () => {
@@ -511,6 +643,41 @@ describe("CMO auth handler", () => {
     ]);
     expect(await sessionUser(auth, jar)).toEqual({
       name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
+  it("names the session after the person's first and last name, not their display name", async () => {
+    core.user = { name: "Ada", firstName: "Ada", lastName: "Lovelace" };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
+  it("names the session after the display name when Sokosumi has no name parts", async () => {
+    // Magic-link sign-ups and accounts from before the name parts.
+    core.user = { name: "Ada L.", firstName: null, lastName: null };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada L.",
+      email: "ada@example.com",
+    });
+  });
+
+  it("leaves the session name empty when Sokosumi has only blanks", async () => {
+    // The signed-in view then names the account by its email.
+    core.user = { name: "  ", firstName: null, lastName: null };
+
+    await signIn(auth, jar, core);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "",
       email: "ada@example.com",
     });
   });
@@ -678,13 +845,47 @@ describe("CMO auth handler", () => {
     });
   });
 
+  it("takes the person's current name from Sokosumi when it renews", async () => {
+    await signIn(auth, jar, core);
+    core.user = { name: "Ada", firstName: "Augusta Ada", lastName: "King" };
+
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Augusta Ada King",
+      email: "ada@example.com",
+    });
+    // Rewriting the session keeps the rotated refresh token.
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+    expect(core.refreshCount()).toBe(2);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("keeps the name it has while Core cannot answer", async () => {
+    await signIn(auth, jar, core);
+    core.user = { name: "Ada", firstName: "Augusta Ada", lastName: "King" };
+    core.userLookupDown = true;
+
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    await renew(auth, jar);
+
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
   it("signs out when renewal fails", async () => {
     await signIn(auth, jar, core);
     core.revokeAll();
 
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(auth, jar);
+    const response = await renew(auth, jar);
 
+    // 401 tells the proxy that CMO ended the session, not the person.
+    expect(response.status).toBe(401);
     expect(await sessionUser(auth, jar)).toBeNull();
     expect(jar.names()).toEqual([]);
   });
@@ -697,8 +898,9 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
 
     vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(auth, jar);
+    const response = await renew(auth, jar);
 
+    expect(response.status).toBe(401);
     expect(await sessionUser(auth, jar)).toBeNull();
     expect(jar.names()).toEqual([]);
     // Sign-out revokes the token the renewal just rotated in.
@@ -727,9 +929,152 @@ describe("CMO auth handler", () => {
     expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
+  it.each(["network", 429, 500, 502] as const)(
+    "keeps the session while Core's token endpoint fails (%s), then renews once Core is back",
+    async (failure) => {
+      await signIn(auth, jar, core);
+      vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+      const cookies = jar.header();
+      core.tokenFailure = failure;
+
+      const unavailable = await renew(auth, jar);
+
+      expect(unavailable.status).toBe(503);
+      expect(unavailable.headers.getSetCookie()).toEqual([]);
+      expect(jar.header()).toBe(cookies);
+      expect(core.revoked).toEqual([]);
+
+      core.tokenFailure = null;
+      await vi.advanceTimersByTimeAsync(OUTAGE_BACKOFF_MS);
+      const recovered = await renew(auth, jar);
+
+      expect(recovered.status).toBe(204);
+      expect(core.refreshCount()).toBe(1);
+      expect(await sessionUser(auth, jar)).toEqual({
+        name: "Ada Lovelace",
+        email: "ada@example.com",
+      });
+    },
+  );
+
+  it("keeps the session while a new instance cannot discover Core, then renews once Core is back", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    const cookies = jar.header();
+    // getAuth builds a new instance after a failed discovery.
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+    const undiscovered = createCmoAuth(AUTH_CONFIG);
+
+    const unavailable = await renew(undiscovered, jar);
+
+    expect(unavailable.status).toBe(503);
+    expect(jar.header()).toBe(cookies);
+    expect(core.revoked).toEqual([]);
+
+    core.discoveryDown = false;
+    const recovered = await renew(createCmoAuth(AUTH_CONFIG), jar);
+    logged.mockRestore();
+
+    expect(recovered.status).toBe(204);
+    expect(core.refreshCount()).toBe(1);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it.each([400, 401, 403])(
+    "signs out when Core's token endpoint refuses with %i",
+    async (status) => {
+      await signIn(auth, jar, core);
+      vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+      core.tokenFailure = status;
+
+      const response = await renew(auth, jar);
+
+      expect(response.status).toBe(401);
+      expect(await sessionUser(auth, jar)).toBeNull();
+      expect(jar.names()).toEqual([]);
+    },
+  );
+
+  it("asks Core again only after a pause while it is unreachable", async () => {
+    await signIn(auth, jar, core);
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+    core.tokenFailure = 502;
+
+    const statuses = [];
+    for (let page = 0; page < 3; page += 1) {
+      statuses.push((await renew(auth, jar)).status);
+    }
+
+    expect(statuses).toEqual([503, 503, 503]);
+    expect(core.refreshAttempts).toBe(1);
+
+    await vi.advanceTimersByTimeAsync(OUTAGE_BACKOFF_MS);
+    await renew(auth, jar);
+    expect(core.refreshAttempts).toBe(2);
+  });
+
+  it("serves a valid access token without asking Core while Core is down", async () => {
+    await signIn(auth, jar, core);
+    core.tokenFailure = "network";
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(204);
+    expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("serves a valid access token while a new instance cannot discover Core", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    core.discoveryDown = true;
+
+    const response = await renew(createCmoAuth(AUTH_CONFIG), jar);
+    logged.mockRestore();
+
+    expect(response.status).toBe(204);
+    expect(jar.header()).toBe(cookies);
+    expect(await sessionUser(auth, jar)).not.toBeNull();
+  });
+
+  it("signs out an account cookie for a provider CMO does not have", async () => {
+    await signIn(auth, jar, core);
+    const { secretConfig } = await auth.$context;
+    const name = "__Secure-cmo.account_data";
+    const value =
+      jar
+        .header()
+        .split("; ")
+        .find((pair) => pair.startsWith(`${name}=`))
+        ?.slice(name.length + 1) ?? "";
+    const account = await symmetricDecodeJWT<Record<string, unknown>>(
+      value,
+      secretConfig,
+      "better-auth-account",
+    );
+    const forged = await symmetricEncodeJWT(
+      { ...account, providerId: "github" },
+      secretConfig,
+      "better-auth-account",
+      300,
+    );
+    jar.store(
+      new Response(null, { headers: { "set-cookie": `${name}=${forged}` } }),
+    );
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(401);
+    expect(jar.names()).toEqual([]);
+  });
+
   it("does nothing for a signed-out visitor", async () => {
     const response = await renew(auth, jar);
 
+    expect(response.status).toBe(204);
     expect(response.headers.getSetCookie()).toEqual([]);
   });
 
@@ -816,36 +1161,21 @@ describe("CMO auth handler", () => {
     );
 
     expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `${CMO}/?error=access_denied`,
-    );
+    expect(response.headers.get("location")).toBe("/?error=access_denied");
     expect(await sessionUser(auth, jar)).toBeNull();
   });
 
-  it("returns declined preview consent to the preview even with a production session", async () => {
-    await signIn(auth, jar, core);
-    const preview = createCmoAuth({
-      baseURL: PREVIEW,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-preview-cookie-secret-of-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-    });
-    const previewJar = new CookieJar(PREVIEW);
-    const { state } = core.approve(await startSignIn(preview, previewJar));
+  it("returns to the signed-out page when the sign-in state is gone", async () => {
+    // Past ten minutes, or finished in another browser: the state cookie
+    // this browser set when sign-in started is not there.
+    const approval = core.approve(await startSignIn(auth, jar));
 
-    const declined = await send(
-      auth,
-      jar,
-      `/api/auth/callback/sokosumi?error=access_denied&state=${encodeURIComponent(state)}`,
-    );
+    const response = await send(auth, new CookieJar(), callbackPath(approval));
 
-    expect(declined.headers.get("location")).toBe(
-      `${PREVIEW}/?error=access_denied`,
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      `${CMO}/?error=state_mismatch`,
     );
-    expect(await sessionUser(preview, previewJar)).toBeNull();
-    expect(await sessionUser(auth, jar)).not.toBeNull();
   });
 
   it("refuses a user Core does not accept", async () => {
@@ -858,53 +1188,7 @@ describe("CMO auth handler", () => {
       `/api/auth/callback/sokosumi?code=${code}&state=${state}`,
     );
 
-    expect(response.headers.get("location")).toMatch(
-      /^https:\/\/app\.cmo\.xyz\/\?error=/,
-    );
+    expect(response.headers.get("location")).toMatch(/^\/\?error=/);
     expect(await sessionUser(auth, jar)).toBeNull();
-  });
-
-  it("signs a preview in through production CMO's proxy", async () => {
-    const preview = createCmoAuth({
-      baseURL: PREVIEW,
-      coreBaseUrl: CORE,
-      clientId: CLIENT_ID,
-      clientSecret: CLIENT_SECRET,
-      secret: "a-preview-cookie-secret-of-at-least-32-characters",
-      oauthProxy: { productionURL: CMO, secret: PROXY_SECRET },
-    });
-    const previewJar = new CookieJar(PREVIEW);
-
-    const authorizeUrl = await startSignIn(preview, previewJar);
-    expect(new URL(authorizeUrl).searchParams.get("redirect_uri")).toBe(
-      CALLBACK,
-    );
-
-    // Core sends the browser to production, which hands off to the preview.
-    const handoff = await send(
-      auth,
-      jar,
-      callbackPath(core.approve(authorizeUrl)),
-    );
-    const location = new URL(handoff.headers.get("location") ?? "");
-    expect(location.origin).toBe(PREVIEW);
-    expect(jar.names()).toEqual([]);
-
-    const done = await send(
-      preview,
-      previewJar,
-      `${location.pathname}${location.search}`,
-    );
-    expect(done.headers.get("location")).toBe("/");
-    expect(await sessionUser(preview, previewJar)).toEqual({
-      name: "Ada Lovelace",
-      email: "ada@example.com",
-    });
-
-    // The preview received the refresh token and renews on its own.
-    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
-    await renew(preview, previewJar);
-    expect(core.refreshCount()).toBe(1);
-    expect(await sessionUser(preview, previewJar)).not.toBeNull();
   });
 });

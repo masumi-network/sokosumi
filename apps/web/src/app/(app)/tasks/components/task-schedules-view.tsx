@@ -13,6 +13,7 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -46,8 +47,6 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
-  /** Only the owner of a schedule can change it from its row. */
-  currentUserId: string | null;
 }
 
 /**
@@ -65,7 +64,6 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
-  currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const [viewMode, setViewMode] = useState(defaultViewMode);
@@ -205,7 +203,7 @@ export function TaskSchedulesView({
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
       <TabsContent
-        className="bg-card-background flex flex-col gap-4 rounded-xl p-2"
+        className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
         {rows.length === 0 ? (
@@ -232,7 +230,6 @@ export function TaskSchedulesView({
                 assigneeDisplayOptions={assigneeDisplayOptions}
                 canCreatePrivate={canCreatePrivate}
                 coworkerOptions={coworkerOptions}
-                currentUserId={currentUserId}
                 onChanged={handleScheduleChanged}
                 key={schedule.id}
                 projectOptions={projectOptions}

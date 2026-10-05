@@ -21,8 +21,8 @@ const {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ AI_GATEWAY_API_KEY: "gateway-key" }),
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBotRuntimeEvent: {
       create: createEventMock,
       findFirst: findFirstEventMock,
@@ -32,8 +32,16 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: toolCallUpsertMock,
       updateMany: toolCallUpdateManyMock,
     },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      // The event log's locked append: the same models, plus the lock.
+      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+        operation({ ...client, $executeRaw: vi.fn() }),
+    },
+  };
+});
 vi.mock("@/services/soko-bot-runtime.service", () => ({
   sokoBotRuntimeService: {
     authorize: authorizeMock,
@@ -120,6 +128,20 @@ describe("sandbox turn service", () => {
     });
   });
 
+  it("marks the 409 of a turn that is no longer active, so the runner stops", async () => {
+    authorizeMock.mockRejectedValueOnce(new Error("Turn was cancelled"));
+    await expect(
+      recordSandboxAction(claims, {
+        name: "web_fetch",
+        toolCallId: "call_1",
+        toolInput: {},
+      }),
+    ).rejects.toMatchObject({
+      status: 409,
+      cause: { kind: "soko_bot_turn_inactive" },
+    });
+  });
+
   it("refuses streaming and any model but the turn's", async () => {
     await expect(
       proxySandboxModelCall(
@@ -165,6 +187,32 @@ describe("sandbox turn service", () => {
         costUsd: 0.004,
       },
     });
+  });
+
+  it("passes the runner's reasoning-summary switches through, and nothing else", async () => {
+    fetchMock.mockResolvedValue(gatewayAnswer());
+    await proxySandboxModelCall(claims, {
+      ...modelRequest(),
+      body: JSON.stringify({
+        prompt: [],
+        providerOptions: {
+          gateway: { only: ["openai"] },
+          openai: { reasoningSummary: "auto", store: true },
+          google: {
+            thinkingConfig: { includeThoughts: true, thinkingBudget: 99 },
+          },
+          anthropic: { thinking: { type: "enabled" } },
+        },
+      }),
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const sent = JSON.parse(String(init.body));
+    expect(sent.providerOptions.openai).toEqual({ reasoningSummary: "auto" });
+    expect(sent.providerOptions.google).toEqual({
+      thinkingConfig: { includeThoughts: true },
+    });
+    expect(sent.providerOptions).not.toHaveProperty("anthropic");
+    expect(sent.providerOptions.gateway.only).not.toContain("openai");
   });
 
   it("still meters a call whose region is rejected", async () => {

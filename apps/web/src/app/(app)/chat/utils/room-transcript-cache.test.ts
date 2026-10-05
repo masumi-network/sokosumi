@@ -41,6 +41,7 @@ function retained() {
     rooms: [],
     organizationMembers: [],
     currentUserId: "reader",
+    isOrgOwnerOrAdmin: false,
     coworkers: [],
     selectedRoomId: "room",
     messageLoadFailed: false,

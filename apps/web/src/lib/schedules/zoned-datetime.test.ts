@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   endOfLocalDateInTimezone,
-  gregorianDayOfWeek,
   parseDateTimeLocalParts,
   utcToDateTimeLocalInTimezone,
   zonedDateTimeLocalToUtc,
@@ -53,11 +52,5 @@ describe("parseDateTimeLocalParts", () => {
       hour: 15,
       minute: 30,
     });
-  });
-});
-
-describe("gregorianDayOfWeek", () => {
-  it("returns the weekday for a calendar date", () => {
-    expect(gregorianDayOfWeek(2026, 6, 24)).toBe(3);
   });
 });
