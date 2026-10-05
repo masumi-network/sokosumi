@@ -2393,8 +2393,24 @@ export class SokoBotControlPlane {
       )
       ?.originatingTurn.capabilityNames.filter(isSokoBotCapability);
     const writes = input.presetRoute?.writes ?? confirmedWrites;
+    // Cuso (CMO) has no personal reach: his version lists only marketing
+    // tools, and the owner approved the strategy he executes. An owner's chat
+    // request ("announce this on Tuesday") gets his whole toolset instead of
+    // whatever narrower write scope the classifier guessed, so he does the
+    // work instead of asking permission for it.
+    const cmoOwnerRequest =
+      version.profile === "cmo" &&
+      !input.presetRoute &&
+      !input.chat?.askedByBot &&
+      !unpromptedWork;
     const classified = capabilitiesForClassification(
-      classification.classification,
+      cmoOwnerRequest
+        ? {
+            ...classification.classification,
+            route: "MANAGE_WORK",
+            writeScope: "WORK",
+          }
+        : classification.classification,
     );
     const routeCapabilities = (
       writes ? limitSokoBotWrites(classified, writes) : classified

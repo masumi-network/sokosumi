@@ -754,6 +754,45 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it("gives Cuso his marketing tools for an owner's request the classifier read narrowly", async () => {
+    // Jev saw no write scope in "announce our product next Tuesday".
+    jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK"));
+    botFindFirstMock.mockResolvedValue(adminBot({ versionId: "cmo-v1" }));
+    botFindUniqueMock.mockResolvedValue(adminBot({ versionId: "cmo-v1" }));
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({
+      id: "cmo-turn",
+      leaseToken: "cmo-lease",
+    });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "cmo-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const builder = {
+      build: vi.fn().mockResolvedValue(builtContext()),
+    } as ContextPacketBuilder;
+    await new SokoBotControlPlane(
+      runtime,
+      builder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "cmo-client",
+      message: "Announce our new product next Tuesday",
+    });
+    const capabilities =
+      turnCreateMock.mock.calls[0]?.[0]?.data?.capabilityNames;
+    expect(capabilities).toContain("create_social_post");
+    expect(capabilities).toContain("schedule_social_post");
+    expect(capabilities).toContain("save_strategy");
+    // His version still keeps personal reach out.
+    expect(capabilities).not.toContain("run_integration_tool");
+  });
+
   it("keeps a change to several name-matched Tasks as work, with every match a candidate", async () => {
     jevEvaluate.mockResolvedValue(
       jevRoute("MANAGE_WORK", { writeScope: "WORK" }),
