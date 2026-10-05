@@ -720,7 +720,15 @@ describe("answerCreatePromptWithNewSession", () => {
 
   it.each([
     ["an email code", {}],
-    ["a password", { password: "a-password-long-enough", name: "New Person" }],
+    [
+      "a password",
+      {
+        password: "a-password-long-enough",
+        termsAccepted: true,
+        firstName: "New",
+        lastName: "Person",
+      },
+    ],
   ])(
     "sends a Create account sign-up with %s straight to CMO",
     async (_label, extra) => {

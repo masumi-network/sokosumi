@@ -95,8 +95,6 @@ import {
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
-  resolveEmailCodeSignInNameBody,
-  resolveSignUpNameBody,
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
@@ -432,21 +430,6 @@ export const auth = betterAuth({
             });
           }
           break;
-        }
-        case "/sign-in/email-otp": {
-          // A password sign-up (see `auth-email-code-sign-in`) keeps the
-          // checks `/sign-up/email` made before it was closed.
-          if (ctx.body?.password !== undefined) {
-            if (!ctx.body.termsAccepted) {
-              throw new APIError("BAD_REQUEST", {
-                code: "TERMS_NOT_ACCEPTED",
-              });
-            }
-            return { context: { body: resolveSignUpNameBody(ctx.body) } };
-          }
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
         }
         case "/update-user": {
           await validateUpdatedUserName(ctx);
