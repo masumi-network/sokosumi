@@ -56,6 +56,10 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     roomId: "room-1",
     botStatus: "IDLE",
     learning: "done",
+    work: null,
+    brandVisual: null,
+    projectLogo: null,
+    onboardedAt: new Date("2026-10-02T00:00:00Z"),
     routines: [
       {
         key: "cmo-daily-run",

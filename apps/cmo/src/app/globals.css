@@ -20,7 +20,7 @@
   /* TEMPORARY shape: radius is open until design locks shapes. */
   --radius: 10px;
   /* TEMPORARY font: PP Mori is the locked typeface; its files are not delivered yet. */
-  --font-sans: "PP Mori", system-ui, sans-serif;
+  --font-sans: "PP Mori", var(--font-inter), system-ui, sans-serif;
 }
 
 *,
