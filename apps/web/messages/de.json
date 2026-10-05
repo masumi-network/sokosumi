@@ -1707,7 +1707,6 @@
         "parentTask": "Übergeordnet:",
         "properties": "Eigenschaften",
         "status": "Status",
-        "owner": "Eigentümer",
         "organization": "Organisation",
         "project": "Projekt",
         "noProject": "Kein Projekt",
@@ -1761,8 +1760,8 @@
           "unknown": "Unbekannt"
         },
         "actionCommented": "kommentiert",
-        "actionCreated": "hat diese Aufgabe erstellt",
         "actionUpdatedStatus": "Status geändert zu",
+        "actionCreatedTask": "hat die Aufgabe erstellt",
         "actionChargedCredits": "{credits, plural, =1 {# Credit} other {# Credits}} berechnet",
         "actionTriedChargedCredits": "versucht, {credits, plural, =1 {# Credit} other {# Credits}} zu berechnen",
         "statusLabels": {

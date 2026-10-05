@@ -78,7 +78,6 @@ const baseLabels = {
   privateBadge: "Private",
   status: "Status",
   statusLabels: baseStatusLabels,
-  owner: "Owner",
   organization: "Organization",
   personalWorkspace: "Personal",
   project: "Project",
@@ -124,11 +123,6 @@ function createTask(
     priority: overrides.priority ?? TaskPriority.NONE,
     visibility: overrides.visibility,
     selectableStatuses: overrides.selectableStatuses ?? [],
-    owner: {
-      id: "user_1",
-      name: "Andreas Osberghaus",
-      image: null,
-    },
     organization: overrides.organization ?? null,
     assignee,
   };
@@ -181,9 +175,6 @@ describe("TaskMetadata", () => {
       screen.getByRole("group", { name: "Assignee: Hepha" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("group", { name: "Owner: Andreas Osberghaus" }),
-    ).toBeVisible();
-    expect(
       screen.getByRole("group", { name: "Organization: Personal" }),
     ).toBeVisible();
     expect(
@@ -203,7 +194,7 @@ describe("TaskMetadata", () => {
     });
 
     const rows = screen.getAllByRole("group");
-    expect(rows).toHaveLength(8);
+    expect(rows).toHaveLength(7);
     for (const row of rows) {
       expect(row.firstElementChild).toHaveClass(
         "flex",
@@ -215,16 +206,13 @@ describe("TaskMetadata", () => {
     }
   });
 
-  it("keeps the Owner word as the only visible label, right after the name", () => {
+  it("has no Owner row", () => {
     renderTaskMetadata({ task: createTask() });
 
-    const owner = screen.getByRole("group", {
-      name: "Owner: Andreas Osberghaus",
-    });
-    const word = within(owner).getByText("Owner");
-    expect(word).toHaveClass("text-xs", "text-muted-foreground");
-    expect(word).not.toHaveClass("ml-auto");
-    expect(screen.getAllByText("Owner")).toHaveLength(1);
+    expect(screen.queryByText("Owner")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("group", { name: /^Owner/ }),
+    ).not.toBeInTheDocument();
   });
 
   it("drops the Creator, Credits, Created and Updated rows", () => {
@@ -555,10 +543,10 @@ describe("TaskMetadata priority", () => {
 });
 
 describe("TaskMetadata participants", () => {
-  it("keeps owner and assignee rows and drops the Participants row", () => {
+  it("keeps the assignee row and drops the Participants row", () => {
     renderTaskMetadata({ task: createTask() });
 
-    expect(screen.getByText("Owner")).toBeInTheDocument();
+    expect(screen.queryByText("Owner")).not.toBeInTheDocument();
     expect(screen.getByText("Hepha")).toBeInTheDocument();
     expect(screen.queryByText("Participants")).toBeNull();
   });
