@@ -18,10 +18,6 @@ interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
   getSession: () => Promise<TSession | null>;
   logWarning: (message: string) => void;
-  initialDelayMs?: number;
-  retryDelayMs?: number;
-  sessionTimeoutMs?: number;
-  waitForMs?: (ms: number) => Promise<void>;
 }
 
 interface AuthSessionResponse<TSession = unknown> {
@@ -36,7 +32,6 @@ function waitForMs(ms: number): Promise<void> {
 
 async function getSessionOrNull<TSession>(
   getSession: () => Promise<TSession | null>,
-  timeoutMs: number,
 ): Promise<TSession | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -45,7 +40,10 @@ async function getSessionOrNull<TSession>(
         .then(() => getSession())
         .catch(() => null),
       new Promise<null>((resolve) => {
-        timeoutId = setTimeout(() => resolve(null), timeoutMs);
+        timeoutId = setTimeout(
+          () => resolve(null),
+          AUTH_SESSION_GET_TIMEOUT_MS,
+        );
       }),
     ]);
   } finally {
@@ -100,26 +98,22 @@ export async function waitForAuthSession<TSession = unknown>({
   context,
   getSession,
   logWarning,
-  initialDelayMs = AUTH_SESSION_INITIAL_WAIT_MS,
-  retryDelayMs = AUTH_SESSION_RETRY_WAIT_MS,
-  sessionTimeoutMs = AUTH_SESSION_GET_TIMEOUT_MS,
-  waitForMs: waitForMsFn = waitForMs,
 }: WaitForAuthSessionOptions<TSession>): Promise<TSession | null> {
   discardRetiredAblyRealtimeClientAfterSignIn();
 
-  await waitForMsFn(initialDelayMs);
+  await waitForMs(AUTH_SESSION_INITIAL_WAIT_MS);
 
-  const session = await getSessionOrNull(getSession, sessionTimeoutMs);
+  const session = await getSessionOrNull(getSession);
   if (session) {
     return session;
   }
 
   logWarning(
-    `Session not established after ${context}, waiting for ${retryDelayMs}ms`,
+    `Session not established after ${context}, waiting for ${AUTH_SESSION_RETRY_WAIT_MS}ms`,
   );
-  await waitForMsFn(retryDelayMs);
+  await waitForMs(AUTH_SESSION_RETRY_WAIT_MS);
 
-  const retrySession = await getSessionOrNull(getSession, sessionTimeoutMs);
+  const retrySession = await getSessionOrNull(getSession);
   if (!retrySession) {
     logWarning(
       `Session not established after ${context}, proceeding with redirect anyway`,
@@ -141,26 +135,27 @@ export interface AuthRedirectSearchParams {
   [key: string]: string | string[] | undefined;
 }
 
-export async function getRedirectQueryString(
+/** A page's `searchParams` prop as `URLSearchParams`, repeated keys kept. */
+export async function readSearchParams(
   searchParams: Promise<AuthRedirectSearchParams>,
-): Promise<string> {
+): Promise<URLSearchParams> {
   const params = await searchParams;
-  const preservedSearchParams = new URLSearchParams();
+  const read = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
     if (Array.isArray(value)) {
       for (const item of value) {
-        preservedSearchParams.append(key, item);
+        read.append(key, item);
       }
       continue;
     }
 
     if (value) {
-      preservedSearchParams.set(key, value);
+      read.set(key, value);
     }
   }
 
-  return preservedSearchParams.toString();
+  return read;
 }
 
 /**
@@ -239,55 +234,40 @@ export function appendQueryParam(
 // while genuine same-origin relative paths are preserved.
 const SSR_REDIRECT_ORIGIN = "https://localhost.invalid";
 
-function sanitizeAuthRedirectPath(
+/**
+ * `returnUrl` as a path on `origin`, or `fallback` when it leads elsewhere.
+ * `origin` defaults to the page's own on the client and a reserved
+ * placeholder during SSR.
+ */
+export function sanitizeAuthRedirectPath(
   returnUrl: string | undefined,
   fallback: string = "/",
+  origin?: string,
 ): string {
   if (!returnUrl) {
     return fallback;
   }
 
-  // Validate against the real origin on the client and a reserved placeholder
-  // origin during SSR. Either way, only same-origin relative paths survive —
-  // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
-  // a different origin and fall back, closing the open-redirect vector in both
-  // contexts. A survivor comes back as its path alone: a value naming the
-  // placeholder origin must not reach the browser with it, and a bare
-  // `#fragment` must leave the current page.
+  // Only same-origin paths survive: absolute (`https://evil`) and
+  // protocol-relative (`//evil`) URLs resolve to a different origin and fall
+  // back, closing the open-redirect vector. A survivor comes back as its path
+  // alone: a value naming the placeholder origin must not reach the browser
+  // with it, and a bare `#fragment` must leave the current page.
   const baseOrigin =
-    typeof window !== "undefined"
+    origin ??
+    (typeof window !== "undefined"
       ? window.location.origin
-      : SSR_REDIRECT_ORIGIN;
+      : SSR_REDIRECT_ORIGIN);
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
-    return parsedUrl.origin === baseOrigin
-      ? parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
-      : fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-/**
- * Absolute callback/redirect URL for `authClient` when Better Auth runs on Core.
- *
- * Relative paths resolve against the auth-server origin (e.g. `api.preprod…`),
- * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
- * Falls back to a relative path when `window` is unavailable (SSR).
- */
-export function sanitizeAuthRedirectPathForOrigin(
-  returnUrl: string | undefined,
-  origin: string,
-  fallback: string = "/",
-): string {
-  if (!returnUrl) {
-    return fallback;
-  }
-
-  try {
-    const parsedUrl = new URL(returnUrl, origin);
-    return parsedUrl.origin === origin ? returnUrl : fallback;
+    if (parsedUrl.origin !== baseOrigin) {
+      return fallback;
+    }
+    // `/.//evil` stays on this origin, but its pathname is `//evil`.
+    // `new URL` and `location.replace` both read that as another host.
+    const path = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+    return new URL(path, baseOrigin).origin === baseOrigin ? path : fallback;
   } catch {
     return fallback;
   }
@@ -298,14 +278,17 @@ export function getAbsoluteRedirectUrlForOrigin(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
-  const safePath = sanitizeAuthRedirectPathForOrigin(
-    returnUrl,
-    origin,
-    fallback,
-  );
-  return new URL(safePath, origin).href;
+  return new URL(sanitizeAuthRedirectPath(returnUrl, fallback, origin), origin)
+    .href;
 }
 
+/**
+ * Absolute callback/redirect URL for `authClient` when Better Auth runs on Core.
+ *
+ * Relative paths resolve against the auth-server origin (e.g. `api.preprod…`),
+ * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
+ * Falls back to a relative path when `window` is unavailable (SSR).
+ */
 export function getAbsoluteAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",

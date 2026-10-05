@@ -1290,7 +1290,6 @@
           },
           "linkExpired": "That reset link expired or was already used. Request a new one.",
           "Errors": {
-            "rateLimited": "Too many requests in a row. Wait a minute, then try again.",
             "generic": "We could not send the reset email. Try again."
           }
         }
