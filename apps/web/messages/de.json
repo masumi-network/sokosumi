@@ -7,6 +7,9 @@
       "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
       "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut."
     },
+    "AuthErrors": {
+      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest."
+    },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
       "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
@@ -18,7 +21,6 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
-      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
       "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
     },
     "EmergencyDialog": {
@@ -58,7 +60,6 @@
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
-      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest.",
       "title": "Bestätige, dass du es bist"
     },
     "ShareButton": {
@@ -1212,9 +1213,6 @@
           "Register": {
             "message": "Noch kein Konto?",
             "link": "Registrieren"
-          },
-          "Errors": {
-            "termsNotAccepted": "Du musst den Nutzungsbedingungen zustimmen, um dich anzumelden"
           },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",

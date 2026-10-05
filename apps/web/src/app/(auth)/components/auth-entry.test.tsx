@@ -294,7 +294,6 @@ describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
       client: undefined,
       prefilledEmail: "invited@example.com",
       invitationId: "inv_1",
-      returnUrl: "/accept-invitation/inv_1",
       lastUsedMethod: null,
     });
   });

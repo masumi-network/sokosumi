@@ -73,6 +73,7 @@ export default function SignInForm({
   onPendingChange,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const authErrorsT = useTranslations("Components.AuthErrors");
   const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
   const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
@@ -180,7 +181,7 @@ export default function SignInForm({
 
           switch (errorCode) {
             case AuthErrorCode.TERMS_NOT_ACCEPTED:
-              toast.error(t("Errors.termsNotAccepted"));
+              toast.error(authErrorsT("termsNotAccepted"));
               break;
             default:
               toast.error(

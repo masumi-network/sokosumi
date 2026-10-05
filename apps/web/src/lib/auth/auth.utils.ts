@@ -527,6 +527,19 @@ export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
 }
 
 /**
+ * Where a finished sign-in or sign-up goes: the page's returnUrl, or else back
+ * into the OAuth request the page carries.
+ */
+export function readAuthReturnUrl(
+  searchParams: URLSearchParams,
+): string | undefined {
+  return (
+    searchParams.get("returnUrl") ??
+    buildOAuthResumeUrlFromSearchParams(searchParams)
+  );
+}
+
+/**
  * Where a person with an OAuth request goes when a sign-in leaves the page
  * (a social sign-in the OAuth provider did not answer): the
  * sign-in page with the signed request as its own query. Arriving there signed

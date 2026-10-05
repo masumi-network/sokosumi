@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 
@@ -13,7 +14,7 @@ export function useSignInHref(): string {
   return buildAuthPageUrl("/signin", readAuthPageContext(useSearchParams()));
 }
 
-export default function SignInLink() {
+function SignInLink() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const href = useSignInHref();
 
@@ -24,5 +25,30 @@ export default function SignInLink() {
     >
       {t("Login.link")}
     </Link>
+  );
+}
+
+/**
+ * Register's "Already have an account? Log in". The prerendered loading shell
+ * cannot know the query, so the link waits for it behind its own label.
+ */
+export default function SignInRow() {
+  const t = useTranslations("Auth.Pages.SignUp.Form");
+
+  return (
+    <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+      <span className="text-muted-foreground text-sm">
+        {t("Login.message")}
+      </span>
+      <Suspense
+        fallback={
+          <span className="text-primary text-sm font-medium">
+            {t("Login.link")}
+          </span>
+        }
+      >
+        <SignInLink />
+      </Suspense>
+    </div>
   );
 }
