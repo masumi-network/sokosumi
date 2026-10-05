@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@sokosumi/core-client";
+import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -59,34 +59,27 @@ const sessionUser: SessionUser = {
   marketingOptIn: false,
 };
 
-const orgMember: MemberWithOrganization = {
-  id: "member-1",
+const orgWorkspace: UserWorkspace = {
+  id: "ws-a",
+  kind: "organization",
+  name: "Org A",
   organizationId: "org-a",
-  userId: "user-1",
-  role: "member",
-  createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  seatAssignedAt: null,
-  organization: {
-    id: "org-a",
-    name: "Org A",
-    slug: "org-a",
-    logo: null,
-    metadata: null,
-    stripeCustomerId: null,
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-  },
+  slug: "org-a",
+  logo: null,
+  websiteUrl: null,
+  preferred: false,
 };
 
-describe("HeaderWorkspaceSwitch last-known members", () => {
+describe("HeaderWorkspaceSwitch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("skeletons the chip when active org is missing from cached members", () => {
+  it("skeletons the chip when the active org is missing from the workspaces", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[]}
+        workspaces={[]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -108,7 +101,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[]}
+        workspaces={[]}
         hasPersonalWorkspace={true}
         activeOrganizationId={null}
         isPending={false}
@@ -122,11 +115,11 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("shows the matching last-known org when members include it", () => {
+  it("shows the active org from the workspaces", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -144,7 +137,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId={null}
         isPending={false}
@@ -163,7 +156,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -189,7 +182,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -228,7 +221,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -256,7 +249,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -293,7 +286,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -323,7 +316,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={namelessUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -363,7 +356,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -387,7 +380,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -409,7 +402,7 @@ describe("HeaderWorkspaceSwitch last-known members", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        members={[orgMember]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}

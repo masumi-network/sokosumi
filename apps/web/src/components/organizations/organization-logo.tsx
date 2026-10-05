@@ -5,8 +5,15 @@ import Image from "next/image";
 import { Favicon } from "@/components/ui/favicon";
 import { buildFaviconCandidates } from "@/lib/utils/url";
 
+/**
+ * An organization record, or a workspace from Core's workspaces list, which
+ * carries the website itself.
+ */
+export type OrganizationLogoSource = Pick<OrganizationRecord, "name" | "logo"> &
+  (Pick<OrganizationRecord, "metadata"> | { websiteUrl: string | null });
+
 interface OrganizationLogoProps {
-  organization: OrganizationRecord;
+  organization: OrganizationLogoSource;
   size?: number | undefined;
 }
 
@@ -15,7 +22,10 @@ export function OrganizationLogo({
   size = 24,
 }: OrganizationLogoProps) {
   const { name, logo } = organization;
-  const { url } = getOrganizationMetadata(organization.metadata);
+  const url =
+    "websiteUrl" in organization
+      ? organization.websiteUrl
+      : getOrganizationMetadata(organization.metadata).url;
 
   if (logo) {
     return (

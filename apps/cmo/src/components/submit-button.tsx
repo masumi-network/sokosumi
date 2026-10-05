@@ -5,28 +5,34 @@ import { useFormStatus } from "react-dom";
 
 interface SubmitButtonProps {
   className: string;
-  formAction: () => Promise<void>;
+  /** Its own action; without one it submits the form's action. */
+  formAction?: (formData: FormData) => void | Promise<void>;
+  /** Submit even when the form's other fields are invalid. */
+  formNoValidate?: boolean;
   children: ReactNode;
 }
 
 /**
- * Submits its form with its own action. Every button in the form stays
- * disabled while any of them runs; only the one that was pressed shows the
- * spinner.
+ * Submits its form, with its own action when it has one. Every button in the
+ * form stays disabled while any of them runs. With its own action, only the
+ * one that was pressed shows the spinner; without, it shows the spinner
+ * whenever the form runs, so give a form like that just this one button.
  */
 export function SubmitButton({
   className,
   formAction,
+  formNoValidate,
   children,
 }: SubmitButtonProps) {
   const { pending, action } = useFormStatus();
-  const busy = pending && action === formAction;
+  const busy = pending && (formAction === undefined || action === formAction);
 
   return (
     <button
       className={className}
       type="submit"
       formAction={formAction}
+      formNoValidate={formNoValidate}
       disabled={pending}
       aria-busy={busy || undefined}
     >

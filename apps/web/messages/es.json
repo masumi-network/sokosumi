@@ -557,21 +557,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Crear organización",
           "edit": "Editar organización"
         },
         "Form": {
           "Submit": {
-            "create": "Crear",
             "edit": "Guardar"
           },
           "cancel": "Cancelar",
           "Success": {
-            "create": "Organización creada correctamente",
             "edit": "Organización actualizada correctamente"
           },
           "Error": {
-            "create": "No se pudo crear la organización",
             "edit": "No se pudo actualizar la organización"
           },
           "Errors": {

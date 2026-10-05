@@ -1,6 +1,5 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
-import { getPrivateCachedChatListChrome } from "@/app/components/private-sidebar-cache";
 import { userService } from "@/lib/services/user.service";
 import HeaderProfileSectionClient from "./header-profile-section.client";
 import { HeaderTrailingTools } from "./header-trailing-tools";
@@ -40,22 +39,15 @@ async function HeaderProfileSectionInner({
 }: HeaderProfileSectionProps) {
   const activeOrganizationId = session.session.activeOrganizationId ?? null;
 
-  // Await the shared private-cache chrome slice (rooms + archived + members)
-  // so the desktop Workspace switcher uses last-known members. Notification
+  // One Core read lists the switcher's workspaces (ADR 0051). Notification
   // Center + mobile Search stay outside this Suspense.
-  const [{ members }, workspaceAccess] = await Promise.all([
-    getPrivateCachedChatListChrome({
-      userId: session.user.id,
-      activeOrganizationId,
-    }),
-    userService.getWorkspaceAccess(),
-  ]);
+  const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
 
   return (
     <HeaderProfileSectionClient
       sessionUser={session.user}
-      members={members}
-      hasPersonalWorkspace={workspaceAccess?.hasPersonalWorkspace ?? false}
+      workspaces={workspaces}
+      hasPersonalWorkspace={workspaces.some(({ kind }) => kind === "personal")}
       activeOrganizationId={activeOrganizationId}
     />
   );
