@@ -439,6 +439,8 @@ export const adminSokoBotListItemSchema = z
     archivedAt: dateTimeSchema.nullable(),
     /** Agent version the bot runs (prompt, skills, model), e.g. "v11". */
     versionId: z.string().nullable(),
+    /** "cmo" for Cuso (CMO.xyz), "assistant" for a personal Soko Bot. */
+    kind: z.enum(["assistant", "cmo"]),
     runtimeVersion: z.string().nullable(),
     runtimeDeployment: z.string().nullable(),
     lastActivityAt: dateTimeSchema.nullable(),

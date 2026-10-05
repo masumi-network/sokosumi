@@ -3876,7 +3876,14 @@
           "archived": "Archiviert",
           "version": "Version",
           "showDormant": "Ungenutzte und archivierte anzeigen ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Anzeigen",
+          "kind": {
+            "all": "Alle",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO"
         },
         "Detail": {
           "backToList": "Zurück zu Soko Bots",

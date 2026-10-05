@@ -3912,7 +3912,14 @@
           "archived": "Archived",
           "version": "Version",
           "showDormant": "Show unused and archived ({count})",
-          "chat": "Chat"
+          "chat": "Chat",
+          "kindLabel": "Show",
+          "kind": {
+            "all": "All",
+            "assistant": "Soko Bots",
+            "cmo": "Cuso"
+          },
+          "cmoBadge": "CMO"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",

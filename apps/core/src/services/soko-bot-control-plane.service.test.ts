@@ -1235,7 +1235,9 @@ describe("SokoBotControlPlane lifecycle", () => {
         cursor: { id: "bot_4" },
         skip: 1,
         take: 3,
-        where: expect.objectContaining({ OR: expect.any(Array) }),
+        where: expect.objectContaining({
+          AND: [{}, expect.objectContaining({ OR: expect.any(Array) })],
+        }),
         include: expect.objectContaining({
           _count: {
             select: expect.objectContaining({
@@ -1248,12 +1250,40 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
     expect(result).toEqual({
       items: [
-        { id: "bot_3", userId: "u", outOfCredits: false },
-        { id: "bot_2", userId: "u", outOfCredits: true },
+        { id: "bot_3", userId: "u", kind: "assistant", outOfCredits: false },
+        { id: "bot_2", userId: "u", kind: "assistant", outOfCredits: true },
       ],
       total: 5,
       hasMore: true,
     });
+  });
+
+  it("filters the admin fleet to Cuso bots and marks them", async () => {
+    botFindManyMock.mockResolvedValue([
+      {
+        id: "bot_cmo",
+        userId: "u",
+        versionId: "cmo-v1",
+        workspace: { organizationId: null },
+      },
+    ]);
+    botCountMock.mockResolvedValue(1);
+    transactionMock.mockImplementationOnce(async (queries) =>
+      Promise.all(queries),
+    );
+
+    const result = await new SokoBotControlPlane().listForAdmin(undefined, {
+      kind: "cmo",
+    });
+
+    expect(botFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [{ versionId: { in: ["cmo-v1"] } }, {}],
+        }),
+      }),
+    );
+    expect(result.items[0]).toMatchObject({ id: "bot_cmo", kind: "cmo" });
   });
 
   it("reactivates an archived bot explicitly", async () => {

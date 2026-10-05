@@ -17,6 +17,7 @@ import {
   redactSokoBotSensitiveText,
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
+  SOKO_BOT_PRODUCT_VERSIONS,
   SOKO_BOT_SANDBOX_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
@@ -3621,7 +3622,11 @@ export class SokoBotControlPlane {
 
   async listForAdmin(
     query: string | undefined,
-    options: { cursor?: string; take?: number } = {},
+    options: {
+      cursor?: string;
+      take?: number;
+      kind?: "all" | "assistant" | "cmo";
+    } = {},
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const term = query?.trim();
@@ -3634,17 +3639,36 @@ export class SokoBotControlPlane {
         : null;
     // Tombstones are emptied rows kept only so Tasks and billing still resolve;
     // they are not bots and never appear in the fleet.
-    const where: Prisma.SokoBotWhereInput = term
-      ? {
-          deletedAt: null,
-          OR: [
-            ...(idTerm ? [{ id: idTerm }] : []),
-            { name: { contains: term, mode: "insensitive" } },
-            { user: { name: { contains: term, mode: "insensitive" } } },
-            { user: { email: { contains: term, mode: "insensitive" } } },
-          ],
-        }
-      : { deletedAt: null };
+    const cmoVersionIds = SOKO_BOT_PRODUCT_VERSIONS.filter(
+      (version) => version.profile === "cmo",
+    ).map((version) => version.id);
+    const kindWhere: Prisma.SokoBotWhereInput =
+      options.kind === "cmo"
+        ? { versionId: { in: cmoVersionIds } }
+        : options.kind === "assistant"
+          ? {
+              OR: [
+                { versionId: null },
+                { versionId: { notIn: cmoVersionIds } },
+              ],
+            }
+          : {};
+    const where: Prisma.SokoBotWhereInput = {
+      deletedAt: null,
+      AND: [
+        kindWhere,
+        term
+          ? {
+              OR: [
+                ...(idTerm ? [{ id: idTerm }] : []),
+                { name: { contains: term, mode: "insensitive" } },
+                { user: { name: { contains: term, mode: "insensitive" } } },
+                { user: { email: { contains: term, mode: "insensitive" } } },
+              ],
+            }
+          : {},
+      ],
+    };
     const [items, total] = await prisma.$transaction([
       prisma.sokoBot.findMany({
         where,
@@ -3680,6 +3704,9 @@ export class SokoBotControlPlane {
     return {
       items: items.map(({ workspace: _workspace, ...bot }) => ({
         ...bot,
+        kind: cmoVersionIds.includes(bot.versionId ?? "")
+          ? ("cmo" as const)
+          : ("assistant" as const),
         outOfCredits: outOfCredits.has(bot.id),
       })),
       total,

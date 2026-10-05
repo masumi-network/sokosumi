@@ -909,6 +909,13 @@ export const AdminSokoBotListItemSchema = {
                 'null'
             ]
         },
+        kind: {
+            type: 'string',
+            enum: [
+                'assistant',
+                'cmo'
+            ]
+        },
         runtimeVersion: {
             type: [
                 'string',
@@ -984,6 +991,7 @@ export const AdminSokoBotListItemSchema = {
         'status',
         'archivedAt',
         'versionId',
+        'kind',
         'runtimeVersion',
         'runtimeDeployment',
         'lastActivityAt',

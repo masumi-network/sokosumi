@@ -233,6 +233,7 @@ export type AdminSokoBotListItem = {
     status: SokoBotStatus;
     archivedAt: Date | null;
     versionId: string | null;
+    kind: 'assistant' | 'cmo';
     runtimeVersion: string | null;
     runtimeDeployment: string | null;
     lastActivityAt: Date | null;
@@ -9343,6 +9344,10 @@ export type ListAdminSokoBotsData = {
          */
         limit?: number;
         query?: string;
+        /**
+         * Personal Soko Bots, Cuso (CMO.xyz) bots, or both.
+         */
+        kind?: 'all' | 'assistant' | 'cmo';
     };
     url: '/admin/soko-bots';
 };
