@@ -13,5 +13,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function GoogleSignupPage() {
-  return <SocialSignupAutoInitiator provider="google" providerName="Google" />;
+  return <SocialSignupAutoInitiator provider="google" />;
 }

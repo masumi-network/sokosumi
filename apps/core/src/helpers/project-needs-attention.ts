@@ -46,6 +46,7 @@ const TASK_ATTENTION_CLASS = {
   CREDITS_TOPPED_UP: "exclude",
   COMPLETED: "exclude",
   CANCELED: "exclude",
+  CREATED: "exclude",
 } as const satisfies Record<TaskStatus, AttentionClass>;
 
 const JOB_ATTENTION_CLASS = {
@@ -185,7 +186,8 @@ function mapTaskToHistoryItem(task: {
       id: task.id,
       title: task.name,
       description: task.description,
-      status: task.status,
+      // Task.status is never CREATED.
+      status: task.status as Exclude<TaskStatus, "CREATED">,
       createdAt: task.createdAt.toISOString(),
       archivedAt: null,
       credits: null,

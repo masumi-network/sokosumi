@@ -614,9 +614,6 @@ importers:
       motion:
         specifier: 14.0.0
         version: 14.0.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      nanoid:
-        specifier: 6.0.1
-        version: 6.0.1
       neverthrow:
         specifier: 8.2.0
         version: 8.2.0
@@ -695,9 +692,6 @@ importers:
       server-only:
         specifier: 0.0.1
         version: 0.0.1
-      slugify:
-        specifier: 1.6.9
-        version: 1.6.9
       sonner:
         specifier: 2.0.8
         version: 2.0.8(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
@@ -792,6 +786,9 @@ importers:
       '@ai-sdk/provider':
         specifier: 4.0.21
         version: 4.0.21
+      '@sokosumi/net':
+        specifier: workspace:*
+        version: link:../net
       '@sokosumi/utils':
         specifier: workspace:*
         version: link:../utils
@@ -990,6 +987,9 @@ importers:
       namefully:
         specifier: 2.2.0
         version: 2.2.0
+      slugify:
+        specifier: 1.6.9
+        version: 1.6.9
       zod:
         specifier: 4.6.5
         version: 4.6.5

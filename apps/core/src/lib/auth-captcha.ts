@@ -6,13 +6,9 @@ import {
 import type { BetterAuthPlugin } from "better-auth";
 import { captcha } from "better-auth/plugins";
 
-import {
-  consumeCaptchaPass,
-  isCaptchaPass,
-  SIGN_UP_EMAIL_STATUS_PATH,
-} from "./auth-sign-up-email-status.js";
-
-const EMAIL_CODE_SEND_PATH = "/email-otp/send-verification-otp";
+import { consumeCaptchaPass, isCaptchaPass } from "./auth-captcha-pass.js";
+import { EMAIL_CODE_SEND_PATH } from "./auth-email-code-sign-in.js";
+import { SIGN_UP_EMAIL_STATUS_PATH } from "./auth-sign-up-email-status.js";
 
 async function readSignInCodeEmail(request: Request) {
   const body: unknown = await request

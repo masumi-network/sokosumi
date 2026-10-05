@@ -39,7 +39,8 @@ struct MessageImageGalleryTests {
   }
 
   /// Web classifies each link with `classifyFilePreview(...).isImage`: documents, audio and video
-  /// stay out; a code sample is text, not an attachment.
+  /// stay out; a code sample is text, not an attachment; a link after a list marker stays a link (row 15c).
+  /// The Markdown image in the quote is embedded in the text, which Apple's gallery still takes.
   @Test func onlyImagesEnterTheGallery() {
     let gallery = MessageMarkdown("""
     [notes.pdf](https://cdn.example/notes.pdf) [a.png](https://cdn.example/a.png) [clip.mp4](https://cdn.example/clip.mp4) [song.mp3](https://cdn.example/song.mp3)
@@ -51,7 +52,7 @@ struct MessageImageGalleryTests {
     - [b.gif](https://cdn.example/b.gif)
     > ![c](https://cdn.example/c.jpeg)
     """).imageGallery
-    #expect(Self.names(gallery.images) == ["a.png", "b.gif", "c.jpeg"])
+    #expect(Self.names(gallery.images) == ["a.png", "c.jpeg"])
   }
 
   @Test func aBodyWithoutImagesHasAnEmptyGallery() {

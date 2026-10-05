@@ -4,8 +4,8 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "./auth-captcha-pass.js";
 import {
-  CAPTCHA_PASS_IDENTIFIER_PREFIX,
   SIGN_UP_EMAIL_STATUS_PATH,
   signUpEmailStatus,
 } from "./auth-sign-up-email-status.js";
@@ -215,7 +215,7 @@ describe("sign-up email status", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  // The captcha-passes-purge sync finds expired passes by this prefix.
+  // The expired-verifications-purge sync finds expired passes by this prefix.
   it("stores a pass under the prefix the purge deletes", async () => {
     passCaptcha();
     const { askForPass, verification } = createTestAuth();

@@ -7,6 +7,8 @@ struct ExpandableMessageBody<Content: View>: View {
   var clampHeight = true
   var collapsedLines = 16
   var measurementFont: Font = .body
+  /// The toggle's titles: the body's "Show more" / "Show less", a quote's "More" / "Less" (web `Quote.showMore`).
+  var titles: (expand: LocalizedStringKey, collapse: LocalizedStringKey) = ("Show more", "Show less")
   @ViewBuilder let content: Content
   @State private var expanded = false
   @State private var contentHeight: CGFloat = 0
@@ -46,7 +48,7 @@ struct ExpandableMessageBody<Content: View>: View {
         .clipped()
         .contentShape(Rectangle())
       if clampHeight, expanded || overflows {
-        Button(expanded ? "Show less" : "Show more") {
+        Button(expanded ? titles.collapse : titles.expand) {
           expanded.toggle()
         }
         .buttonStyle(.borderless)

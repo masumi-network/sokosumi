@@ -32,28 +32,19 @@ export interface CreditPrice {
   currency: string;
 }
 
-const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
+/**
+ * Core's one Stripe SDK client, also handed to Better Auth's Stripe plugin.
+ * It makes no automatic network retries.
+ */
+export const stripe = new Stripe(getEnv().STRIPE_SECRET_KEY, {
   maxNetworkRetries: 0,
 });
 
-// Mirrors the web stripe client's credit-price selection
-// (`apps/web/src/lib/clients/stripe.client.ts`).
 let cachedStripeAccountId: string | null = null;
 const SUPPORTED_CREDIT_PRICE_CURRENCIES = ["eur", "usd"] as const;
 const SUPPORTED_CREDIT_PRICE_CURRENCY_SET = new Set<string>(
   SUPPORTED_CREDIT_PRICE_CURRENCIES,
 );
-
-function withIdempotencyKey(
-  idempotencyKey: string,
-  requestOptions?: Stripe.RequestOptions,
-): Stripe.RequestOptions {
-  return {
-    ...requestOptions,
-    idempotencyKey,
-    maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
-  };
-}
 
 function isSupportedCreditPriceCurrency(currency: string): boolean {
   return SUPPORTED_CREDIT_PRICE_CURRENCY_SET.has(currency);
@@ -221,7 +212,7 @@ export const stripeClient = {
         },
         name: user.name,
       },
-      withIdempotencyKey(`user-${user.userId}`, requestOptions),
+      { ...requestOptions, idempotencyKey: `user-${user.userId}` },
     );
   },
 
@@ -238,10 +229,10 @@ export const stripeClient = {
         },
         name: organization.name,
       },
-      withIdempotencyKey(
-        `organization-${organization.organizationId}`,
-        requestOptions,
-      ),
+      {
+        ...requestOptions,
+        idempotencyKey: `organization-${organization.organizationId}`,
+      },
     );
   },
 
@@ -255,14 +246,11 @@ export const stripeClient = {
       {
         email: email ?? undefined,
       },
-      {
-        // No fixed idempotency key: email updates are naturally last-write-wins,
-        // and a stable `${customerId}-${email}` key would make Stripe replay the
-        // cached response when an email is reused (e.g. A→B→A within the 24h
-        // idempotency window), silently skipping the real update.
-        ...requestOptions,
-        maxNetworkRetries: requestOptions?.maxNetworkRetries ?? 0,
-      },
+      // No fixed idempotency key: email updates are naturally last-write-wins,
+      // and a stable `${customerId}-${email}` key would make Stripe replay the
+      // cached response when an email is reused (e.g. A→B→A within the 24h
+      // idempotency window), silently skipping the real update.
+      requestOptions,
     );
   },
 

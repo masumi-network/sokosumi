@@ -1,12 +1,13 @@
 "use client";
 
-import type { MemberWithOrganization } from "@sokosumi/core-client";
+import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
+import type { OrganizationLogoSource } from "@/components/organizations/organization-logo";
 import { Avatar } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -38,7 +39,8 @@ type WorkspaceChoice = "personal" | "organization";
 
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
-  members: MemberWithOrganization[];
+  /** Core's workspaces list; the switcher lists its organizations. */
+  workspaces: UserWorkspace[];
   hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
   isPending: boolean;
@@ -48,7 +50,7 @@ interface HeaderWorkspaceSwitchProps {
 interface WorkspaceItem {
   id: string | null;
   name: string;
-  organization?: MemberWithOrganization["organization"];
+  organization?: OrganizationLogoSource;
 }
 
 function getWorkspaceKey(workspace: WorkspaceItem): string {
@@ -121,7 +123,7 @@ function WorkspaceMenuItem({
 
 export default function HeaderWorkspaceSwitch({
   sessionUser,
-  members,
+  workspaces,
   hasPersonalWorkspace,
   activeOrganizationId,
   isPending,
@@ -216,14 +218,20 @@ export default function HeaderWorkspaceSwitch({
   const organizationWorkspaces = useMemo(
     () =>
       getOrderedWorkspaces(
-        members.map((member) => ({
-          id: member.organization.id,
-          name: member.organization.name,
-          organization: member.organization,
-        })),
+        workspaces.flatMap(({ organizationId, name, logo, websiteUrl }) =>
+          organizationId
+            ? [
+                {
+                  id: organizationId,
+                  name,
+                  organization: { name, logo, websiteUrl },
+                },
+              ]
+            : [],
+        ),
         activeOrganizationId,
       ),
-    [activeOrganizationId, members],
+    [activeOrganizationId, workspaces],
   );
 
   const activeWorkspace =

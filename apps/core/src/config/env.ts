@@ -532,6 +532,14 @@ export function validateEnv(): EnvConfig {
   return result.data;
 }
 
+/**
+ * True only when NETWORK is set to Preprod in the process environment.
+ * The schema default does not count, so a deploy that omits NETWORK fails closed.
+ */
+export function isExplicitPreprod(env: Pick<EnvConfig, "NETWORK">): boolean {
+  return env.NETWORK === "Preprod" && process.env.NETWORK === "Preprod";
+}
+
 export function getEnv(): EnvConfig {
   if (!envConfig) {
     envConfig = validateEnv();

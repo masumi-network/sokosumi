@@ -17,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { authClient, useSession } from "@/lib/auth/auth.client";
 import {
   discardRetiredAblyRealtimeClientAfterSignIn,
@@ -142,7 +141,7 @@ export function ReauthDialog({
           fromPassword: true,
           message: captcha.getErrorMessage(
             result.error,
-            describeSignInError(result.error),
+            result.error.message ?? t("passwordError"),
           ),
         });
         return;
@@ -155,22 +154,6 @@ export function ReauthDialog({
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-  /**
-   * Core rejects any `/sign-in*` for a viewer who has not accepted the terms,
-   * with a code and no message. Both sign-in forms branch on it, so the dialog
-   * must too, or a correct password reads as wrong.
-   */
-  const describeSignInError = (error: {
-    code?: string;
-    message?: string;
-  }): string => {
-    if (error.code === AuthErrorCode.TERMS_NOT_ACCEPTED) {
-      return t("termsNotAccepted");
-    }
-
-    return error.message ?? t("passwordError");
   };
 
   /** Both in-place paths end here: the document stays, the session is new. */

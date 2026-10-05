@@ -1,4 +1,3 @@
-import { resolveBetterAuthCookieName } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 
@@ -8,14 +7,13 @@ import OAuthHandBack, {
 } from "@/auth/components/oauth-hand-back";
 import SignInErrorNotice from "@/auth/components/sign-in-error-notice";
 import TermsNotice from "@/auth/components/terms-notice";
-import { getEnvSecrets } from "@/config/env.secrets";
 import type { AuthRedirectSearchParams } from "@/lib/auth/auth.utils";
+import { getLastUsedLoginMethodCookieName } from "@/lib/auth/auth-client.plugins";
 import { getInvitationEmail } from "@/lib/auth/invitation-email.server";
 import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
 import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
 export type AuthEntrySearchParams = AuthRedirectSearchParams & {
-  returnUrl?: string;
   invitationId?: string;
   error?: string;
 };
@@ -30,8 +28,7 @@ export async function renderAuthEntry(
   mode: AuthMode,
   searchParams: Promise<AuthEntrySearchParams>,
 ): Promise<ReactNode> {
-  const env = getEnvSecrets();
-  const { returnUrl, invitationId, error } = await searchParams;
+  const { invitationId, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.hasExpired) {
     return <OAuthRequestError client={oauthRequest.client} />;
@@ -46,16 +43,8 @@ export async function renderAuthEntry(
     );
   }
   const cookieStore = await cookies();
-  const lastUsedLoginMethodCookieName = resolveBetterAuthCookieName(
-    {
-      network: env.NETWORK,
-      vercelEnv: env.VERCEL_ENV,
-      vercelGitCommitRef: env.VERCEL_GIT_COMMIT_REF,
-    },
-    "last_used_login_method",
-  );
   const lastUsedMethod = parseLastUsedAuthMethod(
-    cookieStore.get(lastUsedLoginMethodCookieName)?.value,
+    cookieStore.get(getLastUsedLoginMethodCookieName())?.value,
   );
 
   return (
@@ -64,7 +53,6 @@ export async function renderAuthEntry(
       client={oauthRequest?.client}
       prefilledEmail={await getInvitationEmail(invitationId)}
       invitationId={invitationId}
-      returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
       notice={<SignInErrorNotice error={error} />}
     >

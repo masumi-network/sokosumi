@@ -1,5 +1,5 @@
 import { getUsersById, type User } from "@sokosumi/core-client";
-import { createClient } from "@sokosumi/core-client/client";
+import { type Client, createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
@@ -21,6 +21,7 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { unstable_rethrow } from "next/navigation";
 
 import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
+import { CMO_SIGN_IN_ERROR } from "./sign-in-errors";
 
 /**
  * The Better Auth generic OAuth provider id for Core. It names the callback
@@ -38,7 +39,7 @@ export interface SokosumiSignInOptions {
  * page instead of its sign-in page. Sign in sends no prompt, so a person
  * still signed in to Sokosumi goes straight back to CMO.
  */
-export function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
+function sokosumiSignInBody({ createAccount }: SokosumiSignInOptions) {
   return {
     provider: SOKOSUMI_OAUTH_PROVIDER_ID,
     callbackURL: "/",
@@ -56,6 +57,16 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 /** Better Auth refreshes an access token this close to its expiry. */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5_000;
 
+/**
+ * Marks a page's token read. A page cannot write cookies, so it is served the
+ * cookie's token as long as it still works and never refreshed: a refresh
+ * there would rotate Core's refresh token and lose the new one.
+ */
+const PAGE_TOKEN_READ_HEADER = "x-cmo-page-token-read";
+/** The proxy refreshes below 5 seconds, so a page sees at least this much. */
+const PAGE_TOKEN_MIN_LIFETIME_MS = 1_000;
+const RENEWAL_REQUIRED = "RENEWAL_REQUIRED";
+
 /** Token endpoint statuses that mean Core could not answer, not "no". */
 const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
 
@@ -66,11 +77,11 @@ function coreDiscoveryUrl(coreBaseUrl: string): string {
   return `${coreBaseUrl}/auth/.well-known/openid-configuration`;
 }
 
-/** False while Core's discovery failed on this instance. */
-function hasSokosumiProvider({
+/** Sokosumi's provider, missing while Core's discovery failed on this instance. */
+function sokosumiProvider({
   socialProviders,
-}: Pick<AuthContext, "socialProviders">): boolean {
-  return socialProviders.some(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
+}: Pick<AuthContext, "socialProviders">) {
+  return socialProviders.find(({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID);
 }
 
 /** Whether a refresh failed without an answer from Core. */
@@ -96,9 +107,7 @@ function isUnanswered(error: unknown): boolean {
 const recordUnansweredRefreshes = {
   id: "cmo-record-unanswered-refreshes",
   init(ctx) {
-    const provider = ctx.socialProviders.find(
-      ({ id }) => id === SOKOSUMI_OAUTH_PROVIDER_ID,
-    );
+    const provider = sokosumiProvider(ctx);
     const refresh = provider?.refreshAccessToken;
     if (!provider || !refresh) return;
     provider.refreshAccessToken = async (refreshToken, refreshCtx) => {
@@ -122,13 +131,25 @@ function personName(user: User): string {
   );
 }
 
+const coreClients = new Map<string, Client>();
+
+/** The `/v1` client for a Core, shared by CMO's auth and its pages. */
+export function coreClientFor(coreBaseUrl: string): Client {
+  let client = coreClients.get(coreBaseUrl);
+  if (!client) {
+    client = createClient({ baseUrl: `${coreBaseUrl}/v1` });
+    coreClients.set(coreBaseUrl, client);
+  }
+  return client;
+}
+
 /**
  * Sign in with Sokosumi. Better Auth runs stateless: no database, the session
  * and the Sokosumi tokens live in encrypted httpOnly cookies (ADR 0045).
  */
 export function createCmoAuth(config: CmoAuthConfig) {
   const discoveryUrl = coreDiscoveryUrl(config.coreBaseUrl);
-  const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
+  const coreClient = coreClientFor(config.coreBaseUrl);
   let revocationEndpoint: Promise<string> | undefined;
 
   function getCoreUser(accessToken: string) {
@@ -199,9 +220,10 @@ export function createCmoAuth(config: CmoAuthConfig) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/get-access-token") {
+          const pageRead = ctx.headers?.has(PAGE_TOKEN_READ_HEADER) ?? false;
           // Without discovery there is no provider, and Better Auth fails
           // before it looks at the token. A valid token needs no provider.
-          if (hasSokosumiProvider(ctx.context)) return;
+          if (!pageRead && sokosumiProvider(ctx.context)) return;
           const [session, account] = await Promise.all([
             getSessionFromCtx(ctx),
             getAccountCookie(ctx),
@@ -214,9 +236,16 @@ export function createCmoAuth(config: CmoAuthConfig) {
             !account?.accessToken ||
             account.userId !== session.user.id ||
             !expiresAt ||
-            expiresAt.getTime() - Date.now() < ACCESS_TOKEN_REFRESH_MARGIN_MS
+            expiresAt.getTime() - Date.now() <
+              (pageRead
+                ? PAGE_TOKEN_MIN_LIFETIME_MS
+                : ACCESS_TOKEN_REFRESH_MARGIN_MS)
           ) {
-            return;
+            if (!pageRead) return;
+            throw new APIError("UNAUTHORIZED", {
+              code: RENEWAL_REQUIRED,
+              message: "Renew the Sokosumi access token before this page",
+            });
           }
           return ctx.json({
             accessToken: await decryptOAuthToken(
@@ -327,7 +356,7 @@ export function getAuth(): CmoAuth {
   const created = createCmoAuth(config);
   auth = created;
   created.$context.then((context) => {
-    if (hasSokosumiProvider(context)) return;
+    if (sokosumiProvider(context)) return;
     // Better Auth discovers Core once per instance. A preview's first request
     // can beat its branch's Core deploy, so discover again on the next one.
     if (auth === created) auth = undefined;
@@ -346,7 +375,7 @@ export function getAuth(): CmoAuth {
 }
 
 /** Where sign in goes when it cannot start; the signed-out page explains. */
-const SIGN_IN_UNAVAILABLE_PATH = "/?error=unavailable";
+const SIGN_IN_UNAVAILABLE_PATH = `/?error=${CMO_SIGN_IN_ERROR.unavailable}`;
 
 /**
  * Starts Sign in with Sokosumi: Core's authorize URL, and the `Set-Cookie`
@@ -377,6 +406,31 @@ export async function startSokosumiSignIn(
 }
 
 /**
+ * The Sokosumi access token for a page render, or null when it must be
+ * renewed first. Pages render after the proxy renewed it; only a render the
+ * proxy skipped (a prefetch or prerender) can find it expired.
+ */
+export async function getPageAccessToken(
+  auth: CmoAuth,
+  requestHeaders: Headers,
+): Promise<string | null> {
+  const headers = new Headers(requestHeaders);
+  headers.set(PAGE_TOKEN_READ_HEADER, "1");
+  try {
+    const { accessToken } = await auth.api.getAccessToken({
+      body: { useAccountCookie: true },
+      headers,
+    });
+    return accessToken;
+  } catch (error) {
+    if (error instanceof APIError && error.body?.code === RENEWAL_REQUIRED) {
+      return null;
+    }
+    throw error;
+  }
+}
+
+/**
  * A link's way into Sign in with Sokosumi, for `/signup` and `/signin`.
  * A person already signed in to CMO goes home instead.
  */
@@ -389,6 +443,8 @@ export async function sokosumiSignInRedirect(
   // The proxy skips renewal for prefetch, but the route still runs. A new
   // state cookie here would invalidate a sign-in already in progress. Not a
   // 2xx: Chrome serves a 2xx prefetch for the click, and a 204 swallows it.
+  // The prefetch headers of the matcher in `proxy.ts`, which Next needs
+  // written out there; change both together.
   if (
     request.headers.has("next-router-prefetch") ||
     request.headers.has("next-router-segment-prefetch") ||
@@ -517,7 +573,7 @@ async function renewSessionOnce(
       typeof body === "object" &&
       "code" in body &&
       body.code === "PROVIDER_NOT_SUPPORTED" &&
-      !hasSokosumiProvider(await auth.$context))
+      !sokosumiProvider(await auth.$context))
   ) {
     return withSetCookies(renewed, 503);
   }

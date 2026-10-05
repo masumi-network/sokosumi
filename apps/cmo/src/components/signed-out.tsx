@@ -1,3 +1,4 @@
+import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { Mascot } from "./mascot";
 import { SubmitButton } from "./submit-button";
 
@@ -30,13 +31,11 @@ const ERROR_MESSAGES = new Map([
   ["state_mismatch", STATE_EXPIRED],
   ["state_invalid", STATE_EXPIRED],
   ["state_not_found", STATE_EXPIRED],
-  // CMO could not start sign in: Core is down or its discovery failed.
   [
-    "unavailable",
+    CMO_SIGN_IN_ERROR.unavailable,
     "Sokosumi is not reachable right now. Try again in a minute.",
   ],
-  // Renewal ended the session: a ban, a revoked token, or a failed refresh.
-  ["signed_out", "You were signed out. Sign in again."],
+  [CMO_SIGN_IN_ERROR.signedOut, "You were signed out. Sign in again."],
 ]);
 
 function errorMessage(error: string): string {

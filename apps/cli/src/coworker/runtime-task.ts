@@ -4,7 +4,7 @@ export interface RuntimeTask {
   id: string;
   name: string;
   description: string | null;
-  organizationId: string;
+  organizationId: string | null;
   assigneeId: string;
   status: string;
 }
@@ -12,8 +12,12 @@ export interface RuntimeTask {
 interface TaskContext {
   client: CoreHttpClient;
   coworkerId: string;
-  organizationId: string;
+  organizationId: string | null;
   taskId: string;
+  authorizePersonalWorkspace?: (
+    ownerId: string,
+    workspaceId: string,
+  ) => Promise<void>;
   signal?: AbortSignal;
 }
 
@@ -42,6 +46,23 @@ function checkAbort(signal?: AbortSignal): void {
   }
 }
 
+export function describeRuntimeGrantError(error: unknown): string | undefined {
+  const kind = record(record(error)?.body)?.kind;
+  const grantMessages = {
+    grant_required:
+      "grant_required: Approve the Vendor access request in the Task owner's Workspace before retrying.",
+    grant_denied:
+      "grant_denied: A Workspace owner or admin must resolve denied Vendor access before retrying.",
+    grant_revoked:
+      "grant_revoked: A Workspace owner or admin must resolve revoked Vendor access before retrying.",
+  } as const;
+  return record(error)?.status === 403 &&
+    typeof kind === "string" &&
+    Object.hasOwn(grantMessages, kind)
+    ? grantMessages[kind as keyof typeof grantMessages]
+    : undefined;
+}
+
 async function request(
   operation: string,
   call: () => Promise<unknown>,
@@ -57,6 +78,9 @@ async function request(
       Number.isInteger(status) && Number(status) >= 400 && Number(status) <= 599
         ? ` (HTTP ${status})`
         : "";
+    const grantGuidance = describeRuntimeGrantError(error);
+    if (grantGuidance)
+      throw new Error(`${operation} failed${code}. ${grantGuidance}`);
     const insufficientBalance =
       status === 422 &&
       record(record(error)?.body)?.kind === "insufficient_balance";
@@ -75,9 +99,9 @@ async function request(
 
 async function verifyCoworker(context: TaskContext): Promise<void> {
   if (
-    ![context.coworkerId, context.organizationId, context.taskId].every(
-      nonempty,
-    )
+    ![context.coworkerId, context.taskId].every(nonempty) ||
+    (context.organizationId !== null && !nonempty(context.organizationId)) ||
+    (context.organizationId === null && !context.authorizePersonalWorkspace)
   ) {
     throw new Error("Coworker, organization, and Task IDs are required.");
   }
@@ -129,6 +153,25 @@ async function readTask(
     throw new Error(
       "Task response does not match the requested Task, Coworker, and organization.",
     );
+  }
+  if (context.organizationId === null) {
+    const workspace = record(task.workspace);
+    if (
+      !nonempty(task.ownerId) ||
+      !workspace ||
+      !nonempty(workspace.id) ||
+      workspace.organizationId !== null
+    )
+      throw new Error(
+        "Personal Task must identify its owner and personal Workspace.",
+      );
+    try {
+      await context.authorizePersonalWorkspace!(task.ownerId, workspace.id);
+    } catch (error) {
+      throw new Error(
+        `Personal Workspace authorization failed. ${describeRuntimeGrantError(error) ?? "Core did not confirm personal ownership. Inspect the Task before retrying."}`,
+      );
+    }
   }
   if (task.status !== status) {
     throw new Error(

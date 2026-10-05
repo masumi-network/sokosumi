@@ -9,22 +9,19 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
 import { emailCodeSignIn } from "./auth-email-code-sign-in.js";
-import { resolveEmailCodeSignInNameBody } from "./auth-user-name.js";
 
 type Row = Record<string, unknown>;
 
-function userRow(
-  id: string,
-  email: string,
-  emailVerified: boolean,
-  termsAccepted = true,
-): Row {
+/** An address the stand-in after hook refuses once its code is accepted. */
+const REFUSED_EMAIL = "refused@example.com";
+
+function userRow(id: string, email: string, emailVerified: boolean): Row {
   return {
     id,
     email,
     name: "",
     emailVerified,
-    termsAccepted,
+    termsAccepted: true,
     createdAt: new Date(),
     updatedAt: new Date(),
   };
@@ -53,8 +50,9 @@ function googleAccountRow(userId: string): Row {
   };
 }
 
-// A real Better Auth instance with the email code plugin and Core's name hook,
-// so the plugin runs where Core runs it: around Better Auth's own endpoint.
+// A real Better Auth instance with the email code plugin and Core's terms
+// check, so the plugin runs where Core runs it: around Better Auth's own
+// endpoint.
 async function createTestAuth(
   seed: { user?: Row[]; account?: Row[] } = {},
   /** Runs after the plugin's before hook, ahead of Better Auth's endpoint. */
@@ -113,18 +111,11 @@ async function createTestAuth(
       },
     ],
     hooks: {
-      before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === "/sign-in/email-otp") {
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
-        }
-      }),
-      // Core's terms check, which runs before plugin after hooks.
+      // Stands in for any after hook that refuses a sign-in the code already
+      // accepted; global after hooks run before plugin after hooks.
       after: createAuthMiddleware(async (ctx) => {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", { code: "TERMS_NOT_ACCEPTED" });
+        if (ctx.context.newSession?.user.email === REFUSED_EMAIL) {
+          throw new APIError("FORBIDDEN", { code: "SIGN_IN_REFUSED" });
         }
       }),
     },
@@ -224,6 +215,48 @@ describe("password sign-up through an email code", () => {
       (await auth.signInWithCode({ email: "ada@example.com", otp })).status,
     ).toBe(200);
   });
+
+  // Sent for an address that has an account, so each case must be refused
+  // by its own rule before the account check, and before the code is spent.
+  it.each([
+    {
+      rule: "accepted terms",
+      body: { termsAccepted: false, lastName: undefined, password: "short" },
+      code: "TERMS_NOT_ACCEPTED",
+    },
+    {
+      rule: "both names",
+      body: { lastName: undefined, password: "short" },
+      code: "NAME_REQUIRED",
+    },
+    {
+      rule: "the password length",
+      body: { password: "short" },
+      code: "PASSWORD_TOO_SHORT",
+    },
+  ])(
+    "checks $rule first, and leaves the code unused",
+    async ({ body, code }) => {
+      const auth = await createTestAuth({
+        user: [userRow("user-1", "ada@example.com", true)],
+      });
+      const otp = await auth.sendCode("ada@example.com");
+
+      const signUp = await auth.signInWithCode({
+        email: "ada@example.com",
+        otp,
+        ...SIGN_UP,
+        ...body,
+      });
+
+      expect(signUp.status).toBe(400);
+      expect(await signUp.json()).toMatchObject({ code });
+      expect(auth.db.user).toHaveLength(1);
+      expect(
+        (await auth.signInWithCode({ email: "ada@example.com", otp })).status,
+      ).toBe(200);
+    },
+  );
 
   // e.g. the person signed up with Google in another tab meanwhile.
   it("refuses an account that appeared since the check without spending the code", async () => {
@@ -389,18 +422,40 @@ describe("code sign-in to an account whose address is unproven", () => {
 describe("code sign-in refused after the code was accepted", () => {
   it("stays refused, without the removal notice", async () => {
     const auth = await createTestAuth({
-      user: [userRow("user-1", "ada@example.com", false, false)],
+      user: [userRow("user-1", REFUSED_EMAIL, false)],
       account: [passwordAccountRow("user-1", "correct horse battery")],
     });
-    const otp = await auth.sendCode("ada@example.com");
+    const otp = await auth.sendCode(REFUSED_EMAIL);
 
-    const signIn = await auth.signInWithCode({ email: "ada@example.com", otp });
+    const signIn = await auth.signInWithCode({ email: REFUSED_EMAIL, otp });
 
-    expect(signIn.status).toBe(400);
+    expect(signIn.status).toBe(403);
     const body = await signIn.json();
-    expect(body).toMatchObject({ code: "TERMS_NOT_ACCEPTED" });
+    expect(body).toMatchObject({ code: "SIGN_IN_REFUSED" });
     expect(body).not.toHaveProperty(EMAIL_CODE_SIGN_IN_METHODS_REMOVED);
   });
+});
+
+describe("sending an email code", () => {
+  it.each(["email-verification", "forget-password"])(
+    "refuses a %s code; codes only sign in",
+    async (type) => {
+      const auth = await createTestAuth({
+        user: [userRow("user-1", "ada@example.com", true)],
+      });
+
+      const send = await auth.post("/email-otp/send-verification-otp", {
+        email: "ada@example.com",
+        type,
+      });
+
+      expect(send.status).toBe(400);
+      expect(await send.json()).toMatchObject({
+        message: "Email codes only sign in",
+      });
+      expect(await auth.sendCode("ada@example.com")).not.toBe("");
+    },
+  );
 });
 
 describe("code sign-in to a verified account", () => {

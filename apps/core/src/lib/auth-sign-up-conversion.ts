@@ -5,6 +5,12 @@ import { recordUtmAttribution } from "@/helpers/utm-attribution";
 import prisma from "@/lib/db/prisma";
 import type { utmAttributionRequestSchema } from "@/schemas/user.schema";
 
+import {
+  isSocialProviderId,
+  SOCIAL_PROVIDER_IDS,
+  type SocialProviderId,
+} from "./auth-social-providers";
+
 /*
  * A social sign-up waits as a pending sign-up conversion until a Web page
  * counts it (GTM `sign_up` and UTM attribution, apps/web/TRACKING.md). Web's
@@ -17,11 +23,6 @@ import type { utmAttributionRequestSchema } from "@/schemas/user.schema";
  * Auth's `verification` table, which needs no migration.
  */
 
-/** The social providers whose sign-ups wait for a Web page to count them. */
-export const SIGN_UP_CONVERSION_PROVIDERS = ["google", "microsoft"] as const;
-export type SignUpConversionProvider =
-  (typeof SIGN_UP_CONVERSION_PROVIDERS)[number];
-
 /** A sign-up no Web page counted within this window is not counted. */
 const SIGN_UP_CONVERSION_TTL_MS = 60 * 60 * 1000;
 
@@ -32,18 +33,24 @@ interface AuthRequestContext {
   params?: Record<string, string | undefined>;
 }
 
+/**
+ * Every conversion row's identifier starts with one of these; the purge sync
+ * deletes the rows no Web page claimed before they expired.
+ */
+const CLAIM_IDENTIFIER_PREFIX = "sign-up-conversion:";
+const REDIRECT_IDENTIFIER_PREFIX = "sign-up-conversion-redirect:";
+
+export const SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES = [
+  CLAIM_IDENTIFIER_PREFIX,
+  REDIRECT_IDENTIFIER_PREFIX,
+] as const;
+
 function identifierFor(userId: string): string {
-  return `sign-up-conversion:${userId}`;
+  return `${CLAIM_IDENTIFIER_PREFIX}${userId}`;
 }
 
 function redirectIdentifierFor(userId: string): string {
-  return `sign-up-conversion-redirect:${userId}`;
-}
-
-function isSignUpConversionProvider(
-  value: string | undefined,
-): value is SignUpConversionProvider {
-  return SIGN_UP_CONVERSION_PROVIDERS.some((provider) => provider === value);
+  return `${REDIRECT_IDENTIFIER_PREFIX}${userId}`;
 }
 
 /**
@@ -60,7 +67,7 @@ export async function recordSignUpConversion(
   if (
     !ctx?.path ||
     !SOCIAL_CALLBACK_PATHS.includes(ctx.path) ||
-    !isSignUpConversionProvider(provider)
+    !isSocialProviderId(provider)
   ) {
     return;
   }
@@ -83,14 +90,12 @@ export async function recordSignUpConversion(
  * Whether to send this user's authorization through Web's sign-up page:
  * true once per pending conversion, false ever after.
  */
-export async function takeSignUpConversionRedirect(
-  userId: string,
-): Promise<boolean> {
+async function takeSignUpConversionRedirect(userId: string): Promise<boolean> {
   const { count } = await prisma.verification.deleteMany({
     where: {
       identifier: redirectIdentifierFor(userId),
       expiresAt: { gt: new Date() },
-      value: { in: [...SIGN_UP_CONVERSION_PROVIDERS] },
+      value: { in: [...SOCIAL_PROVIDER_IDS] },
     },
   });
   return count > 0;
@@ -120,7 +125,7 @@ export function oauthSignUpOptions(
 export async function claimSignUpConversion(
   userId: string,
   utmAttribution?: z.infer<typeof utmAttributionRequestSchema>,
-): Promise<SignUpConversionProvider | null> {
+): Promise<SocialProviderId | null> {
   return prisma.$transaction(async (tx) => {
     const pending = await tx.verification.findFirst({
       where: {
@@ -129,7 +134,7 @@ export async function claimSignUpConversion(
       },
       select: { id: true, value: true },
     });
-    if (!pending || !isSignUpConversionProvider(pending.value)) {
+    if (!pending || !isSocialProviderId(pending.value)) {
       return null;
     }
     const { count } = await tx.verification.deleteMany({

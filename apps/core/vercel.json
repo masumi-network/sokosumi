@@ -102,7 +102,7 @@
       "schedule": "30 * * * *"
     },
     {
-      "path": "/sync/captcha-passes-purge",
+      "path": "/sync/expired-verifications-purge",
       "schedule": "45 * * * *"
     },
     {

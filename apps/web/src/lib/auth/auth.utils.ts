@@ -129,7 +129,7 @@ export async function waitForAuthSession<TSession = unknown>({
 }
 
 /** Where an auth page sends the person once they are through. */
-export interface AuthPageContext {
+interface AuthPageContext {
   returnUrl?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;
@@ -335,7 +335,7 @@ export function getAbsoluteAuthRedirectUrl(
  * user back to the web app after the OAuth callback completes. Falls back to a
  * relative path when `window` is unavailable (SSR).
  */
-export function buildAuthCallbackUrl(
+function buildAuthCallbackUrl(
   path: string,
   provider: AuthMethodId,
   returnUrl?: string,
@@ -355,9 +355,7 @@ export function buildAuthCallbackUrl(
  * the failure to another auth page with the same query instead, for a page
  * that would only start the sign-in again.
  */
-export function buildAuthErrorCallbackUrl(
-  pathname?: string,
-): string | undefined {
+function buildAuthErrorCallbackUrl(pathname?: string): string | undefined {
   if (typeof window === "undefined") {
     return undefined;
   }
@@ -371,6 +369,32 @@ export function buildAuthErrorCallbackUrl(
   }
   url.hash = "";
   return url.href;
+}
+
+/**
+ * Where Better Auth sends a social sign-in back to: Web's callback for an
+ * account it knew, for one it just created, and for an error.
+ * `errorPathname` sends the error to another auth page (see
+ * `buildAuthErrorCallbackUrl`).
+ */
+export function buildSocialCallbackUrls(
+  provider: AuthMethodId,
+  returnUrl: string | undefined,
+  errorPathname?: string,
+) {
+  return {
+    callbackURL: buildAuthCallbackUrl(
+      "/auth/callback/signin",
+      provider,
+      returnUrl,
+    ),
+    newUserCallbackURL: buildAuthCallbackUrl(
+      "/auth/callback/signup",
+      provider,
+      returnUrl,
+    ),
+    errorCallbackURL: buildAuthErrorCallbackUrl(errorPathname),
+  };
 }
 
 export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
@@ -500,6 +524,19 @@ function hasOAuthPrompt(oauthQuery: string, prompt: string): boolean {
  */
 export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
   return hasOAuthPrompt(oauthQuery, "create");
+}
+
+/**
+ * Where a finished sign-in or sign-up goes: the page's returnUrl, or else back
+ * into the OAuth request the page carries.
+ */
+export function readAuthReturnUrl(
+  searchParams: URLSearchParams,
+): string | undefined {
+  return (
+    searchParams.get("returnUrl") ??
+    buildOAuthResumeUrlFromSearchParams(searchParams)
+  );
 }
 
 /**

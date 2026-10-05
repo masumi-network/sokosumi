@@ -33,7 +33,7 @@ export const sokoBotTaskIdInputSchema = z
   .object({ taskId: z.string().min(1) })
   .strict();
 
-/** Every Task status, as Core stores it. */
+/** Every status a Task can have; CREATED is only ever an event status. */
 export const SOKO_BOT_TASK_STATUSES = [
   "DRAFT",
   "QUEUED",

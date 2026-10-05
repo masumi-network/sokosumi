@@ -18,8 +18,8 @@
       "generic": "No pudimos comprobar el código. Inténtalo de nuevo.",
       "resend": "Enviar un código nuevo",
       "resendIn": "Nuevo código en {seconds} s",
-      "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
-      "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."
+      "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.",
+      "notSent": "No pudimos enviar un código. Inténtalo de nuevo."
     },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
@@ -58,7 +58,6 @@
       "retryPrompt": "Has iniciado sesión de nuevo. Inténtalo otra vez ahora.",
       "sessionLost": "Abre la página de inicio de sesión e inicia sesión de nuevo.",
       "socialError": "No hemos podido iniciar ese acceso.",
-      "termsNotAccepted": "Acepta los términos actualizados antes de iniciar sesión de nuevo.",
       "title": "Confirma que eres tú"
     },
     "ShareButton": {
@@ -558,21 +557,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Crear organización",
           "edit": "Editar organización"
         },
         "Form": {
           "Submit": {
-            "create": "Crear",
             "edit": "Guardar"
           },
           "cancel": "Cancelar",
           "Success": {
-            "create": "Organización creada correctamente",
             "edit": "Organización actualizada correctamente"
           },
           "Error": {
-            "create": "No se pudo crear la organización",
             "edit": "No se pudo actualizar la organización"
           },
           "Errors": {
@@ -1217,9 +1212,6 @@
             "message": "¿Aún no tienes cuenta?",
             "link": "Registrarse"
           },
-          "Errors": {
-            "termsNotAccepted": "Debes aceptar los términos de uso para iniciar sesión"
-          },
           "NoAccount": {
             "title": "No hay ninguna cuenta con este email",
             "description": "Comprueba que no tenga errores o crea una ahora.",
@@ -1228,8 +1220,7 @@
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
             "password": "Ya tienes una cuenta. Introduce tu contraseña para iniciar sesión.",
-            "codeNotSentNotice": "Ya tienes una cuenta.",
-            "codeNotSent": "No pudimos enviar un código. Inténtalo de nuevo."
+            "codeNotSentNotice": "Ya tienes una cuenta."
           }
         }
       },
@@ -1707,7 +1698,6 @@
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
-        "owner": "Propietario",
         "organization": "Organización",
         "project": "Proyecto",
         "noProject": "Sin proyecto",
@@ -1762,6 +1752,7 @@
         },
         "actionCommented": "comentó",
         "actionUpdatedStatus": "Estado cambiado a",
+        "actionCreatedTask": "creó la tarea",
         "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
         "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {

@@ -12,22 +12,23 @@ import {
 } from "react";
 
 import { AuthHeader } from "@/auth/components/auth-header";
+import { AuthPage } from "@/auth/components/auth-page";
 import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
 import SignInForm from "@/auth/signin/components/form";
 import SignUpForm from "@/auth/signup/components/form";
-import SignInLink, {
+import SignInRow, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
-import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
-  buildSignedOAuthQueryFromSearchParams,
+  readAuthPageContext,
+  readAuthReturnUrl,
 } from "@/lib/auth/auth.utils";
 import {
   rememberAuthEmailHint,
@@ -40,6 +41,7 @@ import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   chooseSignInMethod,
+  isEmailAuthMethod,
   type LastUsedAuthMethod,
   type SignInMethod,
   toProviderAuthMethod,
@@ -59,7 +61,6 @@ interface AuthFlowProps {
   prefilledEmail?: string | undefined;
   /** The invitation `prefilledEmail` belongs to. */
   invitationId?: string | undefined;
-  returnUrl?: string | undefined;
   /** How this browser signed in or signed up last, from Better Auth's cookie. */
   lastUsedMethod: LastUsedAuthMethod | null;
   /** Shown above the email step, e.g. why a sign-in brought the person back. */
@@ -82,29 +83,24 @@ export default function AuthFlow({
   client,
   prefilledEmail,
   invitationId,
-  returnUrl,
   lastUsedMethod,
   notice,
   children,
 }: AuthFlowProps) {
   const isSignIn = mode === "signIn";
   const signInT = useTranslations("Auth.Pages.SignIn.Form");
-  const signUpT = useTranslations("Auth.Pages.SignUp.Form");
   const socialT = useTranslations("Auth.SocialButtons");
   const searchParams = useSearchParams();
   const router = useRouter();
   const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
+    () => readAuthReturnUrl(searchParams),
+    [searchParams],
   );
   const emailLocked = Boolean(prefilledEmail);
   // The invitation whose address this page locked; the other page locks it too.
   const lockedInvitationId = emailLocked ? invitationId : undefined;
   const signUpHref = buildAuthPageUrl("/signup", {
-    returnUrl,
-    oauthQuery: returnUrl
-      ? undefined
-      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    ...readAuthPageContext(searchParams),
     invitationId: lockedInvitationId,
   });
   const signInHref = useSignInHref();
@@ -129,8 +125,6 @@ export default function AuthFlow({
   // Log in only. Register found an account and handed the address over.
   const [handedOver, setHandedOver] = useState(false);
   const formStarted = useRef(false);
-  const isEmailLastUsed =
-    lastUsedMethod === "email" || lastUsedMethod === "email-otp";
 
   // The other page handed an address over, so step 2 opens at once. A layout
   // effect: after a client navigation the email step never paints.
@@ -185,13 +179,14 @@ export default function AuthFlow({
 
   function frame(content: ReactNode) {
     return (
-      <div className="flex flex-1 flex-col">
-        <AuthHeader mode={mode} client={client} invitationId={invitationId} />
-        <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          {content}
-          {children}
-        </div>
-      </div>
+      <AuthPage
+        header={
+          <AuthHeader mode={mode} client={client} invitationId={invitationId} />
+        }
+      >
+        {content}
+        {children}
+      </AuthPage>
     );
   }
 
@@ -230,6 +225,7 @@ export default function AuthFlow({
             onPendingChange={setIsFinishPending}
           />
         )}
+        <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
       </>,
     );
   }
@@ -244,12 +240,13 @@ export default function AuthFlow({
         autoComplete={isSignIn ? "username webauthn" : "email"}
         captchaEntry={isSignIn ? "signin" : "signup"}
         lastUsedLabel={
-          isSignIn && isEmailLastUsed ? signInT("lastUsed") : undefined
+          isSignIn && isEmailAuthMethod(lastUsedMethod)
+            ? signInT("lastUsed")
+            : undefined
         }
         detour={
           isSignIn
             ? {
-                when: "missing",
                 title: signInT("NoAccount.title"),
                 description: signInT("NoAccount.description"),
                 label: signInT("NoAccount.createAccount"),
@@ -260,7 +257,7 @@ export default function AuthFlow({
                 follow: async (newEmail, signal, { captchaPass }) => {
                   const codeSentAt = await emailCode.sendCode(newEmail, {
                     signal,
-                    runWithCaptcha: runWithCaptchaPass(captchaPass),
+                    captchaPass,
                   });
                   if (signal.aborted) return;
                   rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -268,7 +265,6 @@ export default function AuthFlow({
                 },
               }
             : {
-                when: "exists",
                 // Log in's first step would only ask Core again and send this
                 // code, so it opens on its second step, an invitation's too.
                 handOver: async (knownEmail, signal, account) => {
@@ -277,9 +273,7 @@ export default function AuthFlow({
                     method === "code"
                       ? await emailCode.sendCode(knownEmail, {
                           signal,
-                          runWithCaptcha: runWithCaptchaPass(
-                            account.captchaPass,
-                          ),
+                          captchaPass: account.captchaPass,
                         })
                       : null;
                   if (signal.aborted) return;
@@ -304,7 +298,7 @@ export default function AuthFlow({
           if (method === "code") {
             await emailCode.sendCode(confirmedEmail, {
               signal,
-              runWithCaptcha: runWithCaptchaPass(account.captchaPass),
+              captchaPass: account.captchaPass,
             });
           }
           if (!signal.aborted) setStep("finish");
@@ -320,7 +314,7 @@ export default function AuthFlow({
         <hr className="h-0 flex-1 border-0 border-t border-border" />
       </div>
       <SocialButtons
-        returnUrl={returnUrl}
+        returnUrl={effectiveReturnUrl}
         lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
         showPasskey={isSignIn}
         eventType={mode}
@@ -349,12 +343,7 @@ export default function AuthFlow({
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
-          <span className="text-muted-foreground text-sm">
-            {signUpT("Login.message")}
-          </span>
-          <SignInLink />
-        </div>
+        <SignInRow />
       )}
     </>,
   );

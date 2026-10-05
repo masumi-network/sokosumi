@@ -57,8 +57,7 @@ const {
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
   webhookCallAccountCreatedMock,
-  webhookCallUserCreatedMock,
-  webhookCallUserUpdatedMock,
+  webhookCallUserWebhookMock,
   upgradeGuestChatRoomMembershipsToMemberMock,
   deleteStripeCustomerBestEffortMock,
   listOrganizationExitChatRoomIdsForAblyMock,
@@ -174,8 +173,7 @@ const {
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
     webhookCallAccountCreatedMock: vi.fn(),
-    webhookCallUserCreatedMock: vi.fn(),
-    webhookCallUserUpdatedMock: vi.fn(),
+    webhookCallUserWebhookMock: vi.fn(),
     upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
     deleteStripeCustomerBestEffortMock: vi.fn(),
     listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
@@ -345,6 +343,7 @@ vi.mock("@/clients/email.client", () => ({
 }));
 
 vi.mock("@/clients/stripe.client", () => ({
+  stripe: { name: "stripe-sdk" },
   stripeClient: {
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
@@ -375,10 +374,8 @@ vi.mock("@/services/webhook.service", () => ({
   webhookService: {
     callAccountCreated: (...args: unknown[]) =>
       webhookCallAccountCreatedMock(...args),
-    callUserCreated: (...args: unknown[]) =>
-      webhookCallUserCreatedMock(...args),
-    callUserUpdated: (...args: unknown[]) =>
-      webhookCallUserUpdatedMock(...args),
+    callUserWebhook: (...args: unknown[]) =>
+      webhookCallUserWebhookMock(...args),
   },
 }));
 
@@ -499,8 +496,7 @@ describe("core auth config", () => {
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
     webhookCallAccountCreatedMock.mockResolvedValue(undefined);
-    webhookCallUserCreatedMock.mockResolvedValue(undefined);
-    webhookCallUserUpdatedMock.mockResolvedValue(undefined);
+    webhookCallUserWebhookMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
     ensurePersonalWorkspaceKeepingPreferredMock.mockResolvedValue({
@@ -545,29 +541,6 @@ describe("core auth config", () => {
     grantSignupBonusCreditsMock.mockResolvedValue({ created: true });
     waitUntilCapturedPromises.length = 0;
     waitUntilMock.mockClear();
-  });
-
-  it("passes the social provider and account options to Better Auth", async () => {
-    await import("./auth");
-    const { accountOptions, socialProviderOptions } = await import(
-      "./auth-social-providers"
-    );
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [{ socialProviders: unknown; account: unknown }]
-    >;
-
-    expect(config.socialProviders).toBe(socialProviderOptions);
-    expect(config.account).toBe(accountOptions);
-  });
-
-  it("passes the refresh token options to the OAuth provider", async () => {
-    await import("./auth");
-    const { oauthRefreshTokenOptions } = await import("./auth-oauth-provider");
-
-    expect(oauthProviderPluginMock).toHaveBeenCalledWith(
-      expect.objectContaining(oauthRefreshTokenOptions),
-    );
   });
 
   it("fires account-created webhook when a social account is linked", async () => {
@@ -2285,7 +2258,10 @@ describe("core auth config", () => {
 
     expect(grantSignupBonusCreditsMock).toHaveBeenCalled();
     expect(stripeCreateUserCustomerMock).toHaveBeenCalled();
-    expect(webhookCallUserCreatedMock).toHaveBeenCalled();
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith(
+      "userCreated",
+      expect.anything(),
+    );
   });
 
   it("does not mark tasks as topped up when the signup bonus already exists", async () => {
@@ -2536,6 +2512,61 @@ describe("core auth config", () => {
       },
       expect.anything(),
     );
+  });
+
+  // The response does not wait for Stripe, but the function must.
+  it("keeps the new organization's Stripe customer creation alive past the response", async () => {
+    let finishStripe!: () => void;
+    stripeCreateOrganizationCustomerMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finishStripe = resolve;
+      }),
+    );
+    await import("./auth");
+
+    const [[config]] = organizationPluginMock.mock.calls as Array<
+      [
+        {
+          organizationHooks: {
+            afterCreateOrganization: (input: {
+              organization: {
+                id: string;
+                name: string;
+                slug: string;
+                createdAt: Date;
+              };
+              user: { id: string };
+            }) => Promise<void>;
+          };
+        },
+      ]
+    >;
+
+    await config.organizationHooks.afterCreateOrganization({
+      user: { id: "user-1" },
+      organization: {
+        id: "org_123",
+        name: "Org One",
+        slug: "org-one",
+        createdAt: new Date("2026-07-01T00:00:00.000Z"),
+      },
+    });
+
+    // The hook returned while Stripe is still working; the kept promise
+    // settles only once Stripe does.
+    expect(waitUntilMock).toHaveBeenCalledOnce();
+    const [[kept]] = waitUntilMock.mock.calls;
+    let settled = false;
+    void kept.then(() => {
+      settled = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledOnce();
+    expect(settled).toBe(false);
+
+    finishStripe();
+    await kept;
+    expect(settled).toBe(true);
   });
 
   it("creates a personal workspace before creating an organization and keeps preferred org", async () => {
@@ -2921,131 +2952,10 @@ describe("core auth config", () => {
     });
 
     await flushWaitUntil();
-    expect(webhookCallUserCreatedMock).toHaveBeenCalledWith({
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith("userCreated", {
       id: "user_123",
       email: "test@example.com",
       name: "Test",
-    });
-  });
-
-  it.each(["email-verification", "forget-password"])(
-    "refuses to send an email code for %s",
-    async (type) => {
-      await import("./auth");
-
-      const [[config]] = betterAuthMock.mock.calls as Array<
-        [
-          {
-            hooks: {
-              before: (ctx: {
-                body?: Record<string, unknown>;
-                path: string;
-              }) => Promise<unknown>;
-            };
-          },
-        ]
-      >;
-
-      await expect(
-        config.hooks.before({
-          body: { email: "ada@example.com", type },
-          path: "/email-otp/send-verification-otp",
-        }),
-      ).rejects.toMatchObject({ status: "BAD_REQUEST" });
-    },
-  );
-
-  it("names a new email-code account from the names sent with the code", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<unknown>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({
-        body: {
-          email: "ada@example.com",
-          otp: "042917",
-          firstName: "Ada",
-          lastName: "Lovelace",
-        },
-        path: "/sign-in/email-otp",
-      }),
-    ).resolves.toEqual({
-      context: {
-        body: {
-          email: "ada@example.com",
-          otp: "042917",
-          firstName: "Ada",
-          lastName: "Lovelace",
-          name: "Ada Lovelace",
-        },
-      },
-    });
-  });
-
-  // A password sign-up goes through the email code, and keeps the checks
-  // `/sign-up/email` made.
-  describe("password sign-up through the email code", () => {
-    async function before(body: Record<string, unknown>) {
-      await import("./auth");
-      const [[config]] = betterAuthMock.mock.calls as Array<
-        [
-          {
-            hooks: {
-              before: (ctx: {
-                body?: Record<string, unknown>;
-                path: string;
-              }) => Promise<unknown>;
-            };
-          },
-        ]
-      >;
-      return config.hooks.before({
-        body: { email: "ada@example.com", otp: "042917", ...body },
-        path: "/sign-in/email-otp",
-      });
-    }
-
-    it("refuses it when the terms are not accepted", async () => {
-      await expect(
-        before({ password: "Password123!", firstName: "Ada", lastName: "L" }),
-      ).rejects.toMatchObject({
-        status: "BAD_REQUEST",
-        body: { code: "TERMS_NOT_ACCEPTED" },
-      });
-    });
-
-    it("refuses it without the names", async () => {
-      await expect(
-        before({ password: "Password123!", termsAccepted: true }),
-      ).rejects.toMatchObject({
-        status: "BAD_REQUEST",
-        body: { code: "NAME_REQUIRED" },
-      });
-    });
-
-    it("names the account from the two parts", async () => {
-      await expect(
-        before({
-          password: "Password123!",
-          termsAccepted: true,
-          firstName: "Ada",
-          lastName: "Lovelace",
-        }),
-      ).resolves.toMatchObject({
-        context: { body: { name: "Ada Lovelace", password: "Password123!" } },
-      });
     });
   });
 
@@ -3086,82 +2996,6 @@ describe("core auth config", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("rejects sign-in when the user has not accepted the terms", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            after: (ctx: {
-              context: { newSession?: { user?: { termsAccepted?: boolean } } };
-              path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.after({
-        context: { newSession: { user: { termsAccepted: false } } },
-        path: "/sign-in/email",
-      }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: { code: "TERMS_NOT_ACCEPTED" },
-    });
-  });
-
-  it("allows sign-in when the user has accepted the terms", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            after: (ctx: {
-              context: {
-                authCookies?: {
-                  dontRememberToken: {
-                    attributes: { httpOnly: boolean; path: string };
-                    name: string;
-                  };
-                };
-                newSession?: {
-                  session: object;
-                  user?: { termsAccepted?: boolean };
-                };
-              };
-              path: string;
-              setCookie?: (
-                name: string,
-                value: string,
-                attributes: object,
-              ) => void;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.after({
-        context: {
-          authCookies: {
-            dontRememberToken: {
-              attributes: { httpOnly: true, path: "/" },
-              name: "sokosumi.dont_remember",
-            },
-          },
-          newSession: { session: {}, user: { termsAccepted: true } },
-        },
-        path: "/sign-in/email",
-        setCookie: vi.fn(),
-      }),
-    ).resolves.toBeUndefined();
-  });
-
   describe("persistent sessions", () => {
     type AfterHookContext = {
       context: {
@@ -3173,7 +3007,7 @@ describe("core auth config", () => {
         };
         newSession?: {
           session: { id?: string; impersonatedBy?: string | null };
-          user?: { termsAccepted?: boolean };
+          user?: object;
         };
         returned?: unknown;
       };
@@ -3227,7 +3061,7 @@ describe("core auth config", () => {
     }
 
     it("keeps a new session persistent and drops a stale dont_remember cookie", async () => {
-      const newSession = { session: {}, user: { termsAccepted: true } };
+      const newSession = { session: {}, user: {} };
       const setCookie = await runAfterHook("/sign-in/email-otp", {
         newSession,
         returned: { token: "session-token" },
@@ -3240,7 +3074,7 @@ describe("core auth config", () => {
     // status FOUND. It is a success, and its cookies still reach the browser.
     it("keeps a session from an OAuth callback redirect persistent", async () => {
       const { APIError } = await import("better-auth/api");
-      const newSession = { session: {}, user: { termsAccepted: true } };
+      const newSession = { session: {}, user: {} };
       const setCookie = await runAfterHook("/callback/google", {
         newSession,
         returned: new APIError("FOUND"),
@@ -3252,7 +3086,7 @@ describe("core auth config", () => {
     it("leaves the cookies alone when the endpoint failed", async () => {
       const { APIError } = await import("better-auth/api");
       const setCookie = await runAfterHook("/passkey/verify-authentication", {
-        newSession: { session: {}, user: { termsAccepted: true } },
+        newSession: { session: {}, user: {} },
         returned: new APIError("UNAUTHORIZED"),
       });
 
@@ -3264,7 +3098,7 @@ describe("core auth config", () => {
     // sign-in; setting the cookie there would make it resume again.
     it("leaves the cookie to the sign-in when the OAuth provider resumes authorize", async () => {
       const setCookie = await runAfterHook("/oauth2/authorize", {
-        newSession: { session: {}, user: { termsAccepted: true } },
+        newSession: { session: {}, user: {} },
         returned: { redirect: true, url: "https://app.cmo.xyz/callback" },
       });
 
@@ -3277,7 +3111,7 @@ describe("core auth config", () => {
       const setCookie = await runAfterHook("/admin/impersonate-user", {
         newSession: {
           session: { impersonatedBy: "admin-1" },
-          user: { termsAccepted: true },
+          user: {},
         },
         returned: { session: {} },
       });
@@ -3294,7 +3128,7 @@ describe("core auth config", () => {
       await runAfterHook("/sign-in/email-otp", {
         newSession: {
           session: { id: "session-new" },
-          user: { termsAccepted: true },
+          user: {},
         },
         returned: { token: "session-token" },
       });
@@ -3665,44 +3499,16 @@ describe("core auth config", () => {
 
     await config.databaseHooks.user.update.after(user);
 
-    expect(webhookCallUserUpdatedMock).toHaveBeenCalledWith(user);
+    expect(webhookCallUserWebhookMock).toHaveBeenCalledWith(
+      "userUpdated",
+      user,
+    );
     expect(handleUserUpdateStripeEmailSyncMock).toHaveBeenCalledWith(user);
-  });
-
-  it("reports user updated webhook failures to Sentry", async () => {
-    webhookCallUserUpdatedMock.mockRejectedValueOnce(new Error("webhook down"));
-
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          databaseHooks: {
-            user: {
-              update: {
-                after: (user: {
-                  email: string;
-                  id: string;
-                  name: string;
-                }) => Promise<void>;
-              };
-            };
-          };
-        },
-      ]
-    >;
-
-    await config.databaseHooks.user.update.after({
-      id: "user_123",
-      email: "new@example.com",
-      name: "Andreas",
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: { userId: "user_123" },
-      tags: { context: "user_updated_webhook" },
-    });
+    // Kept alive past the response, like the webhook. Compared by identity:
+    // any two promises are equal to toHaveBeenCalledWith.
+    expect(waitUntilMock.mock.calls.map(([promise]) => promise)).toContain(
+      handleUserUpdateStripeEmailSyncMock.mock.results[0]?.value,
+    );
   });
 
   it("reports preferred organization resolution failures to Sentry and keeps the session", async () => {

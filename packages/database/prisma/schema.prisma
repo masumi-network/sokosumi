@@ -3383,6 +3383,8 @@ enum TaskStatus {
   COMPLETED
   FAILED
   CANCELED
+  /// Event-only: the first event of a Task. Never a Task.status; nobody sets it.
+  CREATED
 }
 
 enum TaskVisibility {

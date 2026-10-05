@@ -14,8 +14,10 @@ import {
   type CmoAuth,
   createCmoAuth,
   getAuth,
+  getPageAccessToken,
   renewSession,
-  sokosumiSignInBody,
+  type SokosumiSignInOptions,
+  startSokosumiSignIn,
 } from "./auth";
 
 // The link routes reach the auth each test creates.
@@ -345,16 +347,18 @@ async function send(
 async function startSignIn(
   auth: CmoAuth,
   jar: CookieJar,
-  options: Parameters<typeof sokosumiSignInBody>[0] = {
-    createAccount: false,
-  },
+  options: SokosumiSignInOptions = { createAccount: false },
 ): Promise<string> {
-  const response = await send(auth, jar, "/api/auth/sign-in/social", {
-    method: "POST",
-    body: sokosumiSignInBody(options),
-  });
-  expect(response.status).toBe(200);
-  const { url } = (await response.json()) as { url: string };
+  const { url, setCookies } = await startSokosumiSignIn(
+    auth,
+    browserRequest(jar, "/").headers,
+    options,
+  );
+  jar.store(
+    new Response(null, {
+      headers: setCookies.map((cookie) => ["set-cookie", cookie]),
+    }),
+  );
   return url;
 }
 
@@ -513,15 +517,7 @@ describe("CMO auth handler", () => {
     "explains on the signed-out page when Core discovery fails on %s",
     async (path) => {
       core.discoveryDown = true;
-      vi.mocked(getAuth).mockReturnValue(
-        createCmoAuth({
-          baseURL: CMO,
-          coreBaseUrl: CORE,
-          clientId: CLIENT_ID,
-          clientSecret: CLIENT_SECRET,
-          secret: "a-cookie-secret-that-is-at-least-32-characters",
-        }),
-      );
+      vi.mocked(getAuth).mockReturnValue(createCmoAuth(AUTH_CONFIG));
 
       const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -545,10 +541,7 @@ describe("CMO auth handler", () => {
     vi.stubEnv("CORE_APP_BASE_URL", CORE);
     vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_ID", CLIENT_ID);
     vi.stubEnv("SOKOSUMI_OAUTH_CLIENT_SECRET", CLIENT_SECRET);
-    vi.stubEnv(
-      "BETTER_AUTH_SECRET",
-      "a-cookie-secret-that-is-at-least-32-characters",
-    );
+    vi.stubEnv("BETTER_AUTH_SECRET", AUTH_CONFIG.secret);
     const { getAuth: getRealAuth } =
       await vi.importActual<typeof import("./auth")>("./auth");
     const logged = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -1024,6 +1017,37 @@ describe("CMO auth handler", () => {
 
     expect(response.status).toBe(204);
     expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("serves a page the current access token without refreshing it", async () => {
+    await signIn(auth, jar, core);
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S - 60) * 1000);
+
+    const token = await getPageAccessToken(
+      auth,
+      new Headers({ cookie: jar.header() }),
+    );
+
+    expect(token).toEqual(expect.any(String));
+    expect(core.refreshAttempts).toBe(0);
+  });
+
+  it("gives a page no token instead of refreshing an expired one", async () => {
+    await signIn(auth, jar, core);
+    const cookies = jar.header();
+    vi.setSystemTime(Date.now() + (TWO_HOURS_S + 60) * 1000);
+
+    const token = await getPageAccessToken(
+      auth,
+      new Headers({ cookie: cookies }),
+    );
+
+    // A page cannot write cookies: a refresh would rotate Core's refresh
+    // token and lose the new one, so renewal stays with the proxy.
+    expect(token).toBeNull();
+    expect(core.refreshAttempts).toBe(0);
+    await renew(auth, jar);
+    expect(core.refreshCount()).toBe(1);
   });
 
   it("serves a valid access token while a new instance cannot discover Core", async () => {

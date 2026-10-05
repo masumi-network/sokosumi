@@ -10,19 +10,17 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import {
-  EmailCodeSwitch,
-  STEP_LINK_BUTTON_CLASS,
-} from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
+import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
+import { UsernameHint } from "@/auth/components/username-hint";
 import {
-  EMAIL_CODE_LENGTH,
   EmailCodeField,
   useEmailCodeRefusal,
+  useEmailCodeSchema,
 } from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import {
@@ -34,16 +32,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
-import {
-  buildAuthPageUrl,
-  isRejectedOAuthRequestError,
-  readAuthPageContext,
-} from "@/lib/auth/auth.utils";
+import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
+import { inputPasswordSchema } from "@/lib/auth/data";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
-import { signInFormSchema } from "@/lib/schemas/auth";
 import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
 
 interface SignInFormProps {
@@ -79,10 +72,10 @@ export default function SignInForm({
   onPendingChange,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-  const authT = useTranslations("Auth");
-  const codeT = useTranslations("Components.EmailCodeForm");
+  const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
-  const oauthT = useTranslations("Auth.OAuthHandBack");
+  const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
+  const code = useEmailCodeSchema();
   const [isLeaving, setIsLeaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [prefersPassword, setPrefersPassword] = useState(
@@ -113,15 +106,12 @@ export default function SignInForm({
   const isCodeStepRef = useRef(isCodeStep);
   isCodeStepRef.current = isCodeStep;
 
-  const passwordStepSchema = signInFormSchema(schemaT).safeExtend({
+  // The email is confirmed on the step before.
+  const passwordStepSchema = z.object({
+    currentPassword: inputPasswordSchema(schemaT),
     code: z.string(),
   });
-  const codeStepSchema = signInFormSchema(schemaT).safeExtend({
-    currentPassword: z.string(),
-    code: z
-      .string()
-      .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") }),
-  });
+  const codeStepSchema = z.object({ currentPassword: z.string(), code });
   type Values = z.infer<typeof passwordStepSchema>;
   const form = useForm<Values>({
     resolver: (values, context, options) =>
@@ -154,7 +144,10 @@ export default function SignInForm({
     track("Sign In", { provider: "email-otp" });
     const error = await emailCode.signInWithCode(email, values.code);
     if (error) {
-      form.setError("code", { message: codeRefusal.refuse(error) });
+      // The code is not to blame, so it stays in the field.
+      if (!toastRejectedOAuthRequest(error)) {
+        form.setError("code", { message: codeRefusal.refuse(error) });
+      }
       return;
     }
     // The page is leaving; keep the step locked until it has.
@@ -179,27 +172,11 @@ export default function SignInForm({
         });
 
         if (result.error) {
-          if (isRejectedOAuthRequestError(result.error)) {
-            toast.error(oauthT("errorDescription"));
-            return;
-          }
+          if (toastRejectedOAuthRequest(result.error)) return;
 
-          const errorCode =
-            "code" in result.error ? result.error.code : undefined;
-
-          switch (errorCode) {
-            case AuthErrorCode.TERMS_NOT_ACCEPTED:
-              toast.error(t("Errors.termsNotAccepted"));
-              break;
-            default:
-              toast.error(
-                getErrorMessage(
-                  result.error,
-                  result.error.message ?? t("error"),
-                ),
-              );
-              break;
-          }
+          toast.error(
+            getErrorMessage(result.error, result.error.message ?? t("error")),
+          );
           return;
         }
 
@@ -226,6 +203,46 @@ export default function SignInForm({
     setPrefersPassword(method === "password");
   };
 
+  // A code goes out only when it is asked for here or already went out on
+  // Continue.
+  const methodSwitch = isCodeStep ? (
+    <button
+      type="button"
+      data-testid="auth-use-password"
+      className={STEP_LINK_BUTTON_CLASS}
+      onClick={() => switchTo("password")}
+    >
+      {emailT("usePasswordInstead")}
+    </button>
+  ) : wasCodeSent ? (
+    <span>
+      {emailT("codeStillWorks")}{" "}
+      <button
+        type="button"
+        className={STEP_LINK_BUTTON_CLASS}
+        onClick={() => switchTo("code")}
+      >
+        {emailT("useCodeInstead")}
+      </button>
+    </span>
+  ) : (
+    <button
+      type="button"
+      className={STEP_LINK_BUTTON_CLASS}
+      disabled={emailCode.isSending}
+      onClick={async () => {
+        // The password step's widget covers it: one widget on the step, so a
+        // visitor Cloudflare wants to see is not asked twice.
+        await emailCode.sendCode(email, { runWithCaptcha });
+        switchTo("code");
+      }}
+    >
+      {emailCode.isSending
+        ? emailT("emailCodeSending")
+        : emailT("emailCodeInstead")}
+    </button>
+  );
+
   return (
     <BaseForm
       form={form}
@@ -234,19 +251,7 @@ export default function SignInForm({
       onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
       onChange={onFormStart}
     >
-      {/* Password managers pair the password with this address. */}
-      <input
-        data-testid="auth-field-username"
-        type="email"
-        autoComplete="username"
-        autoCapitalize="none"
-        spellCheck={false}
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-      />
+      <UsernameHint email={email} />
       {isCodeStep ? (
         <Controller
           control={form.control}
@@ -267,10 +272,7 @@ export default function SignInForm({
                 if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
-              error={
-                fieldState.error?.message ??
-                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)
-              }
+              error={fieldState.error?.message}
               notice={handoverNotice}
               unsent={isCodeUnsent}
               sentAt={emailCode.sentAt}
@@ -305,8 +307,6 @@ export default function SignInForm({
                   autoComplete="current-password"
                   placeholder={t("Fields.Password.label")}
                   className="text-center"
-                  showLabel={authT("PasswordToggle.show")}
-                  hideLabel={authT("PasswordToggle.hide")}
                   {...field}
                 />
               </FormControl>
@@ -325,29 +325,24 @@ export default function SignInForm({
           data-testid="auth-submit"
         />
       </div>
-      <EmailCodeSwitch
-        email={email}
-        emailCode={emailCode}
-        isCodeStep={isCodeStep}
-        onSwitch={switchTo}
-        runWithCaptcha={runWithCaptcha}
-        forgotPassword={
-          isCodeStep ? undefined : (
-            <Link
-              href={buildAuthPageUrl(
-                "/forgot-password",
-                readAuthPageContext(searchParams),
-              )}
-              // The address stays out of the URL, which reaches logs.
-              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
-              className={STEP_LINK_BUTTON_CLASS}
-            >
-              {t("forgotPassword")}
-            </Link>
-          )
-        }
-      />
-      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
+      {/* One row on wider screens; a link that does not fit (German, Spanish,
+          or the longer "code still works" line) wraps whole onto its own row. */}
+      <div className="text-muted-foreground flex flex-col items-center gap-2 text-center text-sm sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-3">
+        {isCodeStep ? null : (
+          <Link
+            href={buildAuthPageUrl(
+              "/forgot-password",
+              readAuthPageContext(searchParams),
+            )}
+            // The address stays out of the URL, which reaches logs.
+            onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
+            className={STEP_LINK_BUTTON_CLASS}
+          >
+            {t("forgotPassword")}
+          </Link>
+        )}
+        {methodSwitch}
+      </div>
     </BaseForm>
   );
 }

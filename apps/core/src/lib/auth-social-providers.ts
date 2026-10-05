@@ -1,11 +1,22 @@
 import { z } from "@hono/zod-openapi";
 import * as Sentry from "@sentry/node";
+import { isFirstAndLastNameWithinLimit } from "@sokosumi/utils";
 import type { BetterAuthOptions } from "better-auth/minimal";
 import pTimeout from "p-timeout";
 import { getEnv } from "@/config/env";
 import { uploadProfileImage } from "@/lib/blob";
 
 const env = getEnv();
+
+/** The providers a person can sign in or sign up with, besides email. */
+export const SOCIAL_PROVIDER_IDS = ["google", "microsoft"] as const;
+export type SocialProviderId = (typeof SOCIAL_PROVIDER_IDS)[number];
+
+export function isSocialProviderId(
+  value: string | undefined,
+): value is SocialProviderId {
+  return SOCIAL_PROVIDER_IDS.some((provider) => provider === value);
+}
 
 export const socialProviderOptions = {
   google: {
@@ -22,12 +33,13 @@ export const socialProviderOptions = {
     overrideUserInfoOnSignIn: false,
     mapProfileToUser,
   },
-} satisfies BetterAuthOptions["socialProviders"];
+} satisfies BetterAuthOptions["socialProviders"] &
+  Record<SocialProviderId, object>;
 
 export const accountOptions = {
   accountLinking: {
     enabled: true,
-    trustedProviders: ["google", "microsoft"],
+    trustedProviders: [...SOCIAL_PROVIDER_IDS],
     // requireLocalEmailVerified omitted so the 1.7 default (true) applies.
   },
   // The key derives from BETTER_AUTH_SECRET, or from the first entry of
@@ -77,11 +89,19 @@ async function mapProfileToUser(profile: {
       image: undefined,
     };
   }
+  // Prefills the onboarding form. A provider may leave either claim out.
+  const firstName = profile.given_name?.trim() || undefined;
+  const lastName = profile.family_name?.trim() || undefined;
+  // The user create hook refuses an overlong name; onboarding asks instead of
+  // the sign-up failing.
+  const fitsLimit = isFirstAndLastNameWithinLimit(
+    firstName ?? "",
+    lastName ?? "",
+  );
   return {
     ...mapped,
-    // Prefills the onboarding form. A provider may leave either claim out.
-    firstName: profile.given_name?.trim() || undefined,
-    lastName: profile.family_name?.trim() || undefined,
+    firstName: fitsLimit ? firstName : undefined,
+    lastName: fitsLimit ? lastName : undefined,
     emailVerified: true,
   };
 }

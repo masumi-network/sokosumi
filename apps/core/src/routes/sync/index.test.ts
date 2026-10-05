@@ -20,7 +20,7 @@ const {
   prismaTransactionMock,
   sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
-  purgeExpiredCaptchaPassesMock,
+  purgeExpiredVerificationsMock,
   syncProjectClosesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
@@ -43,7 +43,7 @@ const {
   prismaTransactionMock: vi.fn(),
   sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
-  purgeExpiredCaptchaPassesMock: vi.fn(),
+  purgeExpiredVerificationsMock: vi.fn(),
   syncProjectClosesMock: vi.fn(),
 }));
 
@@ -164,9 +164,9 @@ vi.mock("@/helpers/chat-room-invitation", () => ({
     expireStalePendingInvitationsMock(...args),
 }));
 
-vi.mock("@/services/captcha-pass.purge", () => ({
-  captchaPassPurgeService: {
-    purgeExpiredCaptchaPasses: purgeExpiredCaptchaPassesMock,
+vi.mock("@/services/expired-verifications.purge", () => ({
+  expiredVerificationsPurgeService: {
+    purgeExpiredVerifications: purgeExpiredVerificationsMock,
   },
 }));
 
@@ -1079,46 +1079,48 @@ describe("sync routes", () => {
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
   });
 
-  it("returns 401 for missing cron auth on captcha pass purge sync", async () => {
+  it("returns 401 for missing cron auth on expired verification purge sync", async () => {
     const app = createApp();
 
     const response = await app.request(
-      "http://localhost/sync/captcha-passes-purge",
+      "http://localhost/sync/expired-verifications-purge",
     );
 
     expect(response.status).toBe(401);
     expect(acquireLockMock).not.toHaveBeenCalled();
-    expect(purgeExpiredCaptchaPassesMock).not.toHaveBeenCalled();
+    expect(purgeExpiredVerificationsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 409 when the captcha pass purge lock is already held", async () => {
+  it("returns 409 when the expired verification purge lock is already held", async () => {
     acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
     const app = createApp();
 
     const response = await app.request(
-      "http://localhost/sync/captcha-passes-purge",
+      "http://localhost/sync/expired-verifications-purge",
       { headers: { Authorization: "Bearer test-cron-secret" } },
     );
 
     expect(response.status).toBe(409);
-    expect(purgeExpiredCaptchaPassesMock).not.toHaveBeenCalled();
+    expect(purgeExpiredVerificationsMock).not.toHaveBeenCalled();
   });
 
-  it("returns 200 and starts the captcha pass purge exactly once in background", async () => {
-    purgeExpiredCaptchaPassesMock.mockResolvedValue({ purged: 4 });
+  it("returns 200 and starts the expired verification purge exactly once in background", async () => {
+    purgeExpiredVerificationsMock.mockResolvedValue({ purged: 4 });
     const app = createApp();
 
     const response = await app.request(
-      "http://localhost/sync/captcha-passes-purge",
+      "http://localhost/sync/expired-verifications-purge",
       { headers: { Authorization: "Bearer test-cron-secret" } },
     );
 
     expect(response.status).toBe(200);
-    expect(acquireLockMock).toHaveBeenCalledWith("captcha-passes-purge-sync");
+    expect(acquireLockMock).toHaveBeenCalledWith(
+      "expired-verifications-purge-sync",
+    );
 
     await flushMicrotasks();
-    expect(purgeExpiredCaptchaPassesMock).toHaveBeenCalledTimes(1);
-    expect(purgeExpiredCaptchaPassesMock).toHaveBeenCalledWith(
+    expect(purgeExpiredVerificationsMock).toHaveBeenCalledTimes(1);
+    expect(purgeExpiredVerificationsMock).toHaveBeenCalledWith(
       expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");

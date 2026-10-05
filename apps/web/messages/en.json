@@ -18,8 +18,8 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
-      "rateLimited": "Too many tries in a row. Wait a minute, then try again."
+      "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
+      "notSent": "We could not send a code. Try again."
     },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -58,7 +58,6 @@
       "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "title": "Confirm it is you"
     },
     "ShareButton": {
@@ -574,21 +573,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Create Organization",
           "edit": "Edit Organization"
         },
         "Form": {
           "Submit": {
-            "create": "Create",
             "edit": "Save"
           },
           "cancel": "Cancel",
           "Success": {
-            "create": "Organization created successfully",
             "edit": "Organization updated successfully"
           },
           "Error": {
-            "create": "Failed to create organization",
             "edit": "Failed to update organization"
           },
           "Errors": {
@@ -1217,9 +1212,6 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
-          "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to log in"
-          },
           "NoAccount": {
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
@@ -1228,8 +1220,7 @@
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
             "password": "You already have an account. Enter your password to log in.",
-            "codeNotSentNotice": "You already have an account.",
-            "codeNotSent": "We could not send a code. Try again."
+            "codeNotSentNotice": "You already have an account."
           }
         }
       },
@@ -1708,7 +1699,6 @@
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
-        "owner": "Owner",
         "organization": "Organization",
         "project": "Project",
         "noProject": "No project",
@@ -1763,6 +1753,7 @@
         },
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
+        "actionCreatedTask": "created the task",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "actionTriedChargedCredits": "tried to charge {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {

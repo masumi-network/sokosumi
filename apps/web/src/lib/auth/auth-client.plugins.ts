@@ -19,7 +19,8 @@ import {
 
 import { getEnvPublicConfig } from "@/config/env.public";
 
-function getLastUsedLoginMethodCookieName(): string {
+/** Better Auth's `lastLoginMethod` cookie, named for this deployment. */
+export function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
 
   return resolveBetterAuthCookieName(

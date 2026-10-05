@@ -6,10 +6,7 @@ import { ok } from "@/helpers/response";
 import { claimSignUpConversion } from "@/lib/auth-sign-up-conversion";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireInteractiveUserAuthContext } from "@/middleware/auth";
-import {
-  requireUserRouteContext,
-  type UserRouteVariables,
-} from "@/routes/v1/users/user-route-context";
+import type { UserRouteVariables } from "@/routes/v1/users/user-route-context";
 import {
   signUpConversionRequestSchema,
   signUpConversionResponseSchema,
@@ -64,16 +61,12 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     if (c.req.valid("param").id !== "me") {
       throw forbidden("Sign-up conversions can only be claimed through me");
     }
-    const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
-    if (resolvedUserId !== user.userId) {
-      throw forbidden("You can only claim your own sign-up conversion");
-    }
 
     return ok(
       c,
       signUpConversionResponseSchema.parse({
         provider: await claimSignUpConversion(
-          resolvedUserId,
+          user.userId,
           c.req.valid("json")?.utmAttribution,
         ),
       }),

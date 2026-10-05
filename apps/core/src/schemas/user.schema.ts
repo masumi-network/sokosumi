@@ -1,11 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import {
+  isFirstAndLastNameWithinLimit,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
-import { SIGN_UP_CONVERSION_PROVIDERS } from "@/lib/auth-sign-up-conversion";
+import { SOCIAL_PROVIDER_IDS } from "@/lib/auth-social-providers";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -252,7 +253,7 @@ export const utmAttributionResponseSchema = z
 
 export const signUpConversionResponseSchema = z
   .object({
-    provider: z.enum(SIGN_UP_CONVERSION_PROVIDERS).nullable().openapi({
+    provider: z.enum(SOCIAL_PROVIDER_IDS).nullable().openapi({
       description:
         "The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.",
       example: "google",
@@ -297,3 +298,15 @@ export const creditsResponseSchema = z.object({
       "Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.",
   }),
 });
+
+export const updateUserNameSchema = z
+  .object({
+    firstName: z.string().trim().min(1).openapi({ example: "Ada" }),
+    lastName: z.string().trim().min(1).openapi({ example: "Lovelace" }),
+  })
+  .refine(
+    ({ firstName, lastName }) =>
+      isFirstAndLastNameWithinLimit(firstName, lastName),
+    { path: ["lastName"], error: "First and last name are too long" },
+  )
+  .openapi("UpdateUserName");

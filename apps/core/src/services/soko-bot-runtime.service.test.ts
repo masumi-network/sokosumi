@@ -1959,11 +1959,19 @@ describe("SokoBotRuntimeService authorization", () => {
         data: expect.objectContaining({
           creatorSokoBotId: SCOPE.sokoBotId,
           events: {
-            create: expect.objectContaining({
-              channel: "SOKOSUMI",
-              sokoBotId: SCOPE.sokoBotId,
-              status: TaskStatus.DRAFT,
-            }),
+            create: [
+              expect.objectContaining({
+                status: TaskStatus.CREATED,
+                sokoBotId: SCOPE.sokoBotId,
+              }),
+              // The action receipt points at this event, not the CREATED one.
+              expect.objectContaining({
+                id: expect.any(String),
+                channel: "SOKOSUMI",
+                sokoBotId: SCOPE.sokoBotId,
+                status: TaskStatus.DRAFT,
+              }),
+            ],
           },
         }),
       }),
