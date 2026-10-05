@@ -165,6 +165,8 @@ p {
   font: inherit;
   font-size: 1rem;
   font-weight: 600;
+  /* Links styled as buttons (Back) look like the buttons beside them. */
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 150ms,
@@ -250,6 +252,7 @@ p {
   color: var(--foreground);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 150ms,
