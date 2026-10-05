@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl"
 import * as React from "react"
 
 import { useMountEffect } from "@/hooks/use-mount-effect"
+import { cn } from "@/lib/utils"
 
 type AnnounceLoading = (label: string) => () => void
 
@@ -65,8 +66,12 @@ function accessibleLabel(control: Element | null | undefined) {
  * start of the loading state, so it also tells the announcer, by the button's
  * own name. It lives in the button's DOM but is `aria-hidden`, so it never
  * changes that name; the announcement goes to the region outside.
+ *
+ * Also exported for buttons this component cannot render, such as third-party
+ * sign-in buttons. The parent needs `relative overflow-hidden` and the
+ * button's radius.
  */
-function ButtonLoadingBar() {
+function ButtonLoadingBar({ className }: { className?: string }) {
   const announce = React.useContext(ButtonLoadingAnnouncerContext)
   const ref = React.useRef<HTMLSpanElement>(null)
 
@@ -79,7 +84,10 @@ function ButtonLoadingBar() {
       ref={ref}
       aria-hidden="true"
       data-slot="button-loading-bar"
-      className="animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse"
+      className={cn(
+        "animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse",
+        className
+      )}
     />
   )
 }
