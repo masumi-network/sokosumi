@@ -220,7 +220,8 @@ describe("oauthSignUpOptions", () => {
 
     expect(location.startsWith(`${WEB}/signup?`)).toBe(true);
     expect(new URL(location).searchParams.get("client_id")).toBe("cmo-client");
-    // Taking the redirect spends the row, so it is handed out once.
+    // Taking the redirect deletes this user's row of a supported provider;
+    // a later authorization then finds none (the count 0 case below).
     expect(deleteManyMock).toHaveBeenCalledWith({
       where: {
         identifier: expect.stringMatching(/^sign-up-conversion-redirect:/),
