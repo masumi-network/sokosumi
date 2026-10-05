@@ -23,7 +23,11 @@ vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   executeComposioTool: executeToolMock,
 }));
 
-import { listGoogleAdAccounts, listGoogleCampaigns } from "./google-ads";
+import {
+  listGoogleAdAccounts,
+  listGoogleCampaigns,
+  updateGoogleCampaign,
+} from "./google-ads";
 
 const input = {
   connectedAccountId: "ca_google",
@@ -387,4 +391,186 @@ describe("listGoogleCampaigns", () => {
       /invalid response/,
     );
   });
+});
+
+describe("updateGoogleCampaign", () => {
+  const update = {
+    ...input,
+    customerId: "111",
+    campaignId: "42",
+  };
+  const lookup = (overrides: Record<string, unknown> = {}) => ({
+    results: [
+      {
+        campaign: {
+          id: "42",
+          campaignBudget: "customers/111/campaignBudgets/7",
+        },
+        campaignBudget: { explicitlyShared: false },
+        ...overrides,
+      },
+    ],
+    fieldMask:
+      "campaign.id,campaign.campaignBudget,campaignBudget.explicitlyShared",
+    requestId: "req_1",
+  });
+  const mutated = {
+    results: [{ resource_name: "customers/111/campaigns/42" }],
+    successful_count: 1,
+  };
+  const writes = () =>
+    executeToolMock.mock.calls
+      .map(([call]) => call)
+      .filter((call) => call.toolSlug !== "GOOGLEADS_SEARCH_STREAM_GAQL");
+
+  beforeEach(() => {
+    vi.resetAllMocks();
+    createSessionMock.mockResolvedValue("sess_1");
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookup() : mutated,
+    );
+  });
+
+  it("looks the campaign up in the customer before writing", async () => {
+    await updateGoogleCampaign({ ...update, status: "PAUSED" });
+    const [first] = executeToolMock.mock.calls[0] ?? [];
+    expect(first).toMatchObject({
+      toolSlug: "GOOGLEADS_SEARCH_STREAM_GAQL",
+      arguments: { customer_id: "111" },
+    });
+    expect(first.arguments.query).toMatch(/campaign\.id = 42 AND/);
+  });
+
+  it.each([
+    ["PAUSED", "paused"],
+    ["ACTIVE", "enabled"],
+  ] as const)(
+    "sets status %s as %s in an update operation",
+    async (status, google) => {
+      await updateGoogleCampaign({ ...update, status });
+      expect(writes()).toEqual([
+        expect.objectContaining({
+          toolSlug: "GOOGLEADS_MUTATE_CAMPAIGNS",
+          arguments: {
+            customer_id: "111",
+            operations: [
+              {
+                operation_type: "update",
+                update: {
+                  resource_name: "customers/111/campaigns/42",
+                  status: google,
+                },
+              },
+            ],
+          },
+        }),
+      ]);
+    },
+  );
+
+  it("sends budget operations without an operation_type, in micros", async () => {
+    await updateGoogleCampaign({ ...update, dailyBudget: 12.34 });
+    expect(writes()).toEqual([
+      expect.objectContaining({
+        toolSlug: "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+        arguments: {
+          customer_id: "111",
+          operations: [
+            {
+              update: {
+                resource_name: "customers/111/campaignBudgets/7",
+                amount_micros: 12340000,
+              },
+              update_mask: "amount_micros",
+            },
+          ],
+        },
+      }),
+    ]);
+  });
+
+  it("changes the budget first, then the status", async () => {
+    await updateGoogleCampaign({
+      ...update,
+      status: "ACTIVE",
+      dailyBudget: 20,
+    });
+    expect(writes().map((call) => call.toolSlug)).toEqual([
+      "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+      "GOOGLEADS_MUTATE_CAMPAIGNS",
+    ]);
+    expect(createSessionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolSlugs: [
+          "GOOGLEADS_SEARCH_STREAM_GAQL",
+          "GOOGLEADS_MUTATE_CAMPAIGNS",
+          "GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS",
+        ],
+      }),
+    );
+  });
+
+  it("returns 404 without writing when the campaign is not in the customer", async () => {
+    executeToolMock.mockResolvedValue({
+      results: [],
+      fieldMask: "campaign.id",
+    });
+    await expect(
+      updateGoogleCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toMatchObject({ status: 404 });
+    expect(executeToolMock).toHaveBeenCalledTimes(1);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it("returns 409 without any write for a shared budget", async () => {
+    executeToolMock.mockResolvedValue(
+      lookup({
+        campaignBudget: { explicitlyShared: true, amountMicros: "1" },
+      }),
+    );
+    await expect(
+      updateGoogleCampaign({ ...update, status: "PAUSED", dailyBudget: 9 }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(writes()).toEqual([]);
+  });
+
+  it("still changes status when the budget is shared and not requested", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+      call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL"
+        ? lookup({ campaignBudget: { explicitlyShared: true } })
+        : mutated,
+    );
+    await updateGoogleCampaign({ ...update, status: "PAUSED" });
+    expect(writes()).toHaveLength(1);
+  });
+
+  it("raises a provider error and still deletes the session", async () => {
+    executeToolMock.mockImplementation(async (call: { toolSlug: string }) => {
+      if (call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL") return lookup();
+      throw new ComposioToolError({ message: "refused" });
+    });
+    await expect(
+      updateGoogleCampaign({ ...update, status: "PAUSED" }),
+    ).rejects.toBeInstanceOf(ComposioToolError);
+    expect(deleteSessionMock).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["no results", { results: [] }],
+    ["no payload", {}],
+    ["a partial failure", { results: [], partial_failure_error: { code: 3 } }],
+  ])(
+    "raises a tool error when the mutation returns %s",
+    async (_name, result) => {
+      executeToolMock.mockImplementation(async (call: { toolSlug: string }) =>
+        call.toolSlug === "GOOGLEADS_SEARCH_STREAM_GAQL" ? lookup() : result,
+      );
+      await expect(
+        updateGoogleCampaign({ ...update, dailyBudget: 5 }),
+      ).rejects.toBeInstanceOf(ComposioToolError);
+      await expect(
+        updateGoogleCampaign({ ...update, status: "PAUSED" }),
+      ).rejects.toBeInstanceOf(ComposioToolError);
+    },
+  );
 });
