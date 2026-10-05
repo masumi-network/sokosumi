@@ -117,11 +117,14 @@ export default function ForgotPasswordForm({
           formData={formData}
           namespace="Auth.Pages.ForgotPassword.Form"
         />
-        <p role="status" className="text-sm text-muted-foreground empty:-mt-3">
+        <p
+          role="status"
+          className="text-muted-foreground text-center text-sm empty:-mt-3"
+        >
           {isEmailSent ? t("success") : null}
         </p>
         {error ? (
-          <p role="alert" className="text-destructive text-sm">
+          <p role="alert" className="text-destructive text-center text-sm">
             {error}
           </p>
         ) : null}

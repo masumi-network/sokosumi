@@ -4,13 +4,11 @@ private struct TokenPayload: Decodable {
   var accessToken: String
   var refreshToken: String?
   var expiresIn: TimeInterval?
-  var scope: String?
 
   enum CodingKeys: String, CodingKey {
     case accessToken = "access_token"
     case refreshToken = "refresh_token"
     case expiresIn = "expires_in"
-    case scope
   }
 }
 
@@ -34,7 +32,7 @@ public actor OAuthSession {
   private let store: any TokenStore
   private let transport: any TokenEndpointTransport
   private let now: @Sendable () -> Date
-  /// Changes on sign-in/sign-out, but not token refresh; scopes waiting API reads.
+  /// Changes on sign-in/sign-out, but not token refresh.
   public private(set) var generation = 0
   private var refreshTask: Task<String, any Error>?
 
@@ -54,7 +52,7 @@ public actor OAuthSession {
     store.load() != nil
   }
 
-  /// Completes sign-in from the `ASWebAuthenticationSession` callback URL
+  /// Completes sign-in from the HTTPS callback URL
   /// (`https://app.sokosumi.com/auth/apple/callback?code=…&state=…`),
   /// exchanging the code with PKCE. Only that exact HTTPS link counts.
   func signIn(callbackURL: URL, expectedState: String, codeVerifier: String) async throws {
@@ -179,8 +177,7 @@ extension TokenPayload {
     OAuthTokens(
       accessToken: accessToken,
       refreshToken: refreshToken,
-      expiresAt: now.addingTimeInterval(expiresIn ?? 0),
-      scope: scope
+      expiresAt: now.addingTimeInterval(expiresIn ?? 0)
     )
   }
 }
