@@ -68,6 +68,10 @@ jobs:
     # `apps/apple/docs/xcode-cloud-required-check.md`.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
+    permissions:
+      contents: read
+      # Delete superseded compilation cache entries.
+      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -131,6 +135,18 @@ jobs:
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
+
+      # Each main push saves a ~0.4 GB entry and restores only the newest, so
+      # older ones would pile up in the repo's 10 GB and evict other caches.
+      - name: Delete superseded Xcode compilation caches
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh cache list --ref "$GITHUB_REF" --key "$RUNNER_OS-xcode-cas-" --sort created_at
+          --order desc --limit 100 --json id --jq '.[1:][].id'
+          | xargs -r -n1 gh cache delete
 
       - name: Report test failures
         if: failure()
