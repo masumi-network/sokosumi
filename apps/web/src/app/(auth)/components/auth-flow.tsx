@@ -44,7 +44,6 @@ import {
   isEmailAuthMethod,
   type LastUsedAuthMethod,
   type SignInMethod,
-  toProviderAuthMethod,
 } from "@/lib/utils/last-used-auth-method";
 
 /** Log in (`/signin`) or Register (`/signup`). */
@@ -315,7 +314,7 @@ export default function AuthFlow({
       </div>
       <SocialButtons
         returnUrl={effectiveReturnUrl}
-        lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
+        lastUsedMethod={lastUsedMethod}
         showPasskey={isSignIn}
         eventType={mode}
         disabled={isEmailPending}
