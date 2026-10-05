@@ -3025,12 +3025,9 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Delete the current user's personal workspace. Core returns 409 when it is
-   * the last workspace, or when jobs/tasks still reference it.
-   */
-  /**
    * Deletes the current user's personal workspace, by workspace id from
-   * {@link getMyWorkspaces}. Core refuses an organization workspace (409).
+   * {@link getMyWorkspaces}. Core returns 409 for an organization workspace,
+   * the last workspace, or one that jobs or tasks still reference.
    */
   async function deleteMyWorkspace(workspaceId: string) {
     return executeCoreOperation(
