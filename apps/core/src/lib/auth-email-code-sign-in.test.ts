@@ -9,7 +9,6 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
 import { emailCodeSignIn } from "./auth-email-code-sign-in.js";
-import { resolveEmailCodeSignInNameBody } from "./auth-user-name.js";
 
 type Row = Record<string, unknown>;
 
@@ -53,8 +52,9 @@ function googleAccountRow(userId: string): Row {
   };
 }
 
-// A real Better Auth instance with the email code plugin and Core's name hook,
-// so the plugin runs where Core runs it: around Better Auth's own endpoint.
+// A real Better Auth instance with the email code plugin and Core's terms
+// check, so the plugin runs where Core runs it: around Better Auth's own
+// endpoint.
 async function createTestAuth(
   seed: { user?: Row[]; account?: Row[] } = {},
   /** Runs after the plugin's before hook, ahead of Better Auth's endpoint. */
@@ -113,13 +113,6 @@ async function createTestAuth(
       },
     ],
     hooks: {
-      before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === "/sign-in/email-otp") {
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
-        }
-      }),
       // Core's terms check, which runs before plugin after hooks.
       after: createAuthMiddleware(async (ctx) => {
         const user = ctx.context.newSession?.user;
@@ -224,6 +217,48 @@ describe("password sign-up through an email code", () => {
       (await auth.signInWithCode({ email: "ada@example.com", otp })).status,
     ).toBe(200);
   });
+
+  // Sent for an address that has an account, so each case must be refused
+  // by its own rule before the account check, and before the code is spent.
+  it.each([
+    {
+      rule: "accepted terms",
+      body: { termsAccepted: false, lastName: undefined, password: "short" },
+      code: "TERMS_NOT_ACCEPTED",
+    },
+    {
+      rule: "both names",
+      body: { lastName: undefined, password: "short" },
+      code: "NAME_REQUIRED",
+    },
+    {
+      rule: "the password length",
+      body: { password: "short" },
+      code: "PASSWORD_TOO_SHORT",
+    },
+  ])(
+    "checks $rule first, and leaves the code unused",
+    async ({ body, code }) => {
+      const auth = await createTestAuth({
+        user: [userRow("user-1", "ada@example.com", true)],
+      });
+      const otp = await auth.sendCode("ada@example.com");
+
+      const signUp = await auth.signInWithCode({
+        email: "ada@example.com",
+        otp,
+        ...SIGN_UP,
+        ...body,
+      });
+
+      expect(signUp.status).toBe(400);
+      expect(await signUp.json()).toMatchObject({ code });
+      expect(auth.db.user).toHaveLength(1);
+      expect(
+        (await auth.signInWithCode({ email: "ada@example.com", otp })).status,
+      ).toBe(200);
+    },
+  );
 
   // e.g. the person signed up with Google in another tab meanwhile.
   it("refuses an account that appeared since the check without spending the code", async () => {
