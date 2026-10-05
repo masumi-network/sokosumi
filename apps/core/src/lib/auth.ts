@@ -44,9 +44,9 @@ import {
 import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
-import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
 import {
+  getBetterAuthProductionUrl,
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
@@ -80,9 +80,9 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { authErrorPageOptions } from "./auth-error-page";
 import {
   acceptCmoPreviewCallback,
+  answerCreatePromptWithNewSession,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
@@ -91,6 +91,7 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
@@ -369,8 +370,6 @@ export const auth = betterAuth({
                   },
                   extra: {
                     userId: user.id,
-                    email: user.email,
-                    name: user.name,
                   },
                 });
               }),
@@ -419,7 +418,11 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
-  onAPIError: authErrorPageOptions(webAppBaseUrl),
+  // Failures with no error URL of their own (a social callback whose state is
+  // gone, an unreturnable authorize request, a failed account link or proxy
+  // hand-off) land here instead of Core's `/auth/error`, which on production
+  // bounces to the API host's root. Web's own `errorCallbackURL` still wins.
+  onAPIError: { errorURL: `${webAppBaseUrl}/auth/error` },
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [
@@ -524,6 +527,9 @@ export const auth = betterAuth({
           ctx.context.session.user.id,
         );
       }
+
+      await keepNewSessionPersistent(ctx);
+      await answerCreatePromptWithNewSession(ctx);
     }),
   },
   emailAndPassword: {
@@ -613,7 +619,6 @@ export const auth = betterAuth({
       );
     },
     sendOnSignUp: true,
-    sendOnSignIn: true,
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
@@ -664,6 +669,11 @@ export const auth = betterAuth({
         otpLength: 6,
         expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
         allowedAttempts: 5,
+        // Per IP, for sending and for signing in with a code. The default (3 a
+        // minute) turns away an office or event behind one address. Guessing
+        // stays capped by the five tries per code, and every send by the
+        // captcha.
+        rateLimit: { window: 60, max: 10 },
         // A resend repeats the code rather than replacing it, so whichever email
         // arrives first works. Reuse needs the code recoverable, so it is stored
         // encrypted with the auth secret instead of hashed.
@@ -693,14 +703,14 @@ export const auth = betterAuth({
             }).catch((error) => {
               captureExternalServiceError(error, {
                 label: "email_code_email",
+                message: "Email code delivery failed",
                 sentry: {
                   tags: {
                     context: "email_code_email",
                   },
                 },
-                extra: {
-                  email,
-                },
+                // Provider errors can echo the address or code. Report only
+                // fixed text, without the original message, stack or cause.
               });
             }),
           );

@@ -236,6 +236,14 @@ _Avoid_: NEW tag, beta badge, unread badge
 The human check on public account-email entry points (sign-up, sign-in, password reset, email code, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
+**Log in**:
+Starting a Sokosumi session on Sokosumi's own pages, with an email code, a password, a passkey, or a provider. "Login" is only ever a noun.
+_Avoid_: Login (as a verb), Sign in (except in Sign in with Sokosumi)
+
+**Email code**:
+The six-digit code Sokosumi emails to log in or to prove an address at sign-up. It lasts 10 minutes and allows five wrong tries. Copy calls it just "code".
+_Avoid_: Login code, OTP, magic link
+
 **Sign in with Sokosumi**:
 Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
 _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up

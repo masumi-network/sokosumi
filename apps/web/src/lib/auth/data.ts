@@ -15,13 +15,13 @@ export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       error: t?.("Name.max"),
     });
 
-export const firstNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+const firstNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("FirstName.required") })
     .trim()
     .min(1, { error: t?.("FirstName.required") });
 
-export const lastNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+const lastNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("LastName.required") })
     .trim()

@@ -100,6 +100,7 @@ describe("resolveChatMobileActiveTabId", () => {
     expect(resolveChatMobileActiveTabId("/calendar")).toBe("home");
     expect(resolveChatMobileActiveTabId("/schedules")).toBe("home");
     expect(resolveChatMobileActiveTabId("/studio")).toBe("home");
+    expect(resolveChatMobileActiveTabId("/social")).toBe("home");
     expect(resolveChatMobileActiveTabId("/you")).toBe("you");
     expect(resolveChatMobileActiveTabId("/notifications/n1")).toBeNull();
     expect(resolveChatMobileActiveTabId("/projects/p1")).toBeNull();

@@ -3,9 +3,8 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -16,13 +15,9 @@ import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
 import {
-  signUpMarketingFormData,
-  signUpPasswordFormData,
-} from "@/auth/signup/data";
-import {
   EMAIL_CODE_LENGTH,
   EmailCodeField,
-  useDescribeEmailCodeError,
+  useEmailCodeRefusal,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -30,9 +25,35 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
-import { signUpFormSchema } from "@/lib/schemas/auth";
+import type { FormData } from "@/lib/form";
+import {
+  type SignUpFormSchemaType,
+  signUpFormSchema,
+} from "@/lib/schemas/auth";
 
 import { useSignInHref } from "./sign-in-link";
+
+type SignUpFormData = FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form">;
+
+// An email code replaces the password, so the two are rendered apart.
+const signUpPasswordFormData: SignUpFormData = [
+  {
+    name: "password",
+    labelKey: "Fields.Password.label",
+    // Shown up front, so the rule is known before a submit fails on it.
+    descriptionKey: "Fields.Password.description",
+    type: "password",
+    autoComplete: "new-password",
+  },
+];
+
+const signUpMarketingFormData: SignUpFormData = [
+  {
+    name: "marketingOptIn",
+    type: "checkbox",
+    labelKey: "Fields.MarketingOptIn.label",
+  },
+];
 
 interface SignUpFormProps {
   /** Confirmed on the step before this one. */
@@ -45,9 +66,10 @@ interface SignUpFormProps {
 
 /**
  * Second sign-up step. Step 1 has emailed a code, so this asks for the name
- * and that code, with one Register. A password is a deliberate addition, sent
- * with the code: the code proves the address, so no account starts with an
- * unproven one. When the first code did not go out, the field sends another.
+ * and that code, with one Register; a whole code waits for it. A password is
+ * a deliberate addition, sent with the code: the code proves the address, so
+ * no account starts with an unproven one. When the first code did not go out,
+ * the field sends another.
  */
 export default function SignUpForm({
   email,
@@ -59,17 +81,12 @@ export default function SignUpForm({
   const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
-  const describeCodeError = useDescribeEmailCodeError();
   const [isLeaving, setIsLeaving] = useState(false);
-  const formRef = useRef<HTMLFormElement>(null);
-  const completedCodeRef = useRef("");
   const [withPassword, setWithPassword] = useState(false);
-  const [refusedCode, setRefusedCode] = useState(0);
   // Step 1 found no account, but one can appear since, e.g. through Google
   // in another tab.
   const [accountExists, setAccountExists] = useState(false);
   const signInHref = useSignInHref();
-  const searchParams = useSearchParams();
 
   // Read by the resolver, which validates whichever way the step finishes.
   const withPasswordRef = useRef(withPassword);
@@ -97,6 +114,15 @@ export default function SignUpForm({
       code: "",
       marketingOptIn: false,
     },
+  });
+
+  const { isSubmitting } = form.formState;
+  const isPending = isSubmitting || isLeaving;
+  const codeRefusal = useEmailCodeRefusal({
+    clear: () => form.setValue("code", ""),
+    focus: () => form.setFocus("code"),
+    // A submitting fieldset cannot receive focus.
+    isLocked: isSubmitting,
   });
 
   // The step replaced the one the user was typing in, so focus follows.
@@ -141,8 +167,7 @@ export default function SignUpForm({
         });
         return;
       }
-      form.setError("code", { message: describeCodeError(error) });
-      setRefusedCode((count) => count + 1);
+      form.setError("code", { message: codeRefusal.refuse(error) });
       return;
     }
     // The page is leaving; keep the step locked until it has.
@@ -154,20 +179,9 @@ export default function SignUpForm({
     setWithPassword((current) => !current);
   };
 
-  const { isSubmitting } = form.formState;
-  const isPending = isSubmitting || isLeaving;
-
-  // A refused code sends focus back to its field. A submitting fieldset
-  // cannot receive focus; wait until it is enabled again.
-  useEffect(() => {
-    if (refusedCode === 0 || isSubmitting) return;
-    form.setFocus("code");
-  }, [refusedCode, isSubmitting, form]);
-
   return (
     <BaseForm
       form={form}
-      formRef={formRef}
       disabled={isLeaving}
       onSubmit={handleSubmit}
       onChange={onFormStart}
@@ -187,6 +201,7 @@ export default function SignUpForm({
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
+        namesInside
       />
       {withPassword ? (
         <FormFields
@@ -200,17 +215,16 @@ export default function SignUpForm({
         name="code"
         render={({ field, fieldState }) => (
           <EmailCodeField
+            centered
             inputRef={field.ref}
             value={field.value}
-            completedCodeRef={completedCodeRef}
-            onChange={field.onChange}
-            onComplete={() => {
-              // Only when Register would go through: a code typed before
-              // the names waits for the button, with nothing new marked.
-              const schema = withPassword ? passwordSchema : codeOnlySchema;
-              if (!isPending && schema.safeParse(form.getValues()).success) {
-                formRef.current?.requestSubmit();
-              }
+            // No onComplete: the updates checkbox comes after the code,
+            // so only Register sends it.
+            onChange={(code) => {
+              // Typing replaces the reason; checking for a whole code while
+              // it is typed would only say it is not yet one.
+              form.clearErrors("code");
+              form.setValue("code", code);
             }}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
@@ -235,15 +249,8 @@ export default function SignUpForm({
             <p>{t("AccountExists.description")}</p>
             <Link
               href={signInHref}
-              onClick={(event) =>
-                // An invitation's address travels in the link itself.
-                rememberAuthEmailHintOnClick(
-                  event,
-                  searchParams.get("invitationId") && searchParams.get("email")
-                    ? ""
-                    : email,
-                )
-              }
+              // Sign-in ignores it when an invitation locks the address.
+              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
               className="text-primary font-medium hover:underline"
             >
               {t("AccountExists.logIn")}

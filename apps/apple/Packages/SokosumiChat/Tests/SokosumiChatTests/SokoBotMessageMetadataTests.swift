@@ -192,37 +192,61 @@ struct SokoBotChainMetadataTests {
   }
 }
 
-struct MentionShellTranscriptVisibilityTests {
+@MainActor struct MentionShellTranscriptVisibilityTests {
   private let thinking = #"{"streaming":true,"mention_id":"mention_1","in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
   private let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
 
-  @Test func bodilessSokoBotShellsLeaveTheTranscript() async throws {
-    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: thinking))))
-    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "   ", metadata: failed))))
-    // Web keeps coworker shells and answered rows.
+  /// Row 38d: web #5617 (`isMentionThoughtShell`) keeps a Soko Bot's bodiless mention shell as it keeps a
+  /// coworker's, so the live Thinking and "Failed to reply" stay in the transcript.
+  @Test func sokoBotShellsStayInTheTranscriptLikeACoworkers() async throws {
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", metadata: thinking))))
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "   ", metadata: failed))))
+    // A dispatch failure before the turn started carries no `soko_bot` record (`failMentionThoughtPlaceholder`).
+    #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source"}"#))))
     #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "", sender: coworkerSender, metadata: thinking))))
     #expect(try await shouldKeepPersistedMessage(decode(botRow(content: "Done.", metadata: #"{"mention_id":"mention_1","soko_bot":{"turn_id":"turn_1"}}"#))))
     // Row 19a: the predicate is web's whole `shouldKeepPersistedMessage`, so every other bodiless
-    // row leaves too — a tombstone, a bot row without shell metadata, and shell metadata on a human.
+    // row leaves — a tombstone, a bot row without shell metadata, and shell metadata on a human.
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil, deletedAt: testTimestamp))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"","streaming":true}"#))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1"}"#))))
+    #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: #"{"mention_id":"mention_1","streaming":false}"#))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", metadata: nil))))
     #expect(try await !shouldKeepPersistedMessage(decode(botRow(content: "", sender: testUserSender(name: "Me", email: "me@example.com"), metadata: thinking))))
   }
 
-  @Test func displayedTranscriptDropsTheShellUntilTheAnswerArrives() async throws {
+  /// Web's `mergeMessagesWithStreamOverlay` test from #5617: both shells stay, and the answer fills the same row.
+  @Test func displayedTranscriptKeepsTheShellsAndTheAnswerFillsTheSameRow() async throws {
     let rows = try await fetchTestMessages([
       testMessageJSON(id: "source", content: "plan my week", sender: testUserSender(name: "Me", email: "me@example.com")),
       botRow(id: "shell", content: "", metadata: thinking),
-      botRow(id: "failed", content: "", metadata: failed),
-      botRow(id: "answer", content: "Here is the plan.", metadata: #"{"mention_id":"mention_2","soko_bot":{"turn_id":"turn_2","task_ids":["task_1"]}}"#)
+      botRow(id: "failed", content: "", metadata: failed)
     ])
-    let displayed = displayedTranscript(messages: rows, shells: [])
-    #expect(displayed.map(\.id) == ["source", "answer"])
+    #expect(displayedTranscript(messages: rows, shells: []).map(\.id) == ["source", "shell", "failed"])
     var answered = rows[1]
-    answered.content = "Done."
-    #expect(displayedTranscript(messages: [rows[0], answered], shells: []).map(\.id) == ["source", "shell"])
+    answered.content = "Here is the plan."
+    answered.metadata = try .init(additionalProperties: [
+      "mention_id": .init(unvalidatedValue: "mention_1"),
+      "soko_bot": .init(unvalidatedValue: ["turn_id": "turn_1"])
+    ])
+    let settled = displayedTranscript(messages: [rows[0], answered, rows[2]], shells: [])
+    #expect(settled.map(\.id) == ["source", "shell", "failed"])
+    #expect(settled[1].content == "Here is the plan.")
+  }
+
+  /// Web's thread panel runs the same filter over the replies.
+  @Test func aThreadKeepsTheSokoBotShellsToo() async throws {
+    let reply = { (id: String, metadata: String) in
+      botRow(id: id, content: "", metadata: metadata)
+        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\"")
+    }
+    let root = try await decode(testMessageJSON(id: "root", content: "@Soko plan my week", sender: testUserSender(name: "Me", email: "me@example.com")))
+    let transport = TestTransport([(200, testMessagesPageBody(messages: [reply("shell", thinking), reply("failed", failed)], nextCursor: nil))])
+    let session = ThreadSession()
+    #expect(session.open(root))
+    _ = try await session.timeline.loadPage(.initial, client: makeTestClient(transport), organizationSlug: nil, generation: session.timeline.generation)
+    // Same timestamp, so the page orders them by id.
+    #expect(session.displayedReplies.map(\.id) == ["failed", "shell"])
   }
 }
 

@@ -28,7 +28,7 @@ import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
 import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 
-export type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
+type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
   returnUrl?: string;
@@ -74,6 +74,20 @@ const socialButtons: Array<{
     Button: MicrosoftLoginButton,
   },
 ];
+
+/**
+ * The person closed the browser's passkey prompt, let it time out, or another
+ * prompt replaced it. Better Auth passes simplewebauthn's code on without the
+ * underlying error, so a `NotAllowedError` (the passthrough code) cannot be
+ * told apart further; by spec it means cancelled, timed out or not permitted.
+ */
+function isPasskeyPromptDismissed(code: string | undefined): boolean {
+  return (
+    code === "AUTH_CANCELLED" ||
+    code === "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY" ||
+    code === "ERROR_CEREMONY_ABORTED"
+  );
+}
 
 export default function SocialButtons({
   returnUrl,
@@ -142,7 +156,7 @@ export default function SocialButtons({
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
-        if (showErrors && errorCode !== "AUTH_CANCELLED") {
+        if (showErrors && !isPasskeyPromptDismissed(errorCode)) {
           toast.error(t("passkeyError"));
         }
         return;

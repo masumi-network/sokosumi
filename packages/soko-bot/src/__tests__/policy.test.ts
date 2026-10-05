@@ -60,6 +60,25 @@ describe("Soko Bot route capability ceilings", () => {
     expect(capabilities).toContain("write_table_rows");
   });
 
+  it("lets a social request save chat images for its posts", () => {
+    const capabilities = capabilitiesForClassification({
+      schemaVersion: 1,
+      route: "MANAGE_WORK",
+      writeScope: "SOCIAL",
+      confidence: 1,
+      rationaleSummary: "explicit",
+      requestedOutcome: "schedule posts with these screenshots",
+      candidateProjectIds: [],
+      candidateCoworkerIds: [],
+      candidateAgentIds: [],
+      requiresApproval: false,
+      requiresClarification: false,
+    });
+    expect(capabilities).toContain("create_social_post");
+    expect(capabilities).toContain("upload_file");
+    expect(capabilities).not.toContain("create_task");
+  });
+
   it("offers no approval-card tool on any route", () => {
     // Bots act, or ask in chat; nothing waits on an owner card.
     for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES))

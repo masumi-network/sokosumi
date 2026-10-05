@@ -143,6 +143,7 @@ import SwiftUI
                              onSendToSelf: sendToSelfAction(for: parent),
                              sokoBotFeedback: workspaces.sokoBotFeedback(for: parent),
                              onSokoBotFeedback: sokoBotFeedbackAction(for: parent))
+                .jumpSpotlightRow(messageId: parent.id)
                 .id(parent.id)
               Divider()
               HStack {
@@ -173,6 +174,8 @@ import SwiftUI
             .padding(.horizontal)
             .padding(.top)
           }
+          // Row 25b2: the other rows, the parent too, step back while the Thread's mark holds.
+          .jumpSpotlight(for: jumpTarget?.mark)
           .scrollPosition(id: $visibleMessageID, anchor: .bottom)
           .defaultScrollAnchor(.bottom, for: .initialOffset)
           .defaultScrollAnchor(scrollIntent.followsLatest ? .bottom : nil, for: .sizeChanges)
@@ -276,7 +279,8 @@ import SwiftUI
     private func jumpToQuote(_ id: String) {
       Task { @MainActor in
         do {
-          if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+          // A quote in this room marks no Thread parent in the room, as web's same-room quote (row 25c).
+          if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
             jumpError = "This message is no longer available."
           }
         } catch { jumpError = friendlyMessage(for: error) }
@@ -346,6 +350,7 @@ import SwiftUI
           }
           if let status = roomStatusText(message) {
             RoomStatusRow(text: status)
+              .jumpSpotlightRow(messageId: message.id)
           } else {
             MessageRowView(channels: channels, room: room, preparedDocument: preparedTranscript?.document(for: message), message: message, isContinuation: isMessageContinuation(previous: previous, current: message),
                            outbound: shell, sentAt: outbox.sentAt[message.id],
@@ -363,6 +368,7 @@ import SwiftUI
                            sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
                            onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                            streamThinking: thinking)
+              .jumpSpotlightRow(messageId: message.id)
           }
         }
         .id(message.id)

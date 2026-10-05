@@ -149,11 +149,6 @@ export function creditsPerImageCents(
   return null;
 }
 
-/** True when this unit alone yields a per-image figure for any frame. */
-export function isPerImageDerivableUnit(unit: string): boolean {
-  return PER_IMAGE_UNITS.includes(unit) || PER_MEGAPIXEL_UNITS.includes(unit);
-}
-
 /** True when this unit bills the output area rather than the image. */
 export function isAreaPricedUnit(unit: string): boolean {
   return PER_MEGAPIXEL_UNITS.includes(unit);

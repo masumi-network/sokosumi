@@ -2,6 +2,7 @@
 
 import type {
   ChatRoomCoworkerParticipant,
+  ChatRoomMessageSkill,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
   DriveFile,
@@ -56,6 +57,8 @@ import {
   RoomMessageComposer,
   type RoomMessageComposerAttachment,
 } from "@/components/chat/room-message-composer";
+import { ComposerSkillChips } from "@/components/chat/skill-chip";
+import { SkillPicker } from "@/components/chat/skill-picker";
 import { AttachmentSubmenu } from "@/components/drive/attachment-submenu";
 import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -379,6 +382,8 @@ export function RoomComposer({
   canOpenHumanDirect = false,
   onOpenDirectMessage,
   openingDirectParticipantKey = null,
+  skills = [],
+  onSkillsChange,
 }: {
   ref?: Ref<RoomComposerEditHandle>;
   /** When set, attaches mint via room chat file endpoint. */
@@ -426,6 +431,10 @@ export function RoomComposer({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
+  /** skills.sh skills attached to the next message, shown as chips. */
+  skills?: readonly ChatRoomMessageSkill[];
+  /** Shows the skill button; omit where a send cannot carry skills. */
+  onSkillsChange?: (skills: ChatRoomMessageSkill[]) => void;
 }) {
   const t = useTranslations("App.Channels");
   const tToolbar = useTranslations("App.Channels.Toolbar");
@@ -766,6 +775,15 @@ export function RoomComposer({
         onPrepareSubmit={() => editorRef.current?.flushTrailingEmoticon()}
         aboveEditor={
           <>
+            {onSkillsChange ? (
+              <ComposerSkillChips
+                skills={skills}
+                onRemove={(skill) => {
+                  onSkillsChange(skills.filter((item) => item.id !== skill.id));
+                  editorRef.current?.focus();
+                }}
+              />
+            ) : null}
             {pendingQuote && onClearPendingQuote ? (
               <PendingQuotePreview
                 quote={pendingQuote}
@@ -870,6 +888,17 @@ export function RoomComposer({
                 editorRef.current?.insertText(emoji);
               }}
             />
+            {onSkillsChange ? (
+              <SkillPicker
+                selected={skills}
+                triggerClassName={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
+                onPick={(skill) => {
+                  if (skills.some((item) => item.id === skill.id)) return;
+                  onSkillsChange([...skills, skill]);
+                  editorRef.current?.focus();
+                }}
+              />
+            ) : null}
             {showMentionShortcut ? (
               <Button
                 type="button"

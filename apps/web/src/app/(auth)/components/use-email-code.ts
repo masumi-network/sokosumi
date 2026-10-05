@@ -2,16 +2,20 @@
 
 import { EMAIL_CODE_SIGN_IN_METHODS_REMOVED } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import { ACCOUNT_HREF } from "@/app/account/constants";
 import type { EmailCodeError } from "@/components/auth/email-code-field";
-import { useAuthCaptcha } from "@/components/auth-captcha";
+import {
+  type CaptchaFetchOptions,
+  type RunWithCaptcha,
+  useAuthCaptcha,
+} from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 
 /** Sent with the code from the sign-up page, so the new account has a name. */
-export interface EmailCodeSignUpFields {
+interface EmailCodeSignUpFields {
   firstName: string;
   lastName: string;
   marketingOptIn: boolean;
@@ -73,6 +77,9 @@ export function useEmailCode({
   const [isSending, setIsSending] = useState(false);
   const [sentTo, setSentTo] = useState<string | null>(null);
   const [sentAt, setSentAt] = useState(0);
+  // The latest ask wins. A slower reply for an earlier address must not
+  // replace it, or the address now on screen looks unsent.
+  const sendGeneration = useRef(0);
   const [removed, setRemoved] = useState<RemovedSignInMethods | null>(null);
 
   // Not counted as an attempt here: sign-up sends on Continue, before anyone
@@ -80,21 +87,32 @@ export function useEmailCode({
   // `null` when no code went out.
   async function sendCode(
     email: string,
-    options: { signal?: AbortSignal } = {},
+    options: {
+      signal?: AbortSignal;
+      /**
+       * Another check that covers this send, e.g. the email step's pass or a
+       * widget already on screen. Without it the send uses `captcha`.
+       */
+      runWithCaptcha?: RunWithCaptcha;
+    } = {},
   ): Promise<number | null> {
+    const generation = ++sendGeneration.current;
     setIsSending(true);
     let sentAt: number | null = null;
+    // An aborted ask is finished too: it must not adopt, but it does release
+    // the spinner when nothing newer has started.
+    const isLatest = () => generation === sendGeneration.current;
 
     try {
-      await runWithCaptcha(async (fetchOptions) => {
-        if (options.signal?.aborted) return;
+      const send = async (fetchOptions: CaptchaFetchOptions) => {
+        if (!isLatest() || options.signal?.aborted) return;
         const result = await authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
           type: "sign-in",
         });
 
-        if (options.signal?.aborted) return;
+        if (!isLatest() || options.signal?.aborted) return;
         if (result.error) {
           toast.error(
             getErrorMessage(
@@ -107,13 +125,16 @@ export function useEmailCode({
 
         sentAt = Date.now();
         adoptSentCode(email, sentAt);
-      });
+      };
+      await (options.runWithCaptcha ?? runWithCaptcha)(send);
     } catch (_error) {
-      if (!options.signal?.aborted) toast.error(t("emailCodeError"));
+      if (isLatest() && !options.signal?.aborted) {
+        toast.error(t("emailCodeError"));
+      }
     } finally {
-      setIsSending(false);
+      if (isLatest()) setIsSending(false);
     }
-    return sentAt;
+    return isLatest() ? sentAt : null;
   }
 
   /** A code another page sent, e.g. sign-in before it handed over to sign-up. */
@@ -127,7 +148,15 @@ export function useEmailCode({
     otp: string,
     fields?: EmailCodeSignUpFields,
   ): Promise<EmailCodeError | undefined> {
-    const result = await authClient.signIn.emailOtp({ email, otp, ...fields });
+    let result: Awaited<ReturnType<typeof authClient.signIn.emailOtp>>;
+    try {
+      result = await authClient.signIn.emailOtp({ email, otp, ...fields });
+    } catch {
+      // No answer, e.g. offline: refused like an unknown one, so the field
+      // clears and the same code can go again. A failure once the code was
+      // accepted is not caught here, because the code is spent by then.
+      return {};
+    }
     if (result.error) {
       return result.error;
     }

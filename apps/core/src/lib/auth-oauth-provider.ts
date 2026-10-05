@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import type { OAuthOptions } from "@better-auth/oauth-provider";
-import type { DBAdapter } from "better-auth";
+import {
+  getOAuthProviderState,
+  type OAuthOptions,
+} from "@better-auth/oauth-provider";
+import type { DBAdapter, GenericEndpointContext } from "better-auth";
+import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
@@ -64,6 +68,50 @@ export function acceptCmoPreviewCallback(
     (registeredUris.some((uri) => uri === CMO_PRODUCTION_CALLBACK) &&
       CMO_PREVIEW_CALLBACK.test(redirectUri))
   );
+}
+
+function withoutCreatePrompt(query: string): string {
+  const params = new URLSearchParams(query);
+  const prompts = (params.get("prompt") ?? "")
+    .split(" ")
+    .filter((prompt) => prompt && prompt !== "create");
+  if (prompts.length) {
+    params.set("prompt", prompts.join(" "));
+  } else {
+    params.delete("prompt");
+  }
+  return params.toString();
+}
+
+/**
+ * A session that starts inside an OAuth request answers its `prompt=create`.
+ * The provider's after hook then continues the request, but strips only
+ * `login` (Better Auth 1.7.7), so `create` would send the new account back
+ * to the sign-up page and round through `/oauth2/continue` before the
+ * client. This runs first, after the provider verified the signed query,
+ * and drops `create` from the request it continues.
+ *
+ * A renewed cookie also counts as a new session to Better Auth, and
+ * `/oauth2/authorize` renews the session it reads. That session keeps its
+ * id, and keeps the prompt, so a person already signed in is still asked
+ * who to continue as.
+ */
+export async function answerCreatePromptWithNewSession(
+  ctx: GenericEndpointContext,
+): Promise<void> {
+  const started = ctx.context.newSession;
+  if (!started || started.session.id === ctx.context.session?.session.id) {
+    return;
+  }
+  const oauthRequest = await getOAuthProviderState();
+  if (oauthRequest?.query) {
+    oauthRequest.query = withoutCreatePrompt(oauthRequest.query);
+  }
+  // A social sign-up carries the request through the provider's callback.
+  const serverContext = (await getOAuthState())?.serverContext;
+  if (typeof serverContext?.query === "string") {
+    serverContext.query = withoutCreatePrompt(serverContext.query);
+  }
 }
 
 type GetJwks = NonNullable<NonNullable<JwtOptions["adapter"]>["getJwks"]>;

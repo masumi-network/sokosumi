@@ -23,11 +23,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import {
-  mapChatRoomWithSidebarFlags,
-  requireChatRoomUserAccess,
-} from "../../helpers";
-import { getChatRoomUnreadCounts, roomUnreadFields } from "../../room-unread";
+import { requireChatRoomUserAccess } from "../../helpers";
+import { roomSidebarPayload } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -164,25 +161,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // not optimistically hide unlooked threads. The mention badge is 0: the
     // top-level rows were cleared above, and the Thread-reply rows left unread
     // drop out of it once lastReadAt has passed them, which it now has.
-    const unreadCounts = await getChatRoomUnreadCounts(
-      [room.id],
-      userContext.userId,
-      prisma,
-    );
-
     return ok(
       c,
-      chatRoomSchema.parse(
-        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          ...(await roomUnreadFields(
-            unreadCounts.get(room.id),
-            room.id,
-            userContext.userId,
-            prisma,
-          )),
-          unreadMentionCount: 0,
-        }),
-      ),
+      await roomSidebarPayload(room, userContext.userId, prisma, {
+        unreadMentionCount: 0,
+      }),
     );
   });
 }

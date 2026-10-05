@@ -266,7 +266,7 @@ describe("SignInForm", () => {
       expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
     });
 
-    it("does not send a refused code again until it changes", async () => {
+    it("empties a refused code's field, keeps the reason until typing, and sends the same code again", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi
@@ -279,20 +279,39 @@ describe("SignInForm", () => {
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
+      // The field takes six digits; the refused ones would block the next code.
+      expect(codeField()).toHaveValue("");
       await waitFor(() => expect(codeField()).toHaveFocus());
 
-      // Taking a digit back and typing it again is still the refused code.
-      await user.type(codeField(), "{Backspace}0");
-      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
+      // Typing replaces the reason, without asking for the rest of the code.
+      await user.type(codeField(), "0");
+      expect(codeField()).not.toHaveAttribute("aria-invalid");
 
-      await user.type(codeField(), "{Backspace}7");
+      await user.type(codeField(), "00000");
       await waitFor(() =>
-        expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
-          EMAIL,
-          "000007",
-        ),
+        expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2),
       );
-      expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2);
+      expect(emailCode.signInWithCode).toHaveBeenLastCalledWith(
+        EMAIL,
+        "000000",
+      );
+    });
+
+    it("explains a code check that fails without an answer, so the code can be typed again", async () => {
+      const user = userEvent.setup();
+      mockSignInEmailCode.mockRejectedValueOnce(
+        new TypeError("Failed to fetch"),
+      );
+      render(<SignInCodeStep />);
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+
+      await user.type(code, "042917");
+
+      // As for a refused code: the field clears and says why.
+      await waitFor(() => expect(code).toHaveAccessibleDescription(/generic$/));
+      expect(code).toHaveValue("");
+      await user.type(code, "042917");
+      await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
     });
 
     it("shares a synchronous lock between completion and manual submit", async () => {
@@ -320,7 +339,7 @@ describe("SignInForm", () => {
       expect(code).toBeDisabled();
     });
 
-    it("remembers a refused code through a partial-value method switch", async () => {
+    it("sends a refused code again when it is typed after a method switch", async () => {
       const user = userEvent.setup();
       const emailCode = fakeEmailCode({
         signInWithCode: vi.fn().mockResolvedValue({ code: "INVALID_OTP" }),
@@ -330,26 +349,26 @@ describe("SignInForm", () => {
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
       );
-      await user.type(codeField(), "{Backspace}");
       await user.click(
         screen.getByRole("button", { name: "usePasswordInstead" }),
       );
       await user.click(screen.getByRole("button", { name: "useCodeInstead" }));
-      await user.type(codeField(), "0");
-      expect(emailCode.signInWithCode).toHaveBeenCalledOnce();
-      await user.type(codeField(), "{Backspace}7");
+      expect(codeField()).toHaveValue("");
+      await user.type(codeField(), "000000");
       await waitFor(() =>
         expect(emailCode.signInWithCode).toHaveBeenCalledTimes(2),
       );
     });
 
     it.each(["042 917", "042-917", "042917"])(
-      "finishes automatic sign-in through the real code hook for %s",
+      "finishes automatic sign-in through the real code hook for a pasted %s",
       async (entered) => {
+        const user = userEvent.setup();
         mockWaitForAuthSession.mockResolvedValue({ id: "session-1" });
         render(<SignInCodeStep />);
         const code = await screen.findByRole("textbox", { name: "codeLabel" });
-        fireEvent.change(code, { target: { value: entered } });
+        await user.click(code);
+        await user.paste(entered);
         await waitFor(() =>
           expect(mockLocationReplace).toHaveBeenCalledWith("/chat"),
         );
@@ -490,7 +509,6 @@ describe("SignInForm", () => {
       });
 
       await user.type(codeField(), "000000");
-      await user.click(screen.getByRole("button", { name: "submit" }));
 
       await waitFor(() =>
         expect(codeField()).toHaveAccessibleDescription(/invalid$/),
@@ -558,7 +576,14 @@ describe("SignInForm", () => {
       await user.click(
         screen.getByRole("button", { name: "emailCodeInstead" }),
       );
-      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL);
+      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL, {
+        runWithCaptcha: expect.any(Function),
+      });
+      // The password step's check covers the send.
+      const options = vi.mocked(emailCode.sendCode).mock.calls[0]?.[1];
+      const send = vi.fn().mockResolvedValue(undefined);
+      await options?.runWithCaptcha?.(send);
+      expect(send).toHaveBeenCalledWith(captchaFetchOptions);
 
       rerender(
         <SignInForm
@@ -572,6 +597,23 @@ describe("SignInForm", () => {
       expect(codeField()).toBeInTheDocument();
     });
 
+    // A visitor Cloudflare wants to see would otherwise get two checkboxes.
+    it("shows no second security check for emailing a code", () => {
+      renderForm({
+        emailCode: fakeEmailCode({
+          sentTo: null,
+          captcha: <div data-testid="email-code-captcha" />,
+        }),
+      });
+
+      expect(
+        screen.getByRole("button", { name: "emailCodeInstead" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("email-code-captcha"),
+      ).not.toBeInTheDocument();
+    });
+
     it("pairs the password with the address for password managers", () => {
       renderForm();
 
@@ -583,15 +625,79 @@ describe("SignInForm", () => {
       );
     });
 
-    it("links to the password reset with the address", () => {
+    it("names the password inside its field and offers the reset beside the code", () => {
       renderForm();
+
+      expect(passwordField()).toHaveAttribute(
+        "placeholder",
+        "Fields.Password.label",
+      );
+      // One row of ways out under Log in: the reset first, then the code.
+      const reset = screen.getByRole("link", { name: "forgotPassword" });
+      const code = screen.getByRole("button", { name: "emailCodeInstead" });
+      expect(reset.compareDocumentPosition(code)).toBe(
+        Node.DOCUMENT_POSITION_FOLLOWING,
+      );
+      expect(
+        screen
+          .getByRole("button", { name: "submit" })
+          .compareDocumentPosition(reset),
+      ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+
+    it("leaves the reset out of the code step's row", () => {
+      renderForm({ initialMethod: "code", emailCode: fakeEmailCode() });
+      expect(codeField()).toBeInTheDocument();
+
+      expect(
+        screen.queryByRole("link", { name: "forgotPassword" }),
+      ).not.toBeInTheDocument();
+    });
+
+    // The URL reaches server logs and analytics; the address goes through
+    // session storage instead.
+    it("hands the address to the password reset outside the URL", () => {
+      renderForm();
+      const link = screen.getByRole("link", { name: "forgotPassword" });
+
+      expect(link).toHaveAttribute("href", "/forgot-password");
+      window.sessionStorage.clear();
+      fireEvent.click(link);
+      expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
+    });
+
+    it("keeps where the person was going on the password reset link", () => {
+      mockSearchParams = new URLSearchParams("returnUrl=/chat");
+      renderForm({ returnUrl: "/chat" });
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute("href", "/forgot-password?returnUrl=%2Fchat");
+    });
+
+    // Sign-in after the reset locks the invited address again.
+    it("keeps the invitation on the password reset link", () => {
+      mockSearchParams = new URLSearchParams(
+        "returnUrl=/accept-invitation/inv_1&invitationId=inv_1",
+      );
+      renderForm({ returnUrl: "/accept-invitation/inv_1" });
 
       expect(
         screen.getByRole("link", { name: "forgotPassword" }),
       ).toHaveAttribute(
         "href",
-        `/forgot-password?email=${encodeURIComponent(EMAIL)}`,
+        "/forgot-password?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1",
       );
+    });
+
+    it("keeps the signed OAuth request on the password reset link", () => {
+      const oauthQuery = "client_id=cmo&exp=1900000000&sig=abc%2B%2F%3D";
+      mockSearchParams = new URLSearchParams(oauthQuery);
+      renderForm();
+
+      expect(
+        screen.getByRole("link", { name: "forgotPassword" }),
+      ).toHaveAttribute("href", `/forgot-password?${oauthQuery}`);
     });
 
     it("focuses the password when it is missing", async () => {
@@ -602,6 +708,13 @@ describe("SignInForm", () => {
 
       await waitFor(() => expect(passwordField()).toHaveFocus());
       expect(mockSignInEmail).not.toHaveBeenCalled();
+    });
+
+    // SOK-1259: every log-in is persistent, so there is nothing to choose.
+    it("offers no Keep me logged in choice", () => {
+      renderForm();
+
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
     });
 
     it("signs in with the verified captcha and a persistent session", async () => {

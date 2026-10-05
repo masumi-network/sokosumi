@@ -34,6 +34,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/sync/skill-catalog",
+      "schedule": "17 4 * * *"
+    },
+    {
       "path": "/sync/drive-index",
       "schedule": "* * * * *"
     },
@@ -96,6 +100,10 @@
     {
       "path": "/sync/task-x402-payment-headers-purge",
       "schedule": "30 * * * *"
+    },
+    {
+      "path": "/sync/captcha-passes-purge",
+      "schedule": "45 * * * *"
     },
     {
       "path": "/sync/soko-bot-schedules",

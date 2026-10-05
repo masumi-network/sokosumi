@@ -8,7 +8,6 @@ import { type FormEvent, useState } from "react";
 import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -63,15 +62,9 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
-  const passwordCaptcha = useAuthCaptcha("signin");
-  const emailCodeCaptcha = useAuthCaptcha("email-code");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
-  // Better Auth defaults this to true. Signing in again mints a new session,
-  // so without the same choice the dialog would quietly turn a viewer's
-  // "do not keep me signed in" into a persistent cookie.
-  const [rememberMe, setRememberMe] = useState(true);
   // When the code went out; null until one has.
   const [emailCodeSentAt, setEmailCodeSentAt] = useState<number | null>(null);
   // `fromPassword` keeps the field's invalid marking on the path that owns it.
@@ -87,6 +80,10 @@ export function ReauthDialog({
   const hasPasswordAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
+  // One check for both email paths. Tokens are single-use and the widget
+  // resets after each, so a visitor Cloudflare wants to see is asked once
+  // rather than once per path.
+  const captcha = useAuthCaptcha(hasPasswordAccount ? "signin" : "email-code");
   // Read from the provider table rather than from the rows: Better Auth is
   // unique on providerId plus accountId, so two Google links are legal and
   // mapping the rows would render the same button twice under one React key.
@@ -127,12 +124,14 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await passwordCaptcha.runWithCaptcha((fetchOptions) =>
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
         authClient.signIn.email({
           fetchOptions,
           email,
           password,
-          rememberMe,
+          // Persistent session cookie (Max-Age). false → Better Auth omits
+          // Max-Age; iOS then drops the cookie when it kills the PWA.
+          rememberMe: true,
         }),
       );
 
@@ -141,7 +140,7 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: true,
-          message: passwordCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
             describeSignInError(result.error),
           ),
@@ -191,7 +190,7 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await emailCodeCaptcha.runWithCaptcha((fetchOptions) =>
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
         authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
@@ -204,7 +203,7 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: false,
-          message: emailCodeCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
             result.error.message ?? t("emailCodeError"),
           ),
@@ -286,20 +285,8 @@ export function ReauthDialog({
                     type="password"
                     value={password}
                   />
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={rememberMe}
-                      id="reauth-remember-me"
-                      onCheckedChange={(checked) =>
-                        setRememberMe(checked === true)
-                      }
-                    />
-                    <Label className="font-normal" htmlFor="reauth-remember-me">
-                      {t("rememberMe")}
-                    </Label>
-                  </div>
                 </fieldset>
-                {passwordCaptcha.widget}
+                {captcha.widget}
                 <Button
                   className="w-full"
                   disabled={
@@ -349,7 +336,8 @@ export function ReauthDialog({
                     {t("orEmail")}
                   </p>
                 ) : null}
-                {emailCodeCaptcha.widget}
+                {/* With a password, the widget sits above Confirm. */}
+                {hasPasswordAccount ? null : captcha.widget}
                 {emailCodeSentAt !== null ? (
                   <EmailCodeForm
                     email={email}

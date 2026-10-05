@@ -14,6 +14,7 @@ import {
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Loader2, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
@@ -23,6 +24,7 @@ import { DriveFilePicker } from "@/components/drive/drive-file-picker";
 import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import { Button } from "@/components/ui/button";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
+import { useIsMobile } from "@/hooks/use-mobile";
 import {
   type ActionError,
   toActionRejectionError,
@@ -34,6 +36,7 @@ import {
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -53,7 +56,6 @@ import {
   socialPostMediaRefFromDriveFile,
 } from "./social-post-media";
 import { SocialPostPreview } from "./social-post-preview";
-import { PreviewAvatar } from "./social-post-preview-parts";
 import {
   SocialPostSchedulePicker,
   toScheduleValue,
@@ -72,6 +74,7 @@ interface SocialPostComposerDialogProps {
   onConnectAccount?: () => void;
   onError: (error: ActionError) => void;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   onSaved: (post: SocialPost) => void;
   open: boolean;
   projectId: string;
@@ -94,11 +97,12 @@ function resolveTimezone(): string {
 }
 
 export function SocialPostComposerDialog({
-  connections,
+  connections: initialConnections,
   mode,
   onConnectAccount,
   onError,
   onOpenChange,
+  onCloseAutoFocus,
   onSaved,
   open,
   projectId,
@@ -107,6 +111,7 @@ export function SocialPostComposerDialog({
   const formatter = useFormatter();
   const viewerTimezone = resolveTimezone();
   const textId = useId();
+  const isMobile = useIsMobile();
   const accountsLabelId = useId();
   const scheduledAtId = useId();
   const scheduledAtErrorId = useId();
@@ -115,6 +120,36 @@ export function SocialPostComposerDialog({
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const { data: session } = useSession();
+  const { data: refreshedConnections } = useQuery({
+    queryKey: [
+      "social-connections",
+      session?.user?.id,
+      session?.session.activeOrganizationId ?? null,
+      projectId,
+    ],
+    queryFn: async () =>
+      (await coreClient.getProjectsByIdSocialConnections(projectId)).data,
+    enabled:
+      open &&
+      Boolean(session?.user?.id) &&
+      initialConnections.some((connection) => !connection.avatarUrl),
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  // Refresh only pictures: cached query data must not reintroduce disconnected accounts.
+  const connections = initialConnections.map((connection) => ({
+    ...connection,
+    avatarUrl:
+      connection.avatarUrl ??
+      refreshedConnections?.find(
+        (fresh) =>
+          fresh.id === connection.id &&
+          fresh.provider === connection.provider &&
+          fresh.externalHandle === connection.externalHandle,
+      )?.avatarUrl ??
+      null,
+  }));
   const driveStore = driveStoreForActiveWorkspace(
     session?.session.activeOrganizationId ?? null,
   );
@@ -631,12 +666,13 @@ export function SocialPostComposerDialog({
     <TaskFormModal
       open={open}
       onOpenChange={onOpenChange}
+      onCloseAutoFocus={onCloseAutoFocus}
       title={title}
       cancelLabel={t("composer.dismiss")}
       isDismissDisabled={isBusy}
       onOpenAutoFocus={(event) => {
         // Straight to the text: the account is already picked.
-        if (isScheduleOnly) return;
+        if (isScheduleOnly || isMobile) return;
         event.preventDefault();
         textareaRef.current?.focus();
       }}
@@ -659,15 +695,15 @@ export function SocialPostComposerDialog({
           }
         }}
       >
-        <div className="app-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto md:flex-row md:overflow-hidden">
+        <div className="app-scrollbar grid auto-rows-min min-h-0 flex-1 grid-cols-1 overflow-y-auto md:flex md:flex-row md:overflow-hidden">
           <form
-            className="flex min-w-0 flex-1 flex-col md:app-scrollbar md:overflow-y-auto"
+            className="contents md:app-scrollbar md:flex md:min-w-0 md:flex-1 md:flex-col md:overflow-y-auto"
             data-testid="social-post-composer"
             onSubmit={(event) => {
               event.preventDefault();
             }}
           >
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:px-8">
+            <div className="order-first flex flex-wrap items-center gap-x-3 gap-y-2 px-6 py-4 md:order-none md:px-8">
               <span
                 className="text-muted-foreground text-sm font-medium"
                 id={accountsLabelId}
@@ -731,32 +767,13 @@ export function SocialPostComposerDialog({
                         onClick={() => toggleConnection(connection.id)}
                         type="button"
                       >
-                        {connection.avatarUrl ? (
-                          <span className="relative shrink-0">
-                            <PreviewAvatar
-                              account={{
-                                handle: connection.externalHandle,
-                                displayName: connection.displayName,
-                                avatarUrl: connection.avatarUrl,
-                              }}
-                              className="size-6"
-                              name={connection.displayName ?? handle}
-                            />
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="bg-background absolute -end-1 -bottom-1 size-3.5 rounded-full p-px"
-                              provider={connection.provider}
-                            />
-                          </span>
-                        ) : (
-                          <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
-                            <SocialPostProviderIcon
-                              aria-hidden
-                              className="size-3.5"
-                              provider={connection.provider}
-                            />
-                          </span>
-                        )}
+                        <span className="bg-muted flex size-6 shrink-0 items-center justify-center rounded-full">
+                          <SocialPostProviderIcon
+                            aria-hidden
+                            className="size-3.5"
+                            provider={connection.provider}
+                          />
+                        </span>
                         <span className="max-w-40 truncate">{handle}</span>
                         {selected ? (
                           <Check className="size-3.5" aria-hidden />
@@ -769,7 +786,7 @@ export function SocialPostComposerDialog({
             </div>
 
             {isScheduleOnly ? null : (
-              <div className="space-y-3 border-t px-6 py-5 md:px-8">
+              <div className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8">
                 <textarea
                   id={textId}
                   aria-invalid={overLimit || undefined}
@@ -885,7 +902,7 @@ export function SocialPostComposerDialog({
 
             <section
               aria-labelledby={scheduledAtId}
-              className="space-y-3 border-t px-6 py-5 md:px-8"
+              className="order-2 space-y-3 border-t px-6 py-5 md:order-none md:px-8"
             >
               <div className="space-y-1">
                 <h3 id={scheduledAtId} className="text-sm font-semibold">
@@ -949,7 +966,7 @@ export function SocialPostComposerDialog({
           {previewAccount || hasContent ? (
             <aside
               aria-label={t("preview.open")}
-              className="bg-background-muted flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
+              className="bg-background-muted order-1 flex shrink-0 flex-col gap-3 border-t px-6 py-5 md:order-none md:app-scrollbar md:w-96 md:overflow-y-auto md:border-t-0 md:border-s md:px-6"
             >
               <p className="text-muted-foreground text-xs font-medium">
                 {t("preview.open")}

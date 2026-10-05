@@ -1,3 +1,4 @@
+import { chatRoomFileLinks } from "@sokosumi/utils";
 import prisma from "@/lib/db/prisma";
 import { readQuoteFromMetadata } from "@/routes/v1/chats/rooms/helpers";
 
@@ -40,6 +41,18 @@ export function roomMessagePromptText(
   }
   const quoted = `> ${quote.authorName}: ${quote.snippet.replace(/\s+/g, " ").trim()}`;
   return content.trim().length === 0 ? quoted : `${quoted}\n\n${content}`;
+}
+
+/**
+ * Names the files attached to a message, so a Soko Bot knows it can save
+ * them to Files (upload_file with attachmentUrl) instead of asking the owner
+ * to upload what they already sent.
+ */
+export function withAttachmentNote(prompt: string, content: string): string {
+  const files = chatRoomFileLinks(content);
+  if (files.length === 0) return prompt;
+  const lines = files.map((file) => `- ${file.name}: ${file.url}`);
+  return `${prompt}\n\nAttached to this message (save one to Files with upload_file and its link as attachmentUrl):\n${lines.join("\n")}`;
 }
 
 /**

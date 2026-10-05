@@ -9,6 +9,7 @@ struct ConversationSidebarView: View {
   @EnvironmentObject private var workspaces: WorkspaceState
   @Environment(\.openSettings) private var openSettings
   @Environment(\.openURL) private var openURL
+  @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
 
   /// Web's inset rows start on the room row's label column: past its 20 pt mark and the gap after it. The
   /// indent is padding inside the row, since the sidebar List ignores `listRowInsets` on a badged row.
@@ -17,8 +18,6 @@ struct ConversationSidebarView: View {
   @State private var startDirect: CompositionPresentation?
   @State private var createChannel: CompositionPresentation?
   @State private var browseChannels: CompositionPresentation?
-  @State private var editChannel: RoomEditPresentation?
-  @State private var nameGroup: RoomEditPresentation?
   @State private var lifecycle: ChannelLifecycleRequest?
   @State private var invitationFailure: InvitationFailure?
 
@@ -128,7 +127,7 @@ struct ConversationSidebarView: View {
       meSection
     }
     .sheet(item: $startDirect) { presentation in
-      StartDirectView(hasOrganization: presentation.hasOrganization, load: {
+      StartDirectView(hasOrganization: presentation.hasOrganization, currentUserId: workspaces.currentUserId, load: {
         try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
       }, open: {
         try await workspaces.openDirect($0, context: presentation.id, auth: auth)
@@ -156,8 +155,6 @@ struct ConversationSidebarView: View {
       browseChannels = nil
       lifecycle = nil
     }
-    .modifier(EditChannelSheet(presentation: $editChannel))
-    .modifier(NameGroupSheet(presentation: $nameGroup))
     .modifier(ChannelLifecycleConfirmation(request: $lifecycle))
     // Web keeps the pass the list was drawn from during render; a view update hops before publishing it.
     .onChange(of: unreadsFilter?.pass, initial: true) { _, pass in
@@ -769,7 +766,7 @@ struct ConversationSidebarView: View {
     }
     if GroupNameDraft.canName(room) {
       Button {
-        nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
+        roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: room.id)
       } label: {
         NameGroupLabel()
       }
@@ -777,7 +774,7 @@ struct ConversationSidebarView: View {
     }
     if managesSettings {
       Button("Channel settings…", systemImage: "gearshape") {
-        editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
+        roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
       }
     }
     if ChannelEditPermissions.canLeave(room) {

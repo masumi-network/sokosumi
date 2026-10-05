@@ -18,12 +18,12 @@ public func chatTypingChannelName(roomId: String) -> String {
   "chat_typing:room_\(roomId)"
 }
 
-public enum ChatTypingTiming {
+enum ChatTypingTiming {
   /// One heartbeat per typist per window, and only on an edit: nothing is sent on a timer.
-  public static let heartbeatThrottle: TimeInterval = 10
+  static let heartbeatThrottle: TimeInterval = 10
   /// A typist with no heartbeat for this long is gone (the throttle plus Ably's 2 s grace).
   /// The explicit `stopped` is an optimisation; this is what clears a quit app or a lost connection.
-  public static let expiry: TimeInterval = heartbeatThrottle + 2
+  static let expiry: TimeInterval = heartbeatThrottle + 2
 }
 
 /// What a typing event says: they picked it up, or they put it down.

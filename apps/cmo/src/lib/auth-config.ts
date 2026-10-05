@@ -1,7 +1,16 @@
 import { resolveBetterAuthPublicBaseUrl } from "@sokosumi/utils";
 import { withRelatedProject } from "@vercel/related-projects";
 
-import type { CmoAuthConfig } from "./auth";
+export interface CmoAuthConfig {
+  /** CMO's own public origin, the base of its OAuth callback. */
+  baseURL: string;
+  /** Core's origin, for example `https://api.sokosumi.com`. */
+  coreBaseUrl: string;
+  clientId: string;
+  clientSecret: string;
+  /** Encrypts CMO's session and token cookies. */
+  secret: string;
+}
 
 /** The Core project whose branch preview a CMO preview signs in against. */
 const CORE_PREVIEW_PROJECT = "sokosumi-core-mainnet";

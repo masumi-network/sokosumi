@@ -339,7 +339,7 @@ struct ChatServiceTests {
     {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}
     """
     let transport = ScriptedTransport([(403, response)])
-    var selection = DirectConversationSelection(hasOrganization: true)
+    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
     selection.add(.human("peer"))
     do {
       _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
@@ -357,7 +357,7 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(201, response), (200, response), (201, response)])
     let client = try makeClient(transport)
     for recipient in [DirectRecipient.human("human"), .coworker("coworker"), .sokoBot("01960001-0001-7001-8001-000000000099")] {
-      var selection = DirectConversationSelection(hasOrganization: false)
+      var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "me")
       selection.add(recipient)
       let result = try await ChatService().openDirect(client: client, selection: selection, organizationSlug: nil)
       #expect(result.id == "direct")
@@ -376,7 +376,7 @@ struct ChatServiceTests {
     let room = roomJSON(id: "group", name: "Team", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
     let transport = ScriptedTransport([(200, response)])
-    var selection = DirectConversationSelection(hasOrganization: true)
+    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
     selection.add(.human("alice"))
     selection.add(.human("bob"))
     let result = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
@@ -685,11 +685,11 @@ struct ChatServiceTests {
         == "slug taken"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"), mode: .coreMessage)
-        == "Sign in to continue"
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"), mode: .coreMessage)
+        == "Log in to continue"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"))
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"))
         == "Couldn't complete the request. Try again."
     )
     #expect(
