@@ -13,21 +13,17 @@ public struct OAuthConfiguration: Sendable {
   public static let callbackHost = "app.sokosumi.com"
   public static let callbackPath = "/auth/apple/callback"
   static let redirectURI = "https://\(callbackHost)\(callbackPath)"
-  static let defaultScopes = ["openid", "sokosumi:api", "offline_access"]
+  private static let defaultScopes = ["openid", "sokosumi:api", "offline_access"]
 
   /// e.g. `https://api.sokosumi.com/auth` (Core origin + `/auth`, no `/v1`).
   public var issuerBaseURL: URL
   public var clientID: String
-  public var scopes: [String]
+  private let scopes: [String]
 
   public init(issuerBaseURL: URL, clientID: String) {
-    self.init(issuerBaseURL: issuerBaseURL, clientID: clientID, scopes: Self.defaultScopes)
-  }
-
-  public init(issuerBaseURL: URL, clientID: String, scopes: [String]) {
     self.issuerBaseURL = issuerBaseURL
     self.clientID = clientID
-    self.scopes = scopes
+    self.scopes = Self.defaultScopes
   }
 
   /// Core's auth base shares the Core API origin: strip `/v1`, append `/auth`.
