@@ -8,7 +8,7 @@ import type {
   UserWorkspace,
   UserWorkspaces,
 } from "@/schemas/user-workspace.schema";
-import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
+import { pickActiveOrganizationId } from "@/services/preferred-organization.service";
 
 /**
  * The workspaces a person can act in (personal first, then organizations),
@@ -21,43 +21,44 @@ export async function listUserWorkspaces(
 ): Promise<UserWorkspaces> {
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { name: true, email: true },
+    select: { name: true, email: true, preferredOrganizationId: true },
   });
   if (!user) {
     throw notFound("User not found");
   }
 
-  const [
-    personalWorkspace,
-    memberships,
-    pendingInvitationCount,
-    preferredOrganizationId,
-  ] = await Promise.all([
-    prisma.workspace.findUnique({
-      where: { userId },
-      select: { id: true },
-    }),
-    prisma.member.findMany({
-      where: { userId },
-      orderBy: { createdAt: "asc" },
-      select: {
-        organization: {
-          select: {
-            id: true,
-            name: true,
-            slug: true,
-            logo: true,
-            metadata: true,
-            workspace: { select: { id: true } },
+  const [personalWorkspace, memberships, pendingInvitationCount] =
+    await Promise.all([
+      prisma.workspace.findUnique({
+        where: { userId },
+        select: { id: true },
+      }),
+      prisma.member.findMany({
+        where: { userId },
+        orderBy: { createdAt: "asc" },
+        select: {
+          organization: {
+            select: {
+              id: true,
+              name: true,
+              slug: true,
+              logo: true,
+              metadata: true,
+              workspace: { select: { id: true } },
+            },
           },
         },
-      },
-    }),
-    prisma.invitation.count({
-      where: pendingOrganizationInvitationsWhere(user.email),
-    }),
-    resolveActiveOrganizationIdForSession(userId),
-  ]);
+      }),
+      prisma.invitation.count({
+        where: pendingOrganizationInvitationsWhere(user.email),
+      }),
+    ]);
+  // The rule a new session opens with, over the rows already loaded.
+  const preferredOrganizationId = pickActiveOrganizationId({
+    preferredOrganizationId: user.preferredOrganizationId,
+    hasPersonalWorkspace: personalWorkspace !== null,
+    organizationIds: memberships.map(({ organization }) => organization.id),
+  });
 
   const workspaces: UserWorkspace[] = [];
 

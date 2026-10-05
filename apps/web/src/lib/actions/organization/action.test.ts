@@ -508,6 +508,24 @@ describe("createOrganizationWorkspaceAction", () => {
     },
   );
 
+  it.each(["", "not a website"])(
+    "rejects a website Core would refuse (%j) without asking Core",
+    async (websiteUrl) => {
+      const { createOrganizationWorkspaceAction } = await import("./action");
+
+      const result = await createOrganizationWorkspaceAction({
+        name: "Acme",
+        websiteUrl,
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+    },
+  );
+
   it("maps other failures to INTERNAL_SERVER_ERROR", async () => {
     const consoleError = vi
       .spyOn(console, "error")
