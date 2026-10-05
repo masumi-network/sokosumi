@@ -21,7 +21,7 @@ struct CoworkerThoughtView: View {
             }
           }
           .accessibilityElement(children: .ignore)
-          .accessibilityLabel(thought.text.isEmpty ? "Thinking" : "Thinking, \(thought.text)")
+          .accessibilityLabel(thought.text.isEmpty ? "Thinking…" : "Thinking… \(thought.text)")
         } else {
           DisclosureGroup {
             Text(thought.text).textSelection(.enabled)
@@ -39,7 +39,8 @@ struct CoworkerThoughtView: View {
     HStack(spacing: 6) {
       Image(systemName: "sparkle").accessibilityHidden(true)
       if working {
-        Text("Thinking")
+        // Web `reasoning.thinking` ("Thinking..."), with the typographic ellipsis.
+        Text("Thinking…")
         TimelineView(.periodic(from: .now, by: 0.1)) { context in
           let elapsed = max(0, context.date.timeIntervalSince(startedAt))
           if elapsed < 10 {
@@ -52,7 +53,8 @@ struct CoworkerThoughtView: View {
       } else if let duration = thought.durationSeconds {
         Text("Thought for \(CoworkerThought.durationLabel(seconds: duration))")
       } else {
-        Text("Thought")
+        // Web `reasoning.expandSteps`: a disclosure without timing.
+        Text("Show thought")
       }
     }
   }

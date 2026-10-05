@@ -827,6 +827,16 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
   #expect(!picker.loading)
 }
 
+/// Row 41: the root crumb names whose Files these are (web `driveWorkspaceRootLabel`, `App.Drive.myDrive`).
+@Test @MainActor func drivePickerRootNamesTheWorkspacesFiles() {
+  #expect(DrivePicker.rootTitle(for: .init(id: "personal", title: "Personal", workspace: .personal)) == "My Files")
+  #expect(DrivePicker.rootTitle(for: nil) == "My Files")
+  let acme = WorkspaceSession.Option(id: "org_1", title: "Acme", workspace: .organization(id: "org_1", slug: "acme"))
+  #expect(DrivePicker.rootTitle(for: acme) == "Acme")
+  let unnamed = WorkspaceSession.Option(id: "org_2", title: "", workspace: .organization(id: "org_2", slug: "unnamed"))
+  #expect(DrivePicker.rootTitle(for: unnamed) == "Organization")
+}
+
 @Test @MainActor func drivePickerShowsUnexpectedResponseAndTransportCopy() async {
   let picker = DrivePicker()
   await picker.load { throw ChatServiceError.unexpectedResponse("This folder has too many files. Refine your search.") }

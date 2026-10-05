@@ -192,7 +192,7 @@ import SwiftUI
           ContentUnavailableView(
             "No messages yet",
             systemImage: "bubble.left",
-            description: Text("New messages will appear here.")
+            description: Text("Start the channel with a message or mention an AI coworker.")
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
