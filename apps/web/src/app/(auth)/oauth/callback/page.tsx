@@ -373,12 +373,11 @@ export default function OAuthCallbackPage() {
               <Button
                 type="button"
                 onClick={handleTokenExchange}
-                disabled={
-                  isExchanging || !codeVerifier.trim() || !clientId.trim()
-                }
+                loading={isExchanging}
+                disabled={!codeVerifier.trim() || !clientId.trim()}
                 className="w-full"
               >
-                {isExchanging ? t("actions.exchanging") : t("actions.exchange")}
+                {t("actions.exchange")}
               </Button>
             </>
           ) : (

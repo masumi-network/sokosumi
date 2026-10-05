@@ -537,7 +537,6 @@
         "noExecutedJobs": "No hay jobs ejecutados",
         "emptyJobs": "Aún sin jobs. Contrata a este coworker para empezar uno.",
         "loadMore": "Cargar más",
-        "loading": "Cargando...",
         "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
@@ -831,7 +830,6 @@
       "pushQuietTitle": "Las notificaciones push se detuvieron en este navegador",
       "pushQuietDescription": "Este navegador perdió su suscripción push, por eso aquí no llegan las novedades. Puede que tus otros dispositivos sigan recibiéndolas.",
       "pushQuietRestore": "Volver a activar push",
-      "pushQuietRestoring": "Activando push de nuevo…",
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
@@ -3297,7 +3295,6 @@
           "resolve": "Resolver",
           "reason": "Motivo de auditoría",
           "cancel": "Cancelar",
-          "submitting": "Guardando…",
           "refundConfirmTitle": "¿Reembolsar el pago verificado?",
           "refundConfirmDescription": "Esto crea una transacción compensatoria de créditos y cierra el pago permanentemente como reembolsado.",
           "resolveConfirmTitle": "¿Resolver el pago pendiente?",
@@ -3430,7 +3427,6 @@
         "newGrant": "Nueva factura",
         "backToList": "Volver a la lista",
         "delete": "Eliminar",
-        "deleting": "Eliminando…",
         "deleteSuccess": "Factura eliminada",
         "deleteError": "No se pudo eliminar la factura",
         "deleteConfirmTitle": "¿Eliminar factura?",
@@ -3452,7 +3448,6 @@
           "expiryPlaceholder": "Sin caducidad",
           "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
           "submit": "Crear factura",
-          "submitting": "Creando factura…",
           "createSuccess": "Factura creada",
           "createError": "No se pudo crear la factura",
           "pricePlaceholder": "Selecciona un precio",
@@ -3501,7 +3496,6 @@
           "status": "Estado",
           "invoiceId": "ID de factura",
           "markPaid": "Marcar como pagada",
-          "marking": "Otorgando créditos…",
           "paidSuccess": "Créditos otorgados",
           "paidError": "No se pudo marcar la factura como pagada",
           "openInStripe": "Abrir en Stripe",
@@ -3764,7 +3758,6 @@
           "referenceNoteHelper": "Nota opcional almacenada en el bucket de créditos para referencia interna.",
           "referenceNotePlaceholder": "p. ej. Problema de facturación, gesto de cortesía",
           "submit": "Otorgar créditos",
-          "submitting": "Otorgando créditos…",
           "grantSuccess": "Créditos gratuitos otorgados",
           "grantError": "No se pudieron otorgar los créditos gratuitos"
         }
@@ -3879,7 +3872,6 @@
             "unnamedBot": "este asistente",
             "confirmLabel": "Escribe el correo del propietario ({email}) para confirmar",
             "delete": "Eliminar Soko Bot",
-            "deleting": "Eliminando…",
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
             "error": "No se pudo eliminar este Soko Bot."
@@ -3889,7 +3881,6 @@
             "roomsNav": "Chats",
             "ownerRoom": "Propietario",
             "loadOlder": "Cargar anteriores",
-            "loading": "Cargando…",
             "noMessages": "Aún no hay mensajes.",
             "empty": "Nadie ha chateado con este bot todavía.",
             "deleted": "Mensaje eliminado",
@@ -3917,7 +3908,6 @@
           "reasonHint": "Entre 3 y 500 caracteres. Se guarda de forma inmutable con tu id de operador.",
           "cancel": "Cancelar",
           "confirm": "Confirmar",
-          "working": "Procesando…",
           "done": "{action} registrado.",
           "error": "La acción falló.",
           "more": "Más acciones"
@@ -4082,7 +4072,6 @@
           "actionDescription": "Esta acción de operador queda auditada. Explica por qué es necesaria.",
           "reasonLabel": "Motivo",
           "cancel": "Cancelar",
-          "working": "Procesando…",
           "actionDone": "Acción de programación completada.",
           "actionError": "No se pudo completar la acción de programación.",
           "noRuns": "Aún no hay ejecuciones.",
@@ -4200,13 +4189,11 @@
             "promote": "Promocionar",
             "promoteTitle": "¿Promocionar esta versión?",
             "promoteConfirm": "Esto solo afecta a los bots nuevos. Los bots existentes conservan la versión con la que se crearon.",
-            "promoting": "Promocionando…",
             "promoted": "Versión promocionada para los bots nuevos.",
             "promoteError": "No se pudo promocionar esta versión.",
             "archive": "Archivar",
             "archiveTitle": "¿Archivar esta versión?",
             "archiveConfirm": "Desaparecerá de los selectores de versión. Los bots que la tengan asignada volverán a la versión integrada predeterminada la próxima vez que se ejecuten.",
-            "archiving": "Archivando…",
             "archived": "Versión archivada.",
             "archiveError": "No se pudo archivar esta versión.",
             "archiveDefaultHint": "Promociona otra versión antes de archivar esta versión predeterminada."
@@ -4234,7 +4221,6 @@
             "saveError": "No se pudo guardar esta versión.",
             "created": "Versión creada.",
             "updated": "Versión actualizada.",
-            "saving": "Guardando…",
             "create": "Crear versión",
             "save": "Guardar cambios"
           },
@@ -4307,7 +4293,6 @@
           "noReason": "sin motivo indicado",
           "disable": "Desactivar Soko Bot",
           "enable": "Activar Soko Bot",
-          "working": "Trabajando…",
           "reasonPlaceholder": "Motivo mostrado a los usuarios (opcional)",
           "disabled": "Soko Bot desactivado.",
           "enabled": "Soko Bot activado.",
@@ -4329,7 +4314,6 @@
           "reasonLabel": "Motivo",
           "reasonPlaceholder": "¿Por qué mueve este bot? (obligatorio, queda en el registro de auditoría)",
           "confirm": "Mover este bot",
-          "working": "Moviendo…",
           "done": "Movido a {version}.",
           "error": "No se pudo mover este bot."
         },
@@ -4348,7 +4332,6 @@
           "notifyRequired": "Obligatorio para esta versión: funciona fuera de la UE, así que cada bot movido avisa a su propietario. No inicia ningún turno.",
           "confirm": "Mover {count} bots",
           "nothingToMove": "No hay nada que mover con esta selección.",
-          "working": "Moviendo…",
           "done": "{moved} bots movidos.",
           "result": "Movidos: {moved}. Ya en esta versión: {alreadyOnVersion}. No se pudieron mover: {failed}.",
           "notifiedResult": "Propietarios avisados: {notified}.",
@@ -4426,7 +4409,6 @@
           "namePlaceholder": "p. ej. Partners",
           "nameHelp": "Se muestra en la lista. Empieza desde el identificador; puedes cambiarlo aquí.",
           "submit": "Crear canal",
-          "submitting": "Creando…",
           "success": "Canal emparejado creado",
           "error": "No se pudo crear el canal emparejado",
           "slugTaken": "Este slug de canal ya está en uso."
@@ -4457,20 +4439,17 @@
             "title": "Añadir usuario",
             "description": "Busca un usuario existente de la plataforma. No se envía invitación por correo; la membresía se crea de inmediato.",
             "user": "Usuario",
-            "submit": "Añadir usuario",
-            "submitting": "Añadiendo…"
+            "submit": "Añadir usuario"
           },
           "AddOrganization": {
             "title": "Añadir organización",
             "description": "Añade todos los miembros actuales de una organización a este canal (máx. 200 miembros por solicitud). Las altas posteriores no se sincronizan.",
             "organization": "Organización",
             "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
-            "submit": "Añadir miembros de la organización",
-            "submitting": "Añadiendo…"
+            "submit": "Añadir miembros de la organización"
           },
           "Archive": {
             "button": "Archivar canal",
-            "archiving": "Archivando…",
             "confirmTitle": "¿Archivar {name}?",
             "confirmDescription": "Los participantes pierden el acceso de inmediato. Puedes restaurar este canal desde la pestaña Archivados en este panel.",
             "confirm": "Archivar",
@@ -4481,7 +4460,6 @@
           "archivedBadge": "Archivado: las ediciones de la lista están desactivadas hasta restaurarlo.",
           "Restore": {
             "button": "Restaurar canal",
-            "restoring": "Restaurando…",
             "confirmTitle": "¿Restaurar {name}?",
             "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su membresía y recuperan el acceso en la próxima actualización de sesión.",
             "confirm": "Restaurar",
@@ -4491,7 +4469,6 @@
           },
           "Delete": {
             "button": "Eliminar permanentemente",
-            "deleting": "Eliminando…",
             "confirmTitle": "¿Eliminar permanentemente {name}?",
             "confirmDescription": "Esto no se puede deshacer. El canal, sus membresías y mensajes se eliminan para siempre. Solo se pueden eliminar canales archivados.",
             "confirm": "Eliminar permanentemente",
@@ -5104,9 +5081,7 @@
         "wantsAccess": "quiere acceder a tu cuenta de Sokosumi",
         "actions": {
           "authorize": "Autorizar",
-          "authorizing": "Autorizando...",
           "deny": "Rechazar",
-          "denying": "Rechazando...",
           "authorizeError": "No se pudo autorizar la aplicación",
           "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
@@ -5254,7 +5229,6 @@
         "noCode": "No se encontró ningún código de autorización en la URL. Por favor, completa primero el flujo de autorización.",
         "actions": {
           "exchange": "Intercambiar por token",
-          "exchanging": "Intercambiando...",
           "copy": "Copiar"
         },
         "success": {
@@ -5763,7 +5737,6 @@
       "uploadTitle": "Subir archivo Markdown",
       "uploadDescription": ".md o .markdown hasta {maxSize}",
       "uploadButton": "Subir",
-      "uploading": "Subiendo...",
       "uploadSuccess": "DESIGN.md subido",
       "uploadError": "No se pudo subir el DESIGN.md",
       "uploadRejected": "Archivo no aceptado",
@@ -6808,7 +6781,6 @@
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
-        "submitting": "Creando…",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
@@ -6901,7 +6873,6 @@
           "timezone": "Zona horaria",
           "prompt": "Prompt",
           "submit": "Crear programación",
-          "submitting": "Creando…",
           "cancel": "Cancelar",
           "created": "Programación creada.",
           "error": "No se pudo crear la programación."
@@ -6934,7 +6905,6 @@
         "archived": "Soko Bot archivado.",
         "archiveError": "No se pudo archivar el Soko Bot.",
         "delete": "Eliminar",
-        "deleting": "Eliminando…",
         "deleteConfirm": "Eliminar para siempre",
         "deleteCancel": "Cancelar",
         "deleteConfirmTitle": "¿Eliminar tu Soko Bot?",
@@ -7155,7 +7125,6 @@
         "title": "Imagen",
         "description": "Una mascota única de la colección. Dos asistentes nunca comparten la misma.",
         "save": "Usar esta imagen",
-        "saving": "Guardando…",
         "saved": "Imagen actualizada.",
         "saveError": "No se pudo actualizar la imagen.",
         "current": "Imagen actual",
@@ -7355,7 +7324,6 @@
       "importProgress": "{count, plural, one {# fila importada} other {# filas importadas}}. Los lotes completados se conservan si se interrumpe.",
       "create": "Crear tabla",
       "save": "Guardar",
-      "saving": "Guardando…",
       "retry": "Reintentar",
       "openTable": "Abrir tabla",
       "loading": "Cargando…",

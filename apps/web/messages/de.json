@@ -537,7 +537,6 @@
         "noExecutedJobs": "Keine ausgeführten Jobs",
         "emptyJobs": "Noch keine Jobs. Beauftrage diesen Coworker, um zu starten.",
         "loadMore": "Mehr laden",
-        "loading": "Wird geladen...",
         "loadMoreError": "Weitere Jobs konnten nicht geladen werden"
       }
     },
@@ -831,7 +830,6 @@
       "pushQuietTitle": "Push-Benachrichtigungen kommen in diesem Browser nicht mehr an",
       "pushQuietDescription": "Dieser Browser hat sein Push-Abonnement verloren, daher kommen hier keine Updates an. Deine anderen Geräte erhalten sie möglicherweise weiterhin.",
       "pushQuietRestore": "Push wieder einschalten",
-      "pushQuietRestoring": "Push wird wieder eingeschaltet…",
       "vendorGrantAcceptSuccess": "Vendor-Zugriff genehmigt",
       "vendorGrantAcceptError": "Vendor-Zugriff konnte nicht genehmigt werden",
       "coworkerAccessAcceptSuccess": "Coworker-Early-Access genehmigt",
@@ -3297,7 +3295,6 @@
           "resolve": "Lösen",
           "reason": "Prüfgrund",
           "cancel": "Abbrechen",
-          "submitting": "Speichern…",
           "refundConfirmTitle": "Verifizierte Zahlung erstatten?",
           "refundConfirmDescription": "Dies erstellt eine ausgleichende Credit-Transaktion und schließt die Zahlung dauerhaft als erstattet.",
           "resolveConfirmTitle": "Ausstehende Zahlung lösen?",
@@ -3430,7 +3427,6 @@
         "newGrant": "Neue Rechnung",
         "backToList": "Zurück zur Liste",
         "delete": "Löschen",
-        "deleting": "Wird gelöscht…",
         "deleteSuccess": "Rechnung gelöscht",
         "deleteError": "Rechnung konnte nicht gelöscht werden",
         "deleteConfirmTitle": "Rechnung löschen?",
@@ -3452,7 +3448,6 @@
           "expiryPlaceholder": "Kein Ablauf",
           "expiryInvalid": "Der Ablauf muss eine positive ganze Zahl von Tagen sein",
           "submit": "Rechnung erstellen",
-          "submitting": "Rechnung wird erstellt…",
           "createSuccess": "Rechnung erstellt",
           "createError": "Rechnung konnte nicht erstellt werden",
           "pricePlaceholder": "Preis auswählen",
@@ -3501,7 +3496,6 @@
           "status": "Status",
           "invoiceId": "Rechnungs-ID",
           "markPaid": "Als bezahlt markieren",
-          "marking": "Credits werden gewährt…",
           "paidSuccess": "Credits gewährt",
           "paidError": "Rechnung konnte nicht als bezahlt markiert werden",
           "openInStripe": "In Stripe öffnen",
@@ -3696,7 +3690,6 @@
           "referenceNoteHelper": "Optionale Notiz, die am Credit-Bucket zur internen Referenz gespeichert wird.",
           "referenceNotePlaceholder": "z. B. Abrechnungsproblem, Kulanz",
           "submit": "Credits gewähren",
-          "submitting": "Credits werden gewährt…",
           "grantSuccess": "Kostenlose Credits gewährt",
           "grantError": "Kostenlose Credits konnten nicht gewährt werden"
         }
@@ -3879,7 +3872,6 @@
             "unnamedBot": "dieser Assistent",
             "confirmLabel": "Zur Bestätigung die E-Mail-Adresse des Besitzers eingeben ({email})",
             "delete": "Soko Bot löschen",
-            "deleting": "Wird gelöscht…",
             "deleted": "Soko Bot gelöscht.",
             "tombstoned": "Soko Bot gelöscht. {tasks} Aufgaben und {messages} Chat-Nachrichten bleiben nachvollziehbar.",
             "error": "Dieser Soko Bot konnte nicht gelöscht werden."
@@ -3889,7 +3881,6 @@
             "roomsNav": "Chats",
             "ownerRoom": "Besitzer",
             "loadOlder": "Ältere laden",
-            "loading": "Wird geladen…",
             "noMessages": "Noch keine Nachrichten.",
             "empty": "Mit diesem Bot hat noch niemand gechattet.",
             "deleted": "Nachricht gelöscht",
@@ -3917,7 +3908,6 @@
           "reasonHint": "3–500 Zeichen. Wird unveränderlich mit deiner Operator-ID gespeichert.",
           "cancel": "Abbrechen",
           "confirm": "Bestätigen",
-          "working": "Wird ausgeführt…",
           "done": "{action} protokolliert.",
           "error": "Aktion fehlgeschlagen.",
           "more": "Weitere Aktionen"
@@ -4082,7 +4072,6 @@
           "actionDescription": "Diese Operator-Aktion wird protokolliert. Begründe, warum sie nötig ist.",
           "reasonLabel": "Grund",
           "cancel": "Abbrechen",
-          "working": "Wird ausgeführt…",
           "actionDone": "Zeitplan-Aktion abgeschlossen.",
           "actionError": "Zeitplan-Aktion konnte nicht abgeschlossen werden.",
           "noRuns": "Noch keine Läufe.",
@@ -4200,13 +4189,11 @@
             "promote": "Freigeben",
             "promoteTitle": "Diese Version freigeben?",
             "promoteConfirm": "Dies betrifft nur neue Bots. Bestehende Bots behalten die Version, mit der sie erstellt wurden.",
-            "promoting": "Wird freigegeben…",
             "promoted": "Version für neue Bots freigegeben.",
             "promoteError": "Diese Version konnte nicht freigegeben werden.",
             "archive": "Archivieren",
             "archiveTitle": "Diese Version archivieren?",
             "archiveConfirm": "Sie verschwindet aus der Versionsauswahl. Bots, die ihr zugeordnet sind, verwenden bei der nächsten Ausführung stattdessen den integrierten Standard.",
-            "archiving": "Wird archiviert…",
             "archived": "Version archiviert.",
             "archiveError": "Diese Version konnte nicht archiviert werden.",
             "archiveDefaultHint": "Vor dem Archivieren muss eine andere Version als Standard freigegeben werden."
@@ -4234,7 +4221,6 @@
             "saveError": "Diese Version konnte nicht gespeichert werden.",
             "created": "Version erstellt.",
             "updated": "Version aktualisiert.",
-            "saving": "Wird gespeichert…",
             "create": "Version erstellen",
             "save": "Änderungen speichern"
           },
@@ -4307,7 +4293,6 @@
           "noReason": "kein Grund angegeben",
           "disable": "Soko Bot deaktivieren",
           "enable": "Soko Bot aktivieren",
-          "working": "Wird ausgeführt…",
           "reasonPlaceholder": "Grund für Nutzer (optional)",
           "disabled": "Soko Bot deaktiviert.",
           "enabled": "Soko Bot aktiviert.",
@@ -4329,7 +4314,6 @@
           "reasonLabel": "Grund",
           "reasonPlaceholder": "Warum verschieben Sie diesen Bot? (erforderlich, wird im Audit-Log festgehalten)",
           "confirm": "Diesen Bot verschieben",
-          "working": "Wird verschoben…",
           "done": "Auf {version} verschoben.",
           "error": "Dieser Bot konnte nicht verschoben werden."
         },
@@ -4348,7 +4332,6 @@
           "notifyRequired": "Für diese Version Pflicht: Sie läuft außerhalb der EU, daher informiert jeder verschobene Bot seinen Besitzer. Dabei wird kein Durchlauf gestartet.",
           "confirm": "{count} Bots verschieben",
           "nothingToMove": "Für diese Auswahl gibt es nichts zu verschieben.",
-          "working": "Wird verschoben…",
           "done": "{moved} Bots verschoben.",
           "result": "Verschoben: {moved}. Bereits auf dieser Version: {alreadyOnVersion}. Nicht verschiebbar: {failed}.",
           "notifiedResult": "Informierte Besitzer: {notified}.",
@@ -4426,7 +4409,6 @@
           "namePlaceholder": "z. B. Partners",
           "nameHelp": "Wird in der Liste angezeigt. Startet vom Handle; hier kannst du ihn ändern.",
           "submit": "Channel erstellen",
-          "submitting": "Wird erstellt…",
           "success": "Matched Channel erstellt",
           "error": "Matched Channel konnte nicht erstellt werden",
           "slugTaken": "Dieser Channel-Slug ist bereits vergeben."
@@ -4457,20 +4439,17 @@
             "title": "Benutzer hinzufügen",
             "description": "Suche einen bestehenden Plattformnutzer. Es wird keine E-Mail-Einladung gesendet; die Mitgliedschaft wird sofort erstellt.",
             "user": "Benutzer",
-            "submit": "Benutzer hinzufügen",
-            "submitting": "Wird hinzugefügt…"
+            "submit": "Benutzer hinzufügen"
           },
           "AddOrganization": {
             "title": "Organisation hinzufügen",
             "description": "Übernimmt alle aktuellen Mitglieder einer Organisation in diesen Channel (max. 200 Mitglieder pro Anfrage). Spätere Beitritte werden nicht synchronisiert.",
             "organization": "Organisation",
             "helper": "Organisationen, denen du angehörst, erscheinen zuerst in den Suchergebnissen.",
-            "submit": "Organisationsmitglieder hinzufügen",
-            "submitting": "Wird hinzugefügt…"
+            "submit": "Organisationsmitglieder hinzufügen"
           },
           "Archive": {
             "button": "Channel archivieren",
-            "archiving": "Wird archiviert…",
             "confirmTitle": "{name} archivieren?",
             "confirmDescription": "Teilnehmer verlieren sofort den Zugriff. Du kannst diesen Channel im Tab „Archiviert“ in diesem Hub wiederherstellen.",
             "confirm": "Archivieren",
@@ -4481,7 +4460,6 @@
           "archivedBadge": "Archiviert — Roster-Änderungen sind bis zur Wiederherstellung deaktiviert.",
           "Restore": {
             "button": "Channel wiederherstellen",
-            "restoring": "Wird wiederhergestellt…",
             "confirmTitle": "{name} wiederherstellen?",
             "confirmDescription": "Hebt die Archivierung auf, damit der Channel wieder im Live-Hub erscheint. Bestehende Mitglieder behalten ihre Plätze und erhalten beim nächsten Session-Refresh wieder Zugriff.",
             "confirm": "Wiederherstellen",
@@ -4491,7 +4469,6 @@
           },
           "Delete": {
             "button": "Dauerhaft löschen",
-            "deleting": "Wird gelöscht…",
             "confirmTitle": "{name} dauerhaft löschen?",
             "confirmDescription": "Das kann nicht rückgängig gemacht werden. Der Channel, seine Mitgliedschaften und Nachrichten werden endgültig entfernt. Nur archivierte Channels können gelöscht werden.",
             "confirm": "Dauerhaft löschen",
@@ -5104,9 +5081,7 @@
         "wantsAccess": "möchte auf deinen Sokosumi-Account zugreifen",
         "actions": {
           "authorize": "Autorisieren",
-          "authorizing": "Wird autorisiert...",
           "deny": "Ablehnen",
-          "denying": "Wird abgelehnt...",
           "authorizeError": "Anwendung konnte nicht autorisiert werden",
           "authorizeErrorRedirectUri": "Anwendung konnte nicht autorisiert werden. Bitte überprüfe deine Redirect-URI.",
           "authorizeErrorGeneric": "Bei der Autorisierung ist ein Fehler aufgetreten",
@@ -5254,7 +5229,6 @@
         "noCode": "Kein Autorisierungscode in der URL gefunden. Bitte schließe zuerst den Autorisierungsflow ab.",
         "actions": {
           "exchange": "Gegen Token tauschen",
-          "exchanging": "Wird getauscht...",
           "copy": "Kopieren"
         },
         "success": {
@@ -5763,7 +5737,6 @@
       "uploadTitle": "Markdown-Datei hochladen",
       "uploadDescription": ".md oder .markdown bis {maxSize}",
       "uploadButton": "Hochladen",
-      "uploading": "Wird hochgeladen...",
       "uploadSuccess": "DESIGN.md hochgeladen",
       "uploadError": "DESIGN.md konnte nicht hochgeladen werden",
       "uploadRejected": "Datei wird nicht akzeptiert",
@@ -6808,7 +6781,6 @@
         "nameLabel": "Name",
         "namePlaceholder": "z. B. Atlas",
         "submit": "Soko Bot erstellen",
-        "submitting": "Wird erstellt…",
         "created": "Soko Bot erstellt.",
         "error": "Der Soko Bot konnte nicht erstellt werden.",
         "avatarLabel": "Bild",
@@ -6901,7 +6873,6 @@
           "timezone": "Zeitzone",
           "prompt": "Prompt",
           "submit": "Zeitplan erstellen",
-          "submitting": "Wird erstellt…",
           "cancel": "Abbrechen",
           "created": "Zeitplan erstellt.",
           "error": "Der Zeitplan konnte nicht erstellt werden."
@@ -6934,7 +6905,6 @@
         "archived": "Soko Bot archiviert.",
         "archiveError": "Der Soko Bot konnte nicht archiviert werden.",
         "delete": "Löschen",
-        "deleting": "Wird gelöscht…",
         "deleteConfirm": "Endgültig löschen",
         "deleteCancel": "Abbrechen",
         "deleteConfirmTitle": "Soko Bot löschen?",
@@ -7155,7 +7125,6 @@
         "title": "Bild",
         "description": "Ein einzigartiges Maskottchen aus der Sammlung. Keine zwei Assistenten teilen sich eines.",
         "save": "Dieses Bild verwenden",
-        "saving": "Wird gespeichert…",
         "saved": "Bild aktualisiert.",
         "saveError": "Das Bild konnte nicht aktualisiert werden.",
         "current": "Aktuelles Bild",
@@ -7355,7 +7324,6 @@
       "importProgress": "{count, plural, one {# Zeile importiert} other {# Zeilen importiert}}. Abgeschlossene Stapel bleiben bei Unterbrechung erhalten.",
       "create": "Tabelle erstellen",
       "save": "Speichern",
-      "saving": "Wird gespeichert…",
       "retry": "Erneut versuchen",
       "openTable": "Tabelle öffnen",
       "loading": "Wird geladen…",

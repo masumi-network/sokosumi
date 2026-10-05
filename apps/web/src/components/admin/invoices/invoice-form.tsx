@@ -103,8 +103,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     !isBillingLoading &&
     billingLoadError === null &&
     hasCompleteBilling &&
-    hasValidCredits &&
-    !isSubmitting;
+    hasValidCredits;
 
   function clearBillingState() {
     billingLoadIdRef.current += 1;
@@ -419,8 +418,12 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
       </div>
 
       <div className="flex justify-end border-t pt-6">
-        <Button type="submit" disabled={!canCreateInvoice}>
-          {isSubmitting ? t("Form.submitting") : t("Form.submit")}
+        <Button
+          type="submit"
+          disabled={!canCreateInvoice}
+          loading={isSubmitting}
+        >
+          {t("Form.submit")}
         </Button>
       </div>
     </form>

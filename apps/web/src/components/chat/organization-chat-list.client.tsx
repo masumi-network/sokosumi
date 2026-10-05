@@ -775,13 +775,12 @@ export function OrganizationChatList({
                                   variant="default"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={acceptBusy}
                                   onClick={() =>
                                     handleAcceptInvitation(invitation)
                                   }
                                 >
-                                  {acceptBusy
-                                    ? t("loading")
-                                    : tExternal("accept")}
+                                  {tExternal("accept")}
                                 </Button>
                                 <Button
                                   type="button"
@@ -789,13 +788,12 @@ export function OrganizationChatList({
                                   variant="outline"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={declineBusy}
                                   onClick={() =>
                                     handleDeclineInvitation(invitation)
                                   }
                                 >
-                                  {declineBusy
-                                    ? t("loading")
-                                    : tExternal("decline")}
+                                  {tExternal("decline")}
                                 </Button>
                               </div>
                             </div>

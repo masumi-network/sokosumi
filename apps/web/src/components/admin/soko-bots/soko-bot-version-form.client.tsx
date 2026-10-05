@@ -418,10 +418,8 @@ export function SokoBotVersionForm({
             {t("Actions.cancel")}
           </Link>
         </Button>
-        <Button type="submit" variant="primary" disabled={isPending}>
-          {isPending
-            ? t("Form.saving")
-            : t(mode === "create" ? "Form.create" : "Form.save")}
+        <Button type="submit" variant="primary" loading={isPending}>
+          {t(mode === "create" ? "Form.create" : "Form.save")}
         </Button>
       </div>
     </form>

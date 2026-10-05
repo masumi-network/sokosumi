@@ -539,10 +539,10 @@ export function SokoBotConsole({
                       <Button
                         type="button"
                         size="sm"
-                        disabled={isSavingAvatar}
+                        loading={isSavingAvatar}
                         onClick={saveAvatar}
                       >
-                        {isSavingAvatar ? t("Avatar.saving") : t("Avatar.save")}
+                        {t("Avatar.save")}
                       </Button>
                     ) : null
                   }
