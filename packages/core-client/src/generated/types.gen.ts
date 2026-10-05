@@ -6368,6 +6368,7 @@ export type CmoRoutine = {
     when: string;
     description: string;
     nextRunAt: Date | null;
+    timezone: string | null;
 };
 
 export type CmoUpdate = {

@@ -69,6 +69,32 @@ export function monthGrid(month: string, calendar: Entry[]): CalendarDay[] {
 }
 
 /** "Mon 5 Oct", or "Today" / "Tomorrow" relative to `today` (YYYY-MM-DD). */
+const CHANNEL_LABELS: Record<string, string> = {
+  linkedin: "LinkedIn",
+  x: "X",
+  twitter: "X",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  tiktok: "TikTok",
+  youtube: "YouTube",
+  threads: "Threads",
+  bluesky: "Bluesky",
+  pinterest: "Pinterest",
+  website: "Website",
+  seo: "Website",
+  email: "Newsletter",
+  newsletter: "Newsletter",
+  ads: "Ads",
+  meta: "Meta ads",
+  google: "Google ads",
+};
+
+/** A channel id as people write it: "linkedin" reads "LinkedIn". */
+export function channelLabel(channel: string): string {
+  const key = channel.trim().toLowerCase();
+  return CHANNEL_LABELS[key] ?? key.charAt(0).toUpperCase() + key.slice(1);
+}
+
 export function relativeDay(date: string, today: string): string {
   const days = Math.round(
     (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) /

@@ -87,7 +87,7 @@ describe("signed-out page", () => {
   it("names the product and offers to create an account or sign in", () => {
     const html = renderToStaticMarkup(<SignedOut {...actions} />);
 
-    expect(html).toContain("CMO.XYZ runs your marketing end to end");
+    expect(html).toContain("CMO.xyz runs your marketing end to end");
     expect(html).toMatch(
       /<form class="actions"><button class="button" type="submit"[^>]*><span class="button-label">Create account<\/span><\/button><button class="button button-secondary" type="submit"[^>]*><span class="button-label">Sign in<\/span><\/button><\/form>/,
     );

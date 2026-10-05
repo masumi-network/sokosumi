@@ -6,7 +6,7 @@ import type { ReactNode } from "react";
 import { Logo } from "../components/logo";
 
 export const metadata: Metadata = {
-  title: "CMO.XYZ",
+  title: "CMO.xyz",
   description:
     "An AI agent that automates a business's marketing, end to end, in one system.",
   // In public/ so each icon keeps a stable URL others can link to.

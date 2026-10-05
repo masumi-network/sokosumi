@@ -22077,6 +22077,16 @@ export const CmoRoutineSchema = {
                     type: 'null'
                 }
             ]
+        },
+        timezone: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
         }
     },
     required: [
@@ -22084,7 +22094,8 @@ export const CmoRoutineSchema = {
         'name',
         'when',
         'description',
-        'nextRunAt'
+        'nextRunAt',
+        'timezone'
     ]
 } as const;
 

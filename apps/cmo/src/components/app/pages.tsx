@@ -303,7 +303,7 @@ export function SettingsPage({
         <h3>Plan and billing</h3>
         <div className="li">
           <span className={overview.subscriptionActive ? "tag ok" : "tag"}>
-            {overview.billing.plan ?? "No plan"}
+            {planLabel(overview.billing.plan)}
           </span>
           <span className="grow note">
             {overview.subscriptionActive
@@ -362,10 +362,15 @@ export function SettingsPage({
               </span>
               <span className="note num">
                 {routine.when}
-                {routine.nextRunAt ? (
+                {routine.nextRunAt &&
+                !(
+                  routine.key === "cmo-strategy-nudge" &&
+                  overview.strategyApprovedAt
+                ) ? (
                   <>
                     <br />
-                    Next: {formatRoutineRun(routine.nextRunAt)}
+                    Next:{" "}
+                    {formatRoutineRun(routine.nextRunAt, routine.timezone)}
                   </>
                 ) : null}
               </span>
@@ -395,12 +400,18 @@ export function SettingsPage({
   );
 }
 
-function formatRoutineRun(at: Date | string): string {
+function formatRoutineRun(at: Date | string, timeZone: string | null): string {
   return new Date(at).toLocaleString("en-GB", {
     weekday: "short",
     day: "numeric",
     month: "short",
     hour: "2-digit",
     minute: "2-digit",
+    ...(timeZone ? { timeZone } : {}),
   });
+}
+
+function planLabel(plan: string | null): string {
+  if (!plan) return "No plan";
+  return plan.charAt(0).toUpperCase() + plan.slice(1);
 }

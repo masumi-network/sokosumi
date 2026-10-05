@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { relativeDay } from "../../lib/calendar";
+import { channelLabel, relativeDay } from "../../lib/calendar";
 
 interface UpNextProps {
   overview: CmoOverview;
@@ -103,7 +103,7 @@ function Item({
   return (
     <div className={paused ? "uitem paused" : "uitem"}>
       <div className="top">
-        <span className="tag">{item.channel}</span>
+        <span className="tag">{channelLabel(item.channel)}</span>
         <span className="when">{relativeDay(item.date, today)}</span>
       </div>
       <span>{item.title}</span>

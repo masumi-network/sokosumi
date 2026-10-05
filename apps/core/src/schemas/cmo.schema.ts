@@ -63,6 +63,7 @@ export const cmoRoutineSchema = z
     when: z.string(),
     description: z.string(),
     nextRunAt: z.union([dateTimeSchema, z.null()]),
+    timezone: z.union([z.string(), z.null()]),
   })
   .openapi("CmoRoutine");
 

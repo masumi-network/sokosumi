@@ -675,6 +675,8 @@ export interface CmoOverview {
     when: string;
     description: string;
     nextRunAt: Date | null;
+    /** The timezone "when" is in, so the next run reads the same way. */
+    timezone: string | null;
   }[];
   organizationSlug: string;
   roomId: string;
@@ -778,7 +780,12 @@ export async function getCmoOverview(
   const learning = await cmoLearningState(workspace, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: workspace.sokoBotId, systemKey: { not: null } },
-    select: { systemKey: true, nextRunAt: true, enabled: true },
+    select: {
+      systemKey: true,
+      nextRunAt: true,
+      enabled: true,
+      timezone: true,
+    },
   });
   const routines = SOKO_BOT_CMO_SCHEDULES.map((routine) => {
     const row = schedules.find((s) => s.systemKey === routine.key);
@@ -788,6 +795,7 @@ export async function getCmoOverview(
       when: routine.when,
       description: routine.description,
       nextRunAt: row?.enabled ? row.nextRunAt : null,
+      timezone: row?.timezone ?? null,
     };
   });
   return {

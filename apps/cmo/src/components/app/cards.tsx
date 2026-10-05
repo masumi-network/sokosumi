@@ -3,6 +3,7 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useTransition } from "react";
 
+import { channelLabel } from "../../lib/calendar";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
 
@@ -224,7 +225,7 @@ export function StrategyCard({
           <dd className="chanrow">
             {strategy.channels.map((channel) => (
               <span key={channel.channel} className="tag">
-                {channel.channel}
+                {channelLabel(channel.channel)}
               </span>
             ))}
           </dd>
@@ -415,9 +416,12 @@ function changesStrategy(kind: Update["kind"]): boolean {
 export function UpdateCard({
   update,
   actions,
+  approved,
 }: {
   update: Update;
   actions: CardActions;
+  /** Once the strategy is approved, what is up next can be changed or paused. */
+  approved: boolean;
 }) {
   const [pending, startTransition] = useTransition();
   return (
@@ -446,7 +450,10 @@ export function UpdateCard({
         {(update.upNext ?? []).length > 0 ? (
           <div>
             <span className="label">Up next</span>
-            <ItemList items={update.upNext ?? []} actions={actions} />
+            <ItemList
+              items={update.upNext ?? []}
+              actions={approved ? actions : undefined}
+            />
           </div>
         ) : null}
         {update.kind !== "daily" &&
@@ -506,7 +513,9 @@ export function UpdateCard({
         <span className="note">
           {update.revertedAt
             ? "Reverted. The strategy is back to how it was."
-            : "No approvals needed. Reply to change anything."}
+            : approved
+              ? "No approvals needed. Reply to change anything."
+              : "Reply to change anything."}
         </span>
       </div>
     </div>

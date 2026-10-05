@@ -2,9 +2,9 @@
 
 import type { CmoOverview } from "@sokosumi/core-client";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
-
 import type { CusoMessage } from "../../lib/chat-messages";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { Logo } from "../logo";
 import {
   BrandBrainCard,
   type CardActions,
@@ -210,7 +210,15 @@ export function CmoApp({
       ].join(" ")}
     >
       <nav className="side" aria-label="Main">
-        <div className="brand">{overview.businessName}</div>
+        <div className="brand">
+          <Logo />
+        </div>
+        <div className="business" title={overview.websiteUrl}>
+          <span className="business-name">{overview.businessName}</span>
+          {siteHost(overview.websiteUrl) !== overview.businessName ? (
+            <span className="note">{siteHost(overview.websiteUrl)}</span>
+          ) : null}
+        </div>
         <div className="nav">
           {VIEWS.map(([id, label]) => (
             <button
@@ -302,7 +310,7 @@ export function CmoApp({
                 ))}
                 {overview.botStatus === "RUNNING" ? (
                   <div className="msg">
-                    <span className="mav" aria-hidden="true" />
+                    <CusoMark />
                     <div className="mbody">
                       <span className="meta">Cuso</span>
                       <span className="typing" aria-label="Cuso is working">
@@ -460,7 +468,11 @@ function ThreadEntry({
             id={`update-${item.update.id}`}
             className={highlighted ? "flash" : undefined}
           >
-            <UpdateCard update={item.update} actions={actions} />
+            <UpdateCard
+              update={item.update}
+              actions={actions}
+              approved={overview.strategyApprovedAt !== null}
+            />
           </div>
         );
     }
@@ -471,11 +483,28 @@ function ThreadEntry({
 function CusoSays({ children }: { children: React.ReactNode }) {
   return (
     <div className="msg">
-      <span className="mav" aria-hidden="true" />
+      <CusoMark />
       <div className="mbody">
         <span className="meta">Cuso</span>
         {children}
       </div>
     </div>
   );
+}
+
+/** Cuso's avatar: the CMO.xyz pointer mark on a tile. */
+function CusoMark() {
+  return (
+    <span className="mav" aria-hidden="true">
+      <img alt="" src="/icon.svg" width={18} height={18} />
+    </span>
+  );
+}
+
+function siteHost(url: string): string {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
 }

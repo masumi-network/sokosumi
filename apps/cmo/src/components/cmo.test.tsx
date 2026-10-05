@@ -63,6 +63,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
         when: "Every day at 09:00",
         description: "Prepares what the calendar has due.",
         nextRunAt: null,
+        timezone: "Europe/Berlin",
       },
     ],
     subscriptionActive: false,
@@ -210,6 +211,29 @@ describe("learning steps", () => {
 });
 
 describe("cards", () => {
+  it("offers Change and Pause on what is up next only after approval", () => {
+    const update = {
+      id: "u0",
+      at: new Date("2026-10-05T09:00:00Z"),
+      kind: "request" as const,
+      headline: "Plan updated",
+      done: [],
+      upNext: ["Draft the first LinkedIn post"],
+      changes: [],
+      revertible: false,
+      revertedAt: null,
+    };
+    const before = renderToStaticMarkup(
+      <UpdateCard update={update} actions={noop} approved={false} />,
+    );
+    expect(before).not.toContain(">Pause<");
+    expect(before).not.toContain("No approvals needed");
+    const after = renderToStaticMarkup(
+      <UpdateCard update={update} actions={noop} approved />,
+    );
+    expect(after).toContain(">Pause<");
+  });
+
   it("offers to revert a monthly strategy, not a Brand Brain refresh", () => {
     const base = {
       id: "u1",
@@ -224,6 +248,7 @@ describe("cards", () => {
       <UpdateCard
         update={{ ...base, kind: "monthly", revertible: true }}
         actions={noop}
+        approved
       />,
     );
     expect(monthly).toContain("What changes from this month");
@@ -232,6 +257,7 @@ describe("cards", () => {
       <UpdateCard
         update={{ ...base, kind: "brand", revertible: false }}
         actions={noop}
+        approved
       />,
     );
     expect(brand).toContain("What changed in the Brand Brain");
@@ -290,12 +316,15 @@ describe("cards", () => {
       revertedAt: null,
     };
     expect(
-      renderToStaticMarkup(<UpdateCard update={update} actions={noop} />),
+      renderToStaticMarkup(
+        <UpdateCard update={update} actions={noop} approved />,
+      ),
     ).toContain("Revert these changes");
     const reverted = renderToStaticMarkup(
       <UpdateCard
         update={{ ...update, revertible: false, revertedAt: new Date() }}
         actions={noop}
+        approved
       />,
     );
     expect(reverted).not.toContain("Revert these changes");
