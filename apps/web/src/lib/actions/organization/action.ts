@@ -1,7 +1,6 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS, createOrganizationSlug } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -12,12 +11,9 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
-import {
-  type OrganizationInformationFormSchemaType,
-  organizationInformationFormSchema,
-} from "@/lib/schemas/organization";
 import {
   type BulkInviteResultRow,
   organizationService,
@@ -27,32 +23,6 @@ import {
   type AuthenticatedRequest,
   withSession,
 } from "@/middleware/auth-middleware";
-
-export async function generateOrganizationSlug(
-  data: OrganizationInformationFormSchemaType,
-): Promise<ActionResultDto<string, ActionError>> {
-  try {
-    const parsedResult = organizationInformationFormSchema().safeParse(data);
-    if (!parsedResult.success) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.BAD_INPUT,
-        }),
-      );
-    }
-
-    const slug = createOrganizationSlug(parsedResult.data.name);
-
-    return toActionResult(ok(slug));
-  } catch (error) {
-    console.error("Error generating organization slug", error);
-    return toActionResult(
-      err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      }),
-    );
-  }
-}
 
 const bulkInviteEmailsSchema = z.object({
   organizationId: z.string().min(1),
@@ -190,11 +160,33 @@ export const updatePreferredOrganization = withSession<
   }
 
   const previousOrganizationId = session.session.activeOrganizationId ?? null;
+  const notMember = {
+    code: CommonErrorCode.UNAUTHORIZED,
+    message: "You are not a member of this organization",
+  };
+
+  // Core prefers a workspace by id (ADR 0051); null means the personal one.
+  const { data: list } = await coreClient.getMyWorkspaces();
+  const workspace = list.workspaces.find((candidate) =>
+    parsedResult.data.organizationId === null
+      ? candidate.kind === "personal"
+      : candidate.organizationId === parsedResult.data.organizationId,
+  );
+  if (!workspace) {
+    return toActionResult(
+      err(
+        parsedResult.data.organizationId === null
+          ? {
+              code: CommonErrorCode.NOT_FOUND,
+              message: "You have no personal workspace",
+            }
+          : notMember,
+      ),
+    );
+  }
 
   try {
-    const { data } = await coreClient.setMyPreferredOrganization(
-      parsedResult.data.organizationId,
-    );
+    const { data } = await coreClient.setMyPreferredWorkspace(workspace.id);
 
     invalidatePrivateSidebarChrome({
       userId: session.user.id,
@@ -208,18 +200,67 @@ export const updatePreferredOrganization = withSession<
       }),
     );
   } catch (error) {
-    if (
-      error instanceof CoreApiRequestError &&
-      error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED
-    ) {
-      return toActionResult(
-        err({
-          code: CommonErrorCode.UNAUTHORIZED,
-          message: "You are not a member of this organization",
-        }),
-      );
+    // The membership ended between the list and the write.
+    if (error instanceof CoreApiRequestError && error.status === 404) {
+      return toActionResult(err(notMember));
     }
 
     throw error;
+  }
+});
+
+const createOrganizationWorkspaceSchema = z.object({
+  name: z.string().trim().min(1),
+  websiteUrl: z.string().trim().min(1),
+});
+
+interface CreateOrganizationWorkspaceParameters extends AuthenticatedRequest {
+  name: string;
+  websiteUrl: string;
+}
+
+/**
+ * Creates an organization owned by the signed-in user through Core's
+ * workspaces resource (ADR 0051): Core generates the slug, stores the website
+ * in its metadata and makes it preferred. Core's message is kept for the
+ * person, as Better Auth's was.
+ */
+export const createOrganizationWorkspaceAction = withSession<
+  CreateOrganizationWorkspaceParameters,
+  ActionResultDto<{ organizationId: string }, ActionError>
+>(async ({ name, websiteUrl }) => {
+  const parsedResult = createOrganizationWorkspaceSchema.safeParse({
+    name,
+    websiteUrl,
+  });
+  if (!parsedResult.success) {
+    return toActionResult(err({ code: CommonErrorCode.BAD_INPUT }));
+  }
+
+  try {
+    const { data } = await coreClient.createMyWorkspace({
+      kind: "organization",
+      ...parsedResult.data,
+    });
+    if (!data.organizationId) {
+      throw new Error("Core created an organization without an id");
+    }
+    return toActionResult(ok({ organizationId: data.organizationId }));
+  } catch (error) {
+    if (error instanceof CoreApiRequestError) {
+      const code =
+        error.status === 401
+          ? CommonErrorCode.UNAUTHENTICATED
+          : error.status === 403
+            ? OrganizationErrorCode.ORGANIZATION_LIMIT_REACHED
+            : error.status === 422
+              ? CommonErrorCode.BAD_INPUT
+              : null;
+      if (code) {
+        return toActionResult(err({ code, message: error.message }));
+      }
+    }
+    console.error("Failed to create organization", error);
+    return toActionResult(err({ code: CommonErrorCode.INTERNAL_SERVER_ERROR }));
   }
 });

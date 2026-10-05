@@ -4,8 +4,7 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handleSelectWorkspaceMock = vi.fn();
-const generateOrganizationSlugMock = vi.fn();
-const organizationCreateMock = vi.fn();
+const createOrganizationWorkspaceActionMock = vi.fn();
 const organizationUpdateMock = vi.fn();
 const resolveOrganizationSiteIconMock = vi.fn();
 const createOrganizationInviteLinkMock = vi.fn();
@@ -39,8 +38,8 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 
 vi.mock("@/lib/actions/organization/action", () => ({
-  generateOrganizationSlug: (...args: unknown[]) =>
-    generateOrganizationSlugMock(...args),
+  createOrganizationWorkspaceAction: (...args: unknown[]) =>
+    createOrganizationWorkspaceActionMock(...args),
   inviteOrganizationMembersBulk: vi.fn(),
 }));
 vi.mock("@/lib/actions/organization/invite-link-action", () => ({
@@ -55,7 +54,6 @@ vi.mock("@/lib/actions/organization/site-icon-action", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      create: (...args: unknown[]) => organizationCreateMock(...args),
       update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
   },
@@ -88,13 +86,9 @@ function WizardHarness({
 describe("CreateOrganizationWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    generateOrganizationSlugMock.mockResolvedValue({
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
       ok: true,
-      value: "acme",
-    });
-    organizationCreateMock.mockResolvedValue({
-      data: { id: "org-1" },
-      error: null,
+      value: { organizationId: "org-1" },
     });
     organizationUpdateMock.mockResolvedValue({ error: null });
     resolveOrganizationSiteIconMock.mockResolvedValue({
@@ -112,7 +106,7 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByTestId("create-org-wizard-back"));
 
     expect(onOrganizationReadyMock).not.toHaveBeenCalled();
-    expect(organizationCreateMock).not.toHaveBeenCalled();
+    expect(createOrganizationWorkspaceActionMock).not.toHaveBeenCalled();
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
@@ -131,7 +125,11 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledWith({
+      name: "Acme",
+      websiteUrl: "https://acme.com/",
     });
 
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
@@ -160,7 +158,7 @@ describe("CreateOrganizationWizard", () => {
       await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
       await waitFor(() => {
-        expect(organizationCreateMock).toHaveBeenCalledOnce();
+        expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
       });
 
       if (method === "Finish") {
@@ -196,7 +194,7 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
     await user.click(screen.getByRole("button", { name: /close/i }));
@@ -218,7 +216,7 @@ describe("CreateOrganizationWizard", () => {
     );
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
@@ -247,7 +245,7 @@ describe("CreateOrganizationWizard", () => {
     );
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
     await user.click(screen.getByRole("button", { name: /close/i }));
@@ -271,7 +269,7 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
     expect(screen.getByText("Logo.title")).toBeTruthy();

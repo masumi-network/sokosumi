@@ -1,9 +1,6 @@
 "use server";
 
-import type {
-  PersonalWorkspaceCreated,
-  PersonalWorkspaceDeleted,
-} from "@sokosumi/core-client";
+import type { PersonalWorkspaceDeleted } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -73,7 +70,7 @@ export const ensureOAuthWorkspaceAction = withSession<
     }
 
     try {
-      await coreClient.createMyPersonalWorkspace();
+      await coreClient.createMyWorkspace({ kind: "personal" });
       return toActionResult(ok({ createdPersonalWorkspace: true }));
     } catch (error) {
       if (error instanceof CoreApiRequestError && error.status === 409) {
@@ -89,16 +86,16 @@ export const ensureOAuthWorkspaceAction = withSession<
 });
 
 /**
- * Create exactly one personal workspace for the signed-in user.
- * Core clears preferredOrganizationId on success; 409 when one already exists.
+ * Create exactly one personal workspace for the signed-in user, which Core
+ * makes preferred (ADR 0051); 409 when one already exists.
  */
 export const createPersonalWorkspaceAction = withSession<
   AuthenticatedRequest,
-  ActionResultDto<PersonalWorkspaceCreated, ActionError>
+  ActionResultDto<{ workspaceId: string }, ActionError>
 >(async () => {
   try {
-    const { data } = await coreClient.createMyPersonalWorkspace();
-    return toActionResult(ok(data));
+    const { data } = await coreClient.createMyWorkspace({ kind: "personal" });
+    return toActionResult(ok({ workspaceId: data.id }));
   } catch (error) {
     console.error("Failed to create personal workspace", error);
     return toActionResult(err(toCreatePersonalWorkspaceError(error)));
