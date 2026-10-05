@@ -358,9 +358,11 @@ describe("SocialButtons", () => {
     expect(google).toBeDisabled();
     expect(microsoft).toBeDisabled();
     expect(passkey).toBeDisabled();
-    expect(google.querySelector("svg.animate-spin")).not.toBeNull();
-    expect(microsoft.querySelector("svg")).toBeNull();
-    expect(passkey.querySelector("svg.animate-spin")).toBeNull();
+    const bar = '[data-slot="button-loading-bar"]';
+    expect(google.parentElement?.querySelector(bar)).not.toBeNull();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(microsoft.parentElement?.querySelector(bar)).toBeNull();
+    expect(passkey.querySelector(bar)).toBeNull();
 
     // Success means the browser is leaving for the provider: stay busy.
     await act(async () => pending.resolve({}));
@@ -415,7 +417,9 @@ describe("SocialButtons", () => {
 
     await user.click(passkey);
 
-    expect(passkey).toBeDisabled();
+    // The running passkey button keeps focus: aria-disabled, not disabled.
+    expect(passkey).toHaveAttribute("aria-busy", "true");
+    expect(passkey).toHaveAttribute("aria-disabled", "true");
     expect(google).toBeDisabled();
     expect(microsoft).toBeDisabled();
     expect(google.querySelector("svg")).toBeNull();

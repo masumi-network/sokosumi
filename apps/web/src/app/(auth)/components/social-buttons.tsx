@@ -1,7 +1,7 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2 } from "lucide-react";
+import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type ComponentProps, useCallback, useEffect, useState } from "react";
 import {
@@ -10,7 +10,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { Button, ButtonLoadingBar } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
 import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -33,22 +33,6 @@ interface SocialButtonsProps {
   disabled?: boolean;
   /** Whether a sign-in started here is still running. */
   onPendingChange?: (pending: boolean) => void;
-}
-
-/** Stands in for the provider's logo while its sign-in starts, at the logo's size. */
-function SocialButtonSpinner({
-  size,
-}: {
-  size: string | number;
-  color: string;
-}) {
-  return (
-    <Loader2
-      aria-hidden="true"
-      size={size}
-      className="animate-spin motion-reduce:animate-pulse"
-    />
-  );
 }
 
 /** Marks the method used last, in the corner of its button. */
@@ -230,18 +214,26 @@ export default function SocialButtons({
     <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => {
         const isLastUsed = lastUsedMethod === socialButton.key;
+        const isPending = pendingMethod === socialButton.key;
 
         return (
-          <div className="group/provider relative" key={socialButton.key}>
+          <div
+            className={cn(
+              "group/provider relative",
+              // The provider button is third-party, so it cannot take
+              // `loading`: draw the same bar over it and keep its logo.
+              isPending && "text-foreground overflow-hidden rounded-md",
+            )}
+            aria-busy={isPending || undefined}
+            key={socialButton.key}
+          >
             {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
               disabled={isWaiting}
-              {...(pendingMethod === socialButton.key && {
-                icon: SocialButtonSpinner,
-              })}
               className={cn(
                 "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                isPending && "disabled:opacity-100!",
                 isLastUsed
                   ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
@@ -249,6 +241,7 @@ export default function SocialButtons({
               align="center"
               text={t("continueWith", { provider: socialButton.name })}
             />
+            {isPending && <ButtonLoadingBar />}
           </div>
         );
       })}
@@ -267,15 +260,12 @@ export default function SocialButtons({
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
             disabled={isWaiting}
+            loading={pendingMethod === "passkey"}
             onClick={() => {
               void handlePasskeySignIn();
             }}
           >
-            {pendingMethod === "passkey" ? (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            ) : (
-              <KeyRound className="size-4" />
-            )}
+            <KeyRound className="size-4" />
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
         </div>

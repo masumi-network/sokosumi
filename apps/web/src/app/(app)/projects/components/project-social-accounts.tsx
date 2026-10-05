@@ -584,11 +584,15 @@ export function ProjectSocialAccounts({
             <AlertDialogCancel disabled={isBusy}>
               {t("cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction disabled={isBusy} onClick={handleConfirmation}>
+            <AlertDialogAction
+              disabled={isBusy}
+              loading={
+                confirmationIsDisconnect && pendingAction === "disconnect"
+              }
+              onClick={handleConfirmation}
+            >
               {confirmationIsDisconnect
-                ? pendingAction === "disconnect"
-                  ? t("disconnecting")
-                  : t("disconnectDialog.confirm")
+                ? t("disconnectDialog.confirm")
                 : t("replaceDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
