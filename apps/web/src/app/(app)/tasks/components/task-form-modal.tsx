@@ -57,6 +57,8 @@ interface TaskFormModalProps {
   cancelLabel: string;
   children: React.ReactNode;
   isDismissDisabled?: boolean;
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function TaskFormModal({
@@ -66,6 +68,8 @@ export function TaskFormModal({
   cancelLabel,
   children,
   isDismissDisabled = false,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
 }: TaskFormModalProps) {
   const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
   const registerHeaderStart = useCallback((content: React.ReactNode) => {
@@ -91,6 +95,8 @@ export function TaskFormModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden"
+        onOpenAutoFocus={onOpenAutoFocus}
+        onCloseAutoFocus={onCloseAutoFocus}
         onPointerDownOutside={(event) => {
           if (isTaskFormPortalEventTarget(event.detail.originalEvent.target)) {
             event.preventDefault();

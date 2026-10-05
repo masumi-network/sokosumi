@@ -28,7 +28,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { changeEmail } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
-import { type EmailFormType, emailFormSchema } from "@/lib/schemas/account";
+import { type EmailFormSchemaType, emailFormSchema } from "@/lib/schemas/auth";
 
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
@@ -39,7 +39,7 @@ export function EmailForm() {
     getErrorMessage,
   } = useAuthCaptcha("change-email");
 
-  const form = useForm<EmailFormType>({
+  const form = useForm<EmailFormSchemaType>({
     resolver: zodResolver(
       emailFormSchema(useTranslations("Library.Auth.Schema")),
     ),
@@ -48,7 +48,7 @@ export function EmailForm() {
     },
   });
 
-  const handleSubmit = async (values: EmailFormType) => {
+  const handleSubmit = async (values: EmailFormSchemaType) => {
     await runWithCaptcha(async (fetchOptions) => {
       const changeEmailResult = await changeEmail({
         fetchOptions,

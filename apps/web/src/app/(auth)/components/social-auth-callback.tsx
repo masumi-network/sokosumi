@@ -1,14 +1,10 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { authClient } from "@/lib/auth/auth.client";
-import {
-  createAuthSessionGetter,
-  normalizeAuthReturnUrl,
-  waitForAuthSession,
-} from "@/lib/auth/auth.utils";
+import { claimSignUpConversion } from "@/lib/actions/auth/action";
+import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
+import { waitForClientSession } from "@/lib/auth/finish-auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { authMethodIdSchema } from "@/lib/schemas/auth";
 
@@ -28,9 +24,9 @@ export default function SocialAuthCallback({
     const validationResult = authMethodIdSchema.safeParse(provider);
     const redirectUrl = normalizeAuthReturnUrl(returnUrl ?? undefined);
 
-    // Social and magic-link land here via a full page load (Better Auth
-    // hard-redirects to `callbackURL` on success). Credential and passkey
-    // never reach this page: they fire in place before their own
+    // Social sign-ins land here via a full page load (Better Auth
+    // hard-redirects to `callbackURL` on success). Credential, passkey and
+    // email code never reach this page: they fire in place before their own
     // full-document leave. The GTM event on this page survives the hard nav
     // — see apps/web/TRACKING.md. `router.replace` below is safe because
     // this *is* a new document, so it carries no pre-login router cache.
@@ -40,18 +36,18 @@ export default function SocialAuthCallback({
     // same retry/timeout helper as the other auth surfaces.
     void (async () => {
       if (validationResult.success) {
-        const session = await waitForAuthSession({
-          context: eventType === "signUp" ? "signup" : "login",
-          getSession: createAuthSessionGetter(() => authClient.getSession()),
-          logWarning: (message) => {
-            Sentry.captureMessage(message, { level: "warning" });
-          },
-        }).catch(() => null);
+        const session = await waitForClientSession(eventType).catch(() => null);
         if (session) {
           switch (eventType) {
-            case "signUp":
-              fireGTMEvent.signUp(validationResult.data);
+            case "signUp": {
+              // Core recorded the new account; claiming it counts it once,
+              // here or on the OAuth hand-back (apps/web/TRACKING.md).
+              const provider = await claimSignUpConversion().catch(() => null);
+              if (provider) {
+                fireGTMEvent.signUp(provider);
+              }
               break;
+            }
             case "signIn":
               fireGTMEvent.signIn(validationResult.data);
               break;

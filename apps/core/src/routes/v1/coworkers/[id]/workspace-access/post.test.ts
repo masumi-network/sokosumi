@@ -27,13 +27,16 @@ vi.mock("@/helpers/coworker-workspace-access", async (importOriginal) => {
     >();
   return {
     ...actual,
-    upsertCoworkerWorkspaceAccess: (...args: unknown[]) => upsertMock(...args),
     resolveCoworkerAccessTargetWorkspaceId: (...args: unknown[]) =>
       resolveWorkspaceMock(...args),
     notifyWorkspaceApproversOfPendingCoworkerAccess: (...args: unknown[]) =>
       notifyMock(...args),
   };
 });
+
+vi.mock("@/helpers/coworker-workspace-access-grant", () => ({
+  upsertCoworkerWorkspaceAccess: (...args: unknown[]) => upsertMock(...args),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
@@ -153,7 +156,7 @@ describe("POST /coworkers/{id}/workspace-access", () => {
     );
   });
 
-  it("vendor admin member workspace → 201 GRANTED", async () => {
+  it("Vendor admin with Workspace approval authority → 201 GRANTED", async () => {
     upsertMock.mockResolvedValue({
       access: baseAccess({ status: CoworkerWorkspaceAccessStatus.GRANTED }),
       pendingNotify: null,

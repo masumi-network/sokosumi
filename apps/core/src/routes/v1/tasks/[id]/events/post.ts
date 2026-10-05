@@ -59,6 +59,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { getEnvSecrets, redactDeep } from "@/lib/secret-redaction";
 import { formatUpstreamErrorForLog } from "@/lib/upstream-error-log";
 import { isAgentAuthContext, requireUserContext } from "@/middleware/auth";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { taskEventSchema } from "@/schemas/task.schema";
 import { projectMemoryService } from "@/services/project-memory.service";
 import { sourceImportService } from "@/services/source-import.service";
@@ -266,7 +267,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             schema: errorResponseWithExtensionsSchema({
               data: taskEventSchema.optional(),
               attemptedCredits: z.number().optional().openapi({ example: 2 }),
-              requestedStatus: z.enum(TaskStatus).nullable().optional(),
+              requestedStatus: z.union([taskStatusSchema, z.null()]).optional(),
             }),
           },
         },
@@ -365,7 +366,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
         if (
           !isAgent &&
-          userTaskStatusTransitionRequiresComment(task.status, status)
+          // Task.status is never CREATED.
+          userTaskStatusTransitionRequiresComment(
+            task.status as Exclude<TaskStatus, "CREATED">,
+            status,
+          )
         ) {
           const trimmedComment = comment?.trim();
           if (!trimmedComment) {

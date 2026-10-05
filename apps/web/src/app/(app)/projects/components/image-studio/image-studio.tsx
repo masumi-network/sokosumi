@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
@@ -25,6 +26,7 @@ import {
 } from "./catalog";
 import {
   STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+  STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
   STUDIO_COLUMN_MOBILE_SHELL_CLASS,
 } from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
@@ -94,6 +96,7 @@ export function ImageStudio({
   const t = useTranslations("App.Studio");
   const router = useRouter();
   const pathname = usePathname();
+  const isApple = useIsApplePlatform();
   const searchParams = useSearchParams();
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   /**
@@ -401,6 +404,7 @@ export function ImageStudio({
       className={cn(
         "flex min-h-0 min-w-0 flex-col gap-3",
         STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
         STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >

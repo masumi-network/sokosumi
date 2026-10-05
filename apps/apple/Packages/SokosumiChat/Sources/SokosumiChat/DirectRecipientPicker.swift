@@ -12,8 +12,8 @@ public final class DirectRecipientPicker: ObservableObject {
   @Published public private(set) var creationError: String?
   private var generation = 0
 
-  public init(hasOrganization: Bool) {
-    selection = DirectConversationSelection(hasOrganization: hasOrganization)
+  public init(hasOrganization: Bool, currentUserId: String) {
+    selection = DirectConversationSelection(hasOrganization: hasOrganization, currentUserId: currentUserId)
   }
 
   public var sections: [ChatRecipientSection] {

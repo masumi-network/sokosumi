@@ -135,18 +135,40 @@ describe("AppMobileChrome", () => {
     );
   });
 
-  it("hides bottom nav and clearance on studio", () => {
-    mockPathname = "/studio";
+  it.each([
+    ["/studio", false],
+    ["/studio", true],
+    ["/social", false],
+    ["/social", true],
+  ])(
+    "shows bottom nav and clearance on %s (Apple: %s)",
+    (pathname, isApple) => {
+      mockPathname = pathname;
+      mockIsApple = isApple;
+      mockSearchParams = new URLSearchParams(
+        "projectId=project-1&tab=accounts",
+      );
 
-    const { container } = render(
-      <AppMobileChrome>
-        <div>child</div>
-      </AppMobileChrome>,
-    );
+      const { container } = render(
+        <AppMobileChrome>
+          <div>child</div>
+        </AppMobileChrome>,
+      );
 
-    expect(screen.queryByRole("navigation", { name: "ariaLabel" })).toBeNull();
-    expect(getTabBarSpacer(container)).toBeNull();
-  });
+      expect(
+        screen.getByRole("navigation", { name: "ariaLabel" }),
+      ).toBeTruthy();
+      expect(screen.getByRole("link", { name: "home" })).toHaveAttribute(
+        "aria-current",
+        "page",
+      );
+      expect(getTabBarSpacer(container)?.className).toContain(
+        isApple
+          ? CHAT_MOBILE_TAB_BAR_CLEARANCE_APPLE
+          : CHAT_MOBILE_TAB_BAR_CLEARANCE,
+      );
+    },
+  );
 
   it("hides bottom nav and clearance on room surface", () => {
     mockPathname = "/chat/rooms/room-1";

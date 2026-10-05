@@ -26,9 +26,9 @@ export interface CoworkerApiKeyData {
   expiresAt?: string | null;
 }
 
-export interface CoworkerWorkspaceAccessTarget {
-  organizationId: string;
-}
+export type CoworkerWorkspaceAccessTarget =
+  | { organizationId: string; userId?: never }
+  | { userId: string; organizationId?: never };
 
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   const params = new URLSearchParams();
@@ -152,12 +152,19 @@ export async function grantCoworkerWorkspaceAccess(
   access: CoworkerWorkspaceAccess;
 }> {
   requireId(coworkerId, "coworkerId");
-  if (!target.organizationId.trim())
-    throw new Error("organizationId is required");
+  const key = target.userId !== undefined ? "userId" : "organizationId";
+  const value = target[key]?.trim();
+  if (
+    !value ||
+    (target.userId !== undefined && target.organizationId !== undefined)
+  )
+    throw new Error(
+      `${key} is required and only one Workspace target is allowed`,
+    );
   const parsed = parseCoworkerWorkspaceAccessResponse(
     await client.post<unknown>(
       `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}/workspace-access`,
-      { organizationId: target.organizationId.trim() },
+      { [key]: value },
       signal,
     ),
   );

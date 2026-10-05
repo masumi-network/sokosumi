@@ -3,17 +3,27 @@
 import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 
-/** A room's own timeline note: someone joined or left, or the group was named. */
+/**
+ * A room's own timeline note: someone joined or left (or was added or removed
+ * by someone else), or the group was named.
+ */
 export function RoomStatusRow({ message }: { message: ChatRoomMessage }) {
   const { membership, groupNameChange } = message;
   const t = useTranslations("App.Channels");
 
   let text: string;
   if (membership != null) {
-    text =
-      membership.action === "joined"
-        ? t("MembershipStatus.joined", { name: membership.subject.name })
-        : t("MembershipStatus.left", { name: membership.subject.name });
+    const name = membership.subject.name;
+    const actor = membership.actor?.name;
+    if (membership.action === "joined") {
+      text = actor
+        ? t("MembershipStatus.added", { actor, name })
+        : t("MembershipStatus.joined", { name });
+    } else {
+      text = actor
+        ? t("MembershipStatus.removed", { actor, name })
+        : t("MembershipStatus.left", { name });
+    }
   } else if (groupNameChange != null) {
     text =
       groupNameChange.action === "named"

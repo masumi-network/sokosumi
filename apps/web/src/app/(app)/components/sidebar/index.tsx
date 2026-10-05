@@ -88,14 +88,12 @@ interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
   socialBetaEnabled: boolean;
-  sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
   socialBetaEnabled,
-  sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -115,8 +113,8 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
-          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <PersonalAssistantNav />
+          <SidebarSeparator className="-mt-px" />
           <MenuItems socialBetaEnabled={socialBetaEnabled} />
           <SidebarSeparator />
           {chatList}

@@ -2,7 +2,7 @@
 
 Native Sokosumi on Apple. One Xcode project, two app targets later, shared Swift packages. The first ship is **macOS chat**. **iOS** is the same codebase, later — not a second repo and not `apps/ios`.
 
-This file preserves product intent and the ongoing goal. [`PARITY.md`](./PARITY.md) is the authoritative capability boundary, dependency order, iteration workflow, and verification/handoff record. Full chat parity supersedes the original tracer scope; the earlier plan remains in Git history.
+This file preserves product intent and the ongoing goal. [`PARITY.md`](./PARITY.md) is the authoritative capability boundary, dependency order, iteration workflow, and handoff record; per-slice verification evidence lives in [`PARITY-LOG.md`](./PARITY-LOG.md). Full chat parity supersedes the original tracer scope; the earlier plan remains in Git history.
 
 ## Ongoing goal
 
@@ -10,7 +10,7 @@ Build `apps/apple` as an Apple-native SwiftUI client for the chat experience in 
 
 Target macOS 26 now and iOS 17+ later. Reuse the existing architecture and conventions. Keep models, networking, view models, and persistence in platform-agnostic, UI-free packages with iOS 17-compatible APIs. Shared packages also target macOS 26; do not lower their Mac baseline. Use newer Mac-only APIs exclusively in guarded Mac views. Prefer SwiftUI; isolate unavoidable AppKit adapters. Follow macOS conventions for NavigationSplitView, Commands and keyboard shortcuts, Settings, and multiple windows.
 
-Deliver one complete vertical slice per PR, with feature tests, a clean Xcode build, passing tests, and behavior verified against web. Update `PARITY.md` with evidence and the PR link. Wait for human merge before starting the next slice; handle review feedback first. The detailed iteration rules live in `PARITY.md`; the per-row steps, subagent brief and stop/ask conditions live in the `apple-parity-next` skill.
+Deliver one complete vertical slice per PR, with feature tests, a clean Xcode build, passing tests, and behavior verified against web. Update `PARITY.md` with status and the PR link, and append the slice's evidence to `PARITY-LOG.md`. Wait for human merge before starting the next slice; handle review feedback first. The detailed iteration rules live in `PARITY.md`; the per-row steps, subagent brief and stop/ask conditions live in the `apple-parity-next` skill.
 
 Never modify `apps/web` as part of this goal. Shared API contract or dependency changes require a separate PR and explicit approval. Stop and ask when web behavior is ambiguous or a required API is absent.
 
@@ -18,14 +18,14 @@ An agent in any tool can resume by reading `AGENTS.md`, this file, and `PARITY.m
 
 ## Iteration loop
 
-This is the agent-facing goal. `PARITY.md` is the authoritative scope, order, status and verification record; [`AGENTS.md`](./AGENTS.md) holds conventions and commands. Read all three before every slice.
+This is the agent-facing goal. `PARITY.md` is the authoritative scope, order and status; slice verification is in [`PARITY-LOG.md`](./PARITY-LOG.md) — open only the slice the row cites. [`AGENTS.md`](./AGENTS.md) holds conventions and commands. Read PARITY, this file and AGENTS before every slice.
 
 Each iteration is one fresh session, started with `/apple-parity-next` ([skill](../../.agents/skills/apple-parity-next/SKILL.md)), which carries the steps below and the subagent brief:
 
 1. Fetch `main`. Verify PARITY's recorded PR on GitHub. If it is open, babysit it: fix CI, address review with a technical reply, never re-request review. Resolve conflicts by merging `main`, never by rebasing or force-pushing. If it was closed unmerged, stop and ask.
 2. Once merged, branch from the current `main` and take the next Todo row in dependency order. Audit the linked web sources and the running web UI first; current web behavior beats stale requirements. Explicit user preferences override web: no welcome screen, keep the toolbar New chat, and native Mac affordances over copied web markup (clickable controls stay, as with the edit composer's compact ✕/✓).
 3. Implement one vertical slice: portable model/networking in the packages, native SwiftUI in the app, tests at the transport/state boundary, light/dark render fixtures inspected. Reuse the existing architecture; no second parallel path.
-4. Done means: the five package suites, app tests (`-enableCodeCoverage NO`), strict SwiftLint/SwiftFormat, the iOS 17 Workspace build and the macOS build all pass; PARITY is updated with evidence and the PR link; one draft PR whose title is the commit subject. State unverified interactions honestly.
+4. Done means: the five package suites, app tests (`-enableCodeCoverage NO`), strict SwiftLint/SwiftFormat, the iOS 17 Workspace build and the macOS build all pass; PARITY is updated with the row status and the PR link, and the slice is appended to `PARITY-LOG.md`; one draft PR whose title is the commit subject. State unverified interactions honestly.
 5. Close task-owned test hosts. Keep disk usage in check.
 
 Constraints: never touch `apps/web`. No Core contract, dependency or pinned-tool changes without a separate approved PR. Selecting an existing Core operation into the Apple OpenAPI snapshot via `scripts/update-core-api.py` is allowed; never hand-edit generated files. Do not file Linear issues. Stop and ask when web is ambiguous or an API is missing. Stop when PARITY has no Todo rows.

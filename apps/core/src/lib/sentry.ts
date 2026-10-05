@@ -44,7 +44,16 @@ export function initSentry() {
     tracesSampleRate: 0.005,
     profileSessionSampleRate: 0.005,
     profileLifecycle: "trace",
-    integrations: [
+    // 11.2 enables two defaults that fight this init: Hono auto-instrumentation
+    // (request + per-middleware spans, handler error capture, raw path names)
+    // and Dedupe (drops consecutive identical errors). Incoming spans and
+    // capability-token redaction stay on `sentryMiddleware` + httpIntegration
+    // below. Errors stay unsampled, including once-per-damaged-row reports.
+    integrations: (defaults) => [
+      ...defaults.filter(
+        (integration) =>
+          integration.name !== "Hono" && integration.name !== "Dedupe",
+      ),
       nodeProfilingIntegration(),
       // The auto server span is built from the node request before any
       // middleware runs, so its name and its url.full / url.path

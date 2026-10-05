@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   COWORKER_AUTH,
+  COWORKER_ID,
   MEMBER_ID,
   PERSONAL_WORKSPACE_ID,
   PROJECT_ID,
@@ -37,7 +38,7 @@ vi.mock("@/helpers/vendor-grants", async (importOriginal) => ({
 }));
 
 interface ListBody {
-  data: Array<{ id: string }>;
+  data: Array<{ id: string; canWrite: boolean }>;
   meta: { pagination: { nextCursor: string | null; total: number } };
 }
 
@@ -110,6 +111,33 @@ describe("GET /tasks/schedules", () => {
     const page2 = await list(`?limit=2&cursor=${second.id}`);
     expect(page2.body.data.map((schedule) => schedule.id)).toEqual([third.id]);
     expect(page2.body.meta.pagination.nextCursor).toBeNull();
+  });
+
+  it("tells each reader which schedules they may change", async () => {
+    const created = seedTaskSchedule({
+      creatorUserId: null,
+      creatorCoworkerId: COWORKER_ID,
+      createdAt: at(2),
+    });
+    const other = seedTaskSchedule({ ownerId: MEMBER_ID, createdAt: at(1) });
+
+    const member = await list(
+      "",
+      createTaskScheduleTestApp(mountGetTaskSchedules, userAuth(MEMBER_ID)),
+    );
+    const coworker = await list(
+      "",
+      createTaskScheduleTestApp(mountGetTaskSchedules, COWORKER_AUTH),
+    );
+
+    expect(member.body.data).toEqual([
+      expect.objectContaining({ id: created.id, canWrite: true }),
+      expect.objectContaining({ id: other.id, canWrite: true }),
+    ]);
+    expect(coworker.body.data).toEqual([
+      expect.objectContaining({ id: created.id, canWrite: true }),
+      expect.objectContaining({ id: other.id, canWrite: false }),
+    ]);
   });
 
   it("refuses a Coworker without a workspace grant", async () => {
