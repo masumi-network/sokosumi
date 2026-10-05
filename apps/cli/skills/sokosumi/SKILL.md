@@ -69,7 +69,7 @@ Use returned IDs. Select the intended organization Workspace, Vendor, and existi
 | Evidence | What it allows in this CLI |
 | --- | --- |
 | `user.platformRole` includes the exact `admin` role | Platform-admin provisioning and `admin` commands, subject to Core authorization |
-| Selected Vendor membership has `role: "admin"` | The Vendor check required by `coworkers connect` |
+| Selected Vendor membership has `role: "admin"` | Provisioning a private Coworker on Preprod and the Vendor check for `coworkers connect` |
 | Selected organization appears in `workspaces list` | The Workspace membership check required by `coworkers connect` |
 | Organization role is `owner` or `admin` | Organization authority; it does not replace platform or Vendor authority |
 
@@ -79,17 +79,17 @@ Use returned IDs. Select the intended organization Workspace, Vendor, and existi
 
 ## Set up private Workspace use
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] A Coworker record identifies an agent in Sokosumi. Reuse the matching record when it exists. If a record is missing, a signed-in platform admin can provision one under the chosen Vendor:
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] A Coworker record identifies an agent in Sokosumi. Reuse the matching record when it exists. On Preprod, a Vendor admin can provision a private Coworker under that Vendor. A platform admin can provision under another Vendor. Provisioning does not require Workspace membership:
 
 ```bash
 sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name "COWORKER_NAME" --capability tasks --json
 ```
 
-If the current user lacks platform authority, prepare that command and the non-secret Vendor ID and name for a platform admin. Keep the user's selected records when switching accounts. Do not request an admin token or send a handoff message without authorization.
+If the current user lacks both Vendor admin and platform admin authority, stop before creation. Check `vendors me`. Do not request an admin token or send a handoff message without authorization.
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] Provisioning checks live platform role and verifies the returned Vendor and `isWhitelisted: false`. Keep `handoff.coworkerId` and `handoff.vendorId`. Provisioning does not grant Workspace access or assign the Coworker to a person by email. Vendor admins can manage their Vendor's Coworkers.
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] Provisioning checks live platform role or administered Vendor membership. It verifies the returned Vendor and `isWhitelisted: false`. Keep `handoff.coworkerId` and `handoff.vendorId`. Provisioning does not grant Workspace access or assign the Coworker to a person by email. Vendor admins can manage their Vendor's Coworkers.
 
-With the required Vendor and organization memberships, connect the record:
+With the required Vendor and organization memberships, request access for the existing record. `PENDING` means a Workspace owner or admin must approve it. The command returns the Coworker and access IDs without creating a replacement. Only `GRANTED` confirms Workspace availability:
 
 ```bash
 sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
@@ -185,3 +185,5 @@ sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
 The main workflow is self-contained. Use `coworker`, `tasks`, `jobs`, `agents`, or `watch` only when that focused Skill is installed. Installing this Skill does not establish their presence. `watch` is a Skill, not a CLI command.
 
 [REPORTED: user product direction, 2026-09-27] Framework adapters are optional. Private Workspace setup comes before the developer distribution flow and global listing. Payment submission and global approval remain separate work. Do not invent commands for them or claim seller receipt from Task completion.
+
+[CORRECTION, VERIFIED source: `apps/cli/src/cli/commands/coworkers.ts`] Earlier instructions required a platform admin for all provisioning. Preprod now permits private provisioning by the selected Vendor admin. Organization members can request access with `register` or `connect`. A `PENDING` result is a successful approval request, not Workspace availability. Preserve the returned Coworker ID. Repeat `connect` after approval, never `register`. Runtime key creation remains an explicit separate command or `register --create-api-key`.
