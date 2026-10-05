@@ -220,6 +220,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldAllowRoomSkills,
   shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
@@ -3347,7 +3348,7 @@ function RoomView({
                   onSetPendingQuote={setPendingQuote}
                   onResolveMessageLink={handleResolveMessageLink}
                   requireBody={isCoworkerStreamRoom}
-                  allowSkills={!isCoworkerStreamRoom}
+                  allowSkills={shouldAllowRoomSkills(selectedRoom)}
                   // Autofocus only after history settles. Send stays enabled so
                   // optimistic posts work during progressive open (merge into list).
                   focusOnMount={!messagesPending}
@@ -3440,6 +3441,7 @@ function RoomView({
                 onSetPendingQuote={setPendingThreadQuote}
                 onResolveMessageLink={handleResolveMessageLink}
                 requireBody={isCoworkerStreamRoom}
+                allowSkills={shouldAllowRoomSkills(selectedRoom)}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
