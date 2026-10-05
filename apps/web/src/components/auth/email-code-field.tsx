@@ -10,6 +10,7 @@ import {
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 import { ResendCodeButton } from "./resend-code-button";
 
@@ -134,11 +135,16 @@ interface EmailCodeFieldProps {
   disabled?: boolean;
   autoFocus?: boolean;
   inputRef?: Ref<HTMLInputElement>;
+  /**
+   * Centers the field's lines on the auth pages, with "Send a new code"
+   * under the label instead of beside it.
+   */
+  centered?: boolean;
 }
 
 /**
  * The field an emailed code goes into, one slot per digit, with "Send a new
- * code" beside its label. Only digits go in.
+ * code" beside its label, or under it when `centered`. Only digits go in.
  */
 export function EmailCodeField({
   value,
@@ -156,6 +162,7 @@ export function EmailCodeField({
   disabled,
   autoFocus,
   inputRef,
+  centered = false,
 }: EmailCodeFieldProps) {
   const t = useTranslations("Components.EmailCodeForm");
   const fieldId = useId();
@@ -168,14 +175,21 @@ export function EmailCodeField({
   const completedCode = completedCodeRef ?? localCompletedCode;
 
   return (
-    <div className="grid gap-2">
+    <div className={cn("grid gap-2", centered && "text-center")}>
       {notice ? (
         // The grid's gap and this margin match the form's gap.
         <p id={noticeId} className="text-muted-foreground mb-1 text-sm">
           {notice}
         </p>
       ) : null}
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+      <div
+        className={cn(
+          "flex gap-x-4 gap-y-1",
+          centered
+            ? "flex-col items-center"
+            : "flex-wrap items-center justify-between",
+        )}
+      >
         <Label htmlFor={fieldId}>{t("codeLabel")}</Label>
         <ResendCodeButton
           sentAt={sentAt}

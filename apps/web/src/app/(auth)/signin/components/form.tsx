@@ -5,12 +5,15 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
-import { EmailCodeSwitch } from "@/auth/components/email-code-switch";
+import {
+  EmailCodeSwitch,
+  STEP_LINK_BUTTON_CLASS,
+} from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
@@ -35,7 +38,6 @@ import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
   isRejectedOAuthRequestError,
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
@@ -47,6 +49,7 @@ import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
 interface SignInFormProps {
   /** Confirmed on the step before this one. */
   email: string;
+  /** Where a finished sign-in goes: the returnUrl or the OAuth request. */
   returnUrl?: string | undefined;
   /** The way this browser signed in last; the code when it is not known. */
   initialMethod: SignInMethod;
@@ -91,10 +94,6 @@ export default function SignInForm({
     getErrorMessage,
   } = useAuthCaptcha("signin");
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
 
   const wasCodeSent = emailCode.sentTo === email;
   const isCodeStep = (wasCodeSent || handedOver) && !prefersPassword;
@@ -212,7 +211,7 @@ export default function SignInForm({
         await finishAuthInPlace({
           eventType: "signIn",
           provider: "credential",
-          returnUrl: effectiveReturnUrl,
+          returnUrl,
           result: result.data,
         });
       });
@@ -254,6 +253,7 @@ export default function SignInForm({
           name="code"
           render={({ field, fieldState }) => (
             <EmailCodeField
+              centered
               inputRef={field.ref}
               value={field.value}
               completedCodeRef={codeRefusal.completedCodeRef}
@@ -290,36 +290,27 @@ export default function SignInForm({
             <FormItem>
               {handoverNotice ? (
                 // The item's gap and this margin match the form's gap.
-                <FormDescription className="mb-1">
+                <FormDescription className="mb-1 text-center">
                   {handoverNotice}
                 </FormDescription>
               ) : null}
-              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-                <FormLabel>{t("Fields.Password.label")}</FormLabel>
-                <Link
-                  href={buildAuthPageUrl(
-                    "/forgot-password",
-                    readAuthPageContext(searchParams),
-                  )}
-                  // The address stays out of the URL, which reaches logs.
-                  onClick={(event) =>
-                    rememberAuthEmailHintOnClick(event, email)
-                  }
-                  className="text-muted-foreground hover:text-foreground text-sm hover:underline"
-                >
-                  {t("forgotPassword")}
-                </Link>
-              </div>
+              {/* The header and the address name the step; the field's name
+                  is its placeholder. */}
+              <FormLabel className="sr-only">
+                {t("Fields.Password.label")}
+              </FormLabel>
               <FormControl>
                 <PasswordInput
                   data-testid="auth-field-currentPassword"
                   autoComplete="current-password"
+                  placeholder={t("Fields.Password.label")}
+                  className="text-center"
                   showLabel={authT("PasswordToggle.show")}
                   hideLabel={authT("PasswordToggle.hide")}
                   {...field}
                 />
               </FormControl>
-              <FormMessage />
+              <FormMessage className="text-center" />
             </FormItem>
           )}
         />
@@ -339,6 +330,21 @@ export default function SignInForm({
         emailCode={emailCode}
         isCodeStep={isCodeStep}
         onSwitch={switchTo}
+        forgotPassword={
+          isCodeStep ? undefined : (
+            <Link
+              href={buildAuthPageUrl(
+                "/forgot-password",
+                readAuthPageContext(searchParams),
+              )}
+              // The address stays out of the URL, which reaches logs.
+              onClick={(event) => rememberAuthEmailHintOnClick(event, email)}
+              className={STEP_LINK_BUTTON_CLASS}
+            >
+              {t("forgotPassword")}
+            </Link>
+          )
+        }
       />
       <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
     </BaseForm>

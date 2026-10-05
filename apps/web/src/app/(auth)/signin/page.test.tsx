@@ -45,7 +45,7 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("./components/sign-in-flow", () => ({
+vi.mock("@/auth/components/auth-flow", () => ({
   __esModule: true,
   default: (props: { notice: ReactNode; children: ReactNode }) => {
     signInFlowMock(props);
@@ -395,6 +395,7 @@ describe("SignIn page", () => {
     expect(getPendingInvitationMock).toHaveBeenCalledWith("inv_1");
     expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        mode: "signIn",
         prefilledEmail: "invited@example.com",
         invitationId: "inv_1",
         returnUrl: "/accept-invitation/inv_1",
