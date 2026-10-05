@@ -6,36 +6,42 @@ import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { CreateOrganizationWizard } from "@/components/organizations/create-organization-wizard/create-organization-wizard";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspace-gate";
 import { createPersonalWorkspaceAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspace } from "@/lib/activate-organization-workspace";
-import { authClient } from "@/lib/auth/auth.client";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
+import { persistFirstAndLastName } from "@/lib/auth/persist-user-name";
+import {
+  type FirstAndLastNameFormType,
+  firstAndLastNameFormSchema,
+} from "@/lib/schemas/account";
 import { cn } from "@/lib/utils";
 
 type WorkspaceChoice = "personal" | "organization";
 
 interface IdentityOnboardingFormProps {
   initialName: string;
+  initialFirstName: string;
+  initialLastName: string;
+  /** False when sign-up already gave a valid first and last name. */
+  askName: boolean;
   workspaceReady: boolean;
+  /** Where setup ends: a sanitized same-origin path. */
+  returnUrl: string;
 }
 
 export function IdentityOnboardingForm({
   initialName,
+  initialFirstName,
+  initialLastName,
+  askName,
   workspaceReady,
+  returnUrl,
 }: IdentityOnboardingFormProps) {
   const t = useTranslations("WorkspaceGate.Identity");
   const tSchema = useTranslations("Library.Auth.Schema");
@@ -44,10 +50,11 @@ export function IdentityOnboardingForm({
   const [submitting, setSubmitting] = useState(false);
   const leavingGateRef = useRef(false);
 
-  const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema(tSchema)),
+  const form = useForm<FirstAndLastNameFormType>({
+    resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
     defaultValues: {
-      name: initialName,
+      firstName: initialFirstName,
+      lastName: initialLastName,
     },
   });
 
@@ -56,8 +63,8 @@ export function IdentityOnboardingForm({
     // action, which refreshes the current URL. Soft router.replace +
     // refresh remounts /setup and cancels the leave. replace (not assign)
     // keeps /setup off the history stack so Back does not bounce-loop.
-    window.location.replace("/");
-  }, []);
+    window.location.replace(returnUrl);
+  }, [returnUrl]);
 
   useEffect(() => {
     if (!workspaceReady || wizardOpen || leavingGateRef.current) {
@@ -94,29 +101,28 @@ export function IdentityOnboardingForm({
     leaveToApp();
   }
 
-  async function persistDisplayName(name: string): Promise<boolean> {
-    if (name.trim() === initialName.trim()) {
+  async function persistNames(
+    values: FirstAndLastNameFormType,
+  ): Promise<boolean> {
+    if (
+      values.firstName === initialFirstName &&
+      values.lastName === initialLastName
+    ) {
       return true;
     }
 
-    try {
-      const updateUserResult = await authClient.updateUser({ name });
-      if (updateUserResult.error) {
-        toast.error(updateUserResult.error.message ?? t("nameUpdateError"));
-        return false;
-      }
-      return true;
-    } catch (error) {
-      console.error("Identity onboarding name persist failed", error);
-      toast.error(t("nameUpdateError"));
+    const result = await persistFirstAndLastName(values, initialName);
+    if (result.isErr()) {
+      toast.error(result.error ?? t("nameUpdateError"));
       return false;
     }
+    return true;
   }
 
-  async function handlePersonalSubmit(values: NameFormType) {
+  async function handlePersonalSubmit(values: FirstAndLastNameFormType) {
     setSubmitting(true);
     try {
-      if (!(await persistDisplayName(values.name))) {
+      if (!(await persistNames(values))) {
         return;
       }
 
@@ -147,10 +153,10 @@ export function IdentityOnboardingForm({
     }
   }
 
-  async function handleOrganizationContinue(values: NameFormType) {
+  async function handleOrganizationContinue(values: FirstAndLastNameFormType) {
     setSubmitting(true);
     try {
-      if (!(await persistDisplayName(values.name))) {
+      if (!(await persistNames(values))) {
         return;
       }
       setWizardOpen(true);
@@ -159,7 +165,7 @@ export function IdentityOnboardingForm({
     }
   }
 
-  function handleSetupSubmit(values: NameFormType) {
+  function handleSetupSubmit(values: FirstAndLastNameFormType) {
     if (choice === "organization") {
       void handleOrganizationContinue(values);
       return;
@@ -178,29 +184,29 @@ export function IdentityOnboardingForm({
       {showIdentityFields ? (
         <Form {...form}>
           <form
-            onSubmit={form.handleSubmit(handleSetupSubmit)}
+            onSubmit={(event) => {
+              if (askName) {
+                void form.handleSubmit(handleSetupSubmit)(event);
+                return;
+              }
+              // The page validates this stored pair. A refresh can hide fields
+              // while the form still holds an earlier, possibly invalid draft.
+              event.preventDefault();
+              handleSetupSubmit({
+                firstName: initialFirstName,
+                lastName: initialLastName,
+              });
+            }}
             className="space-y-6"
             data-testid="workspace-gate-identity-form"
           >
             <fieldset className="space-y-6" disabled={busy}>
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t("nameLabel")}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={t("namePlaceholder")}
-                        autoComplete="name"
-                        data-testid="workspace-gate-identity-name"
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {askName ? (
+                <FirstAndLastNameFields
+                  control={form.control}
+                  testIdPrefix="workspace-gate-identity"
+                />
+              ) : null}
 
               <div className="space-y-3">
                 <RadioGroup

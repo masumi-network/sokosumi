@@ -2,7 +2,6 @@ import { createHash } from "node:crypto";
 import {
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotRuntime,
 } from "@sokosumi/soko-bot";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -43,6 +42,8 @@ const {
   memoryFindUniqueMock,
   projectFindManyMock,
   recordUsageMock,
+  notifyOutOfCreditsMock,
+  requireFundingMock,
   scheduleRunFindFirstMock,
   scheduleRunFindUniqueMock,
   scheduleRunUpdateMock,
@@ -99,6 +100,8 @@ const {
   memoryFindUniqueMock: vi.fn(),
   projectFindManyMock: vi.fn(),
   recordUsageMock: vi.fn(),
+  notifyOutOfCreditsMock: vi.fn().mockResolvedValue(undefined),
+  requireFundingMock: vi.fn(),
   scheduleRunFindFirstMock: vi.fn(),
   scheduleRunFindUniqueMock: vi.fn(),
   scheduleRunUpdateMock: vi.fn(),
@@ -152,12 +155,16 @@ vi.mock("./soko-bot-delivery.service", () => ({
   deliverSokoBotTurnOutbox: vi.fn().mockResolvedValue(undefined),
 }));
 
-const { postOwnerNoticeMock } = vi.hoisted(() => ({
-  postOwnerNoticeMock: vi.fn(),
-}));
+const { postOwnerNoticeMock, openOwnerRoomMock, chatRoomFindFirstMock } =
+  vi.hoisted(() => ({
+    postOwnerNoticeMock: vi.fn(),
+    openOwnerRoomMock: vi.fn(),
+    chatRoomFindFirstMock: vi.fn(),
+  }));
 vi.mock("@/services/soko-bot-chat.service", () => ({
   publishSokoBotChatProgress: vi.fn().mockResolvedValue(undefined),
   postSokoBotOwnerNotice: postOwnerNoticeMock,
+  findOrOpenOwnerDirectRoom: openOwnerRoomMock,
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
@@ -172,7 +179,7 @@ vi.mock("@/lib/db/prisma", () => ({
       findUnique: vi.fn().mockResolvedValue({ message: { roomId: "room-1" } }),
     },
     chatRoom: {
-      findFirst: vi.fn().mockResolvedValue({ id: "room-1" }),
+      findFirst: chatRoomFindFirstMock,
       findUnique: vi.fn().mockResolvedValue({
         userMembers: [],
         coworkerMembers: [],
@@ -236,8 +243,11 @@ vi.mock("@/lib/soko-bot/factory", () => ({
     }),
 }));
 vi.mock("@/services/soko-bot-billing.service", () => ({
+  SokoBotBillingAccessError: class extends Error {},
+  notifySokoBotOutOfCredits: notifyOutOfCreditsMock,
   recordSokoBotTurnUsage: recordUsageMock,
-  requireSokoBotTurnFunding: vi.fn(),
+  requireSokoBotTurnFunding: requireFundingMock,
+  sokoBotIdsOutOfCredits: vi.fn().mockResolvedValue(new Set(["bot_2"])),
 }));
 
 const notifyLowBalanceAfterChargeMock = vi.fn().mockResolvedValue(undefined);
@@ -386,6 +396,7 @@ beforeEach(() => {
 describe("SokoBotControlPlane lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatRoomFindFirstMock.mockReset().mockResolvedValue({ id: "room-1" });
     availabilityMock.mockResolvedValue({
       disabled: false,
       disabledAt: null,
@@ -851,6 +862,71 @@ describe("SokoBotControlPlane lifecycle", () => {
     );
   });
 
+  it("routes a teammate's yes on their own words and the reply to them", async () => {
+    jevEvaluate.mockResolvedValue(
+      jevRoute("MANAGE_WORK", { writeScope: "CHAT" }),
+    );
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockImplementation(async (query) =>
+      query?.where?.source === "CHAT"
+        ? {
+            status: "COMPLETED",
+            finalAnswer: "Want me to send Sandro this joke in his chat?",
+          }
+        : null,
+    );
+    turnCreateMock.mockResolvedValue({
+      id: "teammate-yes",
+      leaseToken: "teammate-lease",
+    });
+    const tx = transactionClient();
+    transactionMock.mockImplementation(async (callback) => callback(tx));
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "teammate-session",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "teammate-yes-client",
+      message: "Patrick (a teammate, not your owner) asked:\nyes",
+      chat: {
+        mentionId: "mention_1",
+        responseMessageId: "message_1",
+        requestedByUserId: "user_teammate",
+        classifyMessage: "yes",
+      },
+    });
+
+    const request = jevEvaluate.mock.calls[0][0];
+    expect(request.state.message).toBe("yes");
+    expect(request.state.previousReply).toBe(
+      "Want me to send Sandro this joke in his chat?",
+    );
+    const replyQuery = turnFindFirstMock.mock.calls.find(
+      ([query]) => query?.where?.source === "CHAT",
+    )?.[0];
+    expect(replyQuery.where).toMatchObject({
+      requestedByUserId: "user_teammate",
+      chatMention: { message: { roomId: "room-1" } },
+    });
+    expect(intentFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ requesterId: "user_teammate" }),
+      }),
+    );
+  });
+
   it("gives a bare yes no referent when the newest turn did not complete", async () => {
     jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
     botFindFirstMock.mockResolvedValue(adminBot());
@@ -1140,9 +1216,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
   it("cursor-paginates admin fleet search", async () => {
     botFindManyMock.mockResolvedValue([
-      { id: "bot_3" },
-      { id: "bot_2" },
-      { id: "bot_1" },
+      { id: "bot_3", userId: "u", workspace: { organizationId: null } },
+      { id: "bot_2", userId: "u", workspace: { organizationId: "org_1" } },
+      { id: "bot_1", userId: "u", workspace: { organizationId: null } },
     ]);
     botCountMock.mockResolvedValue(5);
     transactionMock.mockImplementationOnce(async (queries) =>
@@ -1171,7 +1247,10 @@ describe("SokoBotControlPlane lifecycle", () => {
       }),
     );
     expect(result).toEqual({
-      items: [{ id: "bot_3" }, { id: "bot_2" }],
+      items: [
+        { id: "bot_3", userId: "u", outOfCredits: false },
+        { id: "bot_2", userId: "u", outOfCredits: true },
+      ],
       total: 5,
       hasMore: true,
     });
@@ -1516,9 +1595,9 @@ describe("SokoBotControlPlane lifecycle", () => {
     expect(turnCreateMock).not.toHaveBeenCalled();
   });
 
-  it("grants a teammate mention only the teammate ceiling", async () => {
-    // The bot answers into a shared room, so the owner's private reads must
-    // not be on the grant and the packet must be built for a teammate.
+  it("grants a teammate mention the route's tools, not a read-only ceiling", async () => {
+    // The turn runs as the owner, on the owner's accounts and credits; the
+    // packet still records who asked.
     botFindFirstMock.mockResolvedValue(adminBot());
     botFindUniqueMock.mockResolvedValue(adminBot());
     turnFindUniqueMock.mockResolvedValue(null);
@@ -1555,17 +1634,9 @@ describe("SokoBotControlPlane lifecycle", () => {
 
     const granted = turnCreateMock.mock.calls[0]?.[0]?.data
       ?.capabilityNames as string[];
-    expect(granted).toEqual([...SOKO_BOT_TEAMMATE_CAPABILITIES]);
-    for (const ownerPrivate of [
-      "search_inbox",
-      "read_email",
-      "list_calendar_events",
-      "list_files",
-      "read_memory",
-      "read_chat",
-    ]) {
-      expect(granted).not.toContain(ownerPrivate);
-    }
+    expect(granted).toEqual(
+      expect.arrayContaining(["search_inbox", "list_files"]),
+    );
     // The packet's `actor` is the owner on every turn, so the asker's id has
     // to travel with the audience or the bot cannot tell who it is answering.
     expect(contextBuilder.build).toHaveBeenCalledWith(
@@ -1618,6 +1689,106 @@ describe("SokoBotControlPlane lifecycle", () => {
     // Core wrote this prompt from mail; no shell or web for it.
     expect(data?.capabilityNames).not.toContain("bash");
     expect(data?.capabilityNames).not.toContain("web_fetch");
+  });
+
+  it("opens the owner's chat for a proactive turn when there is none", async () => {
+    // Bots whose owner never opened their chat dead-lettered every stand-up,
+    // wrap and inbox check with "no destination", and looked dead for days.
+    jevEvaluate.mockResolvedValue(jevRoute("DIRECT_RESPONSE"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    chatRoomFindFirstMock.mockResolvedValue(null);
+    openOwnerRoomMock.mockResolvedValue({ id: "room-new" });
+    turnCreateMock.mockResolvedValue({ id: "turn_sched", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "session_sched",
+      runtimeVersion: "eve-test",
+      acceptedAt: "2026-08-18T12:00:00.000Z",
+    });
+
+    await new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    ).startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "client-turn-first-standup",
+      message: "Daily stand-up.",
+      source: "SCHEDULE",
+    });
+
+    expect(openOwnerRoomMock).toHaveBeenCalledTimes(1);
+    expect(turnCreateMock).toHaveBeenCalled();
+  });
+
+  it.each([
+    ["SCHEDULE", 1],
+    ["CHAT", 0],
+  ] as const)(
+    "tells the owner a %s turn stopped for credits only when nobody is watching",
+    async (source, notices) => {
+      botFindFirstMock.mockResolvedValue(adminBot());
+      botFindUniqueMock.mockResolvedValue(adminBot());
+      turnFindUniqueMock.mockResolvedValue(null);
+      const { SokoBotBillingAccessError } = await import(
+        "@/services/soko-bot-billing.service"
+      );
+      requireFundingMock.mockRejectedValueOnce(
+        new SokoBotBillingAccessError("Insufficient organization credits"),
+      );
+
+      await expect(
+        new SokoBotControlPlane(
+          runtimeWithReset(vi.fn()),
+          {
+            build: vi.fn().mockResolvedValue(builtContext()),
+          } as ContextPacketBuilder,
+          new JevTurnClassifier(),
+        ).startTurn({
+          userId: "user_1",
+          workspaceId: "workspace_1",
+          clientTurnId: `client-turn-out-of-credits-${source}`,
+          message: "Daily stand-up.",
+          source,
+        }),
+      ).rejects.toThrow("Insufficient organization credits");
+      expect(notifyOutOfCreditsMock).toHaveBeenCalledTimes(notices);
+      expect(turnCreateMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps an archived owner chat suppressed instead of opening another", async () => {
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    // No live room, but an archived one exists.
+    chatRoomFindFirstMock
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "room-archived" });
+
+    await expect(
+      new SokoBotControlPlane(
+        runtimeWithReset(vi.fn()),
+        {
+          build: vi.fn().mockResolvedValue(builtContext()),
+        } as ContextPacketBuilder,
+        new JevTurnClassifier(),
+      ).startTurn({
+        userId: "user_1",
+        workspaceId: "workspace_1",
+        clientTurnId: "client-turn-archived",
+        message: "Daily stand-up.",
+        source: "SCHEDULE",
+      }),
+    ).rejects.toThrow("No authorized destination");
+    expect(openOwnerRoomMock).not.toHaveBeenCalled();
   });
 
   it("grants a self-started turn the same spend it grants the owner", async () => {
@@ -3554,6 +3725,7 @@ describe("SokoBotControlPlane lifecycle", () => {
 describe("SET_VERSION and fleet migration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    chatRoomFindFirstMock.mockReset().mockResolvedValue({ id: "room-1" });
     availabilityMock.mockResolvedValue({
       disabled: false,
       disabledAt: null,

@@ -1,5 +1,6 @@
-import http, { type IncomingMessage } from "node:http";
+import http, { type ClientRequest, type IncomingMessage } from "node:http";
 import https from "node:https";
+import { Readable } from "node:stream";
 import { useAgent } from "request-filtering-agent";
 
 /**
@@ -86,6 +87,20 @@ function buildRequestHeaders(init: SsrfSafeFetchInit): Record<string, string> {
     headers["Content-Length"] = String(Buffer.byteLength(init.body));
   }
   return headers;
+}
+
+function rejectProtocolSwitches(
+  request: ClientRequest,
+  reject: (error: Error) => void,
+): void {
+  request.on("upgrade", (_message, socket) => {
+    socket.destroy();
+    reject(new SsrfError("Response upgrades are not supported"));
+  });
+  request.on("connect", (_message, socket) => {
+    socket.destroy();
+    reject(new SsrfError("Response tunnels are not supported"));
+  });
 }
 
 /**
@@ -175,6 +190,7 @@ function guardedRequest(url: URL, init: SsrfSafeFetchInit): Promise<Response> {
       },
     );
 
+    rejectProtocolSwitches(request, reject);
     request.on("error", reject);
     if (init.body !== undefined) {
       request.write(init.body);
@@ -234,4 +250,110 @@ export async function ssrfSafeFetch(
   throw new SsrfError(
     `Exceeded maximum of ${MAX_SSRF_FETCH_REDIRECTS} redirects`,
   );
+}
+
+/**
+ * Return a live response through the same connection-time address filter.
+ * Redirects are returned without following them. Request identity encoding
+ * so native HTTP response bytes can pass through without decompression.
+ * Cancellation and abort close the upstream response.
+ */
+export async function ssrfSafeStreamFetch(
+  rawUrl: string | URL,
+  init: SsrfSafeFetchInit,
+): Promise<Response> {
+  const maxBytes = init?.maxResponseBytes;
+  if (!Number.isFinite(maxBytes) || maxBytes <= 0) {
+    throw new SsrfError("maxResponseBytes must be a positive finite number");
+  }
+  const url = assertPublicHttpUrl(rawUrl);
+  const headers = buildRequestHeaders(init);
+  if (
+    !Object.keys(headers).some((key) => key.toLowerCase() === "accept-encoding")
+  ) {
+    headers["Accept-Encoding"] = "identity";
+  }
+
+  return new Promise((resolve, reject) => {
+    let responseMessage: IncomingMessage | undefined;
+    const transport = url.protocol === "https:" ? https : http;
+    const request = transport.request(
+      url,
+      {
+        method: init.method ?? "GET",
+        headers,
+        agent: useAgent(url.href),
+        signal: init.signal,
+      },
+      (message) => {
+        responseMessage = message;
+        const encoding = message.headers["content-encoding"]
+          ?.trim()
+          .toLowerCase();
+        if (encoding && encoding !== "identity") {
+          message.destroy();
+          reject(new SsrfError("Response must use identity Content-Encoding"));
+          return;
+        }
+        const declaredLength = Number(message.headers["content-length"]);
+        if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+          message.destroy();
+          reject(
+            new SsrfError(
+              `Response Content-Length ${declaredLength} exceeds maxResponseBytes (${maxBytes})`,
+            ),
+          );
+          return;
+        }
+
+        try {
+          const status = message.statusCode ?? 502;
+          let received = 0;
+          // Node and DOM declare different types for the same Web stream.
+          const source = Readable.toWeb(message, {
+            strategy: {
+              highWaterMark: message.readableHighWaterMark,
+              size: (chunk: Uint8Array) => chunk.byteLength,
+            },
+          }) as ReadableStream<Uint8Array>;
+          const body = source.pipeThrough(
+            new TransformStream<Uint8Array, Uint8Array>({
+              transform(chunk, controller) {
+                init.onResponseBytes?.(chunk.byteLength);
+                received += chunk.byteLength;
+                if (received > maxBytes) {
+                  throw new SsrfError(
+                    `Response body exceeds maxResponseBytes (${maxBytes})`,
+                  );
+                }
+                controller.enqueue(chunk);
+              },
+            }),
+          );
+          const hasBody =
+            init.method?.toUpperCase() !== "HEAD" &&
+            !NULL_BODY_STATUSES.has(status);
+          if (!hasBody) void body.cancel().catch(() => {});
+          resolve(
+            new Response(hasBody ? body : null, {
+              status,
+              statusText: message.statusMessage ?? "",
+              headers: headersFrom(message),
+            }),
+          );
+        } catch (error) {
+          message.destroy();
+          reject(error);
+        }
+      },
+    );
+
+    rejectProtocolSwitches(request, reject);
+    request.on("error", (error) => {
+      responseMessage?.destroy(error);
+      reject(error);
+    });
+    if (init.body !== undefined) request.write(init.body);
+    request.end();
+  });
 }

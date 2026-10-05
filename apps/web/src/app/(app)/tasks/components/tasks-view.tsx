@@ -116,7 +116,11 @@ function TasksMobileCreateFabSlot() {
   const t = useTranslations("App.Tasks");
 
   return (
-    <ListMobileCreateFab ariaLabel={t("createTaskFab")} onOpen={handleOpen} />
+    <ListMobileCreateFab
+      ariaLabel={t("createTaskFab")}
+      className="bg-secondary text-secondary-foreground hover:bg-secondary-hover"
+      onOpen={handleOpen}
+    />
   );
 }
 

@@ -104,23 +104,39 @@ describe("GitHub OIDC remote cache wiring", () => {
 
     // ci.yml anchors the permissions on the first leg and aliases the rest.
     assert.match(
-      jobBlock(ci, "web"),
+      jobBlock(ci, "web-shard"),
       /permissions: &turbo-permissions\n\s+contents: read\n\s+id-token:\s*write/,
     );
-    for (const jobId of ["core", "packages", "cli", "build", "typecheck"]) {
+    for (const jobId of [
+      "core-shard",
+      "core-db",
+      "packages",
+      "cli",
+      "build",
+      "typecheck",
+    ]) {
       assert.match(jobBlock(ci, jobId), /permissions: \*turbo-permissions/);
     }
   });
 
   it("Web/Core/Packages jobs invoke turbo run test:ci", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
+    // Web shards build through turbo, then run test:ci without it: turbo
+    // passthrough args would change every task's hash, dependencies included.
+    const web = jobBlock(test, "web-shard");
     assert.match(
-      jobBlock(test, "web"),
-      /turbo run test:ci --filter=web --filter=cmo\n/,
+      web,
+      /turbo run build --filter='web\^\.\.\.' --filter='cmo\^\.\.\.'\n/,
     );
     assert.match(
-      jobBlock(test, "core"),
-      /turbo run test:ci --filter=@sokosumi\/core\n/,
+      web,
+      /pnpm --filter=web --filter=cmo run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
+    );
+    const core = jobBlock(test, "core-shard");
+    assert.match(core, /turbo run build --filter='@sokosumi\/core\^\.\.\.'\n/);
+    assert.match(
+      core,
+      /pnpm --filter=@sokosumi\/core run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
     );
     assert.match(
       jobBlock(test, "packages"),
@@ -225,11 +241,11 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(jobBlock(workflow, "renew"), queueKey);
     assert.match(
       jobBlock(workflow, "closed"),
-      /workflow_run\.name == 'PR closed'/,
+      /workflow_run\.path == '\.github\/workflows\/pr-closed\.yml'/,
     );
     assert.match(
       jobBlock(workflow, "renew"),
-      /workflow_run\.name == 'PR synchronize'/,
+      /workflow_run\.path == '\.github\/workflows\/pr-synchronize\.yml'/,
     );
     assert.match(jobBlock(workflow, "closed"), /secrets\.VERCEL_TOKEN/);
     assert.match(jobBlock(workflow, "renew"), /secrets\.NEON_API_KEY/);
@@ -253,7 +269,10 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["biome", "js"],
       ["typecheck", "js"],
       ["web", "web"],
+      ["web-shard", "web"],
       ["core", "core"],
+      ["core-shard", "core"],
+      ["core-db", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -285,16 +304,83 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["core", "Test Core"],
       ["packages", "Test Packages"],
     ]) {
-      assert.match(
-        jobBlock(test, jobId),
-        new RegExp(`\\n    name: ${name}\\n`),
+      const block = jobBlock(test, jobId);
+      assert.match(block, new RegExp(`\\n    name: ${name}\\n`));
+      assert.doesNotMatch(
+        block,
+        /\n    strategy:\n/,
+        `${name}: a matrix cannot skip under its name`,
       );
     }
-    assert.doesNotMatch(
-      test,
-      /\n    strategy:\n/,
-      "a matrix cannot skip under its name",
+  });
+
+  it("Test Web fails unless every web shard passed", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    const block = jobBlock(test, "web");
+    assert.match(block, /\n    needs: \[changes, web-shard\]\n/);
+    assert.match(
+      block,
+      /run: test "\$\{\{ needs\.web-shard\.result \}\}" = success\n/,
     );
+  });
+
+  it("Test Core fails unless every shard and the PostgreSQL suites passed", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    const block = jobBlock(test, "core");
+    assert.match(block, /\n    needs: \[changes, core-shard, core-db\]\n/);
+    for (const job of ["core-shard", "core-db"]) {
+      assert.match(
+        block,
+        new RegExp(
+          `test "\\$\\{\\{ needs\\.${job}\\.result \\}\\}" = success\\n`,
+        ),
+      );
+    }
+  });
+
+  it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    const step = jobBlock(test, "core-db").match(
+      /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
+    );
+    assert.ok(step, "missing step Test against PostgreSQL");
+    // Without the flag the files share one database and its job queue, and
+    // parallel files steal each other's jobs.
+    assert.match(
+      step[1],
+      /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
+    );
+  });
+
+  it("shards cover every slice of their suite", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    for (const [jobId, name] of [
+      ["web-shard", "Test Web"],
+      ["core-shard", "Test Core"],
+    ]) {
+      const block = jobBlock(test, jobId);
+      // The count lives in the matrix, the name and the command. If they
+      // disagree, `--shard=n/N` for a missing n drops files and every shard
+      // that did run still passes.
+      const shards = block.match(/\n        shard: \[([\d, ]+)\]\n/);
+      assert.ok(shards, `${jobId} must list its shards`);
+      const list = shards[1].split(",").map(Number);
+      const count = list.length;
+      assert.deepEqual(
+        list,
+        Array.from({ length: count }, (_, i) => i + 1),
+      );
+      assert.match(
+        block,
+        new RegExp(
+          `\\n    name: ${name} \\(\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\)\\n`,
+        ),
+      );
+      assert.match(
+        block,
+        new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\n`),
+      );
+    }
   });
 
   it("per-leg filters only drop what the leg cannot reach", async () => {

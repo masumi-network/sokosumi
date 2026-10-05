@@ -6,7 +6,7 @@ public extension WorkspaceState {
   func removeUnfurl(_ source: Components.Schemas.ChatRoomMessage, url: String, auth: AuthState) async throws {
     guard source.roomId == transcriptRoomId, canModifyOwnMessage(source, userId: currentUserId) else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to remove link previews.")
+      throw ChatServiceError.unauthorized("Log in to remove link previews.")
     }
     let generation = timeline.generation
     do {

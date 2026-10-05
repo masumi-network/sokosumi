@@ -40,6 +40,8 @@ const actionSchema = z.object({
 const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
+  /** The provider's reasoning summary, when the model returned one. */
+  reasoning: z.string().max(20_000).optional(),
 });
 const failSchema = z.object({
   code: z.string().max(100),

@@ -10,12 +10,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import {
-  mapChatRoomWithSidebarFlags,
-  requireChatRoomUserAccess,
-} from "../../helpers";
-import { getChatRoomUnreadMentionCounts } from "../../room-mention-counts";
-import { getChatRoomUnreadCounts, roomUnreadFields } from "../../room-unread";
+import { requireChatRoomUserAccess } from "../../helpers";
+import { roomSidebarPayload } from "../../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -77,24 +73,6 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       },
     });
 
-    const [unreadCounts, unreadMentionCounts] = await Promise.all([
-      getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-      getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-    ]);
-
-    return ok(
-      c,
-      chatRoomSchema.parse(
-        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          ...(await roomUnreadFields(
-            unreadCounts.get(room.id),
-            room.id,
-            userContext.userId,
-            prisma,
-          )),
-          unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-        }),
-      ),
-    );
+    return ok(c, await roomSidebarPayload(room, userContext.userId, prisma));
   });
 }

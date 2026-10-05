@@ -40,8 +40,7 @@ public struct MessageMarkdown: Equatable, Sendable {
   public let imageGallery: MessageImageGallery
 
   public init(_ source: String, baseURL: URL? = nil, mentions: MessageMentions? = nil, channels: [ComposerChannel] = []) {
-    let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
-    let linkified = MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified()
+    let linkified = Self.linkified(source)
     let document = Markdown.Document(parsing: linkified)
     var builder = MarkdownBlockBuilder(baseURL: baseURL)
     let built = document.children.flatMap { builder.blocks(for: $0) }.map { $0.resolving(mentions: mentions, channels: channels) }
@@ -77,6 +76,20 @@ public struct MessageMarkdown: Equatable, Sendable {
     imageGallery = MessageImageGallery(segments.flatMap { segment in
       segment.attachments + Self.attachmentRows(in: segment.blocks).flatMap(\.self)
     })
+  }
+
+  /// Row 31b3 (web `endsWithAttachmentRow`): whether the body's last segment is a run of files rather than text —
+  /// what the newest row keeps the Seen by corner clear under. Reads the same source runs as `segments` without
+  /// parsing the document, so a row can ask before its document is ready.
+  public static func endsWithAttachmentRun(_ source: String) -> Bool {
+    let linkified = linkified(source)
+    guard let last = MarkdownBareDomains(linkified).attachmentRuns().last else { return false }
+    return Array(linkified)[last.range.upperBound...].allSatisfy(\.isWhitespace)
+  }
+
+  private static func linkified(_ source: String) -> String {
+    let normalized = source.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
+    return MarkdownBareDomains(MessageMarkdownNormalization.applying(to: normalized)).linkified()
   }
 }
 

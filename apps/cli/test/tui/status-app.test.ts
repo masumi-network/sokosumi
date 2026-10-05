@@ -26,23 +26,26 @@ import { redactErrorMessage } from "../../src/error-redaction.js";
 import {
   apiKeyCreationHint,
   apiKeyPrefixHint,
-  apiKeyTargetEscapeState,
   buildSignInMenuItems,
-  canToggleSignInNetwork,
-  displayTargetLabel,
-  formatVendorReviewLine,
-  formatWorkspaceReviewLine,
-  isNetworkSelectionLocked,
-  nextSignInNetworkConfig,
   oauthCallbackDisplayUri,
   renderStatusApp,
+  type StatusAppOptions,
+} from "../../src/tui/status-app.js";
+import {
+  canToggleSignInNetwork,
+  displayTargetLabel,
+  isNetworkSelectionLocked,
+  nextSignInNetworkConfig,
   resolveHostedTargetConfig,
   resolveStatusCoreClient,
-  type StatusAppOptions,
   toggleHostedTarget,
+} from "../../src/tui/status-network.js";
+import {
+  formatVendorReviewLine,
+  formatWorkspaceReviewLine,
   vendorMembershipCaption,
   workspaceMembershipCaption,
-} from "../../src/tui/status-app.js";
+} from "../../src/tui/status-review.js";
 
 test("TUI display values derive from package, config, and OAuth sources", () => {
   assert.equal(CLI_VERSION, packageJson.version);
@@ -401,13 +404,6 @@ test("Ink solely owns API-key input and Esc/arrow navigation", async () => {
     await cliPromise;
     instance?.cleanup();
   }
-});
-
-test("API-key target Escape discards the pending key", () => {
-  assert.deepEqual(apiKeyTargetEscapeState(), {
-    screen: "auth-method",
-    pendingApiKey: null,
-  });
 });
 
 test("OAuth Escape returns to confirm and allows retry", async () => {

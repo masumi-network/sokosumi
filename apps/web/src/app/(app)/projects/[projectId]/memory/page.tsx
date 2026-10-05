@@ -57,6 +57,7 @@ export default async function ProjectMemoryPage({
       createdAt={formatter.dateTime(project.createdAt, "dateTime")}
       updatedAt={formatter.dateTime(project.updatedAt, "dateTime")}
       labels={workspaceLabels}
+      identifier={project.identifier}
       projectId={project.id}
       projectLogo={project.logo}
       projectName={project.name}

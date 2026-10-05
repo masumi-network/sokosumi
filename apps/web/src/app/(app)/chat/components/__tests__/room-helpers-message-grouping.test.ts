@@ -97,6 +97,7 @@ function sokoBotMessage(
         caption: null,
         image: null,
         avatarSeed: "seed-1",
+        ownerUserId: "user-1",
         presence: "online",
       },
     },

@@ -30,6 +30,7 @@ import {
   getChatRoomSidebarFlags,
   getPeerInActiveOrganizationFlags,
   isOrganizationOwnerOrAdmin,
+  loadFormerDirectUserMembers,
   mapChatRoom,
   membershipVisibleActiveRoomWhere,
 } from "./helpers";
@@ -186,6 +187,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       sidebarFlags,
       pinnedMessageCounts,
       peerInActiveOrganizationFlags,
+      formerUserMembers,
       organizations,
     ] = await Promise.all([
       unreadCountsRead,
@@ -196,6 +198,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       getChatRoomSidebarFlags(roomIds, userId, prisma),
       getChatRoomPinnedMessageCounts(roomIds, prisma),
       getPeerInActiveOrganizationFlags(rooms, userId, organizationId, prisma),
+      loadFormerDirectUserMembers(rooms, prisma),
       organizationIds.length > 0
         ? prisma.organization.findMany({
             where: { id: { in: organizationIds } },
@@ -235,6 +238,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               : null,
             peerInActiveOrganization:
               peerInActiveOrganizationFlags.get(room.id) ?? false,
+            formerUserMembers: formerUserMembers.get(room.id),
           });
         }),
       ),

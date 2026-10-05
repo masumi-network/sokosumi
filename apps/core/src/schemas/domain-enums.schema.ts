@@ -12,6 +12,7 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
+  TaskPriority,
   TaskScheduleEndsMode,
   TaskScheduleState,
   TaskStatus,
@@ -36,11 +37,27 @@ import type Stripe from "stripe";
  * calls Core imports the same generated client.
  */
 
-export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
+/**
+ * Every status an event can carry: TaskStatus plus CREATED, the first event of
+ * a Task. Only `TaskEvent.status` uses it.
+ */
+export const taskEventStatusSchema = z
+  .enum(TaskStatus)
+  .openapi("TaskEventStatus");
+
+/**
+ * What a Task itself can be, and what a request can set or filter by: every
+ * status except CREATED, which is never a Task's.
+ */
+export const taskStatusSchema = taskEventStatusSchema
+  .exclude([TaskStatus.CREATED])
+  .openapi("TaskStatus");
 
 export const taskVisibilitySchema = z
   .enum(TaskVisibility)
   .openapi("TaskVisibility");
+
+export const taskPrioritySchema = z.enum(TaskPriority).openapi("TaskPriority");
 
 export const taskScheduleStateSchema = z
   .enum(TaskScheduleState)

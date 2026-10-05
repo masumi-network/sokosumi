@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import { getEnv } from "@/config/env";
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { isPrivateTaskVisibleToHuman } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import { INVOLVING_DELEGATION } from "@/lib/soko-bot/task-involvement";
 import {
   SokoBotBusyError,
@@ -26,6 +26,7 @@ const TASK_WAKE_STATUSES = new Set([
   "GRANT_PENDING",
 ]);
 const JOB_WAKE_STATUSES = new Set(["COMPLETED", "FAILED", "AWAITING_INPUT"]);
+const FINISHED = new Set(["COMPLETED", "FAILED", "CANCELED"]);
 
 export interface SokoBotEventsSyncInput {
   abortSignal: AbortSignal;
@@ -51,6 +52,8 @@ interface Change {
   to: string;
   /** Latest event comment: the Coworker's question, result, or failure reason. */
   note: string | null;
+  /** Credits charged on the Task so far, set once it has finished. */
+  creditsCharged?: number;
 }
 
 interface BotWork {
@@ -81,13 +84,17 @@ export function buildEventMessage(changes: Change[]): string {
     const note = change.note
       ? `\n  Latest comment: ${change.note.replace(/\s+/g, " ").trim().slice(0, 600)}`
       : "";
-    return `- ${label} "${change.name}" (id ${change.entityId}) is now ${change.to}${from}.${note}`;
+    const charged =
+      change.creditsCharged !== undefined
+        ? ` Charged ${change.creditsCharged} credits.`
+        : "";
+    return `- ${label} "${change.name}" (id ${change.entityId}) is now ${change.to}${from}.${charged}${note}`;
   });
   return [
     "Delegated work changed status:",
     ...lines,
     "",
-    "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Update memory and any related schedule, then report briefly.",
+    "Read each Task with get_task_status. INPUT_REQUIRED: answer the Coworker with reply_to_task (status READY) when the answer is in the task, project, or memory; otherwise ask the owner one question. FAILED: decide between reply_to_task READY with guidance, a new linked Task, or reporting. COMPLETED: check the result and create linked follow-up Tasks when the request called for them. Compare the credits charged with what the owner approved and say plainly if it went over. Update memory and any related schedule, then report briefly.",
   ].join("\n");
 }
 
@@ -126,11 +133,11 @@ export class SokoBotEventsSyncService {
           // Unattended work the bot starts itself honours the owner's pause,
           // not just the administrator's.
           turn: {
-            sokoBot: withBetaBotOwner({
+            sokoBot: {
               archivedAt: null,
               adminPausedAt: null,
               proactivePaused: false,
-            }),
+            },
           },
         },
         // Stable keyset rotation visits old unresolved work without rescanning
@@ -435,6 +442,16 @@ export class SokoBotEventsSyncService {
             (a.eventId ?? "").localeCompare(b.eventId ?? ""),
         )
         .slice(0, MAX_CHANGES_PER_TURN);
+      const charged = await taskCreditsCharged(
+        changes
+          .filter((change) => change.kind === "TASK" && FINISHED.has(change.to))
+          .map((change) => change.entityId),
+      );
+      for (const change of changes)
+        if (change.kind === "TASK" && FINISHED.has(change.to))
+          change.creditsCharged = roundCredits(
+            charged.get(change.entityId) ?? 0,
+          );
       try {
         const started = await sokoBotControlPlane.startTurn({
           userId: work.userId,

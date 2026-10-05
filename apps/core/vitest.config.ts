@@ -122,6 +122,12 @@ export default defineConfig({
       ...(cliSelectsOptInDbFile(process.argv) ? [] : optInDbExclude),
     ],
     setupFiles: ["src/test/setup.ts"],
+    // One database per worker for the parallel PostgreSQL run in CI. See
+    // `src/test/postgres-worker-databases.ts`.
+    globalSetup:
+      process.env.POSTGRES_TEST_DATABASE_PER_WORKER === "true"
+        ? ["src/test/postgres-worker-databases.ts"]
+        : [],
     /** Same cap as web, for the same reason — see `apps/web/vitest.config.ts`. */
     maxWorkers: process.env.CI ? undefined : "50%",
   },

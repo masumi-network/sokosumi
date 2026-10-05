@@ -11,6 +11,9 @@ const markChatRoomThreadsReadMock = vi.fn();
 const archiveChatRoomMock = vi.fn();
 const deleteChatRoomMock = vi.fn();
 const leaveChatRoomMock = vi.fn();
+const addChatRoomMembersMock = vi.fn();
+const removeChatRoomCoworkerMock = vi.fn();
+const removeChatRoomSokoBotMock = vi.fn();
 const joinChatRoomMock = vi.fn();
 const restoreChatRoomMock = vi.fn();
 const retryChatRoomMentionMock = vi.fn();
@@ -39,6 +42,11 @@ vi.mock("@/lib/clients/core.client", () => ({
     archiveChatRoom: (...args: unknown[]) => archiveChatRoomMock(...args),
     deleteChatRoom: (...args: unknown[]) => deleteChatRoomMock(...args),
     leaveChatRoom: (...args: unknown[]) => leaveChatRoomMock(...args),
+    addChatRoomMembers: (...args: unknown[]) => addChatRoomMembersMock(...args),
+    removeChatRoomCoworker: (...args: unknown[]) =>
+      removeChatRoomCoworkerMock(...args),
+    removeChatRoomSokoBot: (...args: unknown[]) =>
+      removeChatRoomSokoBotMock(...args),
     joinChatRoom: (...args: unknown[]) => joinChatRoomMock(...args),
     restoreChatRoom: (...args: unknown[]) => restoreChatRoomMock(...args),
     retryChatRoomMention: (...args: unknown[]) =>
@@ -359,6 +367,50 @@ describe("chatRoomService lifecycle wrappers", () => {
 
     expect(leaveChatRoomMock).toHaveBeenCalledWith("room-1");
     expect(result).toEqual({ id: "room-1", remainingUserMemberCount: 2 });
+  });
+
+  it("addMembers sends the picks and returns the updated room", async () => {
+    addChatRoomMembersMock.mockResolvedValue({ data: room("room-1") });
+
+    const { chatRoomService } = await import("./chat-room.service");
+    const result = await chatRoomService.addMembers("room-1", {
+      userIds: ["user-2"],
+      coworkerIds: [],
+      sokoBotIds: ["bot-1"],
+    });
+
+    expect(addChatRoomMembersMock).toHaveBeenCalledWith("room-1", {
+      userIds: ["user-2"],
+      coworkerIds: [],
+      sokoBotIds: ["bot-1"],
+    });
+    expect(result).toEqual(room("room-1"));
+  });
+
+  it("removeCoworker and removeSokoBot return the updated room", async () => {
+    removeChatRoomCoworkerMock.mockResolvedValue({ data: room("room-1") });
+    removeChatRoomSokoBotMock.mockResolvedValue({ data: room("room-1") });
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(
+      chatRoomService.removeCoworker("room-1", "cow-1"),
+    ).resolves.toEqual(room("room-1"));
+    await expect(
+      chatRoomService.removeSokoBot("room-1", "bot-1"),
+    ).resolves.toEqual(room("room-1"));
+    expect(removeChatRoomCoworkerMock).toHaveBeenCalledWith("room-1", "cow-1");
+    expect(removeChatRoomSokoBotMock).toHaveBeenCalledWith("room-1", "bot-1");
+  });
+
+  it("propagates a refused removal", async () => {
+    removeChatRoomSokoBotMock.mockRejectedValue(new Error("Forbidden"));
+
+    const { chatRoomService } = await import("./chat-room.service");
+
+    await expect(
+      chatRoomService.removeSokoBot("room-1", "bot-theirs"),
+    ).rejects.toThrow("Forbidden");
   });
 
   it("joinRoom returns joined room", async () => {

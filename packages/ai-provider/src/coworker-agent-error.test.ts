@@ -1,11 +1,19 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-
+import type { SsrfSafeFetchInit } from "@sokosumi/net";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   COWORKER_AGENT_ERROR_MARKER,
   COWORKER_AGENT_ERROR_SNIPPET,
   coworkerTextLooksLikeAgentError,
 } from "./coworker-agent-error.js";
 import { createSokosumiLanguageModel } from "./sokosumi-language-model.js";
+
+const { ssrfSafeStreamFetchMock } = vi.hoisted(() => ({
+  ssrfSafeStreamFetchMock:
+    vi.fn<(url: string | URL, init: SsrfSafeFetchInit) => Promise<Response>>(),
+}));
+vi.mock("@sokosumi/net", () => ({
+  ssrfSafeStreamFetch: ssrfSafeStreamFetchMock,
+}));
 
 describe("coworkerTextLooksLikeAgentError", () => {
   it("detects Elena agent error text and AGENT_ERROR markers", () => {
@@ -22,15 +30,27 @@ describe("coworkerTextLooksLikeAgentError", () => {
 });
 
 describe("SokosumiLanguageModel coworker streaming", () => {
-  const originalFetch = globalThis.fetch;
+  beforeEach(() => {
+    ssrfSafeStreamFetchMock.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        throw new Error("Unsafe coworker fetch is forbidden");
+      }),
+    );
+  });
 
   afterEach(() => {
-    globalThis.fetch = originalFetch;
+    for (const [, init] of ssrfSafeStreamFetchMock.mock.calls) {
+      expect(init.maxResponseBytes).toBe(16 * 1024 * 1024);
+      expect(init.headers?.["Accept-Encoding"]).toBe("identity");
+    }
+    vi.unstubAllGlobals();
   });
 
   it("streams coworker response body without buffering or duplicate POSTs", async () => {
     let call = 0;
-    globalThis.fetch = vi.fn(async () => {
+    ssrfSafeStreamFetchMock.mockImplementation(async () => {
       call++;
       return new Response(
         new ReadableStream({
@@ -48,7 +68,7 @@ describe("SokosumiLanguageModel coworker streaming", () => {
           headers: { "Content-Type": "text/event-stream" },
         },
       );
-    }) as typeof fetch;
+    });
 
     const model = createSokosumiLanguageModel("anthropic/claude-3.5-sonnet", {
       openRouterApiKey: "sk-or-test",
