@@ -1,5 +1,5 @@
 import { getUsersById, type User } from "@sokosumi/core-client";
-import { createClient } from "@sokosumi/core-client/client";
+import { type Client, createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
 import {
@@ -55,6 +55,16 @@ const SESSION_MAX_AGE_S = 90 * 24 * 60 * 60;
 
 /** Better Auth refreshes an access token this close to its expiry. */
 const ACCESS_TOKEN_REFRESH_MARGIN_MS = 5_000;
+
+/**
+ * Marks a page's token read. A page cannot write cookies, so it is served the
+ * cookie's token as long as it still works and never refreshed: a refresh
+ * there would rotate Core's refresh token and lose the new one.
+ */
+const PAGE_TOKEN_READ_HEADER = "x-cmo-page-token-read";
+/** The proxy refreshes below 5 seconds, so a page sees at least this much. */
+const PAGE_TOKEN_MIN_LIFETIME_MS = 1_000;
+const RENEWAL_REQUIRED = "RENEWAL_REQUIRED";
 
 /** Token endpoint statuses that mean Core could not answer, not "no". */
 const CORE_UNAVAILABLE_STATUSES = new Set([408, 429]);
@@ -122,13 +132,25 @@ function personName(user: User): string {
   );
 }
 
+const coreClients = new Map<string, Client>();
+
+/** The `/v1` client for a Core, shared by CMO's auth and its pages. */
+export function coreClientFor(coreBaseUrl: string): Client {
+  let client = coreClients.get(coreBaseUrl);
+  if (!client) {
+    client = createClient({ baseUrl: `${coreBaseUrl}/v1` });
+    coreClients.set(coreBaseUrl, client);
+  }
+  return client;
+}
+
 /**
  * Sign in with Sokosumi. Better Auth runs stateless: no database, the session
  * and the Sokosumi tokens live in encrypted httpOnly cookies (ADR 0045).
  */
 export function createCmoAuth(config: CmoAuthConfig) {
   const discoveryUrl = coreDiscoveryUrl(config.coreBaseUrl);
-  const coreClient = createClient({ baseUrl: `${config.coreBaseUrl}/v1` });
+  const coreClient = coreClientFor(config.coreBaseUrl);
   let revocationEndpoint: Promise<string> | undefined;
 
   function getCoreUser(accessToken: string) {
@@ -199,9 +221,10 @@ export function createCmoAuth(config: CmoAuthConfig) {
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/get-access-token") {
+          const pageRead = ctx.headers?.has(PAGE_TOKEN_READ_HEADER) ?? false;
           // Without discovery there is no provider, and Better Auth fails
           // before it looks at the token. A valid token needs no provider.
-          if (hasSokosumiProvider(ctx.context)) return;
+          if (!pageRead && hasSokosumiProvider(ctx.context)) return;
           const [session, account] = await Promise.all([
             getSessionFromCtx(ctx),
             getAccountCookie(ctx),
@@ -214,9 +237,16 @@ export function createCmoAuth(config: CmoAuthConfig) {
             !account?.accessToken ||
             account.userId !== session.user.id ||
             !expiresAt ||
-            expiresAt.getTime() - Date.now() < ACCESS_TOKEN_REFRESH_MARGIN_MS
+            expiresAt.getTime() - Date.now() <
+              (pageRead
+                ? PAGE_TOKEN_MIN_LIFETIME_MS
+                : ACCESS_TOKEN_REFRESH_MARGIN_MS)
           ) {
-            return;
+            if (!pageRead) return;
+            throw new APIError("UNAUTHORIZED", {
+              code: RENEWAL_REQUIRED,
+              message: "Renew the Sokosumi access token before this page",
+            });
           }
           return ctx.json({
             accessToken: await decryptOAuthToken(
@@ -373,6 +403,31 @@ export async function startSokosumiSignIn(
     unstable_rethrow(error);
     console.error("Starting Sign in with Sokosumi failed", error);
     return { url: SIGN_IN_UNAVAILABLE_PATH, setCookies: [] };
+  }
+}
+
+/**
+ * The Sokosumi access token for a page render, or null when it must be
+ * renewed first. Pages render after the proxy renewed it; only a render the
+ * proxy skipped (a prefetch or prerender) can find it expired.
+ */
+export async function getPageAccessToken(
+  auth: CmoAuth,
+  requestHeaders: Headers,
+): Promise<string | null> {
+  const headers = new Headers(requestHeaders);
+  headers.set(PAGE_TOKEN_READ_HEADER, "1");
+  try {
+    const { accessToken } = await auth.api.getAccessToken({
+      body: { useAccountCookie: true },
+      headers,
+    });
+    return accessToken;
+  } catch (error) {
+    if (error instanceof APIError && error.body?.code === RENEWAL_REQUIRED) {
+      return null;
+    }
+    throw error;
   }
 }
 
