@@ -364,7 +364,7 @@ export function RoomSessionComposer({
       mentionedIds,
       pendingQuote,
       quotedLink,
-      skills: composerSkills,
+      skills: allowSkills ? composerSkills : [],
     };
     const sentDraftKey = draftKey;
 
