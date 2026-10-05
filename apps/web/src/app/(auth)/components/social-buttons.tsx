@@ -2,15 +2,8 @@
 
 import { track } from "@vercel/analytics";
 import { KeyRound, Loader2 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ComponentProps, useCallback, useEffect, useState } from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
@@ -22,7 +15,6 @@ import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
   buildAuthErrorCallbackUrl,
-  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
@@ -31,6 +23,10 @@ import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
 type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
+  /**
+   * Where a sign-in started here ends: `AuthFlow`'s return URL, which falls
+   * back to resuming the page's OAuth request.
+   */
   returnUrl?: string;
   lastUsedMethod?: ProviderAuthMethod | null;
   showPasskey?: boolean;
@@ -98,11 +94,6 @@ export default function SocialButtons({
   onPendingChange,
 }: SocialButtonsProps = {}) {
   const t = useTranslations("Auth.SocialButtons");
-  const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
   // The sign-in that is starting. Every button waits while one runs.
   const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
     null,
@@ -130,10 +121,10 @@ export default function SocialButtons({
       finishAuthInPlace({
         eventType: "signIn",
         provider: "passkey",
-        returnUrl: effectiveReturnUrl,
+        returnUrl,
         result,
       }),
-    [effectiveReturnUrl],
+    [returnUrl],
   );
 
   const handlePasskeySignIn = async (options?: {
@@ -232,12 +223,12 @@ export default function SocialButtons({
         callbackURL: buildAuthCallbackUrl(
           "/auth/callback/signin",
           key,
-          effectiveReturnUrl,
+          returnUrl,
         ),
         newUserCallbackURL: buildAuthCallbackUrl(
           "/auth/callback/signup",
           key,
-          effectiveReturnUrl,
+          returnUrl,
         ),
         errorCallbackURL: buildAuthErrorCallbackUrl(),
       })
