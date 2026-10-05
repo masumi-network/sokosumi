@@ -2,6 +2,24 @@ import type { GenericEndpointContext } from "better-auth";
 import { APIError } from "better-auth/api";
 import { expireCookie, setSessionCookie } from "better-auth/cookies";
 
+import { answerCreatePromptWithNewSession } from "./auth-oauth-provider";
+
+type AfterHookContext = GenericEndpointContext & {
+  context: { returned?: unknown };
+};
+
+/**
+ * What Core's after hook does with a session the request started, in order:
+ * keep it past the browser session, then answer an OAuth `prompt=create`.
+ * Both run before plugin after hooks, so the OAuth provider continues its
+ * request with the persistent cookie and without `create`. Tests that build
+ * their own Better Auth import this, not the steps, to keep the same order.
+ */
+export async function afterNewSession(ctx: AfterHookContext): Promise<void> {
+  await keepNewSessionPersistent(ctx);
+  await answerCreatePromptWithNewSession(ctx);
+}
+
 /**
  * `rememberMe: true` does not delete a stale `dont_remember` cookie.
  * Email-code, passkey, and OAuth then keep a session cookie, which iOS drops
@@ -16,9 +34,7 @@ import { expireCookie, setSessionCookie } from "better-auth/cookies";
  * there makes the provider resume it again, without end. The sign-in has
  * already set it.
  */
-export async function keepNewSessionPersistent(
-  ctx: GenericEndpointContext & { context: { returned?: unknown } },
-): Promise<void> {
+async function keepNewSessionPersistent(ctx: AfterHookContext): Promise<void> {
   if (ctx.path === "/oauth2/authorize") {
     return;
   }
