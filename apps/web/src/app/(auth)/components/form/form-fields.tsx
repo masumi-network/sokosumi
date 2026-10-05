@@ -109,7 +109,7 @@ function FormInput<T extends FieldValues>({
     const id = labelKey?.toString() ?? name.toString();
 
     return (
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center gap-2">
         <Checkbox
           id={id}
           checked={field.value}
