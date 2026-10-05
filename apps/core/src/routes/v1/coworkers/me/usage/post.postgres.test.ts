@@ -32,6 +32,7 @@ const enabled =
 const vendorId = randomUUID();
 const coworkerId = randomUUID();
 const userIds: string[] = [];
+const organizationIds: string[] = [];
 
 /** A user with a personal workspace and 10 personal credits. */
 async function createBillableUser(): Promise<{
@@ -64,6 +65,39 @@ async function createBillableUser(): Promise<{
   });
 
   return { userId, workspaceId };
+}
+
+/** A member of a free organization whose pool holds 10 credits. */
+async function createBillableOrganizationMember(): Promise<{
+  userId: string;
+  organizationId: string;
+  organizationWorkspaceId: string;
+}> {
+  const { userId } = await createBillableUser();
+  const organizationId = randomUUID();
+  const organizationWorkspaceId = randomUUID();
+  organizationIds.push(organizationId);
+
+  await prisma.organization.create({
+    data: {
+      id: organizationId,
+      name: "Coworker usage binding org",
+      slug: `usage-binding-${organizationId}`,
+      members: { create: { userId, role: "member" } },
+      workspace: { create: { id: organizationWorkspaceId } },
+    },
+  });
+  await prisma.transaction.create({
+    data: {
+      amount: convertCreditsToCents(10),
+      organizationId,
+      sourceCreditBucket: {
+        create: { amount: convertCreditsToCents(10), organizationId },
+      },
+    },
+  });
+
+  return { userId, organizationId, organizationWorkspaceId };
 }
 
 async function setGrant(workspaceId: string, status: VendorGrantStatus) {
@@ -103,7 +137,7 @@ function createApp() {
   return app;
 }
 
-async function postUsage(userId: string) {
+async function postUsage(userId: string, organizationId: string | null = null) {
   return await createApp().request("http://localhost/me/usage", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -111,14 +145,14 @@ async function postUsage(userId: string) {
       idempotencyKey: randomUUID(),
       credits: 2.5,
       userId,
-      organizationId: null,
+      organizationId,
     }),
   });
 }
 
-async function debitsOf(userId: string) {
+async function debitsOf(userId: string, organizationId: string | null = null) {
   return await prisma.transaction.count({
-    where: { userId, amount: { lt: 0 } },
+    where: { userId, organizationId, amount: { lt: 0 } },
   });
 }
 
@@ -148,6 +182,12 @@ describe.skipIf(!enabled)(
       await prisma.coworkerUsage.deleteMany({ where: { coworkerId } });
       await prisma.task.deleteMany({ where: { assigneeId: coworkerId } });
       await prisma.vendorGrant.deleteMany({ where: { vendorId } });
+      await prisma.transaction.deleteMany({
+        where: { organizationId: { in: organizationIds } },
+      });
+      await prisma.organization.deleteMany({
+        where: { id: { in: organizationIds } },
+      });
       await prisma.workspace.deleteMany({
         where: { userId: { in: userIds } },
       });
@@ -205,6 +245,30 @@ describe.skipIf(!enabled)(
       expect(response.status, JSON.stringify(body)).toBe(201);
       expect(body.data).toMatchObject({ userId, coworkerId, credits: 2.5 });
       expect(await debitsOf(userId)).toBe(1);
+    });
+
+    it("rejects billing an organization member the coworker has no relationship with", async () => {
+      const { userId, organizationId } =
+        await createBillableOrganizationMember();
+
+      const response = await postUsage(userId, organizationId);
+
+      expect(response.status).toBe(403);
+      expect(await debitsOf(userId, organizationId)).toBe(0);
+    });
+
+    it("bills the organization pool when the organization workspace granted the vendor access", async () => {
+      const { userId, organizationId, organizationWorkspaceId } =
+        await createBillableOrganizationMember();
+      await setGrant(organizationWorkspaceId, VendorGrantStatus.GRANTED);
+
+      const response = await postUsage(userId, organizationId);
+      const body = await response.json();
+
+      expect(response.status, JSON.stringify(body)).toBe(201);
+      expect(body.data).toMatchObject({ userId, organizationId });
+      expect(await debitsOf(userId, organizationId)).toBe(1);
+      expect(await debitsOf(userId)).toBe(0);
     });
   },
 );
