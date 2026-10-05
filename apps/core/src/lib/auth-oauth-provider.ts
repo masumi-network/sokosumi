@@ -191,10 +191,10 @@ export async function isRefreshTokenRotating(
 }
 
 /**
- * Every request to Better Auth goes through here. A form `POST` to the token
- * endpoint is read once: a body secret moves into the header Better Auth
- * accepts (`auth-oauth-client-secret-shim`), and a refresh that lost a
- * rotation race is retried. Anything else goes to `handler` as it came.
+ * `POST /oauth2/token`. A form request is read once: a body secret moves into
+ * the header Better Auth accepts (`auth-oauth-client-secret-shim`), and a
+ * refresh that lost a rotation race is retried. Anything else goes to
+ * `handler` as it came.
  */
 export async function handleOAuthTokenRequest(
   incoming: Request,
@@ -203,8 +203,6 @@ export async function handleOAuthTokenRequest(
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    incoming.method !== "POST" ||
-    !new URL(incoming.url).pathname.endsWith("/oauth2/token") ||
     !incoming.headers
       .get("content-type")
       ?.toLowerCase()

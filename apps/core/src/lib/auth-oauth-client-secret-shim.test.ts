@@ -120,19 +120,7 @@ describe("client_secret_post shim", () => {
     expect(await forwarded(request)).toBe(request);
   });
 
-  it("leaves non-token paths untouched", async () => {
-    const request = formRequest(
-      { client_id: "client-1", client_secret: "secret-1" },
-      { url: "http://localhost:3001/auth/oauth2/revoke" },
-    );
-
-    expect(await forwarded(request)).toBe(request);
-  });
-
-  it("leaves non-POST and non-form requests untouched", async () => {
-    const get = new Request(TOKEN_URL, { method: "GET" });
-    expect(await forwarded(get)).toBe(get);
-
+  it("leaves non-form requests untouched", async () => {
     const json = new Request(TOKEN_URL, {
       method: "POST",
       headers: { "content-type": "application/json" },
