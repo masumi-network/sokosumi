@@ -62,6 +62,7 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
+  const authErrorsT = useTranslations("Components.AuthErrors");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
@@ -167,7 +168,7 @@ export function ReauthDialog({
     message?: string;
   }): string => {
     if (error.code === AuthErrorCode.TERMS_NOT_ACCEPTED) {
-      return t("termsNotAccepted");
+      return authErrorsT("termsNotAccepted");
     }
 
     return error.message ?? t("passwordError");
