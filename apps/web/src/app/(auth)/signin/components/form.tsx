@@ -5,7 +5,7 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
@@ -38,7 +38,6 @@ import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
   isRejectedOAuthRequestError,
   readAuthPageContext,
 } from "@/lib/auth/auth.utils";
@@ -50,6 +49,7 @@ import type { SignInMethod } from "@/lib/utils/last-used-auth-method";
 interface SignInFormProps {
   /** Confirmed on the step before this one. */
   email: string;
+  /** Where a finished sign-in goes: the returnUrl or the OAuth request. */
   returnUrl?: string | undefined;
   /** The way this browser signed in last; the code when it is not known. */
   initialMethod: SignInMethod;
@@ -94,10 +94,6 @@ export default function SignInForm({
     getErrorMessage,
   } = useAuthCaptcha("signin");
   const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
 
   const wasCodeSent = emailCode.sentTo === email;
   const isCodeStep = (wasCodeSent || handedOver) && !prefersPassword;
@@ -215,7 +211,7 @@ export default function SignInForm({
         await finishAuthInPlace({
           eventType: "signIn",
           provider: "credential",
-          returnUrl: effectiveReturnUrl,
+          returnUrl,
           result: result.data,
         });
       });
