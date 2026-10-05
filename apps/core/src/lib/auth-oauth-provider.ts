@@ -9,6 +9,8 @@ import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
+import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
+
 export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
 
@@ -191,28 +193,35 @@ export async function isRefreshTokenRotating(
   );
 }
 
-export async function handleOAuthRefreshTokenRequest(
-  request: Request,
+/**
+ * Every request to Better Auth goes through here. A form `POST` to the token
+ * endpoint is read once: a body secret moves into the header Better Auth
+ * accepts (`auth-oauth-client-secret-shim`), and a refresh that lost a
+ * rotation race is retried. Anything else goes to `handler` as it came.
+ */
+export async function handleOAuthTokenRequest(
+  incoming: Request,
   handler: (request: Request) => Promise<Response>,
   retry: (body: OAuthRefreshTokenBody, request: Request) => Promise<Response>,
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    request.method !== "POST" ||
-    !new URL(request.url).pathname.endsWith("/oauth2/token") ||
-    !request.headers
+    incoming.method !== "POST" ||
+    !new URL(incoming.url).pathname.endsWith("/oauth2/token") ||
+    !incoming.headers
       .get("content-type")
       ?.toLowerCase()
-      .includes("application/x-www-form-urlencoded") ||
-    request.headers.has("dpop")
+      .includes("application/x-www-form-urlencoded")
   ) {
-    return handler(request);
+    return handler(incoming);
   }
 
-  const params = new URLSearchParams(await request.clone().text());
+  const params = new URLSearchParams(await incoming.clone().text());
+  const request = moveClientSecretToBasicAuth(incoming, params);
   if (
     params.get("grant_type") !== "refresh_token" ||
-    params.has("client_assertion")
+    params.has("client_assertion") ||
+    request.headers.has("dpop")
   ) {
     return handler(request);
   }
