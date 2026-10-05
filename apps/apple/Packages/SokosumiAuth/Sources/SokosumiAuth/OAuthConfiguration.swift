@@ -23,7 +23,7 @@ public struct OAuthConfiguration: Sendable {
   public init(issuerBaseURL: URL, clientID: String) {
     self.issuerBaseURL = issuerBaseURL
     self.clientID = clientID
-    self.scopes = Self.defaultScopes
+    scopes = Self.defaultScopes
   }
 
   /// Core's auth base shares the Core API origin: strip `/v1`, append `/auth`.
