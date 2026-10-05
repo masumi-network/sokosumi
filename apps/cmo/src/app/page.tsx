@@ -15,6 +15,7 @@ import { getAuth } from "../lib/auth";
 import { readSokosumiAppBaseUrl } from "../lib/auth-config";
 import { asSignedInPersonInPage } from "../lib/core";
 import { isValidPersonName } from "../lib/person-name";
+import { CMO_SIGN_IN_ERROR } from "../lib/sign-in-errors";
 import { createAccount, signIn, signOut } from "./actions";
 import { saveName } from "./name-actions";
 import {
@@ -65,7 +66,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     ...asPerson,
     path: { id: "me" },
   });
-  if (isRefused(response)) return signedOut("signed_out");
+  if (isRefused(response)) return signedOut(CMO_SIGN_IN_ERROR.signedOut);
   // Never let a person in without knowing they have a workspace.
   if (!data) {
     throw new Error(`Core did not list the workspaces (${response?.status})`);
@@ -87,7 +88,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     }
     // CMO's session holds only a display name, so the gate reads the parts.
     const person = await getUsersById({ ...asPerson, path: { id: "me" } });
-    if (isRefused(person.response)) return signedOut("signed_out");
+    if (isRefused(person.response))
+      return signedOut(CMO_SIGN_IN_ERROR.signedOut);
     if (!person.data) {
       throw new Error(
         `Core did not read the person (${person.response?.status})`,
