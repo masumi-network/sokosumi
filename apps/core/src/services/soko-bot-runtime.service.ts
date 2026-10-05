@@ -170,6 +170,7 @@ import { socialPostSchema } from "@/schemas/social-post.schema";
 import {
   CmoNotFoundError,
   cmoExecutionRefusal,
+  reportCmoUpdate,
   saveCmoBrandBrain,
   saveCmoStrategy,
 } from "@/services/cmo.service";
@@ -3640,42 +3641,77 @@ export class SokoBotRuntimeService {
   }
 
   /** Cuso's Brand Brain and strategy, written to its CMO workspace. */
+  /** Cuso's Brand Brain, strategy and reports, written to its CMO workspace. */
   private async saveCmoRecord(
     authorized: AuthorizedSokoBotRuntime,
     input: ExecuteSokoBotToolInput,
   ) {
     if (getSokoBotVersion(authorized.turn.versionId).profile !== "cmo") {
       throw new SokoBotRuntimeAuthorizationError(
-        "Only a CMO assistant keeps a Brand Brain and strategy",
+        "Only a CMO assistant keeps a Brand Brain, strategy and reports",
       );
     }
     const where = { sokoBotId: authorized.turn.sokoBotId };
-    const saved =
-      input.capability === "save_brand_brain"
-        ? await saveCmoBrandBrain(
+    const run = async (): Promise<{
+      targetId: string;
+      result: Record<string, unknown>;
+    }> => {
+      switch (input.capability) {
+        case "save_brand_brain": {
+          const saved = await saveCmoBrandBrain(
             where,
             SOKO_BOT_TOOL_INPUT_SCHEMAS.save_brand_brain.parse(input.input)
               .brandBrain,
-          )
-        : await saveCmoStrategy(
+          );
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "brandBrain",
+              updatedAt: saved.brandBrainUpdatedAt?.toISOString(),
+            },
+          };
+        }
+        case "save_strategy": {
+          const saved = await saveCmoStrategy(
             where,
             SOKO_BOT_TOOL_INPUT_SCHEMAS.save_strategy.parse(input.input)
               .strategy,
-            { byOwner: false },
-          ).catch((error: unknown) => {
-            if (error instanceof CmoNotFoundError) {
-              throw new SokoBotRuntimeValidationError(error.message);
-            }
-            throw error;
+            { turnId: authorized.turn.id },
+          );
+          return {
+            targetId: saved.id,
+            result: {
+              saved: "strategy",
+              approved: saved.strategyApprovedAt !== null,
+              updatedAt: saved.strategyUpdatedAt?.toISOString(),
+            },
+          };
+        }
+        default: {
+          const record = await reportCmoUpdate({
+            sokoBotId: authorized.turn.sokoBotId,
+            turnId: authorized.turn.id,
+            update: SOKO_BOT_TOOL_INPUT_SCHEMAS.report_update.parse(
+              input.input,
+            ),
           });
-    const result = {
-      saved:
-        input.capability === "save_brand_brain" ? "brandBrain" : "strategy",
-      updatedAt: (input.capability === "save_brand_brain"
-        ? saved.brandBrainUpdatedAt
-        : saved.strategyUpdatedAt
-      )?.toISOString(),
+          return {
+            targetId: record.id,
+            result: {
+              reported: record.kind,
+              id: record.id,
+              revertible: record.previousStrategy !== undefined,
+            },
+          };
+        }
+      }
     };
+    const { targetId, result } = await run().catch((error: unknown) => {
+      if (error instanceof CmoNotFoundError) {
+        throw new SokoBotRuntimeValidationError(error.message);
+      }
+      throw error;
+    });
     await serializableTransaction(async (tx) => {
       await this.requireMutationAuthority(
         tx,
@@ -3687,7 +3723,7 @@ export class SokoBotRuntimeService {
         turnId: authorized.turn.id,
         toolCallId: input.toolCallId,
         actorBotId: authorized.turn.sokoBotId,
-        targetId: saved.id,
+        targetId,
         result: persistedToolResult(result),
       });
     }, "CMO record changed concurrently");
@@ -4239,39 +4275,12 @@ export class SokoBotRuntimeService {
    * CMO bots schedule and publish only with an active CMO subscription and
    * as far as the channel's autonomy allows. No-op for every other bot.
    */
-  private async requireCmoExecution(
-    authorized: AuthorizedSokoBotRuntime,
-    provider: string,
-  ) {
+  private async requireCmoExecution(authorized: AuthorizedSokoBotRuntime) {
     const refusal = await cmoExecutionRefusal({
       sokoBotId: authorized.turn.sokoBotId,
       versionId: authorized.turn.versionId,
-      provider,
-      ownerPresent: (authorized.turn.source ?? "CHAT") === "CHAT",
     });
     if (refusal) throw new SokoBotRuntimeValidationError(refusal);
-  }
-
-  /** The provider a social write would execute on, for the CMO gate. */
-  private async socialProviderFor(
-    authorized: AuthorizedSokoBotRuntime,
-    input: { postId?: string; socialConnectionId?: string | null },
-  ): Promise<string> {
-    if (input.socialConnectionId) {
-      const connection = await prisma.projectSocialConnection.findFirst({
-        where: { id: input.socialConnectionId },
-        select: { provider: true },
-      });
-      if (connection) return connection.provider;
-    }
-    if (input.postId) {
-      const post = await prisma.socialPost.findFirst({
-        where: { id: input.postId, workspaceId: authorized.turn.workspaceId },
-        select: { provider: true },
-      });
-      if (post) return post.provider;
-    }
-    return "unknown";
   }
 
   private async executeSocialTool(
@@ -4287,19 +4296,7 @@ export class SokoBotRuntimeService {
           SOKO_BOT_TOOL_INPUT_SCHEMAS.create_social_post.safeParse(input.input)
             .data?.scheduledAt))
     ) {
-      const target = z
-        .object({
-          postId: z.string().optional(),
-          socialConnectionId: z.string().nullish(),
-        })
-        .safeParse(input.input);
-      await this.requireCmoExecution(
-        authorized,
-        await this.socialProviderFor(
-          authorized,
-          target.success ? target.data : {},
-        ),
-      );
+      await this.requireCmoExecution(authorized);
     }
     switch (input.capability) {
       case "list_project_social_accounts": {
@@ -4892,6 +4889,7 @@ export class SokoBotRuntimeService {
         return this.updateMemory(authorized, input.input, input.toolCallId);
       case "save_brand_brain":
       case "save_strategy":
+      case "report_update":
         return this.saveCmoRecord(authorized, input);
       case "manage_reminder": {
         const parsed = sokoBotManageReminderInputSchema.parse(input.input);

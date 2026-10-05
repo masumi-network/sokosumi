@@ -10,6 +10,7 @@ import {
 import { z } from "zod";
 
 import {
+  cmoReportUpdateInputSchema,
   cmoSaveBrandBrainInputSchema,
   cmoSaveStrategyInputSchema,
 } from "./cmo.js";
@@ -513,6 +514,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   run_subagent: sokoBotRunSubagentInputSchema,
   save_brand_brain: cmoSaveBrandBrainInputSchema,
   save_strategy: cmoSaveStrategyInputSchema,
+  report_update: cmoReportUpdateInputSchema,
   list_tables: z.object({
     taskId: z.string().max(200).optional(),
     cursor: z.uuid().optional(),
@@ -607,7 +609,9 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
   save_brand_brain:
     "Save the owner's Brand Brain (summary, voice with do/don't and example lines, audience, products, competitors, channels). Replaces the saved one, so send the complete Brand Brain. The owner sees and edits it in CMO; every content turn reads it from workspace.marketing.brandBrain.",
   save_strategy:
-    "Save the marketing strategy for a month: summary, goals, pillars, channels with cadence and autonomy (drafts, ask, autopilot), the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), reviewMode and weeklyReviews. Replaces the saved one, so send the complete strategy. Only the owner changes a channel's autonomy unless they ask you to.",
+    "Save the marketing strategy for a month: summary, goals, audience, positioning, pillars, channels with cadence, the content calendar (keep entry ids stable; link socialPostId, imageFileId, taskId when they exist), and previews: one short sample each of a post, an ad, an SEO piece and a newsletter in the brand's voice. Replaces the saved one, so send the complete strategy. The owner approves the strategy once; your later changes keep that approval.",
+  report_update:
+    "Report to the owner as a card in their CMO chat: kind daily (done today, up next), weekly (results and the strategy changes you made; the owner can revert them) or request (what you did for something they asked). Results must use only real numbers; say plainly when there are none.",
   manage_reminder:
     "Acknowledge, snooze, or cancel an existing follow-up reminder using its key and current revision from context. It cannot create reminders; for a reminder at a time, use create_schedule with runAt. Acknowledgment pauses notifications; it does not resolve the underlying task. Snoozing never changes task due dates.",
   list_integration_tools:

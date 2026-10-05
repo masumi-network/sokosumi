@@ -2,16 +2,18 @@ import { randomBytes } from "node:crypto";
 import type { CmoWorkspace, Prisma } from "@sokosumi/database";
 import {
   CMO_SOKO_BOT_VERSION_ID,
-  type CmoAutonomy,
   type CmoBrandBrain,
+  type CmoReportUpdateInput,
   type CmoStrategy,
   cmoBrandBrainSchema,
-  cmoChannelAutonomy,
   cmoMayExecute,
+  cmoReportUpdateInputSchema,
   cmoStrategySchema,
   getSokoBotVersion,
 } from "@sokosumi/soko-bot";
-import { getEnv } from "@/config/env";
+import { z } from "zod";
+import { getEnv, getWebAppBaseUrl } from "@/config/env";
+import { buildCreditsPayload } from "@/helpers/subscription";
 import prisma from "@/lib/db/prisma";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
@@ -128,11 +130,14 @@ function onboardingMessage(input: {
   websiteUrl: string;
   goals: string;
 }): string {
+  const month = new Date().toISOString().slice(0, 7);
   return [
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
-    `Their marketing goals, in their words: ${input.goals}`,
+    `Their main marketing goal, in their words: ${input.goals}`,
     "",
-    "Learn the business and build the Brand Brain: read the website, search for the company, its competitors and its existing marketing, then save it with save_brand_brain. Finish with a short, warm hello to the owner: what you learned in three lines, and that the next step is a one-month plan they can start from the CMO app.",
+    '1) Learn the business: read the website (home, about, products, pricing), search for the company, its competitors and its existing marketing, then save the Brand Brain with save_brand_brain. Write down only what you found. If you cannot read the site on this turn, save a provisional Brand Brain from the goal and the domain, with "not confirmed yet" where you do not know, and continue.',
+    `2) Plan the next month (start ${month}) with save_strategy: summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews (one short post, ad, SEO piece and newsletter in the brand's voice).`,
+    "3) Tell the owner in two or three lines what you learned and that the plan is ready: they approve it once in the strategy card, and after that you run it.",
   ].join("\n");
 }
 
@@ -212,7 +217,7 @@ export async function startCmoOnboarding(input: {
   return created;
 }
 
-/** Asks Cuso for (another) one-month strategy. */
+/** Asks Cuso for a new one-month strategy; the owner approves it again. */
 export async function requestCmoStrategy(input: {
   userId: string;
   note?: string;
@@ -222,6 +227,10 @@ export async function requestCmoStrategy(input: {
   if (!parseCmoBrandBrain(workspace.brandBrain)) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { strategyApprovedAt: null },
+  });
   const month = new Date().toISOString().slice(0, 7);
   return startCmoTurn(workspace, {
     clientTurnId: `cmo:strategy:${workspace.id}:${Date.now()}`,
@@ -230,7 +239,7 @@ export async function requestCmoStrategy(input: {
       `Goals: ${workspace.goals}`,
       input.note ? `The owner adds: ${input.note}` : "",
       "",
-      "Use the Brand Brain in your packet. Save the strategy with save_strategy: summary, goals, pillars, each channel with cadence (autonomy ask unless the owner said otherwise), and a calendar for the whole month. Draft the first week's posts as Social post drafts in the Marketing project (no scheduledAt) with cheap images where the format needs one, and link them in the calendar. Then tell the owner the plan in a few lines and that they can change anything by chatting with you.",
+      "Use the Brand Brain in your packet. Save the strategy with save_strategy: summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews (one short post, ad, SEO piece and newsletter in the brand's voice). Draft the first week's posts as Social post drafts in the Marketing project (no scheduledAt). Then tell the owner the plan in two or three lines: they approve it once in the strategy card, and after that you run it.",
     ]
       .filter(Boolean)
       .join("\n"),
@@ -257,90 +266,181 @@ export async function saveCmoBrandBrain(
   });
 }
 
+const STRATEGY_HISTORY_LIMIT = 8;
+
+const strategyHistorySchema = z.array(
+  z.object({
+    savedAt: z.string(),
+    turnId: z.string().nullable(),
+    strategy: z.unknown(),
+  }),
+);
+type StrategyHistory = z.infer<typeof strategyHistorySchema>;
+
+function parseHistory(value: unknown): StrategyHistory {
+  const parsed = strategyHistorySchema.safeParse(value);
+  return parsed.success ? parsed.data : [];
+}
+
 /**
- * Saves the strategy. Only the owner changes a channel's autonomy: Cuso's
- * save keeps the stored level for every channel that already has one, so a
- * plan rewrite cannot quietly turn a channel to autopilot.
+ * Saves the strategy. The strategy it replaces goes into a short history so
+ * a weekly change can be reverted. The owner's approval carries over: after
+ * approving once, the owner expects Cuso to keep the plan current.
  */
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
   strategy: CmoStrategy,
-  options: { byOwner: boolean },
+  options: { turnId?: string } = {},
 ): Promise<CmoWorkspace> {
   const parsed = cmoStrategySchema.parse(strategy);
   const current = await prisma.cmoWorkspace.findUnique({ where });
   if (!current) throw new CmoNotFoundError("No CMO workspace");
-  const previous = parseCmoStrategy(current.strategy);
-  const channels = options.byOwner
-    ? parsed.channels
-    : parsed.channels.map((channel) => {
-        const kept = previous?.channels.find(
-          (entry) => entry.channel === channel.channel,
-        );
-        return {
-          ...channel,
-          autonomy: kept?.autonomy ?? ("ask" satisfies CmoAutonomy),
-        };
-      });
+  const history = current.strategy
+    ? [
+        {
+          savedAt: (current.strategyUpdatedAt ?? new Date()).toISOString(),
+          turnId: options.turnId ?? null,
+          strategy: current.strategy,
+        },
+        ...parseHistory(current.strategyHistory),
+      ].slice(0, STRATEGY_HISTORY_LIMIT)
+    : parseHistory(current.strategyHistory);
   return prisma.cmoWorkspace.update({
     where: { id: current.id },
     data: {
-      strategy: { ...parsed, channels } as Prisma.InputJsonValue,
+      strategy: parsed as Prisma.InputJsonValue,
       strategyUpdatedAt: new Date(),
+      strategyHistory: history as Prisma.InputJsonValue,
     },
   });
 }
 
-/** The owner's edits from the CMO app: autonomy per channel, review mode. */
-export async function updateCmoStrategySettings(input: {
-  userId: string;
-  channels?: { channel: string; autonomy: CmoAutonomy }[];
-  reviewMode?: "suggest" | "auto";
-}): Promise<CmoWorkspace> {
-  const workspace = await getCmoWorkspaceForUser(input.userId);
+/** The owner's one approval: from now on Cuso executes the strategy. */
+export async function approveCmoStrategy(
+  userId: string,
+): Promise<CmoWorkspace> {
+  const workspace = await getCmoWorkspaceForUser(userId);
   if (!workspace) throw new CmoNotFoundError("No CMO workspace");
-  const strategy = parseCmoStrategy(workspace.strategy);
-  if (!strategy) throw new CmoConflictError("There is no strategy yet");
-  const channels = strategy.channels.map((channel) => ({
-    ...channel,
-    autonomy:
-      input.channels?.find(
-        (entry) => entry.channel.trim().toLowerCase() === channel.channel,
-      )?.autonomy ?? channel.autonomy,
-  }));
-  return saveCmoStrategy(
-    { userId: input.userId },
-    {
-      ...strategy,
-      channels,
-      reviewMode: input.reviewMode ?? strategy.reviewMode,
-    },
-    { byOwner: true },
-  );
+  if (!parseCmoStrategy(workspace.strategy)) {
+    throw new CmoConflictError("There is no strategy to approve yet");
+  }
+  return prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { strategyApprovedAt: workspace.strategyApprovedAt ?? new Date() },
+  });
+}
+
+const cmoUpdateRecordSchema = cmoReportUpdateInputSchema.extend({
+  id: z.string(),
+  at: z.string(),
+  /** Weekly: the strategy before this review's changes, for revert. */
+  previousStrategy: z.unknown().optional(),
+  revertedAt: z.string().optional(),
+});
+export type CmoUpdateRecord = z.infer<typeof cmoUpdateRecordSchema>;
+
+const UPDATES_LIMIT = 60;
+
+export function parseCmoUpdates(value: unknown): CmoUpdateRecord[] {
+  const parsed = z.array(cmoUpdateRecordSchema).safeParse(value);
+  return parsed.success ? parsed.data : [];
 }
 
 /**
- * Whether a CMO bot may schedule or publish on a provider in this turn.
- * Null for bots that are not CMO bots (no CMO rules apply) and when allowed.
+ * Stores Cuso's report as a chat card. A weekly report keeps the strategy as
+ * it was before the first save of the same turn, so the owner can revert the
+ * whole review in one step.
+ */
+export async function reportCmoUpdate(input: {
+  sokoBotId: string;
+  turnId: string;
+  update: CmoReportUpdateInput;
+}): Promise<CmoUpdateRecord> {
+  const workspace = await getCmoWorkspaceForBot(input.sokoBotId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
+  const update = cmoReportUpdateInputSchema.parse(input.update);
+  const savedThisTurn = parseHistory(workspace.strategyHistory).filter(
+    (entry) => entry.turnId === input.turnId,
+  );
+  const record: CmoUpdateRecord = {
+    ...update,
+    id: randomBytes(8).toString("hex"),
+    at: new Date().toISOString(),
+    ...(update.kind === "weekly" && savedThisTurn.length > 0
+      ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
+      : {}),
+  };
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: {
+      updates: [record, ...parseCmoUpdates(workspace.updates)].slice(
+        0,
+        UPDATES_LIMIT,
+      ) as Prisma.InputJsonValue,
+    },
+  });
+  return record;
+}
+
+/** Puts back the strategy a weekly review replaced. */
+export async function revertCmoUpdate(input: {
+  userId: string;
+  updateId: string;
+}): Promise<CmoWorkspace> {
+  const workspace = await getCmoWorkspaceForUser(input.userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
+  const updates = parseCmoUpdates(workspace.updates);
+  const target = updates.find((update) => update.id === input.updateId);
+  const previous = parseCmoStrategy(target?.previousStrategy);
+  if (!target || !previous) {
+    throw new CmoNotFoundError("Nothing to revert for this update");
+  }
+  if (target.revertedAt) return workspace;
+  await saveCmoStrategy({ userId: input.userId }, previous);
+  return prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: {
+      updates: updates.map((update) =>
+        update.id === target.id
+          ? { ...update, revertedAt: new Date().toISOString() }
+          : update,
+      ) as Prisma.InputJsonValue,
+    },
+  });
+}
+
+/**
+ * Whether a CMO bot may schedule or publish. Null for bots that are not CMO
+ * bots (no CMO rules apply) and when allowed: the owner approved the
+ * strategy and the CMO subscription is active.
  */
 export async function cmoExecutionRefusal(input: {
   sokoBotId: string;
   versionId: string | null;
-  provider: string;
-  ownerPresent: boolean;
 }): Promise<string | null> {
   if (getSokoBotVersion(input.versionId).profile !== "cmo") return null;
   const workspace = await getCmoWorkspaceForBot(input.sokoBotId);
   if (!workspace) return null;
   const verdict = cmoMayExecute({
+    approved: workspace.strategyApprovedAt !== null,
     subscribed: await hasActiveCmoSubscription(workspace.organizationId),
-    autonomy: cmoChannelAutonomy(
-      parseCmoStrategy(workspace.strategy),
-      input.provider,
-    ),
-    ownerPresent: input.ownerPresent,
   });
   return verdict.ok ? null : verdict.reason;
+}
+
+/** The business's connected social accounts, from Project Social. */
+export async function listCmoChannels(projectId: string) {
+  return prisma.projectSocialConnection.findMany({
+    where: { projectId },
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      provider: true,
+      externalHandle: true,
+      displayName: true,
+      status: true,
+    },
+  });
 }
 
 function calendarWindow(
@@ -376,8 +476,17 @@ export async function loadCmoMarketingContext(
       goals: workspace.goals,
       marketingProjectId: workspace.projectId,
     },
+    strategyApproved: workspace.strategyApprovedAt !== null,
     subscriptionActive: await hasActiveCmoSubscription(
       workspace.organizationId,
+    ),
+    connectedChannels: (await listCmoChannels(workspace.projectId)).map(
+      (channel) => ({
+        provider: channel.provider,
+        handle: channel.externalHandle,
+        status: channel.status,
+        socialConnectionId: channel.id,
+      }),
     ),
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),
     strategy: strategy
@@ -385,9 +494,11 @@ export async function loadCmoMarketingContext(
           ...strategy,
           calendar: calendarWindow(strategy, now, 14),
           calendarTotal: strategy.calendar.length,
-          weeklyReviews: strategy.weeklyReviews.slice(-2),
         }
       : null,
+    recentUpdates: parseCmoUpdates(workspace.updates)
+      .slice(0, 3)
+      .map(({ previousStrategy: _previous, ...update }) => update),
   };
 }
 
@@ -419,7 +530,14 @@ export async function buildCmoBeatPacket(
       })
     : [];
   const lines = [
-    `## Execution: ${context.subscriptionActive ? "active" : "paused (no CMO subscription; draft only)"}`,
+    `## Execution: ${
+      !context.strategyApproved
+        ? "waiting for the owner to approve the strategy (draft only)"
+        : context.subscriptionActive
+          ? "active"
+          : "paused: no CMO subscription (draft only)"
+    }`,
+    `## Connected channels: ${JSON.stringify(context.connectedChannels)}`,
     "",
     "## Brand Brain",
     JSON.stringify(context.brandBrain ?? "not built yet"),
@@ -438,6 +556,14 @@ export async function buildCmoBeatPacket(
   return lines.join("\n");
 }
 
+export interface CmoUpNextItem {
+  id: string;
+  date: string;
+  channel: string;
+  title: string;
+  status: string;
+}
+
 export interface CmoOverview {
   workspace: CmoWorkspace;
   organizationSlug: string;
@@ -446,15 +572,54 @@ export interface CmoOverview {
   brandBrain: CmoBrandBrain | null;
   strategy: CmoStrategy | null;
   botStatus: string;
+  updates: CmoUpdateRecord[];
+  channels: Awaited<ReturnType<typeof listCmoChannels>>;
+  upNext: CmoUpNextItem[];
+  connectChannelUrl: string;
+  subscribeUrl: string;
+  billing: {
+    plan: string | null;
+    subscriptionStatus: string | null;
+    availableCredits: number;
+  };
+  /** Real post counts by status from Project Social; no invented metrics. */
+  posts: Record<string, number>;
+}
+
+/** The calendar's next open entries: what the "Up next" panel lists. */
+export function cmoUpNext(
+  strategy: CmoStrategy | null,
+  now: Date,
+  limit = 8,
+): CmoUpNextItem[] {
+  if (!strategy) return [];
+  const today = now.toISOString().slice(0, 10);
+  return strategy.calendar
+    .filter(
+      (entry) =>
+        entry.date >= today &&
+        entry.status !== "published" &&
+        entry.status !== "skipped",
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, limit)
+    .map(({ id, date, channel, title, status }) => ({
+      id,
+      date,
+      channel,
+      title,
+      status,
+    }));
 }
 
 /** Everything the CMO app shows, in one read. Opens the owner's chat. */
 export async function getCmoOverview(
   userId: string,
+  now: Date = new Date(),
 ): Promise<CmoOverview | null> {
   const workspace = await getCmoWorkspaceForUser(userId);
   if (!workspace) return null;
-  const [organization, bot] = await Promise.all([
+  const [organization, bot, channels] = await Promise.all([
     prisma.organization.findUnique({
       where: { id: workspace.organizationId },
       select: { slug: true },
@@ -469,12 +634,26 @@ export async function getCmoOverview(
         workspace: { select: { organizationId: true } },
       },
     }),
+    listCmoChannels(workspace.projectId),
   ]);
+  const postGroups = await prisma.socialPost.groupBy({
+    by: ["status"],
+    where: { projectId: workspace.projectId },
+    _count: { _all: true },
+  });
   if (!organization || !bot) return null;
   const { findOrOpenOwnerDirectRoom } = await import(
     "@/services/soko-bot-chat.service"
   );
   const room = await findOrOpenOwnerDirectRoom(bot);
+  const strategy = parseCmoStrategy(workspace.strategy);
+  const web = getWebAppBaseUrl().replace(/\/+$/, "");
+  const credits = await buildCreditsPayload({
+    userId,
+    organizationId: workspace.organizationId,
+    referenceId: workspace.organizationId,
+    tx: prisma,
+  });
   return {
     workspace,
     organizationSlug: organization.slug,
@@ -483,7 +662,22 @@ export async function getCmoOverview(
       workspace.organizationId,
     ),
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),
-    strategy: parseCmoStrategy(workspace.strategy),
+    strategy,
     botStatus: bot.status,
+    updates: parseCmoUpdates(workspace.updates),
+    channels,
+    upNext: cmoUpNext(strategy, now),
+    // Connecting an account is a human OAuth step in Sokosumi's Social page.
+    connectChannelUrl: `${web}/social?projectId=${workspace.projectId}`,
+    // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
+    subscribeUrl: `${web}/billing`,
+    billing: {
+      plan: credits.subscription?.plan ?? null,
+      subscriptionStatus: credits.subscription?.status ?? null,
+      availableCredits: credits.spendable,
+    },
+    posts: Object.fromEntries(
+      postGroups.map((group) => [group.status, group._count._all]),
+    ),
   };
 }

@@ -6309,11 +6309,12 @@ export type CmoOverview = {
         month: string;
         summary: string;
         goals: Array<string>;
+        audience?: string;
+        positioning?: string;
         pillars: Array<string>;
         channels: Array<{
             channel: string;
             cadence: string;
-            autonomy?: 'drafts' | 'ask' | 'autopilot';
         }>;
         calendar: Array<{
             id: string;
@@ -6327,15 +6328,61 @@ export type CmoOverview = {
             imageFileId?: string;
             taskId?: string;
         }>;
-        reviewMode?: 'suggest' | 'auto';
-        weeklyReviews?: Array<{
-            weekOf: string;
-            summary: string;
-            changes: Array<string>;
+        previews?: Array<{
+            kind: 'post' | 'ad' | 'seo' | 'newsletter';
+            channel: string;
+            title: string;
+            body: string;
         }>;
     } | null;
     strategyUpdatedAt: Date | null;
+    strategyApprovedAt: Date | null;
+    updates: Array<CmoUpdate>;
+    channels: Array<CmoChannel>;
+    upNext: Array<CmoUpNextItem>;
+    connectChannelUrl: string;
+    subscribeUrl: string;
+    billing: {
+        plan: string | null;
+        subscriptionStatus: string | null;
+        availableCredits: number;
+    };
+    posts: {
+        draft: number;
+        scheduled: number;
+        published: number;
+        failed: number;
+    };
     createdAt: Date;
+};
+
+export type CmoUpdate = {
+    kind: 'daily' | 'weekly' | 'request';
+    headline: string;
+    done?: Array<string>;
+    upNext?: Array<string>;
+    changes?: Array<string>;
+    results?: string;
+    id: string;
+    at: Date;
+    revertible: boolean;
+    revertedAt: Date | null;
+};
+
+export type CmoChannel = {
+    id: string;
+    provider: string;
+    handle: string | null;
+    displayName: string | null;
+    status: string;
+};
+
+export type CmoUpNextItem = {
+    id: string;
+    date: string;
+    channel: string;
+    title: string;
+    status: string;
 };
 
 export type CmoOnboardingRequest = {
@@ -6374,14 +6421,6 @@ export type CmoTurnStarted = {
 
 export type CmoStrategyRequest = {
     note?: string;
-};
-
-export type CmoStrategySettingsRequest = {
-    channels?: Array<{
-        channel: string;
-        autonomy: 'drafts' | 'ask' | 'autopilot';
-    }>;
-    reviewMode?: 'suggest' | 'auto';
 };
 
 export type SokoBotApiKey = {
@@ -44810,14 +44849,14 @@ export type RequestCmoStrategyResponses = {
 
 export type RequestCmoStrategyResponse = RequestCmoStrategyResponses[keyof RequestCmoStrategyResponses];
 
-export type UpdateCmoStrategySettingsData = {
-    body?: CmoStrategySettingsRequest;
+export type ApproveCmoStrategyData = {
+    body?: never;
     path?: never;
     query?: never;
-    url: '/cmo/strategy/settings';
+    url: '/cmo/strategy/approve';
 };
 
-export type UpdateCmoStrategySettingsErrors = {
+export type ApproveCmoStrategyErrors = {
     /**
      * Unauthorized
      */
@@ -44864,7 +44903,7 @@ export type UpdateCmoStrategySettingsErrors = {
         };
     };
     /**
-     * There is no strategy yet
+     * There is no strategy to approve yet
      */
     409: {
         error: string;
@@ -44880,11 +44919,11 @@ export type UpdateCmoStrategySettingsErrors = {
     };
 };
 
-export type UpdateCmoStrategySettingsError = UpdateCmoStrategySettingsErrors[keyof UpdateCmoStrategySettingsErrors];
+export type ApproveCmoStrategyError = ApproveCmoStrategyErrors[keyof ApproveCmoStrategyErrors];
 
-export type UpdateCmoStrategySettingsResponses = {
+export type ApproveCmoStrategyResponses = {
     /**
-     * Settings saved
+     * Strategy approved
      */
     200: {
         data: CmoOverview;
@@ -44896,7 +44935,82 @@ export type UpdateCmoStrategySettingsResponses = {
     };
 };
 
-export type UpdateCmoStrategySettingsResponse = UpdateCmoStrategySettingsResponses[keyof UpdateCmoStrategySettingsResponses];
+export type ApproveCmoStrategyResponse = ApproveCmoStrategyResponses[keyof ApproveCmoStrategyResponses];
+
+export type RevertCmoUpdateData = {
+    body?: never;
+    path: {
+        id: string;
+    };
+    query?: never;
+    url: '/cmo/updates/{id}/revert';
+};
+
+export type RevertCmoUpdateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Nothing to revert
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type RevertCmoUpdateError = RevertCmoUpdateErrors[keyof RevertCmoUpdateErrors];
+
+export type RevertCmoUpdateResponses = {
+    /**
+     * Strategy reverted
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type RevertCmoUpdateResponse = RevertCmoUpdateResponses[keyof RevertCmoUpdateResponses];
 
 export type GetSokoBotsByIdApiKeysData = {
     body?: never;

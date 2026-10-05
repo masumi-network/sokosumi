@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  cmoChannelAutonomy,
   cmoMayExecute,
   cmoStrategySchema,
   isCmoScheduleKey,
@@ -57,33 +56,17 @@ describe("CMO version", () => {
 });
 
 describe("cmoMayExecute", () => {
-  it("needs a subscription before anything executes", () => {
-    expect(
-      cmoMayExecute({
-        subscribed: false,
-        autonomy: "autopilot",
-        ownerPresent: true,
-      }).ok,
-    ).toBe(false);
+  it("executes only once the strategy is approved and paid for", () => {
+    const run = (approved: boolean, subscribed: boolean) =>
+      cmoMayExecute({ approved, subscribed }).ok;
+    expect(run(false, true)).toBe(false);
+    expect(run(true, false)).toBe(false);
+    expect(run(true, true)).toBe(true);
   });
 
-  it("follows the channel's autonomy", () => {
-    const run = (autonomy: "drafts" | "ask" | "autopilot", owner: boolean) =>
-      cmoMayExecute({ subscribed: true, autonomy, ownerPresent: owner }).ok;
-    expect(run("drafts", true)).toBe(false);
-    expect(run("ask", true)).toBe(true);
-    expect(run("ask", false)).toBe(false);
-    expect(run("autopilot", false)).toBe(true);
-  });
-
-  it("asks on a channel the strategy does not name", () => {
-    expect(cmoChannelAutonomy(null, "linkedin")).toBe("ask");
-    expect(
-      cmoChannelAutonomy(
-        { channels: [{ channel: "x", cadence: "daily", autonomy: "drafts" }] },
-        "X",
-      ),
-    ).toBe("drafts");
+  it("says why it refused", () => {
+    const refused = cmoMayExecute({ approved: false, subscribed: true });
+    expect(refused.ok === false && refused.reason).toMatch(/approved/);
   });
 });
 
@@ -106,12 +89,11 @@ describe("CMO strategy and rhythms", () => {
         },
       ],
     });
-    expect(strategy.channels[0]).toMatchObject({
+    expect(strategy.channels[0]).toEqual({
       channel: "linkedin",
-      autonomy: "ask",
+      cadence: "3 posts a week",
     });
-    expect(strategy.reviewMode).toBe("suggest");
-    expect(strategy.weeklyReviews).toEqual([]);
+    expect(strategy.previews).toEqual([]);
   });
 
   it("names its rhythms", () => {

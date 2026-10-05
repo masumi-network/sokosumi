@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import {
-  CMO_AUTONOMY_LEVELS,
   cmoBrandBrainSchema,
+  cmoReportUpdateInputSchema,
   cmoStrategySchema,
 } from "@sokosumi/soko-bot";
 
@@ -23,20 +23,38 @@ export const cmoStrategyRequestSchema = z
   .object({ note: z.string().trim().max(1_000).optional() })
   .openapi("CmoStrategyRequest");
 
-export const cmoStrategySettingsRequestSchema = z
-  .object({
-    channels: z
-      .array(
-        z.object({
-          channel: z.string().trim().min(1).max(40),
-          autonomy: z.enum(CMO_AUTONOMY_LEVELS),
-        }),
-      )
-      .max(10)
-      .optional(),
-    reviewMode: z.enum(["suggest", "auto"]).optional(),
+export const cmoUpdateIdParamsSchema = z.object({
+  id: z.string().min(1).max(64),
+});
+
+export const cmoUpdateSchema = cmoReportUpdateInputSchema
+  .extend({
+    id: z.string(),
+    at: dateTimeSchema,
+    revertible: z.boolean(),
+    revertedAt: z.union([dateTimeSchema, z.null()]),
   })
-  .openapi("CmoStrategySettingsRequest");
+  .openapi("CmoUpdate");
+
+export const cmoChannelSchema = z
+  .object({
+    id: z.string(),
+    provider: z.string(),
+    handle: z.union([z.string(), z.null()]),
+    displayName: z.union([z.string(), z.null()]),
+    status: z.string(),
+  })
+  .openapi("CmoChannel");
+
+export const cmoUpNextItemSchema = z
+  .object({
+    id: z.string(),
+    date: z.string(),
+    channel: z.string(),
+    title: z.string(),
+    status: z.string(),
+  })
+  .openapi("CmoUpNextItem");
 
 export const cmoOverviewSchema = z
   .object({
@@ -56,6 +74,23 @@ export const cmoOverviewSchema = z
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),
     strategy: z.union([cmoStrategySchema, z.null()]),
     strategyUpdatedAt: z.union([dateTimeSchema, z.null()]),
+    strategyApprovedAt: z.union([dateTimeSchema, z.null()]),
+    updates: z.array(cmoUpdateSchema),
+    channels: z.array(cmoChannelSchema),
+    upNext: z.array(cmoUpNextItemSchema),
+    connectChannelUrl: z.string(),
+    subscribeUrl: z.string(),
+    billing: z.object({
+      plan: z.union([z.string(), z.null()]),
+      subscriptionStatus: z.union([z.string(), z.null()]),
+      availableCredits: z.number(),
+    }),
+    posts: z.object({
+      draft: z.number(),
+      scheduled: z.number(),
+      published: z.number(),
+      failed: z.number(),
+    }),
     createdAt: dateTimeSchema,
   })
   .openapi("CmoOverview");

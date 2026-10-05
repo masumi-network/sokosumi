@@ -44,15 +44,6 @@ export const cmoBrandBrainSchema = z.object({
 });
 export type CmoBrandBrain = z.infer<typeof cmoBrandBrainSchema>;
 
-/**
- * How far Cuso may go on one channel without the owner: `drafts` never
- * schedules or publishes, `ask` does so only on a turn the owner is in
- * (a chat), `autopilot` also on its own daily run.
- */
-export const CMO_AUTONOMY_LEVELS = ["drafts", "ask", "autopilot"] as const;
-export const cmoAutonomySchema = z.enum(CMO_AUTONOMY_LEVELS);
-export type CmoAutonomy = z.infer<typeof cmoAutonomySchema>;
-
 export const CMO_CALENDAR_STATUSES = [
   "idea",
   "draft",
@@ -78,34 +69,34 @@ export const cmoCalendarEntrySchema = z.object({
 });
 export type CmoCalendarEntry = z.infer<typeof cmoCalendarEntrySchema>;
 
+/** A sample piece in the strategy proposal, so the owner sees the voice. */
+export const cmoPreviewSchema = z.object({
+  kind: z.enum(["post", "ad", "seo", "newsletter"]),
+  channel: z.string().trim().toLowerCase().min(1).max(40),
+  title: shortText,
+  body: longText,
+});
+export type CmoPreview = z.infer<typeof cmoPreviewSchema>;
+
 export const cmoStrategySchema = z.object({
   /** The month the plan covers, YYYY-MM. */
   month: z.string().regex(/^\d{4}-\d{2}$/, "Use YYYY-MM"),
   summary: longText,
   goals: z.array(shortText).min(1).max(6),
+  audience: shortText.optional(),
+  positioning: longText.optional(),
   pillars: z.array(shortText).max(6),
   channels: z
     .array(
       z.object({
         channel: z.string().trim().toLowerCase().min(1).max(40),
         cadence: shortText,
-        autonomy: cmoAutonomySchema.default("ask"),
       }),
     )
     .max(10),
   calendar: z.array(cmoCalendarEntrySchema).max(120),
-  /** suggest: weekly changes are proposed in chat; auto: Cuso applies them. */
-  reviewMode: z.enum(["suggest", "auto"]).default("suggest"),
-  weeklyReviews: z
-    .array(
-      z.object({
-        weekOf: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-        summary: longText,
-        changes: z.array(shortText).max(10),
-      }),
-    )
-    .max(12)
-    .default([]),
+  /** Up to one sample each of a post, an ad, an SEO piece, a newsletter. */
+  previews: z.array(cmoPreviewSchema).max(4).default([]),
 });
 export type CmoStrategy = z.infer<typeof cmoStrategySchema>;
 
@@ -116,46 +107,43 @@ export const cmoSaveStrategyInputSchema = z.object({
   strategy: cmoStrategySchema,
 });
 
-/** Autonomy for a channel; a channel the strategy does not name asks. */
-export function cmoChannelAutonomy(
-  strategy: Pick<CmoStrategy, "channels"> | null | undefined,
-  channel: string,
-): CmoAutonomy {
-  const key = channel.trim().toLowerCase();
-  return (
-    strategy?.channels.find((entry) => entry.channel === key)?.autonomy ?? "ask"
-  );
-}
+/**
+ * What Cuso reports after a daily run, a weekly review, or a request the
+ * owner made in chat. CMO shows each one as a card in the chat.
+ */
+export const cmoReportUpdateInputSchema = z.object({
+  kind: z.enum(["daily", "weekly", "request"]),
+  headline: shortText,
+  done: z.array(shortText).max(12).default([]),
+  upNext: z.array(shortText).max(12).default([]),
+  /** Weekly: what Cuso changed in the strategy. */
+  changes: z.array(shortText).max(10).default([]),
+  /** Weekly: what the numbers say, or plainly that there are none yet. */
+  results: longText.optional(),
+});
+export type CmoReportUpdateInput = z.infer<typeof cmoReportUpdateInputSchema>;
 
 /**
- * Whether Cuso may schedule or publish on a channel on this turn. Execution
- * needs an active CMO subscription; `ask` additionally needs the owner on
- * the turn (a chat), so a daily run only executes on autopilot channels.
+ * Whether Cuso may schedule or publish. The owner approves the strategy once;
+ * after that Cuso executes on its own, as long as the CMO subscription is
+ * active.
  */
 export function cmoMayExecute(input: {
+  approved: boolean;
   subscribed: boolean;
-  autonomy: CmoAutonomy;
-  ownerPresent: boolean;
 }): { ok: true } | { ok: false; reason: string } {
+  if (!input.approved) {
+    return {
+      ok: false,
+      reason:
+        "The owner has not approved the strategy yet. Keep it as a draft and point them to the strategy card.",
+    };
+  }
   if (!input.subscribed) {
     return {
       ok: false,
       reason:
         "Scheduling and publishing start once the owner subscribes to CMO. Keep it as a draft and say so.",
-    };
-  }
-  if (input.autonomy === "drafts") {
-    return {
-      ok: false,
-      reason:
-        "This channel is set to drafts only. Keep it as a draft for the owner to review.",
-    };
-  }
-  if (input.autonomy === "ask" && !input.ownerPresent) {
-    return {
-      ok: false,
-      reason:
-        "This channel needs the owner's go-ahead. Keep it as a draft and ask them in chat.",
     };
   }
   return { ok: true };
@@ -175,9 +163,9 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     name: "Daily marketing run",
     cronExpression: "0 9 * * *",
     description:
-      "Every morning: checks the strategy and the calendar, prepares what is due, and schedules it where it may.",
+      "Every morning: checks the strategy and the calendar, prepares what is due, and schedules it.",
     prompt:
-      "Daily marketing run. Using the packet below (Brand Brain, strategy, the next days of the calendar, recent posts): 1) make sure every entry due in the next 3 days has a finished draft in the brand's voice, with an image where the format needs one; 2) schedule what is ready on channels you may execute on, and keep the rest as drafts; 3) update the calendar with save_strategy (status, socialPostId, imageFileId). Create a Task for a Coworker only for work you cannot do well yourself, such as a long article or a video. If anything needs the owner, end with one short message naming it. When nothing is due and nothing changed, answer exactly: Nothing to add.",
+      "Daily marketing run. Using the packet below (Brand Brain, approved strategy, the next days of the calendar, connected channels, recent posts): 1) every entry due in the next 3 days gets a finished draft in the brand's voice, with an image where the format needs one; 2) schedule what is ready on connected channels (you may: the owner approved the strategy); 3) update the calendar with save_strategy (status, socialPostId, imageFileId); 4) report with report_update kind daily: what you did today and what is up next. Create a Task for a Coworker only for work you cannot do well yourself. For a channel that is not connected, keep the work as a draft and say which channel to connect. When nothing is due and nothing changed, answer exactly: Nothing to add.",
   },
   {
     key: "cmo-weekly-review",
@@ -186,7 +174,7 @@ export const SOKO_BOT_CMO_SCHEDULES: readonly CmoSystemSchedule[] = [
     description:
       "Every Monday: looks at what was published and how it did, and improves the plan.",
     prompt:
-      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week, how it performed where numbers exist (say plainly where they do not), what worked and what did not. Then improve the strategy: with reviewMode auto, apply the changes with save_strategy and list them; with reviewMode suggest, add the review to weeklyReviews with save_strategy and ask the owner which changes to make. Under 12 lines.",
+      "Weekly marketing review. Using the packet below and list_social_posts or get_social_post where needed: what was published last week and how it performed. Use only numbers you actually have; when there are none, say so plainly and never estimate. Then improve the strategy yourself with save_strategy (the owner approved it and expects you to adjust it), and report with report_update kind weekly: results, and each change you made. The owner can revert your changes from the card. Under 12 lines.",
   },
 ];
 

@@ -72,6 +72,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "run_subagent",
   "save_brand_brain",
   "save_strategy",
+  "report_update",
 ] as const;
 
 export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
@@ -84,6 +85,7 @@ export type SokoBotCapability = (typeof SOKO_BOT_CAPABILITIES)[number];
 export const SOKO_BOT_CMO_CAPABILITIES = [
   "save_brand_brain",
   "save_strategy",
+  "report_update",
 ] as const satisfies readonly SokoBotCapability[];
 
 export function isSokoBotCmoCapability(value: string): boolean {

@@ -21722,6 +21722,16 @@ export const CmoOverviewSchema = {
                             minItems: 1,
                             maxItems: 6
                         },
+                        audience: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 400
+                        },
+                        positioning: {
+                            type: 'string',
+                            minLength: 1,
+                            maxLength: 2000
+                        },
                         pillars: {
                             type: 'array',
                             items: {
@@ -21745,15 +21755,6 @@ export const CmoOverviewSchema = {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 400
-                                    },
-                                    autonomy: {
-                                        type: 'string',
-                                        enum: [
-                                            'drafts',
-                                            'ask',
-                                            'autopilot'
-                                        ],
-                                        default: 'ask'
                                     }
                                 },
                                 required: [
@@ -21831,45 +21832,44 @@ export const CmoOverviewSchema = {
                             },
                             maxItems: 120
                         },
-                        reviewMode: {
-                            type: 'string',
-                            enum: [
-                                'suggest',
-                                'auto'
-                            ],
-                            default: 'suggest'
-                        },
-                        weeklyReviews: {
+                        previews: {
                             type: 'array',
                             items: {
                                 type: 'object',
                                 properties: {
-                                    weekOf: {
+                                    kind: {
                                         type: 'string',
-                                        pattern: '^\\d{4}-\\d{2}-\\d{2}$'
+                                        enum: [
+                                            'post',
+                                            'ad',
+                                            'seo',
+                                            'newsletter'
+                                        ]
                                     },
-                                    summary: {
+                                    channel: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 40
+                                    },
+                                    title: {
+                                        type: 'string',
+                                        minLength: 1,
+                                        maxLength: 400
+                                    },
+                                    body: {
                                         type: 'string',
                                         minLength: 1,
                                         maxLength: 2000
-                                    },
-                                    changes: {
-                                        type: 'array',
-                                        items: {
-                                            type: 'string',
-                                            minLength: 1,
-                                            maxLength: 400
-                                        },
-                                        maxItems: 10
                                     }
                                 },
                                 required: [
-                                    'weekOf',
-                                    'summary',
-                                    'changes'
+                                    'kind',
+                                    'channel',
+                                    'title',
+                                    'body'
                                 ]
                             },
-                            maxItems: 12,
+                            maxItems: 4,
                             default: []
                         }
                     },
@@ -21899,6 +21899,98 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        strategyApprovedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        updates: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpdate'
+            }
+        },
+        channels: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoChannel'
+            }
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/CmoUpNextItem'
+            }
+        },
+        connectChannelUrl: {
+            type: 'string'
+        },
+        subscribeUrl: {
+            type: 'string'
+        },
+        billing: {
+            type: 'object',
+            properties: {
+                plan: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                subscriptionStatus: {
+                    anyOf: [
+                        {
+                            type: 'string'
+                        },
+                        {
+                            type: 'null'
+                        }
+                    ]
+                },
+                availableCredits: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'plan',
+                'subscriptionStatus',
+                'availableCredits'
+            ]
+        },
+        posts: {
+            type: 'object',
+            properties: {
+                draft: {
+                    type: 'number'
+                },
+                scheduled: {
+                    type: 'number'
+                },
+                published: {
+                    type: 'number'
+                },
+                failed: {
+                    type: 'number'
+                }
+            },
+            required: [
+                'draft',
+                'scheduled',
+                'published',
+                'failed'
+            ]
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -21922,7 +22014,170 @@ export const CmoOverviewSchema = {
         'brandBrainUpdatedAt',
         'strategy',
         'strategyUpdatedAt',
+        'strategyApprovedAt',
+        'updates',
+        'channels',
+        'upNext',
+        'connectChannelUrl',
+        'subscribeUrl',
+        'billing',
+        'posts',
         'createdAt'
+    ]
+} as const;
+
+export const CmoUpdateSchema = {
+    type: 'object',
+    properties: {
+        kind: {
+            type: 'string',
+            enum: [
+                'daily',
+                'weekly',
+                'request'
+            ]
+        },
+        headline: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 400
+        },
+        done: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        upNext: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 12,
+            default: []
+        },
+        changes: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 400
+            },
+            maxItems: 10,
+            default: []
+        },
+        results: {
+            type: 'string',
+            minLength: 1,
+            maxLength: 2000
+        },
+        id: {
+            type: 'string'
+        },
+        at: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        revertible: {
+            type: 'boolean'
+        },
+        revertedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        }
+    },
+    required: [
+        'kind',
+        'headline',
+        'id',
+        'at',
+        'revertible',
+        'revertedAt'
+    ]
+} as const;
+
+export const CmoChannelSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        provider: {
+            type: 'string'
+        },
+        handle: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        displayName: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'provider',
+        'handle',
+        'displayName',
+        'status'
+    ]
+} as const;
+
+export const CmoUpNextItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string'
+        },
+        date: {
+            type: 'string'
+        },
+        channel: {
+            type: 'string'
+        },
+        title: {
+            type: 'string'
+        },
+        status: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'date',
+        'channel',
+        'title',
+        'status'
     ]
 } as const;
 
@@ -22111,45 +22366,6 @@ export const CmoStrategyRequestSchema = {
         note: {
             type: 'string',
             maxLength: 1000
-        }
-    }
-} as const;
-
-export const CmoStrategySettingsRequestSchema = {
-    type: 'object',
-    properties: {
-        channels: {
-            type: 'array',
-            items: {
-                type: 'object',
-                properties: {
-                    channel: {
-                        type: 'string',
-                        minLength: 1,
-                        maxLength: 40
-                    },
-                    autonomy: {
-                        type: 'string',
-                        enum: [
-                            'drafts',
-                            'ask',
-                            'autopilot'
-                        ]
-                    }
-                },
-                required: [
-                    'channel',
-                    'autonomy'
-                ]
-            },
-            maxItems: 10
-        },
-        reviewMode: {
-            type: 'string',
-            enum: [
-                'suggest',
-                'auto'
-            ]
         }
     }
 } as const;

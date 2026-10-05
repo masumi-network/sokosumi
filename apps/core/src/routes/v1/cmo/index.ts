@@ -10,18 +10,19 @@ import {
   cmoOnboardingRequestSchema,
   cmoOverviewSchema,
   cmoStrategyRequestSchema,
-  cmoStrategySettingsRequestSchema,
   cmoTurnStartedSchema,
+  cmoUpdateIdParamsSchema,
 } from "@/schemas/cmo.schema";
 import {
+  approveCmoStrategy,
   CmoConflictError,
   CmoNotFoundError,
   type CmoOverview,
   getCmoOverview,
   requestCmoStrategy,
+  revertCmoUpdate,
   saveCmoBrandBrain,
   startCmoOnboarding,
-  updateCmoStrategySettings,
 } from "@/services/cmo.service";
 
 /**
@@ -50,6 +51,32 @@ function mapOverview(overview: CmoOverview) {
     brandBrainUpdatedAt: workspace.brandBrainUpdatedAt,
     strategy: overview.strategy,
     strategyUpdatedAt: workspace.strategyUpdatedAt,
+    strategyApprovedAt: workspace.strategyApprovedAt,
+    updates: overview.updates.map(
+      ({ previousStrategy, revertedAt, ...update }) => ({
+        ...update,
+        revertible: previousStrategy !== undefined && !revertedAt,
+        revertedAt: revertedAt ?? null,
+      }),
+    ),
+    channels: overview.channels.map((channel) => ({
+      id: channel.id,
+      provider: channel.provider,
+      handle: channel.externalHandle,
+      displayName: channel.displayName,
+      status: channel.status,
+    })),
+    upNext: overview.upNext,
+    connectChannelUrl: overview.connectChannelUrl,
+    subscribeUrl: overview.subscribeUrl,
+    billing: overview.billing,
+    posts: {
+      draft: overview.posts.DRAFT ?? 0,
+      scheduled:
+        (overview.posts.SCHEDULED ?? 0) + (overview.posts.PUBLISHING ?? 0),
+      published: overview.posts.PUBLISHED ?? 0,
+      failed: (overview.posts.FAILED ?? 0) + (overview.posts.MISSED ?? 0),
+    },
     createdAt: workspace.createdAt,
   });
 }
@@ -172,29 +199,46 @@ app.openapi(
 
 app.openapi(
   createRoute({
-    method: "patch",
-    path: "/strategy/settings",
-    operationId: "updateCmoStrategySettings",
+    method: "post",
+    path: "/strategy/approve",
+    operationId: "approveCmoStrategy",
     tags: ["CMO"],
-    request: {
-      body: {
-        content: {
-          "application/json": { schema: cmoStrategySettingsRequestSchema },
-        },
-      },
-    },
+    description:
+      "The owner's one approval: from now on Cuso executes the strategy on its own (with an active CMO subscription).",
     responses: {
-      200: jsonSuccessResponse(cmoOverviewSchema, "Settings saved"),
+      200: jsonSuccessResponse(cmoOverviewSchema, "Strategy approved"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
       404: jsonErrorResponse("No CMO workspace yet"),
-      409: jsonErrorResponse("There is no strategy yet"),
+      409: jsonErrorResponse("There is no strategy to approve yet"),
     },
   }),
   async (c) => {
     const { userId } = requireUserAuthContext(c.var.authContext);
-    const body = c.req.valid("json");
-    await updateCmoStrategySettings({ userId, ...body }).catch(rethrow);
+    await approveCmoStrategy(userId).catch(rethrow);
+    return ok(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/updates/{id}/revert",
+    operationId: "revertCmoUpdate",
+    tags: ["CMO"],
+    description: "Puts back the strategy a weekly review changed.",
+    request: { params: cmoUpdateIdParamsSchema },
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Strategy reverted"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Nothing to revert"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { id } = c.req.valid("param");
+    await revertCmoUpdate({ userId, updateId: id }).catch(rethrow);
     return ok(c, await requireOverview(userId));
   },
 );

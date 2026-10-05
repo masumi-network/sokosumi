@@ -2164,6 +2164,13 @@ model CmoWorkspace {
   brandBrainUpdatedAt DateTime?
   strategy            Json?
   strategyUpdatedAt   DateTime?
+  /// The owner approved the strategy: from here Cuso executes on its own.
+  /// Cleared when the owner asks for a new strategy.
+  strategyApprovedAt  DateTime?
+  /// Strategies Cuso replaced, newest first, so the owner can revert.
+  strategyHistory     Json?
+  /// Cuso's daily, weekly and request reports, newest first (chat cards).
+  updates             Json?
 
   @@map("cmo_workspace")
 }
