@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
+
+import { AuthPage, AuthPageHeader } from "@/auth/components/auth-page";
 import {
   type AuthRedirectSearchParams,
   appendQueryParam,
@@ -12,7 +14,6 @@ import {
 import { getResetPasswordToken } from "@/lib/reset-password-token-cookie";
 
 import ResetPasswordForm from "./components/form";
-import ResetPasswordHeader from "./components/header";
 
 export const instant = false;
 
@@ -51,12 +52,16 @@ export default async function ResetPasswordPage({
     redirect(buildRequestNewResetLinkUrl(context));
   }
 
+  const t = await getTranslations("Auth.Pages.ResetPassword");
+
   return (
-    <div className="flex flex-1 flex-col" data-sentry-block>
-      <ResetPasswordHeader />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ResetPasswordForm />
-      </div>
-    </div>
+    <AuthPage
+      header={
+        <AuthPageHeader title={t("title")} description={t("description")} />
+      }
+      blockReplay
+    >
+      <ResetPasswordForm />
+    </AuthPage>
   );
 }

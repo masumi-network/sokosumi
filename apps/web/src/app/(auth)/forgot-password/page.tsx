@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { AuthPage, AuthPageHeader } from "@/auth/components/auth-page";
 import { INVALID_RESET_LINK_ERROR } from "@/lib/auth/auth.utils";
 
 import ForgotPasswordForm from "./components/form";
-import ForgotPasswordHeader from "./components/header";
 
 export const instant = false;
 
@@ -25,13 +25,15 @@ export default async function ForgotPassword({
   searchParams,
 }: ForgotPasswordPageProps) {
   const { error } = await searchParams;
+  const t = await getTranslations("Auth.Pages.ForgotPassword.Header");
 
   return (
-    <div className="flex flex-1 flex-col">
-      <ForgotPasswordHeader />
-      <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ForgotPasswordForm linkExpired={error === INVALID_RESET_LINK_ERROR} />
-      </div>
-    </div>
+    <AuthPage
+      header={
+        <AuthPageHeader title={t("title")} description={t("description")} />
+      }
+    >
+      <ForgotPasswordForm linkExpired={error === INVALID_RESET_LINK_ERROR} />
+    </AuthPage>
   );
 }

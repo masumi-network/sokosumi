@@ -112,8 +112,34 @@ jobs:
       - name: Check every shard passed
         run: test "${{ needs.web-shard.result }}" = success
 
-  core:
-    name: Test Core
+  # Core's unit suite ran 7+ minutes on one runner, so it shards like web.
+  # The PostgreSQL work runs beside the shards in `core-db`, and `core`
+  # below carries the required `Test Core` name.
+  core-shard:
+    name: Test Core (${{ matrix.shard }}/3)
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    permissions: *turbo-permissions
+    steps:
+      - *checkout
+      - *setup
+
+      # Same split as the web shards: turbo builds what `test:ci`'s `^build`
+      # would, from the remote cache, and pnpm runs the shard.
+      - &core-test-deps
+        name: Build test dependencies
+        run: pnpm exec turbo run build --filter='@sokosumi/core^...'
+
+      - name: Run Tests
+        run: pnpm --filter=@sokosumi/core run test:ci --shard=${{ matrix.shard }}/3
+
+  core-db:
+    name: Test Core PostgreSQL
     needs: changes
     if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
@@ -144,14 +170,13 @@ jobs:
           DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
         run: pnpm prisma:migrate:deploy
 
-      # Seconds, so it runs before the unit tests. On drift it prints the SQL
-      # the next `prisma migrate dev` would generate and exits 2.
+      # Seconds, so it runs before the PostgreSQL suites. On drift it prints
+      # the SQL the next `prisma migrate dev` would generate and exits 2.
       - name: Check Prisma schema matches migrations
         env: *migrated-db
         run: pnpm prisma:check-drift
 
-      - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=@sokosumi/core
+      - *core-test-deps
 
       # `optInDbExclude` in apps/core/vitest.config.ts keeps every
       # `src/**/*.postgres.test.ts` out of `test:ci`, so these files run
@@ -208,7 +233,7 @@ jobs:
       # it. Two suites running at once therefore steal each other's work
       # and fail on a row the other one wrote, which reads as a flake in
       # whichever file lost the race rather than as a defect anywhere.
-      # Serial here, and only here; the unit step above keeps its
+      # Serial here, and only here; the unit shards keep their
       # parallelism.
       - name: Test against PostgreSQL
         env: *migrated-db
@@ -216,6 +241,17 @@ jobs:
           RUN_DATABASE_INTEGRATION_TESTS=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
             --passWithNoTests=false --no-file-parallelism
+
+  core:
+    name: Test Core
+    needs: [changes, core-shard, core-db]
+    if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check every shard and the PostgreSQL suites passed
+        run: |
+          test "${{ needs.core-shard.result }}" = success
+          test "${{ needs.core-db.result }}" = success
 
   packages:
     name: Test Packages
