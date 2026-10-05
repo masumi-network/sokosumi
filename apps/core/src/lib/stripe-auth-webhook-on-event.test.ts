@@ -36,26 +36,7 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     handleSubscriptionCreatedEventMock(...args),
 }));
 
-import {
-  handleStripeAuthWebhookOnEvent,
-  isBillingStripeEventType,
-} from "./stripe-auth-webhook-on-event";
-
-describe("isBillingStripeEventType", () => {
-  it.each(["invoice.paid", "customer.created"] as const)(
-    "returns true for %s",
-    (eventType) => {
-      expect(isBillingStripeEventType(eventType)).toBe(true);
-    },
-  );
-
-  it.each(["customer.subscription.deleted", "customer.updated"] as const)(
-    "returns false for %s",
-    (eventType) => {
-      expect(isBillingStripeEventType(eventType)).toBe(false);
-    },
-  );
-});
+import { handleStripeAuthWebhookOnEvent } from "./stripe-auth-webhook-on-event";
 
 describe("handleStripeAuthWebhookOnEvent", () => {
   beforeEach(() => {
@@ -248,18 +229,21 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     expect(notifySubscriptionEndingMock).not.toHaveBeenCalled();
   });
 
-  it("routes billing events through stripeWebhookService", async () => {
-    const event = {
-      id: "evt_invoice",
-      type: "invoice.paid",
-      data: { object: { id: "in_123" } },
-    } as never;
+  it.each(["invoice.paid", "customer.created"] as const)(
+    "routes %s through stripeWebhookService",
+    async (type) => {
+      const event = {
+        id: "evt_billing",
+        type,
+        data: { object: { id: "obj_123" } },
+      } as never;
 
-    await handleStripeAuthWebhookOnEvent(event);
+      await handleStripeAuthWebhookOnEvent(event);
 
-    expect(handleEventMock).toHaveBeenCalledWith(event);
-    expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
-  });
+      expect(handleEventMock).toHaveBeenCalledWith(event);
+      expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("handles checkout.session.completed", async () => {
     const session = { id: "cs_123", subscription: "sub_123" };
