@@ -1,6 +1,6 @@
 # Sokosumi CLI
 
-[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.2`, with public access.
+[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.3`, with public access.
 It requires Node.js 24 and packages `dist` and `skills`. The binary is `sokosumi`.
 Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
 [VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
@@ -269,7 +269,7 @@ Configuration precedence is flags, process environment, home preferences, local 
 ## Build from source
 
 [CORRECTION, VERIFIED: `package.json`] The earlier publication-disabled statement was stale.
-The manifest sets public npm access and version `1.0.2`. Use Node.js 24 for this source build.
+The manifest sets public npm access and version `1.0.3`. Use Node.js 24 for this source build.
 
 To run the built binary directly:
 

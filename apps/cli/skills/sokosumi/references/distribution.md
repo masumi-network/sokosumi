@@ -29,7 +29,7 @@ npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill j
 [REPORTED: existing distribution instructions] These commands install Skill files only.
 Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build the checkout below.
 
-[VERIFIED: `apps/cli/package.json`] This checkout defines `@masumi_network/sokosumi` version `1.0.2` with public npm access.
+[VERIFIED: `apps/cli/package.json`] This checkout defines `@masumi_network/sokosumi` version `1.0.3` with public npm access.
 It requires Node.js 24 and includes `dist` and `skills` in the package.
 [VERIFIED: local documentation audit, 2026-09-30] Registry publication and package installation were not checked in this audit.
 
