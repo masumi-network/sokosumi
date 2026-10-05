@@ -51,10 +51,10 @@ export async function validateUpdatedUserName(
 }
 
 /**
- * Email sign-up takes a first and a last name; the display `name` starts as
- * the two joined and is the user's to change afterwards. Better Auth's own
- * body schema still requires `name`, so the before hook hands it this body
- * and the request needs none.
+ * Sign-up takes a first and a last name; the display `name` starts as the two
+ * joined and is the user's to change afterwards. Better Auth's own body
+ * schema still requires `name`, so the email code plugin's before hook hands
+ * it this body and the request needs none.
  */
 export function resolveSignUpNameBody(
   body: Record<string, unknown> | undefined,
@@ -76,19 +76,4 @@ export function resolveSignUpNameBody(
     lastName,
     name: joinFirstAndLastName(firstName, lastName),
   };
-}
-
-/**
- * An email code creates the account when the address is new. The sign-up
- * page sends the person's names with the code, and they follow the same
- * rules as email sign-up. The sign-in page sends none, and the account starts
- * without a name, which setup asks for.
- */
-export function resolveEmailCodeSignInNameBody(
-  body: Record<string, unknown> | undefined,
-) {
-  if (body?.firstName === undefined && body?.lastName === undefined) {
-    return body;
-  }
-  return resolveSignUpNameBody(body);
 }

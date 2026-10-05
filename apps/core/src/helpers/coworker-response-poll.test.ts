@@ -6,7 +6,11 @@ import {
   retrieveCoworkerResponse,
 } from "./coworker-response-poll";
 
-const fetchMock = vi.fn();
+const { fetchMock, safeFetchMock } = vi.hoisted(() => ({
+  fetchMock: vi.fn(),
+  safeFetchMock: vi.fn(),
+}));
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: safeFetchMock }));
 
 const DEFAULT_PARAMS = {
   responsesApiBaseUrl: "https://api.coworker.example.com/v1",
@@ -51,7 +55,9 @@ describe("pollCoworkerResponseStatus", () => {
       "https://api.coworker.example.com/v1/responses/resp_pending",
       expect.objectContaining({
         method: "GET",
+        maxResponseBytes: 16 * 1024 * 1024,
         headers: {
+          "Accept-Encoding": "identity",
           "X-Sokosumi-User-Id": "user_1",
           "X-Coworker-Slug": "elena",
           "X-Sokosumi-Organization-Id": "org_1",
@@ -180,5 +186,41 @@ describe("retrieveCoworkerResponse errors", () => {
       httpStatus: 404,
     });
     expect(retrieved.text).toBeNull();
+  });
+});
+
+describe("retrieveCoworkerResponse default transport", () => {
+  beforeEach(() => {
+    safeFetchMock.mockReset();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        throw new Error("Unsafe coworker fetch is forbidden");
+      }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("uses bounded SSRF-safe transport when no test fetch is supplied", async () => {
+    safeFetchMock.mockResolvedValueOnce(jsonResponse("completed"));
+    const { fetchFn: _fetchFn, ...params } = DEFAULT_PARAMS;
+    const retrieved = await retrieveCoworkerResponse(params);
+    expect(retrieved.result.status).toBe("completed");
+    expect(safeFetchMock).toHaveBeenCalledWith(
+      "https://api.coworker.example.com/v1/responses/resp_pending",
+      expect.objectContaining({
+        method: "GET",
+        maxResponseBytes: 16 * 1024 * 1024,
+        headers: expect.objectContaining({
+          "Accept-Encoding": "identity",
+          "X-Sokosumi-User-Id": "user_1",
+          "X-Coworker-Slug": "elena",
+        }),
+      }),
+    );
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });

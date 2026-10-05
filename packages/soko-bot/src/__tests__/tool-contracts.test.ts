@@ -8,6 +8,9 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
+  sokoBotListTasksInputSchema,
+  sokoBotReplyToTaskInputSchema,
+  sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "../index.js";
 
@@ -19,6 +22,36 @@ describe("Soko Bot tool contracts", () => {
     expect(Object.keys(SOKO_BOT_TOOL_DESCRIPTIONS).sort()).toEqual(
       [...SOKO_BOT_CAPABILITIES].sort(),
     );
+  });
+
+  it("cannot set or filter by the event-only CREATED status", () => {
+    expect(
+      sokoBotCreateTaskInputSchema.safeParse({ name: "x", status: "CREATED" })
+        .success,
+    ).toBe(false);
+    expect(
+      sokoBotUpdateTaskInputSchema.safeParse({
+        taskId: "t",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotReplyToTaskInputSchema.safeParse({
+        taskId: "t",
+        comment: "c",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotUpdateAssignedTaskInputSchema.safeParse({
+        taskId: "t",
+        comment: "c",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotListTasksInputSchema.safeParse({ status: "CREATED" }).success,
+    ).toBe(false);
   });
 
   it("normalizes task input at shared Eve/Core boundary", () => {

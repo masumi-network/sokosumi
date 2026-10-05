@@ -35,6 +35,7 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "4.0.21",
+    "@sokosumi/net": "workspace:*",
     "@sokosumi/utils": "workspace:*"
   },
   "devDependencies": {

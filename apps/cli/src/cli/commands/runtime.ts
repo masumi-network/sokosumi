@@ -1,5 +1,6 @@
 import { closeSync, openSync, readSync } from "node:fs";
 import { createCoworkerHttpClient } from "../../api/http-client.js";
+import { verifyPersonalWorkspace } from "../../api/services/personal-workspace-service.js";
 import type { CredentialStore } from "../../auth/secure-store.js";
 import {
   executeHermesTask,
@@ -39,6 +40,7 @@ const COMMON_OPTIONS = new Set([
   "api-key-stdin",
   "coworker-id",
   "organization-id",
+  "personal",
 ]);
 const RUN_OPTIONS = new Set([
   "provider",
@@ -184,9 +186,20 @@ export async function runRuntimeCommand({
     );
   }
   const coworkerId = requiredOption(options, "coworker-id");
-  const organizationId = ["key-import", "receipt"].includes(command)
-    ? ""
-    : requiredOption(options, "organization-id");
+  const personal = options.personal === true;
+  if (
+    personal &&
+    (!["start", "complete", "run"].includes(command) ||
+      options["organization-id"] !== undefined)
+  )
+    throw new Error(
+      "--personal supports runtime start/complete/run and cannot be combined with --organization-id",
+    );
+  const organizationId = personal
+    ? null
+    : ["key-import", "receipt"].includes(command)
+      ? ""
+      : requiredOption(options, "organization-id");
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
@@ -303,7 +316,24 @@ export async function runRuntimeCommand({
         );
       return;
     }
-    const context = { client, coworkerId, organizationId, taskId, signal };
+    const authorizePersonalWorkspace = personal
+      ? async (ownerId: string, workspaceId: string) => {
+          const scopedClient = createCoworkerHttpClient({
+            apiKey: apiKey!,
+            fetchImpl: dependencies.fetchImpl,
+            contextUserId: ownerId,
+          });
+          await verifyPersonalWorkspace(scopedClient, workspaceId, signal);
+        }
+      : undefined;
+    const context = {
+      client,
+      coworkerId,
+      organizationId,
+      taskId,
+      signal,
+      authorizePersonalWorkspace,
+    };
     if (command === "start") {
       const task = await startRuntimeTask(context);
       if (options.json) writeJson(stdout, redactSensitive(task, [apiKey]));
