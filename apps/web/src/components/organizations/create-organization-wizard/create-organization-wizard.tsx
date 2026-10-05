@@ -793,13 +793,9 @@ export function CreateOrganizationWizard({
                           variant="outline"
                           size="lg"
                           className="h-11 px-6"
-                          disabled={isUploadingLogo}
+                          loading={isUploadingLogo}
                         >
-                          {isUploadingLogo ? (
-                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                          ) : (
-                            <CloudUpload className="size-4" />
-                          )}
+                          <CloudUpload className="size-4" />
                           {logoUrl ? t("Logo.replace") : t("Logo.upload")}
                         </Button>
                       </FileUploadTrigger>
@@ -997,15 +993,11 @@ export function CreateOrganizationWizard({
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0"
-                      disabled={!emails.trim() || isSendingInvites || isLeaving}
+                      disabled={!emails.trim() || isLeaving}
+                      loading={isSendingInvites}
                       onClick={() => void handleSendInvites()}
                     >
-                      {isSendingInvites && (
-                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                      )}
-                      {isSendingInvites
-                        ? t("Invite.sending")
-                        : t("Invite.sendInvites")}
+                      {t("Invite.sendInvites")}
                     </Button>
                   </div>
                 </div>
@@ -1053,12 +1045,12 @@ export function CreateOrganizationWizard({
               size="lg"
               className="h-11 px-6"
               disabled={isBusy}
+              loading={isCreatingOrg}
             >
-              {isCreatingOrg && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
-              {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
-              {!isCreatingOrg && <ArrowRight className="size-4" />}
+              {t("Nav.next")}
+              {/* Keep the icon mounted. It is the only svg, so unmounting it
+                  drops `has-[>svg]` and the lg padding jumps while loading. */}
+              <ArrowRight className="size-4" />
             </Button>
           )}
           {step === 1 && (
@@ -1093,10 +1085,8 @@ export function CreateOrganizationWizard({
               className="h-11 w-full px-6"
               onClick={() => handleRequestClose(false)}
               disabled={isBusy}
+              loading={isLeaving}
             >
-              {isLeaving && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
               {t("Nav.finish")}
             </Button>
           )}

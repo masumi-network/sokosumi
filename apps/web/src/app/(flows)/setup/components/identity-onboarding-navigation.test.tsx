@@ -150,8 +150,10 @@ describe("IdentityOnboardingForm navigation", () => {
       screen.getByRole("button", { name: /Invite.sendInvites/i }),
     ).toBeDisabled();
     expect(screen.getByRole("button", { name: /Invite.copy/i })).toBeDisabled();
-    expect(finish).toBeDisabled();
-    expect(finish.querySelector(".animate-spin")).toBeTruthy();
+    expect(finish).toHaveAttribute("aria-busy", "true");
+    expect(
+      finish.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeTruthy();
     expect(mocks.preferred).not.toHaveBeenCalled();
     expect(mocks.replace).not.toHaveBeenCalled();
     await user.keyboard("{Escape}");
@@ -187,7 +189,9 @@ describe("IdentityOnboardingForm navigation", () => {
     });
     expect(mocks.setActive).toHaveBeenCalledOnce();
     expect(mocks.mint).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: /Nav.finish$/i })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Nav.finish$/i }),
+    ).toHaveAttribute("aria-busy", "true");
   });
   it.each(["in-band", "rejection"])(
     "retries %s selection errors and completes after preference failure",
@@ -221,7 +225,7 @@ describe("IdentityOnboardingForm navigation", () => {
       expect(screen.getByRole("dialog")).toBeTruthy();
       expect(
         screen.getByRole("button", { name: /Nav.finish$/i }),
-      ).toBeDisabled();
+      ).toHaveAttribute("aria-busy", "true");
     },
   );
   it("lets invites send before leaving and blocks same-batch sends after Finish", async () => {

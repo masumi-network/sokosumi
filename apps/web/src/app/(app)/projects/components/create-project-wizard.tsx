@@ -3,7 +3,7 @@
 import type { Project } from "@sokosumi/core-client";
 import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -368,18 +368,11 @@ export function CreateProjectWizard({
                   variant="primary"
                   size="lg"
                   className="h-11 px-6"
-                  disabled={!canContinueFromName || isSubmitting}
+                  disabled={!canContinueFromName}
+                  loading={isSubmitting}
                   onClick={() => void handleCreate()}
                 >
-                  {isSubmitting ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {isSubmitting
-                    ? t("Wizard.nav.creating")
-                    : t("Wizard.nav.create")}
+                  {t("Wizard.nav.create")}
                 </Button>
               )}
             </>

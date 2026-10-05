@@ -821,7 +821,7 @@ export function ProjectSocialPosts({
               {t("composer.close")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={cancelPending}
+              loading={cancelPending}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmCancel();
@@ -851,7 +851,7 @@ export function ProjectSocialPosts({
               {t("composer.close")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={publishPending}
+              loading={publishPending}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmPublish();

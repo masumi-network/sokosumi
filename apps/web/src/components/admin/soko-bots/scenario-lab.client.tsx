@@ -710,13 +710,14 @@ function ScenarioRow({
           size="sm"
           variant="ghost"
           disabled={disabled}
+          loading={running}
           onClick={onRun}
         >
           <Play
             aria-hidden
             className={cn("size-3.5", running && "animate-pulse")}
           />
-          {running ? t("running") : t("run")}
+          {t("run")}
         </Button>
       </div>
       {failure ? (

@@ -247,15 +247,10 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
           <Button
             type="submit"
             variant="secondary"
-            disabled={isPending || !email.trim()}
+            disabled={!email.trim()}
+            loading={isPending}
             className="sm:mb-0"
           >
-            {isPending ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
-            ) : null}
             {t("send")}
           </Button>
         </form>
@@ -301,17 +296,10 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                     className="size-8 shrink-0"
                     aria-label={t("revokeAria", { email: invitation.email })}
                     title={t("revoke")}
-                    disabled={revokingId === invitation.id}
+                    loading={revokingId === invitation.id}
                     onClick={() => void handleRevoke(invitation.id)}
                   >
-                    {revokingId === invitation.id ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Trash2 className="size-4" aria-hidden />
-                    )}
+                    <Trash2 className="size-4" aria-hidden />
                   </Button>
                 </li>
               ))}
@@ -383,17 +371,10 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
             type="button"
             variant="secondary"
             className="h-10 w-full shrink-0 sm:w-auto"
-            disabled={isCreatingLink}
+            loading={isCreatingLink}
             onClick={() => void handleCreateLink()}
           >
-            {isCreatingLink ? (
-              <Loader2
-                className="size-4 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
-            ) : (
-              <Link2 className="size-4" aria-hidden />
-            )}
+            <Link2 className="size-4" aria-hidden />
             {t("createLink")}
           </Button>
         </div>
@@ -441,17 +422,10 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                       className="size-8"
                       aria-label={t("revokeLinkAria")}
                       title={t("revokeLink")}
-                      disabled={revokingToken === link.token}
+                      loading={revokingToken === link.token}
                       onClick={() => void handleRevokeLink(link.token)}
                     >
-                      {revokingToken === link.token ? (
-                        <Loader2
-                          className="size-4 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        <Trash2 className="size-4" aria-hidden />
-                      )}
+                      <Trash2 className="size-4" aria-hidden />
                     </Button>
                   </div>
                 </div>

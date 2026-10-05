@@ -32,13 +32,14 @@ describe("NotificationOlderBoundaryRow", () => {
     expect(screen.queryByText("loading")).toBeNull();
   });
 
-  it("says it is loading only once it is", () => {
+  it("keeps its label and marks itself busy while loading", () => {
     const { container } = renderRow("loading");
 
-    expect(screen.getByText("loading")).toBeTruthy();
-    expect(screen.queryByText("showOlder")).toBeNull();
-    expect(container.querySelector("svg")).not.toBeNull();
-    expect(screen.getByRole("button")).toHaveProperty("disabled", true);
+    expect(screen.getByRole("button")).toHaveTextContent("showOlder");
+    expect(
+      container.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
   });
 
   it("keeps a retry on the row when a page fails", () => {
