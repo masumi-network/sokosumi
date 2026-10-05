@@ -1,9 +1,14 @@
+interface UsernameHintProps {
+  /** Confirmed on the email step. */
+  email: string;
+}
+
 /**
  * The address, hidden, inside a step's form: password managers pair the
  * password beside it with this account. Screen readers and Tab skip it; the
  * email chip above the form shows the address.
  */
-export function UsernameHint({ email }: { email: string }) {
+export function UsernameHint({ email }: UsernameHintProps) {
   return (
     <input
       data-testid="auth-field-username"

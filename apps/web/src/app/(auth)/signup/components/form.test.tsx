@@ -250,6 +250,7 @@ describe("SignUpForm with a password", () => {
     // the new password still has to be saved against it.
     expect(screen.queryByTestId("auth-field-email")).not.toBeInTheDocument();
     const username = container.querySelector('input[autocomplete="username"]');
+    expect(username).toBe(screen.getByTestId("auth-field-username"));
     expect(username).toHaveValue("new-user@example.com");
     expect(username).toHaveAttribute("readonly");
     expect(username).toHaveAttribute("aria-hidden", "true");
