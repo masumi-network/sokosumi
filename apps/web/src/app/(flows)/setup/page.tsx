@@ -62,7 +62,7 @@ export default async function WorkspaceGatePage({
   try {
     const workspaceAccess = await userService.getWorkspaceAccess();
     if (!workspaceAccess) {
-      // Session exists but workspace-access payload missing — treat as
+      // Session exists but Core's workspaces list is missing — treat as
       // temporary failure, not identity onboarding (user must understand why
       // they cannot enter).
       workspaceAccessLoadFailed = true;

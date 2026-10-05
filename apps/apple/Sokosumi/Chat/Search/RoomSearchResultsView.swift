@@ -35,9 +35,9 @@ struct RoomSearchResultsView: View {
               Text(error).foregroundStyle(.secondary)
               Button("Retry search", action: retry)
             case .idle:
-              Text("Search this conversation").foregroundStyle(.secondary).padding()
+              Text("Type to search messages in this chat.").foregroundStyle(.secondary).padding()
             case .empty:
-              Text("No messages found").foregroundStyle(.secondary).padding()
+              Text("No messages match your search.").foregroundStyle(.secondary).padding()
             case nil:
               EmptyView()
             }
@@ -50,7 +50,7 @@ struct RoomSearchResultsView: View {
                     Text(message.createdAt, style: .relative).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                   }
                   if message.parentMessageId != nil {
-                    Label("Reply", systemImage: "text.bubble").font(.caption).foregroundStyle(.secondary)
+                    Label("Thread reply", systemImage: "text.bubble").font(.caption).foregroundStyle(.secondary)
                   }
                   Text(message.content).font(.caption).foregroundStyle(.secondary).lineLimit(2)
                 }

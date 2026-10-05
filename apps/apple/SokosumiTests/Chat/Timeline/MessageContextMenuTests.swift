@@ -375,6 +375,39 @@
         #expect(actions.isSuperset(of: ["cut:", "copy:", "paste:"]), "\(outline(menu))")
       }
 
+      /// Row 41: Delete message asks with web's words (`room-message-row.tsx` `AlertDialog`: title `Message.delete`,
+      /// description `Message.deleteConfirm`). The real alert the menu raises is drawn as the window's sheet, light beside dark.
+      @Test func deleteAsksWithWebsWords() async throws {
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let fixture = try await Self.fixture()
+          defer { fixture.close() }
+          fixture.window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+          let menu = try #require(try await fixture.rightClick(at: fixture.textCenter, in: fixture.text))
+          let delete = try #require(menu.items.firstIndex { $0.title == "Delete message" })
+          menu.performActionForItem(at: delete)
+          let sheet = try await waitForView(in: fixture.host, timeoutMessage: "Delete raised no confirmation") {
+            fixture.window.attachedSheet?.contentView
+          }
+          defer { fixture.window.attachedSheet.map { fixture.window.endSheet($0) } }
+          for _ in 0 ..< 10 {
+            sheet.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+          }
+          let drawn = try #require(sheet.bitmapImageRepForCachingDisplay(in: sheet.bounds))
+          sheet.cacheDisplay(in: sheet.bounds, to: drawn)
+          let bitmap = try CreateChannelGuidanceTests.overWindowBackground(drawn, appearance: #require(fixture.window.appearance))
+          try columns.append([#require(bitmap.cgImage)])
+          // The alert's own text fields and buttons, read from the sheet rather than its pixels.
+          let texts = await hostedTexts(in: sheet)
+          #expect(texts.contains("Delete") && texts.contains("Cancel"), "\(texts)")
+          #expect(texts.contains("Delete this message? Others will see that it was deleted."), "\(texts)")
+          #expect(!texts.contains("Delete message?"), "\(texts)")
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "copy-delete-confirmation.png")
+      }
+
       /// The room composer is not a message row and keeps its editing menu.
       @Test func theComposerKeepsItsEditingMenu() throws {
         let input = MacComposerTextInput.InputView()

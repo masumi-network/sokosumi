@@ -106,7 +106,6 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
-    TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
     USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
   },
@@ -870,6 +869,21 @@ describe("SignUpForm email code", () => {
     expect(
       screen.getByRole("button", { name: "addPassword" }),
     ).toBeInTheDocument();
+  });
+
+  it("says no code went out until a new one is sent", async () => {
+    // Step 1's send failed, or Log in handed over without sending one.
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    expect(code).toHaveAccessibleDescription("notSent");
+
+    await user.click(screen.getByRole("button", { name: "resend" }));
+
+    await waitFor(() =>
+      expect(code).toHaveAccessibleDescription("sentNoAddress"),
+    );
   });
 
   it("creates the named account with the emailed code", async () => {

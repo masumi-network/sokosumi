@@ -5,6 +5,7 @@ import {
   type MemberWithUser,
   type MemberWithUserAndLastSeen,
   memberOrderBy,
+  membershipAgeOrderBy,
   memberUserInclude,
 } from "../types/member.js";
 import { MemberRole } from "../types/organization.js";
@@ -54,6 +55,7 @@ export const memberRepository = {
   ): Promise<string[]> {
     const userMemberships = await tx.member.findMany({
       where: { userId },
+      orderBy: [...membershipAgeOrderBy],
       select: { organizationId: true },
     });
     return userMemberships.map((m) => m.organizationId);

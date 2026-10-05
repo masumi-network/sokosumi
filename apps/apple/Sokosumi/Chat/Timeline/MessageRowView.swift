@@ -268,7 +268,7 @@ import SwiftUI
               DeliveryFeedback(pendingSince: pendingSince, sentAt: sentAt,
                                timestamp: message.createdAt)
               if message.editedAt != nil, message.deletedAt == nil {
-                Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "")
+                Text("Edited").help(message.editedAt.map { timeFormat.edited($0) } ?? "")
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }
@@ -314,7 +314,7 @@ import SwiftUI
               SokoBotMessageFooterView(turn: sokoBotFooter)
             }
             if isContinuation, message.editedAt != nil {
-              Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
+              Text("Edited").help(message.editedAt.map { timeFormat.edited($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
           if showsReactions {
@@ -428,11 +428,13 @@ import SwiftUI
         Button("Open") { openSavedMessage(saved) }
         Button("OK", role: .cancel) {}
       }
-      .alert("Delete message?", isPresented: $confirmsDeletion) {
+      // Web's words (`Message.delete`, `Message.deleteConfirm`), kept although since 19a a deleted message leaves
+      // the transcript on web as here; only a deleted Thread parent still reads "This message was deleted".
+      .alert("Delete", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
       } message: {
-        Text("This message will be deleted for everyone. This cannot be undone.")
+        Text("Delete this message? Others will see that it was deleted.")
       }
       // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
       .overlay { menuArea }

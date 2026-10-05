@@ -111,7 +111,6 @@ describe("EmailCodeForm", () => {
     ["INVALID_OTP", "invalid"],
     ["OTP_EXPIRED", "expired"],
     ["TOO_MANY_ATTEMPTS", "tooManyAttempts"],
-    ["TERMS_NOT_ACCEPTED", "termsNotAccepted"],
     // Better Auth's own message is English; the page says it in its language.
     ["SOMETHING_ELSE", "generic"],
   ])("explains a %s answer beside the field", async (code, message) => {

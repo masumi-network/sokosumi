@@ -154,7 +154,6 @@ describe("WorkspaceGatePage", () => {
       gate: "ready",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: true,
-      hasPendingOrganizationInvites: false,
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
@@ -174,7 +173,6 @@ describe("WorkspaceGatePage", () => {
       gate: "ready",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: true,
-      hasPendingOrganizationInvites: true,
     });
     getMyPendingOrganizationInvitationsMock.mockResolvedValue([
       {
@@ -200,7 +198,6 @@ describe("WorkspaceGatePage", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
@@ -321,7 +318,6 @@ describe("WorkspaceGatePage", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
 
     const { default: WorkspaceGatePage } = await import("./page");
@@ -337,7 +333,6 @@ describe("WorkspaceGatePage", () => {
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: true,
     });
     getMyPendingOrganizationInvitationsMock.mockResolvedValue([
       {
@@ -366,7 +361,6 @@ describe("WorkspaceGatePage", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
     getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
     resolveOrganizationInviteLinkMock.mockResolvedValue({
@@ -394,7 +388,6 @@ describe("WorkspaceGatePage", () => {
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: true,
     });
     getMyPendingOrganizationInvitationsMock.mockResolvedValue([
       {
@@ -428,7 +421,6 @@ describe("WorkspaceGatePage", () => {
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: true,
     });
     getMyPendingOrganizationInvitationsMock.mockResolvedValue([
       {
@@ -489,7 +481,6 @@ describe("WorkspaceGatePage", () => {
       gate: "pending-invites",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: true,
     });
     getMyPendingOrganizationInvitationsMock.mockRejectedValue(
       new Error("list down"),
@@ -509,7 +500,6 @@ describe("WorkspaceGatePage", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
     getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
     resolveOrganizationInviteLinkMock.mockRejectedValue(
@@ -528,7 +518,6 @@ describe("WorkspaceGatePage", () => {
       gate: "identity-onboarding",
       hasPersonalWorkspace: false,
       hasOrganizationMembership: false,
-      hasPendingOrganizationInvites: false,
     });
     getPendingOrganizationJoinTokenMock.mockResolvedValue("join_token_1");
     resolveOrganizationInviteLinkMock.mockResolvedValue({

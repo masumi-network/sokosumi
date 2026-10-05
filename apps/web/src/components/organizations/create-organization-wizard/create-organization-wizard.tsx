@@ -67,8 +67,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
-  generateOrganizationSlug,
+  createOrganizationWorkspaceAction,
   inviteOrganizationMembersBulk,
 } from "@/lib/actions/organization/action";
 import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
@@ -381,26 +382,16 @@ export function CreateOrganizationWizard({
     orgCreateInFlightRef.current = true;
     setIsCreatingOrg(true);
     try {
-      const slugResult = await generateOrganizationSlug({
+      // Core's workspaces resource (ADR 0051) generates the slug, stores the
+      // website and makes the organization preferred.
+      const created = await createOrganizationWorkspaceAction({
         name: values.name,
-        metadata: { url },
-        logo: "",
-      });
-      if (!slugResult.ok) {
-        toast.error(t("Errors.createFailed"));
-        return null;
-      }
-
-      const metadata = buildOrganizationMetadataWithUrl(null, url);
-      const created = await authClient.organization.create({
-        slug: slugResult.value,
-        name: values.name,
-        ...(metadata && { metadata }),
+        websiteUrl: url,
       });
 
-      if (created.error || !created.data) {
-        const message = created.error?.message ?? t("Errors.createFailed");
-        if (created.error?.status === 401) {
+      if (!created.ok) {
+        const message = created.error.message ?? t("Errors.createFailed");
+        if (created.error.code === CommonErrorCode.UNAUTHENTICATED) {
           toast.error(message, {
             action: {
               label: t("Errors.unauthorizedAction"),
@@ -413,11 +404,12 @@ export function CreateOrganizationWizard({
         return null;
       }
 
-      setOrganizationId(created.data.id);
+      const { organizationId: createdId } = created.value;
+      setOrganizationId(createdId);
       setOrganizationName(values.name);
       setNormalizedUrl(url);
       savedValuesRef.current = { name: values.name, url };
-      return created.data.id;
+      return createdId;
     } catch (error) {
       console.error("Failed to create organization", error);
       toast.error(t("Errors.createFailed"));

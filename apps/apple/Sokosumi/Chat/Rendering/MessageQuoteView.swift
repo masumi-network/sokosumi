@@ -31,7 +31,7 @@ struct MessageQuoteView: View {
           Text(quote.authorName)
         }
         if !quote.snippet.isEmpty {
-          ExpandableMessageBody(source: quote.snippet, collapsedLines: 4, measurementFont: .callout) {
+          ExpandableMessageBody(source: quote.snippet, collapsedLines: 4, measurementFont: .callout, titles: ("More", "Less")) {
             Text(renderedSnippet.characters.isEmpty ? AttributedString(quote.snippet) : renderedSnippet).font(.callout).textSelection(.enabled)
           }
         }

@@ -356,23 +356,6 @@ describe("ReauthDialog", () => {
     expect(onReauthenticated).not.toHaveBeenCalled();
   });
 
-  it("names a terms block on the code path", async () => {
-    mockSignInEmailCode.mockResolvedValue({
-      data: null,
-      error: { code: "TERMS_NOT_ACCEPTED" },
-    });
-    renderDialog([]);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-
-    const code = await screen.findByRole("textbox", { name: "codeLabel" });
-    await user.type(code, "042917");
-
-    await waitFor(() =>
-      expect(code).toHaveAccessibleDescription(/termsNotAccepted$/),
-    );
-  });
-
   it("never offers the code while the address is unproven", async () => {
     // Better Auth's `revokeUnprovenAccountAccess` deletes every linked account
     // and revokes every session when an unverified viewer signs in by email.
@@ -424,28 +407,6 @@ describe("ReauthDialog", () => {
     } finally {
       vi.useRealTimers();
     }
-  });
-
-  it("names a terms block instead of blaming the password", async () => {
-    // Core throws this with a code and no message, so the default branch
-    // would tell a viewer their correct password was wrong.
-    mockSignInEmail.mockResolvedValue({
-      data: null,
-      error: { code: "TERMS_NOT_ACCEPTED" },
-    });
-
-    renderDialog([passwordAccount]);
-
-    const user = userEvent.setup();
-    await user.type(
-      screen.getByTestId("reauth-field-currentPassword"),
-      "correct horse",
-    );
-    await user.click(screen.getByRole("button", { name: "confirm" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "termsNotAccepted",
-    );
   });
 
   it("says nothing about methods before the session resolves", () => {
