@@ -45,14 +45,6 @@ export interface AuthCaptcha {
   getErrorMessage: (error: AuthErrorAnswer, fallback: string) => string;
 }
 
-/**
- * Runs with the single-use pass Core's email status answer carries, so the
- * sign-in code sent next needs no widget of its own.
- */
-export function runWithCaptchaPass(pass: string): RunWithCaptcha {
-  return (action) => action({ headers: { [AUTH_CAPTCHA_HEADER]: pass } });
-}
-
 const ANALYTICS_EVENT = "Security Check";
 // Long enough for a slow interactive solve, short enough that a blocked
 // script does not read as a hang.

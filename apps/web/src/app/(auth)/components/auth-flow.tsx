@@ -21,7 +21,6 @@ import SignUpForm from "@/auth/signup/components/form";
 import SignInLink, {
   useSignInHref,
 } from "@/auth/signup/components/sign-in-link";
-import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import {
@@ -260,7 +259,7 @@ export default function AuthFlow({
                 follow: async (newEmail, signal, { captchaPass }) => {
                   const codeSentAt = await emailCode.sendCode(newEmail, {
                     signal,
-                    runWithCaptcha: runWithCaptchaPass(captchaPass),
+                    captchaPass,
                   });
                   if (signal.aborted) return;
                   rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -277,9 +276,7 @@ export default function AuthFlow({
                     method === "code"
                       ? await emailCode.sendCode(knownEmail, {
                           signal,
-                          runWithCaptcha: runWithCaptchaPass(
-                            account.captchaPass,
-                          ),
+                          captchaPass: account.captchaPass,
                         })
                       : null;
                   if (signal.aborted) return;
@@ -304,7 +301,7 @@ export default function AuthFlow({
           if (method === "code") {
             await emailCode.sendCode(confirmedEmail, {
               signal,
-              runWithCaptcha: runWithCaptchaPass(account.captchaPass),
+              captchaPass: account.captchaPass,
             });
           }
           if (!signal.aborted) setStep("finish");
