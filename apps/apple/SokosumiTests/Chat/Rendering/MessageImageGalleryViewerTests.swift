@@ -316,7 +316,7 @@
       @Test func oneImageHasNoStepControls() async throws {
         URLProtocol.registerClass(ScrollMediaProtocol.self)
         defer { URLProtocol.unregisterClass(ScrollMediaProtocol.self) }
-        let fixture = Self.fixture("Only one: " + Self.link("b", .portrait, run: UUID()))
+        let fixture = Self.fixture("Only one:\n" + Self.link("b", .portrait, run: UUID()))
         defer { Self.close(fixture) }
         try await Self.openImage(0, in: fixture, count: 1)
         let sheet = try await Self.sheet(of: fixture)

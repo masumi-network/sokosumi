@@ -170,15 +170,47 @@ struct MarkdownBareDomains {
     var offsets: [Int]
   }
 
+  /// Run on the source before `linkified()`: web cards Markdown links only, never a bare domain.
   func attachmentRuns() -> [AttachmentRun] {
+    let links = fileLinks()
+    let ranges = links.map(\.range)
+    var runs: [AttachmentRun] = []
+    for (range, attachment) in links where isAloneOnItsLine(range, among: ranges) {
+      if let last = runs.last, text[last.range.upperBound ..< range.lowerBound].allSatisfy(\.isWhitespace) {
+        runs[runs.count - 1].attachments.append(attachment)
+        runs[runs.count - 1].offsets.append(range.lowerBound)
+        runs[runs.count - 1].range = last.range.lowerBound ..< range.upperBound
+      } else {
+        runs.append(AttachmentRun(range: range, attachments: [attachment], offsets: [range.lowerBound]))
+      }
+    }
+    return runs
+  }
+
+  /// Row 15c (web `standaloneLinks`): a file link is a card only when its raw line, from the previous `\n` to the
+  /// next, holds nothing but whitespace once every file link on it is taken out. In a sentence, after a list, quote
+  /// or heading marker, between table pipes, beside an ordinary link or behind an image's `!` it stays a link.
+  private func isAloneOnItsLine(_ link: Range<Int>, among links: [Range<Int>]) -> Bool {
+    let start = text[..<link.lowerBound].lastIndex(of: "\n").map { $0 + 1 } ?? 0
+    let end = text[link.upperBound...].firstIndex(of: "\n") ?? text.count
+    var cursor = start
+    var rest: [Character] = []
+    for other in links where other.lowerBound >= start && other.lowerBound < end {
+      rest += text[cursor ..< max(cursor, other.lowerBound)]
+      cursor = max(cursor, other.upperBound)
+    }
+    rest += text[min(cursor, end) ..< end]
+    return rest.allSatisfy(\.isWhitespace)
+  }
+
+  /// File-like Markdown links in source order, outside fenced and inline code.
+  private func fileLinks() -> [(range: Range<Int>, attachment: MessageAttachment)] {
     let links = inlineLinks()
-    var groups: [AttachmentRun] = []
-    var open = false
+    var result: [(range: Range<Int>, attachment: MessageAttachment)] = []
     var index = 0
     var linkCursor = 0
     while index < text.count {
       if let end = skippableCodeEnd(at: index), end > index {
-        open = false
         index = end
         continue
       }
@@ -188,29 +220,15 @@ struct MarkdownBareDomains {
       if linkCursor < links.count, links[linkCursor].lowerBound == index {
         let range = links[linkCursor]
         if let attachment = attachment(in: range) {
-          if open, !groups.isEmpty {
-            groups[groups.count - 1].attachments.append(attachment)
-            groups[groups.count - 1].offsets.append(range.lowerBound)
-            groups[groups.count - 1].range = groups[groups.count - 1].range.lowerBound ..< range.upperBound
-          } else {
-            // Keep native Markdown images intact instead of rendering their ! as prose.
-            let start = range.lowerBound > 0 && text[range.lowerBound - 1] == "!" ? range.lowerBound - 1 : range.lowerBound
-            groups.append(AttachmentRun(range: start ..< range.upperBound, attachments: [attachment], offsets: [range.lowerBound]))
-            open = true
-          }
-        } else {
-          open = false
+          result.append((range, attachment))
         }
         index = range.upperBound
         linkCursor += 1
         continue
       }
-      if !text[index].isWhitespace {
-        open = false
-      }
       index += 1
     }
-    return groups
+    return result
   }
 
   /// A fence (optionally indented up to three spaces) or a same-line backtick span.
@@ -265,8 +283,7 @@ struct MarkdownBareDomains {
     guard urlEnd > labelEnd + 2 else { return nil }
     let urlText = unescapingMarkdownURL(String(text[(labelEnd + 2) ..< urlEnd]))
     guard let url = URL(string: urlText) else { return nil }
-    let kindHint: MessageAttachment.Kind? = open > 0 && text[open - 1] == "!" ? .image : nil
-    return MessageAttachment(url: url, label: label, kindHint: kindHint)
+    return MessageAttachment(url: url, label: label)
   }
 
   private func unescapingMarkdownURL(_ raw: String) -> String {
