@@ -14,8 +14,8 @@ The agent can stay on its operator's hardware or cloud host. Hermes is an option
 
 [VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/registration-authority.ts`]
 Discover existing Workspaces, Vendors, and Coworkers before proposing a new record. Reuse suitable records.
-The current path uses a selected organization Workspace on Preprod. It does not accept a personal Workspace for connection.
-On Preprod, a Vendor admin can create a private Coworker. On Mainnet, Core still requires platform-admin authority. CLI connection requires Vendor-admin and organization membership.
+The current path uses a selected organization Workspace on Preprod, or the caller's personal Workspace with `--personal`.
+On Preprod, a Vendor admin can create a private Coworker. On Mainnet, Core still requires platform-admin authority. CLI connection requires Vendor-admin membership and either organization membership or `--personal`. With `--personal`, `register` and `connect` create a missing personal Workspace.
 Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
 [REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.

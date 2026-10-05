@@ -56,7 +56,7 @@ export interface CoworkersCommandContext extends CommandContext {
 function rethrowCoworkerCreationError(
   error: unknown,
   vendorId: string,
-  organizationId = "ORGANIZATION_ID",
+  connectionOptions = "--workspace-id ORGANIZATION_ID",
 ): never {
   const failure = error instanceof Error ? error : new Error(String(error));
   const status = "status" in failure ? failure.status : undefined;
@@ -69,7 +69,7 @@ function rethrowCoworkerCreationError(
       guidance.push(
         "Core denied private Coworker creation. Ask the organizer or a Sokosumi platform admin to check Vendor authority and deployed self-service support.",
         `Send Vendor ${vendorId} and your final Coworker name to the organizer.`,
-        `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${organizationId}\`.`,
+        `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} ${connectionOptions}\`.`,
         "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
       );
     }
@@ -349,7 +349,7 @@ export async function runCoworkersCommand({
       rethrowCoworkerCreationError(
         error,
         vendorId,
-        workspace.organizationId ?? "PERSONAL_WORKSPACE",
+        workspace.connectionOptions,
       );
     }
     const coworkerId = String(record(coworker).id || "");
@@ -501,7 +501,7 @@ export async function runCoworkersCommand({
         access.status === "PENDING"
           ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} ${workspace.connectionOptions}\`.`
           : workspace.organizationId === null
-            ? "Next: sokosumi --preprod tasks create --personal --coworker-id COWORKER_ID --description DESCRIPTION"
+            ? `Next: sokosumi --preprod tasks create --personal --coworker-id ${coworkerId} --description DESCRIPTION --status READY`
             : `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
         access.status === "PENDING" ? PENDING_KEY_GUIDANCE : undefined,
         `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,

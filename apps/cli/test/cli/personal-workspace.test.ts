@@ -21,6 +21,7 @@ function fixture() {
   let mappingStatus = 200;
   const reads: string[] = [];
   const posts: { path: string; body: unknown }[] = [];
+  const contextUserIds: (string | null)[] = [];
   const output: string[] = [];
   const task = () => ({
     id: "task-1",
@@ -118,6 +119,7 @@ function fixture() {
         if (path === "/v1/tasks/task-1" && init?.method === "GET")
           return Response.json({ data: task() });
         if (path === `/v1/workspaces/${workspaceId}`) {
+          contextUserIds.push(headers.get("X-Context-User-Id"));
           assert.equal(headers.get("X-Context-User-Id"), "self-user");
           return Response.json(
             { data: { organizationId: mappedOrganization } },
@@ -150,6 +152,7 @@ function fixture() {
     coreClient,
     reads,
     posts,
+    contextUserIds,
     output,
     invoke,
     setExists(value: boolean) {
@@ -304,7 +307,9 @@ for (const [org, code] of [
         "--coworker-id",
         "cw-1",
       ]),
+      /Personal Workspace authorization failed\. Core did not confirm personal ownership\./,
     );
+    assert.deepEqual(f.contextUserIds, ["self-user"]);
     assert.equal(f.posts.length, 0);
   });
 test("personal runtime run uses the same authorized Workspace check", async () => {
