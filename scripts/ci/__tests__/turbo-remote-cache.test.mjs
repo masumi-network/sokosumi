@@ -232,11 +232,11 @@ describe("GitHub OIDC remote cache wiring", () => {
     assert.match(jobBlock(workflow, "renew"), queueKey);
     assert.match(
       jobBlock(workflow, "closed"),
-      /workflow_run\.name == 'PR closed'/,
+      /workflow_run\.path == '\.github\/workflows\/pr-closed\.yml'/,
     );
     assert.match(
       jobBlock(workflow, "renew"),
-      /workflow_run\.name == 'PR synchronize'/,
+      /workflow_run\.path == '\.github\/workflows\/pr-synchronize\.yml'/,
     );
     assert.match(jobBlock(workflow, "closed"), /secrets\.VERCEL_TOKEN/);
     assert.match(jobBlock(workflow, "renew"), /secrets\.NEON_API_KEY/);
