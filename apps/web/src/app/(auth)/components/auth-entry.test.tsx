@@ -3,14 +3,17 @@ import { err, ok } from "neverthrow";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { AuthEntrySearchParams } from "./auth-entry";
+
 const cookiesMock = vi.fn();
 const getMock = vi.fn();
-const signUpFlowMock = vi.fn();
+const authFlowMock = vi.fn();
 const getEnvSecretsMock = vi.fn();
 const handBackMock = vi.fn();
 const getSessionMock = vi.fn();
 const getOAuthClientPublicPreloginMock = vi.fn();
 const getOAuthClientPublicMock = vi.fn();
+const getPendingInvitationMock = vi.fn();
 
 // The clock reads 10:00:00; Core signs a request for ten minutes.
 const NOW = Date.parse("2026-09-30T10:00:00.000Z");
@@ -21,8 +24,12 @@ const OAUTH_SEARCH_PARAMS = {
   sig: "signed-value",
 };
 const OAUTH_QUERY = `client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=${NOW / 1000 + 600}&sig=signed-value`;
+const CMO = {
+  name: "CMO",
+  uri: "https://cmo.xyz/",
+  logoUri: "https://cmo.xyz/logo.png",
+};
 
-const getPendingInvitationMock = vi.fn();
 vi.mock("@/lib/services/organization.service", () => ({
   organizationService: {
     getPendingInvitation: (id: string) => getPendingInvitationMock(id),
@@ -55,9 +62,9 @@ vi.mock("@/auth/components/auth-flow", () => ({
     children?: ReactNode;
     notice?: ReactNode;
   }) => {
-    signUpFlowMock(props);
+    authFlowMock(props);
     return (
-      <div data-testid="sign-up-flow">
+      <div data-testid="auth-flow">
         {notice}
         {children}
       </div>
@@ -88,18 +95,37 @@ vi.mock("@/lib/auth/auth.server", () => ({
     getOAuthClientPublicPreloginMock(clientId, oauthQuery),
 }));
 
-describe("SignUp page", () => {
+type Page = (props: {
+  searchParams: Promise<AuthEntrySearchParams>;
+}) => ReactNode | Promise<ReactNode>;
+
+// Through both pages, so each one is seen passing its own mode.
+const PAGES = [
+  {
+    mode: "signIn",
+    load: async (): Promise<Page> => (await import("../signin/page")).default,
+  },
+  {
+    mode: "signUp",
+    load: async (): Promise<Page> => (await import("../signup/page")).default,
+  },
+] as const;
+
+describe.each(PAGES)("renderAuthEntry on the $mode page", ({ mode, load }) => {
+  async function renderPage(searchParams: AuthEntrySearchParams = {}) {
+    const Page = await load();
+    render(await Page({ searchParams: Promise.resolve(searchParams) }));
+  }
+
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"], now: NOW });
     vi.clearAllMocks();
-    getMock.mockReturnValue({ value: "email-otp" });
-    cookiesMock.mockResolvedValue({
-      get: getMock,
-    });
+    getMock.mockReturnValue(undefined);
+    cookiesMock.mockResolvedValue({ get: getMock });
     getEnvSecretsMock.mockReturnValue({
       NETWORK: "Preprod",
-      VERCEL_GIT_COMMIT_REF: "feature/123",
-      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "",
+      VERCEL_ENV: undefined,
     });
     getSessionMock.mockResolvedValue(null);
     getOAuthClientPublicPreloginMock.mockResolvedValue({
@@ -114,24 +140,26 @@ describe("SignUp page", () => {
     vi.useRealTimers();
   });
 
-  it("says the request from another app has expired instead of showing the form", async () => {
-    const { default: Page } = await import("./page");
+  it("opens the flow in this page's mode", async () => {
+    await renderPage();
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          ...OAUTH_SEARCH_PARAMS,
-          exp: String(NOW / 1000 - 60),
-        }),
-      }),
+    expect(authFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ mode }),
     );
+  });
+
+  it("says the request from another app has expired instead of showing the form", async () => {
+    await renderPage({
+      ...OAUTH_SEARCH_PARAMS,
+      exp: String(NOW / 1000 - 60),
+    });
 
     expect(screen.getByRole("alert")).toHaveTextContent("errorTitle");
     expect(screen.getByRole("alert")).toHaveTextContent("errorDescription");
     expect(
       screen.getByRole("link", { name: "backToSokosumi" }),
     ).toHaveAttribute("href", "/");
-    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("auth-flow")).not.toBeInTheDocument();
     expect(handBackMock).not.toHaveBeenCalled();
     expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
@@ -142,16 +170,11 @@ describe("SignUp page", () => {
     getOAuthClientPublicMock.mockResolvedValue(
       ok({ client_name: "CMO", client_uri: "https://cmo.xyz" }),
     );
-    const { default: Page } = await import("./page");
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          ...OAUTH_SEARCH_PARAMS,
-          exp: String(NOW / 1000 - 60),
-        }),
-      }),
-    );
+    await renderPage({
+      ...OAUTH_SEARCH_PARAMS,
+      exp: String(NOW / 1000 - 60),
+    });
 
     expect(screen.getByRole("alert")).toHaveTextContent("errorTitleFor");
     expect(screen.getByRole("alert")).toHaveTextContent("errorDescriptionFor");
@@ -159,7 +182,7 @@ describe("SignUp page", () => {
       "href",
       "https://cmo.xyz/",
     );
-    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("auth-flow")).not.toBeInTheDocument();
     expect(handBackMock).not.toHaveBeenCalled();
     expect(getOAuthClientPublicMock).toHaveBeenCalledOnce();
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
@@ -170,20 +193,17 @@ describe("SignUp page", () => {
     async (result) => {
       getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
       getOAuthClientPublicMock.mockResolvedValue(result);
-      const { default: Page } = await import("./page");
-      render(
-        await Page({
-          searchParams: Promise.resolve({
-            ...OAUTH_SEARCH_PARAMS,
-            exp: String(NOW / 1000 - 60),
-          }),
-        }),
-      );
+
+      await renderPage({
+        ...OAUTH_SEARCH_PARAMS,
+        exp: String(NOW / 1000 - 60),
+      });
+
       expect(screen.getByRole("alert")).toHaveTextContent("errorDescription");
       expect(
         screen.getByRole("link", { name: "backToSokosumi" }),
       ).toHaveAttribute("href", "/");
-      expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+      expect(screen.queryByTestId("auth-flow")).not.toBeInTheDocument();
       expect(handBackMock).not.toHaveBeenCalled();
       expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     },
@@ -193,13 +213,10 @@ describe("SignUp page", () => {
     "leaves boundary or malformed expiry with the existing form (%s)",
     async (exp) => {
       getOAuthClientPublicPreloginMock.mockResolvedValue(null);
-      const { default: Page } = await import("./page");
-      render(
-        await Page({
-          searchParams: Promise.resolve({ ...OAUTH_SEARCH_PARAMS, exp }),
-        }),
-      );
-      expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
+
+      await renderPage({ ...OAUTH_SEARCH_PARAMS, exp });
+
+      expect(screen.getByTestId("auth-flow")).toBeInTheDocument();
       expect(screen.queryByRole("alert")).not.toBeInTheDocument();
       expect(handBackMock).not.toHaveBeenCalled();
       expect(getOAuthClientPublicMock).not.toHaveBeenCalled();
@@ -207,163 +224,169 @@ describe("SignUp page", () => {
     },
   );
 
-  it("reads the last-login cookie using the configured preview prefix", async () => {
-    const { default: SignUpPage } = await import("./page");
+  it.each([
+    {
+      env: {
+        NETWORK: "Preprod",
+        VERCEL_GIT_COMMIT_REF: "",
+        VERCEL_ENV: undefined,
+      },
+      cookie: "sokosumi-localhost-preprod.last_used_login_method",
+    },
+    {
+      env: {
+        NETWORK: "Preprod",
+        VERCEL_GIT_COMMIT_REF: "feature/123",
+        VERCEL_ENV: "preview",
+      },
+      cookie: "sokosumi-preview-preprod-feature-123.last_used_login_method",
+    },
+  ])("reads the last-login cookie $cookie", async ({ env, cookie }) => {
+    getEnvSecretsMock.mockReturnValue(env);
 
-    render(
-      await SignUpPage({
-        searchParams: Promise.resolve({}),
-      }),
-    );
+    await renderPage();
 
-    expect(getMock).toHaveBeenCalledWith(
-      "sokosumi-preview-preprod-feature-123.last_used_login_method",
+    expect(getMock).toHaveBeenCalledWith(cookie);
+  });
+
+  it.each(["email", "google"] as const)(
+    "opens the flow on the method this browser used last (%s)",
+    async (method) => {
+      getMock.mockReturnValue({ value: method });
+
+      await renderPage();
+
+      expect(authFlowMock).toHaveBeenCalledWith(
+        expect.objectContaining({ lastUsedMethod: method }),
+      );
+    },
+  );
+
+  it("ignores a last-login cookie it does not know", async () => {
+    getMock.mockReturnValue({ value: "magic-link" });
+
+    await renderPage();
+
+    expect(authFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ lastUsedMethod: null }),
     );
   });
 
-  it("hands the invitation email and the last-used provider to the flow", async () => {
-    getMock.mockReturnValue({ value: "google" });
+  // The address never travels in the URL, which reaches logs and analytics.
+  it("locks the address the invitation names, not one from the URL", async () => {
     getPendingInvitationMock.mockResolvedValue({
-      invitation: { id: "inv_1", email: "ada@example.com" },
+      invitation: { id: "inv_1", email: "invited@example.com" },
     });
-    const { default: Page } = await import("./page");
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          email: "someone-else@example.com",
-          invitationId: "inv_1",
-          returnUrl: "/agents",
-        }),
-      }),
-    );
-
-    expect(signUpFlowMock).toHaveBeenCalledWith({
-      mode: "signUp",
+    await renderPage({
+      email: "someone-else@example.com",
       invitationId: "inv_1",
+      returnUrl: "/accept-invitation/inv_1",
+    });
+
+    expect(getPendingInvitationMock).toHaveBeenCalledWith("inv_1");
+    expect(authFlowMock).toHaveBeenCalledWith({
+      mode,
       client: undefined,
-      prefilledEmail: "ada@example.com",
-      returnUrl: "/agents",
-      lastUsedMethod: "google",
+      prefilledEmail: "invited@example.com",
+      invitationId: "inv_1",
+      returnUrl: "/accept-invitation/inv_1",
+      lastUsedMethod: null,
     });
   });
 
-  it("signs up without a lock when the invitation is gone", async () => {
-    getPendingInvitationMock.mockResolvedValue({ error: "NOT_FOUND" });
-    const { default: Page } = await import("./page");
+  it.each([
+    [
+      "is gone",
+      () => getPendingInvitationMock.mockResolvedValue({ error: "NOT_FOUND" }),
+    ],
+    [
+      "cannot be read",
+      () => {
+        getPendingInvitationMock.mockRejectedValue(new Error("Core down"));
+        vi.spyOn(console, "error").mockImplementation(() => undefined);
+      },
+    ],
+  ])("locks no address when the invitation %s", async (_case, arrange) => {
+    arrange();
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({ invitationId: "inv_1" }),
-      }),
-    );
+    await renderPage({ invitationId: "inv_1" });
 
-    expect(signUpFlowMock).toHaveBeenCalledWith(
+    expect(authFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ prefilledEmail: undefined }),
     );
   });
 
   it("says that creating an account accepts the terms", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve({}) }));
+    await renderPage();
 
     expect(screen.getByTestId("terms-notice")).toBeInTheDocument();
   });
 
   it("shows the product the person is continuing to", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+    await renderPage(OAUTH_SEARCH_PARAMS);
 
     // Asked with the signed request: the person is not signed in yet.
     expect(getOAuthClientPublicPreloginMock).toHaveBeenCalledWith(
       "cmo",
       OAUTH_QUERY,
     );
-    expect(signUpFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        client: {
-          name: "CMO",
-          uri: "https://cmo.xyz/",
-          logoUri: "https://cmo.xyz/logo.png",
-        },
-      }),
+    expect(authFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ client: CMO }),
     );
   });
 
   it("shows no product without an OAuth request", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve({}) }));
+    await renderPage();
 
     expect(getOAuthClientPublicPreloginMock).not.toHaveBeenCalled();
     expect(getSessionMock).not.toHaveBeenCalled();
-    expect(signUpFlowMock).toHaveBeenCalledWith(
+    expect(authFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ client: undefined }),
     );
   });
 
   it("falls back to the plain header when the product cannot be loaded", async () => {
     getOAuthClientPublicPreloginMock.mockResolvedValue(null);
-    const { default: Page } = await import("./page");
 
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+    await renderPage(OAUTH_SEARCH_PARAMS);
 
-    expect(signUpFlowMock).toHaveBeenCalledWith(
+    expect(authFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({ client: undefined }),
     );
-    expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-flow")).toBeInTheDocument();
   });
 
   it("hands a signed-in person with an OAuth request back to the provider", async () => {
     getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
-    const { default: Page } = await import("./page");
 
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+    await renderPage(OAUTH_SEARCH_PARAMS);
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: OAUTH_QUERY,
-      client: {
-        name: "CMO",
-        uri: "https://cmo.xyz/",
-        logoUri: "https://cmo.xyz/logo.png",
-      },
+      client: CMO,
     });
-    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("auth-flow")).not.toBeInTheDocument();
   });
 
   it("asks a signed-in person which account to use when the product asks for a new one", async () => {
     getSessionMock.mockResolvedValue({
-      // Signed in an hour before the product sent the request.
-      session: { id: "session-1", createdAt: "2026-09-30T09:00:00.000Z" },
+      session: { id: "session-1" },
       user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
-    const { default: Page } = await import("./page");
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          ...OAUTH_SEARCH_PARAMS,
-          prompt: "create",
-        }),
-      }),
-    );
+    await renderPage({ ...OAUTH_SEARCH_PARAMS, prompt: "create" });
 
     expect(handBackMock).toHaveBeenCalledWith({
       oauthQuery: `${OAUTH_QUERY}&prompt=create`,
-      client: {
-        name: "CMO",
-        uri: "https://cmo.xyz/",
-        logoUri: "https://cmo.xyz/logo.png",
-      },
+      client: CMO,
       accountToConfirm: {
         id: "user-1",
         name: "Ada Lovelace",
         email: "ada@example.com",
       },
     });
-    expect(screen.queryByTestId("sign-up-flow")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("auth-flow")).not.toBeInTheDocument();
   });
 
   it("asks even a session that started a moment before the request", async () => {
@@ -374,19 +397,14 @@ describe("SignUp page", () => {
       },
       user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
-    const { default: Page } = await import("./page");
 
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          ...OAUTH_SEARCH_PARAMS,
-          prompt: "create",
-          // Signed 300 ms after the session started: the case the removed
-          // `ba_iat` grace period answered without asking.
-          ba_iat: String(NOW),
-        }),
-      }),
-    );
+    await renderPage({
+      ...OAUTH_SEARCH_PARAMS,
+      prompt: "create",
+      // Signed 300 ms after the session started: the case the removed
+      // `ba_iat` grace period answered without asking.
+      ba_iat: String(NOW),
+    });
 
     expect(handBackMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -409,9 +427,8 @@ describe("SignUp page", () => {
       },
       user: { id: "user-1", name: "Ada Lovelace", email: "ada@example.com" },
     });
-    const { default: Page } = await import("./page");
 
-    render(await Page({ searchParams: Promise.resolve(OAUTH_SEARCH_PARAMS) }));
+    await renderPage(OAUTH_SEARCH_PARAMS);
 
     expect(handBackMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -421,37 +438,36 @@ describe("SignUp page", () => {
     );
   });
 
-  it("asks a signed-in person to sign in again when the request demands it", async () => {
-    getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
-    const { default: Page } = await import("./page");
-
-    render(
-      await Page({
-        searchParams: Promise.resolve({
-          ...OAUTH_SEARCH_PARAMS,
-          prompt: "login",
-        }),
-      }),
-    );
+  it("shows the form to a signed-out person when the product asks for a new account", async () => {
+    await renderPage({ ...OAUTH_SEARCH_PARAMS, prompt: "create" });
 
     expect(handBackMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId("sign-up-flow")).toBeInTheDocument();
+    expect(screen.getByTestId("auth-flow")).toBeInTheDocument();
   });
 
-  it("explains why a sign-in brought the person back", async () => {
-    const { default: Page } = await import("./page");
+  it("asks a signed-in person to sign in again when the request demands it", async () => {
+    getSessionMock.mockResolvedValue({ session: { id: "session-1" } });
 
-    render(
-      await Page({ searchParams: Promise.resolve({ error: "access_denied" }) }),
-    );
+    await renderPage({ ...OAUTH_SEARCH_PARAMS, prompt: "login" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent("cancelled");
+    expect(handBackMock).not.toHaveBeenCalled();
+    expect(screen.getByTestId("auth-flow")).toBeInTheDocument();
   });
+
+  it.each([
+    ["account_not_linked", "accountNotLinked"],
+    ["access_denied", "cancelled"],
+  ])(
+    "explains why a sign-in brought the person back (%s)",
+    async (error, message) => {
+      await renderPage({ error });
+
+      expect(screen.getByRole("alert")).toHaveTextContent(message);
+    },
+  );
 
   it("shows no error notice on a plain visit", async () => {
-    const { default: Page } = await import("./page");
-
-    render(await Page({ searchParams: Promise.resolve({}) }));
+    await renderPage();
 
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
