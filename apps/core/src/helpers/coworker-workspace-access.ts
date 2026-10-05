@@ -278,43 +278,6 @@ export function toCoworkerWorkspaceAccessApiShape(
   };
 }
 
-/**
- * Personal workspace: actor is the workspace user. Org workspace: any active
- * organization membership for workspace.organizationId.
- */
-export async function userBelongsToWorkspace(
-  userId: string,
-  workspaceId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<boolean> {
-  const workspace = await tx.workspace.findUnique({
-    where: { id: workspaceId },
-    select: { userId: true, organizationId: true },
-  });
-
-  if (!workspace) {
-    return false;
-  }
-
-  if (workspace.userId === userId) {
-    return true;
-  }
-
-  if (!workspace.organizationId) {
-    return false;
-  }
-
-  const membership = await tx.member.findFirst({
-    where: {
-      organizationId: workspace.organizationId,
-      userId,
-    },
-    select: { id: true },
-  });
-
-  return membership != null;
-}
-
 export async function findAccessByPair(
   coworkerId: string,
   workspaceId: string,
