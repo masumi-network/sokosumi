@@ -1,15 +1,10 @@
 "use client";
 
-import * as Sentry from "@sentry/nextjs";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { claimSignUpConversion } from "@/lib/actions/auth/action";
-import { authClient } from "@/lib/auth/auth.client";
-import {
-  createAuthSessionGetter,
-  normalizeAuthReturnUrl,
-  waitForAuthSession,
-} from "@/lib/auth/auth.utils";
+import { normalizeAuthReturnUrl } from "@/lib/auth/auth.utils";
+import { waitForClientSession } from "@/lib/auth/finish-auth.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { authMethodIdSchema } from "@/lib/schemas/auth";
 
@@ -41,13 +36,7 @@ export default function SocialAuthCallback({
     // same retry/timeout helper as the other auth surfaces.
     void (async () => {
       if (validationResult.success) {
-        const session = await waitForAuthSession({
-          context: eventType === "signUp" ? "signup" : "login",
-          getSession: createAuthSessionGetter(() => authClient.getSession()),
-          logWarning: (message) => {
-            Sentry.captureMessage(message, { level: "warning" });
-          },
-        }).catch(() => null);
+        const session = await waitForClientSession(eventType).catch(() => null);
         if (session) {
           switch (eventType) {
             case "signUp": {

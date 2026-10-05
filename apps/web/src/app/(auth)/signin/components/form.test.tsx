@@ -825,7 +825,7 @@ describe("SignInForm", () => {
       await submitPassword();
 
       await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith("Errors.termsNotAccepted"),
+        expect(toast.error).toHaveBeenLastCalledWith("termsNotAccepted"),
       );
     });
 

@@ -54,6 +54,23 @@ function countConversion(
 }
 
 /**
+ * Waits for the session a sign-in or sign-up just started; the first read can
+ * come back empty while the cookie settles. A slow session is reported to
+ * Sentry, and one that never arrives resolves to `null`.
+ */
+export function waitForClientSession(
+  eventType: FinishAuthInPlaceOptions["eventType"],
+) {
+  return waitForAuthSession({
+    context: eventType === "signUp" ? "signup" : "login",
+    getSession: createAuthSessionGetter(() => authClient.getSession()),
+    logWarning: (message) => {
+      Sentry.captureMessage(message, { level: "warning" });
+    },
+  });
+}
+
+/**
  * Completes a sign-in or sign-up that did not hand Better Auth a
  * `callbackURL` (credential sign-in, credential sign-up, passkey, email
  * code): wait for the session cookie to settle, count the conversion only if
@@ -89,13 +106,7 @@ export async function finishAuthInPlace({
   }
 
   await beforeLeaving?.();
-  const session = await waitForAuthSession({
-    context: eventType === "signUp" ? "signup" : "login",
-    getSession: createAuthSessionGetter(() => authClient.getSession()),
-    logWarning: (message) => {
-      Sentry.captureMessage(message, { level: "warning" });
-    },
-  });
+  const session = await waitForClientSession(eventType);
 
   if (session) {
     countConversion(eventType, provider);
