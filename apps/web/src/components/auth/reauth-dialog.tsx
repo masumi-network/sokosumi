@@ -62,8 +62,6 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
-  const passwordCaptcha = useAuthCaptcha("signin");
-  const emailCodeCaptcha = useAuthCaptcha("email-code");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
@@ -82,6 +80,10 @@ export function ReauthDialog({
   const hasPasswordAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
+  // One check for both email paths. Tokens are single-use and the widget
+  // resets after each, so a visitor Cloudflare wants to see is asked once
+  // rather than once per path.
+  const captcha = useAuthCaptcha(hasPasswordAccount ? "signin" : "email-code");
   // Read from the provider table rather than from the rows: Better Auth is
   // unique on providerId plus accountId, so two Google links are legal and
   // mapping the rows would render the same button twice under one React key.
@@ -122,7 +124,7 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await passwordCaptcha.runWithCaptcha((fetchOptions) =>
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
         authClient.signIn.email({
           fetchOptions,
           email,
@@ -138,7 +140,7 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: true,
-          message: passwordCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
             describeSignInError(result.error),
           ),
@@ -188,7 +190,7 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await emailCodeCaptcha.runWithCaptcha((fetchOptions) =>
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
         authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
@@ -201,7 +203,7 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: false,
-          message: emailCodeCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
             result.error.message ?? t("emailCodeError"),
           ),
@@ -284,7 +286,7 @@ export function ReauthDialog({
                     value={password}
                   />
                 </fieldset>
-                {passwordCaptcha.widget}
+                {captcha.widget}
                 <Button
                   className="w-full"
                   disabled={
@@ -334,7 +336,8 @@ export function ReauthDialog({
                     {t("orEmail")}
                   </p>
                 ) : null}
-                {emailCodeCaptcha.widget}
+                {/* With a password, the widget sits above Confirm. */}
+                {hasPasswordAccount ? null : captcha.widget}
                 {emailCodeSentAt !== null ? (
                   <EmailCodeForm
                     email={email}
