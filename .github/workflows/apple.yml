@@ -124,16 +124,16 @@ jobs:
       # `@Suite(.serialized) NativeWindowTests` (shared NSApplication window
       # state and URLProtocol registration) runs its ~300s of window tests one
       # after another there: the job's critical path. Separate processes each
-      # own those, so four run at once: the NativeWindowTests suites split in
-      # three by measured time, and everything else. Window tests mostly wait
-      # on the clock, so four processes beat one per runner core.
-      # The third shard takes every suite the first two do not list, so a new
-      # or renamed suite still runs. Move suites between `first` and `second`
-      # to rebalance.
+      # own those, so three run at once, one per runner core: the
+      # NativeWindowTests suites split in two by measured time, and
+      # everything else. A fourth process (three window shards) starved the
+      # package tests until a 30s optimistic-read expiry fired mid-test, and
+      # saved 11s.
+      # The second shard takes every suite the first does not list, so a new
+      # or renamed suite still runs. Move suites to `first` to rebalance.
       - name: Test Sokosumi workspace scheme
         run: |
-          first=(RoomHeaderTests ThreadParentMarkTests ChatCopyAlignmentTests TranscriptContentGrowthTests HistoryGapRowTests MessageImageViewerActionsTests RoomTitleRoutingTests)
-          second=(JumpSpotlightViewTests JumpMarkViewTests MessageImageGalleryViewerTests ThreadScrollNearTopTests MessageEditComposerControlsTests SidebarThreadRowsViewTests TranscriptScrollingTests SidebarRoomAttentionTests CrossRoomThreadsViewTests)
+          first=(RoomHeaderTests ThreadParentMarkTests JumpSpotlightViewTests JumpMarkViewTests ChatCopyAlignmentTests TranscriptContentGrowthTests HistoryGapRowTests SidebarThreadRowsViewTests SidebarRoomAttentionTests ThreadPaginationTests MessageEditComposerChromeTests)
           window=SokosumiTests/NativeWindowTests
           xctestrun=$(echo "$RUNNER_TEMP"/DerivedData/Build/Products/*.xctestrun)
           shards="$RUNNER_TEMP/shards"
@@ -142,8 +142,7 @@ jobs:
             xcodebuild test-without-building -xctestrun "$xctestrun" -destination 'platform=macOS,arch=arm64' -enableCodeCoverage NO -resultBundlePath "$shards/$1.xcresult" "${@:2}" > "$shards/$1.log" 2>&1
           }
           run window-1 "${first[@]/#/-only-testing:$window/}" & pids=($!)
-          run window-2 "${second[@]/#/-only-testing:$window/}" & pids+=($!)
-          run window-3 "-only-testing:$window" "${first[@]/#/-skip-testing:$window/}" "${second[@]/#/-skip-testing:$window/}" & pids+=($!)
+          run window-2 "-only-testing:$window" "${first[@]/#/-skip-testing:$window/}" & pids+=($!)
           run rest "-skip-testing:$window" & pids+=($!)
           status=0
           for pid in "${pids[@]}"; do
