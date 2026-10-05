@@ -22,7 +22,7 @@ export default function RegisterLoadingPage() {
           <Skeleton className="h-[50px] w-full" />
           <Skeleton className="h-[50px] w-full" />
         </div>
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <span className="text-muted-foreground text-sm">
             {t("Form.Login.message")}
           </span>

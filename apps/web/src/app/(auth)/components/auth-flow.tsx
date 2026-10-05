@@ -12,7 +12,7 @@ import {
 } from "react";
 
 import { AuthHeader } from "@/auth/components/auth-header";
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
+import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
@@ -197,7 +197,7 @@ export default function AuthFlow({
   if (step === "finish") {
     return frame(
       <>
-        <ConfirmedEmail
+        <EmailChip
           email={email}
           onChange={
             // An invitation fixes the address.
@@ -209,7 +209,7 @@ export default function AuthFlow({
                   setStep("email");
                 }
           }
-          changeDisabled={isFinishPending}
+          disabled={isFinishPending}
         />
         {isSignIn ? (
           <SignInForm
@@ -319,7 +319,7 @@ export default function AuthFlow({
         onPendingChange={setIsProviderPending}
       />
       {isSignIn ? (
-        <div className="flex flex-row items-center gap-2">
+        <div className="flex flex-row items-center justify-center gap-2">
           <span className="text-muted-foreground text-sm">
             {signInT("Register.message")}
           </span>
@@ -340,7 +340,7 @@ export default function AuthFlow({
           </Link>
         </div>
       ) : (
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <span className="text-muted-foreground text-sm">
             {signUpT("Login.message")}
           </span>
