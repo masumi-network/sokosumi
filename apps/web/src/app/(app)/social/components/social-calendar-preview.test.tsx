@@ -1,4 +1,5 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,7 +40,9 @@ function CalendarPost() {
   return (
     <button
       type="button"
-      onClick={() => preview?.("post-project", "scheduled-post")}
+      onClick={(event) =>
+        preview?.("post-project", "scheduled-post", event.currentTarget)
+      }
     >
       Open post
     </button>
@@ -83,6 +86,23 @@ describe("Social calendar previews", () => {
       projectId: "post-project",
       postId: "scheduled-post",
     });
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+  it("restores calendar focus when loading is canceled", async () => {
+    const user = userEvent.setup();
+    load.mockImplementation(() => new Promise(() => {}));
+    render(
+      <NuqsTestingAdapter>
+        <SocialCalendarPreviewProvider>
+          <CalendarPost />
+        </SocialCalendarPreviewProvider>
+      </NuqsTestingAdapter>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open post" });
+    await user.click(trigger);
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
     expect(onUrlUpdate).not.toHaveBeenCalled();
   });
 });

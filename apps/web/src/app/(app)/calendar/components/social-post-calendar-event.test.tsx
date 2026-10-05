@@ -62,7 +62,11 @@ describe("Social post calendar event", () => {
     renderCard();
     expect(screen.queryByRole("link")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button"));
-    expect(openPreview.current).toHaveBeenCalledWith("project", "post");
+    expect(openPreview.current).toHaveBeenCalledWith(
+      "project",
+      "post",
+      screen.getByRole("button"),
+    );
   });
   it.each([
     [

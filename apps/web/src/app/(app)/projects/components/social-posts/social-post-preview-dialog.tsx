@@ -21,18 +21,23 @@ export function SocialPostPreviewDialog({
   onOpenChange,
   onCompose,
   actions,
+  onCloseAutoFocus,
 }: {
   post: SocialPost | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onCompose: (mode: SocialPostComposerMode) => void;
   actions?: React.ReactNode;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
   const formatter = useFormatter();
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent
+        className="sm:max-w-md"
+        onCloseAutoFocus={onCloseAutoFocus}
+      >
         <DialogHeader>
           <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
           <DialogDescription>

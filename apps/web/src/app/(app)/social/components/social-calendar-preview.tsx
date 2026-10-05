@@ -18,7 +18,7 @@ import {
 import { loadSocialCalendarPreview } from "./social-calendar-preview-actions";
 
 const SocialCalendarPreviewContext = createContext<
-  ((projectId: string, postId: string) => void) | null
+  ((projectId: string, postId: string, trigger: HTMLElement) => void) | null
 >(null);
 
 export function useSocialCalendarPreview() {
@@ -32,6 +32,7 @@ export function SocialCalendarPreviewProvider({
   children: React.ReactNode;
 }) {
   const t = useTranslations("App.Projects.SocialPosts");
+  const triggerRef = useRef<HTMLElement | null>(null);
   const request = useRef(0);
   const [loading, setLoading] = useState(false);
   const [target, setTarget] = useState<{
@@ -39,7 +40,8 @@ export function SocialCalendarPreviewProvider({
     connections: ProjectSocialConnection[];
   } | null>(null);
 
-  async function show(projectId: string, postId: string) {
+  async function show(projectId: string, postId: string, trigger: HTMLElement) {
+    triggerRef.current = trigger;
     const current = ++request.current;
     setTarget(null);
     setLoading(true);
@@ -56,8 +58,8 @@ export function SocialCalendarPreviewProvider({
 
   return (
     <SocialCalendarPreviewContext.Provider
-      value={(projectId, postId) => {
-        void show(projectId, postId);
+      value={(projectId, postId, trigger) => {
+        void show(projectId, postId, trigger);
       }}
     >
       {children}
@@ -70,7 +72,14 @@ export function SocialCalendarPreviewProvider({
           }
         }}
       >
-        <DialogContent className="sm:max-w-md" aria-busy="true">
+        <DialogContent
+          className="sm:max-w-md"
+          aria-busy="true"
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            if (!target) triggerRef.current?.focus({ preventScroll: true });
+          }}
+        >
           <DialogHeader>
             <DialogTitle>{t("preview.dialogTitle")}</DialogTitle>
             <DialogDescription>{t("loading")}</DialogDescription>
@@ -85,6 +94,7 @@ export function SocialCalendarPreviewProvider({
           projectId={target.post.projectId}
           selectedPostId={target.post.id}
           previewOnly
+          returnFocus={() => triggerRef.current?.focus({ preventScroll: true })}
         />
       ) : null}
     </SocialCalendarPreviewContext.Provider>

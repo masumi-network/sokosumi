@@ -87,6 +87,7 @@ interface ProjectSocialPostsProps {
   projectId: string;
   /** Render only the post dialog and its actions for an unscoped calendar. */
   previewOnly?: boolean;
+  returnFocus?: () => void;
   /**
    * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
@@ -171,6 +172,7 @@ export function ProjectSocialPosts({
   projectId,
   selectedPostId,
   previewOnly = false,
+  returnFocus,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.SocialPosts");
@@ -212,6 +214,12 @@ export function ProjectSocialPosts({
       initialPosts.find((post) => post.id === selectedPostId) ?? null;
     setPreviewTarget(linkedPost);
     setPreviewOpen(Boolean(linkedPost));
+  }
+
+  function handleCloseAutoFocus(event: Event) {
+    if (!returnFocus) return;
+    event.preventDefault();
+    if (!composerMode && !cancelTarget && !publishTarget) returnFocus();
   }
 
   function postsIn(section: SectionKey): SocialPost[] {
@@ -751,6 +759,7 @@ export function ProjectSocialPosts({
                 }
               : undefined
           }
+          onCloseAutoFocus={handleCloseAutoFocus}
           onError={handleActionError}
           onOpenChange={(open) => {
             if (open) return;
@@ -783,6 +792,7 @@ export function ProjectSocialPosts({
               }
             : null
         }
+        onCloseAutoFocus={handleCloseAutoFocus}
         open={previewOpen}
         onOpenChange={(open) => {
           setPreviewOpen(open);
@@ -799,7 +809,7 @@ export function ProjectSocialPosts({
           if (!open && !cancelPending) setCancelTarget(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -829,7 +839,7 @@ export function ProjectSocialPosts({
           if (!open && !publishPending) setPublishTarget(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("publishDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>

@@ -27,12 +27,21 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
-
 import { createTestFormatter } from "@/test/intl-formatter";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { loadMoreSocialPosts } from "./actions";
 
-vi.mock("./actions", () => ({ loadMoreSocialPosts: vi.fn() }));
+vi.mock("@/lib/clients/core.browser.client", () => ({
+  coreClient: {
+    getProjectsByIdSocialConnections: (...args: unknown[]) =>
+      getSocialConnectionsMock(...args),
+  },
+}));
+
+vi.mock("./actions", () => ({
+  loadMoreSocialPosts: vi.fn(),
+}));
 
 const {
   pushMock,
@@ -42,12 +51,14 @@ const {
   uploadDriveFileMock,
   drivePickerFile,
   drivePickerVideoFile,
+  getSocialConnectionsMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   uploadDriveFileMock: vi.fn(),
+  getSocialConnectionsMock: vi.fn(),
   drivePickerFile: {
     name: "launch.png",
     fileUrl:
@@ -231,7 +242,12 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: { session: { activeOrganizationId: "org_1" } } }),
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org_1" },
+    },
+  }),
 }));
 
 vi.mock("@/lib/utils/drive-file-upload.client", () => ({
@@ -467,12 +483,14 @@ function NewPostButton() {
 
 function ComposeHarness({ children }: { children: React.ReactNode }) {
   return (
-    <NuqsTestingAdapter>
-      <SocialComposeProvider>
-        <NewPostButton />
-        {children}
-      </SocialComposeProvider>
-    </NuqsTestingAdapter>
+    <TestQueryProvider>
+      <NuqsTestingAdapter>
+        <SocialComposeProvider>
+          <NewPostButton />
+          {children}
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>
+    </TestQueryProvider>
   );
 }
 
@@ -487,6 +505,9 @@ describe("ProjectSocialPosts", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    getSocialConnectionsMock.mockRejectedValue(
+      new Error("photo lookup unavailable"),
+    );
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ id: "post-new", text: "Fresh" }),
@@ -692,15 +713,17 @@ describe("ProjectSocialPosts", () => {
 
   it("opens the composer when Social links here with ?compose=new", () => {
     renderUi(
-      <NuqsTestingAdapter searchParams="?compose=new">
-        <SocialComposeProvider>
-          <ProjectSocialPosts
-            connections={[buildConnection()]}
-            posts={[]}
-            projectId={PROJECT_ID}
-          />
-        </SocialComposeProvider>
-      </NuqsTestingAdapter>,
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?compose=new">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
     );
 
     expect(
@@ -1249,6 +1272,52 @@ describe("ProjectSocialPosts", () => {
     expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
     expect(
       within(screen.getByTestId("social-post-post-new")).getByText("Fresh"),
+    ).toBeVisible();
+  });
+
+  it("returns focus to the calendar trigger after closing a preview", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button" data-testid="preview-trigger">
+          Calendar post
+        </button>
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[SCHEDULED_POST]}
+          projectId={PROJECT_ID}
+          selectedPostId="post-scheduled"
+          previewOnly
+          returnFocus={() => screen.getByTestId("preview-trigger").focus()}
+        />
+      </>,
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.getByTestId("preview-trigger")).toHaveFocus(),
+    );
+  });
+
+  it("retries fetching missing account photos when opening New post", async () => {
+    const user = userEvent.setup();
+    getSocialConnectionsMock.mockResolvedValue({
+      data: [buildConnection({ avatarUrl: "https://example.com/photo.png" })],
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(getSocialConnectionsMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await waitFor(() =>
+      expect(getSocialConnectionsMock).toHaveBeenCalledWith(PROJECT_ID),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByTestId("social-post-accounts"),
     ).toBeVisible();
   });
 

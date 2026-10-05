@@ -181,7 +181,9 @@ function SocialPostPreviewCard({
       type="button"
       className={className}
       data-testid="calendar-social-post"
-      onClick={() => openPreview(item.sourceProjectId, item.postId)}
+      onClick={(event) =>
+        openPreview(item.sourceProjectId, item.postId, event.currentTarget)
+      }
     >
       {content}
     </button>

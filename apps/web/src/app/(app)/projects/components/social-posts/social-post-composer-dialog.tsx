@@ -14,6 +14,7 @@ import {
   socialPostProviderLabel,
   validateSocialPostMedia,
 } from "@sokosumi/utils";
+import { useQuery } from "@tanstack/react-query";
 import { Check, ImagePlus, Loader2, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
@@ -35,6 +36,7 @@ import {
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
 import { useSession } from "@/lib/auth/auth.client";
+import { coreClient } from "@/lib/clients/core.browser.client";
 import { cn } from "@/lib/utils";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
@@ -73,6 +75,7 @@ interface SocialPostComposerDialogProps {
   onConnectAccount?: () => void;
   onError: (error: ActionError) => void;
   onOpenChange: (open: boolean) => void;
+  onCloseAutoFocus?: (event: Event) => void;
   onSaved: (post: SocialPost) => void;
   open: boolean;
   projectId: string;
@@ -95,11 +98,12 @@ function resolveTimezone(): string {
 }
 
 export function SocialPostComposerDialog({
-  connections,
+  connections: initialConnections,
   mode,
   onConnectAccount,
   onError,
   onOpenChange,
+  onCloseAutoFocus,
   onSaved,
   open,
   projectId,
@@ -117,6 +121,28 @@ export function SocialPostComposerDialog({
   const uploadInFlightRef = useRef(false);
   const post = mode.kind === "create" ? null : mode.post;
   const { data: session } = useSession();
+  const { data: refreshedConnections } = useQuery({
+    queryKey: [
+      "social-connections",
+      session?.user?.id,
+      session?.session.activeOrganizationId ?? null,
+      projectId,
+    ],
+    queryFn: async () =>
+      (await coreClient.getProjectsByIdSocialConnections(projectId)).data,
+    enabled:
+      open &&
+      Boolean(session?.user?.id) &&
+      initialConnections.some((connection) => !connection.avatarUrl),
+    staleTime: 0,
+    retry: false,
+    refetchOnWindowFocus: false,
+  });
+  const connections =
+    refreshedConnections?.filter(
+      (connection) => connection.status === "active",
+    ) ?? initialConnections;
+
   const driveStore = driveStoreForActiveWorkspace(
     session?.session.activeOrganizationId ?? null,
   );
@@ -633,6 +659,7 @@ export function SocialPostComposerDialog({
     <TaskFormModal
       open={open}
       onOpenChange={onOpenChange}
+      onCloseAutoFocus={onCloseAutoFocus}
       title={title}
       cancelLabel={t("composer.dismiss")}
       isDismissDisabled={isBusy}
