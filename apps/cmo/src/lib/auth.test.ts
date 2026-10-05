@@ -1113,6 +1113,25 @@ describe("CMO auth handler", () => {
     expect(repeats.at(-1)).toBe(429);
   });
 
+  it("keeps the session when others on the same IP fill renewal's rate limit", async () => {
+    // An office or carrier NAT: every page load renews, signed in or not.
+    await signIn(auth, jar, core);
+    for (let visit = 0; visit < 120; visit += 1) {
+      const anonymous = browserRequest(new CookieJar(), "/");
+      anonymous.headers.set("x-vercel-forwarded-for", jar.ip);
+      await renewSession(auth, anonymous);
+    }
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(204);
+    expect(core.revoked).toEqual([]);
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
   it("renews with the visitor's IP, not one shared bucket", async () => {
     await signIn(auth, jar, core);
     const seen: (string | null)[] = [];
