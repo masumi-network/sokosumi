@@ -15,7 +15,7 @@ const CMO_CALLBACK = "https://cmo.example.com/callback";
 const EMAIL = "user@example.com";
 
 // Core's email code sign-in and OAuth provider on an in-memory store, with
-// the persistent-session after hook.
+// `afterNewSession` as the after hook.
 function createAuth() {
   const now = new Date();
   const codes = new Map<string, string>();
