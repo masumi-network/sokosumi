@@ -155,6 +155,7 @@ struct ChatRootView: View {
             .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
+      .modifier(RoomEditSheetsHost())
     }
     if let signOutError = auth.signOutError {
       Text(signOutError)
