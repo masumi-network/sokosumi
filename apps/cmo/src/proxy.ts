@@ -16,10 +16,11 @@ export async function proxy(request: NextRequest) {
   if (process.env.VERCEL_ENV === "preview") {
     const base = new URL(auth.options.baseURL);
     if (request.nextUrl.host !== base.host) {
-      const target = new URL(
-        `${request.nextUrl.pathname}${request.nextUrl.search}`,
-        base,
-      );
+      // Swap the host instead of resolving the path against it: a path like
+      // `//elsewhere` would resolve to another host.
+      const target = new URL(request.nextUrl.href);
+      target.protocol = base.protocol;
+      target.host = base.host;
       return NextResponse.redirect(target, 308);
     }
   }

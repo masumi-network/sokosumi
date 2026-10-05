@@ -34,8 +34,8 @@ const MAX_CHECK_ERROR_TOTAL_LENGTH = 2_000;
 
 /**
  * Vercel's Preview Deployment Suffix for this team (`apps/core/AGENTS.md`,
- * mirrored by the `https://*.preview.sokosumi.com` trustedOrigins entry in
- * `lib/auth.ts`). A Core host on this suffix is a preview deployment by
+ * mirrored by the preview-only `https://*.preview.sokosumi.com`
+ * trustedOrigins entry in `lib/auth.ts`). A Core host on this suffix is a preview deployment by
  * definition, so matching it can never silence a production alert.
  */
 const PREVIEW_DEPLOYMENT_HOST_SUFFIX = ".preview.sokosumi.com";
