@@ -49,3 +49,11 @@ timeout 200 corepack pnpm fetch || true
 The repo is already cloned at `/home/user/sokosumi` while the script runs, and the environment cache keeps the Corepack pnpm and the store `pnpm fetch` fills, so the hook's `pnpm install` only links (about 5 s). The cache rebuilds when the script changes or after about 7 days.
 
 Lint, typecheck, and tests need no database or secrets. PostgreSQL 16 is installed but stopped; run `service postgresql start` when a task needs it. Do not put secrets in the environment variables field: everyone using the environment can read them.
+
+### Sandbox facts
+
+- **Shallow clone.** The checkout holds about 50 commits, so `git diff origin/main...HEAD` or a merge on an older branch can fail with "no merge base". Run `git fetch --deepen=500 origin main <branch>` first.
+- **Install after merging `main`.** The `SessionStart` hook installs once. When a merge changes `pnpm-lock.yaml` (Biome then warns "node_modules are out of sync"), run `pnpm install --frozen-lockfile`, plus `pnpm prisma:generate` when `packages/database/prisma` changed.
+- **Not installed:** Swift and Xcode, so `Xcode test` in CI is the proof for `apps/apple` changes. The `linear` CLI and `LINEAR_API_KEY` are absent too; reach Linear through the Linear MCP connector, which the user can connect mid-session. `agent-browser` needs `npm i -g agent-browser`; Chromium is under `/opt/pw-browsers`, and proxy TLS setup is in `/root/.ccr/README.md`.
+- **Previews are a human check.** **Trusted** network access blocks `*.preview.sokosumi.com` and `challenges.cloudflare.com`, and previews serve the live Turnstile key, which an agent must not answer.
+- **Long suites.** The full Core suite (about 9k tests) and Web suite each run 8–10+ minutes, past the 10-minute foreground limit. Run the changed files in the foreground and full suites with `run_in_background`, one workspace at a time.
