@@ -1,7 +1,7 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -216,10 +216,14 @@ export const updatePreferredOrganization = withSession<
   }
 });
 
-// Core's rules for this body (user-workspace.schema.ts): name 2 to 50.
+// Core's rules for this body (user-workspace.schema.ts): name 2 to 50, and a
+// website it can normalize.
 const createOrganizationWorkspaceSchema = z.object({
   name: z.string().trim().min(2).max(50),
-  websiteUrl: z.string().trim().min(1),
+  websiteUrl: z
+    .string()
+    .trim()
+    .refine((value) => normalizeWebsiteUrl(value) !== null),
 });
 
 /**

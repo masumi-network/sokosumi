@@ -54,6 +54,7 @@ export const memberRepository = {
   ): Promise<string[]> {
     const userMemberships = await tx.member.findMany({
       where: { userId },
+      orderBy: { createdAt: "asc" },
       select: { organizationId: true },
     });
     return userMemberships.map((m) => m.organizationId);

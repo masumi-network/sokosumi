@@ -21,14 +21,12 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 const {
   invitationCountMock,
   memberFindManyMock,
-  resolveActiveOrganizationIdForSessionMock,
   upsertOrganizationWorkspaceMock,
   userFindUniqueMock,
   workspaceFindUniqueMock,
 } = vi.hoisted(() => ({
   invitationCountMock: vi.fn(),
   memberFindManyMock: vi.fn(),
-  resolveActiveOrganizationIdForSessionMock: vi.fn(),
   upsertOrganizationWorkspaceMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   workspaceFindUniqueMock: vi.fn(),
@@ -38,11 +36,6 @@ vi.mock("@sokosumi/database/repositories", () => ({
   workspaceRepository: {
     upsertOrganizationWorkspace: upsertOrganizationWorkspaceMock,
   },
-}));
-
-vi.mock("@/services/preferred-organization.service", () => ({
-  resolveActiveOrganizationIdForSession:
-    resolveActiveOrganizationIdForSessionMock,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -87,11 +80,11 @@ describe("GET /users/{id}/workspaces", () => {
       id: "user_123",
       name: "Ada Lovelace",
       email: "Ada@Example.com",
+      preferredOrganizationId: null,
     });
     workspaceFindUniqueMock.mockResolvedValue(null);
     memberFindManyMock.mockResolvedValue([]);
     invitationCountMock.mockResolvedValue(0);
-    resolveActiveOrganizationIdForSessionMock.mockResolvedValue(null);
   });
 
   it("returns an empty list with the pending invitation count", async () => {
@@ -123,7 +116,12 @@ describe("GET /users/{id}/workspaces", () => {
         },
       },
     ]);
-    resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_1");
+    userFindUniqueMock.mockResolvedValue({
+      id: "user_123",
+      name: "Ada Lovelace",
+      email: "Ada@Example.com",
+      preferredOrganizationId: "org_1",
+    });
 
     const response = await createApp().request("/me/workspaces");
 
@@ -167,6 +165,44 @@ describe("GET /users/{id}/workspaces", () => {
     ]);
   });
 
+  it("marks personal preferred over a stale preference, loading each row once", async () => {
+    userFindUniqueMock.mockResolvedValue({
+      id: "user_123",
+      name: "Ada Lovelace",
+      email: "Ada@Example.com",
+      preferredOrganizationId: "org_left",
+    });
+    workspaceFindUniqueMock.mockResolvedValue({ id: PERSONAL_WORKSPACE_ID });
+    memberFindManyMock.mockResolvedValue([
+      {
+        organization: {
+          id: "org_1",
+          name: "Acme",
+          slug: "acme-x1y2z3",
+          logo: null,
+          metadata: null,
+          workspace: { id: ORG_WORKSPACE_ID },
+        },
+      },
+    ]);
+
+    const response = await createApp().request("/me/workspaces");
+
+    const body = await response.json();
+    expect(body.data.workspaces).toEqual([
+      expect.objectContaining({ id: PERSONAL_WORKSPACE_ID, preferred: true }),
+      expect.objectContaining({ id: ORG_WORKSPACE_ID, preferred: false }),
+    ]);
+    // The route's user middleware reads the user too; the list reads it once.
+    expect(
+      userFindUniqueMock.mock.calls.filter(
+        ([args]) => args.select?.preferredOrganizationId,
+      ),
+    ).toHaveLength(1);
+    expect(workspaceFindUniqueMock).toHaveBeenCalledTimes(1);
+    expect(memberFindManyMock).toHaveBeenCalledTimes(1);
+  });
+
   it("creates the missing workspace row of an organization membership", async () => {
     memberFindManyMock.mockResolvedValue([
       {
@@ -181,7 +217,6 @@ describe("GET /users/{id}/workspaces", () => {
       },
     ]);
     upsertOrganizationWorkspaceMock.mockResolvedValue({ id: ORG_WORKSPACE_ID });
-    resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_1");
 
     const response = await createApp().request("/me/workspaces");
 
