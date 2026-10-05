@@ -178,7 +178,7 @@ async function renderErrors(element: ReactElement): Promise<unknown[]> {
   return errors;
 }
 
-describe("TaskDetailView (admin, forceReadOnly)", () => {
+describe("TaskDetailView (forceReadOnly: admin and developer views)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Core scopes GET /tasks/{id}/events to the caller's active workspace; a
@@ -208,6 +208,26 @@ describe("TaskDetailView (admin, forceReadOnly)", () => {
         commentCount: 7,
         latestCommentId: "evt_c6",
         canComment: false,
+      }),
+    );
+  });
+
+  it("keeps the workspace-scoped events read for the user-facing view", async () => {
+    const feedEvents = [event("evt_c0", "comment 0", 1)];
+    listTaskActivityFeedMock.mockResolvedValue({
+      events: feedEvents,
+      pagination: { commentCount: 12, latestCommentId: "evt_c11" },
+    });
+
+    const errors = await renderErrors(<TaskDetailView task={createTask([])} />);
+
+    expect(errors).toEqual([]);
+    expect(listTaskActivityFeedMock).toHaveBeenCalledWith("task_1");
+    expect(taskActivitySectionMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        events: feedEvents,
+        commentCount: 12,
+        latestCommentId: "evt_c11",
       }),
     );
   });

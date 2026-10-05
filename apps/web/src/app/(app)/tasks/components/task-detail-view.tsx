@@ -781,9 +781,9 @@ async function TaskActivitySectionContent({
     hasAssignedSeatPromise,
     mentionableUsersPromise,
     getTranslations("App.Tasks.Detail"),
-    // Admin read-only: the viewer is outside the task's workspace, so the
-    // workspace-scoped events read 404s. The admin payload already carries
-    // every event.
+    // Read-only (admin and developer views): the viewer is outside the task's
+    // workspace, so the workspace-scoped events read 404s. Those payloads
+    // already carry every event.
     forceReadOnly
       ? taskActivityFeedFromTask(task)
       : taskService.listTaskActivityFeed(taskId),
