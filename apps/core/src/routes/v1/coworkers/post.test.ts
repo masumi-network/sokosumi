@@ -106,6 +106,17 @@ describe("private Coworker self-service creation", () => {
     expect(mocks.create).not.toHaveBeenCalled();
   });
 
+  it("rejects a non-admin when NETWORK is unset", async () => {
+    vi.stubEnv("NETWORK", undefined);
+    try {
+      expect((await request()).status).toBe(403);
+      expect(mocks.lock).not.toHaveBeenCalled();
+      expect(mocks.create).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("preserves platform-admin creation on Mainnet", async () => {
     mocks.network = "Mainnet";
     expect(

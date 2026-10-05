@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 import slugify from "slugify";
-import { getEnv } from "@/config/env";
+import { getEnv, isExplicitPreprod } from "@/config/env";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
 import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
@@ -84,7 +84,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const userAuth = requireUserAuthContext(c.var.authContext);
     const isPlatformAdmin = hasAdminRole(userAuth.role);
-    if (!isPlatformAdmin && getEnv().NETWORK !== "Preprod") {
+    if (!isPlatformAdmin && !isExplicitPreprod(getEnv())) {
       throw forbidden("Coworker self-service creation is Preprod only");
     }
     const body = c.req.valid("json");
