@@ -148,6 +148,7 @@ function onboardingMessage(input: {
     "1) Learn the business: read the website (home, about, products, pricing), search for the company, its competitors and its existing marketing, then save the Brand Brain with save_brand_brain. Write down only what you found.",
     `2) If you confirmed what they sell, to whom, and the offer: plan the next month (start ${month}) with save_strategy (summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews: one short post, ad, SEO piece and newsletter in the brand's voice), then tell the owner in two or three lines what you learned and that they approve the plan once in the strategy card.`,
     "3) If you could not confirm all three, do not plan yet: tell the owner in one line what you found, and ask two or three short questions to fill the gaps.",
+    "The Brand Brain and strategy cards are your report here: do not call report_update, and never mention tool limits or what you may not do this turn.",
   ].join("\n");
 }
 
