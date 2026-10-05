@@ -2996,82 +2996,6 @@ describe("core auth config", () => {
     ).resolves.toBeUndefined();
   });
 
-  it("rejects sign-in when the user has not accepted the terms", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            after: (ctx: {
-              context: { newSession?: { user?: { termsAccepted?: boolean } } };
-              path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.after({
-        context: { newSession: { user: { termsAccepted: false } } },
-        path: "/sign-in/email",
-      }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: { code: "TERMS_NOT_ACCEPTED" },
-    });
-  });
-
-  it("allows sign-in when the user has accepted the terms", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            after: (ctx: {
-              context: {
-                authCookies?: {
-                  dontRememberToken: {
-                    attributes: { httpOnly: boolean; path: string };
-                    name: string;
-                  };
-                };
-                newSession?: {
-                  session: object;
-                  user?: { termsAccepted?: boolean };
-                };
-              };
-              path: string;
-              setCookie?: (
-                name: string,
-                value: string,
-                attributes: object,
-              ) => void;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.after({
-        context: {
-          authCookies: {
-            dontRememberToken: {
-              attributes: { httpOnly: true, path: "/" },
-              name: "sokosumi.dont_remember",
-            },
-          },
-          newSession: { session: {}, user: { termsAccepted: true } },
-        },
-        path: "/sign-in/email",
-        setCookie: vi.fn(),
-      }),
-    ).resolves.toBeUndefined();
-  });
-
   describe("persistent sessions", () => {
     type AfterHookContext = {
       context: {
@@ -3083,7 +3007,7 @@ describe("core auth config", () => {
         };
         newSession?: {
           session: { id?: string; impersonatedBy?: string | null };
-          user?: { termsAccepted?: boolean };
+          user?: object;
         };
         returned?: unknown;
       };
@@ -3137,7 +3061,7 @@ describe("core auth config", () => {
     }
 
     it("keeps a new session persistent and drops a stale dont_remember cookie", async () => {
-      const newSession = { session: {}, user: { termsAccepted: true } };
+      const newSession = { session: {}, user: {} };
       const setCookie = await runAfterHook("/sign-in/email-otp", {
         newSession,
         returned: { token: "session-token" },
@@ -3150,7 +3074,7 @@ describe("core auth config", () => {
     // status FOUND. It is a success, and its cookies still reach the browser.
     it("keeps a session from an OAuth callback redirect persistent", async () => {
       const { APIError } = await import("better-auth/api");
-      const newSession = { session: {}, user: { termsAccepted: true } };
+      const newSession = { session: {}, user: {} };
       const setCookie = await runAfterHook("/callback/google", {
         newSession,
         returned: new APIError("FOUND"),
@@ -3162,7 +3086,7 @@ describe("core auth config", () => {
     it("leaves the cookies alone when the endpoint failed", async () => {
       const { APIError } = await import("better-auth/api");
       const setCookie = await runAfterHook("/passkey/verify-authentication", {
-        newSession: { session: {}, user: { termsAccepted: true } },
+        newSession: { session: {}, user: {} },
         returned: new APIError("UNAUTHORIZED"),
       });
 
@@ -3174,7 +3098,7 @@ describe("core auth config", () => {
     // sign-in; setting the cookie there would make it resume again.
     it("leaves the cookie to the sign-in when the OAuth provider resumes authorize", async () => {
       const setCookie = await runAfterHook("/oauth2/authorize", {
-        newSession: { session: {}, user: { termsAccepted: true } },
+        newSession: { session: {}, user: {} },
         returned: { redirect: true, url: "https://app.cmo.xyz/callback" },
       });
 
@@ -3187,7 +3111,7 @@ describe("core auth config", () => {
       const setCookie = await runAfterHook("/admin/impersonate-user", {
         newSession: {
           session: { impersonatedBy: "admin-1" },
-          user: { termsAccepted: true },
+          user: {},
         },
         returned: { session: {} },
       });
@@ -3204,7 +3128,7 @@ describe("core auth config", () => {
       await runAfterHook("/sign-in/email-otp", {
         newSession: {
           session: { id: "session-new" },
-          user: { termsAccepted: true },
+          user: {},
         },
         returned: { token: "session-token" },
       });

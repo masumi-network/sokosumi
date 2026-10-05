@@ -388,15 +388,6 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-in")) {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", {
-            code: "TERMS_NOT_ACCEPTED",
-          });
-        }
-      }
-
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
         if (typeof organizationId === "string") {

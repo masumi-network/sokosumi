@@ -32,7 +32,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
 import { signIn } from "@/lib/auth/auth.client";
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
@@ -73,7 +72,6 @@ export default function SignInForm({
   onPendingChange,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-  const authErrorsT = useTranslations("Components.AuthErrors");
   const emailT = useTranslations("Auth.Email.Form");
   const schemaT = useTranslations("Library.Auth.Schema");
   const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
@@ -176,22 +174,9 @@ export default function SignInForm({
         if (result.error) {
           if (toastRejectedOAuthRequest(result.error)) return;
 
-          const errorCode =
-            "code" in result.error ? result.error.code : undefined;
-
-          switch (errorCode) {
-            case AuthErrorCode.TERMS_NOT_ACCEPTED:
-              toast.error(authErrorsT("termsNotAccepted"));
-              break;
-            default:
-              toast.error(
-                getErrorMessage(
-                  result.error,
-                  result.error.message ?? t("error"),
-                ),
-              );
-              break;
-          }
+          toast.error(
+            getErrorMessage(result.error, result.error.message ?? t("error")),
+          );
           return;
         }
 
@@ -287,10 +272,7 @@ export default function SignInForm({
                 if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
-              error={
-                fieldState.error?.message ??
-                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)
-              }
+              error={fieldState.error?.message}
               notice={handoverNotice}
               unsent={isCodeUnsent}
               sentAt={emailCode.sentAt}
