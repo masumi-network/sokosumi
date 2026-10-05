@@ -32,9 +32,7 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
-import Stripe from "stripe";
-import { sendEmail } from "@/clients/email.client";
-import { stripeClient } from "@/clients/stripe.client";
+import { stripeClient, stripe as stripeSdk } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import {
   getBetterAuthProductionUrl,
@@ -43,6 +41,7 @@ import {
   getWebAppBaseUrl,
   isProductionEnvironment,
 } from "@/config/env";
+import { sendEmailInBackground } from "@/helpers/background-email";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   evaluateUserDeletion,
@@ -55,7 +54,6 @@ import {
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
-import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
@@ -105,7 +103,6 @@ const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
-const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefixParams = {
@@ -386,21 +383,8 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
-      switch (ctx.path) {
-        case "/email-otp/send-verification-otp": {
-          // Codes only sign people in. Password resets and email
-          // verification keep their links.
-          if (ctx.body?.type !== "sign-in") {
-            throw new APIError("BAD_REQUEST", {
-              message: "Email codes only sign in",
-            });
-          }
-          break;
-        }
-        case "/update-user": {
-          await validateUpdatedUserName(ctx);
-          break;
-        }
+      if (ctx.path === "/update-user") {
+        await validateUpdatedUserName(ctx);
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
@@ -471,25 +455,19 @@ export const auth = betterAuth({
         resetLink: url,
       });
 
-      waitUntil(
-        sendEmail({
+      sendEmailInBackground(
+        {
           to: user.email,
           tag: "reset-password",
           subject: email.subject,
           html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "reset_password_email",
-            sentry: {
-              tags: {
-                context: "reset_password_email",
-              },
-            },
-            extra: {
-              userId: user.id,
-            },
-          });
-        }),
+        },
+        {
+          label: "reset_password_email",
+          extra: {
+            userId: user.id,
+          },
+        },
       );
     },
   },
@@ -505,25 +483,19 @@ export const auth = betterAuth({
         ),
       });
 
-      waitUntil(
-        sendEmail({
+      sendEmailInBackground(
+        {
           to: user.email,
           tag: "verification-email",
           subject: email.subject,
           html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "verification_email",
-            sentry: {
-              tags: {
-                context: "verification_email",
-              },
-            },
-            extra: {
-              userId: user.id,
-            },
-          });
-        }),
+        },
+        {
+          label: "verification_email",
+          extra: {
+            userId: user.id,
+          },
+        },
       );
     },
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
@@ -602,25 +574,19 @@ export const auth = betterAuth({
             expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
           });
 
-          waitUntil(
-            sendEmail({
+          // Provider errors can echo the address or code. Report only
+          // fixed text, without the original message, stack or cause.
+          sendEmailInBackground(
+            {
               to: email,
               tag: "email-code",
               subject: renderedEmail.subject,
               html: renderedEmail.html,
-            }).catch((error) => {
-              captureExternalServiceError(error, {
-                label: "email_code_email",
-                message: "Email code delivery failed",
-                sentry: {
-                  tags: {
-                    context: "email_code_email",
-                  },
-                },
-                // Provider errors can echo the address or code. Report only
-                // fixed text, without the original message, stack or cause.
-              });
-            }),
+            },
+            {
+              label: "email_code_email",
+              message: "Email code delivery failed",
+            },
           );
         },
       }),
@@ -689,7 +655,7 @@ export const auth = betterAuth({
         : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       ...oauthRefreshTokenOptions,
-      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_600)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
         opaqueAccessToken: OAUTH_ACCESS_TOKEN_PREFIX,
@@ -708,7 +674,7 @@ export const auth = betterAuth({
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.
     stripe({
-      stripeClient: stripeInstance,
+      stripeClient: stripeSdk,
       stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {

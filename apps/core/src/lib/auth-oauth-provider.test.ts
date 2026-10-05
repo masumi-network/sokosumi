@@ -280,21 +280,17 @@ describe("oauthRefreshTokenOptions", () => {
 
 describe("handleOAuthTokenRequest", () => {
   it.each([
-    {
-      url: "https://auth.example.com/auth/sign-in/email",
-      body: "grant_type=refresh_token",
-    },
     { body: "grant_type=authorization_code" },
     { body: "grant_type=refresh_token&client_assertion=single-use-assertion" },
     { body: "grant_type=refresh_token", headers: { dpop: "single-use-proof" } },
   ])(
     "leaves other grants and single-use proofs untouched (%j)",
-    async ({ url, body, headers }) => {
+    async ({ body, headers }) => {
       const response = new Response("{}", { status: 400 });
       const handler = vi.fn().mockResolvedValue(response);
       const retry = vi.fn();
       const request = new Request(
-        url ?? "https://auth.example.com/auth/oauth2/token",
+        "https://auth.example.com/auth/oauth2/token",
         {
           method: "POST",
           headers: {

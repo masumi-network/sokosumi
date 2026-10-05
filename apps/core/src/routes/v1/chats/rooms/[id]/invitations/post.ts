@@ -1,9 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { getEmailLocale } from "@sokosumi/utils";
-import { waitUntil } from "@vercel/functions";
 
-import { sendEmail } from "@/clients/email.client";
 import { getWebAppBaseUrl } from "@/config/env";
+import { sendEmailInBackground } from "@/helpers/background-email";
 import {
   assertChatRoomInvitationRateLimits,
   assertInviteeNotHostOrgMember,
@@ -21,7 +20,6 @@ import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import { publishChatRoomsChanged } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
-import { captureExternalServiceError } from "@/lib/external-service-errors";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -198,27 +196,21 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       organizationName: invitation.organizationName,
     });
 
-    waitUntil(
-      sendEmail({
+    sendEmailInBackground(
+      {
         to: invitation.email,
         tag: "chat-room-invitation-email",
         subject: renderedEmail.subject,
         html: renderedEmail.html,
-      }).catch((error) => {
-        captureExternalServiceError(error, {
-          label: "chat_room_invitation_email",
-          sentry: {
-            tags: {
-              context: "chat_room_invitation_email",
-            },
-          },
-          extra: {
-            invitationId: invitation.id,
-            roomId: invitation.roomId,
-            organizationId: invitation.organizationId,
-          },
-        });
-      }),
+      },
+      {
+        label: "chat_room_invitation_email",
+        extra: {
+          invitationId: invitation.id,
+          roomId: invitation.roomId,
+          organizationId: invitation.organizationId,
+        },
+      },
     );
 
     return created(c, invitation);

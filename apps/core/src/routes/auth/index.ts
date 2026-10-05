@@ -44,10 +44,9 @@ app.get("/.well-known/openid-configuration", (c) =>
   handleOpenIdConfiguration(c.req.raw),
 );
 
-// Mount Auth routes. Token requests are adjusted first: see
-// `handleOAuthTokenRequest`.
-app.on(["POST", "GET"], "*", async (c) => {
-  return handleOAuthTokenRequest(
+// Token requests are adjusted before Better Auth reads them.
+app.post("/oauth2/token", (c) =>
+  handleOAuthTokenRequest(
     c.req.raw,
     auth.handler,
     (body, request) =>
@@ -67,7 +66,9 @@ app.on(["POST", "GET"], "*", async (c) => {
             select: { rotatedAt: true, rotationReplayExpiresAt: true },
           }),
       ),
-  );
-});
+  ),
+);
+
+app.on(["POST", "GET"], "*", (c) => auth.handler(c.req.raw));
 
 export default app;
