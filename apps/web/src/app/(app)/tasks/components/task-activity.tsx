@@ -85,6 +85,9 @@ interface TaskActivityProps {
   actorSystemLabel: string;
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
+  actionCreatedTaskLabel: string;
+  /** Names the creation event when it has no actor (system, schedule). */
+  taskOwnerId?: string;
   events: TaskEvent[];
   /** Total comment events on the Task (Core meta); drives grouping. */
   commentCount?: number;
@@ -200,6 +203,8 @@ export function TaskActivitySection({
   actorSystemLabel,
   actionCommentedLabel,
   actionUpdatedStatusLabel,
+  actionCreatedTaskLabel,
+  taskOwnerId,
   events,
   commentCount: commentCountProp,
   latestCommentId: latestCommentIdProp,
@@ -500,6 +505,7 @@ export function TaskActivitySection({
               userById,
               coworkerById,
               sokoBotById,
+              taskOwnerId,
             );
             const actorName =
               actorInfo?.ownerName != null
@@ -574,12 +580,12 @@ export function TaskActivitySection({
                 )
               : null;
             const action =
-              chargePresentation.actionKind === "commented"
-                ? actionCommentedLabel
-                : chargePresentation.actionKind === "charged"
-                  ? (chargedLabel ?? actionUpdatedStatusLabel)
-                  : chargePresentation.actionKind === "created"
-                    ? t("actionCreated")
+              chargePresentation.actionKind === "createdTask"
+                ? actionCreatedTaskLabel
+                : chargePresentation.actionKind === "commented"
+                  ? actionCommentedLabel
+                  : chargePresentation.actionKind === "charged"
+                    ? (chargedLabel ?? actionUpdatedStatusLabel)
                     : actionUpdatedStatusLabel;
             const shouldShowSecondaryChargeLine =
               chargePresentation.shouldShowSecondaryChargeLine;

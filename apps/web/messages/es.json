@@ -1707,7 +1707,6 @@
         "parentTask": "Padre:",
         "properties": "Propiedades",
         "status": "Estado",
-        "owner": "Propietario",
         "organization": "Organización",
         "project": "Proyecto",
         "noProject": "Sin proyecto",
@@ -1761,8 +1760,8 @@
           "unknown": "Desconocido"
         },
         "actionCommented": "comentó",
-        "actionCreated": "creó esta tarea",
         "actionUpdatedStatus": "Estado cambiado a",
+        "actionCreatedTask": "creó la tarea",
         "actionChargedCredits": "cobró {credits, plural, =1 {# crédito} other {# créditos}}",
         "actionTriedChargedCredits": "intentó cobrar {credits, plural, =1 {# crédito} other {# créditos}}",
         "statusLabels": {

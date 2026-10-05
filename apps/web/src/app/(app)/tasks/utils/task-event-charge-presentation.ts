@@ -8,10 +8,10 @@ interface TaskEventChargePresentationInput {
 }
 
 export type TaskEventChargeActionKind =
+  | "createdTask"
   | "commented"
   | "updatedStatus"
-  | "charged"
-  | "created";
+  | "charged";
 
 export interface TaskEventChargePresentation {
   hasComment: boolean;
@@ -34,10 +34,10 @@ export function getTaskEventChargePresentation(
   const hasCharge = event.credits != null;
   const isAttemptedCharge = hasCharge && event.transactionId == null;
 
-  const actionKind: TaskEventChargeActionKind = hasComment
-    ? "commented"
-    : isCreatedEvent
-      ? "created"
+  const actionKind: TaskEventChargeActionKind = isCreatedEvent
+    ? "createdTask"
+    : hasComment
+      ? "commented"
       : hasStatus
         ? "updatedStatus"
         : hasCharge

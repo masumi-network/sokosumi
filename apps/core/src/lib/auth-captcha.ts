@@ -6,11 +6,8 @@ import {
 import type { BetterAuthPlugin } from "better-auth";
 import { captcha } from "better-auth/plugins";
 
-import {
-  consumeCaptchaPass,
-  isCaptchaPass,
-  SIGN_UP_EMAIL_STATUS_PATH,
-} from "./auth-sign-up-email-status.js";
+import { consumeCaptchaPass, isCaptchaPass } from "./auth-captcha-pass.js";
+import { SIGN_UP_EMAIL_STATUS_PATH } from "./auth-sign-up-email-status.js";
 
 const EMAIL_CODE_SEND_PATH = "/email-otp/send-verification-otp";
 

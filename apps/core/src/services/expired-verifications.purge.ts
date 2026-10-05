@@ -1,5 +1,5 @@
+import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "@/lib/auth-captcha-pass";
 import { SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES } from "@/lib/auth-sign-up-conversion";
-import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "@/lib/auth-sign-up-email-status";
 import prisma from "@/lib/db/prisma";
 
 /** Rows Core writes to Better Auth's `verification` table and alone deletes. */
