@@ -33,7 +33,7 @@ function createTestAuth(
     }),
     user: { changeEmail: { enabled: true } },
     emailAndPassword: { enabled: true, sendResetPassword: sendEmail },
-    emailVerification: { sendOnSignUp: true, sendVerificationEmail: sendEmail },
+    emailVerification: { sendVerificationEmail: sendEmail },
     plugins: [
       createAuthCaptchaPlugin(secretKey),
       emailOTP({ sendVerificationOTP: sendEmail }),
