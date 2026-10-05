@@ -18,6 +18,14 @@ export const EMAIL_CODE_SEND_PATH = "/email-otp/send-verification-otp";
 // body cannot set.
 const REMOVES_SIGN_IN_METHODS = "emailCodeSignInRemovesSignInMethods";
 
+/** A password sign-up for an address that already has an account. */
+function userAlreadyExists(): APIError {
+  return new APIError("UNPROCESSABLE_ENTITY", {
+    code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
+    message: "User already exists. Use another email.",
+  });
+}
+
 function isEmailCodeSignIn(ctx: { path?: string }): boolean {
   return ctx.path === EMAIL_CODE_SIGN_IN_PATH;
 }
@@ -90,12 +98,7 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
                     const found = await internalAdapter.findUserByEmail(
                       ...args,
                     );
-                    if (found) {
-                      throw new APIError("UNPROCESSABLE_ENTITY", {
-                        code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
-                        message: "User already exists. Use another email.",
-                      });
-                    }
+                    if (found) throw userAlreadyExists();
                     return found;
                   },
                 };
@@ -204,12 +207,7 @@ export function emailCodeSignIn(emailCode: ReturnType<typeof emailOTP>) {
                   message: "Password too long",
                 });
               }
-              if (found) {
-                throw new APIError("UNPROCESSABLE_ENTITY", {
-                  code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
-                  message: "User already exists. Use another email.",
-                });
-              }
+              if (found) throw userAlreadyExists();
               return { context: { body } };
             }
 

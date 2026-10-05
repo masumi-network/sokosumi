@@ -686,7 +686,7 @@ export const auth = betterAuth({
         : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       ...oauthRefreshTokenOptions,
-      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_600)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
         opaqueAccessToken: OAUTH_ACCESS_TOKEN_PREFIX,
