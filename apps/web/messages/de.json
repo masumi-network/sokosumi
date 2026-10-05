@@ -2422,7 +2422,6 @@
           "attention": "Braucht Aufmerksamkeit",
           "accounts": "Konten"
         },
-        "selectedPost": "Ausgewählter Beitrag",
         "empty": {
           "drafts": "Noch keine Entwürfe."
         },
@@ -2875,7 +2874,6 @@
     },
     "Social": {
       "title": "Social-Planung",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
         "label": "Neuer Post",
@@ -2893,11 +2891,11 @@
       },
       "accountsNeedProject": {
         "title": "X, YouTube, LinkedIn … verbinden",
-        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt in der Seitenleiste, um seine Konten zu verbinden oder zu verwalten."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
-        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt, um seine Entwürfe zu sehen und fertigzustellen."
+        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt in der Seitenleiste, um seine Entwürfe zu sehen und fertigzustellen."
       },
       "loading": "Social wird geladen…"
     },

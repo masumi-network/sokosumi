@@ -1,10 +1,17 @@
 import type { SocialPostCalendarItem } from "@sokosumi/core-client";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFormats } from "@/i18n/time-format";
 import messages from "../../../../../messages/en.json";
 import { SocialPostCalendarEvent } from "./social-post-calendar-event";
+
+const { openPreview } = vi.hoisted(() => ({
+  openPreview: { current: null as null | ReturnType<typeof vi.fn> },
+}));
+vi.mock("@/app/social/components/social-calendar-preview", () => ({
+  useSocialCalendarPreview: () => openPreview.current,
+}));
 
 const item: SocialPostCalendarItem = {
   kind: "socialPost",
@@ -47,6 +54,16 @@ function renderCard(
 }
 
 describe("Social post calendar event", () => {
+  beforeEach(() => {
+    openPreview.current = null;
+  });
+  it("opens a Social post through the in-place preview instead of a project link", () => {
+    openPreview.current = vi.fn();
+    renderCard();
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button"));
+    expect(openPreview.current).toHaveBeenCalledWith("project", "post");
+  });
   it.each([
     [
       {
