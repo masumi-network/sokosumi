@@ -113,6 +113,7 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
     assigneeUserId: null,
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+    canWrite: true,
     ...overrides,
   };
 }
@@ -140,7 +141,6 @@ function renderView(
       selectedState={state}
       canCreate
       canCreatePrivate={false}
-      currentUserId="user_1"
     />,
   );
 }
@@ -343,7 +343,6 @@ describe("TaskSchedulesView", () => {
         selectedState={null}
         canCreate
         canCreatePrivate={false}
-        currentUserId="user_1"
       />,
     );
     loadMoreTaskSchedulesMock.mockResolvedValue({

@@ -28,7 +28,7 @@ public extension WorkspaceState {
     let request = MentionRetryRequest(generation: timeline.generation, shellId: shell.id)
     guard !pendingMentionRetries.contains(request) else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to retry mentions.")
+      throw ChatServiceError.unauthorized("Log in to retry mentions.")
     }
     pendingMentionRetries.insert(request)
     defer { pendingMentionRetries.remove(request) }

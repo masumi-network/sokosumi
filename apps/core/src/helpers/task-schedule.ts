@@ -1,5 +1,5 @@
 import { TaskScheduleEndsMode } from "@sokosumi/database";
-import { isValidTimezone } from "@sokosumi/utils";
+import { isTaskScheduleCronShape, isValidTimezone } from "@sokosumi/utils";
 
 import { computeNextRun } from "@/helpers/cron";
 import { badRequest, unprocessableEntity } from "@/helpers/error";
@@ -184,14 +184,26 @@ export function computeIntervalNextRun(
 /**
  * Rejects a Task Schedule rule that never produces a Run: an unknown
  * timezone, a cron expression with no next time, or an end on or before the
- * first Run.
+ * first Run. Also rejects a cron outside the five-field contract.
  */
 export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
   if (!isValidTimezone(rule.timezone)) {
     throw badRequest("timezone is invalid");
   }
 
-  let nextRun: Date | null;
+  if (!isTaskScheduleCronShape(rule.expr)) {
+    throw badRequest(
+      "expr must be a five-field cron expression: minute, hour, day of month, month, day of week",
+    );
+  }
+
+  // Even when an interval determines the Runs, the submitted cron must
+  // satisfy the same parser semantics as every other Task Schedule rule.
+  let nextRun = computeNextRun({ cron: rule.expr, timezone: rule.timezone });
+  if (!nextRun) {
+    throw badRequest("expr is not a valid cron expression for the timezone");
+  }
+
   if (rule.intervalDays != null && rule.intervalDays > 1) {
     if (!rule.anchorAt) {
       throw badRequest(
@@ -210,12 +222,6 @@ export function validateTaskScheduleRule(rule: TaskScheduleRule): void {
       new Date(),
       rule.timezone,
     );
-  } else {
-    nextRun = computeNextRun({ cron: rule.expr, timezone: rule.timezone });
-  }
-
-  if (!nextRun) {
-    throw badRequest("expr is not a valid cron expression for the timezone");
   }
 
   if (rule.endsMode === TaskScheduleEndsMode.ON && rule.endsOn) {

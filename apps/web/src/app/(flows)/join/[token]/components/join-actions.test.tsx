@@ -28,6 +28,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: (...args: unknown[]) => updateUserMock(...args),
+    getSession: async () => ({ data: { user: { name: "" } }, error: null }),
   },
 }));
 
@@ -50,16 +51,18 @@ const messages = {
   Library: {
     Auth: {
       NameField: {
-        label: "Name",
-        placeholder: "Your name",
+        firstNameLabel: "First name",
+        lastNameLabel: "Last name",
         persistError: "Name update failed",
       },
       Schema: {
-        Name: {
-          invalid: "Invalid name",
-          required: "Name is required",
-          min: "Name must be at least 2 characters",
-          max: "Name is too long",
+        FirstName: {
+          required: "First name is required",
+          max: "First name is too long",
+        },
+        LastName: {
+          required: "Last name is required",
+          max: "Last name is too long",
         },
       },
     },
@@ -67,11 +70,11 @@ const messages = {
   Join: {
     join: "Join {organization}",
     joining: "Joining",
-    signIn: "Sign in",
+    signIn: "Log in",
     register: "Register",
     decline: "Decline",
     activateRetry: "Try switching again",
-    signedOutHint: "Sign in to join",
+    signedOutHint: "Log in to join",
     Error: {
       joinFailed: "Join failed",
       declineFailed: "Decline failed",
@@ -80,7 +83,11 @@ const messages = {
   },
 };
 
-function renderJoin(currentUserName: string) {
+function renderJoin(
+  currentUserName: string,
+  currentUserFirstName?: string | null,
+  currentUserLastName?: string | null,
+) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
       <JoinActions
@@ -89,6 +96,8 @@ function renderJoin(currentUserName: string) {
         organizationSlug="join-co"
         isAuthenticated={true}
         currentUserName={currentUserName}
+        currentUserFirstName={currentUserFirstName}
+        currentUserLastName={currentUserLastName}
       />
     </NextIntlClientProvider>,
   );
@@ -109,6 +118,26 @@ describe("JoinActions name collection", () => {
     });
   });
 
+  it("prefills and collects missing OAuth parts without replacing the provider name", async () => {
+    const user = userEvent.setup();
+    renderJoin("Countess of Lovelace", "Ada", "");
+    expect(screen.getByTestId("collect-user-first-name")).toHaveValue("Ada");
+    await user.click(screen.getByRole("button", { name: "Join Join Co" }));
+    expect(await screen.findByText("Last name is required")).toBeTruthy();
+    expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
+
+    await user.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
+    await user.click(screen.getByRole("button", { name: "Join Join Co" }));
+
+    await waitFor(() =>
+      expect(acceptOrganizationInviteLinkMock).toHaveBeenCalled(),
+    );
+    expect(updateUserMock).toHaveBeenCalledWith({
+      firstName: "Ada",
+      lastName: "Lovelace",
+    });
+  });
+
   it("collects a name before join when the user has none", async () => {
     const user = userEvent.setup();
     let resolveUpdate: (value: { error: null }) => void = () => {};
@@ -121,11 +150,16 @@ describe("JoinActions name collection", () => {
 
     renderJoin("");
 
-    await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await user.type(screen.getByTestId("collect-user-first-name"), "Ada");
+    await user.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
     await user.click(screen.getByRole("button", { name: /Join Join Co/ }));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+      expect(updateUserMock).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        name: "Ada Lovelace",
+      });
     });
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
 
@@ -142,7 +176,9 @@ describe("JoinActions name collection", () => {
     const user = userEvent.setup();
     renderJoin("Ada Lovelace");
 
-    expect(screen.queryByTestId("collect-user-name")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("collect-user-first-name"),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /Join Join Co/ }));
 
     await waitFor(() => {

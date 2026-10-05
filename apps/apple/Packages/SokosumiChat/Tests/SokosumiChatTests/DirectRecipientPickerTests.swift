@@ -7,7 +7,7 @@ struct DirectRecipientPickerTests {
   private let coworker = ChatRecipientTarget(id: .coworker("coworker"), name: "AI")
 
   @Test func groupedRecipientsPutCoworkersFirstAndOmitEmptySections() async {
-    let picker = DirectRecipientPicker(hasOrganization: true)
+    let picker = DirectRecipientPicker(hasOrganization: true, currentUserId: "me")
     let assistant = ChatRecipientTarget(id: .sokoBot("bot"), name: "Personal assistant")
     await picker.load { .init(targets: [person, assistant, coworker]) }
     #expect(picker.sections.map(\.id) == [.coworkers, .people, .assistant])
@@ -29,7 +29,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func selectionAndRetryPreserveOnlyAvailableRecipients() async {
-    let picker = DirectRecipientPicker(hasOrganization: true)
+    let picker = DirectRecipientPicker(hasOrganization: true, currentUserId: "me")
     await picker.load { .init(targets: [person, coworker]) }
     picker.add(person)
     #expect(picker.candidates == [coworker])
@@ -45,7 +45,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func rejectedCreationKeepsSelectionAndShowsRetryError() async {
-    let picker = DirectRecipientPicker(hasOrganization: false)
+    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
     await picker.load { .init(targets: [coworker]) }
     picker.add(coworker)
     #expect(await picker.create { _ in false } == false)
@@ -56,7 +56,7 @@ struct DirectRecipientPickerTests {
   }
 
   @Test func latestRosterWinsAndCreateIsSingleFlight() async {
-    let picker = DirectRecipientPicker(hasOrganization: false)
+    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
     var resumeLoad: CheckedContinuation<ChatRecipientRoster, Never>?
     let first = Task {
       await picker.load { await withCheckedContinuation { resumeLoad = $0 } }
@@ -83,5 +83,27 @@ struct DirectRecipientPickerTests {
     resumeCreate?.resume(returning: true)
     #expect(await create.value)
     #expect(!picker.creating)
+  }
+
+  /// Web's self row (`create-direct-dialog.test.tsx`:117-139, 201-209): first among the people, chosen alone, every
+  /// other row then unavailable, and the request is the reader's own id; a peer chosen first makes it unavailable.
+  @Test func messageYourselfIsChosenAloneAndOpensTheReader() async {
+    let yourself = ChatRecipientTarget.messageYourself(userId: "me", name: "Ada", imageURL: nil)
+    let picker = DirectRecipientPicker(hasOrganization: false, currentUserId: "me")
+    await picker.load { .init(targets: [yourself, person, coworker]) }
+    #expect(picker.sections.first { $0.id == .people }?.targets.first == yourself)
+    picker.add(yourself)
+    #expect(picker.selectedTargets == [yourself])
+    #expect(picker.selection.isSelfDirect)
+    picker.add(person)
+    picker.add(coworker)
+    #expect(picker.selectedTargets == [yourself])
+    #expect(picker.candidates.allSatisfy { picker.selection.disabledReason(for: $0.id) != nil })
+    #expect(await picker.create { $0.recipients == [.human("me")] })
+    picker.remove(yourself.id)
+    picker.add(person)
+    #expect(picker.selection.disabledReason(for: yourself.id) != nil)
+    picker.add(yourself)
+    #expect(picker.selectedTargets == [person])
   }
 }

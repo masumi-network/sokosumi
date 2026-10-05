@@ -17,19 +17,32 @@ interface DirectRoomAvatarStackProps {
   currentUserId: string;
 }
 
-/** Direct avatars show peers, or the owner for Self Direct. */
+/**
+ * Direct avatars show peers, or the owner for Self Direct. With every peer
+ * gone they show the Former members instead, so the row still says who the
+ * Direct was with rather than falling back to a generic mark.
+ */
 function getDirectParticipants(
   room: ChatRoom,
   currentUserId: string,
 ): ChatParticipantHoverProfile[] {
-  return getRoomParticipantPreviews(room)
-    .filter(
-      (participant) =>
-        room.isSelfDirect ||
-        participant.kind === "coworker" ||
-        participant.id !== currentUserId,
-    )
-    .slice(0, 3);
+  const participants = getRoomParticipantPreviews(room).filter(
+    (participant) =>
+      room.isSelfDirect ||
+      participant.kind === "coworker" ||
+      participant.id !== currentUserId,
+  );
+  if (participants.length > 0) {
+    return participants.slice(0, 3);
+  }
+  return room.formerUserMembers.slice(0, 3).map((member) => ({
+    kind: "human",
+    id: member.id,
+    name: member.name || member.email,
+    email: member.email,
+    image: member.image,
+    presence: "offline",
+  }));
 }
 
 /**
@@ -87,6 +100,8 @@ export function DirectRoomAvatarStack({
   currentUserId,
 }: DirectRoomAvatarStackProps) {
   const participants = getDirectParticipants(room, currentUserId);
+  // Former members are not here to be online, and their faces sit back.
+  const showsPresence = !room.isSelfDirect && !room.isReadOnly;
 
   if (participants.length === 0) {
     return (
@@ -122,13 +137,18 @@ export function DirectRoomAvatarStack({
             style={{ zIndex: participants.length - index }}
             data-testid={`dm-sidebar-avatar-${participant.id}`}
           >
-            <Avatar className="border-sidebar size-5 border">
+            <Avatar
+              className={cn(
+                "border-sidebar size-5 border",
+                room.isReadOnly && "opacity-50 grayscale",
+              )}
+            >
               <AvatarImage alt="" src={participant.image ?? undefined} />
               <AvatarFallback className="text-[0.5rem] font-medium">
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>
-            {!room.isSelfDirect ? (
+            {showsPresence ? (
               <LiveMemberPresenceDot
                 className="-right-0.5 -bottom-0.5 absolute size-2 border"
                 fallback={participant.presence}
@@ -137,7 +157,7 @@ export function DirectRoomAvatarStack({
                 userId={participant.id}
               />
             ) : null}
-            {participants.length === 1 && !room.isSelfDirect ? (
+            {participants.length === 1 && showsPresence ? (
               <LiveMemberPresenceText
                 className="sr-only"
                 fallback={participant.presence}

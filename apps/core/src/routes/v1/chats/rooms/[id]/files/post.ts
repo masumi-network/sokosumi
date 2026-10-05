@@ -31,7 +31,7 @@ import {
 import {
   requireChatRoomCoworkerAccess,
   requireChatRoomSokoBotAccess,
-  requireChatRoomUserMembership,
+  requireWritableChatRoom,
 } from "../../helpers";
 
 const paramsSchema = z.object({
@@ -165,7 +165,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const userContext = requireUserAuthContext(authContext);
-    await requireChatRoomUserMembership(roomId, userContext.userId, prisma);
+    await requireWritableChatRoom(roomId, userContext.userId, prisma);
 
     const session = await createChatRoomFileUploadSession(
       { kind: "user", userId: userContext.userId },

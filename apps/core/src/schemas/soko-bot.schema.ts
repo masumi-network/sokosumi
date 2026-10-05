@@ -85,6 +85,8 @@ export const sokoBotScheduleSchema = z
     enabled: z.boolean(),
     timezone: z.string(),
     cronExpression: z.string(),
+    /** Fires once at `nextRunAt`, then disables itself. */
+    runOnce: z.boolean().optional(),
     prompt: z.string(),
     /** Built-in rhythm key; owners can pause but not delete these. */
     systemKey: z.string().nullable().optional(),
@@ -175,7 +177,12 @@ export const sokoBotUsageSchema = z
     totalTokens: z.number().int().nonnegative(),
     costUsd: z.number().nonnegative(),
     billableCostUsd: z.number().nonnegative(),
+    /** Charged for the bot's own turns. */
     credits: z.number().nonnegative(),
+    /** Charged on Coworker Tasks and Agent jobs the bot started. */
+    delegatedCredits: z.number().nonnegative(),
+    /** Everything the bot spent: own turns plus delegated work. */
+    totalCredits: z.number().nonnegative(),
   })
   .openapi("SokoBotUsage");
 
@@ -438,6 +445,8 @@ export const adminSokoBotListItemSchema = z
     lastSucceededAt: dateTimeSchema.nullable(),
     lastFailedAt: dateTimeSchema.nullable(),
     consecutiveTurnFailures: z.number().int().nonnegative(),
+    /** The payer (organization or owner) cannot fund a minimum turn. */
+    outOfCredits: z.boolean(),
     turnCount: z.number().int().nonnegative(),
     pendingDecisionCount: z.number().int().nonnegative(),
     scheduleCount: z.number().int().nonnegative(),
@@ -937,6 +946,7 @@ export const sokoBotTeamSchema = z
             avatarImageUrl: z.string().nullable(),
             avatarSeed: z.string().nullable(),
             status: sokoBotStatusSchema,
+            lastActivityAt: dateTimeSchema.nullable(),
           })
           .nullable(),
       }),

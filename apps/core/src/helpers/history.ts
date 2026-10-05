@@ -624,7 +624,8 @@ export function mapHistoryRow(
       return {
         ...baseItem,
         kind: "task",
-        status: status as TaskStatus,
+        // Task.status is never CREATED.
+        status: status as Exclude<TaskStatus, "CREATED">,
         credits: row.amount != null ? convertCentsToCredits(row.amount) : null,
         projectId: row.projectId,
         coworkerId: row.coworkerId,

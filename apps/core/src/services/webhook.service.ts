@@ -10,29 +10,18 @@ const marketingOptInUserSchema = z.object({
 });
 
 export const webhookService = {
-  async callUserCreated(user: unknown): Promise<void> {
+  /** Validates the user, then calls the webhook configured for `type`. */
+  async callUserWebhook(
+    type: "userCreated" | "userUpdated",
+    user: unknown,
+  ): Promise<void> {
     const { success, data, error } = marketingOptInUserSchema.safeParse(user);
     if (!success) {
-      console.error("Invalid user data for user created webhook:", error);
+      console.error(`Invalid user data for ${type} webhook:`, error);
       return;
     }
 
-    await webhookClient.callWebhook("userCreated", {
-      userId: data.id,
-      email: data.email,
-      name: data.name,
-      marketingOptIn: data.marketingOptIn,
-    });
-  },
-
-  async callUserUpdated(user: unknown): Promise<void> {
-    const { success, data, error } = marketingOptInUserSchema.safeParse(user);
-    if (!success) {
-      console.error("Invalid user data for user updated webhook:", error);
-      return;
-    }
-
-    await webhookClient.callWebhook("userUpdated", {
+    await webhookClient.callWebhook(type, {
       userId: data.id,
       email: data.email,
       name: data.name,

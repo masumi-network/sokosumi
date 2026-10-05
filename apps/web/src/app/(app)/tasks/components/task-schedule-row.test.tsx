@@ -94,21 +94,18 @@ function schedule(overrides: Partial<TaskSchedule> = {}): TaskSchedule {
     assigneeUserId: null,
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+    canWrite: true,
     ...overrides,
   };
 }
 
-function renderRow(
-  overrides: Partial<TaskSchedule> = {},
-  { currentUserId = OWNER.id }: { currentUserId?: string | null } = {},
-) {
+function renderRow(overrides: Partial<TaskSchedule> = {}) {
   return render(
     <ul>
       <TaskScheduleRow
         assigneeDisplayOptions={[ELENA, OWNER]}
         canCreatePrivate={false}
         coworkerOptions={[ELENA]}
-        currentUserId={currentUserId}
         onChanged={vi.fn()}
         projectOptions={[PROJECT]}
         schedule={schedule(overrides)}
@@ -193,9 +190,28 @@ describe("TaskScheduleRow", () => {
     ).toMatch(/z-10/);
   });
 
-  it("offers no edit to anyone but the owner", () => {
-    renderRow({}, { currentUserId: "user_other" });
+  it("offers no edit when Core says the viewer may not change it", () => {
+    renderRow({ canWrite: false });
 
-    expect(screen.queryByRole("button", { name: "edit" })).toBeNull();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("lets a teammate reach the edit control with the keyboard when Core allows it", async () => {
+    const user = userEvent.setup();
+    renderRow({
+      ownerId: "another_member",
+      organizationId: "org_1",
+      canWrite: true,
+    });
+
+    await user.tab();
+    expect(screen.getByRole("link", { name: "Weekly report" })).toHaveFocus();
+    await user.tab();
+    expect(screen.getByRole("button", { name: "edit" })).toHaveFocus();
+    await user.keyboard("{Enter}");
+
+    expect(
+      screen.getByRole("dialog", { name: "schedule dialog" }),
+    ).toBeInTheDocument();
   });
 });

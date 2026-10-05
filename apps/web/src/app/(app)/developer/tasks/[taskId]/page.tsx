@@ -50,7 +50,11 @@ export default async function DeveloperTaskDetailPage({
         </div>
       </div>
 
-      <TaskDetailView task={task} forceReadOnly />
+      <TaskDetailView
+        task={task}
+        forceReadOnly
+        relatedTaskHrefBasePath="/developer/tasks"
+      />
     </div>
   );
 }

@@ -15,7 +15,6 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
-  pickPreviewUrl,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -277,26 +276,54 @@ describe("createGitDeployment", () => {
     assert.equal(body.gitSource.sha, "abc123");
     assert.equal(body.target, undefined);
   });
-});
 
-describe("pickPreviewUrl", () => {
-  it("prefers the git preview.sokosumi.com alias", () => {
-    assert.equal(
-      pickPreviewUrl({
-        url: "sokosumi-app-mainnet-abc.vercel.app",
-        alias: [
-          "sokosumi-app-mainnet-abc.vercel.app",
-          "sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
-        ],
+  it("puts Vercel's error code and message in the thrown error", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { code: "bad_request", message: "Invalid preview suffix" },
       }),
-      "https://sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
+    });
+    const target = deployTargets(["mainnet"], ["cmo"])[0];
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target,
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      {
+        message:
+          "Vercel deploy failed for sokosumi-cmo (400): bad_request: Invalid preview suffix",
+      },
     );
   });
 
-  it("falls back to the deployment url", () => {
-    assert.equal(
-      pickPreviewUrl({ url: "sokosumi-app-mainnet-abc.vercel.app" }),
-      "https://sokosumi-app-mainnet-abc.vercel.app",
+  it("keeps the status when the error body is not JSON", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 502,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target: deployTargets(["mainnet"], ["web"])[0],
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      { message: "Vercel deploy failed for sokosumi-app-mainnet (502)" },
     );
   });
 });
@@ -1193,12 +1220,21 @@ describe("git preview policy", () => {
       assert.doesNotMatch(job, /ref:.*pull_request\.head/);
     }
     const renew = jobBlock(workflow, "renew");
-    assert.match(renew, /workflow_run\.name == 'PR synchronize'/);
+    assert.match(
+      renew,
+      /workflow_run\.path == '\.github\/workflows\/pr-synchronize\.yml'/,
+    );
     assert.match(renew, /preview-lifecycle\.ts renew/);
     assert.doesNotMatch(renew, /vercel-deploy\.mjs/);
     const closed = jobBlock(workflow, "closed");
-    assert.match(closed, /workflow_run\.name == 'PR closed'/);
+    assert.match(
+      closed,
+      /workflow_run\.path == '\.github\/workflows\/pr-closed\.yml'/,
+    );
     assert.doesNotMatch(closed, /issues: write/);
+    // run-name overrides workflow_run.name on both signals.
+    assert.doesNotMatch(renew, /workflow_run\.name ==/);
+    assert.doesNotMatch(closed, /workflow_run\.name ==/);
     const reconcile = jobBlock(workflow, "reconcile");
     assert.match(reconcile, /group:.*matrix\.pr/);
     assert.match(jobBlock(workflow, "comment"), /!\(startsWith/);

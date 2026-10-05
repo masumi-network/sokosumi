@@ -1,22 +1,45 @@
 import type { TaskSchedule } from "@sokosumi/core-client";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CoworkerOption } from "@/lib/types/coworker";
+import type { UploadUserFileDirectOptions } from "@/lib/utils/user-file-upload.client";
 
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 
-const { createTaskScheduleMock, updateTaskScheduleMock, toastMock } =
-  vi.hoisted(() => ({
-    createTaskScheduleMock: vi.fn(),
-    updateTaskScheduleMock: vi.fn(),
-    toastMock: { success: vi.fn(), error: vi.fn() },
-  }));
-
-vi.mock("next-intl", () => ({
-  useTranslations: () => (key: string) => key,
-  useFormatter: () => ({ dateTime: (date: Date) => date.toISOString() }),
+const {
+  createTaskScheduleMock,
+  updateTaskScheduleMock,
+  uploadUserFileDirectMock,
+  listDriveItemsMock,
+  toastMock,
+} = vi.hoisted(() => ({
+  createTaskScheduleMock: vi.fn(),
+  updateTaskScheduleMock: vi.fn(),
+  uploadUserFileDirectMock: vi.fn(),
+  listDriveItemsMock: vi.fn(),
+  toastMock: {
+    success: vi.fn(),
+    error: vi.fn(),
+    custom: vi.fn(),
+    dismiss: vi.fn(),
+  },
 }));
+
+vi.mock("next-intl", () => {
+  const translate = (key: string) => key;
+  return {
+    useTranslations: () => translate,
+    useFormatter: () => ({ dateTime: (date: Date) => date.toISOString() }),
+  };
+});
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ refresh: vi.fn(), push: vi.fn() }),
@@ -24,9 +47,49 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("sonner", () => ({ toast: toastMock }));
 
+vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: {},
+  useSession: () => ({ data: null }),
+}));
+
+vi.mock("@/lib/utils/drive-file-list.client", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("@/lib/utils/drive-file-list.client")
+  >()),
+  listDriveItems: listDriveItemsMock,
+}));
+
 vi.mock("@/lib/actions/task-schedule/action", () => ({
   createTaskSchedule: createTaskScheduleMock,
   updateTaskSchedule: updateTaskScheduleMock,
+}));
+
+vi.mock("@/lib/utils/user-file-upload.client", () => ({
+  uploadUserFileDirect: (...args: unknown[]) =>
+    uploadUserFileDirectMock(...args),
+  getUserFileUploadErrorMessage: (error: unknown, fallback: string) =>
+    error instanceof Error ? error.message : fallback,
+}));
+
+vi.mock("@/components/jobs/job-details/file-chip-with-metadata", () => ({
+  FileChipMiniPreviewWithMetadata: ({
+    url,
+    onRemove,
+    removeLabel,
+  }: {
+    url: string;
+    onRemove?: () => void;
+    removeLabel?: string;
+  }) => (
+    <div data-testid="attachment-preview">
+      {url}
+      {onRemove ? (
+        <button type="button" onClick={onRemove}>
+          {removeLabel}
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 const COWORKER: CoworkerOption = {
@@ -90,6 +153,7 @@ const SCHEDULE: TaskSchedule = {
   assigneeUserId: null,
   createdAt: new Date("2030-01-01T00:00:00.000Z"),
   updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+  canWrite: true,
 };
 
 const onClose = vi.fn();
@@ -110,9 +174,35 @@ function renderDialog(
   );
 }
 
+function getFileInput(): HTMLInputElement {
+  const input = screen.getByLabelText("uploadFile", {
+    selector: 'input[type="file"]',
+  });
+  if (!(input instanceof HTMLInputElement)) {
+    throw new Error("Expected the attachment file input");
+  }
+  return input;
+}
+
 describe("TaskScheduleDialog", () => {
   beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-01T10:00:00.000Z"));
     vi.clearAllMocks();
+    uploadUserFileDirectMock.mockReset();
+    uploadUserFileDirectMock.mockResolvedValue({
+      publicUrl: "https://blob.example/users/u1/report.pdf",
+    });
+    listDriveItemsMock.mockResolvedValue([
+      {
+        type: "file",
+        name: "saved-brief.pdf",
+        fileUrl: "https://blob.example/users/u1/saved-brief.pdf",
+        pathname: "users/u1/saved-brief.pdf",
+        size: 6,
+        uploadedAt: new Date("2030-01-01T00:00:00.000Z"),
+      },
+    ]);
     createTaskScheduleMock.mockResolvedValue({
       ok: true,
       value: { scheduleId: "new-schedule" },
@@ -121,6 +211,11 @@ describe("TaskScheduleDialog", () => {
       ok: true,
       value: { scheduleId: SCHEDULE.id },
     });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("creates a Task Schedule from the blueprint and a daily rule", async () => {
@@ -222,6 +317,253 @@ describe("TaskScheduleDialog", () => {
     expect(description.querySelector("strong")).toHaveTextContent("Check");
   });
 
+  it("uploads a description attachment and saves its link in the new schedule", async () => {
+    const user = userEvent.setup();
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+    renderDialog({
+      initialBlueprint: { name: "Daily report", description: "Review results" },
+    });
+
+    await user.click(screen.getByRole("button", { name: "uploadFile" }));
+    expect(screen.getByRole("menuitem", { name: "fromDrive" })).toBeVisible();
+    await user.click(screen.getByRole("menuitem", { name: "uploadFile" }));
+    await user.upload(getFileInput(), file);
+
+    await waitFor(() =>
+      expect(screen.getByTestId("attachment-preview")).toHaveTextContent(
+        "https://blob.example/users/u1/report.pdf",
+      ),
+    );
+    expect(createTaskScheduleMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      description: expect.stringContaining(
+        "[report.pdf](https://blob.example/users/u1/report.pdf)",
+      ),
+    });
+    expect(createTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "Review results",
+    );
+  });
+
+  it("attaches a file from Files and saves its existing URL", async () => {
+    const user = userEvent.setup();
+    renderDialog({ initialBlueprint: { name: "Review saved brief" } });
+
+    await user.click(screen.getByRole("button", { name: "uploadFile" }));
+    await user.click(screen.getByRole("menuitem", { name: "fromDrive" }));
+    await user.click(
+      await screen.findByRole("button", { name: /saved-brief.pdf/ }),
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId("attachment-preview")).toHaveTextContent(
+        "https://blob.example/users/u1/saved-brief.pdf",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "[saved-brief.pdf](https://blob.example/users/u1/saved-brief.pdf)",
+    );
+    expect(uploadUserFileDirectMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps a dropped file link when the focused description is edited afterward", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      initialBlueprint: { name: "Review", description: "Read this report" },
+    });
+    const editor = screen.getByRole("textbox", { name: "description" });
+    const dropzone = editor.closest('[data-slot="file-upload-dropzone"]');
+    if (!(dropzone instanceof HTMLElement)) {
+      throw new Error("Expected the description dropzone");
+    }
+    editor.focus();
+    const transfer = new DataTransfer();
+    transfer.items.add(
+      new File(["report"], "report.pdf", { type: "application/pdf" }),
+    );
+    fireEvent.drop(dropzone, { dataTransfer: transfer });
+
+    await waitFor(() =>
+      expect(editor.querySelector("a")).toHaveAttribute(
+        "href",
+        "https://blob.example/users/u1/report.pdf",
+      ),
+    );
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    range.collapse(false);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    await user.keyboard(" Additional note");
+    await user.click(screen.getByRole("button", { name: "create" }));
+
+    await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(createTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "[report.pdf](https://blob.example/users/u1/report.pdf)",
+    );
+    expect(createTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "Additional note",
+    );
+  });
+
+  it("preserves existing attachment links when the schedule name changes", async () => {
+    const user = userEvent.setup();
+    const description =
+      "**Review** the report\n\n[report.pdf](https://blob.example/users/u1/report.pdf)";
+    renderDialog({ schedule: { ...SCHEDULE, description } });
+
+    expect(screen.getByTestId("attachment-preview")).toHaveTextContent(
+      "https://blob.example/users/u1/report.pdf",
+    );
+    await user.type(screen.getByLabelText("name"), " (team)");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      description,
+    });
+    expect(uploadUserFileDirectMock).not.toHaveBeenCalled();
+  });
+
+  it("removes only the selected attachment from the edited blueprint", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        description:
+          "**Review** the [guide](https://example.com/guide)\n\n[report.pdf](https://blob.example/users/u1/report.pdf)\n\n[notes.txt](https://blob.example/users/u1/notes.txt)",
+      },
+    });
+
+    const reportPreview = screen
+      .getAllByTestId("attachment-preview")
+      .find((preview) => preview.textContent?.includes("report.pdf"));
+    if (!reportPreview) throw new Error("Expected the report attachment");
+    await user.click(
+      within(reportPreview).getByRole("button", { name: "removeAttachment" }),
+    );
+
+    expect(screen.getAllByTestId("attachment-preview")).toHaveLength(1);
+    expect(screen.getByTestId("attachment-preview")).toHaveTextContent(
+      "notes.txt",
+    );
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      description:
+        "**Review** the [guide](https://example.com/guide)\n\n[notes.txt](https://blob.example/users/u1/notes.txt)",
+    });
+  });
+
+  it("waits for an upload before allowing the schedule to be saved", async () => {
+    const user = userEvent.setup();
+    let resolveUpload: ((result: { publicUrl: string }) => void) | undefined;
+    uploadUserFileDirectMock.mockImplementation(
+      () =>
+        new Promise<{ publicUrl: string }>((resolve) => {
+          resolveUpload = resolve;
+        }),
+    );
+    renderDialog({ schedule: SCHEDULE });
+    const save = screen.getByRole("button", { name: "save" });
+
+    await user.upload(
+      getFileInput(),
+      new File(["report"], "report.pdf", { type: "application/pdf" }),
+    );
+    await waitFor(() =>
+      expect(uploadUserFileDirectMock).toHaveBeenCalledOnce(),
+    );
+
+    expect(save).toBeDisabled();
+    await user.click(save);
+    expect(updateTaskScheduleMock).not.toHaveBeenCalled();
+    await act(async () => {
+      resolveUpload?.({
+        publicUrl: "https://blob.example/users/u1/report.pdf",
+      });
+    });
+    await waitFor(() => expect(save).toBeEnabled());
+    await user.click(save);
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "[report.pdf](https://blob.example/users/u1/report.pdf)",
+    );
+  });
+
+  it("keeps the blueprint usable after an upload fails and allows retry", async () => {
+    const user = userEvent.setup();
+    uploadUserFileDirectMock.mockRejectedValueOnce(new Error("Upload failed"));
+    renderDialog({ schedule: SCHEDULE });
+    const file = new File(["report"], "report.pdf", {
+      type: "application/pdf",
+    });
+
+    await user.upload(getFileInput(), file);
+    await waitFor(() =>
+      expect(toastMock.error).toHaveBeenCalledWith("Upload failed"),
+    );
+    expect(screen.getByRole("button", { name: "save" })).toBeEnabled();
+    expect(screen.queryByTestId("attachment-preview")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("textbox", { name: "description" }),
+    ).toHaveTextContent("Summarise the week");
+
+    await user.upload(getFileInput(), file);
+    await waitFor(() =>
+      expect(screen.getByTestId("attachment-preview")).toHaveTextContent(
+        "https://blob.example/users/u1/report.pdf",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0].description).toContain(
+      "[report.pdf](https://blob.example/users/u1/report.pdf)",
+    );
+  });
+
+  it("aborts the pending attachment upload when the dialog unmounts", async () => {
+    const user = userEvent.setup();
+    let abortSignal: AbortSignal | undefined;
+    uploadUserFileDirectMock.mockImplementation(
+      (_file: File, options?: UploadUserFileDirectOptions) =>
+        new Promise<{ publicUrl: string }>((_resolve, reject) => {
+          abortSignal = options?.abortSignal;
+          abortSignal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Upload canceled.", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+    const { unmount } = renderDialog({ schedule: SCHEDULE });
+
+    await user.upload(
+      getFileInput(),
+      new File(["report"], "report.pdf", { type: "application/pdf" }),
+    );
+    await waitFor(() => expect(abortSignal).toBeDefined());
+    expect(abortSignal?.aborted).toBe(false);
+    await act(async () => unmount());
+
+    expect(abortSignal?.aborted).toBe(true);
+    await waitFor(() => expect(toastMock.dismiss).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it("says an edit changes future Runs only, and saves against the revision it read", async () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
@@ -251,6 +593,10 @@ describe("TaskScheduleDialog", () => {
 
   it.each([
     ["a custom cron", { expr: "15 7 1,15 * *" }],
+    // Stored before Core required five fields; it keeps running untouched.
+    ["a six-field cron", { expr: "0 15 7 1,15 * *" }],
+    ["a macro", { expr: "@daily" }],
+    ["a hashed cron", { expr: "H 9 * * 1" }],
     [
       "an every-N-days rule",
       {
@@ -289,13 +635,16 @@ describe("TaskScheduleDialog", () => {
       },
     };
 
-    it("previews every third day from the anchor, not every day", () => {
+    it("lists every third day from the anchor as the next runs", async () => {
+      const user = userEvent.setup();
       renderDialog({ schedule: EVERY_THREE_DAYS });
 
-      const preview = screen
+      await user.click(screen.getByRole("button", { name: /next/ }));
+
+      const runs = screen
         .getAllByRole("listitem")
         .map((item) => item.textContent);
-      expect(preview).toEqual([
+      expect(runs).toEqual([
         "2030-01-07T09:00:00.000Z",
         "2030-01-10T09:00:00.000Z",
         "2030-01-13T09:00:00.000Z",
@@ -306,9 +655,10 @@ describe("TaskScheduleDialog", () => {
       const user = userEvent.setup();
       renderDialog({ schedule: EVERY_THREE_DAYS });
 
-      const timeOfDay = screen.getByLabelText("timeOfDay");
-      expect(timeOfDay).toHaveValue("10:00");
-      fireEvent.change(timeOfDay, { target: { value: "07:15" } });
+      const time = screen.getByRole("button", { name: "time" });
+      expect(time).toHaveTextContent("10:00");
+      await user.click(time);
+      await user.click(screen.getByRole("option", { name: "07:15" }));
       await user.click(screen.getByRole("button", { name: "save" }));
 
       await waitFor(() =>
@@ -325,20 +675,237 @@ describe("TaskScheduleDialog", () => {
     });
   });
 
-  it("sends the new rule when the time changes", async () => {
+  it("sends the new rule when the time changes, typed to the minute", async () => {
     const user = userEvent.setup();
     renderDialog({ schedule: SCHEDULE });
 
-    fireEvent.change(screen.getByLabelText("firstRun"), {
-      target: { value: "2030-01-14T10:45" },
-    });
+    await user.click(screen.getByRole("button", { name: "time" }));
+    await user.type(screen.getByPlaceholderText("timeSearch"), "10:40");
+    await user.click(screen.getByRole("option", { name: "useTime" }));
     await user.click(screen.getByRole("button", { name: "save" }));
 
     await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
     expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
-      rule: { expr: "45 10 * * MON", timezone: "Europe/Berlin" },
+      rule: { expr: "40 10 * * MON", timezone: "Europe/Berlin" },
     });
   });
+
+  it("repeats on the weekdays picked as chips", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    expect(
+      screen.getByRole("button", { name: "repeats.weekly" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    // Monday is on; add Wednesday.
+    const wednesday = document.querySelector('[data-weekday="WED"]');
+    if (!(wednesday instanceof HTMLElement)) throw new Error("no Wednesday");
+    await user.click(wednesday);
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      rule: { expr: "30 8 * * MON,WED" },
+    });
+  });
+
+  it("blocks saving a weekly rule with no day", async () => {
+    const user = userEvent.setup();
+    renderDialog({ schedule: SCHEDULE });
+
+    const monday = document.querySelector('[data-weekday="MON"]');
+    if (!(monday instanceof HTMLElement)) throw new Error("no Monday");
+    expect(monday).toHaveAttribute("aria-pressed", "true");
+    await user.click(monday);
+
+    expect(screen.getByText("pickADay")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+  });
+
+  it("still saves a six-field rule when the When controls are clicked but unchanged", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    // It opens as Custom; picking Custom again changes nothing.
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it.each([
+    ["@daily", "daily"],
+    ["@weekly", "weekly"],
+    ["H 9 * * 1", "weekly"],
+  ])(
+    "preserves %s when its existing preset is selected again",
+    async (expr, repeat) => {
+      const user = userEvent.setup();
+      renderDialog({
+        schedule: { ...SCHEDULE, rule: { ...SCHEDULE.rule, expr } },
+      });
+      await user.click(
+        screen.getByRole("button", { name: `repeats.${repeat}` }),
+      );
+      await user.click(screen.getByRole("button", { name: "save" }));
+      await waitFor(() =>
+        expect(updateTaskScheduleMock).toHaveBeenCalledOnce(),
+      );
+      expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+        "rule",
+      );
+    },
+  );
+
+  it("keeps a stored hashed rule untouched across a same-revision refresh", async () => {
+    const user = userEvent.setup();
+    const random = vi.spyOn(Math, "random").mockReturnValue(0.1);
+    const schedule = {
+      ...SCHEDULE,
+      rule: { ...SCHEDULE.rule, expr: "H 9 * * 1" },
+    };
+    const { rerender } = renderDialog({ schedule });
+    random.mockReturnValue(0.9);
+    rerender(
+      <TaskScheduleDialog
+        schedule={{ ...schedule }}
+        coworkerOptions={[COWORKER]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        onClose={onClose}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "save" }));
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("resets the edit form when a newer schedule revision arrives", async () => {
+    const user = userEvent.setup();
+    const { rerender } = renderDialog({ schedule: SCHEDULE });
+    const updated = {
+      ...SCHEDULE,
+      revision: 5,
+      rule: { ...SCHEDULE.rule, expr: "0 10 * * TUE" },
+    };
+    rerender(
+      <TaskScheduleDialog
+        schedule={updated}
+        coworkerOptions={[COWORKER]}
+        projectOptions={[]}
+        canCreatePrivate={false}
+        onClose={onClose}
+      />,
+    );
+
+    expect(screen.getByRole("button", { name: "time" })).toHaveTextContent(
+      "10:00",
+    );
+    await user.type(screen.getByLabelText("name"), " updated");
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).toMatchObject({
+      expectedRevision: 5,
+    });
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("preserves a legacy rule after deselecting and restoring the same weekdays", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 30 8 * * MON,TUE" },
+      },
+    });
+    const monday = document.querySelector('[data-weekday="MON"]');
+    if (!(monday instanceof HTMLElement)) throw new Error("no Monday");
+
+    await user.click(monday);
+    await user.click(monday);
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("preserves a legacy custom rule after editing an inactive preset and restoring Custom", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    await user.click(screen.getByRole("button", { name: "repeats.weekly" }));
+    const wednesday = document.querySelector('[data-weekday="WED"]');
+    if (!(wednesday instanceof HTMLElement)) throw new Error("no Wednesday");
+    await user.click(wednesday);
+    await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+    expect(screen.getByRole("button", { name: "save" })).toBeEnabled();
+    await user.click(screen.getByRole("button", { name: "save" }));
+
+    await waitFor(() => expect(updateTaskScheduleMock).toHaveBeenCalledOnce());
+    expect(updateTaskScheduleMock.mock.calls[0]?.[0]).not.toHaveProperty(
+      "rule",
+    );
+  });
+
+  it("notes a stored six-field rule without calling it invalid until it is edited", async () => {
+    const user = userEvent.setup();
+    renderDialog({
+      schedule: {
+        ...SCHEDULE,
+        rule: { ...SCHEDULE.rule, expr: "0 15 7 1,15 * *" },
+      },
+    });
+
+    const cron = screen.getByLabelText("cron");
+    expect(cron).toHaveValue("0 15 7 1,15 * *");
+    expect(cron).not.toHaveAttribute("aria-invalid");
+    expect(screen.getByText("cronLegacy")).toBeInTheDocument();
+    expect(screen.queryByText("cronInvalid")).toBeNull();
+
+    // Still six fields: "0 15 7 1,15 * 2".
+    await user.type(cron, "{backspace}2");
+
+    expect(cron).toHaveAttribute("aria-invalid", "true");
+    expect(screen.getByText("cronInvalid")).toBeInTheDocument();
+  });
+
+  it.each(["0 30 8 * * MON", "@daily", "*/H * * * *", "0 1-H * * *"])(
+    "blocks saving an explicitly edited cron %s",
+    async (expr) => {
+      const user = userEvent.setup();
+      renderDialog({ schedule: SCHEDULE });
+
+      await user.click(screen.getByRole("button", { name: "repeats.custom" }));
+      const cron = screen.getByLabelText("cron");
+      await user.clear(cron);
+      await user.type(cron, expr);
+
+      expect(cron).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByText("cronInvalid")).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: "save" })).toBeDisabled();
+    },
+  );
 
   it("keeps a private Task private instead of assigning its member", async () => {
     const user = userEvent.setup();
@@ -352,7 +919,9 @@ describe("TaskScheduleDialog", () => {
       },
     });
 
-    expect(screen.getByRole("switch")).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "privateLabel" }),
+    ).toHaveAttribute("aria-pressed", "true");
     await user.click(screen.getByRole("button", { name: "create" }));
 
     await waitFor(() => expect(createTaskScheduleMock).toHaveBeenCalledOnce());

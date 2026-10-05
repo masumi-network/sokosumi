@@ -5,7 +5,7 @@ import Foundation
 public extension ChannelEditPermissions {
   /// Web `rooms-client.tsx`: host members (`myAccess == member`) of an external channel invite guests; guests never do.
   static func canInviteGuests(_ room: Components.Schemas.ChatRoom) -> Bool {
-    room.kind == .channel && room.myAccess == .member && room.discoverability == .external
+    room.kind == .channel && room.myAccess.value1 == .member && room.discoverability == .external
   }
 }
 
@@ -51,13 +51,12 @@ func isValidGuestEmail(_ email: String) -> Bool {
   return email.wholeMatch(of: pattern) != nil
 }
 
-/// Mounted per open settings dialog, so every open refetches pending invitations and
-/// live links; each row action is single-flight; failures surface Core's message; the guest list starts from the room
-/// DTO and drops removed guests locally. A local edit wins over an older load response.
+/// Mounted per open Invite from outside tab, so every open refetches pending invitations and live links; each row
+/// action is single-flight; failures surface Core's message. A local edit wins over an older load response. Current
+/// Guests are listed and removed in the members panel.
 @MainActor
 public final class GuestAccess: ObservableObject {
   public let roomId: String
-  @Published public private(set) var guests: [Components.Schemas.ChatRoomUserParticipant]
   @Published public private(set) var invitations: [Components.Schemas.ChatRoomInvitation] = []
   @Published public private(set) var links: [Components.Schemas.ChatRoomGuestInviteLink] = []
   @Published public private(set) var loading = false
@@ -68,13 +67,11 @@ public final class GuestAccess: ObservableObject {
   @Published public private(set) var creatingLink = false
   @Published public private(set) var revokingInvitationId: String?
   @Published public private(set) var revokingLinkToken: String?
-  @Published public private(set) var removingGuestId: String?
   @Published public private(set) var errorMessage: String?
   private var generation = 0
 
   public init(room: Components.Schemas.ChatRoom) {
     roomId = room.id
-    guests = room.userMembers.filter { $0.access?.value1 == .guest }
   }
 
   public var canSendInvite: Bool {
@@ -175,25 +172,6 @@ public final class GuestAccess: ObservableObject {
       guard !Task.isCancelled else { return }
       generation += 1
       links.removeAll { $0.token == token }
-    } catch {
-      record(error)
-    }
-  }
-
-  /// The remove closure answers false when the coordinator refused to start (another channel mutation is running).
-  public func removeGuest(_ userId: String, using remove: (String) async throws -> Bool) async {
-    guard removingGuestId == nil else { return }
-    removingGuestId = userId
-    errorMessage = nil
-    defer { removingGuestId = nil }
-    do {
-      let removed = try await remove(userId)
-      guard !Task.isCancelled else { return }
-      if removed {
-        guests.removeAll { $0.id == userId }
-      } else {
-        errorMessage = "Couldn’t remove the guest. Try again."
-      }
     } catch {
       record(error)
     }

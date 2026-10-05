@@ -20,7 +20,7 @@ public struct ComposerChannel: Hashable, Sendable, Identifiable {
     rooms.compactMap { room in
       guard room.kind == .channel, let slug = room.slug, !slug.isEmpty else { return nil }
       return Self(id: room.id, name: room.name, slug: slug,
-                  organizationName: room.discoverability == .external || room.myAccess == .guest ? room.organizationName : nil)
+                  organizationName: room.discoverability == .external || room.myAccess.value1 == .guest ? room.organizationName : nil)
     }
   }
 

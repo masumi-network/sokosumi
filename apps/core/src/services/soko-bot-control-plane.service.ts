@@ -18,7 +18,6 @@ import {
   renderSokoBotMemory,
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_SANDBOX_CAPABILITIES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   type SokoBotCapability,
   type SokoBotRuntime,
   sanitizeSokoBotMemoryMarkdown,
@@ -70,8 +69,11 @@ import { systemScheduleRoute } from "@/lib/soko-bot/system-routes";
 import { getSokoBotAvailability } from "@/services/soko-bot-availability.service";
 import { claimAvatar } from "@/services/soko-bot-avatar.service";
 import {
+  notifySokoBotOutOfCredits,
   recordSokoBotTurnUsage,
   requireSokoBotTurnFunding,
+  SokoBotBillingAccessError,
+  sokoBotIdsOutOfCredits,
 } from "@/services/soko-bot-billing.service";
 import {
   assessSokoBotIntentOutcome,
@@ -118,6 +120,41 @@ export class SokoBotNoDestinationError extends Error {}
 export class SokoBotValidationError extends Error {}
 /** The administrator switched the whole feature off. */
 export class SokoBotDisabledError extends Error {}
+
+/**
+ * A proactive turn needs somewhere to speak. An owner who never opened the
+ * bot's chat has nowhere, so every schedule, event and ingest dead-lettered
+ * and the bot looked dead. The owner's own direct room is always authorized;
+ * it is opened here. A room that exists but was archived stays suppressed.
+ */
+async function openFirstOwnerDirectRoom(
+  sokoBotId: string,
+  userId: string,
+): Promise<{ id: string } | null> {
+  const anyDirect = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId } },
+      userMembers: { some: { userId } },
+    },
+    select: { id: true },
+  });
+  if (anyDirect) return null;
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: sokoBotId, userId, archivedAt: null },
+    select: {
+      id: true,
+      userId: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!bot) return null;
+  const { findOrOpenOwnerDirectRoom } = await import(
+    "@/services/soko-bot-chat.service"
+  );
+  return findOrOpenOwnerDirectRoom(bot);
+}
 
 async function translateScheduleErrors<T>(run: () => Promise<T>): Promise<T> {
   try {
@@ -206,6 +243,12 @@ export interface StartSokoBotTurnInput {
      * work, because no person decided this turn should happen.
      */
     askedByBot?: boolean;
+    /**
+     * The person's own words, without the "(a teammate, not your owner)"
+     * attribution the model sees. The route is decided on these, so who asks
+     * never tilts a plain "yes" towards a clarifying question.
+     */
+    classifyMessage?: string;
     /** Bot-to-bot hops behind this turn; see lib/soko-bot/chat-chain.ts. */
     chainDepth?: number;
   };
@@ -450,6 +493,12 @@ function parseTurnUsage(value: unknown): SokoBotTurnUsage {
   };
 }
 
+/** The turn spent model tokens, whatever cost the provider reported. */
+function turnRanModel(value: unknown): boolean {
+  const usage = parseTurnUsage(value);
+  return usage.inputTokens + usage.outputTokens > 0;
+}
+
 function addTurnUsage(
   current: SokoBotTurnUsage,
   value: unknown,
@@ -466,6 +515,7 @@ function addTurnUsage(
 }
 
 const EVENT_TEXT_LIMIT = 800;
+const REASONING_TEXT_LIMIT = 4_000;
 const EVENT_INPUT_LIMIT = 1_200;
 /** A sandbox tool's output: enough to show every search result's source. */
 const EVENT_OUTPUT_LIMIT = 8_000;
@@ -520,7 +570,12 @@ export function summarizeContextPacket(packet: unknown) {
 
 function safeEventProjection(type: string, data: Record<string, unknown>) {
   if (type === "reasoning.completed") {
-    const text = safeEventText(data.text ?? data.reasoning ?? data.message);
+    // A provider reasoning summary; the chat shows it as the bot's Thought,
+    // so it keeps more than a one-line event summary.
+    const text = safeEventText(
+      data.text ?? data.reasoning ?? data.message,
+      REASONING_TEXT_LIMIT,
+    );
     return { summary: text ?? "Reasoning update", payload: undefined };
   }
   if (type.startsWith("reasoning.")) {
@@ -1651,6 +1706,7 @@ export class SokoBotControlPlane {
           eveSessionId: true,
           startedAt: true,
           costUsdMicros: true,
+          usage: true,
           status: true,
           finalAnswer: true,
           responseContract: true,
@@ -1682,6 +1738,7 @@ export class SokoBotControlPlane {
           sokoBotId: turn.sokoBotId,
           userId: turn.userId,
           costUsdMicros: turn.costUsdMicros,
+          ranModel: turnRanModel(turn.usage),
         },
         tx,
       );
@@ -2092,7 +2149,24 @@ export class SokoBotControlPlane {
       input.versionId ?? bot.versionId,
     );
 
-    await requireSokoBotTurnFunding(input.userId, bot.id);
+    try {
+      await requireSokoBotTurnFunding(input.userId, bot.id);
+    } catch (error) {
+      // A chat turn's sender sees the refusal; a self-started one has nobody
+      // watching, so the owner hears about it in their chat instead.
+      if (error instanceof SokoBotBillingAccessError && source !== "CHAT") {
+        await notifySokoBotOutOfCredits(bot.id).catch(
+          (noticeError: unknown) => {
+            console.warn("Soko Bot out-of-credits notice failed", {
+              sokoBotId: bot.id,
+              error:
+                noticeError instanceof Error ? noticeError.name : "unknown",
+            });
+          },
+        );
+      }
+      throw error;
+    }
 
     const requestedByTeammate =
       input.chat?.askedByBot === true ||
@@ -2108,7 +2182,7 @@ export class SokoBotControlPlane {
       ? { id: conversationMention.message.roomId }
       : input.chat
         ? null
-        : await prisma.chatRoom.findFirst({
+        : ((await prisma.chatRoom.findFirst({
             // Rooms carry no workspace; the bot's membership scopes this to
             // the workspace the bot lives in (one bot per user and workspace).
             where: {
@@ -2118,7 +2192,10 @@ export class SokoBotControlPlane {
               userMembers: { some: { userId: input.userId } },
             },
             select: { id: true },
-          });
+          })) ??
+          (["SCHEDULE", "EVENT", "INGEST"].includes(source)
+            ? await openFirstOwnerDirectRoom(bot.id, input.userId)
+            : null));
     if (["SCHEDULE", "EVENT", "INGEST"].includes(source) && !destinationRoom) {
       throw new SokoBotNoDestinationError(
         "No authorized destination exists for proactive output. Restore an authorized conversation to resume delivery.",
@@ -2130,7 +2207,10 @@ export class SokoBotControlPlane {
       roomId: conversationMention?.message.roomId ?? null,
       requesterId: input.chat?.requestedByUserId ?? input.userId,
     };
-    const pendingIntents = requestedByTeammate
+    // A person asking, owner or teammate, has their own offers in this
+    // room: intents are scoped to (room, requester), so a teammate's "yes"
+    // reaches only what the bot offered them. Another assistant never does.
+    const pendingIntents = input.chat?.askedByBot
       ? []
       : await prisma.sokoBotIntent.findMany({
           where: {
@@ -2158,13 +2238,14 @@ export class SokoBotControlPlane {
             },
           },
         });
-    // The bot's last word to the owner in this conversation: a bare "yes,
-    // post it" is only classifiable against the question it answers. Owner
-    // chat turns only — a briefing's text comes from mail, and a "yes" must
-    // not confirm what a stranger wrote into it — and only the newest one, so
-    // a failed turn never lets "yes" reach back to an older offer.
+    // The bot's last word to this person in this conversation: a bare "yes,
+    // post it" is only classifiable against the question it answers. Chat
+    // turns a person asked for only — a briefing's text comes from mail, and
+    // a "yes" must not confirm what a stranger wrote into it — scoped to the
+    // same requester, owner or teammate, and only the newest one, so a failed
+    // turn never lets "yes" reach back to an older offer.
     const previousTurn =
-      source === "CHAT" && !requestedByTeammate
+      source === "CHAT" && !input.chat?.askedByBot
         ? await prisma.sokoBotTurn.findFirst({
             where: {
               sokoBotId: bot.id,
@@ -2174,7 +2255,9 @@ export class SokoBotControlPlane {
               createdAt: {
                 gte: new Date(Date.now() - PREVIOUS_REPLY_WINDOW_MS),
               },
-              requestedByUserId: null,
+              requestedByUserId: requestedByTeammate
+                ? input.chat?.requestedByUserId
+                : null,
               ...(conversationMention?.message.roomId
                 ? {
                     chatMention: {
@@ -2192,7 +2275,7 @@ export class SokoBotControlPlane {
       input.workspaceId,
       requestedByTeammate ? "TEAMMATE" : "OWNER",
       [
-        message,
+        input.chat?.classifyMessage ?? message,
         ...pendingIntents.flatMap((intent) =>
           Array.isArray(intent.targetIds)
             ? intent.targetIds.filter(
@@ -2207,7 +2290,7 @@ export class SokoBotControlPlane {
       : await withEvaluationActor(
           { userId: input.userId, sokoBotId: bot.id, clientTurnId, source },
           () =>
-            this.classifier.classify(message, {
+            this.classifier.classify(input.chat?.classifyMessage ?? message, {
               ...classifierContext,
               previousReply:
                 previousTurn?.status === "COMPLETED"
@@ -2250,9 +2333,10 @@ export class SokoBotControlPlane {
         "Soko Bot classifier unavailable for scheduled turn",
       );
     }
-    // A teammate may ask the owner's bot questions but never spend the owner's
-    // credits, create work in their name, or read the owner's private surfaces:
-    // the answer is published back into the shared room.
+    // A teammate asking someone else's bot gets the same tools the owner
+    // would: the turn runs as the owner, on the owner's credits and accounts,
+    // and the owner's console shows who asked. Only another assistant asking
+    // stays read-only, so assistants cannot drive each other in a loop.
 
     // Self-started turns keep every capability of their route, hiring
     // included. Withholding only `hire_agent` read as a spend limit and was
@@ -2319,9 +2403,7 @@ export class SokoBotControlPlane {
       version,
       (input.chat?.askedByBot
         ? [...SOKO_BOT_BOT_TO_BOT_CAPABILITIES]
-        : requestedByTeammate
-          ? [...SOKO_BOT_TEAMMATE_CAPABILITIES]
-          : routeCapabilities) as readonly SokoBotCapability[],
+        : routeCapabilities) as readonly SokoBotCapability[],
     ) as readonly SokoBotCapability[];
     const deadlineAt = new Date(Date.now() + TURN_DEADLINE_MS);
     const leaseToken = randomUUID();
@@ -2608,7 +2690,7 @@ export class SokoBotControlPlane {
           // message, affects an existing offer.
           const withdrawsUniqueOffer =
             source === "CHAT" &&
-            !requestedByTeammate &&
+            !input.chat?.askedByBot &&
             (input.chat?.chainDepth ?? 0) === 0 &&
             pendingIntents.length === 1 &&
             classification.classification.continuation === "CANCEL";
@@ -3567,6 +3649,7 @@ export class SokoBotControlPlane {
           : undefined),
         include: {
           user: { select: { id: true, name: true, email: true } },
+          workspace: { select: { organizationId: true } },
           _count: {
             select: {
               turns: true,
@@ -3581,7 +3664,21 @@ export class SokoBotControlPlane {
     ]);
     const hasMore = items.length > take;
     if (hasMore) items.pop();
-    return { items, total, hasMore };
+    const outOfCredits = await sokoBotIdsOutOfCredits(
+      items.map((bot) => ({
+        id: bot.id,
+        userId: bot.userId,
+        organizationId: bot.workspace.organizationId,
+      })),
+    );
+    return {
+      items: items.map(({ workspace: _workspace, ...bot }) => ({
+        ...bot,
+        outOfCredits: outOfCredits.has(bot.id),
+      })),
+      total,
+      hasMore,
+    };
   }
 
   async getForAdmin(sokoBotId: string) {

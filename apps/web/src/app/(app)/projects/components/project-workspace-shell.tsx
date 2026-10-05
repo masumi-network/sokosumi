@@ -43,6 +43,7 @@ export async function getProjectWorkspaceLabels(): Promise<ProjectWorkspaceLabel
     overview: t("tabs.overview"),
     properties: {
       title: t("header.properties"),
+      identifier: t("header.identifier"),
       website: t("header.website"),
       updated: t("header.updated"),
       created: t("header.created"),
@@ -60,6 +61,7 @@ interface ProjectWorkspaceShellProps {
   projectId: string;
   projectLogo?: string | null;
   projectName: string;
+  identifier?: string | null;
   websiteUrl?: string | null;
 }
 
@@ -85,6 +87,7 @@ export function ProjectWorkspaceShell({
   projectId,
   projectLogo,
   projectName,
+  identifier,
   websiteUrl,
 }: ProjectWorkspaceShellProps) {
   /**
@@ -138,6 +141,7 @@ export function ProjectWorkspaceShell({
         <aside className={cn(TASK_DETAIL_SIDEBAR_CLASS, "max-w-sm")}>
           <ProjectProperties
             createdAt={createdAt}
+            identifier={identifier}
             labels={labels.properties}
             updatedAt={updatedAt}
             websiteUrl={websiteUrl}

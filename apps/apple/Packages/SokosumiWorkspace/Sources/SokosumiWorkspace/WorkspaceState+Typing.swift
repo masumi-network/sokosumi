@@ -24,12 +24,13 @@ public extension WorkspaceState {
 
 extension WorkspaceState {
   /// The transcript's room changed (nil: none). Leaving is one of the four stops, sent before
-  /// the transport lets the previous room's channel go.
+  /// the transport lets the previous room's channel go. The live read marks follow too (row 31b1).
   func watchRoom(_ roomId: String?) {
     if roomId != typing.roomId {
       closeTyping()
       typing.open(roomId: roomId, selfUserId: currentUserId)
     }
+    roomReads.open(roomId: roomId)
     realtime?.watchRoom(roomId)
   }
 

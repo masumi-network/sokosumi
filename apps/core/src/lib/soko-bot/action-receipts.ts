@@ -61,7 +61,12 @@ export function actionInputHash(value: unknown): string {
   return createHash("sha256").update(canonicalActionJson(value)).digest("hex");
 }
 
-/** Archival success requires the retained task and its committed history. */
+/**
+ * Archival success requires the retained task and its committed history: the
+ * bot's own archive event on it, in the turn's workspace. Who owns the Task is
+ * not part of the proof; the archive already checked the owner may change it,
+ * and a teammate's public Task archived that way must confirm too.
+ */
 export async function verifyTaskArchiveReceipt(
   tx: Prisma.TransactionClient,
   receiptId: string,
@@ -85,7 +90,6 @@ export async function verifyTaskArchiveReceipt(
   return !!(await tx.task.findFirst({
     where: {
       id: receipt.targetId,
-      ownerId: receipt.turn.userId,
       workspaceId: receipt.turn.workspaceId,
       archivedAt: { not: null },
       events: {

@@ -114,6 +114,15 @@ vi.mock("ai", () => ({
   streamText: streamTextMock,
 }));
 
+const { withMessageSkillsMock } = vi.hoisted(() => ({
+  withMessageSkillsMock: vi.fn(
+    async (_messageId: string, text: string) => text,
+  ),
+}));
+vi.mock("@/services/chat-message-skills.service", () => ({
+  withMessageSkills: withMessageSkillsMock,
+}));
+
 vi.mock("@/helpers/chat-room-message-realtime", () => ({
   publishChatRoomMessageRealtimeById: vi.fn().mockResolvedValue(undefined),
 }));
@@ -331,6 +340,24 @@ describe("dispatchChatRoomMention claim", () => {
       roomId: "room_1",
       collections: ["active"],
     });
+  });
+
+  it("hands the coworker the skills attached to the message", async () => {
+    findUniqueMock.mockResolvedValue(pendingMention());
+    updateManyMock.mockResolvedValue({ count: 1 });
+    withMessageSkillsMock.mockImplementationOnce(
+      async (_messageId: string, text: string) =>
+        `${text}\n\n<skill name="grill-me">Ask.</skill>`,
+    );
+
+    await dispatchChatRoomMention(MENTION_ID);
+
+    const prompt = streamTextMock.mock.calls[0]?.[0]?.messages?.[0]?.content;
+    expect(prompt).toContain('<skill name="grill-me">Ask.</skill>');
+    expect(withMessageSkillsMock).toHaveBeenCalledWith(
+      pendingMention().message.id,
+      expect.any(String),
+    );
   });
 
   it("persists Thought metadata on the reply when provider returns reasoning", async () => {

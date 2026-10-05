@@ -22,15 +22,13 @@ export {
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
 } from "./better-auth-client-schema.js";
 export {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
-export {
-  resolveBetterAuthProductionUrl,
-  resolveBetterAuthPublicBaseUrl,
-} from "./better-auth-public-url.js";
+export { resolveBetterAuthPublicBaseUrl } from "./better-auth-public-url.js";
 export type {
   Account,
   Session,
@@ -95,9 +93,11 @@ export {
   buildSokoBotChatRoomFilePathname,
   buildUserChatRoomFilePathname,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  chatRoomFileLinks,
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedSokoBotChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
+  parseChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
@@ -280,7 +280,6 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
-export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
@@ -316,7 +315,6 @@ export {
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
-  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
 } from "./oauth-scopes.js";
 export {
@@ -361,6 +359,14 @@ export {
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
 export {
+  isValidProjectIdentifier,
+  PROJECT_IDENTIFIER_ERROR,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  PROJECT_IDENTIFIER_PATTERN,
+  projectIdentifierSchema,
+  sanitizeProjectIdentifier,
+} from "./project-identifier.js";
+export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
@@ -382,7 +388,6 @@ export {
   SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
-  type SocialPostMediaRequirement,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
   socialPostMaxBytesForKind,
@@ -427,6 +432,12 @@ export {
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
 export {
+  formatTaskIdentifier,
+  parseTaskRef,
+  type TaskRef,
+} from "./task-identifier.js";
+export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
+export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
@@ -444,7 +455,10 @@ export {
 } from "./user-metadata.js";
 export {
   getFirstName,
+  isFirstAndLastNameWithinLimit,
+  joinFirstAndLastName,
   resolveAccountDisplayName,
+  USER_NAME_MAX_LENGTH,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
 export {
@@ -459,11 +473,6 @@ export {
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
-export {
-  buildWebhookFailureContext,
-  DEFAULT_WEBHOOK_TIMEOUT_MS,
-  postWebhook,
-} from "./webhook.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

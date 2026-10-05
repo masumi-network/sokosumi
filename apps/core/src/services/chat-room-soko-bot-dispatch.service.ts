@@ -10,6 +10,7 @@ import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
   roomMessagePromptText,
+  withAttachmentNote,
 } from "./chat-room-mention-context";
 import {
   claimMentionForDispatch,
@@ -91,33 +92,26 @@ export async function runSokoBotMentionDispatch(params: {
     sokoBot: {
       id: string;
       userId: string;
+      workspaceId: string;
       archivedAt: Date | null;
     } | null;
     sokoBotId: string | null;
   };
   userId: string;
-  workspaceId: string;
   failWithShell: (error: unknown) => Promise<void>;
   askedByBot: boolean;
   chainDepth: number;
 }): Promise<void> {
-  const {
-    mentionId,
-    mention,
-    userId,
-    workspaceId,
-    failWithShell,
-    askedByBot,
-    chainDepth,
-  } = params;
+  const { mentionId, mention, userId, failWithShell, askedByBot, chainDepth } =
+    params;
   const bot = mention.sokoBot;
   if (!bot || bot.archivedAt) {
     await failWithShell("This Soko Bot is no longer active");
     return;
   }
-  // Teammates may talk to the bot in organization rooms; the turn runs as
-  // the owner (their bot, their credits) with a read-only ceiling, and the
-  // console shows who asked. Personal rooms stay owner-only.
+  // Teammates may talk to the bot in organization rooms, direct chats
+  // included; the turn runs as the owner (their bot, their credits, their
+  // tools), and the console shows who asked. Personal rooms stay owner-only.
   const isOwner = bot.userId === userId && !askedByBot;
   if (!isOwner && !mention.message.room.organizationId) {
     await failWithShell("Only the owner can message this assistant here");
@@ -198,9 +192,12 @@ export async function runSokoBotMentionDispatch(params: {
   // failed somewhere the reader could not see.
   let message: string;
   try {
-    const said = roomMessagePromptText(
+    const said = withAttachmentNote(
+      roomMessagePromptText(
+        mention.message.content,
+        readQuoteFromMetadata(mention.message.metadata),
+      ),
       mention.message.content,
-      readQuoteFromMetadata(mention.message.metadata),
     );
     message =
       mention.message.room.kind === "direct"
@@ -225,7 +222,10 @@ export async function runSokoBotMentionDispatch(params: {
   const accept = async () => {
     const accepted = sokoBotControlPlane.startTurn({
       userId: bot.userId,
-      workspaceId,
+      // The mentioned bot runs in its own workspace, whatever room it was
+      // asked in. The room's workspace ran a different bot of the same owner
+      // (their personal one) and put its Tasks there.
+      workspaceId: bot.workspaceId,
       clientTurnId: `chat:${mentionId}`,
       message: isOwner
         ? message
@@ -234,6 +234,7 @@ export async function runSokoBotMentionDispatch(params: {
       chat: {
         mentionId,
         responseMessageId: placeholderId,
+        classifyMessage: message,
         requestedByUserId: isOwner && !askedByBot ? null : userId,
         askedByBot,
         chainDepth,

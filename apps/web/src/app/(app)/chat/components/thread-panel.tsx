@@ -129,6 +129,7 @@ export function ThreadPanel({
   onSetPendingQuote,
   onResolveMessageLink,
   requireBody,
+  allowSkills = true,
   showMentionShortcut = true,
   allowAttachments = true,
   roomId,
@@ -160,7 +161,8 @@ export function ThreadPanel({
   isSendingReply: boolean;
   onBack?: () => void;
   onClose: () => void;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   currentUserId?: string;
   canOpenHumanDirect?: boolean;
@@ -187,6 +189,7 @@ export function ThreadPanel({
     link: ChatRoomMessageLink,
   ) => Promise<PendingRoomQuote | null>;
   requireBody?: boolean;
+  allowSkills?: boolean;
   showMentionShortcut?: boolean;
   allowAttachments?: boolean;
   roomId: string;
@@ -437,6 +440,7 @@ export function ThreadPanel({
             onSetPendingQuote={onSetPendingQuote}
             onResolveMessageLink={onResolveMessageLink}
             requireBody={requireBody}
+            allowSkills={allowSkills}
             onBeforeSend={onBeforeSendReply}
             onSend={handleSendReply}
             currentUserId={currentUserId}

@@ -82,7 +82,7 @@ struct SessionRaceTests {
 
   @Test func signOutDuringRefreshCannotRestoreTokens() async throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let transport = SuspendedTokenTransport()
     let session = try session(store: store, transport: transport)
     let task = Task { try await session.validAccessToken() }
@@ -95,7 +95,7 @@ struct SessionRaceTests {
 
   @Test func concurrentRequestsShareOneRefresh() async throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let transport = SuspendedTokenTransport()
     let session = try session(store: store, transport: transport)
     let requests = (0 ..< 20).map { _ in Task { try await session.validAccessToken() } }

@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import { ClientSecretField } from "./client-secret-field";
 import type {
@@ -79,6 +80,8 @@ export function CreateOAuthClientDialog({
     const result = await createClient({
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      clientUri: values.clientUri,
+      logoUri: values.logoUri,
       includeCoreApi: values.includeCoreApi,
       includeOfflineAccess: values.includeOfflineAccess,
       isPublic: values.isPublic,
@@ -143,7 +146,10 @@ export function CreateOAuthClientDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        className={cn(
+          "app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain",
+          showingCredentials && "[&>button]:hidden",
+        )}
         onEscapeKeyDown={(event) => {
           if (showingCredentials) {
             event.preventDefault();
@@ -265,6 +271,48 @@ export function CreateOAuthClientDialog({
                       <p className="text-muted-foreground text-xs">
                         {t("CreateDialog.redirectUrisHelp")}
                       </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="clientUri"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("CreateDialog.clientUriLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          inputMode="url"
+                          placeholder={t("CreateDialog.clientUriPlaceholder")}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("CreateDialog.clientUriHelp")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="logoUri"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("CreateDialog.logoUriLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          inputMode="url"
+                          placeholder={t("CreateDialog.logoUriPlaceholder")}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("CreateDialog.logoUriHelp")}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}

@@ -339,5 +339,30 @@
   {
     "message": "All of them.",
     "want": "READ"
+  },
+  {
+    "message": "yes",
+    "want": "MANAGE:CHAT",
+    "previousReply": "Here's one for Sandro: 'Why did the scarecrow win an award? Because he was outstanding in his field.' Want me to send it to him in his chat?"
+  },
+  {
+    "message": "do it",
+    "want": "MANAGE:CHAT",
+    "previousReply": "I can post the TOKEN2049 dates (7–8 October) in Agent Test Channel for you. Want me to post this?"
+  },
+  {
+    "message": "yes please",
+    "want": "DELEGATE",
+    "previousReply": "I can create a Task for Hannah to research AI agent marketplace pricing, due Friday. Should I create it?"
+  },
+  {
+    "message": "all of them",
+    "want": "MANAGE:WORK",
+    "previousReply": "Sandro has three draft [TEST] tasks: A, B and C. Which ones should I archive?"
+  },
+  {
+    "message": "hmm, not sure yet",
+    "want": "READ",
+    "previousReply": "I can post the TOKEN2049 dates in Agent Test Channel for you. Want me to post this?"
   }
 ]
