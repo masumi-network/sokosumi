@@ -267,7 +267,9 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                       ? tTaskDetail("actionCommented")
                       : chargePresentation.actionKind === "charged"
                         ? (chargedLabel ?? tTaskDetail("actionUpdatedStatus"))
-                        : tTaskDetail("actionUpdatedStatus");
+                        : chargePresentation.actionKind === "created"
+                          ? tTaskDetail("actionCreated")
+                          : tTaskDetail("actionUpdatedStatus");
                   const formattedComment = chargePresentation.hasComment
                     ? formatMentionsAsMarkdownLinks(
                         event.comment ?? "",

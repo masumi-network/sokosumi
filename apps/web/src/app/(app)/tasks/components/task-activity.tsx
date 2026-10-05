@@ -578,7 +578,9 @@ export function TaskActivitySection({
                 ? actionCommentedLabel
                 : chargePresentation.actionKind === "charged"
                   ? (chargedLabel ?? actionUpdatedStatusLabel)
-                  : actionUpdatedStatusLabel;
+                  : chargePresentation.actionKind === "created"
+                    ? t("actionCreated")
+                    : actionUpdatedStatusLabel;
             const shouldShowSecondaryChargeLine =
               chargePresentation.shouldShowSecondaryChargeLine;
             const shouldShowAuthenticateButton =
