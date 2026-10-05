@@ -229,8 +229,9 @@
 
       /// The title block leaves the room's own buttons in the bar: at a narrow window the topic truncates and
       /// Find, Threads, Members and Pinned messages stay visible, as they did beside the window's own title, with
-      /// the sidebar shown and with it collapsed, where the title follows the window controls.
-      @Test(arguments: [(560.0, true), (640, true), (480, false), (640, false)])
+      /// the sidebar shown and with it collapsed, where the title follows the window controls. Every width keeps the
+      /// title's cap above its 120 pt minimum (shown, W − 144 − 260; collapsed, W − 140 − 260).
+      @Test(arguments: [(560.0, true), (640, true), (560, false), (640, false)])
       func aLongTopicTruncatesBeforeTheRoomsButtonsOverflow(example: (CGFloat, Bool)) async throws {
         let window = try await Self.window(
           Self.identity(Self.room("launch", topic: Self.longTopic)), dark: false, width: example.0, tools: true, sidebar: example.1
@@ -244,7 +245,10 @@
 
       /// With Find's search field open the title block leaves room for it too: the topic truncates further and the
       /// field and the room's other buttons stay out of the overflow menu, with the sidebar shown and collapsed.
-      @Test(arguments: [(710.0, true), (900, true), (700, false), (900, false)])
+      /// Every width keeps the title's cap above its 120 pt minimum (`titleWidth(in:searching:)`: shown, W − 144 pt
+      /// sidebar − 480 pt; collapsed, W − 140 pt window controls − 480 pt), where the allowance is what decides; below
+      /// that the block cannot shrink further and whether the buttons fit depends on the machine's toolbar chrome.
+      @Test(arguments: [(800.0, true), (900, true), (800, false), (900, false)])
       func aLongTopicLeavesRoomForAnOpenFindField(example: (CGFloat, Bool)) async throws {
         let window = try await Self.window(
           Self.identity(Self.room("launch", topic: Self.longTopic)), dark: false, width: example.0, tools: true, searching: true,
