@@ -15,8 +15,11 @@ type VerificationStore = Pick<
   "internalAdapter"
 >;
 
+/** Every pass's verification row starts with it; the purge sync relies on it. */
+export const CAPTCHA_PASS_IDENTIFIER_PREFIX = "captcha-pass:";
+
 function captchaPassIdentifier(id: string) {
-  return `captcha-pass:${id}`;
+  return `${CAPTCHA_PASS_IDENTIFIER_PREFIX}${id}`;
 }
 
 export function isCaptchaPass(value: string) {

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
 import {
+  CAPTCHA_PASS_IDENTIFIER_PREFIX,
   SIGN_UP_EMAIL_STATUS_PATH,
   signUpEmailStatus,
 } from "./auth-sign-up-email-status.js";
@@ -12,6 +13,7 @@ import {
 // A real Better Auth instance with the captcha plugin in front, as in Core.
 function createTestAuth({ rateLimited = false } = {}) {
   const sendEmail = vi.fn();
+  const verification: { identifier: string; expiresAt: Date }[] = [];
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
     basePath: "/auth",
@@ -55,7 +57,7 @@ function createTestAuth({ rateLimited = false } = {}) {
           updatedAt: new Date(),
         },
       ],
-      verification: [],
+      verification,
     }),
     emailAndPassword: { enabled: true },
     plugins: [
@@ -103,7 +105,7 @@ function createTestAuth({ rateLimited = false } = {}) {
     const body: { captchaPass: string } = await (await ask({ email })).json();
     return body.captchaPass;
   }
-  return { ask, sendCode, askForPass, sendEmail };
+  return { ask, sendCode, askForPass, sendEmail, verification };
 }
 
 const CAPTCHA_PASS = expect.stringMatching(/^pass_[\w-]{32}$/);
@@ -211,6 +213,20 @@ describe("sign-up email status", () => {
       code: "VERIFICATION_FAILED",
     });
     expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  // The captcha-passes-purge sync finds expired passes by this prefix.
+  it("stores a pass under the prefix the purge deletes", async () => {
+    passCaptcha();
+    const { askForPass, verification } = createTestAuth();
+
+    await askForPass("ada@example.com");
+
+    expect(verification).toHaveLength(1);
+    expect(verification[0]?.identifier).toMatch(
+      new RegExp(`^${CAPTCHA_PASS_IDENTIFIER_PREFIX}`),
+    );
+    expect(verification[0]?.expiresAt.getTime()).toBeGreaterThan(Date.now());
   });
 
   it("refuses a pass for another address and uses it up", async () => {
