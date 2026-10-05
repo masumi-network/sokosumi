@@ -2330,7 +2330,7 @@ export const getUsersByIdWorkspaces = <ThrowOnError extends boolean = false>(opt
 });
 
 /**
- * Create a workspace for the user (path `me` for the session user, or a user id the caller may access) and make it preferred. `{ "kind": "personal" }` creates the one personal workspace (409 when it exists). `{ "kind": "organization", "name", "websiteUrl" }` creates an organization owned by the user, with the website stored in its metadata; the organization limit applies (403). See ADR 0051.
+ * Create a workspace for the user (path `me` for the session user, or a user id the caller may access) and make it preferred. `{ "kind": "personal" }` creates the one personal workspace (409 when it exists). `{ "kind": "organization", "name", "websiteUrl" }` creates an organization owned by the user, with the website stored in its metadata; the organization limit applies (403). If making a new organization preferred fails after it is created, it is still returned (201) with `preferred: false`. See ADR 0051.
  */
 export const postUsersByIdWorkspaces = <ThrowOnError extends boolean = false>(options: Options<PostUsersByIdWorkspacesData, ThrowOnError>): RequestResult<PostUsersByIdWorkspacesResponses, PostUsersByIdWorkspacesErrors, ThrowOnError> => (options.client ?? client).post<PostUsersByIdWorkspacesResponses, PostUsersByIdWorkspacesErrors, ThrowOnError>({
     responseTransformer: postUsersByIdWorkspacesResponseTransformer,

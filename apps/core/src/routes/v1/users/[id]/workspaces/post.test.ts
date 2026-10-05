@@ -21,17 +21,23 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
 });
 
 const {
+  captureExceptionMock,
   createOrganizationMock,
   createPersonalWorkspaceMock,
   getUserWorkspaceMock,
   setPreferredOrganizationIdMock,
   userFindUniqueMock,
 } = vi.hoisted(() => ({
+  captureExceptionMock: vi.fn(),
   createOrganizationMock: vi.fn(),
   createPersonalWorkspaceMock: vi.fn(),
   getUserWorkspaceMock: vi.fn(),
   setPreferredOrganizationIdMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
+}));
+
+vi.mock("@sentry/node", () => ({
+  captureException: captureExceptionMock,
 }));
 
 vi.mock("@/lib/auth", () => ({
@@ -160,6 +166,36 @@ describe("POST /users/{id}/workspaces", () => {
     expect(getUserWorkspaceMock).toHaveBeenCalledWith("user_123", {
       organizationId: "org_1",
     });
+  });
+
+  it("still returns the created organization when making it preferred fails", async () => {
+    createOrganizationMock.mockResolvedValue({ id: "org_1" });
+    const failure = new Error("connection reset");
+    setPreferredOrganizationIdMock.mockRejectedValue(failure);
+    const workspace = {
+      id: WORKSPACE_ID,
+      kind: "organization",
+      name: "Acme",
+      organizationId: "org_1",
+      slug: "acme-abc123",
+      preferred: false,
+    };
+    getUserWorkspaceMock.mockResolvedValue(workspace);
+
+    const response = await post({
+      kind: "organization",
+      name: "Acme",
+      websiteUrl: "acme.com",
+    });
+
+    expect(response.status).toBe(201);
+    expect((await response.json()).data).toEqual(workspace);
+    expect(captureExceptionMock).toHaveBeenCalledWith(
+      failure,
+      expect.objectContaining({
+        extra: expect.objectContaining({ organizationId: "org_1" }),
+      }),
+    );
   });
 
   it.each([

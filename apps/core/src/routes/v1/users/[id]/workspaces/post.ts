@@ -1,4 +1,5 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import * as Sentry from "@sentry/node";
 import {
   buildOrganizationMetadataWithUrl,
   createOrganizationSlug,
@@ -32,7 +33,7 @@ const route = createRoute({
   method: "post",
   path: "/workspaces",
   description:
-    'Create a workspace for the user (path `me` for the session user, or a user id the caller may access) and make it preferred. `{ "kind": "personal" }` creates the one personal workspace (409 when it exists). `{ "kind": "organization", "name", "websiteUrl" }` creates an organization owned by the user, with the website stored in its metadata; the organization limit applies (403). See ADR 0051.',
+    'Create a workspace for the user (path `me` for the session user, or a user id the caller may access) and make it preferred. `{ "kind": "personal" }` creates the one personal workspace (409 when it exists). `{ "kind": "organization", "name", "websiteUrl" }` creates an organization owned by the user, with the website stored in its metadata; the organization limit applies (403). If making a new organization preferred fails after it is created, it is still returned (201) with `preferred: false`. See ADR 0051.',
   tags: ["Users"],
   request: {
     params,
@@ -90,7 +91,19 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
           userId: resolvedUserId,
         },
       });
-      await setPreferredOrganizationId(resolvedUserId, organization.id);
+      // The organization exists now; a failed preference only leaves it
+      // unpreferred (the response says so), so it must not turn into a 500
+      // that a retry answers with a second organization.
+      try {
+        await setPreferredOrganizationId(resolvedUserId, organization.id);
+      } catch (error) {
+        Sentry.captureException(error, {
+          extra: {
+            organizationId: organization.id,
+            errorType: "workspace-create-set-preferred",
+          },
+        });
+      }
       match = { organizationId: organization.id };
     }
 
