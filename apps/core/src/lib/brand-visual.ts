@@ -125,19 +125,30 @@ export function brandColors(css: string, limit = 5): string[] {
     .slice(0, limit);
 }
 
+/**
+ * A family as people name it, or null when it says nothing about the brand:
+ * generic families, metric fallbacks ("Inter Fallback") and CSS variables.
+ * Next.js hashes ("__Inter_d65c78") read as "Inter".
+ */
+export function brandFontName(raw: string): string | null {
+  const name = raw
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/^_+/, "")
+    .replace(/_[0-9a-f]{5,}$/i, "")
+    .replace(/_/g, " ")
+    .trim();
+  if (!/^[A-Za-z][\w -]*$/.test(name) || /fallback/i.test(name)) return null;
+  return GENERIC_FONTS.has(name.toLowerCase()) ? null : name;
+}
+
 /** Font families declared in CSS, most frequent first, generic ones dropped. */
 export function brandFonts(css: string, limit = 3): string[] {
   const counts = new Map<string, number>();
   const decoded = css.replace(/&quot;|&#0?34;|&#0?39;|&apos;/g, '"');
   for (const match of decoded.matchAll(/font-family\s*:\s*([^;}{]+)/gi)) {
-    const first = (match[1] ?? "")
-      .split(",")[0]
-      ?.trim()
-      .replace(/^["']|["']$/g, "");
-    if (!first || !/^[\w][\w -]*$/.test(first) || /fallback/i.test(first))
-      continue;
-    if (GENERIC_FONTS.has(first.toLowerCase())) continue;
-    counts.set(first, (counts.get(first) ?? 0) + 1);
+    const first = brandFontName((match[1] ?? "").split(",")[0] ?? "");
+    if (first) counts.set(first, (counts.get(first) ?? 0) + 1);
   }
   return [...counts.entries()]
     .sort((a, b) => b[1] - a[1])

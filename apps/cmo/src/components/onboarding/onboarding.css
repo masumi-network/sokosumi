@@ -1266,22 +1266,55 @@ body:has(.ob) .site-header {
   white-space: nowrap;
 }
 
+/* Pinned to the viewport; the page leaves room for it below. */
+.ob-strategy {
+  padding-bottom: 96px;
+}
+
 .ob-approve-bar {
-  position: sticky;
-  bottom: 16px;
-  z-index: 5;
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 20;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   gap: 12px 24px;
-  margin-top: 24px;
-  padding: 14px 14px 14px 20px;
-  border: 1px solid var(--ob-line);
-  border-radius: 16px;
-  background: color-mix(in srgb, var(--background) 92%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 0.08);
+  padding: 14px max(24px, calc((100vw - 1040px) / 2));
+  border-top: 1px solid var(--ob-line);
+  background: var(--background);
+}
+
+.ob-clamp-group {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+}
+
+.ob-clamp {
+  margin: 0;
+}
+
+.ob-clamp.shut {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+}
+
+.ob-more {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ob-more:hover {
+  color: var(--foreground);
 }
 
 .ob-approve-bar p {
@@ -1758,7 +1791,7 @@ body:has(.ob) .site-header {
   }
 
   .ob-approve-bar {
-    padding: 10px;
+    padding: 10px 16px;
   }
 
   .ob-approve-bar p {

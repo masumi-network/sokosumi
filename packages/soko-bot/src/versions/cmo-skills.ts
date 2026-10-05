@@ -30,9 +30,9 @@ The strategy in your packet (\`workspace.marketing.strategy\`) is the plan you e
 
 ## What a strategy contains
 - summary: the plan's headline, one sentence of at most 30 words on what the next four weeks do for this business. The detail belongs in why, channels and the calendar.
-- why: three to five sentences tying the plan to the Brand Brain: who the audience is and where they actually spend time, what the goal needs, and how you stand apart from the named competitors.
-- goals (2–4, the owner's goal first), audience (one line), positioning (one or two sentences), pillars (3–5 recurring themes, each a label of two to five words).
-- channels: each with a realistic cadence for a small team and a why (one sentence: why this channel and this cadence for this audience).
+- why: two or three short sentences tying the plan to the Brand Brain: where the audience actually spends time, what the goal needs, and how you stand apart from the named competitors.
+- goals (2–4 short lines, the owner's goal first), audience (one line), positioning (one sentence), pillars (3–5 recurring themes, each a label of two to five words).
+- channels: each with a cadence of one short line ("2 a week, Tue and Thu") and a why of one sentence, at most 20 words.
 - calendar: the exact plan, day by day, for four weeks from the start date. Every entry has date, time (HH:MM, a sensible slot for that channel's audience), channel, format, title, hook (the first line the reader sees, written out), brief, why (one line: which goal or pillar it serves), and status idea. Every entry in the first week also has draft: the finished piece, word for word, ready to publish (for an article: the title, the intro and the outline). Later weeks may carry hook and brief only.
 - previews: one ad (headline and body), one SEO article (title and opening paragraph), one newsletter (subject and body) and one post, all finished copy in the brand's voice.
 - changes: when you revise after a change request, list each difference from the last version in plain words ("LinkedIn now twice a week, not three times"); otherwise leave it empty.

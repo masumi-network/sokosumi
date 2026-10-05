@@ -18,6 +18,7 @@ import { useMemo, useState, useTransition } from "react";
 
 import { channelLabel, SOCIAL_PROVIDERS } from "../../lib/calendar";
 import { ChannelIcon } from "../channel-icon";
+import { Clamp } from "./clamp";
 import { Showcases } from "./showcases";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
@@ -167,7 +168,7 @@ export function StrategyStep({
           <Lightbulb size={18} aria-hidden="true" />
           <div>
             <p className="ob-label">Why this plan</p>
-            <p>{strategy.why}</p>
+            <Clamp items={[{ text: strategy.why }]} lines={3} />
           </div>
         </div>
       ) : null}
@@ -188,7 +189,7 @@ export function StrategyStep({
             <p className="ob-label">
               <Users size={14} aria-hidden="true" /> Audience
             </p>
-            <p>{strategy.audience}</p>
+            <Clamp items={[{ text: strategy.audience }]} lines={3} />
           </div>
         ) : null}
         {strategy.positioning ? (
@@ -196,7 +197,7 @@ export function StrategyStep({
             <p className="ob-label">
               <Sparkles size={14} aria-hidden="true" /> Positioning
             </p>
-            <p>{strategy.positioning}</p>
+            <Clamp items={[{ text: strategy.positioning }]} lines={3} />
           </div>
         ) : null}
       </div>
@@ -229,8 +230,15 @@ export function StrategyStep({
                   : "Coming soon"}
               </span>
             </div>
-            <p className="ob-cadence">{channel.cadence}</p>
-            {channel.why ? <p className="ob-note">{channel.why}</p> : null}
+            <Clamp
+              lines={1}
+              items={[
+                { text: channel.cadence, className: "ob-cadence" },
+                ...(channel.why
+                  ? [{ text: channel.why, className: "ob-note" }]
+                  : []),
+              ]}
+            />
           </article>
         ))}
       </div>

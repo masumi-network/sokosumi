@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   brandColors,
+  brandFontName,
   brandFonts,
   findLogo,
   isNeutral,
@@ -29,6 +30,20 @@ describe("brand visual", () => {
     ).toEqual(["Inter Display"]);
     expect(
       brandFonts("a{font-family:Inter} b{font-family:'Inter Fallback'}"),
+    ).toEqual(["Inter"]);
+  });
+
+  it("names brand fonts and drops fallbacks and generic families", () => {
+    expect(brandFontName("Inter Fallback")).toBeNull();
+    expect(brandFontName("__Inter_Fallback_abc")).toBeNull();
+    expect(brandFontName("__Inter_Fallback_d65c78")).toBeNull();
+    expect(brandFontName("system-ui")).toBeNull();
+    expect(brandFontName("__Inter_d65c78")).toBe("Inter");
+    expect(brandFontName("'PP Mori'")).toBe("PP Mori");
+    expect(
+      brandFonts(
+        "a{font-family:__Inter_d65c78, '__Inter_Fallback_d65c78'} b{font-family:'Inter Fallback'} c{font-family:system-ui}",
+      ),
     ).toEqual(["Inter"]);
   });
 

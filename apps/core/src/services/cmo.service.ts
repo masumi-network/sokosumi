@@ -23,6 +23,7 @@ import { buildCreditsPayload } from "@/helpers/subscription";
 import {
   type BrandVisual,
   brandColors,
+  brandFontName,
   readBrandVisual,
 } from "@/lib/brand-visual";
 import prisma from "@/lib/db/prisma";
@@ -73,7 +74,12 @@ export type CmoBrandVisual = z.infer<typeof cmoBrandVisualSchema>;
 
 export function parseCmoBrandVisual(value: unknown): CmoBrandVisual | null {
   const parsed = cmoBrandVisualSchema.safeParse(value);
-  return parsed.success ? parsed.data : null;
+  if (!parsed.success) return null;
+  // Rows saved before the font filter tightened still carry fallbacks.
+  const fonts = parsed.data.fonts
+    .map(brandFontName)
+    .filter((font): font is string => font !== null);
+  return { ...parsed.data, fonts: [...new Set(fonts)] };
 }
 
 const DESIGN_MD_POLL_MS = 3_000;
