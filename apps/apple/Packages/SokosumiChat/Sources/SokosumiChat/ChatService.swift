@@ -3,7 +3,7 @@ import Foundation
 import OpenAPIRuntime
 
 /// UI-free workspace + rooms + transcript + classic send.
-/// Only `ready` continues into chat. Personal omits `X-Organization-Slug`;
+/// Only a non-empty workspaces list continues into chat. Personal omits `X-Organization-Slug`;
 /// organizations send it. Unread chrome trusts Core; never zero it locally.
 public struct ChatService: Sendable {
   static let roomListLimit = 100
