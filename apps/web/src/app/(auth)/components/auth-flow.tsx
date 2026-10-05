@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { AuthHeader } from "@/auth/components/auth-header";
+import { AuthPage } from "@/auth/components/auth-page";
 import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
@@ -185,13 +186,14 @@ export default function AuthFlow({
 
   function frame(content: ReactNode) {
     return (
-      <div className="flex flex-1 flex-col">
-        <AuthHeader mode={mode} client={client} invitationId={invitationId} />
-        <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          {content}
-          {children}
-        </div>
-      </div>
+      <AuthPage
+        header={
+          <AuthHeader mode={mode} client={client} invitationId={invitationId} />
+        }
+      >
+        {content}
+        {children}
+      </AuthPage>
     );
   }
 
