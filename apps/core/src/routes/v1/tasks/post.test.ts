@@ -755,7 +755,10 @@ describe("POST /tasks", () => {
           status: TaskStatus.QUEUED,
           runAt: new Date(FUTURE_RUN_AT),
           events: {
-            create: expect.objectContaining({ status: TaskStatus.QUEUED }),
+            create: [
+              expect.objectContaining({ status: TaskStatus.CREATED }),
+              expect.objectContaining({ status: TaskStatus.QUEUED }),
+            ],
           },
         }),
       }),
@@ -924,6 +927,30 @@ describe("POST /tasks", () => {
       expect.objectContaining({
         data: expect.objectContaining({ priority: TaskPriority.URGENT }),
       }),
+    );
+  });
+
+  it("writes the creation event, then the status event", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Plain Task",
+        description: null,
+        assigneeId: null,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    const [created, status] =
+      taskCreateMock.mock.calls[0]![0].data.events.create;
+    expect(created).toMatchObject({
+      status: TaskStatus.CREATED,
+      comment: null,
+    });
+    expect(status).toMatchObject({ status: TaskStatus.DRAFT });
+    expect(created.createdAt.getTime()).toBeLessThan(
+      status.createdAt.getTime(),
     );
   });
 
@@ -1583,9 +1610,10 @@ describe("POST /tasks", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           events: {
-            create: expect.objectContaining({
-              channel: Channel.EMAIL,
-            }),
+            create: [
+              expect.objectContaining({ channel: Channel.EMAIL }),
+              expect.objectContaining({ channel: Channel.EMAIL }),
+            ],
           },
         }),
       }),

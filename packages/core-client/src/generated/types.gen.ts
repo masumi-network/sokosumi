@@ -1742,7 +1742,7 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     channel: Channel;
     origin: Channel & unknown;
-    status?: TaskStatus | null;
+    status?: TaskEventStatus | null;
 };
 
 /**
@@ -1791,6 +1791,26 @@ export const Channel = {
  * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
  */
 export type Channel = typeof Channel[keyof typeof Channel];
+
+export const TaskEventStatus = {
+    DRAFT: 'DRAFT',
+    QUEUED: 'QUEUED',
+    READY: 'READY',
+    GRANT_PENDING: 'GRANT_PENDING',
+    INPUT_REQUIRED: 'INPUT_REQUIRED',
+    APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+    AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
+    OUT_OF_CREDITS: 'OUT_OF_CREDITS',
+    CREDITS_TOPPED_UP: 'CREDITS_TOPPED_UP',
+    RUNNING: 'RUNNING',
+    AWAITING_EXTERNAL: 'AWAITING_EXTERNAL',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCELED: 'CANCELED',
+    CREATED: 'CREATED'
+} as const;
+
+export type TaskEventStatus = typeof TaskEventStatus[keyof typeof TaskEventStatus];
 
 export type JobSummary = {
     id: string;
@@ -5435,7 +5455,7 @@ export type WorkspaceCalendarItem = {
     /**
      * Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned
      */
-    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+    taskStatus: TaskStatus | null;
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
@@ -38744,7 +38764,7 @@ export type GetProjectsByIdCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */
@@ -49357,7 +49377,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED'>;
+        status?: Array<TaskStatus>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -52586,7 +52606,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus;
         comment?: string;
         /**
          * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
@@ -52694,7 +52714,7 @@ export type PostTasksByIdEventsErrors = {
         retryAfterSeconds?: number;
         data?: TaskEvent;
         attemptedCredits?: number;
-        requestedStatus?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+        requestedStatus?: TaskStatus | null;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -56995,7 +57015,7 @@ export type GetWorkspacesCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */

@@ -44,6 +44,7 @@ import {
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -52,7 +53,7 @@ const taskStatusQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
     z
-      .array(z.enum(TaskStatus))
+      .array(taskStatusSchema)
       .min(1)
       .optional()
       .transform(deduplicateQueryValues),

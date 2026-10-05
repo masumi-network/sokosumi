@@ -5,7 +5,12 @@ import type {
   TaskFile,
   TaskParticipant,
 } from "@sokosumi/core-client";
-import { BlobStatus, Channel, TaskStatus } from "@sokosumi/core-client";
+import {
+  BlobStatus,
+  Channel,
+  TaskEventStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import {
   extractFileLikeLinks,
   extractHttpLinks,
@@ -573,7 +578,9 @@ export function TaskActivitySection({
                 ? actionCommentedLabel
                 : chargePresentation.actionKind === "charged"
                   ? (chargedLabel ?? actionUpdatedStatusLabel)
-                  : actionUpdatedStatusLabel;
+                  : chargePresentation.actionKind === "created"
+                    ? t("actionCreated")
+                    : actionUpdatedStatusLabel;
             const shouldShowSecondaryChargeLine =
               chargePresentation.shouldShowSecondaryChargeLine;
             const shouldShowAuthenticateButton =
@@ -610,7 +617,10 @@ export function TaskActivitySection({
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
             const shouldHighlightDoneBorder =
               event.status === TaskStatus.COMPLETED && isCommentEvent;
-            const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
+            // CREATED is the creation event, not a status the Task can be in.
+            const taskStatus =
+              event.status === TaskEventStatus.CREATED ? null : event.status;
+            const isStatusOnlyEvent = !isCardEvent && Boolean(taskStatus);
 
             const row = (
               <div
@@ -629,13 +639,13 @@ export function TaskActivitySection({
                     isCardEvent && "py-3",
                   )}
                 >
-                  {isStatusOnlyEvent && event.status ? (
+                  {isStatusOnlyEvent && taskStatus ? (
                     <div className="flex size-6 shrink-0 items-center justify-center">
                       <span
                         data-testid={`status-dot-${event.id}`}
                         className={cn(
                           "size-1.5 shrink-0 rounded-full",
-                          getTaskStatusDotColorClass(event.status),
+                          getTaskStatusDotColorClass(taskStatus),
                         )}
                         aria-hidden
                       />
@@ -670,7 +680,7 @@ export function TaskActivitySection({
                         <span className="max-sm:order-3 max-sm:basis-full sm:contents">
                           <span className="text-muted-foreground text-xs">
                             <span>{action}</span>{" "}
-                            {!event.status ? (
+                            {!taskStatus ? (
                               <>
                                 <span className="whitespace-nowrap">
                                   {originFromLabel}
@@ -684,12 +694,12 @@ export function TaskActivitySection({
                               </>
                             ) : null}
                           </span>
-                          {event.status ? (
+                          {taskStatus ? (
                             <>
                               {" "}
                               <TaskStatusInline
-                                status={event.status}
-                                label={tStatus(event.status)}
+                                status={taskStatus}
+                                label={tStatus(taskStatus)}
                               />{" "}
                               <span className="text-muted-foreground text-xs">
                                 <span className="whitespace-nowrap">

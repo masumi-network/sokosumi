@@ -6743,7 +6743,7 @@ export const TaskEventSchema = {
         status: {
             anyOf: [
                 {
-                    $ref: '#/components/schemas/TaskStatus'
+                    $ref: '#/components/schemas/TaskEventStatus'
                 },
                 {
                     type: 'null'
@@ -6873,6 +6873,27 @@ export const ChannelSchema = {
     ],
     example: 'SLACK',
     description: 'Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.'
+} as const;
+
+export const TaskEventStatusSchema = {
+    type: 'string',
+    enum: [
+        'DRAFT',
+        'QUEUED',
+        'READY',
+        'GRANT_PENDING',
+        'INPUT_REQUIRED',
+        'APPROVAL_REQUIRED',
+        'AUTHENTICATION_REQUIRED',
+        'OUT_OF_CREDITS',
+        'CREDITS_TOPPED_UP',
+        'RUNNING',
+        'AWAITING_EXTERNAL',
+        'COMPLETED',
+        'FAILED',
+        'CANCELED',
+        'CREATED'
+    ]
 } as const;
 
 export const JobSummarySchema = {
@@ -18161,26 +18182,13 @@ export const WorkspaceCalendarItemSchema = {
             example: 'Prepare release notes'
         },
         taskStatus: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'DRAFT',
-                'QUEUED',
-                'READY',
-                'GRANT_PENDING',
-                'INPUT_REQUIRED',
-                'APPROVAL_REQUIRED',
-                'AUTHENTICATION_REQUIRED',
-                'OUT_OF_CREDITS',
-                'CREDITS_TOPPED_UP',
-                'RUNNING',
-                'AWAITING_EXTERNAL',
-                'COMPLETED',
-                'FAILED',
-                'CANCELED',
-                null
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/TaskStatus'
+                },
+                {
+                    type: 'null'
+                }
             ],
             description: 'Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned',
             example: 'READY'

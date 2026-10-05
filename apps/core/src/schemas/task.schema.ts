@@ -11,6 +11,7 @@ import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
+  taskEventStatusSchema,
   taskPrioritySchema,
   taskStatusSchema,
   taskVisibilitySchema,
@@ -161,7 +162,7 @@ export const taskEventSchema = z
     channel: taskEventChannelField,
     origin: taskEventDeprecatedOriginField,
     status: z
-      .union([taskStatusSchema, z.null()])
+      .union([taskEventStatusSchema, z.null()])
       .optional()
       .openapi({ example: TaskStatus.RUNNING }),
   })
