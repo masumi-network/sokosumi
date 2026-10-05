@@ -26,7 +26,7 @@ export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   });
 
 // Sign-in and sign-up both ask for the email first, then everything else;
-// a password reset asks for nothing else.
+// a password reset and the account page's change-email ask for nothing else.
 export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
