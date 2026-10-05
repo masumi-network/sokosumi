@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import {
+  isFirstAndLastNameWithinLimit,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
 } from "@sokosumi/utils";
@@ -297,3 +298,15 @@ export const creditsResponseSchema = z.object({
       "Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.",
   }),
 });
+
+export const updateUserNameSchema = z
+  .object({
+    firstName: z.string().trim().min(1).openapi({ example: "Ada" }),
+    lastName: z.string().trim().min(1).openapi({ example: "Lovelace" }),
+  })
+  .refine(
+    ({ firstName, lastName }) =>
+      isFirstAndLastNameWithinLimit(firstName, lastName),
+    { path: ["lastName"], error: "First and last name are too long" },
+  )
+  .openapi("UpdateUserName");

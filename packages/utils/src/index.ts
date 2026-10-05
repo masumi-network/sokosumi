@@ -350,6 +350,7 @@ export {
   getOrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export { createOrganizationSlug } from "./organization-slug.js";
 export {
   compareByDisplayNameThenId,
   formatParticipantNameList,
