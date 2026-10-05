@@ -576,7 +576,14 @@ describe("SignInForm", () => {
       await user.click(
         screen.getByRole("button", { name: "emailCodeInstead" }),
       );
-      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL);
+      expect(emailCode.sendCode).toHaveBeenCalledWith(EMAIL, {
+        runWithCaptcha: expect.any(Function),
+      });
+      // The password step's check covers the send.
+      const options = vi.mocked(emailCode.sendCode).mock.calls[0]?.[1];
+      const send = vi.fn().mockResolvedValue(undefined);
+      await options?.runWithCaptcha?.(send);
+      expect(send).toHaveBeenCalledWith(captchaFetchOptions);
 
       rerender(
         <SignInForm
@@ -588,6 +595,23 @@ describe("SignInForm", () => {
         />,
       );
       expect(codeField()).toBeInTheDocument();
+    });
+
+    // A visitor Cloudflare wants to see would otherwise get two checkboxes.
+    it("shows no second security check for emailing a code", () => {
+      renderForm({
+        emailCode: fakeEmailCode({
+          sentTo: null,
+          captcha: <div data-testid="email-code-captcha" />,
+        }),
+      });
+
+      expect(
+        screen.getByRole("button", { name: "emailCodeInstead" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("email-code-captcha"),
+      ).not.toBeInTheDocument();
     });
 
     it("pairs the password with the address for password managers", () => {
