@@ -17,7 +17,9 @@ import {
 } from "@/lib/auth/auth-email-hint";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
+  CAPTCHA_PASS,
   captchaFetchOptions,
+  captchaPassFetchOptions,
   requestCaptchaMock,
 } from "@/test/auth-captcha-mock";
 
@@ -107,7 +109,7 @@ describe("AuthFlow signIn", () => {
     window.sessionStorage.clear();
     mockSearchParams = new URLSearchParams();
     emailStatusMock.mockResolvedValue({
-      data: { exists: true, hasPassword: false },
+      data: { exists: true, hasPassword: false, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     sendEmailCodeMock.mockResolvedValue({
@@ -140,10 +142,12 @@ describe("AuthFlow signIn", () => {
       headers: captchaFetchOptions.headers,
     });
     expect(sendEmailCodeMock).toHaveBeenCalledWith({
-      fetchOptions: captchaFetchOptions,
+      fetchOptions: captchaPassFetchOptions,
       email: "ada@example.com",
       type: "sign-in",
     });
+    // The status check's pass covers the code; the visitor is checked once.
+    expect(requestCaptchaMock).toHaveBeenCalledTimes(1);
     expect(signInFormMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
         email: "ada@example.com",
@@ -179,7 +183,7 @@ describe("AuthFlow signIn", () => {
   it("opens on the password without emailing a code when the account has one", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValue({
-      data: { exists: true, hasPassword: true },
+      data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
@@ -199,7 +203,7 @@ describe("AuthFlow signIn", () => {
   it("asks again after the address changes to one without a password", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValueOnce({
-      data: { exists: true, hasPassword: true },
+      data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
@@ -226,7 +230,7 @@ describe("AuthFlow signIn", () => {
   it("opens on the password for an account with one, even when the code was used last", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValue({
-      data: { exists: true, hasPassword: true },
+      data: { exists: true, hasPassword: true, captchaPass: CAPTCHA_PASS },
       error: null,
     });
     render(<AuthFlow mode="signIn" lastUsedMethod="email-otp" />);
@@ -297,7 +301,10 @@ describe("AuthFlow signIn", () => {
 
   it("offers sign-up instead of a code for an address without an account", async () => {
     const user = userEvent.setup();
-    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
     render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     await continueWith(user, "new@example.com");
@@ -314,7 +321,10 @@ describe("AuthFlow signIn", () => {
   });
 
   async function showCreateAccount(user: ReturnType<typeof userEvent.setup>) {
-    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
     render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
     await continueWith(user, "new@example.com");
     const createAccount = await screen.findByRole("link", {
@@ -341,7 +351,7 @@ describe("AuthFlow signIn", () => {
 
     await waitFor(() =>
       expect(sendEmailCodeMock).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
+        fetchOptions: captchaPassFetchOptions,
         email: "new@example.com",
         type: "sign-in",
       }),
@@ -458,7 +468,10 @@ describe("AuthFlow signIn", () => {
       exp: "1772367377",
       sig: "signed-value",
     });
-    emailStatusMock.mockResolvedValue({ data: { exists: false }, error: null });
+    emailStatusMock.mockResolvedValue({
+      data: { exists: false, captchaPass: CAPTCHA_PASS },
+      error: null,
+    });
     render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
     expect(screen.getByRole("link", { name: "Register.link" })).toHaveAttribute(
@@ -620,7 +633,7 @@ describe("AuthFlow signIn", () => {
     it("keeps an invitation, not its address, on the links to sign-up", async () => {
       const user = userEvent.setup();
       emailStatusMock.mockResolvedValue({
-        data: { exists: false },
+        data: { exists: false, captchaPass: CAPTCHA_PASS },
         error: null,
       });
       render(
