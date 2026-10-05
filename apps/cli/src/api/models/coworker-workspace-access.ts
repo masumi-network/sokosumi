@@ -17,9 +17,7 @@ function requiredString(value: unknown, field: string): string {
   return value;
 }
 
-export function parseCoworkerWorkspaceAccess(
-  input: unknown,
-): CoworkerWorkspaceAccess {
+function parseCoworkerWorkspaceAccess(input: unknown): CoworkerWorkspaceAccess {
   const value = asRecord(input);
   return {
     id: requiredString(value.id, "id"),
