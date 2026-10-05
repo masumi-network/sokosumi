@@ -106,6 +106,18 @@ struct MessageInlineFileLinkTests {
     #expect(MessageMarkdown(source).segments.last?.files.isEmpty == true, "Agrees with what the row draws")
   }
 
+  /// Web judges a line and a gap with JavaScript's `\s`: U+FEFF counts as whitespace, U+0085 does not (Swift's
+  /// `isWhitespace` says the opposite for both).
+  @Test func whitespaceIsJavaScriptWhitespace() {
+    let link = "[notes.pdf](https://cdn.example/notes.pdf)"
+    #expect(Self.kinds(MessageMarkdown("\u{FEFF}" + link)) == ["files"], "A line otherwise U+FEFF is a card")
+    #expect(Self.kinds(MessageMarkdown("\u{85}" + link)) == ["text"], "A line otherwise U+0085 keeps a link")
+    let joined = MessageMarkdown("[a.png](https://cdn.example/a.png)\n\u{FEFF}\n[b.png](https://cdn.example/b.png)")
+    #expect(joined.segments.map { $0.attachments.map(\.filename) } == [["a.png", "b.png"]], "A U+FEFF gap joins one run")
+    #expect(MessageMarkdown.endsWithAttachmentRun(link + "\n\u{FEFF}"))
+    #expect(!MessageMarkdown.endsWithAttachmentRun(link + "\n\u{85}"))
+  }
+
   /// Web cards Markdown links only: a bare domain, a bare URL or an autolink to a file is a link on any line.
   @Test(arguments: [
     "cdn.example.com/notes.pdf",

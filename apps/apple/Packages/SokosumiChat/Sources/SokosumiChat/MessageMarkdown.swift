@@ -54,7 +54,7 @@ public struct MessageMarkdown: Equatable, Sendable {
       var rendered: [MessageMarkdownSegment] = []
       func appendText(through end: Int) {
         let source = String(characters[cursor ..< end])
-        guard !source.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        guard !source.allSatisfy(MarkdownBareDomains.isWebWhitespace) else { return }
         let parsed = Markdown.Document(parsing: MarkdownBareDomains(source).linkified())
         let blocks = parsed.children.flatMap { builder.blocks(for: $0) }
           .map { $0.resolving(mentions: mentions, channels: channels) }
@@ -84,7 +84,7 @@ public struct MessageMarkdown: Equatable, Sendable {
   public static func endsWithAttachmentRun(_ source: String) -> Bool {
     let normalized = normalized(source)
     guard let last = MarkdownBareDomains(normalized).attachmentRuns().last else { return false }
-    return Array(normalized)[last.range.upperBound...].allSatisfy(\.isWhitespace)
+    return Array(normalized)[last.range.upperBound...].allSatisfy(MarkdownBareDomains.isWebWhitespace)
   }
 
   private static func normalized(_ source: String) -> String {

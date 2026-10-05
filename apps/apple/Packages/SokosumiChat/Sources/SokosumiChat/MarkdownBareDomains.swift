@@ -176,7 +176,7 @@ struct MarkdownBareDomains {
     let ranges = links.map(\.range)
     var runs: [AttachmentRun] = []
     for (range, attachment) in links where isAloneOnItsLine(range, among: ranges) {
-      if let last = runs.last, text[last.range.upperBound ..< range.lowerBound].allSatisfy(\.isWhitespace) {
+      if let last = runs.last, text[last.range.upperBound ..< range.lowerBound].allSatisfy(Self.isWebWhitespace) {
         runs[runs.count - 1].attachments.append(attachment)
         runs[runs.count - 1].offsets.append(range.lowerBound)
         runs[runs.count - 1].range = last.range.lowerBound ..< range.upperBound
@@ -200,7 +200,7 @@ struct MarkdownBareDomains {
       cursor = max(cursor, other.upperBound)
     }
     rest += text[min(cursor, end) ..< end]
-    return rest.allSatisfy(\.isWhitespace)
+    return rest.allSatisfy(Self.isWebWhitespace)
   }
 
   /// File-like Markdown links in source order, outside fenced and inline code.
@@ -363,6 +363,17 @@ struct MarkdownBareDomains {
       }
     }
     return end
+  }
+
+  /// JavaScript's `\s`, which web's segmenter tests lines and gaps with: unlike `Character.isWhitespace` it counts
+  /// U+FEFF and not U+0085.
+  static func isWebWhitespace(_ character: Character) -> Bool {
+    character.unicodeScalars.allSatisfy { scalar in
+      switch scalar.value {
+      case 0x09 ... 0x0D, 0x20, 0xA0, 0x1680, 0x2000 ... 0x200A, 0x2028, 0x2029, 0x202F, 0x205F, 0x3000, 0xFEFF: true
+      default: false
+      }
+    }
   }
 
   private static func isLetter(_ character: Character) -> Bool {
