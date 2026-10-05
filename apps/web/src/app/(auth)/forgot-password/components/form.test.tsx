@@ -52,11 +52,16 @@ describe("SOK-1144 password reset feedback", () => {
     });
   });
 
-  it("asks for the address with a visible label, an email keyboard and no autocorrect", () => {
+  it("names the address inside its field, with an email keyboard and no autocorrect", () => {
     render(<ForgotPasswordForm />);
 
+    // The label stays for screen readers; the placeholder shows the name.
     const email = screen.getByLabelText("Fields.Email.label");
     expect(email).toBe(screen.getByTestId("auth-field-email"));
+    expect(email).toHaveAttribute("placeholder", "Fields.Email.label");
+    expect(
+      screen.getByText("Fields.Email.label", { selector: "label" }),
+    ).toHaveClass("sr-only");
     expect(email).toHaveAttribute("type", "email");
     expect(email).toHaveAttribute("autocomplete", "email");
     expect(email).toHaveAttribute("autocapitalize", "none");

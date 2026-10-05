@@ -261,6 +261,28 @@ describe("SignUpForm with a password", () => {
     expect(row).not.toHaveClass("grid-cols-2");
   });
 
+  it("names the names and the password inside their fields, keeping the labels", async () => {
+    renderForm();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "addPassword" }));
+
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "placeholder",
+        label,
+      );
+    }
+    // The code's slots show dots, so its name stays above them.
+    expect(
+      screen.getByText("codeLabel", { selector: "label" }),
+    ).not.toHaveClass("sr-only");
+  });
+
   it("moves focus to the first name when the step opens", async () => {
     renderForm();
 

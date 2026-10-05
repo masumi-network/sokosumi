@@ -30,6 +30,12 @@ interface FormFieldsProps<T extends FieldValues> {
   namespace: AuthNamespace;
 }
 
+/**
+ * The fields of an auth step. Each step asks one or two things that its
+ * header already names, so a field's name sits inside it as the placeholder,
+ * centered with the button. The label stays for screen readers and password
+ * managers.
+ */
 export function FormFields<T extends FieldValues>({
   form,
   formData,
@@ -48,7 +54,9 @@ export function FormFields<T extends FieldValues>({
           render={({ field }) => (
             <FormItem>
               {formDataItem.labelKey && formDataItem.type !== "checkbox" ? (
-                <FormLabel>{t(formDataItem.labelKey)}</FormLabel>
+                <FormLabel className="sr-only">
+                  {t(formDataItem.labelKey)}
+                </FormLabel>
               ) : null}
               <FormControl>
                 <FormInput
@@ -59,11 +67,11 @@ export function FormFields<T extends FieldValues>({
                 />
               </FormControl>
               {formDataItem.descriptionKey ? (
-                <FormDescription>
+                <FormDescription className="text-center">
                   {t(formDataItem.descriptionKey)}
                 </FormDescription>
               ) : null}
-              <FormMessage />
+              <FormMessage className="text-center" />
             </FormItem>
           )}
         />
@@ -94,12 +102,14 @@ function FormInput<T extends FieldValues>({
 }: FormInputProps<T>) {
   const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
     formDataItem;
+  const placeholderSource = placeholderKey ?? labelKey;
+  const placeholder = placeholderSource && t(placeholderSource);
 
   if (type === "checkbox") {
     const id = labelKey?.toString() ?? name.toString();
 
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center justify-center gap-2">
         <Checkbox
           id={id}
           checked={field.value}
@@ -116,7 +126,8 @@ function FormInput<T extends FieldValues>({
         {...controlProps}
         data-testid={`auth-field-${name.toString()}`}
         autoComplete={autoComplete}
-        placeholder={placeholderKey && t(placeholderKey)}
+        placeholder={placeholder}
+        className="text-center"
         showLabel={authT("PasswordToggle.show")}
         hideLabel={authT("PasswordToggle.hide")}
         {...field}
@@ -131,7 +142,8 @@ function FormInput<T extends FieldValues>({
       {...controlProps}
       data-testid={`auth-field-${name.toString()}`}
       autoComplete={autoComplete}
-      placeholder={placeholderKey && t(placeholderKey)}
+      placeholder={placeholder}
+      className="text-center"
       type={type ?? "text"}
       // Phones would otherwise capitalise and autocorrect the address.
       {...(type === "email" && { autoCapitalize: "none", spellCheck: false })}
