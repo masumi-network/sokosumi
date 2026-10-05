@@ -2,7 +2,11 @@ import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import type { MockInstance } from "vitest";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { resolveWebRelatedProjectFallbackHost, validateEnv } from "./env.js";
+import {
+  isExplicitPreprod,
+  resolveWebRelatedProjectFallbackHost,
+  validateEnv,
+} from "./env.js";
 
 const SOKO_BOT_ENV_KEYS = [
   "NODE_ENV",
@@ -325,5 +329,20 @@ describe("Better Auth production URL", () => {
 
     expect(production).toBe("https://core.example.com");
     expect(publicBase).not.toBe(production);
+  });
+});
+
+describe("isExplicitPreprod", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("accepts Preprod only when NETWORK is set explicitly", () => {
+    vi.stubEnv("NETWORK", "Preprod");
+    expect(isExplicitPreprod({ NETWORK: "Preprod" })).toBe(true);
+    vi.stubEnv("NETWORK", undefined);
+    expect(isExplicitPreprod({ NETWORK: "Preprod" })).toBe(false);
+    vi.stubEnv("NETWORK", "Mainnet");
+    expect(isExplicitPreprod({ NETWORK: "Mainnet" })).toBe(false);
   });
 });

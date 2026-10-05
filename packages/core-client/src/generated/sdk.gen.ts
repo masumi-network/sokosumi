@@ -3906,7 +3906,7 @@ export const getCoworkers = <ThrowOnError extends boolean = false>(options?: Opt
 });
 
 /**
- * Create coworker (admin only)
+ * Create a private coworker. Platform admins may create on any network; Vendor admins may create under their own Vendor on Preprod.
  */
 export const postCoworkers = <ThrowOnError extends boolean = false>(options?: Options<PostCoworkersData, ThrowOnError>): RequestResult<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError> => (options?.client ?? client).post<PostCoworkersResponses, PostCoworkersErrors, ThrowOnError>({
     responseTransformer: postCoworkersResponseTransformer,
@@ -4069,7 +4069,7 @@ export const listCoworkerWorkspaceAccess = <ThrowOnError extends boolean = false
 });
 
 /**
- * Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId, organizationId, email (personal workspace), or organizationSlug (org workspace).
+ * Propose or directly grant coworker workspace access. Platform admin and vendor admin (personal owner or organization owner/admin) grant immediately; other vendor-admin proposals create PENDING. Body: exactly one of workspaceId, userId, organizationId, email (personal workspace), or organizationSlug (org workspace).
  */
 export const createCoworkerWorkspaceAccess = <ThrowOnError extends boolean = false>(options: Options<CreateCoworkerWorkspaceAccessData, ThrowOnError>): RequestResult<CreateCoworkerWorkspaceAccessResponses, CreateCoworkerWorkspaceAccessErrors, ThrowOnError> => (options.client ?? client).post<CreateCoworkerWorkspaceAccessResponses, CreateCoworkerWorkspaceAccessErrors, ThrowOnError>({
     responseTransformer: createCoworkerWorkspaceAccessResponseTransformer,

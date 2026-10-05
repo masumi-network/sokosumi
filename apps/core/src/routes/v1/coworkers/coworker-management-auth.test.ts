@@ -46,6 +46,12 @@ vi.mock("@/lib/db/prisma", () => ({
     coworkerAssignment: {
       findFirst: coworkerAssignmentFindFirstMock,
     },
+    $transaction: async (callback: (tx: unknown) => Promise<unknown>) =>
+      await callback({
+        $queryRaw: async () => [],
+        vendor: { findUnique: async () => ({ id: vendorId }) },
+        vendorMember: { findFirst: vendorMemberFindFirstMock },
+      }),
   },
 }));
 
