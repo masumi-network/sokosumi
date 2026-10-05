@@ -144,30 +144,32 @@ jobs:
     if: ${{ !cancelled() && needs.changes.outputs.core != 'false' }}
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
-    services:
-      postgres: &postgres
-        image: postgres:17
-        env:
-          POSTGRES_USER: user
-          POSTGRES_PASSWORD: password
-          POSTGRES_DB: job_sync_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
     steps:
+      # A plain background container, not a `services:` entry: services
+      # block the first step for ~23s (image pull plus health checks),
+      # while this boots during checkout and Setup.
+      - &start-postgres
+        name: Start PostgreSQL
+        run: >-
+          nohup docker run --name postgres --publish 5432:5432
+          --env POSTGRES_USER=user --env POSTGRES_PASSWORD=password
+          --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
+
       - *checkout
       - *setup
+
+      # TCP, not the socket: the image's init server listens on the socket
+      # only and restarts before the real server comes up.
+      - &wait-postgres
+        name: Wait for PostgreSQL
+        run: timeout 120 bash -c 'until docker exec postgres pg_isready --host 127.0.0.1 --username user; do sleep 1; done' || { cat /tmp/postgres.log; exit 1; }
 
       # Apply migrations so Calendar erasure also exercises the actual cascade
       # and outbox triggers, which prisma db push does not install.
       - name: Apply migrations to PostgreSQL
         env: &migrated-db
-          DATABASE_URL: "postgresql://user:password@localhost:5432/job_sync_test"
-          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/job_sync_test"
+          DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+          DATABASE_URL_UNPOOLED: "postgresql://user:password@localhost:5432/sokosumi"
         run: pnpm prisma:migrate:deploy
 
       # Seconds, so it runs before the PostgreSQL suites. On drift it prints
@@ -226,21 +228,21 @@ jobs:
       # is gated on `IMAGE_STUDIO_TEST_DATABASE_URL` and skips cleanly, so
       # it is a dormant hole rather than a red one — but it is a hole.
       #
-      # `--no-file-parallelism`, on this step only: these files share one
-      # database and, through it, one job queue.
-      # `leaseNextFileIndexJob` takes a pipeline and no workspace filter,
-      # so it hands back the globally oldest runnable job — whoever owns
-      # it. Two suites running at once therefore steal each other's work
-      # and fail on a row the other one wrote, which reads as a flake in
-      # whichever file lost the race rather than as a defect anywhere.
-      # Serial here, and only here; the unit shards keep their
-      # parallelism.
+      # These files must not share a database: through it they share one
+      # job queue. `leaseNextFileIndexJob` takes a pipeline and no
+      # workspace filter, so it hands back the globally oldest runnable job
+      # — whoever owns it. Two suites on one database steal each other's
+      # work and fail on a row the other one wrote, which reads as a flake
+      # in whichever file lost the race. `POSTGRES_TEST_DATABASE_PER_WORKER`
+      # copies the migrated database once per Vitest worker
+      # (`apps/core/src/test/postgres-worker-databases.ts`), so the files
+      # run in parallel, each worker on its own copy.
       - name: Test against PostgreSQL
         env: *migrated-db
         run: |
-          RUN_DATABASE_INTEGRATION_TESTS=true \
+          RUN_DATABASE_INTEGRATION_TESTS=true POSTGRES_TEST_DATABASE_PER_WORKER=true \
             pnpm --filter core --fail-if-no-match test .postgres.test.ts \
-            --passWithNoTests=false --no-file-parallelism
+            --passWithNoTests=false
 
   core:
     name: Test Core
@@ -260,7 +262,19 @@ jobs:
     runs-on: ubuntu-latest
     permissions: *turbo-permissions
     services:
-      postgres: *postgres
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: job_sync_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       # Depth 2 also fetches the parents of the PR merge commit, which the
       # migration check below reads.
@@ -384,15 +398,8 @@ jobs:
     timeout-minutes: 10
     permissions: *turbo-permissions
     steps:
-      # A plain background container, not a `services:` entry: services
-      # block the first step for ~23s (image pull plus health checks),
-      # while this boots during checkout and Setup.
-      - name: Start PostgreSQL
-        run: >-
-          nohup docker run --name postgres --publish 5432:5432
-          --env POSTGRES_USER=user --env POSTGRES_PASSWORD=password
-          --env POSTGRES_DB=sokosumi postgres:17 > /tmp/postgres.log 2>&1 &
-
+      # Booted in the background, as in `core-db` above.
+      - *start-postgres
       - *checkout
       - *setup
 
@@ -411,10 +418,7 @@ jobs:
           key: js-next-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
           restore-keys: js-next-${{ runner.os }}-${{ runner.arch }}-
 
-      # TCP, not the socket: the image's init server listens on the socket
-      # only and restarts before the real server comes up.
-      - name: Wait for PostgreSQL
-        run: timeout 120 bash -c 'until docker exec postgres pg_isready --host 127.0.0.1 --username user; do sleep 1; done' || { cat /tmp/postgres.log; exit 1; }
+      - *wait-postgres
 
       - name: Run Prisma Migrate
         run: pnpm prisma:migrate:dev

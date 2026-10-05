@@ -338,6 +338,20 @@ describe("GitHub OIDC remote cache wiring", () => {
     }
   });
 
+  it("the PostgreSQL suites run in parallel only on per-worker databases", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    const step = jobBlock(test, "core-db").match(
+      /- name: Test against PostgreSQL\n([\s\S]*?)(?=\n      - |\n\n  [a-z]|$)/,
+    );
+    assert.ok(step, "missing step Test against PostgreSQL");
+    // Without the flag the files share one database and its job queue, and
+    // parallel files steal each other's jobs.
+    assert.match(
+      step[1],
+      /POSTGRES_TEST_DATABASE_PER_WORKER=true|--no-file-parallelism/,
+    );
+  });
+
   it("shards cover every slice of their suite", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
     for (const [jobId, name] of [
