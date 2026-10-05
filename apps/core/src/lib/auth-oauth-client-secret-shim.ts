@@ -8,36 +8,22 @@
  * pre plan-net/agentic-coworkers#2032) send the secret in the body, so every
  * token exchange failed and OAuth onboarding dead-ended at "No identity".
  *
- * This shim rewrites such requests into the Basic form Better Auth accepts:
- * secret moves from the body into an `Authorization: Basic` header. It only
- * touches `POST …/oauth2/token` form requests that carry a body secret and no
- * Authorization header — everything else passes through untouched, and client
- * authentication itself stays entirely with Better Auth.
+ * `handleOAuthTokenRequest` calls this for every `POST …/oauth2/token` form
+ * request. It rewrites one that carries a body secret and no Authorization
+ * header into the Basic form Better Auth accepts: the secret moves from the
+ * body into an `Authorization: Basic` header, and out of `params` too, so the
+ * caller reads the request Better Auth gets. Everything else passes through
+ * untouched, and client authentication itself stays entirely with Better Auth.
  *
  * Remove once all integrators authenticate with `client_secret_basic`.
  */
-
-const TOKEN_PATH_SUFFIX = "/oauth2/token";
-const FORM_CONTENT_TYPE = "application/x-www-form-urlencoded";
-
-export async function withClientSecretPostShim(
+export function moveClientSecretToBasicAuth(
   request: Request,
-): Promise<Request> {
-  if (request.method !== "POST") {
-    return request;
-  }
-  if (!new URL(request.url).pathname.endsWith(TOKEN_PATH_SUFFIX)) {
-    return request;
-  }
+  params: URLSearchParams,
+): Request {
   if (request.headers.get("authorization")) {
     return request;
   }
-  const contentType = request.headers.get("content-type") ?? "";
-  if (!contentType.toLowerCase().includes(FORM_CONTENT_TYPE)) {
-    return request;
-  }
-
-  const params = new URLSearchParams(await request.clone().text());
   const clientId = params.get("client_id");
   const clientSecret = params.get("client_secret");
   if (!clientId || !clientSecret) {

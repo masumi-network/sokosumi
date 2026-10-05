@@ -10,12 +10,11 @@ import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
 import {
-  handleOAuthRefreshTokenRequest,
+  handleOAuthTokenRequest,
   isRefreshTokenRotating,
   OAUTH_REFRESH_TOKEN_PREFIX,
 } from "@/lib/auth-oauth-provider.js";
 import prisma from "@/lib/db/prisma";
-import { withClientSecretPostShim } from "@/routes/auth/oauth2-token-secret-shim.js";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
 const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
@@ -48,12 +47,11 @@ app.get("/.well-known/openid-configuration", (c) =>
   oauthOpenIdConfigHandler(c.req.raw),
 );
 
-// Mount Auth routes. The token-endpoint shim (temporary) rewrites
-// client_secret_post requests into the client_secret_basic form Better Auth
-// requires — see oauth2-token-secret-shim.ts.
+// Mount Auth routes. Token requests are adjusted first: see
+// `handleOAuthTokenRequest`.
 app.on(["POST", "GET"], "*", async (c) => {
-  return handleOAuthRefreshTokenRequest(
-    await withClientSecretPostShim(c.req.raw),
+  return handleOAuthTokenRequest(
+    c.req.raw,
     auth.handler,
     (body, request) =>
       auth.api.oauth2Token({
