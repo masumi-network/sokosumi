@@ -2523,6 +2523,7 @@ extension WorkspaceStateTests {
     #expect(try await request.value == .superseded)
     #expect(state.thread.parent == nil)
     #expect(state.thread.jumpTarget == nil)
+    #expect(state.messageJump == nil, "A jump the room switch superseded marks no parent.")
   }
 
   @Test func messageLinkLoadsRoomContextAndRequestsHighlight() async throws {
@@ -2615,9 +2616,9 @@ extension WorkspaceStateTests {
     #expect(state.thread.jumpTarget?.messageId == "reply")
   }
 
-  /// Row 25c (web `performRoomSearchJump`): once the reply has landed in the Thread, the room is put on the
-  /// Thread's parent and marked there too, on the reply's clock; a second acknowledgement lands nothing again.
-  @Test func aLandedReplyMarksItsParentInTheRoom() async throws {
+  /// Row 25c (web `performRoomSearchJump`): after the reply's branch, the room is sent to the Thread's parent,
+  /// which it marks on its own clock; the reply keeps its own mark in the Thread.
+  @Test func aReplyJumpMarksItsParentInTheRoom() async throws {
     let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
     let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
     let (state, auth, transport, _) = try ephemeralState([
@@ -2631,21 +2632,87 @@ extension WorkspaceStateTests {
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
-    let target = try #require(state.thread.jumpTarget)
-    #expect(state.messageJump == nil, "The room waits for the reply to land.")
-
-    state.landThreadJump(target.requestId)
-    let mark = try #require(state.thread.jumpTarget?.mark)
-    let jump = try #require(state.messageJump)
+    #expect(state.thread.jumpTarget?.messageId == "reply")
+    let jump = try #require(state.messageJump, "The room is sent to the parent.")
     #expect(jump.roomId == "room")
     #expect(jump.messageId == "parent")
-    #expect(jump.mark == JumpMark(messageId: "parent", landedAt: mark.landedAt))
-
-    state.consumeMessageJump(jump.requestId)
-    state.landThreadJump(target.requestId)
-    #expect(state.messageJump == nil, "The same landing does not land the room again.")
-    #expect(state.thread.jumpTarget?.mark == mark)
+    #expect(jump.isThreadParent)
     #expect(transport.operationIDs == ["get/chats/rooms/{id}/messages", "get/chats/rooms/{id}/threads/{parentMessageId}/messages"])
+  }
+
+  /// Row 25c: web lands the room after the reply's branch whatever it found; a reply window Core refused (web's
+  /// toast) still marks the parent.
+  @Test func aReplyWindowThatFailsStillMarksTheParent() async throws {
+    let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
+      (500, #"{"error":"Internal","message":"Something went wrong","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#)
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "old"
+    hit.parentMessageId = "parent"
+    await #expect(throws: (any Error).self) { try await state.openMessageReply(hit, auth: auth) }
+    #expect(state.thread.parent?.id == "parent")
+    #expect(state.thread.jumpTarget == nil, "The reply was not reached.")
+    #expect(state.messageJump?.messageId == "parent")
+    #expect(state.messageJump?.isThreadParent == true)
+  }
+
+  /// Row 25c: a quote in the same room only scrolls on web (`onJumpToQuotedMessage`) and marks no parent. Apple
+  /// keeps opening the Thread for a quoted reply (row 25) but leaves the room alone.
+  @Test func aSameRoomQuoteOfAReplyMarksNoParent() async throws {
+    let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let reply = transcriptMessage(id: "reply", roomId: "room", content: "Reply").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, _, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [reply], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    // The quote's lookup answers from loaded rows: the reply is in the open Thread.
+    try state.openThread(#require(state.transcriptMessages.first), auth: auth)
+    await state.thread.loadTask?.value
+    #expect(try await state.openMessage("reply", auth: auth, marksThreadParent: false) == .opened)
+    #expect(state.thread.jumpTarget?.messageId == "reply", "The quote still opens the Thread on the reply.")
+    #expect(state.messageJump == nil)
+  }
+
+  /// Row 25c (web `isNewestJump`): a newer jump in the same room while the reply's window loads supersedes this
+  /// one, and its parent is not marked.
+  @Test func aSupersededReplyJumpMarksNoParent() async throws {
+    let parent = transcriptMessage(id: "parent", roomId: "room", content: "Parent")
+    let recent = transcriptMessage(id: "recent", roomId: "room", content: "Recent").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let older = transcriptMessage(id: "old", roomId: "room", content: "Old").replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"parent\"")
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, transcriptPageBody(messages: [parent], nextCursor: nil)),
+      (200, transcriptPageBody(messages: [recent], nextCursor: "before-recent")),
+      (200, transcriptPageBody(messages: [older], nextCursor: nil))
+    ], visible: false)
+    defer { state.reset() }
+    state.timeline.reset(roomId: "room")
+    #expect(try await state.jumpToMessage("parent", auth: auth))
+    var hit = try #require(state.transcriptMessages.first)
+    hit.id = "old"
+    hit.parentMessageId = "parent"
+    transport.pauseGET = true
+    let request = Task { try await state.openMessageReply(hit, auth: auth) }
+    while transport.operationIDs.count < 2 {
+      await Task.yield()
+    }
+    transport.releasePausedRequest()
+    while transport.operationIDs.count < 3 {
+      await Task.yield()
+    }
+    state.messageNavigationRequest = UUID()
+    transport.releasePausedRequest()
+    #expect(try await request.value == .superseded)
+    #expect(state.messageJump == nil)
   }
 
   /// Row 25c: a parent further back than the room's loaded rows is left alone; no window is loaded around it.
@@ -2666,8 +2733,7 @@ extension WorkspaceStateTests {
     hit.id = "reply"
     hit.parentMessageId = "parent"
     #expect(try await state.openMessageReply(hit, auth: auth) == .opened)
-    try state.landThreadJump(#require(state.thread.jumpTarget).requestId)
-    #expect(state.thread.jumpTarget?.mark != nil, "The reply is marked.")
+    #expect(state.thread.jumpTarget?.messageId == "reply", "The reply is reached.")
     #expect(state.messageJump == nil)
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
   }

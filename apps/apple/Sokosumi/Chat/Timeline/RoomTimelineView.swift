@@ -47,7 +47,7 @@ import SwiftUI
     /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
     @State private var jumpMark: JumpMark?
     /// The Thread's parent a reply jump marked while the Thread covered the room (row 25c). The rows behind the
-    /// Thread are not laid out, so the room lands on it when the Thread closes.
+    /// Thread are not laid out, so the room lands on it when the Thread closes (user decision, 2026-10-04).
     @State private var parentBehindThread: String?
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
@@ -114,14 +114,14 @@ import SwiftUI
         .task(id: workspaces.messageJump) {
           guard let target = workspaces.messageJump, target.roomId == roomId else { return }
           scrollIntent.readOlder()
-          if let mark = target.mark {
-            // Row 25c: the Thread's parent, marked now on its reply's clock; the room lands on it when the Thread
-            // closes. It replaces a room jump still landing.
+          if target.isThreadParent {
+            // Row 25c: the Thread's parent, marked now on the room's own clock (web's `landOn`), so its hold runs
+            // under the Thread; the room lands on it when the Thread closes. It replaces a room jump still landing.
             quoteTarget = nil
             jumpCompletion?.resume(returning: false)
             jumpCompletion = nil
-            jumpMark = mark
-            parentBehindThread = mark.messageId
+            jumpMark = JumpMark(messageId: target.messageId, landedAt: Date())
+            parentBehindThread = target.messageId
           } else {
             parentBehindThread = nil
             quoteTarget = target.messageId
@@ -129,8 +129,12 @@ import SwiftUI
           workspaces.consumeMessageJump(target.requestId)
         }
         .onChange(of: workspaces.thread.parent == nil) { _, closed in
-          if closed, let parent = parentBehindThread {
+          guard closed, let parent = parentBehindThread else { return }
+          if workspaces.displayedTranscript.contains(where: { $0.id == parent }) {
             quoteTarget = parent
+          } else {
+            // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
+            parentBehindThread = nil
           }
         }
         .task(id: roomId) {
@@ -287,7 +291,8 @@ import SwiftUI
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
-                                     if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+                                     // Same-room quote: no Thread parent marked (row 25c).
+                                     if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
                                        jumpError = "This message is no longer available."
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
@@ -335,6 +340,9 @@ import SwiftUI
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
+            if parentBehindThread == target {
+              parentBehindThread = nil
+            }
             jumpCompletion?.resume(returning: false)
             jumpCompletion = nil
             return
@@ -436,7 +444,7 @@ import SwiftUI
 
     private func completeVisibleJump(_ target: String) {
       guard quoteTarget == target else { return }
-      // The Thread's parent keeps the mark it got with its reply, or none once that hold has run out.
+      // The Thread's parent keeps the mark it got when the jump arrived, or none once that hold has run out.
       if parentBehindThread == target {
         parentBehindThread = nil
       } else {

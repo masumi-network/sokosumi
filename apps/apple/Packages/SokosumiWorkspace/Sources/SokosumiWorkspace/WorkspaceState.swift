@@ -21,15 +21,15 @@ public final class WorkspaceState: ObservableObject {
   public struct MessageJump: Equatable, Sendable {
     public let roomId: String
     public let messageId: String
-    /// A mark that started elsewhere: the Thread's parent, landed behind the Thread on its reply's clock (row 25c).
-    /// Nil for a room jump, which marks its row once the row scrolls into view.
-    public let mark: JumpMark?
+    /// The open Thread's parent after a reply jump (row 25c). The Thread covers the room, so the room marks it on
+    /// arrival and lands on it when the Thread closes; any other jump marks its row once it scrolls into view.
+    public let isThreadParent: Bool
     public let requestId = UUID()
 
-    init(roomId: String, messageId: String, mark: JumpMark? = nil) {
+    init(roomId: String, messageId: String, isThreadParent: Bool = false) {
       self.roomId = roomId
       self.messageId = messageId
-      self.mark = mark
+      self.isThreadParent = isThreadParent
     }
   }
 

@@ -10,7 +10,7 @@
 
   extension NativeWindowTests {
     /// Row 25c (web `performRoomSearchJump`): a jump that lands on a Thread reply also puts the room on the
-    /// Thread's parent and marks it there, on the reply's clock. On the Mac the Thread is pushed over the room, so
+    /// Thread's parent and marks it there, on its own clock started with the jump. On the Mac the Thread is pushed over the room, so
     /// the parent's mark shows when the reader closes the Thread inside the hold, with what is left of it.
     @MainActor struct ThreadParentMarkTests {
       /// Mid-transcript, so the room has to move off the newest message to show it.
@@ -40,9 +40,10 @@
         return JumpLanding(state: state, host: host, window: window, scroll: scroll, diagnosis: JumpDiagnosis(state: state, host: host, scroll: scroll))
       }
 
-      /// Opens the parent's Thread over the room and asks it for a reply, as `navigateReply` does once the reply
-      /// is loaded; returns when the Thread has landed on it.
-      private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws -> JumpMark {
+      /// Opens the parent's Thread over the room with its replies loaded, then jumps to one as a search hit does
+      /// (`openMessageReply`, which loads nothing here). Returns when the jump was asked for, once the Thread has
+      /// landed on the reply.
+      private static func jumpToReply(_ state: WorkspaceState, host: NSView) async throws -> Date {
         let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
         state.thread.open(parent)
         state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
@@ -52,9 +53,12 @@
           reply.parentMessageId = parent.id
           return reply
         }
-        state.thread.requestJump(to: Self.replyId)
+        let hit = try #require(state.thread.timeline.messages.first { $0.id == Self.replyId })
+        let requested = Date()
+        #expect(try await state.openMessageReply(hit, auth: AuthState()) == .opened)
         try await JumpMarkViewTests.poll(host) { state.thread.jumpTarget?.mark != nil }
-        return try #require(state.thread.jumpTarget?.mark, "The Thread landed on the reply.")
+        #expect(state.thread.jumpTarget?.mark?.messageId == Self.replyId, "The Thread landed on the reply.")
+        return requested
       }
 
       /// The room's scroll offset once it has held still for five polls.
@@ -68,16 +72,15 @@
       }
 
       /// The Thread lands on the reply; 2.5 s later, inside the hold, the reader closes it. The room is on the
-      /// parent, marked, where a room jump to it would centre it, and the mark ends 4.5 s after the reply's landing,
+      /// parent, marked, where a room jump to it would centre it, and the mark ends 4.5 s after the jump,
       /// not after the close.
       @Test(arguments: [false, true])
       func closingTheThreadInsideTheHoldShowsTheParentsMark(dark: Bool) async throws {
         let room = try await Self.hostedRoom(dark: dark)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
-        let landing = try await Self.jumpToReply(state, host: host)
-        #expect(landing.messageId == Self.replyId)
-        try await JumpMarkViewTests.poll(host) { Date() >= landing.landedAt.addingTimeInterval(2.5) }
+        let requested = try await Self.jumpToReply(state, host: host)
+        try await JumpMarkViewTests.poll(host) { Date() >= requested.addingTimeInterval(2.5) }
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -86,9 +89,9 @@
           marked = try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6)
           return marked > 40
         }
-        let shown = Date().timeIntervalSince(landing.landedAt)
+        let shown = Date().timeIntervalSince(requested)
         #expect(marked > 40, "The parent is marked once the Thread closes.")
-        #expect(shown < JumpMark.hold, "Marked inside the reply's hold: \(shown) s after the landing.")
+        #expect(shown < JumpMark.hold, "Marked inside the hold: \(shown) s after the jump.")
         #expect(TranscriptScrollingTests.distanceFromBottom(scroll) > 400, "The room moved off its newest message to the parent.")
         let landed = try await Self.settledOffset(of: scroll, host: host)
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40, "Still marked once the room has settled on the parent.")
@@ -101,11 +104,11 @@
         #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
 
         try await JumpMarkViewTests.poll(host) { try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0 }
-        let gone = Date().timeIntervalSince(landing.landedAt)
+        let gone = Date().timeIntervalSince(requested)
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
-        // A mark started at the close would hold to 2.5 + 4.5 s; the reply's clock ends it by 4.5 s.
-        #expect(gone > 3, "Held until its closing fade: gone \(gone) s after the landing.")
-        #expect(gone < 5.5, "On the reply's clock: gone \(gone) s after the landing.")
+        // A mark started at the close would hold to 2.5 + 4.5 s; one started with the jump ends by 4.5 s.
+        #expect(gone > 3, "Held until its closing fade: gone \(gone) s after the jump.")
+        #expect(gone < 5.5, "On the jump's clock: gone \(gone) s after the jump.")
 
         // Centred where a room jump to the parent centres it: that jump barely moves the room.
         #expect(try await state.openMessage(Self.parentId, auth: AuthState()) == .opened)
@@ -120,8 +123,8 @@
         let room = try await Self.hostedRoom(dark: false)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
-        let landing = try await Self.jumpToReply(state, host: host)
-        try await JumpMarkViewTests.poll(host) { Date() >= landing.endsAt.addingTimeInterval(0.5) }
+        let requested = try await Self.jumpToReply(state, host: host)
+        try await JumpMarkViewTests.poll(host) { Date() >= requested.addingTimeInterval(JumpMark.hold + 0.5) }
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -140,6 +143,40 @@
         if abs(centred - closed) >= 40 {
           diagnosis.attach("centred")
         }
+      }
+
+      /// A parent that left the room's loaded rows before the Thread closed cannot be landed on, and is forgotten:
+      /// when it is loaded again and another Thread opens and closes, the room stays at its newest message
+      /// (Grok's review of #5710).
+      @Test func aParentThatCannotBeLandedIsForgotten() async throws {
+        let room = try await Self.hostedRoom(dark: false)
+        let (state, host) = (room.state, room.host)
+        defer { room.window.orderOut(nil) }
+        _ = try await Self.jumpToReply(state, host: host)
+        let parent = try #require(state.timeline.messages.first { $0.id == Self.parentId })
+        let loaded = state.timeline.messages
+        state.timeline.messages = loaded.filter { $0.id != Self.parentId }
+        state.thread.close()
+
+        let scroll = try await loadedTranscriptScrollView(in: host)
+        var settled = Date().addingTimeInterval(0.5)
+        try await JumpMarkViewTests.poll(host) { Date() >= settled }
+        #expect(TranscriptScrollingTests.distanceFromBottom(scroll) < 40, "Nothing to land on: the room stays at its newest message.")
+
+        state.timeline.messages = loaded
+        let other = try #require(state.timeline.messages.first { $0.id == "fixture-60" })
+        state.thread.open(other)
+        state.thread.timeline.failInitialLoad(message: "", generation: state.thread.timeline.generation)
+        settled = Date().addingTimeInterval(0.5)
+        try await JumpMarkViewTests.poll(host) { Date() >= settled }
+        state.thread.close()
+        settled = Date().addingTimeInterval(1)
+        try await JumpMarkViewTests.poll(host) { Date() >= settled }
+        let roomScroll = try await loadedTranscriptScrollView(in: host)
+        // The old parent is some sixty rows up, thousands of points from the bottom; re-adding it above the
+        // viewport may shift the offset by its own height.
+        #expect(TranscriptScrollingTests.distanceFromBottom(roomScroll) < 1000,
+                "The room did not move to the old parent \(parent.id): \(TranscriptScrollingTests.distanceFromBottom(roomScroll)) pt from the bottom.")
       }
     }
   }
