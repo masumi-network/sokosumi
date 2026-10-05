@@ -77,7 +77,6 @@ describe("social sign-up conversion", () => {
   });
 
   it.each([
-    ["an email sign-up", { path: "/sign-up/email" }],
     ["an email code sign-in", { path: "/sign-in/email-otp" }],
     ["a native id token sign-in", { path: "/sign-in/social" }],
     [

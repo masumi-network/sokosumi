@@ -209,7 +209,7 @@ public final class WorkspaceState: ObservableObject {
   public let typing = RoomTyping()
   var typingSweepTask: Task<Void, Never>?
   /// The open room's live read marks (row 31b1); see `WorkspaceState+ReadReceipts`.
-  public let roomReads = RoomReadMarks()
+  let roomReads = RoomReadMarks()
 
   /// Confirmed history plus unresolved outbound shells (sticky at the end), with Pending reactions on top.
   public var displayedTranscript: [Components.Schemas.ChatRoomMessage] {

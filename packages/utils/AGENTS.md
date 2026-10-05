@@ -61,7 +61,7 @@ Place `foo.test.ts` next to `foo.ts`. Use `src/__tests__/` only for tests that d
 
 - Import `@sokosumi/database` from this package or from Web
 - Add Prisma-shaped entity mirrors or Core OpenAPI enum maps for Web to consume
-- Put request/cookie/header parsing or I/O here
+- Put request/cookie/header parsing or I/O here. Outbound webhook HTTP (`postWebhook`) lives in `@sokosumi/net`
 
 ## Additional Rules
 

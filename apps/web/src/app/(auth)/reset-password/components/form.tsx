@@ -8,17 +8,36 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm } from "@/auth/components/form/auth-form";
+import { BaseForm } from "@/auth/components/form/base-form";
+import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { resetPasswordFormData } from "@/auth/reset-password/data";
 import { resetPasswordWithToken } from "@/lib/actions/auth/action";
 import { signOut } from "@/lib/auth/auth.client";
 import { buildAuthPageUrl, readAuthPageContext } from "@/lib/auth/auth.utils";
 import { CORE_AUTH_REQUEST_TIMEOUT_MS } from "@/lib/auth/core-auth-timeout";
+import type { FormData } from "@/lib/form";
 import {
   type ResetPasswordFormSchemaType,
   resetPasswordFormSchema,
 } from "@/lib/schemas/auth";
+
+const formData: FormData<
+  ResetPasswordFormSchemaType,
+  "Auth.Pages.ResetPassword.Form"
+> = [
+  {
+    name: "password",
+    labelKey: "Fields.Password.label",
+    type: "password",
+    autoComplete: "new-password",
+  },
+  {
+    name: "confirmPassword",
+    labelKey: "Fields.ConfirmPassword.label",
+    type: "password",
+    autoComplete: "new-password",
+  },
+];
 
 export default function ResetPasswordForm() {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
@@ -115,12 +134,12 @@ export default function ResetPasswordForm() {
   }
 
   return (
-    <AuthForm
-      form={form}
-      formData={resetPasswordFormData}
-      namespace="Auth.Pages.ResetPassword.Form"
-      onSubmit={handleSubmit}
-    >
+    <BaseForm form={form} onSubmit={handleSubmit}>
+      <FormFields
+        form={form}
+        formData={formData}
+        namespace="Auth.Pages.ResetPassword.Form"
+      />
       {failed ? (
         <p role="alert" className="text-destructive text-sm">
           {t("error")}{" "}
@@ -133,6 +152,6 @@ export default function ResetPasswordForm() {
         </p>
       ) : null}
       <SubmitButton isSubmitting={isSubmitting} label={t("submit")} />
-    </AuthForm>
+    </BaseForm>
   );
 }

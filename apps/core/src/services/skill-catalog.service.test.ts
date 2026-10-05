@@ -147,13 +147,84 @@ describe("searchSkillCatalog", () => {
   };
 
   it("returns the top skills without a query and never searches live", async () => {
-    db.findMany.mockResolvedValue([local]);
+    db.findMany.mockResolvedValue([{ ...local, refreshedAt: new Date() }]);
 
     expect(await searchSkillCatalog("")).toEqual([local]);
     expect(db.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { rank: { not: null } } }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("answers an empty catalog from the live leaderboard and fills it in the background", async () => {
+    db.findMany.mockResolvedValue([]);
+    fetchMock.mockImplementation(async () =>
+      textResponse(
+        [
+          row("mattpocock/skills", "grill-me", 10),
+          row("vercel-labs/skills", "find-skills", 99),
+        ].join(","),
+      ),
+    );
+
+    expect(await searchSkillCatalog("")).toEqual([
+      {
+        id: "vercel-labs/skills/find-skills",
+        name: "find-skills",
+        source: "vercel-labs/skills",
+        installs: 99,
+        description: null,
+      },
+      {
+        id: "mattpocock/skills/grill-me",
+        name: "grill-me",
+        source: "mattpocock/skills",
+        installs: 10,
+        description: null,
+      },
+    ]);
+    await vi.waitFor(() => expect(db.transaction).toHaveBeenCalledTimes(1));
+  });
+
+  it("drops skills.sh results that do not contain the query and ranks name matches first", async () => {
+    const described = {
+      id: "x/y/design-review",
+      name: "design-review",
+      source: "x/y",
+      description: "Review against apple guidelines",
+      installs: 500,
+    };
+    db.findMany.mockResolvedValue([described]);
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          skills: [
+            {
+              id: "m/n/azure-diagnostics",
+              name: "azure-diagnostics",
+              source: "m/n",
+              installs: 619_000,
+            },
+            {
+              id: "e/s/apple-design",
+              name: "apple-design",
+              source: "e/s",
+              installs: 182_000,
+            },
+            {
+              id: "o/o/apple-notes",
+              name: "apple-notes",
+              source: "o/o",
+              installs: 3_600,
+            },
+          ],
+        }),
+      ),
+    );
+
+    expect(
+      (await searchSkillCatalog("Apple")).map((item) => item.name),
+    ).toEqual(["apple-design", "apple-notes", "design-review"]);
   });
 
   it("adds skills.sh results when the catalog has few hits", async () => {

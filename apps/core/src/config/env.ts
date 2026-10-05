@@ -576,3 +576,16 @@ export function getBetterAuthPublicBaseUrl(): string {
     fallbackUrl: env.BETTER_AUTH_URL,
   });
 }
+
+/**
+ * Canonical Better Auth production URL used by OAuth proxying. This always
+ * points at the production host, never a preview deployment.
+ */
+export function getBetterAuthProductionUrl(): string {
+  const env = getEnv();
+
+  return (env.VERCEL_PROJECT_PRODUCTION_URL || env.BETTER_AUTH_URL).replace(
+    /\/+$/,
+    "",
+  );
+}

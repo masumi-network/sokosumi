@@ -10,8 +10,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as signInLink } from "../app/signin/route";
 import { GET as signUpLink } from "../app/signup/route";
-import { type CmoAuth, createCmoAuth, getAuth, renewSession } from "./auth";
-import { sokosumiSignInBody } from "./sokosumi-oauth";
+import {
+  type CmoAuth,
+  createCmoAuth,
+  getAuth,
+  renewSession,
+  sokosumiSignInBody,
+} from "./auth";
 
 // The link routes reach the auth each test creates.
 vi.mock("./auth", async (importOriginal) => ({

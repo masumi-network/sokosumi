@@ -284,12 +284,14 @@ vi.mock("@better-auth/i18n", () => ({
 
 // Keep the real APIError (the hooks throw it and tests assert its shape) but
 // reduce createAuthMiddleware to an identity wrapper so the terms guards can be
-// invoked directly with a plain context in unit tests.
+// invoked directly with a plain context in unit tests. Those run outside a
+// request, so there is no social OAuth state to read.
 vi.mock("better-auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("better-auth/api")>();
   return {
     ...actual,
     createAuthMiddleware: (callback: unknown) => callback,
+    getOAuthState: async () => null,
   };
 });
 
@@ -356,15 +358,12 @@ vi.mock("@/clients/stripe.client", () => ({
 
 vi.mock("@/config/env", async (importOriginal) => ({
   getEnv: () => getEnvMock(),
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
   getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
   getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
   isProductionEnvironment: (
     await importOriginal<typeof import("@/config/env")>()
   ).isProductionEnvironment,
-}));
-
-vi.mock("@/config/better-auth-production-url", () => ({
-  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -3238,7 +3237,7 @@ describe("core auth config", () => {
           };
         };
         newSession?: {
-          session: { impersonatedBy?: string | null };
+          session: { id?: string; impersonatedBy?: string | null };
           user?: { termsAccepted?: boolean };
         };
         returned?: unknown;
@@ -3326,6 +3325,18 @@ describe("core auth config", () => {
       expect(setCookie).not.toHaveBeenCalled();
     });
 
+    // The OAuth provider resumes authorize through these hooks after a
+    // sign-in; setting the cookie there would make it resume again.
+    it("leaves the cookie to the sign-in when the OAuth provider resumes authorize", async () => {
+      const setCookie = await runAfterHook("/oauth2/authorize", {
+        newSession: { session: {}, user: { termsAccepted: true } },
+        returned: { redirect: true, url: "https://app.cmo.xyz/callback" },
+      });
+
+      expect(setSessionCookieMock).not.toHaveBeenCalled();
+      expect(setCookie).not.toHaveBeenCalled();
+    });
+
     // Impersonation is session-only on purpose: closing the browser ends it.
     it("keeps an impersonation session session-only", async () => {
       const setCookie = await runAfterHook("/admin/impersonate-user", {
@@ -3338,6 +3349,22 @@ describe("core auth config", () => {
 
       expect(setSessionCookieMock).not.toHaveBeenCalled();
       expect(setCookie).not.toHaveBeenCalled();
+    });
+
+    // The provider's after hook runs next and continues this request.
+    it("lets a session started for an OAuth request answer its Create account prompt", async () => {
+      const oauthRequest = { query: "client_id=cmo&prompt=create+consent" };
+      getOAuthProviderStateMock.mockResolvedValue(oauthRequest);
+
+      await runAfterHook("/sign-in/email-otp", {
+        newSession: {
+          session: { id: "session-new" },
+          user: { termsAccepted: true },
+        },
+        returned: { token: "session-token" },
+      });
+
+      expect(oauthRequest.query).toBe("client_id=cmo&prompt=consent");
     });
   });
   it("delivers the committed Calendar revocation after leaving an organization", async () => {

@@ -1,3 +1,5 @@
+import { waitUntil } from "@vercel/functions";
+
 import prisma from "@/lib/db/prisma";
 import {
   discoverSkills,
@@ -16,6 +18,9 @@ const STALE_ENTRY_MS = 30 * 24 * 60 * 60 * 1_000;
 const MARKDOWN_TTL_MS = 24 * 60 * 60 * 1_000;
 const SEARCH_LIMIT = 20;
 const LIVE_SEARCH_BELOW = 5;
+const STALE_CATALOG_MS = 2 * 24 * 60 * 60 * 1_000;
+const LEADERBOARD_CACHE_MS = 60 * 60 * 1_000;
+const BACKGROUND_REFRESH_MS = 60_000;
 
 export const MAX_SKILLS_PER_MESSAGE = 3;
 export const MAX_SKILL_CONTENT_CHARS = 50_000;
@@ -92,13 +97,7 @@ async function fetchSkillDescription(id: string): Promise<string | null> {
   return parseSkillPageDescription(await response.text());
 }
 
-/**
- * Re-reads the skills.sh leaderboard into the catalog. Descriptions are
- * fetched once per skill, from its page, while the run has time left.
- */
-export async function refreshSkillCatalog(options: {
-  shouldContinue: () => boolean;
-}): Promise<{ entries: number; described: number }> {
+async function fetchLeaderboard(): Promise<LeaderboardEntry[]> {
   const response = await fetch(`${SKILLS_SH}/`, {
     headers: skillsShHeaders(),
     signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
@@ -110,7 +109,17 @@ export async function refreshSkillCatalog(options: {
   );
   if (entries.length === 0)
     throw new SokoBotSkillError("Could not read the skills.sh leaderboard");
+  return entries;
+}
 
+/**
+ * Re-reads the skills.sh leaderboard into the catalog. Descriptions are
+ * fetched once per skill, from its page, while the run has time left.
+ */
+export async function refreshSkillCatalog(options: {
+  shouldContinue: () => boolean;
+}): Promise<{ entries: number; described: number }> {
+  const entries = await fetchLeaderboard();
   const refreshedAt = new Date();
   await prisma.$transaction([
     prisma.skillCatalogEntry.updateMany({ data: { rank: null } }),
@@ -161,43 +170,127 @@ export async function refreshSkillCatalog(options: {
   return { entries: entries.length, described };
 }
 
+let leaderboardCache: { at: number; entries: LeaderboardEntry[] } | null = null;
+let backgroundRefresh: Promise<void> | null = null;
+
+/** The live leaderboard, kept for an hour, for while the catalog is empty. */
+async function cachedLeaderboard(): Promise<LeaderboardEntry[]> {
+  if (
+    !leaderboardCache ||
+    Date.now() - leaderboardCache.at > LEADERBOARD_CACHE_MS
+  )
+    leaderboardCache = { at: Date.now(), entries: await fetchLeaderboard() };
+  return leaderboardCache.entries;
+}
+
+/** Fills an empty or stale catalog without making the picker wait for it. */
+function refreshInBackground(): void {
+  if (backgroundRefresh) return;
+  const deadline = Date.now() + BACKGROUND_REFRESH_MS;
+  backgroundRefresh = refreshSkillCatalog({
+    shouldContinue: () => Date.now() < deadline,
+  })
+    .then(() => undefined)
+    .catch((error: unknown) => {
+      console.warn("[skill-catalog] Background refresh failed", error);
+    })
+    .finally(() => {
+      backgroundRefresh = null;
+    });
+  if (process.env.VERCEL) waitUntil(backgroundRefresh);
+}
+
+const CATALOG_SELECT = {
+  id: true,
+  name: true,
+  source: true,
+  description: true,
+  installs: true,
+} as const;
+
 /**
- * Catalog search for the chat skill picker, most installed first. A query
- * the top skills do not cover falls back to skills.sh's own search.
+ * The most installed skills. Until the daily sync has filled the catalog,
+ * or once it has gone stale, a refresh starts; an empty catalog is answered
+ * from the live leaderboard meanwhile.
+ */
+async function topSkills(): Promise<SkillCatalogItem[]> {
+  const rows = await prisma.skillCatalogEntry.findMany({
+    where: { rank: { not: null } },
+    orderBy: [{ installs: "desc" }, { id: "asc" }],
+    take: SEARCH_LIMIT,
+    select: { ...CATALOG_SELECT, refreshedAt: true },
+  });
+  const newest = Math.max(0, ...rows.map((row) => row.refreshedAt.getTime()));
+  if (Date.now() - newest > STALE_CATALOG_MS) refreshInBackground();
+  if (rows.length > 0) return rows.map(({ refreshedAt: _, ...item }) => item);
+  const live = await cachedLeaderboard().catch(() => []);
+  return live.slice(0, SEARCH_LIMIT).map(({ id, name, source, installs }) => ({
+    id,
+    name,
+    source,
+    installs,
+    description: null,
+  }));
+}
+
+/** Only results that contain the query; name matches first, then by installs. */
+export function rankSkillMatches(
+  items: readonly SkillCatalogItem[],
+  query: string,
+): SkillCatalogItem[] {
+  const q = query.toLowerCase();
+  const inName = (item: SkillCatalogItem) =>
+    item.name.toLowerCase().includes(q);
+  return items
+    .filter(
+      (item) =>
+        inName(item) ||
+        item.id.toLowerCase().includes(q) ||
+        (item.description?.toLowerCase().includes(q) ?? false),
+    )
+    .sort(
+      (a, b) =>
+        Number(inName(b)) - Number(inName(a)) ||
+        b.installs - a.installs ||
+        a.id.localeCompare(b.id),
+    );
+}
+
+/**
+ * Catalog search for the chat skill picker. A query the top skills do not
+ * cover falls back to skills.sh's own search, which matches loosely, so only
+ * results that contain the query are kept.
  */
 export async function searchSkillCatalog(
   query: string,
 ): Promise<SkillCatalogItem[]> {
   const q = query.trim().slice(0, 100);
+  if (!q) return topSkills();
   const local = await prisma.skillCatalogEntry.findMany({
-    where: q
-      ? {
-          OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { id: { contains: q, mode: "insensitive" } },
-            { description: { contains: q, mode: "insensitive" } },
-          ],
-        }
-      : { rank: { not: null } },
+    where: {
+      OR: [
+        { name: { contains: q, mode: "insensitive" } },
+        { id: { contains: q, mode: "insensitive" } },
+        { description: { contains: q, mode: "insensitive" } },
+      ],
+    },
     orderBy: [{ installs: "desc" }, { id: "asc" }],
     take: SEARCH_LIMIT,
-    select: {
-      id: true,
-      name: true,
-      source: true,
-      description: true,
-      installs: true,
-    },
+    select: CATALOG_SELECT,
   });
-  if (q.length < 2 || local.length >= LIVE_SEARCH_BELOW) return local;
+  if (q.length < 2 || local.length >= LIVE_SEARCH_BELOW)
+    return rankSkillMatches(local, q);
   const live = await searchSkillsSh(q).catch(() => []);
   const known = new Set(local.map((item) => item.id));
-  return [
-    ...local,
-    ...live
-      .filter((item) => !known.has(item.id))
-      .map((item) => ({ ...item, description: null })),
-  ].slice(0, SEARCH_LIMIT);
+  return rankSkillMatches(
+    [
+      ...local,
+      ...live
+        .filter((item) => !known.has(item.id))
+        .map((item) => ({ ...item, description: null })),
+    ],
+    q,
+  ).slice(0, SEARCH_LIMIT);
 }
 
 /** Where skills usually live; tried before reading the repository tree. */
