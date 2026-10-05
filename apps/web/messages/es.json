@@ -1119,37 +1119,6 @@
       "quoteAuthor": "Florian Haller",
       "quoteRole": "CEO, Serviceplan Group"
     },
-    "Schema": {
-      "Email": {
-        "invalid": "Por favor, introduce una dirección de email válida.",
-        "required": "El email es obligatorio"
-      },
-      "Name": {
-        "min": "El nombre debe tener al menos 2 caracteres.",
-        "max": "El nombre no puede superar los 128 caracteres.",
-        "invalid": "El nombre debe ser una cadena válida.",
-        "required": "El nombre es obligatorio"
-      },
-      "Password": {
-        "invalid": "La contraseña debe ser una cadena válida.",
-        "min": "La contraseña debe tener al menos 8 caracteres",
-        "max": "La contraseña no puede superar los 128 caracteres",
-        "required": "La contraseña es obligatoria"
-      },
-      "CurrentPassword": {
-        "invalid": "La contraseña actual debe ser una cadena válida.",
-        "required": "La contraseña actual es obligatoria"
-      },
-      "InputPassword": {
-        "invalid": "La contraseña debe ser una cadena válida.",
-        "required": "La contraseña es obligatoria"
-      },
-      "ConfirmPassword": {
-        "invalid": "La confirmación de contraseña debe ser una cadena válida.",
-        "match": "Las contraseñas no coinciden",
-        "required": "La confirmación de contraseña es obligatoria"
-      }
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Iniciar sesión / Registrarse",
@@ -1161,7 +1130,6 @@
       "continueWith": "Continuar con {provider}",
       "orDivider": "o",
       "emailCodeError": "No pudimos enviar un código. Inténtalo de nuevo.",
-      "success": "Sesión iniciada correctamente",
       "error": "Error al iniciar sesión",
       "lastUsed": "Usado por última vez",
       "passkeyProvider": "Passkey",
@@ -7592,12 +7560,6 @@
         },
         "FullName": {
           "max": "El nombre y el apellido juntos no pueden superar los 128 caracteres, incluido el espacio."
-        },
-        "Organization": {
-          "invalid": "La organización debe ser una cadena válida.",
-          "required": "La organización es obligatoria",
-          "min": "El nombre de la organización debe tener al menos 2 caracteres.",
-          "max": "El nombre de la organización no puede superar los 50 caracteres."
         },
         "Password": {
           "invalid": "La contraseña debe ser una cadena válida.",

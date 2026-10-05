@@ -28,7 +28,7 @@ export interface OAuthRequestClient {
   logoUri: string | undefined;
 }
 
-export interface OAuthRequest {
+interface OAuthRequest {
   /** The signed query, as Core's OAuth provider issued it. */
   query: string;
   /** The requesting product, when Core could name it. */
