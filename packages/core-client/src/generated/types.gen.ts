@@ -4730,6 +4730,14 @@ export type UserWorkspace = {
      */
     slug: string | null;
     /**
+     * Organization logo URL (or IPFS reference), or null for none and for a personal workspace
+     */
+    logo: string | null;
+    /**
+     * Organization website from its metadata, or null for none and for a personal workspace
+     */
+    websiteUrl: string | null;
+    /**
      * Whether a new session opens this workspace
      */
     preferred: boolean;

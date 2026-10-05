@@ -27,6 +27,16 @@ export const userWorkspaceSchema = z
       description: "Organization slug, or null for a personal workspace",
       example: "acme-x1y2z3",
     }),
+    logo: z.string().nullable().openapi({
+      description:
+        "Organization logo URL (or IPFS reference), or null for none and for a personal workspace",
+      example: "https://cdn.example.com/acme.png",
+    }),
+    websiteUrl: z.string().nullable().openapi({
+      description:
+        "Organization website from its metadata, or null for none and for a personal workspace",
+      example: "https://acme.com",
+    }),
     preferred: z.boolean().openapi({
       description: "Whether a new session opens this workspace",
       example: true,

@@ -1,4 +1,5 @@
 import { workspaceRepository } from "@sokosumi/database/repositories";
+import { getOrganizationMetadata } from "@sokosumi/utils";
 
 import { notFound } from "@/helpers/error";
 import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
@@ -45,6 +46,8 @@ export async function listUserWorkspaces(
             id: true,
             name: true,
             slug: true,
+            logo: true,
+            metadata: true,
             workspace: { select: { id: true } },
           },
         },
@@ -65,6 +68,8 @@ export async function listUserWorkspaces(
       name: user.name,
       organizationId: null,
       slug: null,
+      logo: null,
+      websiteUrl: null,
       preferred: preferredOrganizationId === null,
     });
   }
@@ -82,6 +87,8 @@ export async function listUserWorkspaces(
       name: organization.name,
       organizationId: organization.id,
       slug: organization.slug,
+      logo: organization.logo,
+      websiteUrl: getOrganizationMetadata(organization.metadata).url,
       preferred: organization.id === preferredOrganizationId,
     });
   }
