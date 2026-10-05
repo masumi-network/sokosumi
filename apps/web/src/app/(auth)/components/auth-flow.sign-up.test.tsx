@@ -786,10 +786,12 @@ describe("AuthFlow signUp", () => {
       <AuthFlow
         mode="signUp"
         lastUsedMethod={null}
-        prefilledEmail="query@example.com"
+        prefilledEmail="invited@example.com"
+        invitationId="inv_1"
       />,
     );
-    expect(emailField()).toHaveValue("query@example.com");
+    expect(emailField()).toBeDisabled();
+    expect(emailField()).toHaveValue("invited@example.com");
     expect(takeAuthEmailHint()).toBeNull();
   });
 
