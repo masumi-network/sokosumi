@@ -61,6 +61,11 @@ const AD_OPERATIONS = [
     "/ads/accounts/{accountId}/campaigns/{campaignId}",
     ["204", "403", "404", "409", "422", "502"],
   ],
+  [
+    "post",
+    "/ads/accounts/{accountId}/campaigns",
+    ["201", "403", "404", "409", "422", "502"],
+  ],
   ["post", "/ads/connections/initiate", ["201", "403", "404", "502", "503"]],
   ["post", "/ads/connections/finalize", ["200", "403", "404", "502", "503"]],
 ] as const;

@@ -17,6 +17,7 @@ import type { AuthenticationContext } from "@/middleware/auth";
 import type { WorkspaceContext } from "@/middleware/workspace";
 import mountUpdateCampaign from "./accounts/[accountId]/campaigns/[campaignId]/patch.js";
 import mountListCampaigns from "./accounts/[accountId]/campaigns/get.js";
+import mountCreateCampaign from "./accounts/[accountId]/campaigns/post.js";
 import mountDeleteAccount from "./accounts/[accountId]/delete.js";
 import mountListAccounts from "./accounts/get.js";
 import mountAttachAccounts from "./accounts/post.js";
@@ -32,6 +33,7 @@ const m = vi.hoisted(() => ({
   detach: vi.fn(),
   campaigns: vi.fn(),
   updateCampaign: vi.fn(),
+  createCampaign: vi.fn(),
 }));
 
 vi.mock("@/helpers/social-beta-access", () => ({
@@ -45,6 +47,7 @@ vi.mock("@/services/project-ad-accounts.service", () => ({
   detachProjectAdAccount: m.detach,
   listProjectAdCampaigns: m.campaigns,
   updateProjectAdCampaign: m.updateCampaign,
+  createProjectAdCampaign: m.createCampaign,
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: {} }));
 
@@ -121,6 +124,7 @@ function createApp(
   mountDeleteAccount(app);
   mountListCampaigns(app);
   mountUpdateCampaign(app);
+  mountCreateCampaign(app);
   return app;
 }
 
@@ -413,6 +417,105 @@ describe("Project ads routes", () => {
       const response = await patch({ status: "PAUSED" });
       expect(response.status).toBe(403);
       expect(m.updateCampaign).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("create campaign", () => {
+    const campaignsUrl = `http://localhost/${PROJECT_ID}/ads/accounts/${ACCOUNT_UUID}/campaigns`;
+    const createPost = (body: unknown) =>
+      createApp().request(campaignsUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+    beforeEach(() => {
+      m.createCampaign.mockResolvedValue({ id: "42" });
+    });
+
+    it.each([
+      ["without objective", { name: "Spring", dailyBudget: 12.5 }],
+      [
+        "with objective",
+        { name: "Spring", dailyBudget: 12.5, objective: "OUTCOME_TRAFFIC" },
+      ],
+    ])(
+      "creates a campaign %s and returns 201 with its id",
+      async (_name, body) => {
+        const response = await createPost(body);
+        expect(response.status).toBe(201);
+        expect((await response.json()).data).toEqual({ id: "42" });
+        expect(m.createCampaign).toHaveBeenCalledWith({
+          projectId: PROJECT_ID,
+          workspaceId: WORKSPACE_ID,
+          accountId: ACCOUNT_UUID,
+          ...body,
+        });
+      },
+    );
+
+    it("trims the name", async () => {
+      await createPost({ name: "  Spring  ", dailyBudget: 5 });
+      expect(m.createCampaign).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Spring" }),
+      );
+    });
+
+    it("has no status input: a requested status never reaches the service", async () => {
+      const response = await createPost({
+        name: "Spring",
+        dailyBudget: 5,
+        status: "ACTIVE",
+      });
+      expect(response.status).toBe(201);
+      expect(m.createCampaign.mock.calls[0]?.[0]).not.toHaveProperty("status");
+    });
+
+    it.each([
+      ["missing name", { dailyBudget: 5 }],
+      ["empty name", { name: "", dailyBudget: 5 }],
+      ["whitespace name", { name: "   ", dailyBudget: 5 }],
+      ["too long name", { name: "x".repeat(256), dailyBudget: 5 }],
+      ["missing budget", { name: "Spring" }],
+      ["zero budget", { name: "Spring", dailyBudget: 0 }],
+      ["negative budget", { name: "Spring", dailyBudget: -1 }],
+      ["string budget", { name: "Spring", dailyBudget: "5" }],
+      [
+        "unknown objective",
+        { name: "Spring", dailyBudget: 5, objective: "OUTCOME_APP_PROMOTION" },
+      ],
+    ])("rejects %s", async (_name, body) => {
+      const response = await createPost(body);
+      expect(response.status).toBe(422);
+      expect(m.createCampaign).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ["foreign account", notFound("Ad account not found"), 404],
+      ["disconnected connection", conflict("Ad connection is not active"), 409],
+      [
+        "Meta without objective",
+        unprocessableEntity("Objective required"),
+        422,
+      ],
+      [
+        "Composio tool error",
+        new ComposioToolError({ message: "secret detail" }),
+        502,
+      ],
+      ["missing Composio configuration", new ComposioConfigError("nope"), 503],
+    ])("maps %s to %i", async (_name, error, status) => {
+      m.createCampaign.mockRejectedValue(error);
+      const response = await createPost({ name: "Spring", dailyBudget: 5 });
+      expect(response.status).toBe(status);
+      expect(await response.text()).not.toContain("secret detail");
+    });
+
+    it("denies users outside the beta before any work", async () => {
+      m.requireSocialBetaAccess.mockRejectedValue(forbidden("beta only"));
+      const response = await createPost({ name: "Spring", dailyBudget: 5 });
+      expect(response.status).toBe(403);
+      expect(m.createCampaign).not.toHaveBeenCalled();
     });
   });
 

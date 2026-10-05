@@ -19,6 +19,23 @@ export interface AdCampaignUpdate {
   dailyBudget?: number;
 }
 
+/** Objectives a new Meta campaign may have. Google Search campaigns have none. */
+export const META_CAMPAIGN_OBJECTIVES = [
+  "OUTCOME_TRAFFIC",
+  "OUTCOME_AWARENESS",
+  "OUTCOME_ENGAGEMENT",
+  "OUTCOME_LEADS",
+  "OUTCOME_SALES",
+] as const;
+export type MetaCampaignObjective = (typeof META_CAMPAIGN_OBJECTIVES)[number];
+
+/** A new campaign. There is no status: campaigns are always created paused. */
+export interface AdCampaignCreate {
+  name: string;
+  /** Decimal in the account currency. */
+  dailyBudget: number;
+}
+
 export interface AdCampaignMetrics {
   spend: number;
   impressions: number;

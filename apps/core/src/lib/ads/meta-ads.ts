@@ -5,11 +5,13 @@ import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { conflict, notFound } from "@/helpers/error";
 import {
   type AdCampaign,
+  type AdCampaignCreate,
   type AdCampaignStatus,
   type AdCampaignUpdate,
   type AdRange,
   buildAdCampaign,
   fromMinorUnits,
+  type MetaCampaignObjective,
   noAdMetrics,
   sumAdMetrics,
 } from "@/lib/ads/campaigns";
@@ -31,6 +33,7 @@ const LIST_CAMPAIGNS = "METAADS_LIST_CAMPAIGNS";
 const GET_INSIGHTS = "METAADS_GET_INSIGHTS";
 const GET_OBJECT = "METAADS_GET_OBJECT";
 const UPDATE_CAMPAIGN = "METAADS_UPDATE_CAMPAIGN";
+const CREATE_CAMPAIGN = "METAADS_CREATE_CAMPAIGN";
 const PAGE_SIZE = 100;
 const MAX_PAGES = 10;
 const DATE_PRESETS = {
@@ -280,6 +283,47 @@ export async function updateMetaCampaign(
           message: "update Meta campaign was not applied",
         });
       }
+    },
+  );
+}
+
+const createResultSchema = z.object({
+  id: z.string().min(1),
+  success: z.literal(true),
+});
+
+/**
+ * Creates a paused campaign with a daily budget and returns its id. The tool
+ * takes `daily_budget` as a decimal in the account currency, and the campaign
+ * never has a special ad category.
+ */
+export async function createMetaCampaign(
+  input: AdsConnectedAccount &
+    AdCampaignCreate & {
+      adAccountId: string;
+      objective: MetaCampaignObjective;
+    },
+): Promise<string> {
+  const { adAccountId, name, dailyBudget, objective, ...connected } = input;
+
+  return withAdsToolSession(
+    { ...connected, provider: "meta_ads", toolSlugs: [CREATE_CAMPAIGN] },
+    async (execute) => {
+      const result = await execute(CREATE_CAMPAIGN, {
+        account_id: actAccountId(adAccountId),
+        name,
+        objective,
+        status: "PAUSED",
+        daily_budget: dailyBudget,
+        special_ad_categories: [],
+      });
+      if (result?.success === false) {
+        throw new ComposioToolError({
+          message: "create Meta campaign was not applied",
+        });
+      }
+      return parseToolRow(result, createResultSchema, "create Meta campaign")
+        .id;
     },
   );
 }

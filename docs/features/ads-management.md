@@ -21,7 +21,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Google Ads accounts | `GOOGLEADS_LIST_ACCESSIBLE_CUSTOMERS`, GAQL on `customer` / `customer_client` | Per-user OAuth; Composio auth config holds our Google Ads developer token |
 | Google campaigns + metrics | `GOOGLEADS_SEARCH_STREAM_GAQL` | same |
 | Google status / budget | `GOOGLEADS_MUTATE_CAMPAIGNS`, `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` | same |
-| Google create | `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` then `GOOGLEADS_MUTATE_CAMPAIGNS` (Search, Maximize clicks, PAUSED, `contains_eu_political_advertising = DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) | same |
+| Google create | `GOOGLEADS_MUTATE_CAMPAIGN_BUDGETS` then `GOOGLEADS_MUTATE_CAMPAIGNS` (Search, manual CPC (the tool has no Maximize clicks field), PAUSED, `contains_eu_political_advertising = DOES_NOT_CONTAIN_EU_POLITICAL_ADVERTISING`) | same |
 | Meta ad accounts | `METAADS_GET_AD_ACCOUNTS` | Per-user OAuth; our own Meta app (no Composio-managed OAuth) |
 | Meta campaigns + metrics | `METAADS_LIST_CAMPAIGNS`, `METAADS_GET_INSIGHTS` (level=campaign) | same |
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
@@ -55,7 +55,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | DELETE | `/ads/accounts/{accountId}` | Detach; revoke the Composio account when its last ad account goes |
 | GET | `/ads/accounts/{accountId}/campaigns?range=LAST_7_DAYS\|LAST_30_DAYS` | Campaigns + spend, impressions, clicks, CTR, CPC, conversions |
 | PATCH | `/ads/accounts/{accountId}/campaigns/{campaignId}` `{status?: ACTIVE\|PAUSED, dailyBudget?}` | Pause/resume, budget |
-| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, startDate?, objective? (Meta, required)}` | Create, always PAUSED |
+| POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required)}` | Create, always PAUSED → 201 `{id}`; no start date |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
 | GET | `/ads/market/ads` | Advertisers for the profile keywords → their recent ads with `preview_image`, format, first/last shown |
