@@ -10,7 +10,6 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   buildSocialCallbackUrls,
   createAuthSessionGetter,
@@ -19,6 +18,7 @@ import {
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
+  readAuthReturnUrl,
   sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
@@ -188,18 +188,6 @@ describe("buildSocialCallbackUrls", () => {
     },
   );
 
-  it("falls back to relative callbacks and no error page during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      buildSocialCallbackUrls("google", "https://evil.example/attack"),
-    ).toEqual({
-      callbackURL: "/auth/callback/signin?provider=google&returnUrl=%2F",
-      newUserCallbackURL: "/auth/callback/signup?provider=google&returnUrl=%2F",
-      errorCallbackURL: undefined,
-    });
-  });
-
   it("returns a failed sign-in to the page it started on", () => {
     stubLocation(
       "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
@@ -264,26 +252,6 @@ describe("getAbsoluteAuthRedirectUrl", () => {
     expect(
       getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
     ).toBe("https://preprod.sokosumi.com/chat");
-  });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
-  });
-
-  it("sanitizes an external returnUrl to fallback during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
-    ).toBe("/chat");
-  });
-
-  it("rejects a protocol-relative returnUrl during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
   });
 });
 
@@ -471,7 +439,7 @@ describe("buildAuthPageUrl for sign-in", () => {
   });
 });
 
-describe("buildOAuthResumeUrlFromSearchParams", () => {
+describe("readAuthReturnUrl", () => {
   it.each<Record<string, string>>([
     { prompt: "login" },
     { prompt: "login consent" },
@@ -486,7 +454,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       ...extra,
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       `/oauth/consent?${params.toString()}`,
     );
   });
@@ -499,9 +467,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       prompt: "create",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
-      `/signin?${params.toString()}`,
-    );
+    expect(readAuthReturnUrl(params)).toBe(`/signin?${params.toString()}`);
   });
 
   it("ignores unsigned reauthentication parameters", () => {
@@ -509,7 +475,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
     );
   });
@@ -521,7 +487,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBeUndefined();
+    expect(readAuthReturnUrl(params)).toBeUndefined();
   });
 
   it("points at the sign-in page with the signed request and no app-only params", () => {
@@ -531,11 +497,10 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/chat",
       email: "user@example.com",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
@@ -545,7 +510,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });

@@ -283,16 +283,11 @@ export function getAbsoluteRedirectUrlForOrigin(
  *
  * Relative paths resolve against the auth-server origin (e.g. `api.preprod…`),
  * so `/chat` becomes `https://api.preprod…/chat` instead of the web app.
- * Falls back to a relative path when `window` is unavailable (SSR).
  */
 export function getAbsoluteAuthRedirectUrl(
   returnUrl: string | undefined,
   fallback: string = "/",
 ): string {
-  if (typeof window === "undefined") {
-    return sanitizeAuthRedirectPath(returnUrl, fallback);
-  }
-
   return getAbsoluteRedirectUrlForOrigin(
     window.location.origin,
     returnUrl,
@@ -311,8 +306,7 @@ export function getAbsoluteAuthRedirectUrl(
  * `/auth/callback/signin` would both land on the Core domain and collide with
  * Core's own `/auth/callback/:provider` route — surfacing as `state_not_found`.
  * Anchoring to `window.location.origin` (already a trusted origin) sends the
- * user back to the web app after the OAuth callback completes. Falls back to a
- * relative path when `window` is unavailable (SSR).
+ * user back to the web app after the OAuth callback completes.
  */
 function buildAuthCallbackUrl(
   path: string,
@@ -323,8 +317,7 @@ function buildAuthCallbackUrl(
   if (returnUrl) {
     params.set("returnUrl", sanitizeAuthRedirectPath(returnUrl, "/"));
   }
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  return `${origin}${path}?${params.toString()}`;
+  return `${window.location.origin}${path}?${params.toString()}`;
 }
 
 /**
@@ -334,11 +327,7 @@ function buildAuthCallbackUrl(
  * the failure to another auth page with the same query instead, for a page
  * that would only start the sign-in again.
  */
-function buildAuthErrorCallbackUrl(pathname?: string): string | undefined {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
+function buildAuthErrorCallbackUrl(pathname?: string): string {
   const url = new URL(window.location.href);
   if (pathname) {
     url.pathname = pathname;
@@ -518,7 +507,7 @@ export function readAuthReturnUrl(
  * at consent, whose provider endpoint checks that the new session satisfies
  * the signed request before clearing its login prompt or maximum age.
  */
-export function buildOAuthResumeUrlFromSearchParams(
+function buildOAuthResumeUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
   const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
