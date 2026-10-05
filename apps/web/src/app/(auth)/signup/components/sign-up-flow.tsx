@@ -14,6 +14,7 @@ import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
+import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { handleUtmConversion } from "@/lib/actions/auth/action";
 import { buildOAuthResumeUrlFromSearchParams } from "@/lib/auth/auth.utils";
@@ -166,7 +167,7 @@ export default function SignUpFlow({
                 method === "code"
                   ? await emailCode.sendCode(knownEmail, {
                       signal,
-                      captchaPass: account.captchaPass,
+                      runWithCaptcha: runWithCaptchaPass(account.captchaPass),
                     })
                   : null;
               if (signal.aborted) return;
@@ -180,7 +181,10 @@ export default function SignUpFlow({
           onContinue={async (confirmedEmail, signal, { captchaPass }) => {
             setEmail(confirmedEmail);
             // A failed send has said so; step 2 then opens on the password.
-            await emailCode.sendCode(confirmedEmail, { signal, captchaPass });
+            await emailCode.sendCode(confirmedEmail, {
+              signal,
+              runWithCaptcha: runWithCaptchaPass(captchaPass),
+            });
             if (!signal.aborted) setStep("details");
           }}
           disabled={isProviderPending}

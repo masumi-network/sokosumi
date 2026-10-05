@@ -7,6 +7,11 @@ import type {
   CaptchaFetchOptions,
 } from "@/components/auth-captcha";
 
+// The pass needs no widget, so tests keep the real one.
+export const { runWithCaptchaPass } = await vi.importActual<
+  typeof import("@/components/auth-captcha")
+>("@/components/auth-captcha");
+
 export const requestCaptchaMock =
   vi.fn<() => Promise<CaptchaFetchOptions | null>>();
 export const captchaErrorMessageMock = vi.fn<AuthCaptcha["getErrorMessage"]>();

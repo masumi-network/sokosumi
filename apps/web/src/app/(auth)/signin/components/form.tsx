@@ -334,6 +334,7 @@ export default function SignInForm({
         emailCode={emailCode}
         isCodeStep={isCodeStep}
         onSwitch={switchTo}
+        runWithCaptcha={runWithCaptcha}
         forgotPassword={
           isCodeStep ? undefined : (
             <Link

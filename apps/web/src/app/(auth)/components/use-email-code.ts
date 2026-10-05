@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  AUTH_CAPTCHA_HEADER,
-  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
-} from "@sokosumi/utils";
+import { EMAIL_CODE_SIGN_IN_METHODS_REMOVED } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -11,6 +8,7 @@ import { ACCOUNT_HREF } from "@/app/account/constants";
 import type { EmailCodeError } from "@/components/auth/email-code-field";
 import {
   type CaptchaFetchOptions,
+  type RunWithCaptcha,
   useAuthCaptcha,
 } from "@/components/auth-captcha";
 import { authClient } from "@/lib/auth/auth.client";
@@ -91,8 +89,11 @@ export function useEmailCode({
     email: string,
     options: {
       signal?: AbortSignal;
-      /** From the email step; replaces the captcha for this one send. */
-      captchaPass?: string;
+      /**
+       * Another check that covers this send, e.g. the email step's pass or a
+       * widget already on screen. Without it the send uses `captcha`.
+       */
+      runWithCaptcha?: RunWithCaptcha;
     } = {},
   ): Promise<number | null> {
     const generation = ++sendGeneration.current;
@@ -125,9 +126,7 @@ export function useEmailCode({
         sentAt = Date.now();
         adoptSentCode(email, sentAt);
       };
-      await (options.captchaPass
-        ? send({ headers: { [AUTH_CAPTCHA_HEADER]: options.captchaPass } })
-        : runWithCaptcha(send));
+      await (options.runWithCaptcha ?? runWithCaptcha)(send);
     } catch (_error) {
       if (isLatest() && !options.signal?.aborted) {
         toast.error(t("emailCodeError"));

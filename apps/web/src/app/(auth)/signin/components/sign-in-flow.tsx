@@ -15,6 +15,7 @@ import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
+import { runWithCaptchaPass } from "@/components/auth-captcha";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import {
   buildAuthPageUrl,
@@ -203,7 +204,7 @@ export default function SignInFlow({
             follow: async (newEmail, signal, { captchaPass }) => {
               const codeSentAt = await emailCode.sendCode(newEmail, {
                 signal,
-                captchaPass,
+                runWithCaptcha: runWithCaptchaPass(captchaPass),
               });
               if (signal.aborted) return;
               rememberAuthEmailHint(newEmail, { signUp: { codeSentAt } });
@@ -220,7 +221,7 @@ export default function SignInFlow({
             if (method === "code") {
               await emailCode.sendCode(confirmedEmail, {
                 signal,
-                captchaPass: account.captchaPass,
+                runWithCaptcha: runWithCaptchaPass(account.captchaPass),
               });
             }
             if (!signal.aborted) setStep("method");
