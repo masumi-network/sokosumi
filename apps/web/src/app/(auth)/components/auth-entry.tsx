@@ -14,7 +14,6 @@ import { readOAuthRequest } from "@/lib/auth/oauth-request.server";
 import { parseLastUsedAuthMethod } from "@/lib/utils/last-used-auth-method";
 
 export type AuthEntrySearchParams = AuthRedirectSearchParams & {
-  returnUrl?: string;
   invitationId?: string;
   error?: string;
 };
@@ -29,7 +28,7 @@ export async function renderAuthEntry(
   mode: AuthMode,
   searchParams: Promise<AuthEntrySearchParams>,
 ): Promise<ReactNode> {
-  const { returnUrl, invitationId, error } = await searchParams;
+  const { invitationId, error } = await searchParams;
   const oauthRequest = await readOAuthRequest(searchParams);
   if (oauthRequest?.hasExpired) {
     return <OAuthRequestError client={oauthRequest.client} />;
@@ -54,7 +53,6 @@ export async function renderAuthEntry(
       client={oauthRequest?.client}
       prefilledEmail={await getInvitationEmail(invitationId)}
       invitationId={invitationId}
-      returnUrl={returnUrl}
       lastUsedMethod={lastUsedMethod}
       notice={<SignInErrorNotice error={error} />}
     >

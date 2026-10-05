@@ -659,9 +659,7 @@ describe("AuthFlow signIn", () => {
     it("hands the typed email to sign-up instead of putting it in the link", async () => {
       const user = userEvent.setup();
       mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
-      render(
-        <AuthFlow mode="signIn" lastUsedMethod={null} returnUrl="/agents" />,
-      );
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
       await user.type(emailField(), "ada@exmaple.com");
       // A query email is an invitation's fixed address.
@@ -702,11 +700,14 @@ describe("AuthFlow signIn", () => {
         data: { exists: false, captchaPass: CAPTCHA_PASS },
         error: null,
       });
+      mockSearchParams = new URLSearchParams({
+        returnUrl: "/accept-invitation/inv_1",
+        invitationId: "inv_1",
+      });
       render(
         <AuthFlow
           mode="signIn"
           lastUsedMethod={null}
-          returnUrl="/accept-invitation/inv_1"
           prefilledEmail="invited@example.com"
           invitationId="inv_1"
         />,

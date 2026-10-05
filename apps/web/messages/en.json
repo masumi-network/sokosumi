@@ -7,6 +7,9 @@
       "requestFailed": "Unable to complete this request. Please try again later.",
       "rateLimited": "Too many requests in a row. Wait a minute, then try again."
     },
+    "AuthErrors": {
+      "termsNotAccepted": "Accept the updated terms before logging in again."
+    },
     "EmailCodeForm": {
       "sent": "We sent a 6-digit code to {email}.",
       "sentNoAddress": "We emailed you a 6-digit code.",
@@ -18,7 +21,6 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "rateLimited": "Too many tries in a row. Wait a minute, then try again."
     },
     "EmergencyDialog": {
@@ -58,7 +60,6 @@
       "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "title": "Confirm it is you"
     },
     "ShareButton": {
@@ -1216,9 +1217,6 @@
           "Register": {
             "message": "Don't have an account?",
             "link": "Register"
-          },
-          "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to log in"
           },
           "NoAccount": {
             "title": "No account for this address",

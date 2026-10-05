@@ -167,9 +167,8 @@ describe("AuthFlow signUp", () => {
   });
 
   it("opens on the email step beside the providers", () => {
-    render(
-      <AuthFlow mode="signUp" lastUsedMethod="google" returnUrl="/agents" />,
-    );
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<AuthFlow mode="signUp" lastUsedMethod="google" />);
 
     expect(emailField()).toHaveAttribute("type", "email");
     expect(emailField()).toHaveAttribute("autocomplete", "email");
@@ -219,9 +218,8 @@ describe("AuthFlow signUp", () => {
 
   it("carries the confirmed email to the details step", async () => {
     const user = userEvent.setup();
-    render(
-      <AuthFlow mode="signUp" lastUsedMethod={null} returnUrl="/agents" />,
-    );
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
