@@ -197,7 +197,7 @@ describe.skipIf(!enabled)(
       await prisma.$disconnect();
     });
 
-    it("rejects billing a user the coworker has no relationship with", async () => {
+    it("rejects billing a user whose workspace has no grant or task for the coworker's vendor", async () => {
       const { userId } = await createBillableUser();
 
       const response = await postUsage(userId);
@@ -247,7 +247,7 @@ describe.skipIf(!enabled)(
       expect(await debitsOf(userId)).toBe(1);
     });
 
-    it("rejects billing an organization member the coworker has no relationship with", async () => {
+    it("rejects billing an organization member whose workspace has no grant or task for the coworker's vendor", async () => {
       const { userId, organizationId } =
         await createBillableOrganizationMember();
 
