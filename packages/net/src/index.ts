@@ -2,6 +2,7 @@ export {
   SsrfError,
   type SsrfSafeFetchInit,
   ssrfSafeFetch,
+  ssrfSafeStreamFetch,
 } from "./ssrf-fetch.js";
 export {
   buildWebhookFailureContext,
