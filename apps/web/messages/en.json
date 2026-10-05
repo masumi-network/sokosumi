@@ -7,9 +7,6 @@
       "requestFailed": "Unable to complete this request. Please try again later.",
       "rateLimited": "Too many requests in a row. Wait a minute, then try again."
     },
-    "AuthErrors": {
-      "termsNotAccepted": "Accept the updated terms before logging in again."
-    },
     "EmailCodeForm": {
       "sent": "We sent a 6-digit code to {email}.",
       "sentNoAddress": "We emailed you a 6-digit code.",

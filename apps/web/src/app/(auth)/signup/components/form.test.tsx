@@ -106,7 +106,6 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
-    TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
     USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
   },

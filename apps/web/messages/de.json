@@ -7,9 +7,6 @@
       "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
       "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut."
     },
-    "AuthErrors": {
-      "termsNotAccepted": "Akzeptiere die aktualisierten Bedingungen, bevor du dich erneut anmeldest."
-    },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
       "sentNoAddress": "Wir haben dir einen 6-stelligen Code geschickt.",
