@@ -42,9 +42,9 @@ struct MentionThoughtShellTests {
     #expect(try await !hasThoughtView(decode(shellRow(content: "", sender: sokoBotSender, metadata: answered, deletedAt: testTimestamp))))
   }
 
-  /// The Soko Bot shell reads like a coworker's on the row, but web's transcript filter
-  /// (`isMentionCoworkerShell`) still keeps only a coworker's bodiless shell.
-  @Test func aSokoBotShellResolvesOnTheRowButLeavesTheTranscript() async throws {
+  /// The Soko Bot shell reads like a coworker's on the row, and since web #5617 the transcript
+  /// filter (`isMentionThoughtShell`) keeps it as it keeps a coworker's (row 38d).
+  @Test func aSokoBotShellResolvesOnTheRowAndStaysInTheTranscript() async throws {
     let failed = #"{"mention_id":"mention_1","mention_failed":true,"in_reply_to_message_id":"source","soko_bot":{"turn_id":"turn_1"}}"#
     let thinking = #"{"streaming":true,"mention_id":"mention_1","reasoning":[{"type":"reasoning","text":"Creating a Task"}],"soko_bot":{"turn_id":"turn_1"}}"#
     let failedShell = try await decode(shellRow(sender: sokoBotSender, metadata: failed))
@@ -53,8 +53,8 @@ struct MentionThoughtShellTests {
     #expect(MentionThoughtShell(message: thinkingShell)?.isThinking == true)
     #expect(!canQuoteMessage(thinkingShell))
     #expect(!canReactToMessage(thinkingShell))
-    #expect(!shouldKeepPersistedMessage(failedShell))
-    #expect(!shouldKeepPersistedMessage(thinkingShell))
+    #expect(shouldKeepPersistedMessage(failedShell))
+    #expect(shouldKeepPersistedMessage(thinkingShell))
     #expect(try await shouldKeepPersistedMessage(decode(shellRow(metadata: thinking))))
   }
 

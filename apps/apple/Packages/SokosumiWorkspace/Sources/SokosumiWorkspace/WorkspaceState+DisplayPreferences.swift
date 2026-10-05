@@ -22,7 +22,7 @@ public extension WorkspaceState {
   /// rethrow so Settings can say the change was not saved.
   func setShowsRoomUnreadCount(_ enabled: Bool, auth: AuthState) async throws {
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to change chat display preferences.")
+      throw ChatServiceError.unauthorized("Log in to change chat display preferences.")
     }
     do {
       try await chatDisplay.setShowsRoomUnreadCount(enabled, client: client)

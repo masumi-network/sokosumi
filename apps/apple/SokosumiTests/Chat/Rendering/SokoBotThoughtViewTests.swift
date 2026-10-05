@@ -12,8 +12,8 @@
   extension NativeWindowTests {
     /// Row 38a: web's message row resolves the coworker Thought view for a Soko Bot sender too (#5304). The
     /// settled reply shows the collapsed "Thought for Ns" disclosure over its capability beats; the mention
-    /// placeholder, drawn on its own, the live Thinking trace; a failed turn "Failed to reply". The transcript
-    /// still drops both bodiless shells, as web's does (`SokoBotMessageMetadataTests`).
+    /// placeholder the live Thinking trace; a failed turn "Failed to reply". Since row 38d the transcript keeps
+    /// both bodiless shells, as web's does after #5617 (`SokoBotShellTranscriptTests`).
     @MainActor struct SokoBotThoughtViewTests {
       private static let beats = ["Finding Coworkers", "Creating a Task", "Assigning a Task"]
 

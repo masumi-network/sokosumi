@@ -291,7 +291,9 @@ private final class FakeRealtimeConnection: RealtimeConnection, @unchecked Senda
 }
 
 struct WorkspaceRealtimeTests {
-  @Test func hiddenEnvelopeWaitsForWindowReturn() async throws {
+  /// Row 07d (web `use-chat-refresh-scheduler.ts` explicit requests): an id envelope reads the open room while no chat
+  /// window is active, without marking it read; the second envelope queues one follow-up, and the return reads nothing.
+  @Test func hiddenEnvelopeReadsWithoutMarkingRead() async throws {
     let (state, auth, transport) = try realtimeState([
       (200, realtimeAccessBody()),
       (200, realtimeOrgsBody),
@@ -301,7 +303,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimePageBody(messages: [])),
       (200, realtimeReadBody(id: roomA)),
       (200, realtimePageBody(messages: [])),
-      (200, realtimeReadBody(id: roomA))
+      (200, realtimePageBody(messages: []))
     ])
     await state.reload(auth: auth)
     await waitForRealtimeIdle(state)
@@ -309,10 +311,11 @@ struct WorkspaceRealtimeTests {
     state.applyRealtimeEnvelope(.init(eventType: .create, messageId: "new", roomId: roomA))
     state.applyRealtimeEnvelope(.init(eventType: .update, messageId: "new", roomId: roomA))
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
     state.setWindowVisible(true, window: realtimeWindow)
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
     state.reset()
   }
 
@@ -404,7 +407,9 @@ struct WorkspaceRealtimeTests {
     #expect(state.transcriptMessages.map(\.id) == [otherId])
   }
 
-  @Test func foreignActivityRefreshesSidebarOnForegroundReturn() async throws {
+  /// Row 07d: activity in another room re-reads the room list while no chat window is active, as web's tab title
+  /// follows it while away; the second request queues one follow-up, and the return reads nothing more.
+  @Test func foreignActivityRefreshesSidebarWhileHidden() async throws {
     let firstId = "550e8400-e29b-41d4-a716-446655440714"
     let (state, auth, transport) = try realtimeState([
       (200, realtimeAccessBody()),
@@ -414,6 +419,7 @@ struct WorkspaceRealtimeTests {
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [realtimeMessageJSON(id: firstId, roomId: roomA, content: "first")])),
       (200, realtimeReadBody(id: roomA)),
+      (200, realtimeRoomsBody(ids: [roomA, roomB])),
       (200, realtimeRoomsBody(ids: [roomA, roomB]))
     ])
     await state.reload(auth: auth)
@@ -426,10 +432,11 @@ struct WorkspaceRealtimeTests {
     state.applyRealtimeMessage(roomId: roomB, eventType: .create, message: foreign[0])
     state.applyRealtimeEnvelope(.init(eventType: .create, messageId: "large", roomId: roomB))
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 1)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 3)
+    #expect(state.rooms.map(\.id) == [roomA, roomB])
     state.setWindowVisible(true, window: realtimeWindow)
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 2)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms" }.count == 3)
     #expect(state.rooms.map(\.id) == [roomA, roomB])
     #expect(state.displayedTranscript.map(\.content) == ["first"])
     state.reset()
@@ -854,14 +861,16 @@ struct WorkspaceRealtimeTests {
     #expect(fake.membershipRooms.last?.isEmpty == true)
   }
 
-  @Test func continuityLossWaitsForForegroundAndIgnoresOtherRooms() async throws {
+  /// Row 07d: lost continuity on the open room re-reads it while no chat window is active (web `handleContinuityLost`
+  /// is an explicit request), without marking it read; the return finds nothing stale.
+  @Test func continuityLossReadsWhileHiddenAndIgnoresOtherRooms() async throws {
     let fake = FakeRealtimeConnection()
     let (state, auth, transport) = try realtimeState([
       (200, realtimeAccessBody()), (200, realtimeOrgsBody), (200, realtimeUserBody),
       (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, realtimeRoomsBody(ids: [roomA])),
       (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA)),
-      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+      (200, realtimePageBody(messages: [])), (200, realtimePageBody(messages: []))
     ])
     state.realtimeConnectionFactory = { fake }
     await state.reload(auth: auth)
@@ -889,10 +898,11 @@ struct WorkspaceRealtimeTests {
     #expect(state.timeline.pinOverrides["barrier"] == false)
     #expect(state.threadAttentionRevision == initialAttention + 2)
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.count == initialRequests)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
+    #expect(transport.operationIDs.filter { $0 == "post/chats/rooms/{id}/read" }.count == 1)
     state.setWindowVisible(true, window: realtimeWindow)
     await waitForRealtimeIdle(state)
-    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 2)
+    #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 3)
   }
 
   @Test func revokeKeepsUnrelatedRoomTranscript() async throws {

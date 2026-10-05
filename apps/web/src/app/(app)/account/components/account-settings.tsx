@@ -89,7 +89,7 @@ export function AccountSettings({
           {credentialAccountsLoadError ? (
             credentialAccountsLoadError
           ) : hasCredentialAccount ? (
-            <PasswordForm />
+            <PasswordForm email={userEmail} />
           ) : (
             <NewPasswordForm />
           )}

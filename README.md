@@ -9,13 +9,15 @@ sokosumi/
 ├── apps/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
 │   ├── core/        # Hono API — owns all Postgres/Prisma access
+│   ├── cmo/         # Next.js 16 CMO app at app.cmo.xyz (Sign in with Sokosumi; no database)
 │   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/         # Developer CLI — Ink TUI and headless commands (SPEC + VISION)
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma schema, client, helpers
+│   ├── core-client/ # @sokosumi/core-client — generated TypeScript client for Core's /v1 API
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
-│   ├── net/         # @sokosumi/net — SSRF-safe fetch
+│   ├── net/         # @sokosumi/net — SSRF-safe fetch and outbound webhook transport
 │   ├── email/       # @sokosumi/email — renderers and locales
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
 │   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (loop runs in per-bot Vercel Sandboxes; Core is the control plane)

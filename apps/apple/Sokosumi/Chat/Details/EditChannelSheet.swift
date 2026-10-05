@@ -10,8 +10,9 @@ struct RoomEditPresentation: Identifiable, Equatable {
   let roomId: String
 }
 
-/// One sheet wiring shared by the sidebar row menu and the Members inspector. Both open it for organization owners
-/// and admins only; everyone else manages membership from the members panel.
+/// The window's Channel settings sheet (`RoomEditSheetsHost`). The sidebar row menu, the Members inspector and the
+/// title bar's room name open it for organization owners and admins only; everyone else manages membership from the
+/// members panel.
 struct EditChannelSheet: ViewModifier {
   @Binding var presentation: RoomEditPresentation?
   @EnvironmentObject private var workspaces: WorkspaceState

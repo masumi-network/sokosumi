@@ -22,6 +22,13 @@ const OAUTH_SEARCH_PARAMS = {
 };
 const OAUTH_QUERY = `client_id=cmo&redirect_uri=https%3A%2F%2Fapp.cmo.xyz%2Fapi%2Fauth%2Fcallback%2Fsokosumi&exp=${NOW / 1000 + 600}&sig=signed-value`;
 
+const getPendingInvitationMock = vi.fn();
+vi.mock("@/lib/services/organization.service", () => ({
+  organizationService: {
+    getPendingInvitation: (id: string) => getPendingInvitationMock(id),
+  },
+}));
+
 vi.mock("next/headers", () => ({
   cookies: () => cookiesMock(),
 }));
@@ -38,7 +45,7 @@ vi.mock("@/config/env.secrets", () => ({
   getEnvSecrets: () => getEnvSecretsMock(),
 }));
 
-vi.mock("./components/sign-in-flow", () => ({
+vi.mock("@/auth/components/auth-flow", () => ({
   __esModule: true,
   default: (props: { notice: ReactNode; children: ReactNode }) => {
     signInFlowMock(props);
@@ -348,15 +355,12 @@ describe("SignIn page", () => {
 
     render(
       await Page({
-        searchParams: Promise.resolve({ email: "invited@example.com" }),
+        searchParams: Promise.resolve({}),
       }),
     );
 
     expect(signInFlowMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        lastUsedMethod: "email",
-        prefilledEmail: "invited@example.com",
-      }),
+      expect.objectContaining({ lastUsedMethod: "email" }),
     );
   });
 
@@ -371,25 +375,47 @@ describe("SignIn page", () => {
     );
   });
 
-  it("hands the invitation's email and id to the flow", async () => {
+  // The address never travels in the URL, which reaches logs and analytics.
+  it("locks the address the invitation names, not one from the URL", async () => {
+    getPendingInvitationMock.mockResolvedValue({
+      invitation: { id: "inv_1", email: "invited@example.com" },
+    });
     const { default: Page } = await import("./page");
 
     render(
       await Page({
         searchParams: Promise.resolve({
-          email: "invited@example.com",
+          email: "someone-else@example.com",
           invitationId: "inv_1",
           returnUrl: "/accept-invitation/inv_1",
         }),
       }),
     );
 
+    expect(getPendingInvitationMock).toHaveBeenCalledWith("inv_1");
     expect(signInFlowMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        mode: "signIn",
         prefilledEmail: "invited@example.com",
         invitationId: "inv_1",
         returnUrl: "/accept-invitation/inv_1",
       }),
+    );
+  });
+
+  it("signs in without a lock when the invitation cannot be read", async () => {
+    getPendingInvitationMock.mockRejectedValue(new Error("Core down"));
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { default: Page } = await import("./page");
+
+    render(
+      await Page({
+        searchParams: Promise.resolve({ invitationId: "inv_1" }),
+      }),
+    );
+
+    expect(signInFlowMock).toHaveBeenCalledWith(
+      expect.objectContaining({ prefilledEmail: undefined }),
     );
   });
 

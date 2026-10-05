@@ -32,12 +32,24 @@ interface AuthRequestContext {
   params?: Record<string, string | undefined>;
 }
 
+/**
+ * Every conversion row's identifier starts with one of these; the purge sync
+ * deletes the rows no Web page claimed before they expired.
+ */
+const CLAIM_IDENTIFIER_PREFIX = "sign-up-conversion:";
+const REDIRECT_IDENTIFIER_PREFIX = "sign-up-conversion-redirect:";
+
+export const SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES = [
+  CLAIM_IDENTIFIER_PREFIX,
+  REDIRECT_IDENTIFIER_PREFIX,
+] as const;
+
 function identifierFor(userId: string): string {
-  return `sign-up-conversion:${userId}`;
+  return `${CLAIM_IDENTIFIER_PREFIX}${userId}`;
 }
 
 function redirectIdentifierFor(userId: string): string {
-  return `sign-up-conversion-redirect:${userId}`;
+  return `${REDIRECT_IDENTIFIER_PREFIX}${userId}`;
 }
 
 function isSignUpConversionProvider(
@@ -138,8 +150,8 @@ export async function claimSignUpConversion(
     if (count !== 1) {
       return null;
     }
-    // Counted: a `prompt=create` request already passed through Web's sign-up
-    // page without taking the redirect, and must not pass through it again.
+    // Counted: a later authorization must not detour through Web's sign-up
+    // page to count it again.
     await tx.verification.deleteMany({
       where: { identifier: redirectIdentifierFor(userId) },
     });

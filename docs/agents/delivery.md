@@ -5,9 +5,11 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ### Git hooks
 
-Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect roughly 10–15 seconds. Let it run: it is the same pair CI gates on, so a commit that passes it is a commit that passes `Biome` and `Typecheck`.
+Husky runs `pnpm precommit` (`pnpm check && pnpm typecheck`) before each commit. Expect 10–15 seconds with a warm Turbo cache and 1–2 minutes on a fresh checkout or cloud session, where `typecheck` starts cold. Let it run: it is the same pair CI gates on, so a commit that passes it is a commit that passes `Biome` and `Typecheck`.
 
 `git commit --no-verify` and `HUSKY=0` exist for the case where the hook itself is broken — a missing binary, a worktree without `node_modules`. Fix the cause and commit normally. Passing the checks by hand first is not a reason to bypass the hook: the bypass is indistinguishable from hiding a failure, and only the hook's own run proves the tree is green.
+
+After a merge or pull, `.husky/post-merge` reinstalls when `pnpm-lock.yaml` changed and regenerates Prisma when `packages/database/prisma` changed.
 
 In a fresh worktree the hook fails with `Command "prisma" not found` until `pnpm install` has run there. Install (about 30 seconds) rather than committing past it with `--no-verify`: the failure is the worktree's `node_modules`, so every later check is blind too.
 
@@ -26,6 +28,7 @@ docs(readme): update setup instructions
 ### Branches
 
 - **Linear issues**: When implementing a Linear issue, the branch name MUST start with the issue identifier (lowercased), followed by a short kebab-case description. For example, for `SOK-555` name the branch `sok-555-xxx-xxx-xxx`. Prefer the `gitBranchName` Linear provides for the issue when available.
+- **One branch per PR.** Start every new PR on a branch name no earlier PR used. Preview `DATABASE_URL*` env vars are scoped to the git branch and owned by one PR (`scripts/ci/preview-resources.ts`), so a reused branch fails `/deploy` with "owned by another workflow" until the old PR's preview is cleaned up.
 
 ### Pull Requests
 
@@ -47,14 +50,16 @@ docs(readme): update setup instructions
 
 - **Required status checks** on `main` (ruleset `Default Branch`): `Build`, `Validate PR Title`, `Biome`, `Test Core`, `Test Packages`, `Test Web`, `Typecheck`, `Swift lint and format`, `Xcode test`. Read the live list with `gh api repos/masumi-network/sokosumi/rulesets/3855070 --jq '.rules[] | select(.type=="required_status_checks") | .parameters.required_status_checks[].context'`. Deleting or renaming the job behind one of these blocks every PR on a check that never reports, so update the ruleset in the same change.
 - **Advisory status checks** in `.github/workflows/ci.yml`: `Test CLI`, `Test Local env`, `Test CI config`, `Test Cloud agent db`. They are **not** in the ruleset; a red advisory job does not block merge. `Test CI config` runs on Markdown, `package.json`, and CI-file changes, so the doc-script check still executes on docs-only PRs.
-- **Path-gated jobs skip, they do not start.** Every JS job (`Build`, `Biome`, `Typecheck`, and each `Test …` leg) gates with a job-level `if:` on its path filter in `.github/js-paths-filter.yml`. A skipped job gets no runner, still reports its check name, and the ruleset accepts a skipped check. Keep each leg a named job, not a matrix entry: a skipped matrix reports one placeholder name that satisfies no required context.
+- **Path-gated jobs skip, they do not start.** Every JS job (`Build`, `Biome`, `Typecheck`, and each `Test …` leg) gates with a job-level `if:` on its path filter in `.github/js-paths-filter.yml`. A skipped job gets no runner, still reports its check name, and the ruleset accepts a skipped check. Keep each leg a named job, not a matrix entry: a skipped matrix reports one placeholder name that satisfies no required context. `Test Web` is the one split leg: unrequired `Test Web (n/3)` matrix shards run the suite, and a plain `Test Web` job passes only when every shard passed.
 - **CI jobs restore caches; only `.github/workflows/next-build-cache.yml` saves one, from `main`.** A PR's cache is scoped to its merge ref, so no other PR can read it, and PR-saved pnpm stores once filled the repo's 10 GB. Build restores web's Turbopack cache (`js-next-*`). Keep new keys under `js-` so they never collide with Apple's `macOS-mint-*`. Build env placeholders live in `.github/ci-build.env`, shared by both workflows. Caching the pnpm store (#5160) or `node_modules` (#5165) measured no faster than a registry install.
 - **Draft by default**: Open new PRs as **draft** unless the author explicitly asks for a ready-for-review PR. Mark it ready for review only once CI is green and the change is complete.
+- **Review feedback**: Treat each finding as a hypothesis. Check it against the code or the rule it cites before changing anything, fix what holds, then reply on the PR thread: what changed, or why not.
 - **Title**: Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax (e.g. `feat(auth): add refresh token`)
+- **Body**: write it with the [`pr` skill](../../.agents/skills/pr/SKILL.md); the repo has no PR template.
 - **Description**: Explain user-facing impact
 - **Links**: Reference Linear or GitHub issues
 - **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
 - **Screenshots**: Attach for UI updates
 - **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm --filter @sokosumi/database data-migration:<name>`). Root only aliases `pnpm data-migration:org-only-personal-workspaces`.
 - **Preview database reset:** `/reset-db <mainnet|preprod>` or `/reset-db all` on a PR comment resets that PR's Neon preview branch, redeploys Core, and drops preview-only data. `/deploy … --reset-db` resets, then deploys. Full command, access, and environment rules are in the root [README](../../README.md#deployment).
-- **Preview cleanup on close:** merging or closing a PR deletes its Neon preview branch and its Vercel preview deployments. After a reopen, comment `/deploy <mainnet|preprod|all>` to rebuild the preview. Legacy previews require a separately reviewed cleanup.
+- **Preview cleanup on close:** merging or closing a PR deletes its Neon preview branch, its Vercel preview deployments, and its branch-scoped preview env vars (the `closed` job in `.github/workflows/preview-deploy.yml`). The daily `Reconcile closed previews` run sweeps any it missed; dispatch `Preview deploy` by hand to sweep sooner. After a reopen, comment `/deploy <mainnet|preprod|all>` to rebuild the preview. Legacy previews require a separately reviewed cleanup.

@@ -5,15 +5,15 @@ import { betterAuth } from "better-auth/minimal";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { describe, expect, it } from "vitest";
 
+import { emailCodeSignIn } from "./auth-email-code-sign-in.js";
 import {
-  resolveEmailCodeSignInNameBody,
-  resolveSignUpNameBody,
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name.js";
 
-// A real Better Auth instance: the point is that the before hook runs ahead of
-// the endpoint's own body validation, which still requires `name`.
+// A real Better Auth instance with Core's email code plugin: the point is that
+// its before hook runs ahead of the endpoint's own body validation, which
+// still requires `name`.
 function createTestAuth() {
   let emailCode = "";
   // Read through `db`: the adapter swaps the arrays when a transaction commits.
@@ -42,22 +42,16 @@ function createTestAuth() {
       },
     },
     plugins: [
-      emailOTP({
-        sendVerificationOTP: async ({ otp }) => {
-          emailCode = otp;
-        },
-      }),
+      emailCodeSignIn(
+        emailOTP({
+          sendVerificationOTP: async ({ otp }) => {
+            emailCode = otp;
+          },
+        }),
+      ),
     ],
     hooks: {
       before: createAuthMiddleware(async (ctx) => {
-        if (ctx.path === "/sign-up/email") {
-          return { context: { body: resolveSignUpNameBody(ctx.body) } };
-        }
-        if (ctx.path === "/sign-in/email-otp") {
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
-        }
         if (ctx.path === "/update-user") {
           await validateUpdatedUserName(ctx);
         }
@@ -65,19 +59,6 @@ function createTestAuth() {
     },
     rateLimit: { enabled: false },
   });
-  function signUp(body: Record<string, unknown>) {
-    return auth.handler(
-      new Request("https://auth.example.com/auth/sign-up/email", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({
-          email: "ada@example.com",
-          password: "Password123!",
-          ...body,
-        }),
-      }),
-    );
-  }
   async function signInWithEmailCode(body: Record<string, unknown> = {}) {
     await auth.handler(
       new Request(
@@ -118,10 +99,18 @@ function createTestAuth() {
       }),
     );
   }
+  // Password sign-up goes through the email code.
+  function signUp(body: Record<string, unknown>) {
+    return signInWithEmailCode({
+      password: "Password123!",
+      termsAccepted: true,
+      ...body,
+    });
+  }
   return { signUp, signInWithEmailCode, updateUser, db };
 }
 
-describe("email sign-up name", () => {
+describe("sign-up name", () => {
   it("stores no name parts for a new email-code account without a name", async () => {
     const { signInWithEmailCode, db } = createTestAuth();
 

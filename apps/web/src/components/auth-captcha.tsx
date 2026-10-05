@@ -15,6 +15,12 @@ export interface CaptchaFetchOptions {
   headers?: { [AUTH_CAPTCHA_HEADER]: string };
 }
 
+/** The fields of a Better Auth error answer that `getErrorMessage` reads. */
+export interface AuthErrorAnswer {
+  code?: string;
+  status?: number;
+}
+
 export type AuthCaptchaEntry =
   | "signin"
   | "signup"
@@ -23,6 +29,10 @@ export type AuthCaptchaEntry =
   | "verify-email"
   | "change-email";
 
+export type RunWithCaptcha = <T>(
+  action: (options: CaptchaFetchOptions) => Promise<T>,
+) => Promise<T | null>;
+
 export interface AuthCaptcha {
   /**
    * The security check. Render it directly above the submit control. It has
@@ -30,10 +40,17 @@ export interface AuthCaptcha {
    * the load-failure message.
    */
   widget: ReactNode;
-  runWithCaptcha: <T>(
-    action: (options: CaptchaFetchOptions) => Promise<T>,
-  ) => Promise<T | null>;
-  getErrorMessage: (error: { code?: string }, fallback: string) => string;
+  runWithCaptcha: RunWithCaptcha;
+  /** Better Auth's own messages are English, so known answers are translated. */
+  getErrorMessage: (error: AuthErrorAnswer, fallback: string) => string;
+}
+
+/**
+ * Runs with the single-use pass Core's email status answer carries, so the
+ * sign-in code sent next needs no widget of its own.
+ */
+export function runWithCaptchaPass(pass: string): RunWithCaptcha {
+  return (action) => action({ headers: { [AUTH_CAPTCHA_HEADER]: pass } });
 }
 
 const ANALYTICS_EVENT = "Security Check";
@@ -153,7 +170,9 @@ export function useAuthCaptcha(entry: AuthCaptchaEntry): AuthCaptcha {
   );
 
   const getErrorMessage = useCallback(
-    (error: { code?: string }, fallback: string) => {
+    (error: AuthErrorAnswer, fallback: string) => {
+      // Better Auth's rate limiter answers in English with no code.
+      if (error.status === 429) return t("rateLimited");
       switch (error.code) {
         case "VERIFICATION_FAILED":
           return t("verificationFailed");

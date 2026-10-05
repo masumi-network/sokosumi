@@ -1,9 +1,6 @@
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
-import {
-  getOAuthProviderState,
-  oauthProvider,
-} from "@better-auth/oauth-provider";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -44,9 +41,9 @@ import {
 import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
-import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
 import {
+  getBetterAuthProductionUrl,
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
@@ -80,7 +77,7 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
-import { authErrorPageOptions } from "./auth-error-page";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
   jwtKeyStoreOptions,
@@ -98,8 +95,6 @@ import {
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
-  resolveEmailCodeSignInNameBody,
-  resolveSignUpNameBody,
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
@@ -121,41 +116,6 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
-
-interface SignUpOAuthClient {
-  clientId: string;
-  name: string;
-}
-
-/**
- * The app a sign-up came from, when the request carries an OAuth request this
- * provider signed (Web's auth client adds `oauth_query`, and the provider's
- * hook verifies it before the endpoint runs). A disabled or unnamed client
- * gets Sokosumi's own email, and so does a failed lookup: naming the app is
- * not worth losing the email.
- */
-async function getSignUpOAuthClient(): Promise<SignUpOAuthClient | undefined> {
-  try {
-    const query = (await getOAuthProviderState())?.query;
-    const clientId = query
-      ? new URLSearchParams(query).get("client_id")
-      : undefined;
-    if (!clientId) {
-      return undefined;
-    }
-    const client = await prisma.oauthClient.findFirst({
-      where: { clientId, disabled: false },
-      select: { name: true },
-    });
-    return client?.name?.trim() ? { clientId, name: client.name } : undefined;
-  } catch (error) {
-    captureExternalServiceError(error, {
-      label: "verification_email_client",
-      sentry: { tags: { context: "verification_email_client" } },
-    });
-    return undefined;
-  }
-}
 
 async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
   const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
@@ -369,8 +329,6 @@ export const auth = betterAuth({
                   },
                   extra: {
                     userId: user.id,
-                    email: user.email,
-                    name: user.name,
                   },
                 });
               }),
@@ -419,7 +377,11 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
-  onAPIError: authErrorPageOptions(webAppBaseUrl),
+  // Failures with no error URL of their own (a social callback whose state is
+  // gone, an unreturnable authorize request, a failed account link or proxy
+  // hand-off) land here instead of Core's `/auth/error`, which on production
+  // bounces to the API host's root. Web's own `errorCallbackURL` still wins.
+  onAPIError: { errorURL: `${webAppBaseUrl}/auth/error` },
   // The email code plugin also offers password reset, email verification and
   // email change by code. Sokosumi keeps links for those.
   disabledPaths: [
@@ -469,21 +431,6 @@ export const auth = betterAuth({
           }
           break;
         }
-        case "/sign-in/email-otp": {
-          // A password sign-up (see `auth-email-code-sign-in`) keeps the
-          // checks `/sign-up/email` made before it was closed.
-          if (ctx.body?.password !== undefined) {
-            if (!ctx.body.termsAccepted) {
-              throw new APIError("BAD_REQUEST", {
-                code: "TERMS_NOT_ACCEPTED",
-              });
-            }
-            return { context: { body: resolveSignUpNameBody(ctx.body) } };
-          }
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
-        }
         case "/update-user": {
           await validateUpdatedUserName(ctx);
           break;
@@ -524,6 +471,8 @@ export const auth = betterAuth({
           ctx.context.session.user.id,
         );
       }
+
+      await afterNewSession(ctx);
     }),
   },
   emailAndPassword: {
@@ -579,15 +528,12 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }, request) => {
-      const client = await getSignUpOAuthClient();
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
-        clientName: client?.name,
         verificationLink: anchorVerificationCallbackToWebApp(
           url,
           webAppBaseUrl,
-          client?.clientId,
         ),
       });
 
@@ -612,8 +558,6 @@ export const auth = betterAuth({
         }),
       );
     },
-    sendOnSignUp: true,
-    sendOnSignIn: true,
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
@@ -664,6 +608,11 @@ export const auth = betterAuth({
         otpLength: 6,
         expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
         allowedAttempts: 5,
+        // Per IP, for sending and for signing in with a code. The default (3 a
+        // minute) turns away an office or event behind one address. Guessing
+        // stays capped by the five tries per code, and every send by the
+        // captcha.
+        rateLimit: { window: 60, max: 10 },
         // A resend repeats the code rather than replacing it, so whichever email
         // arrives first works. Reuse needs the code recoverable, so it is stored
         // encrypted with the auth secret instead of hashed.
@@ -693,14 +642,14 @@ export const auth = betterAuth({
             }).catch((error) => {
               captureExternalServiceError(error, {
                 label: "email_code_email",
+                message: "Email code delivery failed",
                 sentry: {
                   tags: {
                     context: "email_code_email",
                   },
                 },
-                extra: {
-                  email,
-                },
+                // Provider errors can echo the address or code. Report only
+                // fixed text, without the original message, stack or cause.
               });
             }),
           );

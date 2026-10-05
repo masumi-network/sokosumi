@@ -2109,6 +2109,14 @@ export const ChatRoomMessageSchema = {
             },
             maxItems: 3,
             description: 'Link preview cards scraped from message URLs (absent while pending).'
+        },
+        skills: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatRoomMessageSkill'
+            },
+            maxItems: 3,
+            description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
         }
     },
     required: [
@@ -2740,6 +2748,39 @@ export const ChatRoomMessageUnfurlSchema = {
         'description',
         'imageUrl',
         'siteName'
+    ]
+} as const;
+
+export const ChatRoomMessageSkillSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'skills.sh id: owner/repo/skill.',
+            example: 'vercel-labs/agent-skills/vercel-react-best-practices'
+        },
+        name: {
+            type: 'string',
+            example: 'vercel-react-best-practices'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'React and Next.js performance guidelines.'
+        },
+        url: {
+            type: 'string',
+            format: 'uri',
+            example: 'https://skills.sh/vercel-labs/agent-skills/vercel-react-best-practices'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'description',
+        'url'
     ]
 } as const;
 
@@ -10650,6 +10691,14 @@ export const ChatRoomPinnedMessageListItemSchema = {
                     },
                     maxItems: 3,
                     description: 'Link preview cards scraped from message URLs (absent while pending).'
+                },
+                skills: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatRoomMessageSkill'
+                    },
+                    maxItems: 3,
+                    description: 'Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.'
                 }
             },
             required: [
@@ -11131,6 +11180,19 @@ export const CreateChatRoomMessageRequestSchema = {
             maxLength: 128,
             description: 'Opaque client turn id. Retries of the same send reuse this so concurrent or replayed POSTs create at most one row per room (unique on roomId + clientMessageId).',
             example: '019fbee7-676b-771f-ab7a-998f25f1f16b'
+        },
+        skillIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 200
+            },
+            maxItems: 3,
+            description: 'skills.sh skills (owner/repo/skill) to attach. User senders only. Core snapshots each SKILL.md and hands it to the coworkers and Soko Bots the message reaches.',
+            example: [
+                'vercel-labs/agent-skills/vercel-react-best-practices'
+            ]
         }
     },
     required: [
@@ -11290,6 +11352,43 @@ export const CreateChatRoomFileUploadSessionRequestSchema = {
         'filename',
         'contentType',
         'size'
+    ]
+} as const;
+
+export const ChatSkillCatalogItemSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            description: 'skills.sh id: owner/repo/skill.',
+            example: 'vercel-labs/agent-skills/vercel-react-best-practices'
+        },
+        name: {
+            type: 'string',
+            example: 'vercel-react-best-practices'
+        },
+        source: {
+            type: 'string',
+            example: 'vercel-labs/agent-skills'
+        },
+        description: {
+            type: [
+                'string',
+                'null'
+            ],
+            example: 'React and Next.js performance guidelines.'
+        },
+        installs: {
+            type: 'integer',
+            example: 761642
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'source',
+        'description',
+        'installs'
     ]
 } as const;
 
@@ -16634,7 +16733,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'John'
         },
         lastName: {
@@ -16642,7 +16741,7 @@ export const UserSchema = {
                 'string',
                 'null'
             ],
-            description: 'Null when never given, as for magic-link sign-up',
+            description: 'Null when never given: older accounts, or one an email code created without names',
             example: 'Doe'
         },
         email: {

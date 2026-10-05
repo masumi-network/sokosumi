@@ -1,10 +1,12 @@
 import { createHash, randomUUID } from "node:crypto";
 import { oauthProvider } from "@better-auth/oauth-provider";
 import { memoryAdapter } from "better-auth/adapters/memory";
+import { createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import { jwt, oAuthProxy } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { afterNewSession } from "./auth-new-session";
 import {
   claimSignUpConversion,
   oauthSignUpOptions,
@@ -167,6 +169,7 @@ function createAuth(origin = CORE, proxy = false) {
         create: { after: (user, ctx) => recordSignUpConversion(user.id, ctx) },
       },
     },
+    hooks: { after: createAuthMiddleware(afterNewSession) },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       oauthProvider({
@@ -418,6 +421,9 @@ describe("installed Better Auth social sign-up flows", () => {
       expect(signup.searchParams.get("state")).toBe("client-state");
       expect(signup.searchParams.get("client_id")).toBe("cmo");
       expect(signup.searchParams.has("sig")).toBe(true);
+      // The new session answered "Create account": the page hands the
+      // request back without asking which account to continue as.
+      expect(signup.searchParams.has("prompt")).toBe(false);
       const userId = String(flow.store.user[0].id);
       expect(await claimSignUpConversion(userId)).toBe(provider);
       const continued = await flow.auth.handler(
@@ -443,6 +449,25 @@ describe("installed Better Auth social sign-up flows", () => {
       );
       expect(new URL(result.url).searchParams.has("code")).toBe(true);
       expect(await claimSignUpConversion(userId)).toBeNull();
+    },
+  );
+
+  it.each([
+    { provider: "google" as const, proxy: false },
+    { provider: "microsoft" as const, proxy: true },
+  ])(
+    "sends a CMO Create account $provider sign-in straight to CMO (proxy=$proxy)",
+    async ({ provider, proxy }) => {
+      const flow = await socialFlow(provider, {
+        oauth: true,
+        proxy,
+        prompt: "create",
+        existing: true,
+      });
+      const target = new URL(flow.response.headers.get("location") ?? "");
+      expect(target.origin + target.pathname).toBe(CLIENT);
+      expect(target.searchParams.get("state")).toBe("client-state");
+      expect(target.searchParams.has("code")).toBe(true);
     },
   );
 });

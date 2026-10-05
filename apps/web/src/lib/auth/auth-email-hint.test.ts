@@ -4,6 +4,7 @@ import {
   rememberAuthEmailHint,
   rememberAuthEmailHintOnClick,
   takeAuthEmailHint,
+  takeSignInHandover,
   takeSignUpHandover,
 } from "./auth-email-hint";
 
@@ -56,7 +57,68 @@ describe("auth email hint", () => {
     rememberAuthEmailHint("ada@example.com");
 
     expect(takeSignUpHandover()).toBeNull();
+    expect(takeSignInHandover()).toBeNull();
     expect(takeAuthEmailHint()).toBe("ada@example.com");
+  });
+
+  it("hands sign-in the address sign-up found an account for, with the code's send time", () => {
+    rememberAuthEmailHint("ada@example.com", {
+      signIn: { method: "code", codeSentAt: 1_000 },
+    });
+
+    expect(takeSignInHandover()).toEqual({
+      email: "ada@example.com",
+      method: "code",
+      codeSentAt: 1_000,
+    });
+    expect(takeSignInHandover()).toBeNull();
+    expect(takeAuthEmailHint()).toBeNull();
+  });
+
+  it("hands sign-in the address when its code could not be sent", () => {
+    rememberAuthEmailHint("ada@example.com", {
+      signIn: { method: "code", codeSentAt: null },
+    });
+
+    expect(takeSignInHandover()).toEqual({
+      email: "ada@example.com",
+      method: "code",
+      codeSentAt: null,
+    });
+  });
+
+  it("hands sign-in an address that logs in with its password", () => {
+    rememberAuthEmailHint("ada@example.com", {
+      signIn: { method: "password" },
+    });
+
+    expect(takeSignInHandover()).toEqual({
+      email: "ada@example.com",
+      method: "password",
+    });
+  });
+
+  it("keeps each page's handover from the other", () => {
+    rememberAuthEmailHint("ada@example.com", {
+      signIn: { method: "password" },
+    });
+    expect(takeSignUpHandover()).toBeNull();
+
+    rememberAuthEmailHint("bob@example.com", { signUp: { codeSentAt: 1_000 } });
+    expect(takeSignInHandover()).toBeNull();
+    expect(takeSignUpHandover()).toEqual({
+      email: "bob@example.com",
+      codeSentAt: 1_000,
+    });
+  });
+
+  it("drops the sign-in handover with the email the email step took", () => {
+    rememberAuthEmailHint("ada@example.com", {
+      signIn: { method: "code", codeSentAt: 1_000 },
+    });
+    expect(takeAuthEmailHint()).toBe("ada@example.com");
+
+    expect(takeSignInHandover()).toBeNull();
   });
 
   it("does not carry an earlier handover to a later email", () => {

@@ -53,16 +53,3 @@ export async function getResetPasswordToken(): Promise<string | null> {
   const token = store.get(RESET_PASSWORD_TOKEN_COOKIE_NAME)?.value;
   return token && isUsableResetPasswordToken(token) ? token : null;
 }
-
-export async function clearResetPasswordToken(): Promise<void> {
-  const store = await cookies();
-  store.set({
-    name: RESET_PASSWORD_TOKEN_COOKIE_NAME,
-    value: "",
-    httpOnly: true,
-    sameSite: "lax",
-    path: RESET_PASSWORD_PATH,
-    secure: false,
-    maxAge: 0,
-  });
-}

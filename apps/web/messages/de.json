@@ -4,7 +4,8 @@
       "error": "Die Sicherheitsprüfung konnte nicht geladen werden. Deaktiviere Inhaltsblocker oder lade die Seite neu.",
       "verificationFailed": "Die Sicherheitsprüfung ist fehlgeschlagen. Bitte versuche es erneut.",
       "missingResponse": "Schließe die Sicherheitsprüfung ab und versuche es erneut.",
-      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut."
+      "requestFailed": "Die Anfrage konnte nicht abgeschlossen werden. Bitte versuche es später erneut.",
+      "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut."
     },
     "EmailCodeForm": {
       "sent": "Wir haben einen 6-stelligen Code an {email} gesendet.",
@@ -54,7 +55,6 @@
       "orSocial": "Oder fahre mit einem verbundenen Konto fort.",
       "passwordError": "Wir konnten dieses Passwort nicht prüfen.",
       "passwordLabel": "Aktuelles Passwort",
-      "rememberMe": "Angemeldet bleiben",
       "retryPrompt": "Du bist wieder angemeldet. Versuche es jetzt noch einmal.",
       "sessionLost": "Öffne die Anmeldeseite und melde dich erneut an.",
       "socialError": "Wir konnten diese Anmeldung nicht starten.",
@@ -1183,7 +1183,6 @@
       "Form": {
         "label": "E-Mail",
         "continueWithEmail": "Weiter mit E-Mail",
-        "change": "Ändern",
         "changeEmail": "E-Mail ändern",
         "usePasswordInstead": "Stattdessen ein Passwort verwenden",
         "emailCodeInstead": "Stattdessen Code per E-Mail senden",
@@ -1211,9 +1210,6 @@
           "Fields": {
             "Password": {
               "label": "Passwort"
-            },
-            "RememberMe": {
-              "label": "Angemeldet bleiben"
             }
           },
           "forgotPassword": "Passwort vergessen?",
@@ -1226,14 +1222,20 @@
           },
           "NoAccount": {
             "title": "Kein Konto für diese Adresse",
-            "description": "Erstelle jetzt eines mit dieser E-Mail.",
+            "description": "Prüfe sie auf Tippfehler oder erstelle jetzt eines.",
             "createAccount": "Konto erstellen"
+          },
+          "Handover": {
+            "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
+            "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
+            "codeNotSentNotice": "Du hast bereits ein Konto.",
+            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
           }
         }
       },
       "SignUp": {
         "Metadata": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "description": "Nutze KI-Coworker für deine zeitaufwändigsten Aufgaben"
         },
         "Google": {
@@ -1249,7 +1251,7 @@
           "retry": "Erneut versuchen"
         },
         "Header": {
-          "title": "Registrieren",
+          "title": "Erstelle dein Konto",
           "viaInvitation": "(per Einladung)",
           "description": "Agents auf unserer Plattform beauftragen",
           "descriptionFor": "Erstelle dein Sokosumi-Konto, um mit {client} fortzufahren"
@@ -1261,7 +1263,7 @@
             "description": "Melde dich mit dieser E-Mail an oder gib eine andere ein, um dich zu registrieren.",
             "logIn": "Anmelden"
           },
-          "addPassword": "Zusätzlich ein Passwort festlegen",
+          "addPassword": "Passwort für künftige Anmeldungen festlegen",
           "removePassword": "Ohne Passwort registrieren",
           "Fields": {
             "MarketingOptIn": {
@@ -1292,8 +1294,13 @@
           "reset_password": "Passwort zurücksetzen",
           "Fields": {
             "Email": {
-              "placeholder": "E-Mail"
+              "label": "E-Mail"
             }
+          },
+          "linkExpired": "Dieser Link zum Zurücksetzen ist abgelaufen oder wurde bereits verwendet. Fordere einen neuen an.",
+          "Errors": {
+            "rateLimited": "Zu viele Anfragen hintereinander. Warte eine Minute und versuche es dann erneut.",
+            "generic": "Wir konnten die E-Mail zum Zurücksetzen nicht senden. Versuche es erneut."
           }
         }
       },
@@ -1307,15 +1314,18 @@
         "Form": {
           "submit": "Passwort zurücksetzen",
           "success": "Passwort zurückgesetzt. Du wurdest auf allen Geräten abgemeldet.",
-          "error": "Passwort-Reset fehlgeschlagen",
+          "error": "Wir konnten dein Passwort nicht zurücksetzen. Der Link ist vielleicht abgelaufen oder wurde bereits verwendet.",
           "Fields": {
             "Password": {
-              "placeholder": "Neues Passwort"
+              "label": "Neues Passwort"
             },
             "ConfirmPassword": {
-              "placeholder": "Passwort bestätigen"
+              "label": "Passwort bestätigen"
             }
-          }
+          },
+          "requestNewLink": "Neuen Link anfordern",
+          "signOutError": "Passwort geändert. Wir konnten dich in diesem Browser nicht abmelden. Versuche es erneut, um zur Anmeldung zu gelangen.",
+          "continueToSignIn": "Weiter zur Anmeldung"
         }
       }
     },
@@ -1844,8 +1854,8 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Melde dich an, um die Freigabe der Aufgabe zu verwalten",
+            "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
           }
@@ -2411,7 +2421,6 @@
           "attention": "Braucht Aufmerksamkeit",
           "accounts": "Konten"
         },
-        "selectedPost": "Ausgewählter Beitrag",
         "empty": {
           "drafts": "Noch keine Entwürfe."
         },
@@ -2864,7 +2873,6 @@
     },
     "Social": {
       "title": "Social-Planung",
-      "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt gehört nicht mehr zu diesem Workspace. Wähle ein anderes.",
       "newPost": {
         "label": "Neuer Post",
@@ -2882,11 +2890,11 @@
       },
       "accountsNeedProject": {
         "title": "X, YouTube, LinkedIn … verbinden",
-        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt, um seine Konten zu verbinden oder zu verwalten."
+        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt in der Seitenleiste, um seine Konten zu verbinden oder zu verwalten."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
-        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt, um seine Entwürfe zu sehen und fertigzustellen."
+        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt in der Seitenleiste, um seine Entwürfe zu sehen und fertigzustellen."
       },
       "loading": "Social wird geladen…"
     },
@@ -4708,7 +4716,8 @@
         "revokeOtherSessionsHelp": "Beendet alle anderen Sitzungen. Dieses Gerät bleibt angemeldet.",
         "submit": "Passwort aktualisieren",
         "success": "Passwort erfolgreich aktualisiert",
-        "error": "Passwort konnte nicht aktualisiert werden"
+        "error": "Passwort konnte nicht aktualisiert werden",
+        "forgotPassword": "Passwort vergessen?"
       },
       "NewPassword": {
         "title": "Passwort festlegen",
@@ -6154,6 +6163,21 @@
         "showFormatting": "Formatierung anzeigen",
         "hideFormatting": "Formatierung ausblenden"
       },
+      "Skills": {
+        "add": "Skill hinzufügen",
+        "limitReached": "Bis zu 3 Skills pro Nachricht",
+        "searchPlaceholder": "Skills suchen",
+        "listLabel": "Skills von skills.sh",
+        "loading": "Skills werden geladen…",
+        "unavailable": "Skills konnten nicht geladen werden. Versuche es erneut.",
+        "noResults": "Keine Skills gefunden",
+        "installs": "{count} Installationen",
+        "added": "Hinzugefügt",
+        "remove": "{name} entfernen",
+        "chipLabel": "Skill: {name}",
+        "previewKicker": "Skill von skills.sh, geht an die Agenten, die diese Nachricht erreicht",
+        "viewOnSkillsSh": "Auf skills.sh ansehen"
+      },
       "Reactions": {
         "add": "Add reaction",
         "toggle": "React with {emoji}",
@@ -7546,14 +7570,6 @@
     "title": "Wartungsmodus",
     "description": "Wir führen derzeit Wartungsarbeiten durch",
     "message": "Wir arbeiten daran, dein Erlebnis zu verbessern. Schau bald wieder vorbei."
-  },
-  "EmailConfirmed": {
-    "title": "E-Mail bestätigt",
-    "message": "Deine E-Mail-Adresse ist bestätigt. Du kannst diesen Tab schließen.",
-    "messageFor": "Deine E-Mail-Adresse ist bestätigt. Du kannst jetzt zu {client} zurückkehren.",
-    "returnTo": "Zurück zu {client}",
-    "errorTitle": "E-Mail nicht bestätigt",
-    "errorMessage": "Dieser Link ist abgelaufen oder nicht mehr gültig."
   },
   "AppleAppCallback": {
     "title": "Zurück zur Sokosumi-App",

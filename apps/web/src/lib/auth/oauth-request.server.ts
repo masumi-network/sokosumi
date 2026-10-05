@@ -17,27 +17,6 @@ import {
   oauthRequestRequiresSignIn,
 } from "./auth.utils";
 
-/**
- * How long before Core signed the request a session may have started and
- * still count as started for it. A sign-in or sign-up on these pages answers a
- * `prompt=create` request by sending the person back here with the request
- * signed again (`ba_iat`) in the same response that starts the session, so the
- * gap is that response's own processing time.
- */
-const SESSION_FOR_REQUEST_GRACE_MS = 5_000;
-
-function sessionStartedForRequest(
-  sessionCreatedAt: Date | string,
-  oauthQuery: string,
-): boolean {
-  const signedAt = Number(new URLSearchParams(oauthQuery).get("ba_iat"));
-  const startedAt = new Date(sessionCreatedAt).getTime();
-  return (
-    signedAt > 0 &&
-    Math.abs(signedAt - startedAt) <= SESSION_FOR_REQUEST_GRACE_MS
-  );
-}
-
 export type OAuthRequestAccount = Pick<SessionUser, "id" | "name" | "email">;
 
 /** The product that sent the person here, as its client row describes it. */
@@ -63,8 +42,8 @@ export interface OAuthRequest {
    * The signed-in account the person confirms before the request goes back,
    * because the product asked for a new account (`prompt=create`). Without
    * the question, pressing "Create account" would sign them in as whoever is
-   * signed in to Sokosumi. Not asked of a person who just signed in or up here
-   * for this request: they already chose.
+   * signed in to Sokosumi. A person who signs in or up for the request never
+   * sees it: Core sends their new session straight to the product.
    */
   accountToConfirm: OAuthRequestAccount | undefined;
   /**
@@ -111,9 +90,7 @@ export async function readOAuthRequest(
     client: toRequestClient(client),
     canHandBack,
     accountToConfirm:
-      canHandBack &&
-      oauthRequestAsksForNewAccount(query) &&
-      !sessionStartedForRequest(session.session.createdAt, query)
+      canHandBack && oauthRequestAsksForNewAccount(query)
         ? {
             id: session.user.id,
             name: session.user.name,
@@ -150,7 +127,7 @@ async function getExpiredRequestClient(
  * Names a client to a person who is signed in, through Core's session-only
  * lookup. `undefined` without a session, or when Core cannot name it.
  */
-export async function getSignedInOAuthClient(
+async function getSignedInOAuthClient(
   clientId: string,
 ): Promise<OAuthRequestClient | undefined> {
   if (!(await getSession())) {

@@ -16,13 +16,7 @@
       "message": "Use the button below to verify your email address. This keeps your account secure.",
       "button": "Verify email",
       "linkInstructions": "Or copy and paste this URL into your browser:",
-      "footer": "If you didn't create an account, you can safely ignore this email.",
-      "client": {
-        "subject": "Confirm your email for {client}",
-        "title": "Confirm your email for {client}",
-        "message": "You signed up for {client} with a Sokosumi account. Use the button below to confirm your email address.",
-        "button": "Confirm email"
-      }
+      "footer": "If you didn't create an account, you can safely ignore this email."
     },
     "invitation": {
       "subject": "Sokosumi - Organization Invitation",
@@ -132,8 +126,8 @@
               "body": "{taskName} stopped because {coworkerName} needs your approval."
             },
             "authenticationRequired": {
-              "subject": "Sokosumi - {coworkerName} needs you to sign in for {taskName}",
-              "body": "{taskName} stopped because {coworkerName} needs you to sign in somewhere."
+              "subject": "Sokosumi - {coworkerName} needs you to log in for {taskName}",
+              "body": "{taskName} stopped because {coworkerName} needs you to log in somewhere."
             },
             "outOfCredits": {
               "subject": "Sokosumi - {taskName} ran out of credits",
@@ -232,7 +226,7 @@
           "participantAdded": "You were added to {taskName} as a participant a day ago, and you have not opened it yet.",
           "inputRequired": "{taskName} stopped a day ago because {coworkerName} needs your input. It is still waiting.",
           "approvalRequired": "{taskName} stopped a day ago because {coworkerName} needs your approval. It is still waiting.",
-          "authenticationRequired": "{taskName} stopped a day ago because {coworkerName} needs you to sign in somewhere. It is still waiting.",
+          "authenticationRequired": "{taskName} stopped a day ago because {coworkerName} needs you to log in somewhere. It is still waiting.",
           "outOfCredits": "{taskName} stopped a day ago because it ran out of credits. It is still waiting."
         }
       },

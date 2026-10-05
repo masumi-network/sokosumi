@@ -1,9 +1,15 @@
 import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
-import type { OAuthOptions } from "@better-auth/oauth-provider";
-import type { DBAdapter } from "better-auth";
+import {
+  getOAuthProviderState,
+  type OAuthOptions,
+} from "@better-auth/oauth-provider";
+import type { DBAdapter, GenericEndpointContext } from "better-auth";
+import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
+
+import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
 
 export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
 export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
@@ -64,6 +70,50 @@ export function acceptCmoPreviewCallback(
     (registeredUris.some((uri) => uri === CMO_PRODUCTION_CALLBACK) &&
       CMO_PREVIEW_CALLBACK.test(redirectUri))
   );
+}
+
+function withoutCreatePrompt(query: string): string {
+  const params = new URLSearchParams(query);
+  const prompts = (params.get("prompt") ?? "")
+    .split(" ")
+    .filter((prompt) => prompt && prompt !== "create");
+  if (prompts.length) {
+    params.set("prompt", prompts.join(" "));
+  } else {
+    params.delete("prompt");
+  }
+  return params.toString();
+}
+
+/**
+ * A session that starts inside an OAuth request answers its `prompt=create`.
+ * The provider's after hook then continues the request, but strips only
+ * `login` (Better Auth 1.7.7), so `create` would send the new account back
+ * to the sign-up page and round through `/oauth2/continue` before the
+ * client. This runs first, after the provider verified the signed query,
+ * and drops `create` from the request it continues.
+ *
+ * A renewed cookie also counts as a new session to Better Auth, and
+ * `/oauth2/authorize` renews the session it reads. That session keeps its
+ * id, and keeps the prompt, so a person already signed in is still asked
+ * who to continue as.
+ */
+export async function answerCreatePromptWithNewSession(
+  ctx: GenericEndpointContext,
+): Promise<void> {
+  const started = ctx.context.newSession;
+  if (!started || started.session.id === ctx.context.session?.session.id) {
+    return;
+  }
+  const oauthRequest = await getOAuthProviderState();
+  if (oauthRequest?.query) {
+    oauthRequest.query = withoutCreatePrompt(oauthRequest.query);
+  }
+  // A social sign-up carries the request through the provider's callback.
+  const serverContext = (await getOAuthState())?.serverContext;
+  if (typeof serverContext?.query === "string") {
+    serverContext.query = withoutCreatePrompt(serverContext.query);
+  }
 }
 
 type GetJwks = NonNullable<NonNullable<JwtOptions["adapter"]>["getJwks"]>;
@@ -143,28 +193,35 @@ export async function isRefreshTokenRotating(
   );
 }
 
-export async function handleOAuthRefreshTokenRequest(
-  request: Request,
+/**
+ * Every request to Better Auth goes through here. A form `POST` to the token
+ * endpoint is read once: a body secret moves into the header Better Auth
+ * accepts (`auth-oauth-client-secret-shim`), and a refresh that lost a
+ * rotation race is retried. Anything else goes to `handler` as it came.
+ */
+export async function handleOAuthTokenRequest(
+  incoming: Request,
   handler: (request: Request) => Promise<Response>,
   retry: (body: OAuthRefreshTokenBody, request: Request) => Promise<Response>,
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    request.method !== "POST" ||
-    !new URL(request.url).pathname.endsWith("/oauth2/token") ||
-    !request.headers
+    incoming.method !== "POST" ||
+    !new URL(incoming.url).pathname.endsWith("/oauth2/token") ||
+    !incoming.headers
       .get("content-type")
       ?.toLowerCase()
-      .includes("application/x-www-form-urlencoded") ||
-    request.headers.has("dpop")
+      .includes("application/x-www-form-urlencoded")
   ) {
-    return handler(request);
+    return handler(incoming);
   }
 
-  const params = new URLSearchParams(await request.clone().text());
+  const params = new URLSearchParams(await incoming.clone().text());
+  const request = moveClientSecretToBasicAuth(incoming, params);
   if (
     params.get("grant_type") !== "refresh_token" ||
-    params.has("client_assertion")
+    params.has("client_assertion") ||
+    request.headers.has("dpop")
   ) {
     return handler(request);
   }

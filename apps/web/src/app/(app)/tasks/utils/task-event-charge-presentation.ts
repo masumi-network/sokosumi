@@ -29,20 +29,20 @@ export function getTaskEventChargePresentation(
   event: TaskEventChargePresentationInput,
 ): TaskEventChargePresentation {
   const hasComment = Boolean(event.comment?.trim());
-  const hasStatus = event.status != null;
+  const isCreatedEvent = event.status === TaskEventStatus.CREATED;
+  const hasStatus = event.status != null && !isCreatedEvent;
   const hasCharge = event.credits != null;
   const isAttemptedCharge = hasCharge && event.transactionId == null;
 
-  const actionKind: TaskEventChargeActionKind =
-    event.status === TaskEventStatus.CREATED
-      ? "createdTask"
-      : hasComment
-        ? "commented"
-        : hasStatus
-          ? "updatedStatus"
-          : hasCharge
-            ? "charged"
-            : "updatedStatus";
+  const actionKind: TaskEventChargeActionKind = isCreatedEvent
+    ? "createdTask"
+    : hasComment
+      ? "commented"
+      : hasStatus
+        ? "updatedStatus"
+        : hasCharge
+          ? "charged"
+          : "updatedStatus";
 
   return {
     hasComment,

@@ -32,9 +32,11 @@ const EMAIL = "new-user@example.com";
 function SignUpStep({
   codeSent,
   onFormStart = () => {},
+  onPendingChange = vi.fn(),
 }: {
   codeSent: boolean;
   onFormStart?: () => void;
+  onPendingChange?: (pending: boolean) => void;
 }) {
   const emailCode = useEmailCode({
     eventType: "signUp",
@@ -49,7 +51,7 @@ function SignUpStep({
       email={EMAIL}
       emailCode={emailCode}
       onFormStart={onFormStart}
-      onPendingChange={vi.fn()}
+      onPendingChange={onPendingChange}
     />
   );
 }
@@ -215,9 +217,16 @@ describe("SignUpForm with a password", () => {
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    const updates = screen.getByRole("checkbox", {
+      name: "Fields.MarketingOptIn.label",
+    });
+    expect(updates).not.toBeChecked();
+    // The choice closes the profile, so the code leads straight to Register.
     expect(
-      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
-    ).not.toBeChecked();
+      updates.compareDocumentPosition(
+        screen.getByRole("textbox", { name: "codeLabel" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
@@ -257,6 +266,28 @@ describe("SignUpForm with a password", () => {
     while (row && !row.contains(lastName)) row = row.parentElement;
     expect(row).toHaveClass("grid", "sm:grid-cols-2");
     expect(row).not.toHaveClass("grid-cols-2");
+  });
+
+  it("names the names and the password inside their fields, keeping the labels", async () => {
+    renderForm();
+    await userEvent
+      .setup()
+      .click(screen.getByRole("button", { name: "addPassword" }));
+
+    for (const label of [
+      "firstNameLabel",
+      "lastNameLabel",
+      "Fields.Password.label",
+    ]) {
+      expect(screen.getByLabelText(label)).toHaveAttribute(
+        "placeholder",
+        label,
+      );
+    }
+    // The code's slots show dots, so its name stays above them.
+    expect(
+      screen.getByText("codeLabel", { selector: "label" }),
+    ).not.toHaveClass("sr-only");
   });
 
   it("moves focus to the first name when the step opens", async () => {
@@ -313,7 +344,8 @@ describe("SignUpForm with a password", () => {
     expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
   });
 
-  it("creates the account as soon as the sixth digit follows the names and password", async () => {
+  // Only Register sends: the password link sits below it.
+  it("waits for Register after the sixth digit follows the names and password", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: { user: { id: "user-1" } },
       error: null,
@@ -332,10 +364,21 @@ describe("SignUpForm with a password", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() =>
       expect(mockEmailCodeSignIn).toHaveBeenCalledExactlyOnceWith(
-        expect.objectContaining({ otp: "042917", password: "Passw0rd!" }),
+        expect.objectContaining({
+          otp: "042917",
+          password: "Passw0rd!",
+          marketingOptIn: true,
+        }),
       ),
     );
   });
@@ -416,12 +459,11 @@ describe("SignUpForm with a password", () => {
     expect(href.searchParams.get("sig")).toBe("signed-value");
   });
 
-  it("leaves an invitation's address in the link, not in the hint", async () => {
+  // Sign-in looks the invitation up and ignores the hint when it locks the
+  // address; if the lookup fails, the typed address still arrives.
+  it("keeps the invitation on the Log in link and hands the address over", async () => {
     mockEmailCodeSignIn.mockResolvedValueOnce(existingAccountError);
-    mockSearchParams = new URLSearchParams({
-      invitationId: "invitation-1",
-      email: EMAIL,
-    });
+    mockSearchParams = new URLSearchParams({ invitationId: "invitation-1" });
     renderForm();
 
     await submitValidSignUpForm();
@@ -430,9 +472,9 @@ describe("SignUpForm with a password", () => {
       name: "AccountExists.logIn",
     });
     expect(logIn.getAttribute("href")).toContain("invitationId=invitation-1");
-    window.sessionStorage.setItem("auth-email-hint", "stale@example.com");
+    expect(logIn.getAttribute("href")).not.toContain("email=");
     fireEvent.click(logIn);
-    expect(window.sessionStorage.getItem("auth-email-hint")).toBeNull();
+    expect(window.sessionStorage.getItem("auth-email-hint")).toBe(EMAIL);
   });
 
   it("drops the notice when a later submit fails for another reason", async () => {
@@ -532,6 +574,7 @@ describe("SignUpForm with a password", () => {
       screen.getByRole("textbox", { name: "codeLabel" }),
       "042917",
     );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledOnce());
     expect(mockEmailCodeSignIn.mock.calls[0]?.[0]).not.toHaveProperty(
@@ -858,7 +901,7 @@ describe("SignUpForm email code", () => {
     expect(mockHandleUtmConversion).toHaveBeenCalledOnce();
   });
 
-  it("creates the account as soon as the sixth digit follows the names", async () => {
+  it("waits for Register after the sixth digit, so updates can still be chosen", async () => {
     const { db, emailedCodes } = connectToEmailCodeHandler();
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);
@@ -866,13 +909,24 @@ describe("SignUpForm email code", () => {
     await typeNames(user);
 
     await user.type(code, emailedCodes[0] ?? "");
+    await act(async () => {});
+    expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
+
+    await user.click(
+      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
+    );
+    await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => {
       expect(mockLocationReplace).toHaveBeenCalled();
     });
     expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
     expect(db.user).toEqual([
-      expect.objectContaining({ firstName: "Ada", lastName: "Lovelace" }),
+      expect.objectContaining({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        marketingOptIn: true,
+      }),
     ]);
   });
 
@@ -908,7 +962,7 @@ describe("SignUpForm email code", () => {
     );
   });
 
-  it("shares a synchronous lock between completion and Register", async () => {
+  it("sends the code once when Register is pressed twice", async () => {
     mockEmailCodeSignIn.mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();
     render(<SignUpStep codeSent />);
@@ -928,27 +982,6 @@ describe("SignUpForm email code", () => {
     await act(async () => {});
     expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
     expect(code).toBeDisabled();
-  });
-
-  it("remembers a refused code through a partial-value method switch", async () => {
-    mockEmailCodeSignIn.mockResolvedValue({
-      data: null,
-      error: { code: "INVALID_OTP", status: 400 },
-    });
-    const user = userEvent.setup();
-    render(<SignUpStep codeSent />);
-    let code = await screen.findByRole("textbox", { name: "codeLabel" });
-    await typeNames(user);
-    await user.type(code, "000000");
-    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
-    await user.type(code, "{Backspace}");
-    await user.click(screen.getByRole("button", { name: "addPassword" }));
-    await user.click(screen.getByRole("button", { name: "removePassword" }));
-    code = screen.getByRole("textbox", { name: "codeLabel" });
-    await user.type(code, "0");
-    expect(mockEmailCodeSignIn).toHaveBeenCalledOnce();
-    await user.type(code, "{Backspace}7");
-    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
   });
 
   it("keeps the first email's code working after a resend", async () => {
@@ -996,8 +1029,46 @@ describe("SignUpForm email code", () => {
     await user.click(screen.getByRole("button", { name: "submit" }));
 
     await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
-    expect(code).toHaveFocus();
+    // The field takes six digits; the refused ones would block the next code.
+    expect(code).toHaveValue("");
+    await waitFor(() => expect(code).toHaveFocus());
     expect(mockLocationReplace).not.toHaveBeenCalled();
+
+    // Typing replaces the reason, without asking for the rest of the code.
+    await user.type(code, "0");
+    expect(code).not.toHaveAttribute("aria-invalid");
+
+    await user.type(code, "00000");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
+    expect(mockEmailCodeSignIn).toHaveBeenLastCalledWith(
+      expect.objectContaining({ otp: "000000" }),
+    );
+  });
+
+  it("explains a code check that fails without an answer, so the code can be typed again", async () => {
+    mockEmailCodeSignIn
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"))
+      .mockResolvedValue({
+        data: null,
+        error: { code: "INVALID_OTP", status: 400 },
+      });
+    const onPendingChange = vi.fn();
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent onPendingChange={onPendingChange} />);
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await typeNames(user);
+    await user.type(code, "042917");
+
+    await user.click(screen.getByRole("button", { name: "submit" }));
+
+    // As for a refused code: the field clears, says why and unlocks the step.
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/generic$/));
+    expect(code).toHaveValue("");
+    expect(onPendingChange).toHaveBeenLastCalledWith(false);
+    await user.type(code, "042917");
+    await user.click(screen.getByRole("button", { name: "submit" }));
+    await waitFor(() => expect(mockEmailCodeSignIn).toHaveBeenCalledTimes(2));
   });
 
   it("drops the existing-account notice when the code is tried alone next", async () => {
@@ -1023,9 +1094,9 @@ describe("SignUpForm email code", () => {
       screen.getByLabelText("Fields.Password.label"),
       "Passw0rd!",
     );
-    // The sixth digit sends it.
     await user.click(code);
     await user.paste("042917");
+    await user.click(screen.getByRole("button", { name: "submit" }));
     await screen.findByRole("alert");
 
     await user.click(screen.getByRole("button", { name: "removePassword" }));

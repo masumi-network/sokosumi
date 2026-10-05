@@ -7,18 +7,10 @@ import * as z from "zod";
 import {
   confirmPasswordSchema,
   currentPasswordSchema,
-  emailSchema,
   firstAndLastNameSchema,
   nameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
-
-export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    name: nameSchema(t),
-  });
-
-export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
 
 export const firstAndLastNameFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
@@ -74,13 +66,6 @@ export const accountNameFormSchema = (
 export type AccountNameFormType = z.infer<
   ReturnType<typeof accountNameFormSchema>
 >;
-
-export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    email: emailSchema(t),
-  });
-
-export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
 
 export const passwordFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,

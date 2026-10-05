@@ -236,6 +236,14 @@ _Avoid_: NEW tag, beta badge, unread badge
 The human check on public account-email entry points (sign-up, sign-in, password reset, email code, verification resend, email change), not on OAuth sign-in. Usually invisible; it asks for interaction only when the visitor looks automated.
 _Avoid_: Captcha, Turnstile (in product copy), bot check
 
+**Log in**:
+Starting a Sokosumi session on Sokosumi's own pages, with an email code, a password, a passkey, or a provider. "Login" is only ever a noun.
+_Avoid_: Login (as a verb), Sign in (except in Sign in with Sokosumi)
+
+**Email code**:
+The six-digit code Sokosumi emails to log in or to prove an address at sign-up. It lasts 10 minutes and allows five wrong tries. Copy calls it just "code".
+_Avoid_: Login code, OTP, magic link
+
 **Sign in with Sokosumi**:
 Signing in to a product outside sokosumi.com, such as CMO, with a Sokosumi account on Sokosumi's own sign-in page. Sokosumi is the only place accounts are created; the other product never sees the password and does not share Sokosumi's session.
 _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
@@ -263,11 +271,11 @@ The first workspace a user can act in after signup: either a personal workspace 
 _Avoid_: Default workspace, home workspace, onboarding workspace
 
 **Identity onboarding**:
-The hard-gated post-signup flow for a user who does not already have a first workspace. First screen: confirm display name (prefilled when known) and choose Personal vs Organization. Personal creates a personal workspace. Organization runs the create-organization wizard; the product becomes usable once that organization exists (wizard step 0). Creating an organization does not require a verified email. Users who join via invitation or join link skip it.
+The hard-gated post-signup flow for a user who does not already have a first workspace. First screen: confirm display name (prefilled when known) and choose Personal vs Organization. Personal creates a personal workspace. Organization runs the create-organization wizard; the product becomes usable once that organization exists (wizard step 0). Creating an organization does not require a verified email. Users who join via invitation or join link skip it. Sokosumi and CMO each run it in their own app; in CMO, Organization asks for the organization's name and website.
 _Avoid_: Onboarding (retired intro slides + plan checkout), account setup, onboardingCompleted (removed — first workspace is the state)
 
 **Workspace gate**:
-The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish.
+The dedicated authenticated route used when the user cannot use the product yet. It is where they resolve pending organization invitations and join links, or complete identity onboarding. No app chrome. Leaving is sign out or finish. CMO has its own gate, which sends a person with pending invitations to Sokosumi to resolve them.
 _Avoid_: Onboarding page, welcome, accept-invitation as a separate post-signup product (the gate owns that moment)
 
 ### Project pins

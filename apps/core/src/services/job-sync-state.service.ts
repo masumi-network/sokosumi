@@ -12,11 +12,8 @@ import {
 } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
-import {
-  buildWebhookFailureContext,
-  postWebhook,
-  SokosumiJobStatus,
-} from "@sokosumi/utils";
+import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
+import { SokosumiJobStatus } from "@sokosumi/utils";
 import type { SendEmailInput } from "@/clients/email.client";
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";

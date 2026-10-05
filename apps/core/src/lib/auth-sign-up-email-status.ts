@@ -2,6 +2,8 @@ import type { BetterAuthPlugin } from "better-auth";
 import { createAuthEndpoint } from "better-auth/api";
 import * as z from "zod";
 
+import { issueCaptchaPass } from "./auth-captcha-pass";
+
 export const SIGN_UP_EMAIL_STATUS_PATH = "/sign-up/email-status";
 
 /**
@@ -15,7 +17,8 @@ export const SIGN_UP_EMAIL_STATUS_PATH = "/sign-up/email-status";
  * password-guessing list, but guessing still meets the same captcha and limits.
  *
  * It sits behind the same captcha (see `auth-captcha.ts`) and has its own rate
- * limit.
+ * limit. Its answer carries a captcha pass (`auth-captcha-pass.ts`) for the
+ * sign-in code that follows.
  */
 export function signUpEmailStatus() {
   return {
@@ -28,8 +31,9 @@ export function signUpEmailStatus() {
           body: z.object({ email: z.email() }),
         },
         async (ctx) => {
+          const email = ctx.body.email.toLowerCase();
           const found = await ctx.context.internalAdapter.findUserByEmail(
-            ctx.body.email.toLowerCase(),
+            email,
             { includeAccounts: true },
           );
           return ctx.json({
@@ -40,6 +44,7 @@ export function signUpEmailStatus() {
                   account.providerId === "credential" && account.password,
               ),
             ),
+            captchaPass: await issueCaptchaPass(ctx.context, email),
           });
         },
       ),

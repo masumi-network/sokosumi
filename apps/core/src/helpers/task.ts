@@ -6,7 +6,6 @@ import {
   formatTaskIdentifier,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
-  type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { mapTaskTags } from "@/helpers/task-tags";
@@ -138,23 +137,6 @@ interface ValidateTaskAssigneeAssignmentParams {
   assigneeId: string | null | undefined;
   assigneeSokoBotId?: string | null | undefined;
   assigneeUserId?: string | null | undefined;
-}
-
-export function taskAssigneeKind(task: {
-  assigneeId: string | null | undefined;
-  assigneeSokoBotId?: string | null | undefined;
-  assigneeUserId?: string | null | undefined;
-}): TaskAssigneeKind {
-  if (hasAssigneeValue(task.assigneeId)) {
-    return "coworker";
-  }
-  if (hasAssigneeValue(task.assigneeSokoBotId)) {
-    return "sokoBot";
-  }
-  if (hasAssigneeValue(task.assigneeUserId)) {
-    return "human";
-  }
-  return "unset";
 }
 
 /**

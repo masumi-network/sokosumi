@@ -90,14 +90,17 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
 }
 
 /// Faces for a Direct sidebar row. Empty means the row should show the
-/// message glyph (self-only Direct, or not a Direct). Caps at 3, same
-/// order as `roomDisplayName`. With every peer gone it shows the Former
-/// members, so the row still says who the Direct was with (web
-/// `getDirectParticipants`).
+/// message glyph (not a Direct, or a Direct with nobody to show). Caps at 3,
+/// same order as `roomDisplayName`. A Self Direct shows its owner, the
+/// reader; with every peer gone a Direct shows the Former members, so the
+/// row still says who it was with (web `getDirectParticipants`).
 public func directRoomAvatarParticipants(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
 ) -> [DirectRoomAvatarParticipant] {
+  if room.kind == .direct, room.isSelfDirect, let owner = room.userMembers.first {
+    return [.init(id: owner.id, name: owner.name.isEmpty ? owner.email : owner.name, imageURL: owner.image, presence: owner.presence)]
+  }
   let others = directRoomOtherParticipants(room, currentUserId: currentUserId)
   if !others.isEmpty || room.kind != .direct {
     return Array(others.prefix(3))
@@ -149,23 +152,23 @@ private func compareParticipants(
 /// external rooms use the stored name; a named group Direct shows its Group
 /// name (ADR-0040); other Directs list the participants with yourself
 /// excluded (humans by name-or-email, then coworkers, then bots).
-/// A Self Direct shows your own name where web says "You" (row 27c, Todo).
-/// With nobody else left, a Direct is named after its Former members, never
-/// the reader, and finally the stored name.
+/// A Self Direct is "You" before anything else (row 27c). With nobody else
+/// left, a Direct is named after its Former members, never the reader, and
+/// finally the stored name.
 public func roomDisplayName(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
+  if room.isSelfDirect {
+    return "You"
+  }
   if let groupName = room.groupName, !groupName.isEmpty {
     return groupName
   }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
   if !names.isEmpty {
     return participantNameList(names)
-  }
-  if room.isSelfDirect, let owner = room.userMembers.first {
-    return owner.name.isEmpty ? owner.email : owner.name
   }
   let former = participantNameList(formerMemberNames(room))
   return former.isEmpty ? room.name : former

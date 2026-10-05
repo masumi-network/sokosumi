@@ -1,8 +1,10 @@
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import { CAPTCHA_PASS_IDENTIFIER_PREFIX } from "./auth-captcha-pass.js";
 import {
   SIGN_UP_EMAIL_STATUS_PATH,
   signUpEmailStatus,
@@ -10,6 +12,8 @@ import {
 
 // A real Better Auth instance with the captcha plugin in front, as in Core.
 function createTestAuth({ rateLimited = false } = {}) {
+  const sendEmail = vi.fn();
+  const verification: { identifier: string; expiresAt: Date }[] = [];
   const auth = betterAuth({
     baseURL: "https://auth.example.com",
     basePath: "/auth",
@@ -53,10 +57,14 @@ function createTestAuth({ rateLimited = false } = {}) {
           updatedAt: new Date(),
         },
       ],
-      verification: [],
+      verification,
     }),
     emailAndPassword: { enabled: true },
-    plugins: [createAuthCaptchaPlugin("test-secret"), signUpEmailStatus()],
+    plugins: [
+      createAuthCaptchaPlugin("test-secret"),
+      signUpEmailStatus(),
+      emailOTP({ sendVerificationOTP: sendEmail }),
+    ],
     rateLimit: rateLimited
       ? { enabled: true, storage: "memory" }
       : { enabled: false },
@@ -78,8 +86,29 @@ function createTestAuth({ rateLimited = false } = {}) {
       }),
     );
   }
-  return { ask };
+  function sendCode(email: string, captchaResponse: string, type = "sign-in") {
+    return auth.handler(
+      new Request(
+        "https://auth.example.com/auth/email-otp/send-verification-otp",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-captcha-response": captchaResponse,
+          },
+          body: JSON.stringify({ email, type }),
+        },
+      ),
+    );
+  }
+  async function askForPass(email: string) {
+    const body: { captchaPass: string } = await (await ask({ email })).json();
+    return body.captchaPass;
+  }
+  return { ask, sendCode, askForPass, sendEmail, verification };
 }
+
+const CAPTCHA_PASS = expect.stringMatching(/^pass_[\w-]{32}$/);
 
 function passCaptcha() {
   const fetchMock = vi
@@ -101,7 +130,11 @@ describe("sign-up email status", () => {
     const response = await ask({ email: "Ada@Example.com" });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: true, hasPassword: false });
+    expect(await response.json()).toEqual({
+      exists: true,
+      hasPassword: false,
+      captchaPass: CAPTCHA_PASS,
+    });
   });
 
   // Sign-in opens on the password for it rather than emailing a code, which
@@ -113,7 +146,11 @@ describe("sign-up email status", () => {
     const response = await ask({ email: "grace@example.com" });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: true, hasPassword: true });
+    expect(await response.json()).toEqual({
+      exists: true,
+      hasPassword: true,
+      captchaPass: CAPTCHA_PASS,
+    });
   });
 
   it("says a free email does not exist", async () => {
@@ -126,6 +163,7 @@ describe("sign-up email status", () => {
     expect(await response.json()).toEqual({
       exists: false,
       hasPassword: false,
+      captchaPass: CAPTCHA_PASS,
     });
   });
 
@@ -139,7 +177,11 @@ describe("sign-up email status", () => {
     });
 
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ exists: true, hasPassword: false });
+    expect(await response.json()).toEqual({
+      exists: true,
+      hasPassword: false,
+      captchaPass: CAPTCHA_PASS,
+    });
   });
 
   it("answers nothing about the account beyond that", async () => {
@@ -148,7 +190,92 @@ describe("sign-up email status", () => {
 
     const body = await (await ask({ email: "ada@example.com" })).json();
 
-    expect(Object.keys(body)).toEqual(["exists", "hasPassword"]);
+    expect(Object.keys(body)).toEqual(["exists", "hasPassword", "captchaPass"]);
+  });
+
+  // A visitor Cloudflare wants to see solves one check for Continue, not one
+  // for the status and another for the code.
+  it("lets one sign-in code to the same address skip a second captcha", async () => {
+    const fetchMock = passCaptcha();
+    const { askForPass, sendCode, sendEmail } = createTestAuth();
+    const pass = await askForPass("Ada@Example.com");
+
+    const sent = await sendCode("ada@example.com", pass);
+
+    expect(sent.status).toBe(200);
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    // Only the status question went to Cloudflare.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    const replayed = await sendCode("ada@example.com", pass);
+    expect(replayed.status).toBe(403);
+    expect(await replayed.json()).toMatchObject({
+      code: "VERIFICATION_FAILED",
+    });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+
+  // The expired-verifications-purge sync finds expired passes by this prefix.
+  it("stores a pass under the prefix the purge deletes", async () => {
+    passCaptcha();
+    const { askForPass, verification } = createTestAuth();
+
+    await askForPass("ada@example.com");
+
+    expect(verification).toHaveLength(1);
+    expect(verification[0]?.identifier).toMatch(
+      new RegExp(`^${CAPTCHA_PASS_IDENTIFIER_PREFIX}`),
+    );
+    expect(verification[0]?.expiresAt.getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it("refuses a pass for another address and uses it up", async () => {
+    passCaptcha();
+    const { askForPass, sendCode, sendEmail } = createTestAuth();
+    const pass = await askForPass("ada@example.com");
+
+    expect((await sendCode("grace@example.com", pass)).status).toBe(403);
+    expect((await sendCode("ada@example.com", pass)).status).toBe(403);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses a pass for anything but a sign-in code", async () => {
+    passCaptcha();
+    const { askForPass, sendCode, sendEmail } = createTestAuth();
+    const pass = await askForPass("ada@example.com");
+
+    const sent = await sendCode("ada@example.com", pass, "forget-password");
+
+    expect(sent.status).toBe(403);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("refuses a pass after ten minutes", async () => {
+    passCaptcha();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const { askForPass, sendCode, sendEmail } = createTestAuth();
+      const pass = await askForPass("ada@example.com");
+
+      vi.advanceTimersByTime(10 * 60 * 1_000 + 1);
+
+      expect((await sendCode("ada@example.com", pass)).status).toBe(403);
+      expect(sendEmail).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("refuses a made-up pass", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { sendCode, sendEmail } = createTestAuth();
+
+    const sent = await sendCode("ada@example.com", `pass_${"x".repeat(32)}`);
+
+    expect(sent.status).toBe(403);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each([{}, { email: "not-an-email" }, { email: 1 }])(

@@ -95,6 +95,7 @@ export interface CliOptions {
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
+  personal?: boolean;
   details?: boolean;
 }
 
@@ -172,8 +173,9 @@ Skills for agents:
 
 Developer setup on Preprod:
   1. Create your Vendor: sokosumi --preprod vendors create --name NAME --slug SLUG
-  2. Give its ID and your final Coworker name to the organizer. Ask for the Coworker ID.
+  2. Create a private Coworker: sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
   3. Connect: sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID
+     PENDING means a Workspace owner or admin must approve. Run connect again after approval.
   4. Create the runtime key: sokosumi --preprod coworkers api-key COWORKER_ID --json
   5. Before organization Tasks, check Seat eligibility: sokosumi --preprod workspaces check ORGANIZATION_ID
   Membership and Coworker access do not prove Task Seat eligibility. This check does not confirm credits or runtime setup.
@@ -187,22 +189,24 @@ Organizer setup on Preprod (platform admin):
   Admin commands require a live platform-admin identity. Core authorizes each request.
   Free Workspace members need no Seat assignment. Paid Seat capacity is managed separately in Web billing.
   Member lookup uses the account's exact email. It does not select the developer's Vendor.
-  Ask each developer for their Vendor ID and final Coworker name.
-  Verify your account: sokosumi --preprod auth whoami
-  Provision checks the live platform role. Core still authorizes creation.
+  Developers who administer a Vendor create their own private Coworkers.
+  A platform admin can also provision under another Vendor. Verify your account: sokosumi --preprod auth whoami
   sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name NAME --capability tasks
   Give the returned Coworker ID and Vendor ID to that developer, plus the selected organization ID and Workspace slug.
+  A Workspace owner or admin approves pending Coworker access requests.
   Vendor admins manage that Vendor's Coworkers. Provisioning does not assign a Coworker to a person by email.
 
 Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
   Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
+  Personal setup: coworkers register/connect --personal; workspaces list --personal checks existence without creating.
+  Personal Tasks: tasks create --personal --coworker-id ID --description TEXT --status READY
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
-  runtime start, complete, and run require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  runtime start, complete, and run require --coworker-id ID and either --organization-id ID or --personal. They use that Coworker's stored key or --api-key-stdin.
   Runtime commands do not read developer credentials or target configuration.
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.

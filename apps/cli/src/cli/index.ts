@@ -14,11 +14,8 @@ import {
 } from "../auth/bootstrap.js";
 import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
-import {
-  isNetworkSelectionLocked,
-  renderStatusApp,
-  type StatusAppOptions,
-} from "../tui/status-app.js";
+import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
+import { isNetworkSelectionLocked } from "../tui/status-network.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
@@ -78,7 +75,7 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+const BOOLEAN_OPTION_NAMES = ["create-api-key", "details", "personal"] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
   ...GLOBAL_VALUE_OPTIONS,
@@ -276,6 +273,24 @@ export async function runCli(
     }
   }
 
+  if (
+    options.personal &&
+    !(
+      (positionals[0] === "coworkers" &&
+        ["register", "connect"].includes(positionals[1])) ||
+      (positionals[0] === "tasks" && positionals[1] === "create") ||
+      (positionals[0] === "workspaces" && positionals[1] === "list") ||
+      (positionals[0] === "runtime" &&
+        ["start", "complete", "run"].includes(positionals[1]))
+    )
+  ) {
+    const error = new Error(
+      "--personal supports coworkers register/connect, tasks create, workspaces list, and runtime start/complete/run",
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
   if (positionals[0] === "runtime") {
     try {
       await runRuntimeCommand({
@@ -303,6 +318,15 @@ export async function runCli(
         "Task commands do not accept --organization-id or --workspace-id. Use --organization-slug WORKSPACE_SLUG.",
       );
     }
+    if (
+      options.personal &&
+      (options["organization-slug"] !== undefined ||
+        options["organization-id"] !== undefined ||
+        options["workspace-id"] !== undefined)
+    )
+      throw new Error(
+        "--personal cannot be combined with organization or Workspace flags",
+      );
     if (options["organization-slug"] !== undefined) {
       if (positionals[0] !== "tasks") {
         throw new Error(
@@ -448,6 +472,7 @@ export async function runCli(
         json: options.json,
         subcommand: command,
         positionalId,
+        options,
       });
       return {};
     }

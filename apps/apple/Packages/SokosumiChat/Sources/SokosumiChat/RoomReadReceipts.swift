@@ -83,7 +83,7 @@ public struct RoomReadReceipts: Equatable, Sendable {
 /// What the faces under the newest message say (web `RoomSeenByLine`): who read it and when, and who has not.
 public struct SeenBy: Equatable, Sendable {
   /// Web's `READ_RECEIPT_FACE_CAP`: faces shown before the rest collapse into a `+N`.
-  public static let faceCap = 3
+  private static let faceCap = 3
 
   /// Readers as of the message, most-recent-read first.
   public let readers: [RoomReader]
@@ -117,7 +117,7 @@ public struct SeenBy: Equatable, Sendable {
 /// Who has not read this far (web `seenByPendingFor`): every roster human the faces leave out. Not only the
 /// never-read — someone who read yesterday has read something, but not this — and lagging readers come first,
 /// so the list runs from nearly caught up to never here.
-public func seenByPending(
+func seenByPending(
   readers: [RoomReader], allReaders: [RoomReader], nonReaders: [RoomReadReceipts.Participant]
 ) -> [RoomReadReceipts.Participant] {
   let readThisFar = Set(readers.map(\.participant.id))
