@@ -48,9 +48,11 @@ it("keeps a protocol-relative path on the branch alias", async () => {
     ),
   );
 
+  expect(response.status).toBe(308);
   expect(response.headers.get("location")).toBe(
     `${BRANCH_ALIAS}//evil.example/x`,
   );
+  expect(renewSession).not.toHaveBeenCalled();
 });
 
 it.each([
