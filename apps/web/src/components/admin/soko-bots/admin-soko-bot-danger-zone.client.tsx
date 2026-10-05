@@ -83,10 +83,11 @@ export function AdminSokoBotDangerZone({
         <Button
           variant="destructive"
           size="sm"
-          disabled={!armed || pending}
+          loading={pending}
+          disabled={!armed}
           onClick={handleDelete}
         >
-          {pending ? t("deleting") : t("delete")}
+          {t("delete")}
         </Button>
       </CardContent>
     </Card>

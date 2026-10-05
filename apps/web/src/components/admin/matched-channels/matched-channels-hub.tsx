@@ -234,8 +234,8 @@ export function MatchedChannelsHub() {
                 </p>
               </div>
             </div>
-            <Button type="submit" disabled={isCreating || !channelSlug}>
-              {isCreating ? t("Create.submitting") : t("Create.submit")}
+            <Button type="submit" disabled={!channelSlug} loading={isCreating}>
+              {t("Create.submit")}
             </Button>
           </form>
         </>

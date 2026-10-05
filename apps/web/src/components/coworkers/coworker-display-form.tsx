@@ -2,7 +2,7 @@
 
 import type { Coworker } from "@sokosumi/core-client";
 import { COWORKER_IMAGE_MAX_SIZE_BYTES } from "@sokosumi/utils";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -335,15 +335,8 @@ export function CoworkerDisplayForm({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isDisabled}>
-              {isSavingText ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  {t("saving")}
-                </>
-              ) : (
-                t("saveChanges")
-              )}
+            <Button type="submit" disabled={isDisabled} loading={isSavingText}>
+              {t("saveChanges")}
             </Button>
             <Button
               type="button"

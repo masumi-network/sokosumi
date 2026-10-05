@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
 import { flushSync } from "react-dom";
@@ -123,10 +122,7 @@ export function EmailCodeForm({
         isResending={isResending || isLocked}
         disabled={isLocked}
       />
-      <Button type="submit" disabled={isLocked}>
-        {isLocked ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-        ) : null}
+      <Button type="submit" loading={isLocked}>
         {submitLabel}
       </Button>
     </form>

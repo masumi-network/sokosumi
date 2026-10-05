@@ -114,16 +114,10 @@ export function AvatarPicker({
           type="button"
           variant="ghost"
           size="sm"
-          disabled={isPending}
+          loading={isPending}
           onClick={() => load(seen)}
         >
-          <RefreshCw
-            aria-hidden
-            className={cn(
-              "size-3.5",
-              isPending && "animate-spin motion-reduce:animate-pulse",
-            )}
-          />
+          <RefreshCw aria-hidden className="size-3.5" />
           {t("showOthers")}
         </Button>
       </div>

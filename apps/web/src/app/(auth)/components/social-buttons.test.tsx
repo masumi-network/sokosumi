@@ -323,6 +323,21 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
+  it("keeps a loading provider enabled, focusable and ignoring clicks", async () => {
+    mockSocialSignIn.mockReturnValue(createDeferred<object>().promise);
+    render(<SocialButtons lastUsedMethod="google" />);
+    const google = screen.getByRole("button", { name: "continue-with-Google" });
+
+    await clickGoogleButton();
+    await clickGoogleButton();
+
+    // Not natively disabled, so it keeps focus, its contrast and its marker's
+    // contrast (the marker only fades with a disabled button).
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+  });
+
   it("shows an inline marker on the passkey button", () => {
     render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
 
@@ -364,16 +379,20 @@ describe("SocialButtons", () => {
 
     await clickGoogleButton();
 
-    expect(google).toBeDisabled();
+    // The provider that is loading stays enabled; its wrapper reports busy.
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(microsoft).toBeDisabled();
     expect(passkey).toBeDisabled();
-    expect(google.querySelector("svg.animate-spin")).not.toBeNull();
-    expect(microsoft.querySelector("svg")).toBeNull();
-    expect(passkey.querySelector("svg.animate-spin")).toBeNull();
+    const bar = '[data-slot="button-loading-bar"]';
+    expect(google.parentElement?.querySelector(bar)).not.toBeNull();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(microsoft.parentElement?.querySelector(bar)).toBeNull();
+    expect(passkey.querySelector(bar)).toBeNull();
 
     // Success means the browser is leaving for the provider: stay busy.
     await act(async () => pending.resolve({}));
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -400,17 +419,17 @@ describe("SocialButtons", () => {
     const { google, microsoft } = getButtons();
 
     await clickGoogleButton();
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(false));
     });
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(true));
     });
-    expect(google).toBeEnabled();
+    expect(google.parentElement).not.toHaveAttribute("aria-busy");
     expect(microsoft).toBeEnabled();
     expect(google.querySelector("svg")).toBeNull();
   });
@@ -424,7 +443,9 @@ describe("SocialButtons", () => {
 
     await user.click(passkey);
 
-    expect(passkey).toBeDisabled();
+    // The running passkey button keeps focus: aria-disabled, not disabled.
+    expect(passkey).toHaveAttribute("aria-busy", "true");
+    expect(passkey).toHaveAttribute("aria-disabled", "true");
     expect(google).toBeDisabled();
     expect(microsoft).toBeDisabled();
     expect(google.querySelector("svg")).toBeNull();

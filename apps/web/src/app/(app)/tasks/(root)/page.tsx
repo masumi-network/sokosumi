@@ -441,7 +441,6 @@ async function TasksPageContent({ searchParams }: TasksPageProps) {
           },
           listPlaceholder: t("List.placeholder"),
           loadMore: t("Actions.loadMore"),
-          loading: t("Actions.loading"),
         }}
       />
     </div>

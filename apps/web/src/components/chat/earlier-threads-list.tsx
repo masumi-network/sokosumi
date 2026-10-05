@@ -122,7 +122,6 @@ export function EarlierThreadsList({
               onLoad={() => void query.fetchNextPage()}
               labels={{
                 load: t("loadOlder"),
-                loading: t("loading"),
                 error: t("error"),
                 retry: tView("retry"),
               }}

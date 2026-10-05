@@ -1,7 +1,7 @@
 "use client";
 
 import type { MemberWithOrganization } from "@sokosumi/core-client";
-import { Loader2, User } from "lucide-react";
+import { User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -163,11 +163,9 @@ export function MoveJobToWorkspaceDialog({
           </AlertDialogCancel>
           <Button
             onClick={handleSubmit}
-            disabled={isPending || !selectedOption}
+            disabled={!selectedOption}
+            loading={isPending}
           >
-            {isPending ? (
-              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-            ) : null}
             {t("moveToWorkspaceButton")}
           </Button>
         </AlertDialogFooter>

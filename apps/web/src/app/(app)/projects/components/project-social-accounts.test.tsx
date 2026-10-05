@@ -49,7 +49,6 @@ const MESSAGES: Record<string, string> = {
   reconnect: "Reconnect",
   replace: "Replace",
   disconnect: "Disconnect",
-  disconnecting: "Disconnecting…",
   "status.active": "Connected",
   "status.disconnected": "Disconnected",
   "status.pending": "Connection pending",

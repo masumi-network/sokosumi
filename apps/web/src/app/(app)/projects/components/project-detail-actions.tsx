@@ -1,6 +1,6 @@
 "use client";
 
-import { CircleStop, LoaderCircle, MoreHorizontal, Pencil } from "lucide-react";
+import { CircleStop, MoreHorizontal, Pencil } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
@@ -186,18 +186,12 @@ export function ProjectDetailActions({
             </AlertDialogCancel>
             <AlertDialogAction
               className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
-              disabled={isClosing}
+              loading={isClosing}
               onClick={(event) => {
                 event.preventDefault();
                 handleCloseProject();
               }}
             >
-              {isClosing ? (
-                <LoaderCircle
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-              ) : null}
               {labels.closeDialog.confirm}
             </AlertDialogAction>
           </AlertDialogFooter>

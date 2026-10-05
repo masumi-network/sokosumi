@@ -231,7 +231,6 @@ interface TasksViewProps {
     };
     listPlaceholder: string;
     loadMore: string;
-    loading: string;
     dragError: string;
     loadMoreError: string;
     reopenToReady: TaskReopenToReadyDialogLabels & {
@@ -801,9 +800,10 @@ export function TasksView({
             className="text-muted-foreground hover:text-foreground w-full text-xs"
             variant="outline"
             onClick={() => void handleLoadMoreColumn(column.id)}
-            disabled={isLoading || !isTaskPaginationInSync}
+            loading={isLoading}
+            disabled={!isTaskPaginationInSync}
           >
-            {isLoading ? labels.loading : labels.loadMore}
+            {labels.loadMore}
           </Button>
         </div>
       );
@@ -816,7 +816,6 @@ export function TasksView({
     handleLoadMoreColumn,
     isTaskPaginationInSync,
     labels.loadMore,
-    labels.loading,
     loadingColumnIds,
   ]);
 
@@ -829,9 +828,10 @@ export function TasksView({
           className="text-muted-foreground hover:text-foreground w-full text-xs"
           variant="outline"
           onClick={() => void handleLoadMoreList()}
-          disabled={isLoadingListMore || !isTaskPaginationInSync}
+          loading={isLoadingListMore}
+          disabled={!isTaskPaginationInSync}
         >
-          {isLoadingListMore ? labels.loading : labels.loadMore}
+          {labels.loadMore}
         </Button>
       </div>
     );
@@ -840,7 +840,6 @@ export function TasksView({
     isLoadingListMore,
     isTaskPaginationInSync,
     labels.loadMore,
-    labels.loading,
     listCursor,
   ]);
 

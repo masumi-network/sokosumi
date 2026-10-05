@@ -157,6 +157,18 @@
   --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
   /* The drawn caret in an InputOTP slot. */
   --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+  /* A loading Button's bar: sweeps out past one edge, then back out past the other. */
+  --animate-button-loading-sweep: button-loading-sweep 1.1s ease-in-out infinite
+    alternate;
+
+  @keyframes button-loading-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
 
   @keyframes caret-blink {
     0%,

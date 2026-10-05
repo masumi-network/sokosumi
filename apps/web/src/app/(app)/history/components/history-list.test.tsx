@@ -39,7 +39,6 @@ function item(id: string, consumedAt: string): TransactionHistoryItem {
 const labels = {
   empty: { title: "Empty", description: "" },
   loadMore: "More",
-  loading: "Loading",
   loadMoreError: "Error",
   row: {} as never,
 };

@@ -198,9 +198,10 @@ export function AdminSokoBotActions({
                   : "default"
               }
               onClick={confirm}
-              disabled={isPending || reason.trim().length < 3}
+              loading={isPending}
+              disabled={reason.trim().length < 3}
             >
-              {isPending ? t("working") : t("confirm")}
+              {t("confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

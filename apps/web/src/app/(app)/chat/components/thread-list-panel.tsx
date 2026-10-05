@@ -271,10 +271,10 @@ export function ThreadListPanel({
               onClick={() => {
                 void handleMarkAllRead();
               }}
-              disabled={isMarkingAllRead}
+              loading={isMarkingAllRead}
               data-testid="thread-list-mark-all-read"
             >
-              {isMarkingAllRead ? labels.loading : labels.markAllRead}
+              {labels.markAllRead}
             </Button>
           ) : null}
           <Button
@@ -346,7 +346,6 @@ export function ThreadListPanel({
             }}
             labels={{
               load: labels.loadOlder,
-              loading: labels.loading,
               error: labels.error,
               retry: labels.loadOlder,
             }}

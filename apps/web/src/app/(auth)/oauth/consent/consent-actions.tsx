@@ -86,18 +86,20 @@ export function ConsentActions({ oauthQuery }: ConsentActionsProps) {
         variant="primary"
         className="w-full"
         onClick={handleAuthorize}
-        disabled={isAuthorizing || isDenying}
+        loading={isAuthorizing}
+        disabled={isDenying}
       >
-        {isAuthorizing ? t("authorizing") : t("authorize")}
+        {t("authorize")}
       </Button>
       <Button
         type="button"
         variant="outline"
         className="w-full"
         onClick={handleDeny}
-        disabled={isAuthorizing || isDenying}
+        loading={isDenying}
+        disabled={isAuthorizing}
       >
-        {isDenying ? t("denying") : t("deny")}
+        {t("deny")}
       </Button>
     </div>
   );
