@@ -112,9 +112,9 @@ describe("AuthFlow signIn after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeNotSentNotice")).toBeVisible();
-    expect(screen.getByText("Handover.codeNotSent")).toBeVisible();
+    expect(screen.getByText("notSent")).toBeVisible();
     expect(codeField()).toHaveAccessibleDescription(
-      "Handover.codeNotSentNotice Handover.codeNotSent",
+      "Handover.codeNotSentNotice notSent",
     );
     // Nothing claims a code went out.
     expect(screen.queryByText("Handover.codeSent")).not.toBeInTheDocument();
@@ -132,9 +132,7 @@ describe("AuthFlow signIn after Register handed over", () => {
       }),
     );
     await waitFor(() =>
-      expect(
-        screen.queryByText("Handover.codeNotSent"),
-      ).not.toBeInTheDocument(),
+      expect(screen.queryByText("notSent")).not.toBeInTheDocument(),
     );
     expect(codeField()).toBeVisible();
   });
