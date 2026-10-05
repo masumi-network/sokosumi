@@ -548,9 +548,22 @@ describe("ReauthDialog", () => {
       screen.getByRole("button", { name: "continueWithGoogle" }),
     ).not.toBeDisabled();
   });
-  it("renders each email path's challenge", () => {
+  // A visitor Cloudflare wants to see would otherwise get two checkboxes.
+  it("renders one challenge for the password and the email code", () => {
     renderDialog([passwordAccount]);
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^captcha-/)).toHaveLength(1);
     expect(screen.getByTestId("captcha-signin")).toBeInTheDocument();
+  });
+
+  it("renders the challenge on the email path when there is no password", () => {
+    renderDialog([]);
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^captcha-/)).toHaveLength(1);
     expect(screen.getByTestId("captcha-email-code")).toBeInTheDocument();
   });
 
