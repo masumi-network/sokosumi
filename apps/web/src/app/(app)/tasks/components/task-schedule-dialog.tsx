@@ -1,13 +1,7 @@
 "use client";
 
 import { type TaskSchedule, TaskVisibility } from "@sokosumi/core-client";
-import {
-  CalendarClock,
-  ChevronDown,
-  Loader2,
-  Lock,
-  Paperclip,
-} from "lucide-react";
+import { CalendarClock, ChevronDown, Lock, Paperclip } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useMemo, useRef, useState } from "react";
@@ -474,16 +468,10 @@ function TaskScheduleDialogForm({
                   variant="ghost"
                   size="sm"
                   aria-label={tNewTask("uploadFile")}
-                  disabled={isSaving || isUploadingAttachments}
+                  disabled={isSaving}
+                  loading={isUploadingAttachments}
                 >
-                  {isUploadingAttachments ? (
-                    <Loader2
-                      className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <Paperclip className="size-3.5" aria-hidden />
-                  )}
+                  <Paperclip className="size-3.5" aria-hidden />
                   {tNewTask("uploadFile")}
                 </Button>
               </AttachmentSubmenu>
@@ -552,14 +540,9 @@ function TaskScheduleDialogForm({
             type="button"
             className="min-w-28 sm:ml-auto"
             disabled={saveDisabled}
+            loading={isSaving}
             onClick={() => void handleSave()}
           >
-            {isSaving ? (
-              <Loader2
-                className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                aria-hidden
-              />
-            ) : null}
             {schedule ? t("save") : t("create")}
           </Button>
         </div>

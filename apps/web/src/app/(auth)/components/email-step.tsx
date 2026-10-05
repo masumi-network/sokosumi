@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useId, useRef, useState } from "react";
@@ -355,7 +354,6 @@ export function EmailStep({
             <SubmitButton
               // A hand-over has no link to spin; Continue does until it leaves.
               isSubmitting={isSubmitting || (isFollowing && !notice)}
-              spinnerPosition="start"
               label={t("continueWithEmail")}
               className="col-start-1 row-start-1 w-full"
               inert={isDetoured}
@@ -372,6 +370,7 @@ export function EmailStep({
               <Button
                 asChild
                 variant="primary"
+                loading={isFollowing}
                 className={cn(
                   "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
                   !isDetoured && "opacity-0",
@@ -382,8 +381,6 @@ export function EmailStep({
                   href={notice.href}
                   inert={!isDetoured || disabled}
                   aria-describedby={isDetoured ? noticeId : undefined}
-                  aria-busy={isFollowing || undefined}
-                  aria-disabled={isFollowing || undefined}
                   onAuxClick={() => takeAuthEmailHint()}
                   onClick={(event) => {
                     const shownFor = performance.now() - detouredSince.current;
@@ -405,12 +402,6 @@ export function EmailStep({
                     }
                   }}
                 >
-                  {isFollowing ? (
-                    <Loader2
-                      aria-hidden="true"
-                      className="absolute top-1/2 left-4 size-4 -translate-y-1/2 animate-spin motion-reduce:animate-pulse"
-                    />
-                  ) : null}
                   {notice.label}
                 </Link>
               </Button>

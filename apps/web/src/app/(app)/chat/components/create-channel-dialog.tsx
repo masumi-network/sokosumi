@@ -567,15 +567,9 @@ export function CreateChannelDialog() {
             <Button
               type="button"
               variant="primary"
-              disabled={isPending}
+              loading={isPending}
               onClick={handleCreate}
             >
-              {isPending ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {isPending ? t("creating") : t("create")}
             </Button>
           </DialogFooter>

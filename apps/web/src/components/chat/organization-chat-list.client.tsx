@@ -961,17 +961,11 @@ export function OrganizationChatList({
                                   : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                               )}
                               disabled={actionBusy}
+                              loading={isRestoring}
                               onClick={() => handleRestoreRoom(room)}
                               aria-label={`${tActions("restore")} ${room.name}`}
                             >
-                              <RotateCcw
-                                className={cn(
-                                  "size-3.5",
-                                  isRestoring &&
-                                    "animate-spin motion-reduce:animate-pulse",
-                                )}
-                                aria-hidden
-                              />
+                              <RotateCcw className="size-3.5" aria-hidden />
                             </Button>
                           )}
                         </SidebarMenuItem>

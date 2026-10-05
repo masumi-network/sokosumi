@@ -5,7 +5,6 @@ import {
   Bell,
   BellOff,
   Ellipsis,
-  Loader2,
   LogOut,
   MessageSquare,
   Pencil,
@@ -814,18 +813,12 @@ export function ChatRoomSidebarRow({
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isLeaving}
+              loading={isLeaving}
               onClick={(event) => {
                 event.preventDefault();
                 void handleConfirmLeave();
               }}
             >
-              {isLeaving ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {tActions("leaveConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

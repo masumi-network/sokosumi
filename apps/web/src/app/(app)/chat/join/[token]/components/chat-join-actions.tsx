@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -65,11 +64,8 @@ export function ChatJoinActions({
         variant="primary"
         className="w-full"
         onClick={handleJoin}
-        disabled={isJoining}
+        loading={isJoining}
       >
-        {isJoining && (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-        )}
         {isJoining ? t("joining") : t("join", { room: roomName })}
       </Button>
     );

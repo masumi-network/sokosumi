@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import {
   type FormEvent,
   type MouseEvent,
@@ -276,19 +276,13 @@ function RoomComposerSendButton({
       size="icon"
       className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
       disabled={sendBlocked}
+      loading={isSending}
       aria-label={ariaLabel}
       data-testid={testId}
       onPointerDown={handleSendPointerDown}
       onClick={handleSendClick}
     >
-      {isSending ? (
-        <Loader2
-          className="size-4 animate-spin motion-reduce:animate-pulse"
-          aria-hidden
-        />
-      ) : (
-        <ArrowUp className="size-4" aria-hidden />
-      )}
+      <ArrowUp className="size-4" aria-hidden />
     </Button>
   );
 }

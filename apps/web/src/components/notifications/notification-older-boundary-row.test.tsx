@@ -37,8 +37,10 @@ describe("NotificationOlderBoundaryRow", () => {
 
     expect(screen.getByText("loading")).toBeTruthy();
     expect(screen.queryByText("showOlder")).toBeNull();
-    expect(container.querySelector("svg")).not.toBeNull();
-    expect(screen.getByRole("button")).toHaveProperty("disabled", true);
+    expect(
+      container.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
   });
 
   it("keeps a retry on the row when a page fails", () => {

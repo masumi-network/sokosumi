@@ -224,7 +224,10 @@ describe("EmailCodeForm", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Log in" })).toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Log in" })).toHaveAttribute(
+        "aria-busy",
+        "true",
+      ),
     );
   });
 

@@ -67,7 +67,7 @@ describe("ThreadListLoadMore", () => {
   it("says it is loading only while it is", () => {
     renderBoundary("loading");
 
-    expect(screen.getByRole("button")).toBeDisabled();
+    expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
     expect(screen.getByRole("button")).toHaveTextContent(labels.loading);
   });
 });

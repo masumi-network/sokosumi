@@ -44,24 +44,60 @@ const buttonVariants = cva(
   }
 )
 
+function preventActivation(event: React.MouseEvent<HTMLButtonElement>) {
+  // Also cancels the implicit form submission that Enter in a field fires
+  // through the submit button.
+  event.preventDefault()
+}
+
 function Button({
   className,
   variant,
   size,
   asChild = false,
+  loading = false,
+  disabled,
+  onClick,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean
+    /**
+     * A request this button started is running. A bar sweeps along the bottom
+     * edge while the label and icon stay as they are, so the button never
+     * changes size and its name still says what is busy. It stays focusable
+     * (`aria-disabled`, not `disabled`, so it keeps full contrast) and ignores
+     * clicks, Enter and form submission until `loading` is false again.
+     */
+    loading?: boolean
   }) {
   const Comp = asChild ? SlotPrimitive.Slot : "button"
-
   return (
     <Comp
       data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+      className={cn(
+        buttonVariants({ variant, size }),
+        loading && "relative cursor-progress overflow-hidden",
+        className
+      )}
+      // Loading wins over disabled: a native `disabled` would drop focus and
+      // fade the bar, and the two must never be set together.
+      disabled={loading ? undefined : disabled}
+      aria-busy={loading || undefined}
+      aria-disabled={loading || props["aria-disabled"]}
+      onClick={loading ? preventActivation : onClick}
+    >
+      <SlotPrimitive.Slottable>{children}</SlotPrimitive.Slottable>
+      {loading && (
+        <span
+          aria-hidden="true"
+          data-slot="button-loading-bar"
+          className="animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0.5 w-2/5 bg-current motion-reduce:w-full motion-reduce:animate-pulse"
+        />
+      )}
+    </Comp>
   )
 }
 

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 
 import { MarkdownEditor } from "@/app/tasks/components/markdown-editor";
@@ -56,7 +55,7 @@ export function FullPageMarkdownEditor({
   const [isDiscardDialogOpen, setIsDiscardDialogOpen] = useState(false);
   const isDirty = value !== initialValue;
   const isEmpty = value.trim().length === 0;
-  const canSave = isDirty && !isEmpty && !isSaving;
+  const canSave = isDirty && !isEmpty;
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
 
@@ -154,10 +153,12 @@ export function FullPageMarkdownEditor({
             >
               {labels.cancel}
             </Button>
-            <Button type="button" disabled={!canSave} onClick={onSave}>
-              {isSaving ? (
-                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
+            <Button
+              type="button"
+              disabled={!canSave}
+              onClick={onSave}
+              loading={isSaving}
+            >
               {isSaving ? labels.saving : labels.save}
             </Button>
           </div>

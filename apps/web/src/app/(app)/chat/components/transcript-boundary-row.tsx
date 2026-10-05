@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 
@@ -60,13 +59,9 @@ export function TranscriptBoundaryRow({
         variant="ghost"
         size="sm"
         className="h-auto w-full flex-wrap py-2"
-        disabled={isLoading}
-        aria-busy={isLoading}
+        loading={isLoading}
         onClick={() => onLoad(cursorMessageId)}
       >
-        {isLoading ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-        ) : null}
         {status === "failed" ? (
           <span role="alert" className="text-destructive font-normal">
             {t("Boundary.loadFailed")}

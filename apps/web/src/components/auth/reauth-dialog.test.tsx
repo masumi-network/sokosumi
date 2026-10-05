@@ -282,7 +282,7 @@ describe("ReauthDialog", () => {
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "confirmCode" }),
-      ).toBeDisabled(),
+      ).toHaveAttribute("aria-busy", "true"),
     );
     // Like the sign-in step: nothing changes the code while it is checked.
     expect(code).toBeDisabled();
@@ -457,15 +457,17 @@ describe("ReauthDialog", () => {
     expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
   });
 
-  it("spins instead of looking broken while the session loads", () => {
-    // Confirm needs the address the session carries, so it is disabled until
-    // then. Without the spinner it reads as a dead button.
+  it("shows loading instead of looking broken while the session loads", () => {
+    // Confirm needs the address the session carries, so it is dead until
+    // then. Without the loading state it reads as a dead button.
     isPending = true;
     renderDialog([passwordAccount]);
 
     const confirm = screen.getByRole("button", { name: "confirm" });
-    expect(confirm).toBeDisabled();
-    expect(confirm.querySelector(".animate-spin")).toBeInTheDocument();
+    expect(confirm).toHaveAttribute("aria-busy", "true");
+    expect(
+      confirm.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
   });
 
   it("says the session is gone rather than offering what cannot work", () => {

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef } from "react";
 
@@ -51,8 +50,7 @@ export function NotificationOlderBoundaryRow({
         variant="ghost"
         size="sm"
         className="h-auto w-full flex-wrap py-2 font-normal"
-        disabled={isLoading}
-        aria-busy={isLoading}
+        loading={isLoading}
         onClick={onLoad}
       >
         {status === "failed" ? (
@@ -63,13 +61,7 @@ export function NotificationOlderBoundaryRow({
             {t("retry")}
           </>
         ) : isLoading ? (
-          <>
-            <Loader2
-              className="size-4 animate-spin motion-reduce:animate-pulse"
-              aria-hidden
-            />
-            {t("loading")}
-          </>
+          t("loading")
         ) : (
           // Idle is a button waiting to be pressed, not a load in flight.
           // A spinner and "Loading..." here say the older rows are on their

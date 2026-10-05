@@ -337,7 +337,6 @@ export default function SignInForm({
         {isCodeStep ? emailCode.captcha : captcha}
         <SubmitButton
           isSubmitting={isPending}
-          spinnerPosition="start"
           label={t("submit")}
           className="w-full"
           data-testid="auth-submit"

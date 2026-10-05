@@ -1,7 +1,6 @@
 "use client";
 
 import type { Coworker, CoworkerWorkspaceAccess } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -368,15 +367,12 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={isBusy}>
-                {isSavingControls ? (
-                  <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    {t("controls.saving")}
-                  </>
-                ) : (
-                  t("controls.save")
-                )}
+              <Button
+                type="submit"
+                disabled={isBusy}
+                loading={isSavingControls}
+              >
+                {isSavingControls ? t("controls.saving") : t("controls.save")}
               </Button>
 
               {archived ? (
@@ -384,16 +380,12 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                   type="button"
                   variant="outline"
                   disabled={isBusy}
+                  loading={isUnarchiving}
                   onClick={handleUnarchive}
                 >
-                  {isUnarchiving ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      {t("controls.unarchiving")}
-                    </>
-                  ) : (
-                    t("controls.unarchive")
-                  )}
+                  {isUnarchiving
+                    ? t("controls.unarchiving")
+                    : t("controls.unarchive")}
                 </Button>
               ) : (
                 <AlertDialog>
@@ -421,17 +413,12 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                       </AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleArchive}
-                        disabled={isArchiving}
+                        loading={isArchiving}
                         className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                       >
-                        {isArchiving ? (
-                          <>
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                            {t("controls.archiving")}
-                          </>
-                        ) : (
-                          t("controls.archive")
-                        )}
+                        {isArchiving
+                          ? t("controls.archiving")
+                          : t("controls.archive")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

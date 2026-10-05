@@ -110,11 +110,13 @@ export function canRenderRefundRequest(job: Job): job is PaidJob {
 
 function ButtonBase({
   disabled,
+  loading,
   onClick,
   children,
   className,
 }: {
   disabled: boolean;
+  loading?: boolean;
   onClick?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -123,6 +125,7 @@ function ButtonBase({
     <Button
       variant="ghost"
       disabled={disabled}
+      loading={loading}
       onClick={onClick}
       className={cn(
         "text-muted-foreground flex items-center justify-end gap-2 text-sm",
@@ -344,14 +347,11 @@ export default function RequestRefundButton({
               <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <AlertDialogTrigger asChild>
                   <ButtonBase
-                    disabled={isLoading || !isRefundEnabled(job)}
+                    disabled={!isRefundEnabled(job)}
+                    loading={isLoading}
                     className={className}
                   >
-                    {isLoading ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-                    ) : (
-                      <HandCoins className="h-4 w-4" />
-                    )}
+                    <HandCoins className="h-4 w-4" />
                     {t("request")}
                   </ButtonBase>
                 </AlertDialogTrigger>

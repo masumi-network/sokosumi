@@ -2,7 +2,7 @@
 
 import type { MemberWithOrganization } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
-import { Check, ChevronsUpDown, Loader2, Plus } from "lucide-react";
+import { Check, ChevronsUpDown, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -399,14 +399,11 @@ export default function HeaderWorkspaceSwitch({
           <DialogFooter>
             <Button
               type="button"
-              disabled={isCreatingPersonal}
+              loading={isCreatingPersonal}
               onClick={() => {
                 void handleChoiceContinue();
               }}
             >
-              {isCreatingPersonal ? (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
               {tIdentity("continue")}
             </Button>
           </DialogFooter>

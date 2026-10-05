@@ -15,7 +15,7 @@ import {
   validateSocialPostMedia,
 } from "@sokosumi/utils";
 import { useQuery } from "@tanstack/react-query";
-import { Check, ImagePlus, Loader2, Plus, Upload } from "lucide-react";
+import { Check, ImagePlus, Plus, Upload } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -817,16 +817,10 @@ export function SocialPostComposerDialog({
                     size="sm"
                     className="text-muted-foreground"
                     disabled={isBusy}
+                    loading={uploadPending}
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    {uploadPending ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Upload className="size-4" aria-hidden />
-                    )}
+                    <Upload className="size-4" aria-hidden />
                     {uploadPending
                       ? t("composer.media.uploading")
                       : t("composer.media.upload")}
@@ -996,16 +990,11 @@ export function SocialPostComposerDialog({
                 type="button"
                 variant="ghost"
                 disabled={!canSave}
+                loading={pending === "save"}
                 onClick={() => {
                   void handleSaveDraft();
                 }}
               >
-                {pending === "save" ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : null}
                 {saveLabel}
               </Button>
             ) : null}
@@ -1013,14 +1002,9 @@ export function SocialPostComposerDialog({
               type="button"
               className="min-w-28"
               disabled={!primaryEnabled}
+              loading={pending === primaryAction}
               onClick={runPrimary}
             >
-              {pending === primaryAction ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {primaryLabel}
               <kbd
                 aria-hidden

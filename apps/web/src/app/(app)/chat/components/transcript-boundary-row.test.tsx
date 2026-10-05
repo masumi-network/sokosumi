@@ -104,8 +104,8 @@ describe("TranscriptBoundaryRow", () => {
     );
 
     const button = screen.getByRole("button", { name: "loadingOlder" });
-    expect(button).toBeDisabled();
     expect(button).toHaveAttribute("aria-busy", "true");
+    expect(button).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(button);
 
     expect(onLoad).not.toHaveBeenCalled();

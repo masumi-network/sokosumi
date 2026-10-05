@@ -269,19 +269,18 @@ export function IdentityOnboardingForm({
                   {t("choiceHint")}
                 </p>
               </div>
-
-              <Button
-                type="submit"
-                disabled={busy}
-                className="w-full"
-                data-testid="workspace-gate-identity-submit"
-              >
-                {busy ? (
-                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                ) : null}
-                {t("continue")}
-              </Button>
             </fieldset>
+
+            {/* Outside the fieldset: a disabled fieldset would natively
+                disable the button and fade its loading bar. */}
+            <Button
+              type="submit"
+              loading={busy}
+              className="w-full"
+              data-testid="workspace-gate-identity-submit"
+            >
+              {t("continue")}
+            </Button>
           </form>
         </Form>
       ) : (

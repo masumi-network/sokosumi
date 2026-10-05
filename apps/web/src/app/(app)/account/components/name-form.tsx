@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -77,7 +76,7 @@ export function NameForm({ name, firstName, lastName }: NameFormProps) {
   return (
     <Card className="flex h-full flex-col">
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(handleSubmit)}>
+        <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
           <fieldset className="space-y-6" disabled={isSubmitting}>
             <CardHeader>
               <CardTitle>{t("title")}</CardTitle>
@@ -106,15 +105,14 @@ export function NameForm({ name, firstName, lastName }: NameFormProps) {
                 )}
               />
             </CardContent>
-            <CardFooter>
-              <Button type="submit" disabled={isSubmitting} className="w-full">
-                {isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-                )}
-                {t("submit")}
-              </Button>
-            </CardFooter>
           </fieldset>
+          {/* Outside the fieldset: its `disabled` would also disable the
+              loading submit button, fading it and dropping focus. */}
+          <CardFooter>
+            <Button type="submit" loading={isSubmitting} className="w-full">
+              {t("submit")}
+            </Button>
+          </CardFooter>
         </form>
       </Form>
     </Card>

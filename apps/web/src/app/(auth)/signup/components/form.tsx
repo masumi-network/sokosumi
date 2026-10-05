@@ -248,7 +248,6 @@ export default function SignUpForm({
         {emailCode.captcha}
         <SubmitButton
           isSubmitting={isPending}
-          spinnerPosition="start"
           label={t("submit")}
           className="w-full"
         />

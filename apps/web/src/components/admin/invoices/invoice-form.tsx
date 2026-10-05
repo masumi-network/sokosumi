@@ -309,12 +309,10 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
               variant="outline"
               size="sm"
               onClick={handleRefreshBilling}
-              disabled={isBillingLoading}
+              loading={isBillingLoading}
               aria-label={t("Form.billingRefresh")}
             >
-              <RefreshCw
-                className={`size-4 ${isBillingLoading ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className="size-4" />
               {t("Form.billingRefresh")}
             </Button>
           </div>

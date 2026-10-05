@@ -1,7 +1,7 @@
 "use client";
 
 import type { Account } from "@sokosumi/utils";
-import { Loader2, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -290,16 +290,12 @@ export function ReauthDialog({
                 {captcha.widget}
                 <Button
                   className="w-full"
-                  disabled={
-                    isSubmitting || email.length === 0 || password.length === 0
-                  }
+                  disabled={email.length === 0 || password.length === 0}
+                  // Confirm needs the address the session carries, so it is dead
+                  // until that resolves. Show it loading rather than broken.
+                  loading={isSubmitting || isLoadingSession}
                   type="submit"
                 >
-                  {/* Confirm needs the address the session carries, so it is dead
-                    until that resolves. Spin rather than look broken. */}
-                  {isSubmitting || isLoadingSession ? (
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
                   {t("confirm")}
                 </Button>
               </form>

@@ -28,4 +28,5 @@ Commands and backticked paths are relative to the repository root unless stated 
   - Use only for Web API access in small components
   - Avoid for data fetching or state management
 - **Async Operations**: Use Suspense for async operations
+- **Loading buttons**: Pass `loading` to `Button` from `@/components/ui/button` while the request it started runs. Never put a spinner inside a button: it shifts the label and changes the button's width.
 - **Data Fetching**: Follow Next.js docs for Data Fetching, Rendering, and Routing

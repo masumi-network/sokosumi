@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2 } from "lucide-react";
+import { Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -86,16 +86,10 @@ export function SubscriptionPlanActionButton({
       className="w-full"
       variant={isCurrent ? "outline" : "default"}
       disabled={disabled}
+      loading={isPlanPending}
       onClick={onPress}
     >
-      {isPlanPending ? (
-        <>
-          <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-          {loadingLabel}
-        </>
-      ) : (
-        actionLabel
-      )}
+      {isPlanPending ? loadingLabel : actionLabel}
     </Button>
   );
 }

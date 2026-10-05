@@ -11,7 +11,6 @@ import {
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
   parseOrganizationMetadata,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -311,7 +310,10 @@ export default function OrganizationInformationForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-8"
+      >
         <fieldset disabled={isLoading} className="flex flex-col gap-8">
           <FormField
             control={form.control}
@@ -339,13 +341,12 @@ export default function OrganizationInformationForm({
             )}
           />
           <FormFields form={form} formData={organizationInformationFormData} />
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading && (
-              <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
-            {isCreating ? t("Submit.create") : t("Submit.edit")}
-          </Button>
         </fieldset>
+        {/* Outside the fieldset: a disabled fieldset would natively
+            disable the button and fade its loading bar. */}
+        <Button type="submit" className="w-full" loading={isLoading}>
+          {isCreating ? t("Submit.create") : t("Submit.edit")}
+        </Button>
       </form>
     </Form>
   );

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -42,12 +41,9 @@ export function StartChatButton({
       variant={variant}
       size="lg"
       className={cn(variant === "primary" && "h-12 px-8 text-base", className)}
-      disabled={isBusy}
+      loading={isBusy}
       onClick={() => openCoworkerRoom(coworkerId)}
     >
-      {isBusy ? (
-        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-      ) : null}
       {isBusy ? t("cta.opening") : t("cta.button", { name: coworkerName })}
     </Button>
   );

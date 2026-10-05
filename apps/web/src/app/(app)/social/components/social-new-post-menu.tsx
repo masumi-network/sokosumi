@@ -1,6 +1,6 @@
 "use client";
 
-import { Bot, ChevronDown, Loader2, PenLine, Plus } from "lucide-react";
+import { Bot, ChevronDown, PenLine, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
@@ -99,7 +99,10 @@ export function SocialNewPostMenu({
   return (
     <>
       <DropdownMenu>
-        <DropdownMenuTrigger asChild>
+        {/* Disabled on the trigger, not the button: a loading button drops
+            native `disabled`, and only the trigger's own flag stops Radix
+            from opening the menu. */}
+        <DropdownMenuTrigger asChild disabled={isOpeningChat}>
           <Button
             type="button"
             size="sm"
@@ -107,17 +110,9 @@ export function SocialNewPostMenu({
               "fixed end-4 z-50 size-14 rounded-full shadow-lg md:static md:z-auto md:h-8 md:w-auto md:rounded-md md:shadow-none",
               mobileCreateFabBottom(isApple),
             )}
-            aria-busy={isOpeningChat}
-            disabled={isOpeningChat}
+            loading={isOpeningChat}
           >
-            {isOpeningChat ? (
-              <Loader2
-                className="size-6 animate-spin motion-reduce:animate-none md:size-4"
-                aria-hidden
-              />
-            ) : (
-              <Plus className="size-6 md:size-4" aria-hidden />
-            )}
+            <Plus className="size-6 md:size-4" aria-hidden />
             <span className="sr-only md:not-sr-only">{t("label")}</span>
             <ChevronDown className="hidden size-4 md:block" aria-hidden />
           </Button>
