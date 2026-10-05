@@ -12,13 +12,12 @@ const MOBILE_TAB_LIST_PATHS = [
   "/drive",
   "/calendar",
   "/schedules",
+  "/social",
+  "/studio",
   "/projects",
   "/you",
   "/history",
 ] as const;
-
-/** List roots with no tab bar. The header leads with back. */
-const MOBILE_FULLSCREEN_LIST_PATHS = ["/studio"] as const;
 
 /**
  * Non-tab hub list roots (PA / admin / notifications): tab bar at root;
@@ -32,7 +31,6 @@ const MOBILE_NON_TAB_HUB_LIST_PATHS = [
 
 const MAIN_APP_MOBILE_LIST_PATHS = [
   ...MOBILE_TAB_LIST_PATHS,
-  ...MOBILE_FULLSCREEN_LIST_PATHS,
   ...MOBILE_NON_TAB_HUB_LIST_PATHS,
 ] as const;
 
@@ -100,6 +98,7 @@ export function resolveMobileAppBackTarget(
       root === "/drive" ||
       root === "/calendar" ||
       root === "/schedules" ||
+      root === "/social" ||
       root === "/studio"
     ) {
       return { href: "/", labelKey: "back" };
@@ -142,7 +141,8 @@ export function shouldShowMobileBottomNav(
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Projects / You). Agents shows back to home. Nested pages keep back.
+ * root (Tasks / Projects / You). Agents, Social and Studio keep back to home.
+ * Nested pages keep back.
  * `/history` keeps brand chrome after Search left the tab bar.
  */
 export function shouldShowMobileBrandLeading(
@@ -156,7 +156,11 @@ export function shouldShowMobileBrandLeading(
   if (!pathname) {
     return false;
   }
-  if (pathname === "/agents") {
+  if (
+    pathname === "/agents" ||
+    pathname === "/social" ||
+    pathname === "/studio"
+  ) {
     return false;
   }
   return MOBILE_TAB_LIST_PATH_SET.has(pathname);

@@ -191,7 +191,7 @@ logs a warning when its secret is missing in a deployed environment. Configure
 both keys or neither: a secret without a site key rejects every protected
 request. Deploy Web and Core together after configuring the keys. With its secret set, Core enforces
 verification on signup, email sign-in, email address changes, password reset
-requests, verification resends, and magic-link requests, before their email
+requests, verification resends, and email code requests, before their email
 callbacks. Existing database rate limits still
 apply. OAuth and passkeys are unaffected; Resend still delivers legitimate mail.
 A Cloudflare validation failure or outage blocks these protected requests.
@@ -219,7 +219,7 @@ no email was sent. The test-only badge does not appear with real widget keys.
 | `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
 | `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project |
 
-**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`. When `VERCEL_ENV=preview`, Core prefers the branch URL (`VERCEL_BRANCH_URL`) over the deployment URL (`VERCEL_URL`), then `BETTER_AUTH_URL`. When only one of those is on a `*.sokosumi.com` host, that one wins. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so magic-link verify can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
+**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`. When `VERCEL_ENV=preview`, Core prefers the branch URL (`VERCEL_BRANCH_URL`) over the deployment URL (`VERCEL_URL`), then `BETTER_AUTH_URL`. When only one of those is on a `*.sokosumi.com` host, that one wins. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so Core can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
 
 **Web app → Core API:** configure the web app’s `CORE_APP_BASE_URL` to point at this service (e.g. `http://localhost:8787` locally).
 
@@ -232,10 +232,6 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
-
-# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
-# schedule API. Empty: nobody.
-LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
@@ -403,7 +399,7 @@ All other endpoints require authentication.
 
 ### Authentication Issues
 
-1. Verify `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_BRANCH_URL` is the sokosumi preview host — via Preview Deployment Suffix — so magic-link cookies work)
+1. Verify `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_BRANCH_URL` is the sokosumi preview host — via Preview Deployment Suffix — so session cookies work)
 2. Verify the web app’s `CORE_APP_BASE_URL` points at this Core deployment
 3. For browser calls from the web app, confirm the page origin is allowlisted for CORS and Better Auth `trustedOrigins` (see **CORS Configuration** above)
 4. Verify coworker callers use dedicated `coworker_*` API keys where applicable

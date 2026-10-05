@@ -1,5 +1,4 @@
 import { NotificationKind } from "@sokosumi/database";
-import { renderLowBalanceEmail } from "@sokosumi/email";
 import { BILLING_LOW_BALANCE_MESSAGE_KEY } from "@sokosumi/utils";
 
 import type { SendEmailInput } from "@/clients/email.client";
@@ -60,6 +59,7 @@ export async function sendBillingNotificationEmail(
     return;
   }
 
+  const { renderLowBalanceEmail } = await import("@sokosumi/email");
   const rendered = await renderLowBalanceEmail({
     actionUrl: `${getWebAppBaseUrl()}/billing?tab=credits`,
     credits,

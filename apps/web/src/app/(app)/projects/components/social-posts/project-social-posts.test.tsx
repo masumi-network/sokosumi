@@ -27,12 +27,21 @@ import {
   scheduleProjectSocialPost,
   updateProjectSocialPost,
 } from "@/lib/actions/project/action";
-
 import { createTestFormatter } from "@/test/intl-formatter";
+import { TestQueryProvider } from "@/test/query-provider";
 
 import { loadMoreSocialPosts } from "./actions";
 
-vi.mock("./actions", () => ({ loadMoreSocialPosts: vi.fn() }));
+vi.mock("@/lib/clients/core.browser.client", () => ({
+  coreClient: {
+    getProjectsByIdSocialConnections: (...args: unknown[]) =>
+      getSocialConnectionsMock(...args),
+  },
+}));
+
+vi.mock("./actions", () => ({
+  loadMoreSocialPosts: vi.fn(),
+}));
 
 const {
   pushMock,
@@ -42,12 +51,14 @@ const {
   uploadDriveFileMock,
   drivePickerFile,
   drivePickerVideoFile,
+  getSocialConnectionsMock,
 } = vi.hoisted(() => ({
   pushMock: vi.fn(),
   refreshMock: vi.fn(),
   toastErrorMock: vi.fn(),
   toastSuccessMock: vi.fn(),
   uploadDriveFileMock: vi.fn(),
+  getSocialConnectionsMock: vi.fn(),
   drivePickerFile: {
     name: "launch.png",
     fileUrl:
@@ -150,6 +161,13 @@ const MESSAGES: Record<string, string> = {
   "composer.cancel": "Cancel post",
   "composer.edit": "Edit",
   "composer.close": "Close",
+  "composer.dismiss": "Cancel",
+  "composer.when": "When",
+  "composer.scheduleFor": "Schedule for {date}",
+  "composer.rescheduleFor": "Reschedule for {date}",
+  "composer.connectAccount": "Connect account",
+  "composer.previewEmpty": "Your post shows here as you write.",
+  now: "Now",
   "cancelDialog.title": "Cancel this post?",
   "cancelDialog.description":
     "The post will not be published. This cannot be undone.",
@@ -180,8 +198,8 @@ const MESSAGES: Record<string, string> = {
   dateSelected: "Date: {date}",
   timeSelected: "Time: {time}",
   times: "Times",
-  "toasts.unauthenticated": "Please sign in to continue.",
-  "toasts.unauthenticatedAction": "Sign in",
+  "toasts.unauthenticated": "Please log in to continue.",
+  "toasts.unauthenticatedAction": "Log in",
   "preview.open": "Preview",
   "preview.dialogTitle": "Post preview",
   "outcomes.authorizationRevoked":
@@ -224,7 +242,12 @@ vi.mock("@/lib/actions/project/action", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
-  useSession: () => ({ data: { session: { activeOrganizationId: "org_1" } } }),
+  useSession: () => ({
+    data: {
+      user: { id: "user-1" },
+      session: { activeOrganizationId: "org_1" },
+    },
+  }),
 }));
 
 vi.mock("@/lib/utils/drive-file-upload.client", () => ({
@@ -460,12 +483,14 @@ function NewPostButton() {
 
 function ComposeHarness({ children }: { children: React.ReactNode }) {
   return (
-    <NuqsTestingAdapter>
-      <SocialComposeProvider>
-        <NewPostButton />
-        {children}
-      </SocialComposeProvider>
-    </NuqsTestingAdapter>
+    <TestQueryProvider>
+      <NuqsTestingAdapter>
+        <SocialComposeProvider>
+          <NewPostButton />
+          {children}
+        </SocialComposeProvider>
+      </NuqsTestingAdapter>
+    </TestQueryProvider>
   );
 }
 
@@ -480,6 +505,9 @@ describe("ProjectSocialPosts", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    getSocialConnectionsMock.mockRejectedValue(
+      new Error("photo lookup unavailable"),
+    );
     vi.mocked(createProjectSocialPost).mockResolvedValue({
       ok: true,
       value: buildPost({ id: "post-new", text: "Fresh" }),
@@ -561,7 +589,7 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByText("Calendar panel")).not.toBeInTheDocument();
   });
 
-  it("still opens the calendar after a link opened a draft's tab", async () => {
+  it("opens a linked draft preview without changing the calendar tab", async () => {
     const user = userEvent.setup();
     render(
       <ProjectSocialPosts
@@ -572,10 +600,8 @@ describe("ProjectSocialPosts", () => {
         selectedPostId="post-draft"
       />,
     );
-
-    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
-    await openTab(user, "Calendar");
-
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.keyboard("{Escape}");
     expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
     expect(screen.getByText("Calendar panel")).toBeVisible();
   });
@@ -645,7 +671,8 @@ describe("ProjectSocialPosts", () => {
     expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
   });
 
-  it("shows a scheduled post a calendar link names above the tabs", () => {
+  it("opens a linked scheduled post in a dialog without a Selected post section", async () => {
+    const user = userEvent.setup();
     render(
       <ProjectSocialPosts
         calendar={<p>Calendar panel</p>}
@@ -655,15 +682,13 @@ describe("ProjectSocialPosts", () => {
         selectedPostId="post-scheduled"
       />,
     );
-
-    const selected = screen.getByTestId("social-posts-selected");
-    const row = within(selected).getByTestId("social-post-post-scheduled");
-    expect(within(row).getByText("Scheduled text")).toBeVisible();
-    expect(within(row).getByText("@sokosumi")).toBeVisible();
-    expect(within(row).getByText("Coworker · Scout")).toBeVisible();
-    // The time names its zone, so nobody reads it as their own.
-    expect(within(row).getByText(/^Oct 1, 10:00 AM \S+/)).toBeVisible();
-    expect(within(row).getByText("Scheduled")).toBeVisible();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Scheduled text"),
+    ).toBeVisible();
+    expect(
+      screen.queryByTestId("social-posts-selected"),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
     expect(getTab("Calendar")).toHaveAttribute("aria-selected", "true");
   });
 
@@ -688,15 +713,17 @@ describe("ProjectSocialPosts", () => {
 
   it("opens the composer when Social links here with ?compose=new", () => {
     renderUi(
-      <NuqsTestingAdapter searchParams="?compose=new">
-        <SocialComposeProvider>
-          <ProjectSocialPosts
-            connections={[buildConnection()]}
-            posts={[]}
-            projectId={PROJECT_ID}
-          />
-        </SocialComposeProvider>
-      </NuqsTestingAdapter>,
+      <TestQueryProvider>
+        <NuqsTestingAdapter searchParams="?compose=new">
+          <SocialComposeProvider>
+            <ProjectSocialPosts
+              connections={[buildConnection()]}
+              posts={[]}
+              projectId={PROJECT_ID}
+            />
+          </SocialComposeProvider>
+        </NuqsTestingAdapter>
+      </TestQueryProvider>,
     );
 
     expect(
@@ -737,7 +764,7 @@ describe("ProjectSocialPosts", () => {
     ).toContain("text-destructive");
     expect(saveDraft).toBeDisabled();
     expect(
-      within(dialog).getByRole("button", { name: "Schedule" }),
+      within(dialog).getByRole("button", { name: "Post now" }),
     ).toBeDisabled();
 
     await user.type(textarea, "{backspace}");
@@ -1145,14 +1172,71 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Hello world");
 
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    // With nowhere to post, saving a draft is the main action.
     expect(
       within(dialog).getByRole("button", { name: "Save draft" }),
     ).toBeEnabled();
-    expect(schedule).toBeDisabled();
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).queryByRole("button", { name: "Now" }),
+    ).not.toBeInTheDocument();
 
     await pickInAnHour(user, dialog);
-    expect(schedule).toBeDisabled();
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeDisabled();
+  });
+
+  it("offers to connect an account when the project has none", async () => {
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        accounts={<p>Accounts panel</p>}
+        connections={[]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Connect account",
+      }),
+    );
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(getTab("Accounts")).toHaveAttribute("aria-selected", "true");
+  });
+
+  it("names the scheduled time on the main button", async () => {
+    freezeClock();
+    const user = userEvent.setup();
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    const dialog = screen.getByRole("dialog");
+    await user.type(within(dialog).getByLabelText("Text"), "Hello");
+    await pickInAnHour(user, dialog);
+    expect(
+      within(dialog).queryByRole("button", { name: "Post now" }),
+    ).not.toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: /^Schedule for / }),
+    ).toBeEnabled();
+
+    await user.click(within(dialog).getByRole("button", { name: "Now" }));
+    expect(
+      within(dialog).getByRole("button", { name: "Post now" }),
+    ).toBeEnabled();
   });
 
   it("saves a draft through the create action and lists it", async () => {
@@ -1191,7 +1275,53 @@ describe("ProjectSocialPosts", () => {
     ).toBeVisible();
   });
 
-  it("renders media thumbnails on a post row", () => {
+  it("returns focus to the calendar trigger after closing a preview", async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <button type="button" data-testid="preview-trigger">
+          Calendar post
+        </button>
+        <ProjectSocialPosts
+          connections={[buildConnection()]}
+          posts={[SCHEDULED_POST]}
+          projectId={PROJECT_ID}
+          selectedPostId="post-scheduled"
+          previewOnly
+          returnFocus={() => screen.getByTestId("preview-trigger").focus()}
+        />
+      </>,
+    );
+    expect(screen.getByRole("dialog")).toBeVisible();
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.getByTestId("preview-trigger")).toHaveFocus(),
+    );
+  });
+
+  it("retries fetching missing account photos when opening New post", async () => {
+    const user = userEvent.setup();
+    getSocialConnectionsMock.mockResolvedValue({
+      data: [buildConnection({ avatarUrl: "https://example.com/photo.png" })],
+    });
+    render(
+      <ProjectSocialPosts
+        connections={[buildConnection()]}
+        posts={[]}
+        projectId={PROJECT_ID}
+      />,
+    );
+    expect(getSocialConnectionsMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "New post" }));
+    await waitFor(() =>
+      expect(getSocialConnectionsMock).toHaveBeenCalledWith(PROJECT_ID),
+    );
+    expect(
+      within(screen.getByRole("dialog")).getByTestId("social-post-accounts"),
+    ).toBeVisible();
+  });
+
+  it("renders media thumbnails in a linked post preview", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -1201,11 +1331,8 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    expect(screen.getByTestId("social-post-media-post-media")).toBeVisible();
     expect(
-      within(screen.getByTestId("social-post-media-post-media")).getByAltText(
-        "launch.png",
-      ),
+      within(screen.getByRole("dialog")).getByAltText("launch.png"),
     ).toBeVisible();
   });
 
@@ -1367,7 +1494,7 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
     await pickInAnHour(user, dialog);
-    const schedule = within(dialog).getByRole("button", { name: "Schedule" });
+    const schedule = within(dialog).getByRole("button", { name: /^Schedule/ });
     await waitFor(() => expect(schedule).toBeEnabled());
     await user.click(schedule);
 
@@ -1450,8 +1577,6 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    await user.click(screen.getByRole("button", { name: "Preview" }));
-
     const dialog = screen.getByRole("dialog");
     const preview = within(dialog).getByTestId("social-post-preview");
     expect(preview).toHaveAttribute("data-provider", "x");
@@ -1459,7 +1584,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(preview).getByText("Scheduled text")).toBeVisible();
 
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     expect(
@@ -1491,7 +1616,7 @@ describe("ProjectSocialPosts", () => {
     expect(within(dialog).queryByLabelText("Text")).not.toBeInTheDocument();
     await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
@@ -1532,7 +1657,7 @@ describe("ProjectSocialPosts", () => {
     await user.click(screen.getByRole("button", { name: "pick launch.png" }));
     await pickInAnHour(user, dialog);
     await user.click(
-      within(dialog).getByRole("button", { name: "Reschedule" }),
+      within(dialog).getByRole("button", { name: /^Reschedule/ }),
     );
 
     await waitFor(() => {
@@ -1611,11 +1736,10 @@ describe("ProjectSocialPosts", () => {
       });
     });
     expect(toastSuccessMock).toHaveBeenCalledWith("Post canceled.");
-    // A canceled post has nothing left to do, so it keeps no menu.
-    const selected = screen.getByTestId("social-posts-selected");
-    await waitFor(() => {
-      expect(within(selected).getByText("Canceled")).toBeVisible();
-    });
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-posts-selected"),
+    ).not.toBeInTheDocument();
   });
 
   it("toasts and refreshes on a revision conflict", async () => {
@@ -1675,16 +1799,10 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    const row = screen.getByTestId("social-post-post-scheduled");
-    const warning = within(row).getByTestId("social-post-needs-reconnect");
-    expect(
-      within(warning).getByText("Account needs reconnecting"),
-    ).toBeVisible();
-    expect(
-      within(warning).getByRole("link", {
-        name: "Reconnect the account",
-      }),
-    ).toHaveAttribute("href", "#social-accounts");
+    const warning = within(screen.getByRole("dialog")).getByTestId(
+      "social-post-needs-reconnect",
+    );
+    expect(warning).toHaveTextContent("Account needs reconnecting");
   });
 
   it("does not warn about reconnecting when the connection is active", () => {
@@ -1914,34 +2032,22 @@ describe("ProjectSocialPosts", () => {
     expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
   });
 
-  it("shows a linked published post above the tabs, with its link and publish time", () => {
+  it("opens a linked published post in the preview with its external link", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
-        posts={[PUBLISHED_POST, SCHEDULED_POST]}
+        posts={[PUBLISHED_POST]}
         projectId={PROJECT_ID}
         selectedPostId="post-published"
       />,
     );
-
-    // No tab lists a published post, so a link from the calendar lands here.
-    const selected = screen.getByTestId("social-posts-selected");
+    const dialog = screen.getByRole("dialog");
+    expect(screen.queryByText("Selected post")).not.toBeInTheDocument();
     expect(
-      within(selected).getByRole("heading", { name: "Selected post" }),
-    ).toBeVisible();
-    const row = within(selected).getByTestId("social-post-post-published");
-    expect(within(row).getByText("Published")).toBeVisible();
-    expect(within(row).getByText("Soko Bot")).toBeVisible();
-    const link = within(row).getByRole("link", { name: "View post" });
-    expect(link).toHaveAttribute(
-      "href",
-      "https://x.com/sokosumi/status/1234567890",
-    );
-    expect(link).toHaveAttribute("target", "_blank");
-    expect(link).toHaveAttribute("rel", "noreferrer");
-    expect(within(row).getByText("Published Aug 1, 10:00 AM")).toBeVisible();
+      within(dialog).getByRole("link", { name: "View post" }),
+    ).toHaveAttribute("href", "https://x.com/sokosumi/status/1234567890");
     expect(
-      within(row).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: "Post actions" }),
     ).not.toBeInTheDocument();
   });
 
@@ -1955,11 +2061,12 @@ describe("ProjectSocialPosts", () => {
       />,
     );
 
-    const selected = screen.getByTestId("social-posts-selected");
-    const row = within(selected).getByTestId("social-post-post-publishing");
-    expect(within(row).getByText("Publishing…")).toBeVisible();
+    const dialog = screen.getByRole("dialog");
     expect(
-      within(row).queryByRole("button", { name: "Post actions" }),
+      within(dialog).queryByRole("button", { name: "Post actions" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId("social-posts-selected"),
     ).not.toBeInTheDocument();
   });
 
@@ -2004,7 +2111,7 @@ describe("ProjectSocialPosts", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("opens the tab that lists the post a link names", () => {
+  it("opens the linked draft in a preview", () => {
     render(
       <ProjectSocialPosts
         connections={[buildConnection()]}
@@ -2013,9 +2120,7 @@ describe("ProjectSocialPosts", () => {
         selectedPostId="post-draft"
       />,
     );
-
-    expect(getTab("Drafts")).toHaveAttribute("aria-selected", "true");
-    expect(screen.getByTestId("social-post-post-draft")).toBeVisible();
+    expect(screen.getByRole("dialog")).toBeVisible();
     expect(
       screen.queryByTestId("social-posts-selected"),
     ).not.toBeInTheDocument();
@@ -2214,7 +2319,7 @@ describe("ProjectSocialPosts", () => {
       "time",
     );
     await user.click(within(times).getByRole("option", { name: twoThirty }));
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
 
     await waitFor(() => {
       expect(createProjectSocialPost).toHaveBeenCalledWith(
@@ -2250,7 +2355,7 @@ describe("ProjectSocialPosts", () => {
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(
-        "Please sign in to continue.",
+        "Please log in to continue.",
         expect.objectContaining({ action: expect.any(Object) }),
       ),
     );
@@ -2336,7 +2441,7 @@ describe("ProjectSocialPosts", () => {
     const dialog = screen.getByRole("dialog");
     await user.type(within(dialog).getByLabelText("Text"), "Scheduled text");
     await pickInAnHour(user, dialog);
-    await user.click(within(dialog).getByRole("button", { name: "Schedule" }));
+    await user.click(within(dialog).getByRole("button", { name: /^Schedule/ }));
 
     await waitFor(() =>
       expect(toastErrorMock).toHaveBeenCalledWith(

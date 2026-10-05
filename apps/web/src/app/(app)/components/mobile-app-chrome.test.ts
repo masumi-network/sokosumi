@@ -17,6 +17,7 @@ describe("mobile-app-chrome", () => {
       expect(isMainAppMobileChromePathname("/calendar")).toBe(true);
       expect(isMainAppMobileChromePathname("/schedules")).toBe(true);
       expect(isMainAppMobileChromePathname("/studio")).toBe(true);
+      expect(isMainAppMobileChromePathname("/social")).toBe(true);
       expect(isMainAppMobileChromePathname("/studio/x")).toBe(false);
       expect(isMainAppMobileChromePathname("/personal-assistant")).toBe(true);
       expect(isMainAppMobileChromePathname("/admin")).toBe(true);
@@ -37,7 +38,7 @@ describe("mobile-app-chrome", () => {
       expect(resolveMobileAppBackTarget("/history")).toBeNull();
     });
 
-    it("sends agents, drive, calendar, schedules and studio roots back to home", () => {
+    it("sends agents, drive, calendar, schedules, social and studio roots back to home", () => {
       expect(resolveMobileAppBackTarget("/agents")).toEqual({
         href: "/",
         labelKey: "back",
@@ -55,6 +56,10 @@ describe("mobile-app-chrome", () => {
         labelKey: "back",
       });
       expect(resolveMobileAppBackTarget("/studio")).toEqual({
+        href: "/",
+        labelKey: "back",
+      });
+      expect(resolveMobileAppBackTarget("/social")).toEqual({
         href: "/",
         labelKey: "back",
       });
@@ -169,6 +174,8 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/you")).toBe(true);
       expect(shouldShowMobileBottomNav("/history")).toBe(true);
       expect(shouldShowMobileBottomNav("/calendar")).toBe(true);
+      expect(shouldShowMobileBottomNav("/studio")).toBe(true);
+      expect(shouldShowMobileBottomNav("/social")).toBe(true);
       expect(shouldShowMobileBottomNav("/admin")).toBe(true);
       expect(shouldShowMobileBottomNav("/notifications")).toBe(true);
     });
@@ -181,7 +188,6 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBottomNav("/you/developer")).toBe(false);
       expect(shouldShowMobileBottomNav("/you/help")).toBe(false);
       expect(shouldShowMobileBottomNav("/you/legal")).toBe(false);
-      expect(shouldShowMobileBottomNav("/studio")).toBe(false);
       expect(shouldShowMobileBottomNav("/studio/x")).toBe(false);
       expect(shouldShowMobileBottomNav("/account")).toBe(false);
       expect(shouldShowMobileBottomNav(null)).toBe(false);
@@ -219,6 +225,7 @@ describe("mobile-app-chrome", () => {
       expect(shouldShowMobileBrandLeading("/you/legal")).toBe(false);
       expect(shouldShowMobileBrandLeading("/agents")).toBe(false);
       expect(shouldShowMobileBrandLeading("/studio")).toBe(false);
+      expect(shouldShowMobileBrandLeading("/social")).toBe(false);
       expect(shouldShowMobileBrandLeading("/studio/x")).toBe(false);
       expect(shouldShowMobileBrandLeading("/personal-assistant")).toBe(false);
       expect(shouldShowMobileBrandLeading("/account")).toBe(false);

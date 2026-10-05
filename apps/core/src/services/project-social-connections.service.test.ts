@@ -1593,6 +1593,91 @@ describe("project social connections service", () => {
     ]);
   });
 
+  describe("missing profile photos", () => {
+    const active = { ...socialConnection, status: "active" };
+    const photo = "https://blob.vercel-storage.com/social/photo.png";
+    beforeEach(() => {
+      socialConnectionFindManyMock.mockResolvedValue([active]);
+      socialConnectionFindUniqueMock.mockResolvedValue(active);
+      getComposioConnectedAccountMock.mockResolvedValue({
+        id: "ca_old",
+        status: "ACTIVE",
+        toolkitSlug: "twitter",
+      });
+      getConnectedSocialIdentityMock.mockResolvedValue({
+        id: "123",
+        handle: "sokosumi",
+        displayName: null,
+        avatarUrl: "https://provider.example/photo.png",
+      });
+      snapshotSocialAccountAvatarMock.mockResolvedValue(photo);
+      socialConnectionUpdateMock.mockResolvedValue({
+        ...active,
+        avatarUrl: photo,
+      });
+    });
+    async function list() {
+      const { listProjectSocialConnections } = await import(
+        "./project-social-connections.service"
+      );
+      return listProjectSocialConnections({
+        projectId: PROJECT_ID,
+        workspaceId: WORKSPACE_ID,
+      });
+    }
+    it("fetches and stores a missing photo through the connection's project executor", async () => {
+      expect(await list()).toMatchObject([{ avatarUrl: photo }]);
+      expect(getConnectedSocialIdentityMock).toHaveBeenCalledWith({
+        provider: "x",
+        connectedAccountId: "ca_old",
+        executorUserId: `sokosumi:project-executor:${PROJECT_ID}`,
+      });
+      expect(socialConnectionUpdateMock).toHaveBeenCalledWith({
+        where: { id: SOCIAL_CONNECTION_ID },
+        data: { avatarUrl: photo },
+      });
+    });
+    it("reuses a stored photo without querying provider identity", async () => {
+      socialConnectionFindManyMock.mockResolvedValue([
+        { ...active, avatarUrl: photo },
+      ]);
+      expect(await list()).toMatchObject([{ avatarUrl: photo }]);
+      expect(getConnectedSocialIdentityMock).not.toHaveBeenCalled();
+    });
+    it("keeps the account usable when photo fetching fails", async () => {
+      getConnectedSocialIdentityMock.mockRejectedValue(
+        new Error("provider unavailable"),
+      );
+      expect(await list()).toMatchObject([
+        { avatarUrl: null, status: "active" },
+      ]);
+      expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+    });
+    it("does not use a photo from another identity", async () => {
+      getConnectedSocialIdentityMock.mockResolvedValue({
+        id: "another-account",
+        avatarUrl: "https://provider.example/photo.png",
+      });
+      expect(await list()).toMatchObject([{ avatarUrl: null }]);
+      expect(snapshotSocialAccountAvatarMock).not.toHaveBeenCalled();
+    });
+    it("does not overwrite a replacement made while fetching", async () => {
+      socialConnectionFindUniqueMock.mockResolvedValue({
+        ...active,
+        composioConnectedAccountId: "ca_replaced",
+        avatarUrl: "https://blob.vercel-storage.com/new.png",
+      });
+      expect(await list()).toMatchObject([
+        { avatarUrl: "https://blob.vercel-storage.com/new.png" },
+      ]);
+      expect(socialConnectionUpdateMock).not.toHaveBeenCalled();
+      expect(deleteSocialAccountAvatarIfOwnedMock).toHaveBeenCalledWith(
+        photo,
+        PROJECT_ID,
+      );
+    });
+  });
+
   it("marks an active connection as requiring reauthorization when Composio expires it", async () => {
     socialConnectionFindManyMock.mockResolvedValue([
       { ...socialConnection, status: "active" },

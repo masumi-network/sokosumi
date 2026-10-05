@@ -137,7 +137,8 @@ vi.mock("@/helpers/vendor-grants", () => ({
   isGrantDeniedOrRevoked: vi.fn().mockReturnValue(false),
 }));
 
-vi.mock("@sokosumi/net", () => ({
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: ssrfSafeFetchMock,
 }));
 

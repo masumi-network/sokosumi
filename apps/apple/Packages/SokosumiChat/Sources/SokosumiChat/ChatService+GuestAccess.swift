@@ -100,20 +100,4 @@ public extension ChatService {
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
   }
-
-  /// `DELETE /chats/rooms/{id}/members/{userId}`: guests only; host members leave through `members/me`.
-  func removeGuest(client: Client, roomId: String, userId: String, organizationSlug: String) async throws {
-    let response = try await client.deleteChatsRoomsIdMembersUserId(.init(
-      path: .init(id: roomId, userId: userId), headers: .init(xOrganizationSlug: organizationSlug)
-    ))
-    switch response {
-    case .ok: return
-    case let .badRequest(value): throw try rejected(status: 400, message: value.body.json.message)
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
-  }
 }

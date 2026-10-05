@@ -5,6 +5,7 @@ import { ProjectProperties } from "@/app/projects/components/project-properties"
 
 const LABELS = {
   title: "Properties",
+  identifier: "Identifier",
   website: "Website",
   updated: "Updated",
   created: "Created",
@@ -15,6 +16,7 @@ describe("ProjectProperties", () => {
     render(
       <ProjectProperties
         labels={LABELS}
+        identifier="SOK"
         websiteUrl="https://www.example.com/about"
         updatedAt="Today"
         createdAt="Yesterday"
@@ -25,7 +27,7 @@ describe("ProjectProperties", () => {
       screen.getByRole("heading", { level: 2, name: "Properties" }),
     ).toBeInTheDocument();
     const terms = screen.getAllByRole("term").map((term) => term.textContent);
-    expect(terms).toEqual(["Website", "Updated", "Created"]);
+    expect(terms).toEqual(["Identifier", "Website", "Updated", "Created"]);
 
     // The label is read before the value, even though it is drawn after it.
     for (const term of screen.getAllByRole("term")) {
@@ -46,8 +48,26 @@ describe("ProjectProperties", () => {
     expect(link).toHaveAttribute("rel", "noopener noreferrer");
     // Truncation is recoverable: the full URL is on hover.
     expect(link).toHaveAttribute("title", "https://www.example.com/about");
+    expect(screen.getByText("SOK")).toBeInTheDocument();
     expect(screen.getByText("Today")).toBeInTheDocument();
     expect(screen.getByText("Yesterday")).toBeInTheDocument();
+  });
+
+  it("drops the identifier row when the project has none", () => {
+    render(
+      <ProjectProperties
+        labels={LABELS}
+        identifier={null}
+        websiteUrl="https://www.example.com/about"
+        updatedAt="Today"
+        createdAt="Yesterday"
+      />,
+    );
+
+    expect(screen.queryByText("Identifier")).not.toBeInTheDocument();
+    expect(screen.getAllByRole("term").map((term) => term.textContent)).toEqual(
+      ["Website", "Updated", "Created"],
+    );
   });
 
   it("drops the website row when the project has none", () => {

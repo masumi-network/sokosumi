@@ -6,18 +6,21 @@ const {
   turnUpdate,
   turnFind,
   toolCallFind,
+  eventTransaction,
 } = vi.hoisted(() => ({
   buildActionResponseMock: vi.fn(),
   claimsActionMock: vi.fn(),
   turnUpdate: vi.fn(),
   turnFind: vi.fn(),
   toolCallFind: vi.fn(),
+  eventTransaction: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     sokoBotTurn: { update: turnUpdate, findUnique: turnFind },
     sokoBotToolCall: { findMany: toolCallFind },
+    $transaction: eventTransaction,
   },
 }));
 vi.mock("./answer-claims", () => ({ claimsAction: claimsActionMock }));
@@ -26,7 +29,95 @@ vi.mock("./action-response", async (importOriginal) => ({
   buildActionResponse: buildActionResponseMock,
 }));
 
-import { finishTurn, latestExchange } from "./turn-loop";
+import {
+  contextBlock,
+  finishTurn,
+  latestExchange,
+  RuntimeEventLog,
+  runtimeEvent,
+} from "./turn-loop";
+
+describe("RuntimeEventLog", () => {
+  it("gives a large batch of parallel requests one slot each, under the turn's lock", async () => {
+    const taken = new Set<number>();
+    const locks = new Map<string, Promise<void>>();
+    // A transaction-scoped advisory lock: held from the SELECT to the end.
+    eventTransaction.mockImplementation(
+      async (operation: (tx: unknown) => Promise<unknown>) => {
+        let release = () => {};
+        const tx = {
+          $executeRaw: async (_sql: TemplateStringsArray, key: string) => {
+            const previous = locks.get(key) ?? Promise.resolve();
+            const held = new Promise<void>((resolve) => {
+              release = resolve;
+            });
+            locks.set(
+              key,
+              previous.then(() => held),
+            );
+            await previous;
+          },
+          sokoBotRuntimeEvent: {
+            findFirst: async () =>
+              taken.size ? { startIndex: Math.max(...taken) } : null,
+            create: async ({ data }: { data: { startIndex: number } }) => {
+              // Without the lock every request would read the same tail.
+              await new Promise((resolve) => setTimeout(resolve, 1));
+              if (taken.has(data.startIndex))
+                throw Object.assign(new Error("Unique constraint"), {
+                  code: "P2002",
+                });
+              taken.add(data.startIndex);
+            },
+          },
+        };
+        try {
+          return await operation(tx);
+        } finally {
+          release();
+        }
+      },
+    );
+    // Each tool call is its own request with its own log, as in production.
+    await Promise.all(
+      Array.from({ length: 40 }, () =>
+        new RuntimeEventLog("turn-one", "session-one").append(
+          runtimeEvent("actions.requested", { actions: [] }),
+        ),
+      ),
+    );
+    expect([...taken].sort((a, b) => a - b)).toEqual(
+      Array.from({ length: 40 }, (_, index) => index),
+    );
+  });
+});
+
+describe("contextBlock", () => {
+  it("states the reply language last, after the packet and the latest exchange", () => {
+    const now = Date.parse("2026-09-30T21:27:00Z");
+    const lines = contextBlock(
+      {
+        recentTurns: [
+          {
+            source: "CHAT",
+            userMessage: "Erinnere mich jeden Montag.",
+            finalAnswer: "Soll ich das so einrichten?",
+            completedAt: "2026-09-30T21:26:00Z",
+          },
+        ],
+      },
+      '{"memory":"Standup auf Deutsch"}',
+      now,
+    );
+    const language = lines.findIndex((line) =>
+      line.startsWith("Reply in the language of the owner's latest message"),
+    );
+    expect(language).toBe(lines.length - 1);
+    expect(lines.findIndex((line) => line.startsWith("You: Soll ich"))).toBe(
+      language - 2,
+    );
+  });
+});
 
 describe("latestExchange", () => {
   const now = Date.parse("2026-09-30T18:05:14Z");

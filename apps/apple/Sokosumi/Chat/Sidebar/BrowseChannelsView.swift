@@ -66,10 +66,11 @@ struct BrowseChannelsView: View {
 
   private func channelRow(_ room: Components.Schemas.DiscoverableChatRoom) -> some View {
     HStack(alignment: .top, spacing: 12) {
-      Image(systemName: room.discoverability == ._private ? "lock" : room.discoverability == .external ? "globe" : "number")
+      let mark = ChannelMark(room.discoverability)
+      Image(systemName: mark.systemImage)
         .foregroundStyle(.secondary)
         .frame(width: 20)
-        .accessibilityLabel(room.discoverability.rawValue)
+        .accessibilityLabel(mark.channelDescription)
       VStack(alignment: .leading, spacing: 4) {
         Text(room.name).fontWeight(.medium).lineLimit(1)
         if let topic = room.topic, !topic.isEmpty {

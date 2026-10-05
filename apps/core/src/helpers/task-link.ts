@@ -1,4 +1,5 @@
 import { TaskLinkType } from "@sokosumi/database";
+import { formatTaskIdentifier } from "@sokosumi/utils";
 
 import { badRequest } from "@/helpers/error";
 import {
@@ -47,6 +48,10 @@ function mapTaskLinkPeerTask(peerTask: TaskLinkRow["toTask"]) {
     name: peerTask.name,
     status: peerTask.status,
     archivedAt: peerTask.archivedAt ?? null,
+    identifier: formatTaskIdentifier(
+      peerTask.project?.identifier,
+      peerTask.number,
+    ),
   };
 }
 

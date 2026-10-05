@@ -32,6 +32,7 @@ const updateUserMock = vi.fn();
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: (...args: unknown[]) => updateUserMock(...args),
+    getSession: async () => ({ data: { user: { name: "" } }, error: null }),
     organization: {
       acceptInvitation: (...args: unknown[]) => acceptInvitationMock(...args),
       rejectInvitation: (...args: unknown[]) => rejectInvitationMock(...args),
@@ -62,16 +63,18 @@ const messages = {
   Library: {
     Auth: {
       NameField: {
-        label: "Name",
-        placeholder: "Your name",
+        firstNameLabel: "First name",
+        lastNameLabel: "Last name",
         persistError: "Name update failed",
       },
       Schema: {
-        Name: {
-          invalid: "Invalid name",
-          required: "Name is required",
-          min: "Name must be at least 2 characters",
-          max: "Name is too long",
+        FirstName: {
+          required: "First name is required",
+          max: "First name is too long",
+        },
+        LastName: {
+          required: "Last name is required",
+          max: "Last name is too long",
         },
       },
     },
@@ -118,10 +121,15 @@ const joinItem: WorkspaceGateQueueItem = {
 function renderQueue(
   initialName = "Ada Lovelace",
   items: WorkspaceGateQueueItem[] = [invitationItem, joinItem],
+  returnUrl = "/",
 ) {
   return render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <PendingInvitesQueue initialName={initialName} items={items} />
+      <PendingInvitesQueue
+        initialName={initialName}
+        items={items}
+        returnUrl={returnUrl}
+      />
     </NextIntlClientProvider>,
   );
 }
@@ -184,11 +192,16 @@ describe("PendingInvitesQueue", () => {
     );
 
     renderQueue("");
-    await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await user.type(screen.getByTestId("collect-user-first-name"), "Ada");
+    await user.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
     await user.click(screen.getByTestId("workspace-gate-accept-all"));
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+      expect(updateUserMock).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        name: "Ada Lovelace",
+      });
     });
     expect(acceptInvitationMock).not.toHaveBeenCalled();
     expect(acceptOrganizationInviteLinkMock).not.toHaveBeenCalled();
@@ -220,13 +233,18 @@ describe("PendingInvitesQueue", () => {
     );
 
     renderQueue("");
-    await user.type(screen.getByTestId("collect-user-name"), "Ada Lovelace");
+    await user.type(screen.getByTestId("collect-user-first-name"), "Ada");
+    await user.type(screen.getByTestId("collect-user-last-name"), "Lovelace");
     await user.click(
       screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
     );
 
     await waitFor(() => {
-      expect(updateUserMock).toHaveBeenCalledWith({ name: "Ada Lovelace" });
+      expect(updateUserMock).toHaveBeenCalledWith({
+        firstName: "Ada",
+        lastName: "Lovelace",
+        name: "Ada Lovelace",
+      });
     });
     expect(acceptInvitationMock).not.toHaveBeenCalled();
 
@@ -247,10 +265,28 @@ describe("PendingInvitesQueue", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByText("Name is required")).toBeInTheDocument();
+      expect(screen.getByText("First name is required")).toBeInTheDocument();
+      expect(screen.getByText("Last name is required")).toBeInTheDocument();
     });
     expect(acceptInvitationMock).not.toHaveBeenCalled();
     expect(updateUserMock).not.toHaveBeenCalled();
+  });
+
+  it("leaves the gate for where the user was going", async () => {
+    const user = userEvent.setup();
+    acceptInvitationMock.mockResolvedValue({
+      data: { member: { organizationId: "org_1" } },
+      error: null,
+    });
+
+    renderQueue("Ada Lovelace", [invitationItem], "/chat/join/abc?ref=mail");
+    await user.click(
+      screen.getByTestId("workspace-gate-accept-invitation-inv_1"),
+    );
+
+    await waitFor(() => {
+      expect(routerReplaceMock).toHaveBeenCalledWith("/chat/join/abc?ref=mail");
+    });
   });
 
   it("joins via the recovered link and leaves the gate", async () => {

@@ -1,24 +1,32 @@
 # Run Soko Bot inside Core
 
-- Status: Accepted
+- Status: Accepted. Amended by [ADR 0043](0043-soko-bot-runs-in-per-bot-sandboxes.md).
+
+The production loop is the sandbox adapter in
+[ADR 0043](0043-soko-bot-runs-in-per-bot-sandboxes.md):
+`SOKO_BOT_RUNTIME_ADAPTER=sandbox` is the default. Each turn runs in a fresh
+Vercel Sandbox VM. Core stays the control plane. The Eve and in-process
+bodies below are history, not the live loop.
 
 The original Eve-service decision was superseded 2026-08-27. That text is
 recorded at the bottom.
 
-Soko Bot's agent loop runs inside `apps/core` behind the existing
-`SokoBotRuntime` port, as the `in-process` adapter. Core remains sole owner of
+## History: in-process adapter (amended by ADR 0043)
+
+Soko Bot's agent loop ran inside `apps/core` behind the existing
+`SokoBotRuntime` port, as the `in-process` adapter. Core remained sole owner of
 data, policy, classification, Context packets, schedules, memory, audit
-projection, and Task/Job mutations; it now also owns the loop. There is no
+projection, and Task/Job mutations; it also owned the loop. There was no
 separate deployable, no Ed25519 request token or turn grant, and no Vercel OIDC
 allowlist.
 
-A turn is accepted by the control plane and executed in the background of the
-same function (`waitUntil`). The loop appends to `soko_bot_runtime_event`, and
-the `/sync/soko-bot-turns` drain reads that log and settles the turn exactly as
+A turn was accepted by the control plane and executed in the background of the
+same function (`waitUntil`). The loop appended to `soko_bot_runtime_event`, and
+the `/sync/soko-bot-turns` drain read that log and settled the turn exactly as
 it did when events came over HTTP. Serverless invocations share no memory, so
-the log is a table rather than a buffer.
+the log was a table rather than a buffer.
 
-## Why the separation was dropped
+### Why the separation was dropped
 
 The Eve service existed to keep database authority and ambient user
 impersonation out of the agent runtime. That reasoning assumed the agent had a
@@ -39,7 +47,7 @@ pinned to, the memory version it was handed, lease and deadline expiry, and
 administrator pause. They are read from the turn row the control plane wrote
 instead of from a signed grant that restated it.
 
-## What was given up
+### What was given up
 
 - **Durable sessions.** Eve made a turn survivable across a crash. A turn now
   lives inside one Core invocation, bounded by `maxDuration` (300s). A turn that

@@ -3,7 +3,6 @@ import type {
   SokoBotInboxMessage,
 } from "@sokosumi/soko-bot";
 
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import {
@@ -178,10 +177,10 @@ export class SokoBotIngestSyncService {
       failed: 0,
     };
     const bots = await prisma.sokoBot.findMany({
-      where: withBetaBotOwner({
+      where: {
         archivedAt: null,
         integrations: { some: { status: "ACTIVE" } },
-      }),
+      },
       select: {
         id: true,
         userId: true,

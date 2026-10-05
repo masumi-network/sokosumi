@@ -21,6 +21,7 @@ import {
   TASK_DETAIL_SHELL_CLASS,
   TASK_DETAIL_SIDEBAR_CLASS,
 } from "@/app/tasks/constants";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import { loadTaskScheduleAssigneeOptions } from "@/app/tasks/utils/task-schedule-assignee-options";
 import {
   formatTaskScheduleRule,
@@ -38,6 +39,13 @@ const UPCOMING_RUNS_LIMIT = 10;
 // ponytail: one max page, then drop CANCELED. Page further if a schedule can cancel more than 100 future runs.
 const UPCOMING_RUNS_FETCH_LIMIT = 100;
 const CREATED_TASKS_LIMIT = 20;
+/**
+ * A Run now Run takes its time just before its Task is stored, so the label
+ * lookup starts a little before the oldest listed Task. Archived Tasks keep
+ * their Run rows, so the service reads every page in that window.
+ */
+const MANUAL_RUN_LOOKBACK_MS = 60_000;
+const MANUAL_RUNS_FETCH_LIMIT = 100;
 
 interface TaskScheduleDetailPageProps {
   params: Promise<{ scheduleId: string }>;
@@ -100,6 +108,17 @@ async function TaskScheduleDetailContent({
   const project = projectOptions.find(
     (option) => option.id === schedule.projectId,
   );
+  const oldestCreatedAt = Math.min(
+    ...createdTasks.tasks.map((task) => task.createdAt.getTime()),
+  );
+  const manualRuns =
+    createdTasks.tasks.length === 0
+      ? []
+      : await taskScheduleService.listManualRuns(schedule.id, {
+          from: new Date(oldestCreatedAt - MANUAL_RUN_LOOKBACK_MS),
+          limit: MANUAL_RUNS_FETCH_LIMIT,
+        });
+  const manualTaskIds = new Set(manualRuns.map((run) => run.releasedTaskId));
   const upcomingRuns = runs
     .filter((run) => run.state !== "CANCELED")
     .slice(0, UPCOMING_RUNS_LIMIT);
@@ -119,7 +138,7 @@ async function TaskScheduleDetailContent({
                   <ArrowLeft className="size-4" aria-hidden />
                   {t("Detail.back")}
                 </Link>
-                {session.user.id === schedule.ownerId ? (
+                {schedule.canWrite ? (
                   <TaskScheduleActions
                     schedule={schedule}
                     coworkerOptions={assigneeOptions.selectableOptions}
@@ -205,12 +224,17 @@ async function TaskScheduleDetailContent({
                   {createdTasks.tasks.map((task) => (
                     <li key={task.id}>
                       <Link
-                        href={`/tasks/${task.id}`}
+                        href={taskHref(task)}
                         className="hover:bg-card-background-hover flex items-center justify-between gap-3 px-4 py-2.5 transition-colors"
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {task.name}
                         </span>
+                        {manualTaskIds.has(task.id) ? (
+                          <Badge variant="outline" className="rounded-sm">
+                            {t("Detail.taskRunNow")}
+                          </Badge>
+                        ) : null}
                         <span className="text-muted-foreground shrink-0 text-xs tabular-nums">
                           {formatter.dateTime(task.createdAt, "dateTime")}
                         </span>

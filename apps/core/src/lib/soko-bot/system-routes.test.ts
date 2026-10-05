@@ -48,6 +48,22 @@ describe("system turn routes", () => {
     );
   });
 
+  it("lets meeting prep search mail itself without writing anything", () => {
+    const capabilities = capabilitiesForClassification(
+      presetClassificationResult("beat", SYSTEM_TURN_ROUTES["meeting-prep"])
+        .classification,
+    );
+    expect(capabilities).toContain("search_inbox");
+    expect(capabilities).toContain("read_email");
+    for (const capability of [
+      "run_integration_tool",
+      "post_chat",
+      "create_task",
+      "update_memory",
+    ])
+      expect(capabilities).not.toContain(capability);
+  });
+
   it("lets task-board and stand-up turns work Tasks", () => {
     for (const key of ["taskboard", "standup"] as const) {
       const capabilities = capabilitiesForClassification(
