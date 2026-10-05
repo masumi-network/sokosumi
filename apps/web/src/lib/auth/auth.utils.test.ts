@@ -317,6 +317,29 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
       ),
     ).toBe("https://preprod.sokosumi.com/billing");
   });
+
+  it.each([
+    "/.//evil.example",
+    "/foo/..//evil.example",
+    "https://preprod.sokosumi.com/.//evil.example",
+  ])("rejects a path that parses as another host: %s", (returnUrl) => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        returnUrl,
+        "/billing",
+      ),
+    ).toBe("https://preprod.sokosumi.com/billing");
+  });
+
+  it("keeps a collapsed same-origin dot segment", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "/foo/../chat?x=1#y",
+      ),
+    ).toBe("https://preprod.sokosumi.com/chat?x=1#y");
+  });
 });
 
 describe("normalizeAuthReturnUrl", () => {
@@ -384,6 +407,8 @@ describe("normalizeAuthReturnUrl", () => {
     "https://evil.example/attack",
     "//evil.example/attack",
     "/\\evil.example/attack",
+    "/.//evil.example",
+    "/foo/..//evil.example",
     "javascript:alert('x')",
   ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
     vi.stubGlobal("window", undefined);

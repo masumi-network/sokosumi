@@ -261,9 +261,13 @@ export function sanitizeAuthRedirectPath(
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
-    return parsedUrl.origin === baseOrigin
-      ? parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
-      : fallback;
+    if (parsedUrl.origin !== baseOrigin) {
+      return fallback;
+    }
+    // `/.//evil` stays on this origin, but its pathname is `//evil`.
+    // `new URL` and `location.replace` both read that as another host.
+    const path = parsedUrl.pathname + parsedUrl.search + parsedUrl.hash;
+    return new URL(path, baseOrigin).origin === baseOrigin ? path : fallback;
   } catch {
     return fallback;
   }
