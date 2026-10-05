@@ -15,6 +15,30 @@ export function calendarKind(
   return "post";
 }
 
+/** Social networks Sokosumi publishes to; everything else is plan only. */
+export const SOCIAL_PROVIDERS = [
+  "x",
+  "linkedin",
+  "instagram",
+  "facebook",
+  "tiktok",
+  "youtube",
+] as const;
+
+/**
+ * Whether Cuso can execute an entry now: it must be on a connected social
+ * account. Otherwise it says why it stays in the plan.
+ */
+export function entryReadiness(
+  channel: string,
+  connected: readonly string[],
+): "ready" | "connect" | "soon" {
+  if (connected.includes(channel)) return "ready";
+  return (SOCIAL_PROVIDERS as readonly string[]).includes(channel)
+    ? "connect"
+    : "soon";
+}
+
 export interface CalendarDay {
   /** YYYY-MM-DD, or null for the blank cells before the 1st. */
   date: string | null;

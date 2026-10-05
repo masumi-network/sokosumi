@@ -221,12 +221,30 @@ describe("weekly change and revert", () => {
 });
 
 describe("cmoUpNext", () => {
-  it("lists open entries from today on, soonest first", () => {
-    const items = cmoUpNext(
-      { ...strategy, channels: [], goals: ["x"] },
-      new Date("2026-10-05T10:00:00Z"),
+  const plan = {
+    ...strategy,
+    calendar: [
+      ...strategy.calendar,
+      {
+        id: "w",
+        date: "2026-10-21",
+        channel: "website",
+        title: "Pricing page",
+        format: "article",
+        status: "idea" as const,
+      },
+    ],
+  };
+  const today = new Date("2026-10-05T10:00:00Z");
+
+  it("lists only open entries on connected accounts, soonest first", () => {
+    expect(cmoUpNext(plan, today, ["LinkedIn"]).map((item) => item.id)).toEqual(
+      ["a"],
     );
-    expect(items.map((item) => item.id)).toEqual(["a"]);
+  });
+
+  it("is empty until a channel Cuso can publish to is connected", () => {
+    expect(cmoUpNext(plan, today, [])).toEqual([]);
   });
 });
 

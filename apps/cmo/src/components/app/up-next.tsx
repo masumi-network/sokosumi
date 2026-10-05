@@ -39,9 +39,11 @@ export function UpNext({ overview, today, compose, close }: UpNextProps) {
           <div className="empty">
             <span className="shape" aria-hidden="true" />
             <span>
-              {overview.strategyApprovedAt
-                ? "Nothing queued yet."
-                : "Cuso starts working once you approve the strategy."}
+              {!overview.strategyApprovedAt
+                ? "Cuso starts working once you approve the strategy."
+                : overview.channels.length === 0
+                  ? "Nothing queued. Cuso is waiting for a connected channel."
+                  : "Nothing due on your connected channels yet."}
             </span>
           </div>
         ) : null}

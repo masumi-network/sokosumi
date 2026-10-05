@@ -7,6 +7,7 @@ import {
   SOKO_BOT_CMO_SCHEDULES,
 } from "../cmo.js";
 import { SOKO_BOT_CMO_CAPABILITIES } from "../policy.js";
+import { CMO_SCENARIOS, evaluateScenario } from "../scenarios.js";
 import { SOKO_BOT_TOOL_DESCRIPTIONS } from "../tool-contracts.js";
 import {
   applyVersionCapabilities,
@@ -103,5 +104,45 @@ describe("CMO strategy and rhythms", () => {
     ]);
     expect(isCmoScheduleKey("cmo-daily-run")).toBe(true);
     expect(isCmoScheduleKey("standup")).toBe(false);
+  });
+});
+
+describe("CMO scenarios", () => {
+  const scenario = CMO_SCENARIOS.find(
+    (candidate) => candidate.id === "cmo-asks-before-planning",
+  );
+  const turn = (finalAnswer: string, capability = "save_brand_brain") => ({
+    status: "COMPLETED",
+    route: "MANAGE_WORK",
+    finalAnswer,
+    toolCalls: [{ capability, status: "COMPLETED", result: {} }],
+    events: [],
+    delegations: [],
+    decisions: [],
+  });
+
+  it("fails a strategy full of gaps", () => {
+    if (!scenario) throw new Error("missing scenario");
+    const result = evaluateScenario(
+      scenario,
+      turn(
+        "Here is your provisional plan: How to choose [confirmed solution category].",
+        "save_strategy",
+      ),
+    );
+    const failed = result.checks.filter((check) => !check.pass);
+    // Planned anyway, wrote gaps, and asked nothing.
+    expect(failed.length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("passes asking the founder before planning", () => {
+    if (!scenario) throw new Error("missing scenario");
+    const result = evaluateScenario(
+      scenario,
+      turn(
+        "I could not read acme-unknown.example. Three quick questions: What do you sell, in one line? Who buys it? What should a new customer do first?",
+      ),
+    );
+    expect(result.checks.filter((check) => !check.pass)).toEqual([]);
   });
 });

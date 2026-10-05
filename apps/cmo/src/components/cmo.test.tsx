@@ -2,7 +2,12 @@ import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { calendarKind, monthGrid, relativeDay } from "../lib/calendar";
+import {
+  calendarKind,
+  entryReadiness,
+  monthGrid,
+  relativeDay,
+} from "../lib/calendar";
 import { toCusoMessages } from "../lib/chat-messages";
 import { buildThread, cusoStatus } from "../lib/thread";
 import { learningSteps, StrategyCard, UpdateCard } from "./app/cards";
@@ -106,6 +111,12 @@ describe("calendar", () => {
     expect(calendarKind({ format: "article", channel: "blog" })).toBe(
       "article",
     );
+  });
+
+  it("says why an entry is not executed yet", () => {
+    expect(entryReadiness("linkedin", ["linkedin"])).toBe("ready");
+    expect(entryReadiness("linkedin", [])).toBe("connect");
+    expect(entryReadiness("website", ["linkedin"])).toBe("soon");
   });
 
   it("names nearby days", () => {

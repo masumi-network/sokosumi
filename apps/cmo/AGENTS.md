@@ -16,7 +16,9 @@ Cuso needs Core's CMO routes and migration, so a branch that changes them runs a
 3. **CMO's OAuth client.** Signed in as a test account, `POST {core}/auth/oauth2/create-client` with `token_endpoint_auth_method: "client_secret_basic"`, `grant_types: ["authorization_code", "refresh_token"]` and `scope: "openid sokosumi:api offline_access"`. Better Auth only registers `https` redirect URIs on non-loopback hosts for web clients, so register a placeholder, then set the real callback on the row in your local database: `UPDATE "oauthClient" SET "skipConsent" = true, "redirectUris" = ARRAY['http://localhost:<cmo port>/api/auth/callback/sokosumi'] WHERE "clientId" = '<client_id>';` (authorize matches the URI exactly).
 4. **CMO.** `apps/cmo/.env.local` holds `BETTER_AUTH_URL` (CMO's origin), a random `BETTER_AUTH_SECRET`, `CORE_APP_BASE_URL`, and the client's `SOKOSUMI_OAUTH_CLIENT_ID` / `SOKOSUMI_OAUTH_CLIENT_SECRET`. Start it with `PORT=<cmo port> pnpm dev`.
 
-The in-process runtime has no sandbox, so Cuso has no web search or page fetch locally: its Brand Brain comes from the onboarding answers alone. Deployed Core runs turns in a sandbox with those tools.
+The in-process runtime has no sandbox, but it runs Cuso's read-only web tools (`web_search` through the AI Gateway, `web_fetch`) itself, so Cuso reads the real site locally too. Shell and workspace tools stay sandbox only.
+
+To run a CMO rhythm now instead of waiting for its schedule, move its `nextRunAt` into the past (`soko_bot_schedule.systemKey` is `cmo-daily-run` or `cmo-weekly-review`; the column is UTC) and call `GET {core}/sync/soko-bot-schedules` with `Authorization: Bearer <CRON_SECRET>`.
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -1,6 +1,6 @@
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { calendarKind, monthGrid } from "../../lib/calendar";
+import { calendarKind, entryReadiness, monthGrid } from "../../lib/calendar";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 
@@ -10,7 +10,15 @@ interface MonthCalendarProps {
   strategy: Strategy;
   /** Full page: day numbers and titles; chat card: markers only. */
   big?: boolean;
+  /** Providers with an active account; other entries are marked. */
+  connected?: readonly string[];
 }
+
+const READINESS_NOTES = {
+  ready: null,
+  connect: "needs connection",
+  soon: "coming soon",
+} as const;
 
 export function CalendarLegend() {
   return (
@@ -35,7 +43,11 @@ export function CalendarLegend() {
   );
 }
 
-export function MonthCalendar({ strategy, big = false }: MonthCalendarProps) {
+export function MonthCalendar({
+  strategy,
+  big = false,
+  connected = [],
+}: MonthCalendarProps) {
   const cells = monthGrid(strategy.month, strategy.calendar);
   return (
     <div className={big ? "cal big" : "cal"}>
@@ -52,7 +64,22 @@ export function MonthCalendar({ strategy, big = false }: MonthCalendarProps) {
               big ? (
                 <span key={entry.id} className="entry-chip" title={entry.title}>
                   <i className={`k ${calendarKind(entry)}`} />
-                  {entry.title}
+                  <span>
+                    {entry.title}
+                    {READINESS_NOTES[
+                      entryReadiness(entry.channel, connected)
+                    ] ? (
+                      <span className="note">
+                        {" "}
+                        ·{" "}
+                        {
+                          READINESS_NOTES[
+                            entryReadiness(entry.channel, connected)
+                          ]
+                        }
+                      </span>
+                    ) : null}
+                  </span>
                 </span>
               ) : (
                 <i

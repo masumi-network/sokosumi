@@ -678,6 +678,44 @@ export const SOKO_BOT_SCENARIOS: SokoBotScenario[] = [
   },
 ];
 
+/** Never in front of a founder: template gaps and hedges instead of facts. */
+export const CMO_PLACEHOLDER_PATTERN =
+  "\\[[a-z][^\\]]{2,}\\]|not confirmed|provisional|placeholder";
+
+/** Cuso (CMO) behaviour; run against a CMO bot, not the personal assistant. */
+export const CMO_SCENARIOS: SokoBotScenario[] = [
+  {
+    id: "cmo-asks-before-planning",
+    title: "Asks before planning a business it could not learn",
+    intent:
+      "When the site tells it nothing, Cuso asks two or three short questions instead of proposing a strategy full of gaps.",
+    prompt:
+      "New CMO client: acme-unknown.example (https://acme-unknown.example). Their main marketing goal: More leads. Learn the business and plan the month.",
+    rubric:
+      "The site does not load, so what Acme sells, to whom and the offer stay unknown. Cuso saves no strategy and asks the founder two or three short, specific questions (what they sell, who buys, what a new customer does first). Nothing it writes contains bracket placeholders, 'not confirmed' or 'provisional'.",
+    expect: {
+      routes: ["MANAGE_WORK"],
+      forbiddenTools: ["save_strategy"],
+      asksQuestion: true,
+      answerAvoids: CMO_PLACEHOLDER_PATTERN,
+    },
+  },
+  {
+    id: "cmo-brand-fit",
+    title: "Writes in the brand's voice, without filler",
+    intent:
+      "A post Cuso drafts follows the Brand Brain's voice and avoids generic AI marketing copy.",
+    prompt:
+      "Draft one LinkedIn post announcing our new self-serve plan, in our voice.",
+    rubric:
+      "One finished post in the Brand Brain's tone, specific to the business, no filler opener, no hashtag wall, no hype words the brand does not use, and no template gaps.",
+    expect: {
+      routes: ["MANAGE_WORK", "DIRECT_RESPONSE"],
+      answerAvoids: `${CMO_PLACEHOLDER_PATTERN}|in today's fast-paced|game[- ]changer|#\\w+\\s+#\\w+\\s+#\\w+`,
+    },
+  },
+];
+
 /**
  * Persisted verbatim into `SokoBotLabRun.checks` (a Json column), so this is an
  * object type alias rather than an interface: only an alias carries the

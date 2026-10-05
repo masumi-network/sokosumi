@@ -58,7 +58,13 @@ export function StrategyPage({ overview }: PageProps) {
         <h3>{formatMonth(strategy.month)}</h3>
         <CalendarLegend />
         <div className="cal-scroll">
-          <MonthCalendar strategy={strategy} big />
+          <MonthCalendar
+            strategy={strategy}
+            big
+            connected={overview.channels
+              .filter((channel) => channel.status === "ACTIVE")
+              .map((channel) => channel.provider)}
+          />
         </div>
       </section>
       <p className="note">

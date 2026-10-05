@@ -29,6 +29,7 @@ import {
   prepareEvaluationStep,
   withEvaluationTurn,
 } from "./evaluation-dispatch";
+import { runInProcessWebTool } from "./in-process-web-tools";
 import {
   announceTurn,
   closeTurn,
@@ -60,6 +61,7 @@ async function runTurn(
     await announceTurn(log, input.message);
     const turn = await prepareTurn(sessionId, input.turnId, {
       sandbox: false,
+      web: true,
     });
 
     const tools: ToolSet = {};
@@ -79,6 +81,17 @@ async function runTurn(
           // The turn's deadline reaches the tool, not only the model.
           if (abortSignal.aborted || options.abortSignal?.aborted) {
             throw new Error("Soko Bot turn deadline reached");
+          }
+          if (capability === "web_search" || capability === "web_fetch") {
+            return runInProcessWebTool({
+              sessionId,
+              turnId: input.turnId,
+              capability,
+              toolCallId: options.toolCallId,
+              toolInput,
+              model: turn.model,
+              inferenceRegion: turn.inferenceRegion,
+            });
           }
           return runTurnTool({
             log,

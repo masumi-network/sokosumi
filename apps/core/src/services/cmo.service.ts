@@ -135,9 +135,9 @@ function onboardingMessage(input: {
     `New CMO client: ${input.businessName} (${input.websiteUrl}).`,
     `Their main marketing goal, in their words: ${input.goals}`,
     "",
-    '1) Learn the business: read the website (home, about, products, pricing), search for the company, its competitors and its existing marketing, then save the Brand Brain with save_brand_brain. Write down only what you found. If you cannot read the site on this turn, save a provisional Brand Brain from the goal and the domain, with "not confirmed yet" where you do not know, and continue.',
-    `2) Plan the next month (start ${month}) with save_strategy: summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews (one short post, ad, SEO piece and newsletter in the brand's voice).`,
-    "3) Tell the owner in two or three lines what you learned and that the plan is ready: they approve it once in the strategy card, and after that you run it.",
+    "1) Learn the business: read the website (home, about, products, pricing), search for the company, its competitors and its existing marketing, then save the Brand Brain with save_brand_brain. Write down only what you found.",
+    `2) If you confirmed what they sell, to whom, and the offer: plan the next month (start ${month}) with save_strategy (summary, goals, audience, positioning, pillars, each channel with cadence, a calendar for the whole month, and previews: one short post, ad, SEO piece and newsletter in the brand's voice), then tell the owner in two or three lines what you learned and that they approve the plan once in the strategy card.`,
+    "3) If you could not confirm all three, do not plan yet: tell the owner in one line what you found, and ask two or three short questions to fill the gaps.",
   ].join("\n");
 }
 
@@ -586,20 +586,30 @@ export interface CmoOverview {
   posts: Record<string, number>;
 }
 
-/** The calendar's next open entries: what the "Up next" panel lists. */
+/**
+ * What the "Up next" panel lists: the calendar's next open entries that Cuso
+ * can actually execute, i.e. on a connected, active social account. Website,
+ * newsletter and ads entries, and networks not connected yet, stay in the
+ * Strategy calendar only.
+ */
 export function cmoUpNext(
   strategy: CmoStrategy | null,
   now: Date,
+  connectedProviders: readonly string[],
   limit = 8,
 ): CmoUpNextItem[] {
   if (!strategy) return [];
   const today = now.toISOString().slice(0, 10);
+  const executable = new Set(
+    connectedProviders.map((provider) => provider.toLowerCase()),
+  );
   return strategy.calendar
     .filter(
       (entry) =>
         entry.date >= today &&
         entry.status !== "published" &&
-        entry.status !== "skipped",
+        entry.status !== "skipped" &&
+        executable.has(entry.channel),
     )
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(0, limit)
@@ -666,7 +676,13 @@ export async function getCmoOverview(
     botStatus: bot.status,
     updates: parseCmoUpdates(workspace.updates),
     channels,
-    upNext: cmoUpNext(strategy, now),
+    upNext: cmoUpNext(
+      strategy,
+      now,
+      channels
+        .filter((channel) => channel.status === "ACTIVE")
+        .map((channel) => channel.provider),
+    ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
     connectChannelUrl: `${web}/social?projectId=${workspace.projectId}`,
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.

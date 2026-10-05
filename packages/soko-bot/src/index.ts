@@ -84,6 +84,8 @@ export type {
 } from "./runtime.js";
 export { SOKO_BOT_TURN_TOKEN_HEADER } from "./runtime.js";
 export {
+  CMO_PLACEHOLDER_PATTERN,
+  CMO_SCENARIOS,
   evaluateScenario,
   type ScenarioCheck,
   type ScenarioResult,
