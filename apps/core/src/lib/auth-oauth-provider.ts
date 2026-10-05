@@ -191,10 +191,10 @@ export async function isRefreshTokenRotating(
 }
 
 /**
- * Every request to Better Auth goes through here. A form `POST` to the token
- * endpoint is read once: a body secret moves into the header Better Auth
- * accepts (`auth-oauth-client-secret-shim`), and a refresh that lost a
- * rotation race is retried. Anything else goes to `handler` as it came.
+ * `POST /oauth2/token`. A form request is read once: a body secret moves into
+ * the header Better Auth accepts (`auth-oauth-client-secret-shim`), and a
+ * refresh that lost a rotation race is retried. Anything else goes to
+ * `handler` as it came.
  */
 export async function handleOAuthTokenRequest(
   incoming: Request,
@@ -203,8 +203,6 @@ export async function handleOAuthTokenRequest(
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    incoming.method !== "POST" ||
-    !new URL(incoming.url).pathname.endsWith("/oauth2/token") ||
     !incoming.headers
       .get("content-type")
       ?.toLowerCase()
@@ -230,8 +228,8 @@ export async function handleOAuthTokenRequest(
     ...(resources.length > 1 ? { resource: resources } : {}),
   };
   let response = await handler(request.clone());
-  // Better Auth 1.7.6 rejects the losing rotation claim before the winner
-  // stores its replay. Re-enter its endpoint so authentication and the 30s
+  // Better Auth 1.7.7 still rejects the losing rotation claim before the
+  // winner stores its replay. Re-enter its endpoint so authentication and the 30s
   // replay window remain enforced by the provider, across server instances.
   // Internal attempts use the validated API endpoint: the incoming HTTP
   // request has already passed the rate limiter and must only count once.
