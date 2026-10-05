@@ -141,26 +141,27 @@ export interface AuthRedirectSearchParams {
   [key: string]: string | string[] | undefined;
 }
 
-export async function getRedirectQueryString(
+/** A page's `searchParams` prop as `URLSearchParams`, repeated keys kept. */
+export async function readSearchParams(
   searchParams: Promise<AuthRedirectSearchParams>,
-): Promise<string> {
+): Promise<URLSearchParams> {
   const params = await searchParams;
-  const preservedSearchParams = new URLSearchParams();
+  const read = new URLSearchParams();
 
   for (const [key, value] of Object.entries(params)) {
     if (Array.isArray(value)) {
       for (const item of value) {
-        preservedSearchParams.append(key, item);
+        read.append(key, item);
       }
       continue;
     }
 
     if (value) {
-      preservedSearchParams.set(key, value);
+      read.set(key, value);
     }
   }
 
-  return preservedSearchParams.toString();
+  return read;
 }
 
 /**
