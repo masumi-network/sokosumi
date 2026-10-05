@@ -2,7 +2,7 @@ import CoreAPI
 import Foundation
 
 /// What the open room's header says about the room (web `RoomHeaderChrome`, `room-header-chrome.tsx`): a
-/// leading mark, the room's name and, for a Channel, its topic.
+/// leading mark, the room's name, a Channel's topic, and what clicking the name opens.
 public struct RoomHeaderIdentity: Equatable, Sendable {
   public enum Mark: Equatable, Sendable {
     /// A Channel, guests' view included: the discoverability glyph.
@@ -13,27 +13,49 @@ public struct RoomHeaderIdentity: Equatable, Sendable {
     case selfDirect(DirectRoomAvatarParticipant)
   }
 
+  /// What the name opens (web `room-header-chrome.tsx`:183-253): web wraps a Channel's and a group Direct's name in
+  /// a button; every other Direct's name is plain text.
+  public enum TitleAction: Equatable, Sendable {
+    /// An organization owner or admin who is a host member of a non-matched organization Channel: its settings
+    /// (`EditChannelDialog`, titled "Edit channel").
+    case channelSettings
+    /// Anyone else in a Channel — a host member who is not an owner or admin, a guest, a matched Channel's member,
+    /// and a reader whose role has not been read or could not be: the members panel (titled "Members").
+    case members
+    /// A group Direct, a Read-only one included: its Group name (`NameGroupDialog`, titled "Rename"), which any
+    /// member may set.
+    case nameGroup
+  }
+
   public let mark: Mark
   /// The sidebar's name for the room (`roomDisplayName`).
   public let title: String
   /// A Channel's topic as the header draws it; nil for a Direct and for a blank topic.
   public let topic: String?
+  /// Nil where web draws the name as plain text: a one-to-one, Self, coworker or Soko Bot Direct.
+  public let titleAction: TitleAction?
 
-  init(mark: Mark, title: String, topic: String?) {
+  init(mark: Mark, title: String, topic: String?, titleAction: TitleAction?) {
     self.mark = mark
     self.title = title
     self.topic = topic
+    self.titleAction = titleAction
   }
 
-  public init(room: Components.Schemas.ChatRoom, currentUserId: String) {
+  /// `isOwnerOrAdmin` is the reader's organization role as far as it is known; false until it is read and when the
+  /// read failed, as on web's room page, so the name then opens the members panel.
+  public init(room: Components.Schemas.ChatRoom, currentUserId: String, isOwnerOrAdmin: Bool) {
     title = roomDisplayName(room, currentUserId: currentUserId)
     if room.kind == .channel {
       mark = .channel(ChannelMark(room.discoverability))
       topic = roomHeaderTopic(room.topic)
+      let managesSettings = ChannelEditPermissions(room: room, isOwnerOrAdmin: isOwnerOrAdmin).canManageSettings
+      titleAction = managesSettings ? .channelSettings : .members
     } else {
       let owner = room.isSelfDirect ? directRoomAvatarParticipants(room, currentUserId: currentUserId).first : nil
       mark = owner.map(Mark.selfDirect) ?? .direct
       topic = nil
+      titleAction = GroupNameDraft.canName(room) ? .nameGroup : nil
     }
   }
 }
