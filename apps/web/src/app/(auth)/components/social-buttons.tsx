@@ -10,7 +10,8 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { Button, ButtonLoadingBar } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { authClient } from "@/lib/auth/auth.client";
 import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
@@ -241,7 +242,11 @@ export default function SocialButtons({
               align="center"
               text={t("continueWith", { provider: socialButton.name })}
             />
-            {isPending && <ButtonLoadingBar />}
+            {isPending && (
+              <ButtonLoadingBar
+                label={t("continueWith", { provider: socialButton.name })}
+              />
+            )}
           </div>
         );
       })}

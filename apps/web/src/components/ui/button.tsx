@@ -2,6 +2,7 @@ import * as React from "react"
 import { Slot as SlotPrimitive } from "radix-ui"
 import { cva, type VariantProps } from "class-variance-authority"
 
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
@@ -44,24 +45,6 @@ const buttonVariants = cva(
   }
 )
 
-/**
- * The bar a loading Button sweeps along its bottom edge. Exported for buttons
- * this component cannot render, such as third-party sign-in buttons; the
- * parent needs `relative overflow-hidden` and the button's radius.
- */
-function ButtonLoadingBar({ className }: { className?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      data-slot="button-loading-bar"
-      className={cn(
-        "animate-button-loading-sweep pointer-events-none absolute bottom-0 left-0 h-0 w-2/5 border-t-2 border-current motion-reduce:w-full motion-reduce:animate-pulse",
-        className
-      )}
-    />
-  )
-}
-
 function preventActivation(event: React.MouseEvent<HTMLButtonElement>) {
   // Also cancels the implicit form submission that Enter in a field fires
   // through the submit button, and keeps the click from reaching a clickable
@@ -89,6 +72,8 @@ function Button({
      * changes size and its name still says what is busy. It stays focusable
      * (`aria-disabled`, not `disabled`, so it keeps full contrast) and ignores
      * clicks, Enter and form submission until `loading` is false again.
+     * Screen readers hear "<label>, in progress" once, through the polite
+     * region `ButtonLoadingAnnouncer` mounts at the root.
      */
     loading?: boolean
   }) {
@@ -115,4 +100,4 @@ function Button({
   )
 }
 
-export { Button, ButtonLoadingBar, buttonVariants }
+export { Button, buttonVariants }

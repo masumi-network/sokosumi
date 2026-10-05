@@ -60,6 +60,10 @@
       "socialError": "We could not start that sign-in.",
       "title": "Confirm it is you"
     },
+    "Button": {
+      "loading": "{label}, in progress",
+      "loadingUnnamed": "In progress"
+    },
     "ShareButton": {
       "share": "Share",
       "linkCopied": "Link copied to clipboard",

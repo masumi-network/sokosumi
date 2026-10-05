@@ -60,6 +60,10 @@
       "socialError": "No hemos podido iniciar ese acceso.",
       "title": "Confirma que eres tú"
     },
+    "Button": {
+      "loading": "{label}, en curso",
+      "loadingUnnamed": "En curso"
+    },
     "ShareButton": {
       "share": "Compartir",
       "linkCopied": "Enlace copiado al portapapeles",
