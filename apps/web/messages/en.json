@@ -632,8 +632,7 @@
           "next": "Continue",
           "skip": "Skip",
           "finishSetup": "Finish setup",
-          "finish": "Go to workspace",
-          "creating": "Creating…"
+          "finish": "Go to workspace"
         },
         "Details": {
           "title": "Name your organization",
@@ -684,7 +683,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
-          "sending": "Sending…",
           "inviteSuccess": "Invites sent",
           "inviteSummary": "Sent {sent}, failed {failed}.",
           "linkError": "Failed to create invite link",
@@ -816,7 +814,6 @@
       "showAll": "Show all",
       "showOlder": "Show older notifications",
       "justNow": "Just now",
-      "loading": "Loading...",
       "markAllRead": "Mark all read",
       "markAllReadError": "Failed to mark all notifications as read",
       "markReadError": "Failed to mark notification as read",
@@ -1013,7 +1010,6 @@
     "title": "You've been invited",
     "invitedToJoin": "Join {organization} on Sokosumi.",
     "join": "Join {organization}",
-    "joining": "Joining…",
     "linkHintOwner": "Anyone with this link can join as a member.",
     "signedOutHint": "Log in or create an account to accept this invite.",
     "haveAccount": "Already have an account?",
@@ -1049,7 +1045,6 @@
       "goToHome": "Go to Home",
       "Actions": {
         "accept": "Join {organization}",
-        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
@@ -1404,7 +1399,6 @@
       },
       "List": {
         "loadMore": "Load more",
-        "loading": "Loading transactions...",
         "loadMoreError": "Failed to load more transactions"
       },
       "Row": {
@@ -1556,7 +1550,6 @@
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
           "searchAgents": "Search Agents",
-          "opening": "Opening chat…",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
@@ -2220,7 +2213,6 @@
       },
       "list": {
         "loadMore": "Load more",
-        "loading": "Loading projects...",
         "filter": {
           "placeholder": "Filter projects",
           "clear": "Clear filter",
@@ -2325,7 +2317,6 @@
           "next": "Continue",
           "back": "Back",
           "create": "Create project",
-          "creating": "Creating…",
           "openProject": "Open project"
         }
       },
@@ -2443,7 +2434,6 @@
           "media": {
             "addFromDrive": "Add from Drive",
             "upload": "Upload",
-            "uploading": "Uploading…",
             "remove": "Remove {name}",
             "unsupported": "Use a file type {provider} accepts.",
             "alreadyAttached": "That file is already attached.",
@@ -3028,7 +3018,6 @@
       "pricePerMonth": "per month",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
-      "upgrading": "Redirecting...",
       "canceling": "Scheduling cancellation...",
       "currentPlanCta": "Current plan",
       "upgradePlanCta": "Choose plan",
@@ -3672,13 +3661,10 @@
             "title": "Platform controls",
             "description": "Manage capabilities, priority, whitelist, and archive state.",
             "save": "Save controls",
-            "saving": "Saving controls…",
             "archive": "Archive",
-            "archiving": "Archiving…",
             "archiveConfirmTitle": "Archive coworker?",
             "archiveConfirmDescription": "This archives the coworker and revokes its API keys. You can unarchive later, but API keys stay revoked.",
             "unarchive": "Unarchive",
-            "unarchiving": "Unarchiving…",
             "capabilities": {
               "label": "Capabilities",
               "chat": "Chat",
@@ -5381,7 +5367,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi uses this website to generate your DESIGN.md.",
         "submit": "Save brand profile",
-        "saving": "Saving...",
         "saveSuccess": "Brand profile saved",
         "saveError": "Failed to save brand profile",
         "Schema": {
@@ -5495,7 +5480,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
-          "updating": "Redirecting...",
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
@@ -5791,7 +5775,6 @@
       "editTab": "Edit",
       "previewTab": "Preview",
       "editSave": "Save",
-      "editSaving": "Saving...",
       "editSaveSuccess": "DESIGN.md saved",
       "editUnavailableTitle": "DESIGN.md is not available",
       "editLoadErrorTitle": "Could not load DESIGN.md",
@@ -5829,7 +5812,6 @@
           "uploadError": "Could not process the selected image."
         },
         "saveChanges": "Save display",
-        "saving": "Saving…",
         "cancel": "Cancel",
         "validation": {
           "nameMinLength": "Name must be at least {min} characters.",
@@ -6227,12 +6209,10 @@
         "muted": "Muted"
       },
       "loadOlder": "Load older messages",
-      "loadingOlder": "Loading older messages…",
       "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
-        "loadingMissing": "Loading missing messages…",
         "loadFailed": "Couldn’t load messages.",
         "retry": "Try again"
       },
@@ -6358,8 +6338,7 @@
         "addPeopleTitle": "Add people to {name}",
         "addAll": "Add all {count} members of {organization}",
         "addSpecific": "Add specific people",
-        "addSpecificHelp": "Select people and AI coworkers to add to this channel.",
-        "creating": "Creating…"
+        "addSpecificHelp": "Select people and AI coworkers to add to this channel."
       },
       "RoomRoster": {
         "open": "Members",
@@ -6501,7 +6480,6 @@
         "invitedToJoin": "You've been invited to join #{room} ({organization}).",
         "guestNote": "Joining as a guest does not make you a member of the host organization.",
         "join": "Join #{room}",
-        "joining": "Joining…",
         "joined": "You joined #{room}.",
         "alreadyGuest": "You're already in #{room}.",
         "signedOutHint": "Log in or create an account to join this channel as a guest.",

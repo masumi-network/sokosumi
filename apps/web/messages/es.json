@@ -616,8 +616,7 @@
           "next": "Continuar",
           "skip": "Omitir",
           "finishSetup": "Finalizar configuración",
-          "finish": "Ir al espacio de trabajo",
-          "creating": "Creando…"
+          "finish": "Ir al espacio de trabajo"
         },
         "Details": {
           "title": "Nombra tu organización",
@@ -668,7 +667,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Comas, puntos y coma o saltos de línea.",
           "sendInvites": "Enviar invitaciones",
-          "sending": "Enviando…",
           "inviteSuccess": "Invitaciones enviadas",
           "inviteSummary": "Enviadas {sent}, fallidas {failed}.",
           "linkError": "No se pudo crear el enlace de invitación",
@@ -800,7 +798,6 @@
       "showAll": "Mostrar todas",
       "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
-      "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "markReadError": "No se pudo marcar la notificación como leída",
@@ -1013,7 +1010,6 @@
     "title": "Has sido invitado",
     "invitedToJoin": "Únete a {organization} en Sokosumi.",
     "join": "Unirse a {organization}",
-    "joining": "Uniéndose…",
     "linkHintOwner": "Cualquiera con este enlace puede unirse como miembro.",
     "signedOutHint": "Inicia sesión o crea una cuenta para aceptar esta invitación.",
     "haveAccount": "¿Ya tienes una cuenta?",
@@ -1049,7 +1045,6 @@
       "goToHome": "Ir al inicio",
       "Actions": {
         "accept": "Unirse a {organization}",
-        "joining": "Uniéndose…",
         "decline": "Rechazar",
         "logout": "Cerrar sesión",
         "ignore": "Ignorar",
@@ -1404,7 +1399,6 @@
       },
       "List": {
         "loadMore": "Cargar más",
-        "loading": "Cargando transacciones...",
         "loadMoreError": "No se pudieron cargar más transacciones"
       },
       "Row": {
@@ -1556,7 +1550,6 @@
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
           "searchAgents": "Buscar Agentes",
-          "opening": "Abriendo el chat…",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -2220,7 +2213,6 @@
       },
       "list": {
         "loadMore": "Cargar más",
-        "loading": "Cargando proyectos...",
         "filter": {
           "placeholder": "Filtrar proyectos",
           "clear": "Borrar filtro",
@@ -2325,7 +2317,6 @@
           "next": "Continuar",
           "back": "Atrás",
           "create": "Crear proyecto",
-          "creating": "Creando…",
           "openProject": "Abrir proyecto"
         }
       },
@@ -2443,7 +2434,6 @@
           "media": {
             "addFromDrive": "Añadir desde Drive",
             "upload": "Subir",
-            "uploading": "Subiendo…",
             "remove": "Quitar {name}",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
@@ -2992,7 +2982,6 @@
       "pricePerMonth": "por mes",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
       "mostPopularBadge": "Más popular",
-      "upgrading": "Redirigiendo...",
       "canceling": "Programando la cancelación...",
       "currentPlanCta": "Plan actual",
       "upgradePlanCta": "Elegir plan",
@@ -3675,13 +3664,10 @@
             "title": "Controles de plataforma",
             "description": "Gestiona capacidades, prioridad, lista blanca y estado de archivo.",
             "save": "Guardar controles",
-            "saving": "Guardando controles…",
             "archive": "Archivar",
-            "archiving": "Archivando…",
             "archiveConfirmTitle": "¿Archivar coworker?",
             "archiveConfirmDescription": "Esto archiva el coworker y revoca sus claves API. Puedes desarchivarlo después, pero las claves API seguirán revocadas.",
             "unarchive": "Desarchivar",
-            "unarchiving": "Desarchivando…",
             "capabilities": {
               "label": "Capacidades",
               "chat": "Chat",
@@ -5345,7 +5331,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi usa este sitio web para generar tu DESIGN.md.",
         "submit": "Guardar perfil de marca",
-        "saving": "Guardando...",
         "saveSuccess": "Perfil de marca guardado",
         "saveError": "No se pudo guardar el perfil de marca",
         "Schema": {
@@ -5459,7 +5444,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
           "seatsUpdatedSuccess": "Seats actualizados correctamente.",
-          "updating": "Redirigiendo...",
           "currentPlanCta": "Plan actual",
           "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
@@ -5791,7 +5775,6 @@
       "editTab": "Editar",
       "previewTab": "Vista previa",
       "editSave": "Guardar",
-      "editSaving": "Guardando...",
       "editSaveSuccess": "DESIGN.md guardado",
       "editUnavailableTitle": "DESIGN.md no está disponible",
       "editLoadErrorTitle": "No se pudo cargar DESIGN.md",
@@ -5960,7 +5943,6 @@
           "uploadError": "No se pudo procesar la imagen seleccionada."
         },
         "saveChanges": "Guardar visualización",
-        "saving": "Guardando…",
         "cancel": "Cancelar",
         "validation": {
           "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
@@ -6227,12 +6209,10 @@
         "muted": "Silenciado"
       },
       "loadOlder": "Cargar mensajes anteriores",
-      "loadingOlder": "Cargando mensajes anteriores…",
       "jumpToLatest": "Ir a los mensajes más recientes",
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
-        "loadingMissing": "Cargando mensajes que faltan…",
         "loadFailed": "No se pudieron cargar los mensajes.",
         "retry": "Reintentar"
       },
@@ -6358,8 +6338,7 @@
         "addPeopleTitle": "Añadir personas a {name}",
         "addAll": "Añadir a los {count} miembros de {organization}",
         "addSpecific": "Añadir personas concretas",
-        "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
-        "creating": "Creando…"
+        "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal."
       },
       "RoomRoster": {
         "open": "Miembros",
@@ -6544,7 +6523,6 @@
         "invitedToJoin": "Te han invitado a unirte a #{room} ({organization}).",
         "guestNote": "Unirte como invitado no te hace miembro de la organización anfitriona.",
         "join": "Unirse a #{room}",
-        "joining": "Uniéndose…",
         "joined": "Te uniste a #{room}.",
         "alreadyGuest": "Ya estás en #{room}.",
         "signedOutHint": "Inicia sesión o crea una cuenta para unirte a este canal como invitado.",

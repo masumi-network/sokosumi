@@ -997,9 +997,7 @@ export function CreateOrganizationWizard({
                       loading={isSendingInvites}
                       onClick={() => void handleSendInvites()}
                     >
-                      {isSendingInvites
-                        ? t("Invite.sending")
-                        : t("Invite.sendInvites")}
+                      {t("Invite.sendInvites")}
                     </Button>
                   </div>
                 </div>
@@ -1049,7 +1047,7 @@ export function CreateOrganizationWizard({
               disabled={isBusy}
               loading={isCreatingOrg}
             >
-              {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
+              {t("Nav.next")}
               {/* Keep the icon mounted. It is the only svg, so unmounting it
                   drops `has-[>svg]` and the lg padding jumps while loading. */}
               <ArrowRight className="size-4" />

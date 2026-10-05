@@ -616,8 +616,7 @@
           "next": "Weiter",
           "skip": "Überspringen",
           "finishSetup": "Einrichtung abschließen",
-          "finish": "Zum Workspace",
-          "creating": "Wird erstellt…"
+          "finish": "Zum Workspace"
         },
         "Details": {
           "title": "Benenne deine Organisation",
@@ -668,7 +667,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Kommas, Semikolons oder Zeilenumbrüche.",
           "sendInvites": "Einladungen senden",
-          "sending": "Wird gesendet…",
           "inviteSuccess": "Einladungen gesendet",
           "inviteSummary": "Gesendet {sent}, fehlgeschlagen {failed}.",
           "linkError": "Einladungslink konnte nicht erstellt werden",
@@ -800,7 +798,6 @@
       "showAll": "Alle anzeigen",
       "showOlder": "Ältere Benachrichtigungen anzeigen",
       "justNow": "Gerade eben",
-      "loading": "Lädt...",
       "markAllRead": "Alle als gelesen markieren",
       "markAllReadError": "Alle Benachrichtigungen konnten nicht als gelesen markiert werden",
       "markReadError": "Benachrichtigung konnte nicht als gelesen markiert werden",
@@ -1013,7 +1010,6 @@
     "title": "Du wurdest eingeladen",
     "invitedToJoin": "Tritt {organization} auf Sokosumi bei.",
     "join": "{organization} beitreten",
-    "joining": "Beitritt…",
     "linkHintOwner": "Jeder mit diesem Link kann als Mitglied beitreten.",
     "signedOutHint": "Melde dich an oder erstelle ein Konto, um die Einladung anzunehmen.",
     "haveAccount": "Du hast bereits ein Konto?",
@@ -1049,7 +1045,6 @@
       "goToHome": "Zur Startseite",
       "Actions": {
         "accept": "{organization} beitreten",
-        "joining": "Beitritt…",
         "decline": "Ablehnen",
         "logout": "Abmelden",
         "ignore": "Ignorieren",
@@ -1404,7 +1399,6 @@
       },
       "List": {
         "loadMore": "Mehr laden",
-        "loading": "Transaktionen werden geladen...",
         "loadMoreError": "Weitere Transaktionen konnten nicht geladen werden"
       },
       "Row": {
@@ -1556,7 +1550,6 @@
           "avatarAlt": "{name}",
           "button": "Mit {name} chatten",
           "searchAgents": "Agenten suchen",
-          "opening": "Chat wird geöffnet…",
           "error": "Chat konnte nicht geöffnet werden. Bitte versuche es erneut."
         },
         "stats": {
@@ -2220,7 +2213,6 @@
       },
       "list": {
         "loadMore": "Mehr laden",
-        "loading": "Projekte werden geladen...",
         "filter": {
           "placeholder": "Projekte filtern",
           "clear": "Filter zurücksetzen",
@@ -2325,7 +2317,6 @@
           "next": "Weiter",
           "back": "Zurück",
           "create": "Projekt erstellen",
-          "creating": "Wird erstellt…",
           "openProject": "Projekt öffnen"
         }
       },
@@ -2443,7 +2434,6 @@
           "media": {
             "addFromDrive": "Aus Drive hinzufügen",
             "upload": "Hochladen",
-            "uploading": "Wird hochgeladen…",
             "remove": "{name} entfernen",
             "unsupported": "Verwende ein Dateiformat, das {provider} akzeptiert.",
             "alreadyAttached": "Diese Datei ist bereits angehängt.",
@@ -2992,7 +2982,6 @@
       "pricePerMonth": "pro Monat",
       "includedCredits": "{credits, plural, =0 {Keine Credits} =1 {# Credit enthalten} other {# Credits enthalten}}",
       "mostPopularBadge": "Am beliebtesten",
-      "upgrading": "Weiterleitung...",
       "canceling": "Kündigung wird geplant...",
       "currentPlanCta": "Aktueller Plan",
       "upgradePlanCta": "Plan auswählen",
@@ -3607,13 +3596,10 @@
             "title": "Plattformsteuerung",
             "description": "Fähigkeiten, Priorität, Whitelist und Archivstatus verwalten.",
             "save": "Steuerung speichern",
-            "saving": "Steuerung wird gespeichert…",
             "archive": "Archivieren",
-            "archiving": "Wird archiviert…",
             "archiveConfirmTitle": "Coworker archivieren?",
             "archiveConfirmDescription": "Dadurch wird der Coworker archiviert und seine API-Schlüssel widerrufen. Sie können später wiederherstellen, aber API-Schlüssel bleiben widerrufen.",
             "unarchive": "Wiederherstellen",
-            "unarchiving": "Wird wiederhergestellt…",
             "capabilities": {
               "label": "Fähigkeiten",
               "chat": "Chat",
@@ -5345,7 +5331,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi nutzt diese Website, um deine DESIGN.md zu generieren.",
         "submit": "Brand-Profil speichern",
-        "saving": "Wird gespeichert...",
         "saveSuccess": "Brand-Profil gespeichert",
         "saveError": "Brand-Profil konnte nicht gespeichert werden",
         "Schema": {
@@ -5459,7 +5444,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {Keine Credits pro Seat} =1 {# Credit pro Seat} other {# Credits pro Seat}}",
           "noActivePlan": "Kein aktiver Plan",
           "seatsUpdatedSuccess": "Seats erfolgreich aktualisiert.",
-          "updating": "Weiterleitung...",
           "currentPlanCta": "Aktueller Plan",
           "updateSeatsCta": "Seats aktualisieren",
           "choosePlanCta": "Plan auswählen",
@@ -5791,7 +5775,6 @@
       "editTab": "Bearbeiten",
       "previewTab": "Vorschau",
       "editSave": "Speichern",
-      "editSaving": "Wird gespeichert...",
       "editSaveSuccess": "DESIGN.md gespeichert",
       "editUnavailableTitle": "DESIGN.md ist nicht verfügbar",
       "editLoadErrorTitle": "DESIGN.md konnte nicht geladen werden",
@@ -5960,7 +5943,6 @@
           "uploadError": "Das ausgewählte Bild konnte nicht verarbeitet werden."
         },
         "saveChanges": "Anzeige speichern",
-        "saving": "Wird gespeichert…",
         "cancel": "Abbrechen",
         "validation": {
           "nameMinLength": "Der Name muss mindestens {min} Zeichen lang sein.",
@@ -6227,12 +6209,10 @@
         "muted": "Stummgeschaltet"
       },
       "loadOlder": "Ältere Nachrichten laden",
-      "loadingOlder": "Ältere Nachrichten werden geladen…",
       "jumpToLatest": "Zu den neuesten Nachrichten",
       "Boundary": {
         "missingHere": "Hier fehlen Nachrichten",
         "loadMissing": "Fehlende Nachrichten laden",
-        "loadingMissing": "Fehlende Nachrichten werden geladen…",
         "loadFailed": "Nachrichten konnten nicht geladen werden.",
         "retry": "Erneut versuchen"
       },
@@ -6358,8 +6338,7 @@
         "addPeopleTitle": "Personen zu {name} hinzufügen",
         "addAll": "Alle {count} Mitglieder von {organization} hinzufügen",
         "addSpecific": "Bestimmte Personen hinzufügen",
-        "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen.",
-        "creating": "Wird erstellt…"
+        "addSpecificHelp": "Wähle Personen und KI-Coworker aus, die diesem Kanal beitreten sollen."
       },
       "RoomRoster": {
         "open": "Mitglieder",
@@ -6544,7 +6523,6 @@
         "invitedToJoin": "Du wurdest eingeladen, #{room} ({organization}) beizutreten.",
         "guestNote": "Als Gast beizutreten macht dich nicht zum Mitglied der Host-Organisation.",
         "join": "#{room} beitreten",
-        "joining": "Beitritt…",
         "joined": "Du bist #{room} beigetreten.",
         "alreadyGuest": "Du bist bereits in #{room}.",
         "signedOutHint": "Melde dich an oder erstelle ein Konto, um diesem Kanal als Gast beizutreten.",

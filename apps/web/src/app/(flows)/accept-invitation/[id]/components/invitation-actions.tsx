@@ -177,9 +177,7 @@ export default function InvitationActions({
             disabled={loading || retryOrganizationId !== null}
             loading={loading && action === "accept" && !retryOrganizationId}
           >
-            {loading && action === "accept" && !retryOrganizationId
-              ? t("joining")
-              : t("accept", { organization: organizationName })}
+            {t("accept", { organization: organizationName })}
           </Button>
           {retryOrganizationId ? (
             <Button

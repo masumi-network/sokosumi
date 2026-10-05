@@ -270,8 +270,8 @@ export default function RequestRefundButton({
         <Icon
           className={
             statusConfig.isAnimated
-              ? "h-4 w-4 animate-spin motion-reduce:animate-pulse"
-              : "h-4 w-4"
+              ? "size-4 animate-spin motion-reduce:animate-pulse"
+              : "size-4"
           }
         />
         {t(statusConfig.labelKey)}
@@ -351,7 +351,7 @@ export default function RequestRefundButton({
                     loading={isLoading}
                     className={className}
                   >
-                    <HandCoins className="h-4 w-4" />
+                    <HandCoins className="size-4" />
                     {t("request")}
                   </ButtonBase>
                 </AlertDialogTrigger>

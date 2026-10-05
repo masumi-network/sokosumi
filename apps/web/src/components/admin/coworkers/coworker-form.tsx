@@ -372,7 +372,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                 disabled={isBusy}
                 loading={isSavingControls}
               >
-                {isSavingControls ? t("controls.saving") : t("controls.save")}
+                {t("controls.save")}
               </Button>
 
               {archived ? (
@@ -383,9 +383,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                   loading={isUnarchiving}
                   onClick={handleUnarchive}
                 >
-                  {isUnarchiving
-                    ? t("controls.unarchiving")
-                    : t("controls.unarchive")}
+                  {t("controls.unarchive")}
                 </Button>
               ) : (
                 <AlertDialog>
@@ -416,9 +414,7 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                         loading={isArchiving}
                         className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                       >
-                        {isArchiving
-                          ? t("controls.archiving")
-                          : t("controls.archive")}
+                        {t("controls.archive")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

@@ -66,7 +66,7 @@ export function ChatJoinActions({
         onClick={handleJoin}
         loading={isJoining}
       >
-        {isJoining ? t("joining") : t("join", { room: roomName })}
+        {t("join", { room: roomName })}
       </Button>
     );
   }

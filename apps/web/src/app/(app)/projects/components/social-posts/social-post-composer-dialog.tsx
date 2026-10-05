@@ -821,9 +821,7 @@ export function SocialPostComposerDialog({
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <Upload className="size-4" aria-hidden />
-                    {uploadPending
-                      ? t("composer.media.uploading")
-                      : t("composer.media.upload")}
+                    {t("composer.media.upload")}
                   </Button>
                   <input
                     ref={fileInputRef}

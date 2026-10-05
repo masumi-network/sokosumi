@@ -21,7 +21,6 @@ export interface HistoryListLabels {
     description: string;
   };
   loadMore: string;
-  loading: string;
   loadMoreError: string;
   row: HistoryListItemLabels;
 }
@@ -109,7 +108,7 @@ export function HistoryList({
             onClick={handleLoadMore}
             loading={isPending}
           >
-            {isPending ? labels.loading : labels.loadMore}
+            {labels.loadMore}
           </Button>
         </div>
       ) : null}

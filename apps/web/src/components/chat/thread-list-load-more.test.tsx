@@ -15,7 +15,6 @@ vi.mock("@/hooks/use-load-when-visible", () => ({
 
 const labels = {
   load: "Load older threads",
-  loading: "Loading threads…",
   error: "Could not load threads.",
   retry: "Try again",
 };
@@ -64,10 +63,10 @@ describe("ThreadListLoadMore", () => {
     expect(screen.getByRole("button")).toHaveTextContent(labels.retry);
   });
 
-  it("says it is loading only while it is", () => {
+  it("keeps its idle label and marks itself busy while loading", () => {
     renderBoundary("loading");
 
     expect(screen.getByRole("button")).toHaveAttribute("aria-busy", "true");
-    expect(screen.getByRole("button")).toHaveTextContent(labels.loading);
+    expect(screen.getByRole("button")).toHaveTextContent(labels.load);
   });
 });

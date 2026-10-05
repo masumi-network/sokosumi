@@ -365,7 +365,7 @@ export function CreateDirectDialog() {
             loading={isPending}
             onClick={handleCreate}
           >
-            {isPending ? t("CreateWizard.creating") : t("Dialog.create")}
+            {t("Dialog.create")}
           </Button>
         </DialogFooter>
       </DialogContent>

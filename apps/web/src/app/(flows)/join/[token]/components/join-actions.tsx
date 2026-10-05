@@ -123,9 +123,7 @@ export function JoinActions({
           disabled={busy || retryOrganizationId !== null}
           loading={isJoining && !retryOrganizationId}
         >
-          {isJoining && !retryOrganizationId
-            ? t("joining")
-            : t("join", { organization: organizationName })}
+          {t("join", { organization: organizationName })}
         </Button>
         {retryOrganizationId ? (
           <Button

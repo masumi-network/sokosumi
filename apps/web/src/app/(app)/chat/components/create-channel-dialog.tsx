@@ -570,7 +570,7 @@ export function CreateChannelDialog() {
               loading={isPending}
               onClick={handleCreate}
             >
-              {isPending ? t("creating") : t("create")}
+              {t("create")}
             </Button>
           </DialogFooter>
         ) : null}

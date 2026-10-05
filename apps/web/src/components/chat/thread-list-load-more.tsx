@@ -15,7 +15,6 @@ interface ThreadListLoadMoreProps {
   labels: {
     /** Idle: what pressing it does. */
     load: string;
-    loading: string;
     error: string;
     retry: string;
   };
@@ -66,8 +65,6 @@ export function ThreadListLoadMore({
             </span>
             {labels.retry}
           </>
-        ) : isLoading ? (
-          labels.loading
         ) : (
           // Idle is a button waiting to be pressed, not a load in flight: it
           // is what a reader sees for good where no observer runs.

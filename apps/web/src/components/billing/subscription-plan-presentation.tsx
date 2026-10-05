@@ -15,7 +15,6 @@ interface SubscriptionPlanActionButtonProps {
   disabled: boolean;
   isCurrent: boolean;
   isPlanPending: boolean;
-  loadingLabel: string;
   onPress: () => void;
 }
 
@@ -74,7 +73,6 @@ export function SubscriptionPlanActionButton({
   disabled,
   isCurrent,
   isPlanPending,
-  loadingLabel,
   onPress,
 }: SubscriptionPlanActionButtonProps) {
   if (!actionLabel) {
@@ -89,7 +87,7 @@ export function SubscriptionPlanActionButton({
       loading={isPlanPending}
       onClick={onPress}
     >
-      {isPlanPending ? loadingLabel : actionLabel}
+      {actionLabel}
     </Button>
   );
 }

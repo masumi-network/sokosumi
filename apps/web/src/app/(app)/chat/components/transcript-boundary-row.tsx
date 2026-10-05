@@ -39,13 +39,7 @@ export function TranscriptBoundaryRow({
   });
 
   const isLoading = status === "loading";
-  const actionLabel = isGap
-    ? isLoading
-      ? t("Boundary.loadingMissing")
-      : t("Boundary.loadMissing")
-    : isLoading
-      ? t("loadingOlder")
-      : t("loadOlder");
+  const actionLabel = isGap ? t("Boundary.loadMissing") : t("loadOlder");
 
   return (
     <div

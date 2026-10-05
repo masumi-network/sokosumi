@@ -103,7 +103,7 @@ describe("TranscriptBoundaryRow", () => {
       />,
     );
 
-    const button = screen.getByRole("button", { name: "loadingOlder" });
+    const button = screen.getByRole("button", { name: "loadOlder" });
     expect(button).toHaveAttribute("aria-busy", "true");
     expect(button).toHaveAttribute("aria-disabled", "true");
     fireEvent.click(button);

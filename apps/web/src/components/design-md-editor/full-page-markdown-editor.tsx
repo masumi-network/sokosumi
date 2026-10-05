@@ -27,7 +27,6 @@ export interface FullPageMarkdownEditorLabels {
   editTab: string;
   previewTab: string;
   save: string;
-  saving: string;
   title: string;
 }
 
@@ -159,7 +158,7 @@ export function FullPageMarkdownEditor({
               onClick={onSave}
               loading={isSaving}
             >
-              {isSaving ? labels.saving : labels.save}
+              {labels.save}
             </Button>
           </div>
         </footer>

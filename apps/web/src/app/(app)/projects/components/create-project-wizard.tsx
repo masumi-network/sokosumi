@@ -372,9 +372,7 @@ export function CreateProjectWizard({
                   loading={isSubmitting}
                   onClick={() => void handleCreate()}
                 >
-                  {isSubmitting
-                    ? t("Wizard.nav.creating")
-                    : t("Wizard.nav.create")}
+                  {t("Wizard.nav.create")}
                 </Button>
               )}
             </>

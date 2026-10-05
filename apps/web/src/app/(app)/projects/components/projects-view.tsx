@@ -32,7 +32,6 @@ export interface ProjectsViewLabels {
     description: string;
   };
   loadMore: string;
-  loading: string;
   loadMoreError: string;
   counts: {
     tasks: string;
@@ -173,7 +172,7 @@ export function ProjectsView({
               onClick={handleLoadMore}
               loading={isPending}
             >
-              {isPending ? labels.loading : labels.loadMore}
+              {labels.loadMore}
             </Button>
           </div>
         ) : null}

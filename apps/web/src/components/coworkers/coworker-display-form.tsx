@@ -336,7 +336,7 @@ export function CoworkerDisplayForm({
 
           <div className="flex flex-wrap gap-3">
             <Button type="submit" disabled={isDisabled} loading={isSavingText}>
-              {isSavingText ? t("saving") : t("saveChanges")}
+              {t("saveChanges")}
             </Button>
             <Button
               type="button"

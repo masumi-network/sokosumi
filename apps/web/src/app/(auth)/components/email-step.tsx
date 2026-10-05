@@ -348,8 +348,8 @@ export function EmailStep({
           {captcha}
           {/* Both controls share one cell. The submit button stays underneath
               and the link fades in over it, so the fill never dips. The
-              submit button is positioned (for its spinner), so the link must
-              be too, or it would paint below. */}
+              submit button is positioned while it loads (for its bar), so the
+              link must be too, or it would paint below. */}
           <div className="grid">
             <SubmitButton
               // A hand-over has no link to spin; Continue does until it leaves.

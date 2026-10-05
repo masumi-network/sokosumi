@@ -44,7 +44,7 @@ export function StartChatButton({
       loading={isBusy}
       onClick={() => openCoworkerRoom(coworkerId)}
     >
-      {isBusy ? t("cta.opening") : t("cta.button", { name: coworkerName })}
+      {t("cta.button", { name: coworkerName })}
     </Button>
   );
 }

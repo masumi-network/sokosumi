@@ -308,7 +308,7 @@ export function BrandProfileSection({
                 loading={form.formState.isSubmitting}
                 className="w-full"
               >
-                {form.formState.isSubmitting ? t("saving") : t("submit")}
+                {t("submit")}
               </Button>
             </CardFooter>
           </form>

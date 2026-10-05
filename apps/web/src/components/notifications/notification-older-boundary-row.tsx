@@ -60,13 +60,9 @@ export function NotificationOlderBoundaryRow({
             </span>
             {t("retry")}
           </>
-        ) : isLoading ? (
-          t("loading")
         ) : (
-          // Idle is a button waiting to be pressed, not a load in flight.
-          // A spinner and "Loading..." here say the older rows are on their
-          // way before anything has asked for them, and that is the state a
-          // reader sees for good when no observer runs.
+          // Idle and loading share one label so the row keeps its width; the
+          // button's loading bar and aria-busy mark the load in flight.
           t("showOlder")
         )}
       </Button>
