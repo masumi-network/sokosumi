@@ -69,7 +69,7 @@ interface SignUpFormProps {
  * and that code, with one Register; a whole code waits for it. A password is
  * a deliberate addition, sent with the code: the code proves the address, so
  * no account starts with an unproven one. When the first code did not go out,
- * the field sends another.
+ * the field says so and sends another.
  */
 export default function SignUpForm({
   email,
@@ -219,6 +219,8 @@ export default function SignUpForm({
             }}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
+            // Step 1's send failed, or Log in handed over without one.
+            unsent={emailCode.sentTo !== email}
             sentAt={emailCode.sentAt}
             onResend={() => {
               void emailCode.sendCode(email);
