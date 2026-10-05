@@ -107,7 +107,14 @@ describe("GitHub OIDC remote cache wiring", () => {
       jobBlock(ci, "web-shard"),
       /permissions: &turbo-permissions\n\s+contents: read\n\s+id-token:\s*write/,
     );
-    for (const jobId of ["core", "packages", "cli", "build", "typecheck"]) {
+    for (const jobId of [
+      "core-shard",
+      "core-db",
+      "packages",
+      "cli",
+      "build",
+      "typecheck",
+    ]) {
       assert.match(jobBlock(ci, jobId), /permissions: \*turbo-permissions/);
     }
   });
@@ -125,9 +132,11 @@ describe("GitHub OIDC remote cache wiring", () => {
       web,
       /pnpm --filter=web --filter=cmo run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
     );
+    const core = jobBlock(test, "core-shard");
+    assert.match(core, /turbo run build --filter='@sokosumi\/core\^\.\.\.'\n/);
     assert.match(
-      jobBlock(test, "core"),
-      /turbo run test:ci --filter=@sokosumi\/core\n/,
+      core,
+      /pnpm --filter=@sokosumi\/core run test:ci --shard=\$\{\{ matrix\.shard \}\}\/3\n/,
     );
     assert.match(
       jobBlock(test, "packages"),
@@ -262,6 +271,8 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["web", "web"],
       ["web-shard", "web"],
       ["core", "core"],
+      ["core-shard", "core"],
+      ["core-db", "core"],
       ["packages", "packages"],
       ["cli", "cli"],
       ["local-env", "local-env"],
@@ -313,30 +324,49 @@ describe("GitHub OIDC remote cache wiring", () => {
     );
   });
 
-  it("web shards cover every slice of the suite", async () => {
+  it("Test Core fails unless every shard and the PostgreSQL suites passed", async () => {
     const test = await readRepoFile(".github", "workflows", "ci.yml");
-    const block = jobBlock(test, "web-shard");
-    // The count lives in the matrix, the name and the command. If they
-    // disagree, `--shard=n/N` for a missing n drops files and every shard
-    // that did run still passes.
-    const shards = block.match(/\n        shard: \[([\d, ]+)\]\n/);
-    assert.ok(shards, "web-shard must list its shards");
-    const list = shards[1].split(",").map(Number);
-    const count = list.length;
-    assert.deepEqual(
-      list,
-      Array.from({ length: count }, (_, i) => i + 1),
-    );
-    assert.match(
-      block,
-      new RegExp(
-        `\\n    name: Test Web \\(\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\)\\n`,
-      ),
-    );
-    assert.match(
-      block,
-      new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\n`),
-    );
+    const block = jobBlock(test, "core");
+    assert.match(block, /\n    needs: \[changes, core-shard, core-db\]\n/);
+    for (const job of ["core-shard", "core-db"]) {
+      assert.match(
+        block,
+        new RegExp(
+          `test "\\$\\{\\{ needs\\.${job}\\.result \\}\\}" = success\\n`,
+        ),
+      );
+    }
+  });
+
+  it("shards cover every slice of their suite", async () => {
+    const test = await readRepoFile(".github", "workflows", "ci.yml");
+    for (const [jobId, name] of [
+      ["web-shard", "Test Web"],
+      ["core-shard", "Test Core"],
+    ]) {
+      const block = jobBlock(test, jobId);
+      // The count lives in the matrix, the name and the command. If they
+      // disagree, `--shard=n/N` for a missing n drops files and every shard
+      // that did run still passes.
+      const shards = block.match(/\n        shard: \[([\d, ]+)\]\n/);
+      assert.ok(shards, `${jobId} must list its shards`);
+      const list = shards[1].split(",").map(Number);
+      const count = list.length;
+      assert.deepEqual(
+        list,
+        Array.from({ length: count }, (_, i) => i + 1),
+      );
+      assert.match(
+        block,
+        new RegExp(
+          `\\n    name: ${name} \\(\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\)\\n`,
+        ),
+      );
+      assert.match(
+        block,
+        new RegExp(`--shard=\\$\\{\\{ matrix\\.shard \\}\\}/${count}\\n`),
+      );
+    }
   });
 
   it("per-leg filters only drop what the leg cannot reach", async () => {
