@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-alert
-version: 0.45.0
+version: 0.46.0
 description: Manage Sentry alert rules
 requires:
   bins: ["sentry"]
@@ -147,7 +147,7 @@ sentry alert metrics view my-org/67890
 sentry alert metrics view my-org/"P95 latency alert"
 ```
 
-### `sentry alert metrics create <org>`
+### `sentry alert metrics create <target>`
 
 Create a metric alert rule
 
