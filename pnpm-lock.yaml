@@ -365,8 +365,8 @@ importers:
         specifier: 18.0.5
         version: 18.0.5
       evlog:
-        specifier: 2.29.0
-        version: 2.29.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+        specifier: 2.30.0
+        version: 2.30.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -414,8 +414,8 @@ importers:
         version: 4.6.5
     devDependencies:
       '@evlog/cli':
-        specifier: 0.6.3
-        version: 0.6.3(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+        specifier: 0.8.0
+        version: 0.8.0(evlog@2.30.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))
       '@types/node':
         specifier: 24.19.1
         version: 24.19.1
@@ -1701,13 +1701,15 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@evlog/cli@0.6.3':
-    resolution: {integrity: sha512-7ZVsAMK9spRGbPiaDCSxF4dr7Y5wJJ53CMNreNSG6ks90MbMx4Xl1lWQEZ1Hu6ZNK9cLm5jkakiFO8/05OZCIg==}
-    engines: {node: '>=20.0.0'}
+  '@evlog/cli@0.8.0':
+    resolution: {integrity: sha512-wFXKnm+p868bkAvwWQ/ChT8WUXE/N8Q9uog8aVNvZHFyLDWDS+xymSP0YvbJ7xzZfXXWXnIwMEj6jpA9xOqqqQ==}
+    engines: {node: '>=22.0.0'}
     hasBin: true
+    peerDependencies:
+      evlog: '>=2.29.0'
 
-  '@evlog/telemetry@0.3.1':
-    resolution: {integrity: sha512-MfWKqSJfhHBHbTzzGMJettPv9SnPQiRvXvWcqYrNbUA2/J4Zj5hqyOFNc+D1zGM9wOn3HEprTt5LKp5fy2BZiw==}
+  '@evlog/telemetry@0.3.3':
+    resolution: {integrity: sha512-WHpLKEaXw/diTcrnFnPcFY9cT14ycYKOYCV3xzgA5K9cT9hTsIyhG+ENStzPE2A2Cx7R3djnNfrAhZfvUVyd2w==}
     engines: {node: '>=18.0.0'}
 
   '@floating-ui/core@1.8.0':
@@ -6844,26 +6846,27 @@ packages:
     resolution: {integrity: sha512-EKN1vKAMcZ8MlYMpaNuxN6R9yakzH6uajHcHVTqWJzvu5pWw9DyhbP35HH8MVBQ+dZjAfDxk+A8NiR9KWaXiyQ==}
     engines: {node: '>=18.0.0'}
 
-  evlog@2.29.0:
-    resolution: {integrity: sha512-1qk5W3lttyAUz326ptqRbasPyc19u/ECa8UULjtRihUUyKV8W2ihsr4kB2qkxfqaMY4dFNhH9iShrYy93jxt5A==}
+  evlog@2.30.0:
+    resolution: {integrity: sha512-5rfADenoi5YFDjEpljSxpPgqfJl0XAP5pPOCeJqCXA8BCN2gzeecqCXZB5uDJyB/4nvD52z4lCKfOCCXHh947A==}
     engines: {node: '>=18.0.0'}
+    hasBin: true
     peerDependencies:
       '@nestjs/common': '>=11.2.3'
       '@nuxt/kit': ^4.4.2
       '@orpc/server': '>=1.15.0'
-      '@tanstack/start-client-core': ^1.170.28
+      '@tanstack/start-client-core': ^1.170.29
       ai: '>=6.0.168 <8.0.0'
       elysia: '>=1.4.30'
       eve: '>=0.30.0'
       express: '>=5.2.1'
-      fastify: '>=5.12.3'
+      fastify: '>=5.12.4'
       h3: ^1.15.11
       hono: '>=4.13.7'
       next: '>=16.3.4'
       nitro: ^3.0.260311-beta
       nitropack: ^2.13.4
       ofetch: ^1.5.1
-      react: '>=19.2.8'
+      react: '>=19.3.0'
       react-router: '>=7.18.3'
       vite: ^7.0.0 || ^8.0.0
     peerDependenciesMeta:
@@ -10909,35 +10912,15 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@evlog/cli@0.6.3(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))':
+  '@evlog/cli@0.8.0(evlog@2.30.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))':
     dependencies:
       '@clack/prompts': 1.8.0
-      '@evlog/telemetry': 0.3.1
+      '@evlog/telemetry': 0.3.3
       citty: 0.2.2
-      evlog: 2.29.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+      evlog: 2.30.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       oxc-parser: 0.149.0
-      tinyglobby: 0.2.17
-    transitivePeerDependencies:
-      - '@nestjs/common'
-      - '@nuxt/kit'
-      - '@orpc/server'
-      - '@tanstack/start-client-core'
-      - ai
-      - elysia
-      - eve
-      - express
-      - fastify
-      - h3
-      - hono
-      - next
-      - nitro
-      - nitropack
-      - ofetch
-      - react
-      - react-router
-      - vite
 
-  '@evlog/telemetry@0.3.1':
+  '@evlog/telemetry@0.3.3':
     dependencies:
       citty: 0.2.2
       std-env: 4.2.0
@@ -15968,7 +15951,7 @@ snapshots:
 
   eventsource-parser@3.1.1: {}
 
-  evlog@2.29.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
+  evlog@2.30.0(ai@7.0.127(zod@4.6.5))(eve@0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5)))(hono@4.13.13)(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.2(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
     optionalDependencies:
       ai: 7.0.127(zod@4.6.5)
       eve: 0.71.0(@opentelemetry/api@1.9.1)(ai@7.0.127(zod@4.6.5))
