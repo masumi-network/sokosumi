@@ -12,26 +12,19 @@ function asPerson(accessToken: string) {
 }
 
 /**
- * Request options that call Core `/v1` as the signed-in person from a server
- * action (ADR 0045). Actions skip the proxy, so Better Auth refreshes the
- * Sokosumi access token here when it is about to expire and writes the
- * rotated cookies.
- */
-export async function asSignedInPerson(requestHeaders: Headers) {
-  const { accessToken } = await getAuth().api.getAccessToken({
-    body: { useAccountCookie: true },
-    headers: requestHeaders,
-  });
-  return asPerson(accessToken);
-}
-
-/**
- * The same for CMO's onboarding actions, or home when the session is gone
- * (signed out in another tab): the home page then shows where they stand.
+ * Request options that call Core `/v1` as the signed-in person from one of
+ * CMO's onboarding actions (ADR 0045). Actions skip the proxy, so Better Auth
+ * refreshes the Sokosumi access token here when it is about to expire and
+ * writes the rotated cookies. When the session is gone (signed out in another
+ * tab), the person goes home, where the page shows where they stand.
  */
 export async function asSignedInPersonOrHome() {
   try {
-    return await asSignedInPerson(await headers());
+    const { accessToken } = await getAuth().api.getAccessToken({
+      body: { useAccountCookie: true },
+      headers: await headers(),
+    });
+    return asPerson(accessToken);
   } catch (error) {
     unstable_rethrow(error);
     redirect("/");
