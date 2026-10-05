@@ -375,6 +375,20 @@ describe("updatePreferredOrganization", () => {
     });
   });
 
+  it("says the personal workspace is gone when Core no longer finds it", async () => {
+    setMyPreferredWorkspaceMock.mockRejectedValue(
+      new MockCoreApiRequestError("Workspace not found", { status: 404 }),
+    );
+    const { updatePreferredOrganization } = await import("./action");
+
+    const result = await updatePreferredOrganization({
+      organizationId: null,
+      session,
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: "NOT_FOUND" } });
+  });
+
   it("says when there is no personal workspace to prefer", async () => {
     getMyWorkspacesMock.mockResolvedValue({
       data: {
@@ -413,7 +427,10 @@ describe("updatePreferredOrganization", () => {
 describe("createOrganizationWorkspaceAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    readRouteSessionMock.mockResolvedValue({ status: "signedIn", session });
+    readRouteSessionMock.mockResolvedValue({
+      status: "authenticated",
+      session,
+    });
   });
 
   it("returns UNAUTHENTICATED for a signed-out person without asking Core", async () => {
@@ -472,6 +489,24 @@ describe("createOrganizationWorkspaceAction", () => {
       error: { code, message: "Core refused" },
     });
   });
+
+  it.each(["A", "A".repeat(51)])(
+    "rejects a name Core would refuse (%s) without asking Core",
+    async (name) => {
+      const { createOrganizationWorkspaceAction } = await import("./action");
+
+      const result = await createOrganizationWorkspaceAction({
+        name,
+        websiteUrl: "https://acme.com",
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: { code: "BAD_INPUT" },
+      });
+      expect(createMyWorkspaceMock).not.toHaveBeenCalled();
+    },
+  );
 
   it("maps other failures to INTERNAL_SERVER_ERROR", async () => {
     const consoleError = vi

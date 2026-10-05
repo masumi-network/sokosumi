@@ -167,6 +167,10 @@ export const updatePreferredOrganization = withSession<
     code: CommonErrorCode.UNAUTHORIZED,
     message: "You are not a member of this organization",
   };
+  const noPersonal = {
+    code: CommonErrorCode.NOT_FOUND,
+    message: "You have no personal workspace",
+  };
 
   // Core prefers a workspace by id (ADR 0051); null means the personal one.
   const { data: list } = await coreClient.getMyWorkspaces();
@@ -177,14 +181,7 @@ export const updatePreferredOrganization = withSession<
   );
   if (!workspace) {
     return toActionResult(
-      err(
-        parsedResult.data.organizationId === null
-          ? {
-              code: CommonErrorCode.NOT_FOUND,
-              message: "You have no personal workspace",
-            }
-          : notMember,
-      ),
+      err(parsedResult.data.organizationId === null ? noPersonal : notMember),
     );
   }
 
@@ -203,21 +200,25 @@ export const updatePreferredOrganization = withSession<
       }),
     );
   } catch (error) {
-    // The membership or organization ended between the list and the write.
+    // The workspace, membership or organization ended between the list and
+    // the write.
     if (
       error instanceof CoreApiRequestError &&
       (error.kind === CORE_API_ERROR_KINDS.ORGANIZATION_MEMBERSHIP_REQUIRED ||
         error.status === 404)
     ) {
-      return toActionResult(err(notMember));
+      return toActionResult(
+        err(parsedResult.data.organizationId === null ? noPersonal : notMember),
+      );
     }
 
     throw error;
   }
 });
 
+// Core's rules for this body (user-workspace.schema.ts): name 2 to 50.
 const createOrganizationWorkspaceSchema = z.object({
-  name: z.string().trim().min(1),
+  name: z.string().trim().min(2).max(50),
   websiteUrl: z.string().trim().min(1),
 });
 
