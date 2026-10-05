@@ -23,7 +23,7 @@ private final class LoadCountingStore: TokenStore, @unchecked Sendable {
 struct AuthCompositionTests {
   @Test func authInitSkipsTokenStoreRestoreUnderTestRunner() {
     let store = LoadCountingStore()
-    store.tokens = OAuthTokens(accessToken: "stored", refreshToken: nil, expiresAt: Date(), scope: nil)
+    store.tokens = OAuthTokens(accessToken: "stored", refreshToken: nil, expiresAt: Date())
     _ = AuthState(store: store)
     #expect(store.loadCalls == 0)
   }

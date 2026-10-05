@@ -2,7 +2,7 @@ import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import SignUpFlow from "./sign-up-flow";
+import AuthFlow from "./auth-flow";
 
 const signUpMock = vi.fn();
 const finishAuthMock = vi.fn();
@@ -46,7 +46,7 @@ vi.mock("@/auth/components/social-buttons", () => ({ default: () => null }));
 
 async function submitDetails() {
   const user = userEvent.setup();
-  render(<SignUpFlow lastUsedMethod={null} />);
+  render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
   await user.type(screen.getByLabelText("label"), "ada@example.com");
   await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
   await user.type(await screen.findByLabelText("firstNameLabel"), "Ada");
@@ -76,7 +76,7 @@ async function submitDetails() {
   return user;
 }
 
-describe("SignUpFlow submission", () => {
+describe("AuthFlow signUp submission", () => {
   beforeEach(() => vi.clearAllMocks());
 
   it("keeps the confirmed email visible during signup, then unlocks change on rejection", async () => {

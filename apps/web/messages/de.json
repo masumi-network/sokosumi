@@ -1183,7 +1183,6 @@
       "Form": {
         "label": "E-Mail",
         "continueWithEmail": "Weiter mit E-Mail",
-        "change": "Ändern",
         "changeEmail": "E-Mail ändern",
         "usePasswordInstead": "Stattdessen ein Passwort verwenden",
         "emailCodeInstead": "Stattdessen Code per E-Mail senden",
