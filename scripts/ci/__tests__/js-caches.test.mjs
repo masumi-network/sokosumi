@@ -21,7 +21,8 @@ describe("JS CI caches", () => {
         savers.push(file);
       }
     }
-    // apple.yml saves ~/.mint from main pushes with actions/cache.
+    // apple.yml saves Mint, Swift packages and Xcode's compilation cache
+    // from main pushes.
     assert.deepEqual(savers.sort(), ["apple.yml", "next-build-cache.yml"]);
 
     const warm = await readRepoFile(
