@@ -1,7 +1,7 @@
 "use server";
 
 import { MemberRole } from "@sokosumi/core-client";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { CORE_API_ERROR_KINDS, createOrganizationSlug } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import * as z from "zod";
 import { invalidatePrivateSidebarChrome } from "@/app/components/private-sidebar-cache";
@@ -41,9 +41,7 @@ export async function generateOrganizationSlug(
       );
     }
 
-    const slug = await organizationService.generateOrganizationSlugFromName(
-      parsedResult.data.name,
-    );
+    const slug = createOrganizationSlug(parsedResult.data.name);
 
     return toActionResult(ok(slug));
   } catch (error) {

@@ -1,13 +1,16 @@
-import { randomUUID } from "node:crypto";
-
 import { createRoute, z } from "@hono/zod-openapi";
-import { buildOrganizationMetadataWithUrl } from "@sokosumi/utils";
-import slugify from "slugify";
+import {
+  buildOrganizationMetadataWithUrl,
+  createOrganizationSlug,
+} from "@sokosumi/utils";
 
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { createPersonalWorkspace } from "@/helpers/personal-workspace";
 import { created } from "@/helpers/response";
-import { getUserWorkspace } from "@/helpers/user-workspaces";
+import {
+  getUserWorkspace,
+  type UserWorkspaceMatch,
+} from "@/helpers/user-workspaces";
 import { auth } from "@/lib/auth";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
@@ -65,49 +68,35 @@ const route = createRoute({
   },
 });
 
-/** Web's slug shape: the slugified name plus a short random suffix. */
-function organizationSlug(name: string): string {
-  const suffix = randomUUID().replaceAll("-", "").slice(0, 6);
-  return [slugify(name, { lower: true, strict: true }), suffix]
-    .filter(Boolean)
-    .join("-");
-}
-
 export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
   app.openapi(route, async (c) => {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
     const body = c.req.valid("json");
 
+    let match: UserWorkspaceMatch;
     if (body.kind === "personal") {
       const workspace = await createPersonalWorkspace(resolvedUserId);
-      return created(
-        c,
-        userWorkspaceSchema.parse(
-          await getUserWorkspace(resolvedUserId, { id: workspace.id }),
-        ),
-      );
+      match = { id: workspace.id };
+    } else {
+      // No headers: Better Auth treats a userId body as a system action for
+      // that user and still runs the organization hooks.
+      const organization = await auth.api.createOrganization({
+        body: {
+          name: body.name,
+          slug: createOrganizationSlug(body.name),
+          metadata:
+            buildOrganizationMetadataWithUrl(null, body.websiteUrl) ?? {},
+          userId: resolvedUserId,
+        },
+      });
+      await setPreferredOrganizationId(resolvedUserId, organization.id);
+      match = { organizationId: organization.id };
     }
-
-    // No headers: Better Auth treats a userId body as a system action for
-    // that user and still runs the organization hooks.
-    const organization = await auth.api.createOrganization({
-      body: {
-        name: body.name,
-        slug: organizationSlug(body.name),
-        metadata: buildOrganizationMetadataWithUrl(null, body.websiteUrl) ?? {},
-        userId: resolvedUserId,
-      },
-    });
-    await setPreferredOrganizationId(resolvedUserId, organization.id);
 
     return created(
       c,
-      userWorkspaceSchema.parse(
-        await getUserWorkspace(resolvedUserId, {
-          organizationId: organization.id,
-        }),
-      ),
+      userWorkspaceSchema.parse(await getUserWorkspace(resolvedUserId, match)),
     );
   });
 }

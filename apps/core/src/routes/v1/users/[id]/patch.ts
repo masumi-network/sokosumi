@@ -11,8 +11,7 @@ import {
   requireUserRouteContext,
   type UserRouteVariables,
 } from "@/routes/v1/users/user-route-context";
-import { userSchema } from "@/schemas/user.schema";
-import { updateUserNameSchema } from "@/schemas/user-workspace.schema";
+import { updateUserNameSchema, userSchema } from "@/schemas/user.schema";
 
 const params = z.object({
   id: usersRoutePathUserIdSchema,

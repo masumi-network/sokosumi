@@ -1,7 +1,7 @@
 import { workspaceRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
-import { pendingOrganizationInvitationsWhere } from "@/helpers/workspace-access";
+import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 import prisma from "@/lib/db/prisma";
 import type {
   UserWorkspace,
@@ -38,6 +38,7 @@ export async function listUserWorkspaces(
     }),
     prisma.member.findMany({
       where: { userId },
+      orderBy: { createdAt: "asc" },
       select: {
         organization: {
           select: {
@@ -88,19 +89,19 @@ export async function listUserWorkspaces(
   return { workspaces, pendingInvitationCount };
 }
 
-/**
- * One of the person's workspaces, by workspace id or organization id, as
- * {@link listUserWorkspaces} lists it.
- */
+/** Finds a listed workspace by workspace id or by organization id. */
+export type UserWorkspaceMatch = { id: string } | { organizationId: string };
+
+/** One of the person's workspaces, as {@link listUserWorkspaces} lists it. */
 export async function getUserWorkspace(
   userId: string,
-  key: { id: string } | { organizationId: string },
+  match: UserWorkspaceMatch,
 ): Promise<UserWorkspace> {
   const { workspaces } = await listUserWorkspaces(userId);
   const workspace = workspaces.find((candidate) =>
-    "id" in key
-      ? candidate.id === key.id
-      : candidate.organizationId === key.organizationId,
+    "id" in match
+      ? candidate.id === match.id
+      : candidate.organizationId === match.organizationId,
   );
   if (!workspace) {
     throw notFound("Workspace not found");

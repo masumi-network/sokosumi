@@ -261,6 +261,16 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(403);
   });
 
+  it.each([
+    ["GET", "/me/workspaces"],
+    ["POST", "/me/workspaces"],
+    ["PUT", "/me/workspaces/preferred"],
+  ])("rejects coworker with context headers on %s %s", async (method, path) => {
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request(`http://localhost${path}`, { method });
+    expect(response.status).toBe(403);
+  });
+
   it("rejects coworker with context headers on preferences", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/preferences");

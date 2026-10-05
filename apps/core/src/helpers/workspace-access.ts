@@ -1,7 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
-import { InvitationStatus } from "@sokosumi/database";
 
-import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
+import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 
 export const WORKSPACE_GATE_STATUSES = [
   "ready",
@@ -80,20 +79,6 @@ export function deriveWorkspaceGate(
     return "pending-invites";
   }
   return "identity-onboarding";
-}
-
-/**
- * Non-expired PENDING organization invitations for an email (trim +
- * lowercase, case-insensitive match).
- */
-export function pendingOrganizationInvitationsWhere(
-  email: string,
-): Prisma.InvitationWhereInput {
-  return {
-    status: InvitationStatus.PENDING,
-    expiresAt: { gt: new Date() },
-    email: { equals: normalizeInvitationEmail(email), mode: "insensitive" },
-  };
 }
 
 /**

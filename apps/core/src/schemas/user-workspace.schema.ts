@@ -1,10 +1,7 @@
 import { z } from "@hono/zod-openapi";
-import {
-  isFirstAndLastNameWithinLimit,
-  normalizeWebsiteUrl,
-} from "@sokosumi/utils";
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 
-export const USER_WORKSPACE_KINDS = ["personal", "organization"] as const;
+const USER_WORKSPACE_KINDS = ["personal", "organization"] as const;
 
 export const userWorkspaceSchema = z
   .object({
@@ -84,18 +81,6 @@ export const setPreferredUserWorkspaceSchema = z
     }),
   })
   .openapi("SetPreferredUserWorkspace");
-
-export const updateUserNameSchema = z
-  .object({
-    firstName: z.string().trim().min(1).openapi({ example: "Ada" }),
-    lastName: z.string().trim().min(1).openapi({ example: "Lovelace" }),
-  })
-  .refine(
-    ({ firstName, lastName }) =>
-      isFirstAndLastNameWithinLimit(firstName, lastName),
-    { path: ["lastName"], error: "First and last name are too long" },
-  )
-  .openapi("UpdateUserName");
 
 export type UserWorkspace = z.infer<typeof userWorkspaceSchema>;
 export type UserWorkspaces = z.infer<typeof userWorkspacesSchema>;
