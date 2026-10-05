@@ -614,7 +614,7 @@ export function ProjectSocialPosts({
               aria-label={t("title")}
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar w-fit min-w-0 max-w-full overflow-x-auto",
+                "app-scrollbar w-full min-w-0 max-w-full overflow-x-auto md:w-fit",
               )}
             >
               {tabs.map((candidate) => {
