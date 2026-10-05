@@ -251,6 +251,16 @@ describe("coworker user route allowlist", () => {
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
   });
 
+  it("rejects coworker with context headers on a user profile write", async () => {
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ firstName: "Ada", lastName: "Lovelace" }),
+    });
+    expect(response.status).toBe(403);
+  });
+
   it("rejects coworker with context headers on preferences", async () => {
     const app = createUserRouteApp(CONTEXT_COWORKER);
     const response = await app.request("http://localhost/me/preferences");

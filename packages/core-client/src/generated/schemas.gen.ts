@@ -15798,6 +15798,146 @@ export const WorkspaceGateStatusSchema = {
     example: 'ready'
 } as const;
 
+export const UserWorkspacesSchema = {
+    type: 'object',
+    properties: {
+        workspaces: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/UserWorkspace'
+            },
+            description: 'Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding'
+        },
+        pendingInvitationCount: {
+            type: 'integer',
+            minimum: 0,
+            description: 'Non-expired pending organization invitations for the person\'s email',
+            example: 0
+        }
+    },
+    required: [
+        'workspaces',
+        'pendingInvitationCount'
+    ]
+} as const;
+
+export const UserWorkspaceSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Workspace id',
+            example: '11111111-1111-7111-8111-111111111111'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'personal',
+                'organization'
+            ],
+            description: 'Whether the person owns the workspace or acts in it as an organization member',
+            example: 'organization'
+        },
+        name: {
+            type: 'string',
+            description: 'The person\'s name for a personal workspace, the organization\'s name otherwise',
+            example: 'Acme'
+        },
+        organizationId: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization id, or null for a personal workspace',
+            example: 'org_123'
+        },
+        slug: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization slug, or null for a personal workspace',
+            example: 'acme-x1y2z3'
+        },
+        preferred: {
+            type: 'boolean',
+            description: 'Whether a new session opens this workspace',
+            example: true
+        }
+    },
+    required: [
+        'id',
+        'kind',
+        'name',
+        'organizationId',
+        'slug',
+        'preferred'
+    ]
+} as const;
+
+export const CreateUserWorkspaceSchema = {
+    oneOf: [
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'personal'
+                    ]
+                }
+            },
+            required: [
+                'kind'
+            ]
+        },
+        {
+            type: 'object',
+            properties: {
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'organization'
+                    ]
+                },
+                name: {
+                    type: 'string',
+                    minLength: 2,
+                    maxLength: 50,
+                    description: 'Organization name',
+                    example: 'Acme'
+                },
+                websiteUrl: {
+                    type: 'string',
+                    description: 'The organization\'s website. `https://` is added when missing',
+                    example: 'acme.com'
+                }
+            },
+            required: [
+                'kind',
+                'name',
+                'websiteUrl'
+            ]
+        }
+    ]
+} as const;
+
+export const SetPreferredUserWorkspaceSchema = {
+    type: 'object',
+    properties: {
+        workspaceId: {
+            type: 'string',
+            format: 'uuid',
+            description: 'Id of a workspace the person can act in',
+            example: '11111111-1111-7111-8111-111111111111'
+        }
+    },
+    required: [
+        'workspaceId'
+    ]
+} as const;
+
 export const UserPendingOrganizationInvitationsSchema = {
     type: 'array',
     items: {
@@ -16754,6 +16894,26 @@ export const UserSchema = {
         'email',
         'emailVerified',
         'role'
+    ]
+} as const;
+
+export const UpdateUserNameSchema = {
+    type: 'object',
+    properties: {
+        firstName: {
+            type: 'string',
+            minLength: 1,
+            example: 'Ada'
+        },
+        lastName: {
+            type: 'string',
+            minLength: 1,
+            example: 'Lovelace'
+        }
+    },
+    required: [
+        'firstName',
+        'lastName'
     ]
 } as const;
 

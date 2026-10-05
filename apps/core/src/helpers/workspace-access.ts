@@ -83,6 +83,20 @@ export function deriveWorkspaceGate(
 }
 
 /**
+ * Non-expired PENDING organization invitations for an email (trim +
+ * lowercase, case-insensitive match).
+ */
+export function pendingOrganizationInvitationsWhere(
+  email: string,
+): Prisma.InvitationWhereInput {
+  return {
+    status: InvitationStatus.PENDING,
+    expiresAt: { gt: new Date() },
+    email: { equals: normalizeInvitationEmail(email), mode: "insensitive" },
+  };
+}
+
+/**
  * Loads access facts for a user and derives the workspace gate.
  * Pending invites: non-expired PENDING organization invitations for the user's
  * email (trim + lowercase). Join-link mid-flow is not counted here.
@@ -105,8 +119,6 @@ export async function loadWorkspaceAccess(
     };
   }
 
-  const email = normalizeInvitationEmail(user.email);
-
   const [personalWorkspace, membership, pendingInvite] = await Promise.all([
     tx.workspace.findUnique({
       where: { userId },
@@ -117,11 +129,7 @@ export async function loadWorkspaceAccess(
       select: { id: true },
     }),
     tx.invitation.findFirst({
-      where: {
-        status: InvitationStatus.PENDING,
-        expiresAt: { gt: new Date() },
-        email: { equals: email, mode: "insensitive" },
-      },
+      where: pendingOrganizationInvitationsWhere(user.email),
       select: { id: true },
     }),
   ]);
