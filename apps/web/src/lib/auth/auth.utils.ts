@@ -129,7 +129,7 @@ export async function waitForAuthSession<TSession = unknown>({
 }
 
 /** Where an auth page sends the person once they are through. */
-export interface AuthPageContext {
+interface AuthPageContext {
   returnUrl?: string;
   /** A signed OAuth request. It travels as the page's own query. */
   oauthQuery?: string;

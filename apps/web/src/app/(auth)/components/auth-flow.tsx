@@ -41,6 +41,7 @@ import type { OAuthRequestClient } from "@/lib/auth/oauth-request.server";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   chooseSignInMethod,
+  isEmailAuthMethod,
   type LastUsedAuthMethod,
   type SignInMethod,
   toProviderAuthMethod,
@@ -124,8 +125,6 @@ export default function AuthFlow({
   // Log in only. Register found an account and handed the address over.
   const [handedOver, setHandedOver] = useState(false);
   const formStarted = useRef(false);
-  const isEmailLastUsed =
-    lastUsedMethod === "email" || lastUsedMethod === "email-otp";
 
   // The other page handed an address over, so step 2 opens at once. A layout
   // effect: after a client navigation the email step never paints.
@@ -241,12 +240,13 @@ export default function AuthFlow({
         autoComplete={isSignIn ? "username webauthn" : "email"}
         captchaEntry={isSignIn ? "signin" : "signup"}
         lastUsedLabel={
-          isSignIn && isEmailLastUsed ? signInT("lastUsed") : undefined
+          isSignIn && isEmailAuthMethod(lastUsedMethod)
+            ? signInT("lastUsed")
+            : undefined
         }
         detour={
           isSignIn
             ? {
-                when: "missing",
                 title: signInT("NoAccount.title"),
                 description: signInT("NoAccount.description"),
                 label: signInT("NoAccount.createAccount"),
@@ -265,7 +265,6 @@ export default function AuthFlow({
                 },
               }
             : {
-                when: "exists",
                 // Log in's first step would only ask Core again and send this
                 // code, so it opens on its second step, an invitation's too.
                 handOver: async (knownEmail, signal, account) => {

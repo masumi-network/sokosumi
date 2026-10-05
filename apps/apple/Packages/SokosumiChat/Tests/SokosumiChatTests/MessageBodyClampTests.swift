@@ -79,14 +79,15 @@ struct MessageBodyClampTests {
     #expect(MessageMarkdown("[a.png](https://cdn.example/a.png)\n\n[b.png](https://cdn.example/b.png)").clampsLongBody)
   }
 
-  /// Web's raw scan sees the list marker. Each image is its own solo row, so the body is exempt.
-  @Test func twoImagesInAListAreNotClamped() {
-    #expect(!MessageMarkdown("- [a.png](https://cdn.example/a.png)\n- [b.png](https://cdn.example/b.png)").clampsLongBody)
+  /// Web's line rule (row 15c): the list marker shares each link's line, so both stay links and no solo image
+  /// exempts the body.
+  @Test func twoImagesInAListClamp() {
+    #expect(MessageMarkdown("- [a.png](https://cdn.example/a.png)\n- [b.png](https://cdn.example/b.png)").clampsLongBody)
   }
 
-  /// A quote marker is not whitespace either, even though the parser deletes it.
-  @Test func twoImagesInAQuoteAreNotClamped() {
-    #expect(!MessageMarkdown("> [a.png](https://cdn.example/a.png)\n> [b.png](https://cdn.example/b.png)").clampsLongBody)
+  /// A quote marker shares the line too, even though the parser deletes it.
+  @Test func twoImagesInAQuoteClamp() {
+    #expect(MessageMarkdown("> [a.png](https://cdn.example/a.png)\n> [b.png](https://cdn.example/b.png)").clampsLongBody)
   }
 
   /// A rule between images is its own block on web and splits the row.

@@ -44,28 +44,31 @@ interface EmailStepAccount {
   captchaPass: string;
 }
 
-/** A notice that turns Continue into a link to the other page. */
+/**
+ * Log in's detour: an address without an account turns Continue into a link
+ * to Register.
+ */
 interface EmailStepNoticeDetour {
-  /** Sign-up stops at an address that has an account, sign-in at one without. */
-  when: "exists" | "missing";
   title: string;
   description: string;
   label: string;
   href: string;
   /**
-   * Work that takes the person there, e.g. emailing a code first. The link
-   * spins until it has navigated. A click for another tab just opens `href`.
+   * Takes the person there, e.g. emailing a code first. The link spins until
+   * it has navigated. A click for another tab just opens `href`.
    */
-  follow?: (
+  follow: (
     email: string,
     signal: AbortSignal,
     account: EmailStepAccount,
   ) => Promise<void>;
 }
 
-/** Continue itself takes the person to the other page, without a notice. */
+/**
+ * Register's detour: Continue on an address with an account takes the person
+ * to Log in, without a notice.
+ */
 interface EmailStepHandOver {
-  when: "exists" | "missing";
   /** Navigates away; Continue spins until the page has gone. */
   handOver: (
     email: string,
@@ -74,7 +77,7 @@ interface EmailStepHandOver {
   ) => Promise<void>;
 }
 
-/** Where the step sends a person instead of continuing, and when. */
+/** Where the step sends a person on the wrong page instead of continuing. */
 type EmailStepDetour = EmailStepNoticeDetour | EmailStepHandOver;
 
 interface EmailStepProps {
@@ -205,7 +208,7 @@ export function EmailStep({
 
   async function followDetour(
     email: string,
-    follow: NonNullable<EmailStepNoticeDetour["follow"]>,
+    follow: EmailStepNoticeDetour["follow"],
     account: EmailStepAccount,
   ) {
     const controller = new AbortController();
@@ -265,7 +268,11 @@ export function EmailStep({
           hasPassword: result.data.hasPassword,
           captchaPass: result.data.captchaPass,
         };
-        if (result.data.exists === (detour.when === "exists")) {
+        // Register stops at an address that has an account, Log in at one
+        // without.
+        const isWrongPage =
+          "handOver" in detour ? result.data.exists : !result.data.exists;
+        if (isWrongPage) {
           if ("handOver" in detour) {
             await detour.handOver(email, controller.signal, account);
             if (!isCurrent()) return;
@@ -386,12 +393,7 @@ export function EmailStep({
                     }
                     const email = emailLocked ? "" : form.getValues("email");
                     const account = detourAccount.current;
-                    if (
-                      notice.follow &&
-                      email &&
-                      account &&
-                      isSameTabClick(event)
-                    ) {
+                    if (email && account && isSameTabClick(event)) {
                       event.preventDefault();
                       void followDetour(email, notice.follow, account);
                       return;
