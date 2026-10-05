@@ -297,6 +297,15 @@ describe("SocialButtons", () => {
     },
   );
 
+  it.each(["email", "email-otp"] as const)(
+    "marks no provider when %s was used last",
+    (method) => {
+      render(<SocialButtons showPasskey lastUsedMethod={method} />);
+
+      expect(screen.queryByText("last-used")).not.toBeInTheDocument();
+    },
+  );
+
   it("shows an inline marker on the matching provider button", () => {
     render(<SocialButtons lastUsedMethod="google" />);
 
