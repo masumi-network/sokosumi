@@ -132,7 +132,10 @@ interface EmailCodeFieldProps {
   error?: string | undefined;
   /** Why the field opened, shown above it and read with it. */
   notice?: string | undefined;
-  /** No code went out, so the field does not say one did. */
+  /**
+   * No code went out: the field says so instead of saying one did, until
+   * `error` gives another reason.
+   */
   unsent?: boolean | undefined;
   sentAt: number;
   onResend: () => void;
@@ -173,6 +176,7 @@ export function EmailCodeField({
   const fieldId = useId();
   const hintId = useId();
   const errorId = useId();
+  const shownError = error ?? (unsent ? t("notSent") : undefined);
   const noticeId = useId();
   const localCompletedCode = useRef(
     value.length === EMAIL_CODE_LENGTH ? value : "",
@@ -232,12 +236,12 @@ export function EmailCodeField({
           }
         }}
         onBlur={onBlur}
-        aria-invalid={error ? true : undefined}
+        aria-invalid={shownError ? true : undefined}
         aria-describedby={
           [
             notice ? noticeId : null,
             unsent ? null : hintId,
-            error ? errorId : null,
+            shownError ? errorId : null,
           ]
             .filter(Boolean)
             .join(" ") || undefined
@@ -261,9 +265,9 @@ export function EmailCodeField({
           {email ? t("sent", { email }) : t("sentNoAddress")}
         </p>
       )}
-      {error ? (
+      {shownError ? (
         <p id={errorId} className="text-destructive text-sm">
-          {error}
+          {shownError}
         </p>
       ) : null}
     </div>

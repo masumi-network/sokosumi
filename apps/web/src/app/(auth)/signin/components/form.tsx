@@ -272,10 +272,7 @@ export default function SignInForm({
                 if (!isPending) formRef.current?.requestSubmit();
               }}
               onBlur={field.onBlur}
-              error={
-                fieldState.error?.message ??
-                (isCodeUnsent ? t("Handover.codeNotSent") : undefined)
-              }
+              error={fieldState.error?.message}
               notice={handoverNotice}
               unsent={isCodeUnsent}
               sentAt={emailCode.sentAt}

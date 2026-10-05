@@ -18,7 +18,8 @@
       "generic": "Wir konnten den Code nicht prüfen. Versuche es erneut.",
       "resend": "Neuen Code senden",
       "resendIn": "Neuer Code in {seconds} s",
-      "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut."
+      "rateLimited": "Zu viele Versuche hintereinander. Warte eine Minute und versuche es dann erneut.",
+      "notSent": "Wir konnten keinen Code senden. Versuche es erneut."
     },
     "EmergencyDialog": {
       "title": "Notfallwartung",
@@ -1223,8 +1224,7 @@
           "Handover": {
             "codeSent": "Du hast bereits ein Konto, deshalb haben wir dir einen Code zum Anmelden geschickt.",
             "password": "Du hast bereits ein Konto. Gib dein Passwort ein, um dich anzumelden.",
-            "codeNotSentNotice": "Du hast bereits ein Konto.",
-            "codeNotSent": "Wir konnten keinen Code senden. Versuche es erneut."
+            "codeNotSentNotice": "Du hast bereits ein Konto."
           }
         }
       },

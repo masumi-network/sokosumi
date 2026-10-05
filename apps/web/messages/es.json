@@ -18,7 +18,8 @@
       "generic": "No pudimos comprobar el código. Inténtalo de nuevo.",
       "resend": "Enviar un código nuevo",
       "resendIn": "Nuevo código en {seconds} s",
-      "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo."
+      "rateLimited": "Demasiados intentos seguidos. Espera un minuto y vuelve a intentarlo.",
+      "notSent": "No pudimos enviar un código. Inténtalo de nuevo."
     },
     "EmergencyDialog": {
       "title": "Mantenimiento de emergencia",
@@ -1223,8 +1224,7 @@
           "Handover": {
             "codeSent": "Ya tienes una cuenta, así que te enviamos un código para iniciar sesión.",
             "password": "Ya tienes una cuenta. Introduce tu contraseña para iniciar sesión.",
-            "codeNotSentNotice": "Ya tienes una cuenta.",
-            "codeNotSent": "No pudimos enviar un código. Inténtalo de nuevo."
+            "codeNotSentNotice": "Ya tienes una cuenta."
           }
         }
       },

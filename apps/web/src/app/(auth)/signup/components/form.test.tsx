@@ -873,6 +873,21 @@ describe("SignUpForm email code", () => {
     ).toBeInTheDocument();
   });
 
+  it("says no code went out until a new one is sent", async () => {
+    // Step 1's send failed, or Log in handed over without sending one.
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    expect(code).toHaveAccessibleDescription("notSent");
+
+    await user.click(screen.getByRole("button", { name: "resend" }));
+
+    await waitFor(() =>
+      expect(code).toHaveAccessibleDescription("sentNoAddress"),
+    );
+  });
+
   it("creates the named account with the emailed code", async () => {
     const { db, emailedCodes } = connectToEmailCodeHandler();
     const user = userEvent.setup();

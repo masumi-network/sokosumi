@@ -18,7 +18,8 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
-      "rateLimited": "Too many tries in a row. Wait a minute, then try again."
+      "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
+      "notSent": "We could not send a code. Try again."
     },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -1223,8 +1224,7 @@
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
             "password": "You already have an account. Enter your password to log in.",
-            "codeNotSentNotice": "You already have an account.",
-            "codeNotSent": "We could not send a code. Try again."
+            "codeNotSentNotice": "You already have an account."
           }
         }
       },
