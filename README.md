@@ -17,7 +17,7 @@ sokosumi/
 │   ├── core-client/ # @sokosumi/core-client — generated TypeScript client for Core's /v1 API
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
-│   ├── net/         # @sokosumi/net — SSRF-safe fetch
+│   ├── net/         # @sokosumi/net — SSRF-safe fetch and outbound webhook transport
 │   ├── email/       # @sokosumi/email — renderers and locales
 │   ├── ai-provider/ # @sokosumi/ai-provider — Sokosumi AI SDK provider
 │   └── soko-bot/    # @sokosumi/soko-bot — Soko Bot contracts (loop runs in per-bot Vercel Sandboxes; Core is the control plane)
