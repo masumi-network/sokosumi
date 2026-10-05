@@ -10,7 +10,7 @@ export default function RegisterLoadingPage() {
 
   return (
     <div className="flex flex-1 flex-col">
-      <div className="p-6">
+      <div className="p-6 text-center">
         <h1 className="text-2xl font-light text-balance tracking-tight">
           {t("Header.title")}
         </h1>
@@ -28,7 +28,7 @@ export default function RegisterLoadingPage() {
           <Skeleton className="h-[50px] w-full" />
           <Skeleton className="h-[50px] w-full" />
         </div>
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <span className="text-muted-foreground text-sm">
             {t("Form.Login.message")}
           </span>

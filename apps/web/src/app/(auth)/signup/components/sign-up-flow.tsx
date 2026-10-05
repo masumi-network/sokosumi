@@ -9,9 +9,8 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
+import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
@@ -122,7 +121,7 @@ export default function SignUpFlow({
       <div className="flex flex-1 flex-col">
         <SignUpHeader invitationId={invitationId} client={client} />
         <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          <ConfirmedEmail
+          <EmailChip
             email={email}
             onChange={
               emailLocked
@@ -132,7 +131,7 @@ export default function SignUpFlow({
                     setStep("email");
                   }
             }
-            changeDisabled={isDetailsPending}
+            disabled={isDetailsPending}
           />
           <SignUpForm
             email={email}
@@ -193,7 +192,7 @@ export default function SignUpFlow({
           disabled={isEmailPending}
           onPendingChange={setIsProviderPending}
         />
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}
           </span>

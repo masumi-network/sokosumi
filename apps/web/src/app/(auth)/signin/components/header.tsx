@@ -12,7 +12,7 @@ export default function SignInHeader({ client }: SignInHeaderProps) {
   const t = useTranslations("Auth.Pages.SignIn.Header");
 
   return (
-    <div className="p-6">
+    <div className="p-6 text-center">
       {client ? <OAuthClientBackLink client={client} /> : null}
       <h1 className="text-2xl font-light text-balance tracking-tight">
         {t("title")}
