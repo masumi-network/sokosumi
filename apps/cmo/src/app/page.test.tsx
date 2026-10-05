@@ -184,6 +184,7 @@ describe("CMO home page", () => {
       expect(page.props).toMatchObject({
         count: 2,
         sokosumiSetupUrl: "https://app.sokosumi.com/setup",
+        email: "ada@example.com",
       });
       expect(getUsersById).not.toHaveBeenCalled();
     },

@@ -6,6 +6,8 @@ interface PendingInvitationsProps {
   count: number;
   /** Sokosumi's workspace gate, which lists them. */
   sokosumiSetupUrl: string;
+  /** The account to use there, which may differ from Sokosumi's session. */
+  email: string;
   signOut: () => Promise<void>;
 }
 
@@ -17,6 +19,7 @@ interface PendingInvitationsProps {
 export function PendingInvitations({
   count,
   sokosumiSetupUrl,
+  email,
   signOut,
 }: PendingInvitationsProps) {
   const one = count === 1;
@@ -28,8 +31,8 @@ export function PendingInvitations({
           {one ? "You have an invitation." : `You have ${count} invitations.`}
         </h1>
         <p className="lead">
-          Accept {one ? "it" : "one"} on Sokosumi to use CMO with your team,
-          then come back here.
+          Accept {one ? "it" : "one"} on Sokosumi to use CMO with your team, or
+          decline {one ? "it" : "them"}. Then come back here.
         </p>
         <form className="actions">
           {/* A new tab keeps CMO open for Check again. */}
@@ -53,7 +56,7 @@ export function PendingInvitations({
           </SubmitButton>
         </form>
         <p id="pending-invitations-new-tab" className="note">
-          Sokosumi opens in a new tab.
+          Sokosumi opens in a new tab. Use your account {email} there.
         </p>
       </div>
       <Mascot className="hero-mascot" />

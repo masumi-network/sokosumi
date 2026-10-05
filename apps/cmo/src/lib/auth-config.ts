@@ -87,17 +87,23 @@ export function readCmoAuthConfig(): CmoAuthConfig {
 }
 
 /**
- * Sokosumi Web's origin, where a person accepts invitations (ADR 0051): the
- * same branch's preview on a CMO preview, since its invitations live in that
- * branch's database, else `SOKOSUMI_APP_BASE_URL` or production. Kept out of
- * the auth config, so a missing Web never stops signing in.
+ * Sokosumi Web's origin, where a person accepts invitations (ADR 0051):
+ * `SOKOSUMI_APP_BASE_URL` or production. A CMO preview needs the same
+ * branch's Web preview, since its invitations live in that branch's database;
+ * production Web would show other data. Kept out of the auth config, so a
+ * missing Web never stops signing in.
  */
 export function readSokosumiAppBaseUrl(): string {
-  const configured =
-    process.env.SOKOSUMI_APP_BASE_URL || SOKOSUMI_APP_PRODUCTION_URL;
-  const url =
-    (process.env.VERCEL_ENV === "preview" &&
-      sokosumiPreviewUrl(SOKOSUMI_APP_PREVIEW_PROJECT)) ||
-    configured;
-  return url.replace(/\/+$/, "");
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewUrl = sokosumiPreviewUrl(SOKOSUMI_APP_PREVIEW_PROJECT);
+    if (!previewUrl) {
+      throw new Error(
+        `${SOKOSUMI_APP_PREVIEW_PROJECT} has no preview for this branch`,
+      );
+    }
+    return previewUrl;
+  }
+  return (
+    process.env.SOKOSUMI_APP_BASE_URL || SOKOSUMI_APP_PRODUCTION_URL
+  ).replace(/\/+$/, "");
 }

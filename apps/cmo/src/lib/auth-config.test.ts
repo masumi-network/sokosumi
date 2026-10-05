@@ -85,9 +85,13 @@ describe("readSokosumiAppBaseUrl", () => {
     vi.unstubAllEnvs();
   });
 
-  it("links to Sokosumi production when nothing is set", () => {
+  beforeEach(() => {
+    vi.stubEnv("VERCEL_ENV", "");
     vi.stubEnv("SOKOSUMI_APP_BASE_URL", "");
+    vi.stubEnv("VERCEL_RELATED_PROJECTS", "");
+  });
 
+  it("links to Sokosumi production when nothing is set", () => {
     expect(readSokosumiAppBaseUrl()).toBe("https://app.sokosumi.com");
   });
 
@@ -99,6 +103,8 @@ describe("readSokosumiAppBaseUrl", () => {
 
   it("links a preview to its branch's Sokosumi preview", () => {
     vi.stubEnv("VERCEL_ENV", "preview");
+    // A preview's invitations are in its branch's database, never production's.
+    vi.stubEnv("SOKOSUMI_APP_BASE_URL", "https://app.sokosumi.com");
     vi.stubEnv(
       "VERCEL_RELATED_PROJECTS",
       relatedProjects(undefined, `${WEB_ALIAS}.preview.cmo.xyz`),
@@ -109,11 +115,19 @@ describe("readSokosumiAppBaseUrl", () => {
     );
   });
 
-  it("links a preview without a Sokosumi preview to SOKOSUMI_APP_BASE_URL", () => {
-    vi.stubEnv("VERCEL_ENV", "preview");
-    vi.stubEnv("SOKOSUMI_APP_BASE_URL", "https://app.sokosumi.com");
-    vi.stubEnv("VERCEL_RELATED_PROJECTS", relatedProjects(undefined));
+  it.each([
+    ["no related projects", ""],
+    ["no Sokosumi preview for the branch", relatedProjects(undefined)],
+  ])(
+    "refuses a preview with %s instead of using production",
+    (_label, value) => {
+      vi.stubEnv("VERCEL_ENV", "preview");
+      vi.stubEnv("SOKOSUMI_APP_BASE_URL", "https://app.sokosumi.com");
+      vi.stubEnv("VERCEL_RELATED_PROJECTS", value);
 
-    expect(readSokosumiAppBaseUrl()).toBe("https://app.sokosumi.com");
-  });
+      expect(() => readSokosumiAppBaseUrl()).toThrow(
+        "sokosumi-app-mainnet has no preview for this branch",
+      );
+    },
+  );
 });

@@ -19,6 +19,7 @@ function render(count: number) {
     <PendingInvitations
       count={count}
       sokosumiSetupUrl="https://app.sokosumi.com/setup"
+      email="ada@example.com"
       signOut={async () => {}}
     />,
   );
@@ -29,7 +30,7 @@ it("tells a person about their invitation and where to accept it", () => {
 
   expect(html).toContain("<h1>You have an invitation.</h1>");
   expect(html).toContain(
-    '<p class="lead">Accept it on Sokosumi to use CMO with your team, then come back here.</p>',
+    '<p class="lead">Accept it on Sokosumi to use CMO with your team, or decline it. Then come back here.</p>',
   );
 });
 
@@ -38,18 +39,18 @@ it("counts several invitations", () => {
 
   expect(html).toContain("<h1>You have 3 invitations.</h1>");
   expect(html).toContain(
-    '<p class="lead">Accept one on Sokosumi to use CMO with your team, then come back here.</p>',
+    '<p class="lead">Accept one on Sokosumi to use CMO with your team, or decline them. Then come back here.</p>',
   );
 });
 
-it("opens Sokosumi's workspace gate in a new tab, and says so", () => {
+it("opens Sokosumi's workspace gate in a new tab, with the account to use", () => {
   const html = render(1);
 
   expect(html).toContain(
     '<a class="button" href="https://app.sokosumi.com/setup" target="_blank" rel="noopener noreferrer" aria-describedby="pending-invitations-new-tab">Open Sokosumi</a>',
   );
   expect(html).toContain(
-    '<p id="pending-invitations-new-tab" class="note">Sokosumi opens in a new tab.</p>',
+    '<p id="pending-invitations-new-tab" class="note">Sokosumi opens in a new tab. Use your account ada@example.com there.</p>',
   );
 });
 

@@ -80,6 +80,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         <PendingInvitations
           count={pendingInvitationCount}
           sokosumiSetupUrl={`${readSokosumiAppBaseUrl()}/setup`}
+          email={session.user.email}
           signOut={signOut}
         />
       );
