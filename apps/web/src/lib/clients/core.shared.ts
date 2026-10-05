@@ -185,7 +185,7 @@ import {
   deleteTasksByIdShare as coreDeleteTasksByIdShare,
   deleteTasksSchedulesById as coreDeleteTasksSchedulesById,
   deleteUsersByIdOauthConsentsByConsentId as coreDeleteUsersByIdOauthConsentsByConsentId,
-  deleteUsersByIdPersonalWorkspace as coreDeleteUsersByIdPersonalWorkspace,
+  deleteUsersByIdWorkspacesByWorkspaceId as coreDeleteUsersByIdWorkspacesByWorkspaceId,
   disconnectMySokoBotIntegration as coreDisconnectMySokoBotIntegration,
   endAdminBadgeCampaign as coreEndAdminBadgeCampaign,
   finalizeMySokoBotIntegration as coreFinalizeMySokoBotIntegration,
@@ -3028,13 +3028,17 @@ export function createCoreClient(getClient: GetCoreClient) {
    * Delete the current user's personal workspace. Core returns 409 when it is
    * the last workspace, or when jobs/tasks still reference it.
    */
-  async function deleteMyPersonalWorkspace() {
+  /**
+   * Deletes the current user's personal workspace, by workspace id from
+   * {@link getMyWorkspaces}. Core refuses an organization workspace (409).
+   */
+  async function deleteMyWorkspace(workspaceId: string) {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreDeleteUsersByIdPersonalWorkspace({
+        coreDeleteUsersByIdWorkspacesByWorkspaceId({
           client,
-          path: { id: CURRENT_USER_PATH_ID },
+          path: { id: CURRENT_USER_PATH_ID, workspaceId },
           cache: "no-store",
         }),
       "Failed to delete personal workspace",
@@ -5989,7 +5993,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyOrganizations,
     createMyStripeCustomer,
     createMyWorkspace,
-    deleteMyPersonalWorkspace,
+    deleteMyWorkspace,
     createOrganizationStripeCustomer,
     getMyBillingDetails,
     getUserBillingDetails,

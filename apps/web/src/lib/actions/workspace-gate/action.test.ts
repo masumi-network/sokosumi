@@ -5,7 +5,7 @@ import { WorkspaceGateErrorCode } from "@/lib/actions/errors/error-codes/workspa
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 
 const createMyWorkspaceMock = vi.fn();
-const deleteMyPersonalWorkspaceMock = vi.fn();
+const deleteMyWorkspaceMock = vi.fn();
 const getMyWorkspacesMock = vi.fn();
 const clearPendingOrganizationJoinTokenMock = vi.fn();
 const getPendingOrganizationJoinTokenMock = vi.fn();
@@ -21,8 +21,7 @@ vi.mock("@/lib/clients/core.client", async () => {
     ...actual,
     coreClient: {
       createMyWorkspace: (...args: unknown[]) => createMyWorkspaceMock(...args),
-      deleteMyPersonalWorkspace: (...args: unknown[]) =>
-        deleteMyPersonalWorkspaceMock(...args),
+      deleteMyWorkspace: (...args: unknown[]) => deleteMyWorkspaceMock(...args),
       getMyWorkspaces: (...args: unknown[]) => getMyWorkspacesMock(...args),
       resolveOrganizationInviteLink: (...args: unknown[]) =>
         resolveOrganizationInviteLinkMock(...args),
@@ -217,10 +216,19 @@ describe("createPersonalWorkspaceAction", () => {
 describe("deletePersonalWorkspaceAction", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    getMyWorkspacesMock.mockResolvedValue({
+      data: {
+        workspaces: [
+          { id: "ws-org", kind: "organization", organizationId: "org-1" },
+          { id: "ws-1", kind: "personal", organizationId: null },
+        ],
+        pendingInvitationCount: 0,
+      },
+    });
   });
 
-  it("returns workspaceId on success", async () => {
-    deleteMyPersonalWorkspaceMock.mockResolvedValue({
+  it("deletes the personal workspace by its id from the list", async () => {
+    deleteMyWorkspaceMock.mockResolvedValue({
       data: { workspaceId: "ws-1" },
     });
 
@@ -230,14 +238,33 @@ describe("deletePersonalWorkspaceAction", () => {
     if (result.ok) {
       expect(result.value).toEqual({ workspaceId: "ws-1" });
     }
-    expect(deleteMyPersonalWorkspaceMock).toHaveBeenCalledOnce();
+    expect(deleteMyWorkspaceMock).toHaveBeenCalledExactlyOnceWith("ws-1");
+  });
+
+  it("returns NOT_FOUND without asking Core when there is no personal workspace", async () => {
+    getMyWorkspacesMock.mockResolvedValue({
+      data: {
+        workspaces: [
+          { id: "ws-org", kind: "organization", organizationId: "org-1" },
+        ],
+        pendingInvitationCount: 0,
+      },
+    });
+
+    const result = await deletePersonalWorkspaceAction({});
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: { code: CommonErrorCode.NOT_FOUND },
+    });
+    expect(deleteMyWorkspaceMock).not.toHaveBeenCalled();
   });
 
   it("maps Core last-workspace 409", async () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+    deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Cannot delete the user's last workspace", {
         status: 409,
         kind: "last_workspace",
@@ -259,7 +286,7 @@ describe("deletePersonalWorkspaceAction", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+    deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError(
         "Cannot delete a personal workspace that still has jobs or tasks",
         {
@@ -286,7 +313,7 @@ describe("deletePersonalWorkspaceAction", () => {
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => undefined);
-    deleteMyPersonalWorkspaceMock.mockRejectedValue(
+    deleteMyWorkspaceMock.mockRejectedValue(
       new CoreApiRequestError("Conflict", { status: 409 }),
     );
 

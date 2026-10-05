@@ -3,9 +3,14 @@ import {
   vendorGrantRepository,
   workspaceRepository,
 } from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { conflict } from "@/helpers/error";
-import { isPrismaUniqueViolation } from "@/helpers/prisma";
+import { conflict, notFound } from "@/helpers/error";
+import {
+  isPrismaForeignKeyViolation,
+  isPrismaUniqueViolation,
+} from "@/helpers/prisma";
+import { isLastWorkspace } from "@/helpers/workspace-access";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -54,5 +59,70 @@ export async function createPersonalWorkspace(
     });
 
     return createdWorkspace;
+  });
+}
+
+/**
+ * Deletes the user's personal workspace. Refused when it is missing (404),
+ * when it is their last workspace, or while jobs or tasks still use it (409).
+ * Without a preferred organization, a remaining membership becomes preferred
+ * first, so the next session opens a workspace that still exists.
+ */
+export async function deletePersonalWorkspace(
+  userId: string,
+): Promise<Workspace> {
+  return await prisma.$transaction(async (tx) => {
+    const existing = await tx.workspace.findUnique({
+      where: { userId },
+    });
+
+    if (!existing) {
+      throw notFound("Personal workspace is missing", {
+        kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
+      });
+    }
+
+    if (await isLastWorkspace(userId, { type: "personal" }, tx)) {
+      throw conflict("Cannot delete the user's last workspace", {
+        kind: CORE_API_ERROR_KINDS.LAST_WORKSPACE,
+      });
+    }
+
+    const user = await tx.user.findUnique({
+      where: { id: userId },
+      select: { preferredOrganizationId: true },
+    });
+    if (user?.preferredOrganizationId == null) {
+      const remainingMembership = await tx.member.findFirst({
+        where: { userId },
+        select: { organizationId: true },
+      });
+      if (remainingMembership) {
+        await tx.user.update({
+          where: { id: userId },
+          data: {
+            preferredOrganizationId: remainingMembership.organizationId,
+          },
+        });
+      }
+    }
+
+    try {
+      await tx.workspace.delete({
+        where: { id: existing.id },
+      });
+    } catch (error) {
+      if (isPrismaForeignKeyViolation(error)) {
+        throw conflict(
+          "Cannot delete a personal workspace that still has jobs or tasks",
+          {
+            kind: CORE_API_ERROR_KINDS.WORKSPACE_HAS_DEPENDENTS,
+          },
+        );
+      }
+      throw error;
+    }
+
+    return existing;
   });
 }
