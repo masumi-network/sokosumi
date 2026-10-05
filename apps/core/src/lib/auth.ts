@@ -32,9 +32,8 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
-import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
-import { stripeClient } from "@/clients/stripe.client";
+import { stripeClient, stripe as stripeSdk } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import {
   getBetterAuthProductionUrl,
@@ -105,7 +104,6 @@ const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
-const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefixParams = {
@@ -739,7 +737,7 @@ export const auth = betterAuth({
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.
     stripe({
-      stripeClient: stripeInstance,
+      stripeClient: stripeSdk,
       stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {

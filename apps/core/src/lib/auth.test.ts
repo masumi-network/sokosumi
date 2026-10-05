@@ -345,6 +345,7 @@ vi.mock("@/clients/email.client", () => ({
 }));
 
 vi.mock("@/clients/stripe.client", () => ({
+  stripe: { name: "stripe-sdk" },
   stripeClient: {
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
