@@ -8,22 +8,26 @@ vi.mock("@/lib/db/prisma", () => ({
   default: { verification: { deleteMany: verificationDeleteManyMock } },
 }));
 
-import { purgeExpiredCaptchaPasses } from "./captcha-pass.purge";
+import { purgeExpiredVerifications } from "./expired-verifications.purge";
 
 const NOW = new Date("2026-10-05T08:00:00.000Z");
 
-describe("purgeExpiredCaptchaPasses", () => {
+describe("purgeExpiredVerifications", () => {
   beforeEach(() => {
     verificationDeleteManyMock.mockReset().mockResolvedValue({ count: 3 });
   });
 
-  it("deletes only captcha pass rows whose expiry has passed", async () => {
-    const result = await purgeExpiredCaptchaPasses({ now: NOW });
+  it("deletes only Core's own rows whose expiry has passed", async () => {
+    const result = await purgeExpiredVerifications({ now: NOW });
 
     expect(result).toEqual({ purged: 3 });
     expect(verificationDeleteManyMock).toHaveBeenCalledWith({
       where: {
-        identifier: { startsWith: "captcha-pass:" },
+        OR: [
+          { identifier: { startsWith: "captcha-pass:" } },
+          { identifier: { startsWith: "sign-up-conversion:" } },
+          { identifier: { startsWith: "sign-up-conversion-redirect:" } },
+        ],
         expiresAt: { lte: NOW },
       },
     });
@@ -33,7 +37,7 @@ describe("purgeExpiredCaptchaPasses", () => {
     const controller = new AbortController();
     controller.abort();
 
-    const result = await purgeExpiredCaptchaPasses({
+    const result = await purgeExpiredVerifications({
       now: NOW,
       abortSignal: controller.signal,
     });
