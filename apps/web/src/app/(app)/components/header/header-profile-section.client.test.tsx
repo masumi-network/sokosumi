@@ -36,7 +36,7 @@ const sessionUser: SessionUser = {
   marketingOptIn: false,
 };
 
-const organizations: UserWorkspace[] = [
+const workspaces: UserWorkspace[] = [
   {
     id: "ws-a",
     kind: "organization",
@@ -61,7 +61,7 @@ const organizations: UserWorkspace[] = [
 
 async function renderProfileSection(props: {
   sessionUser: SessionUser;
-  organizations: UserWorkspace[];
+  workspaces: UserWorkspace[];
   hasPersonalWorkspace?: boolean;
   activeOrganizationId: string | null;
 }) {
@@ -95,7 +95,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -117,7 +117,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-b",
     });
 
@@ -139,7 +139,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -158,7 +158,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -180,7 +180,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -207,7 +207,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      organizations,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 

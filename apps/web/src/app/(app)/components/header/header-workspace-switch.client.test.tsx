@@ -79,7 +79,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[]}
+        workspaces={[]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -101,7 +101,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[]}
+        workspaces={[]}
         hasPersonalWorkspace={true}
         activeOrganizationId={null}
         isPending={false}
@@ -119,7 +119,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -137,7 +137,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId={null}
         isPending={false}
@@ -156,7 +156,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -182,7 +182,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -221,7 +221,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -249,7 +249,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -286,7 +286,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -316,7 +316,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={namelessUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -356,7 +356,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={false}
         activeOrganizationId="org-a"
         isPending={false}
@@ -380,7 +380,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}
@@ -402,7 +402,7 @@ describe("HeaderWorkspaceSwitch", () => {
     render(
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={[orgWorkspace]}
+        workspaces={[orgWorkspace]}
         hasPersonalWorkspace={true}
         activeOrganizationId="org-a"
         isPending={false}

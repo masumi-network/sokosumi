@@ -39,8 +39,8 @@ type WorkspaceChoice = "personal" | "organization";
 
 interface HeaderWorkspaceSwitchProps {
   sessionUser: SessionUser;
-  /** The person's organization workspaces, from Core's workspaces list. */
-  organizations: UserWorkspace[];
+  /** Core's workspaces list; the switcher lists its organizations. */
+  workspaces: UserWorkspace[];
   hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
   isPending: boolean;
@@ -123,7 +123,7 @@ function WorkspaceMenuItem({
 
 export default function HeaderWorkspaceSwitch({
   sessionUser,
-  organizations,
+  workspaces,
   hasPersonalWorkspace,
   activeOrganizationId,
   isPending,
@@ -218,7 +218,7 @@ export default function HeaderWorkspaceSwitch({
   const organizationWorkspaces = useMemo(
     () =>
       getOrderedWorkspaces(
-        organizations.flatMap(({ organizationId, name, logo, websiteUrl }) =>
+        workspaces.flatMap(({ organizationId, name, logo, websiteUrl }) =>
           organizationId
             ? [
                 {
@@ -231,7 +231,7 @@ export default function HeaderWorkspaceSwitch({
         ),
         activeOrganizationId,
       ),
-    [activeOrganizationId, organizations],
+    [activeOrganizationId, workspaces],
   );
 
   const activeWorkspace =

@@ -1,7 +1,6 @@
 import type { Session } from "@sokosumi/utils";
 import { Suspense } from "react";
 import { userService } from "@/lib/services/user.service";
-import { workspaceAccessFrom } from "@/lib/workspace-gate";
 import HeaderProfileSectionClient from "./header-profile-section.client";
 import { HeaderTrailingTools } from "./header-trailing-tools";
 
@@ -42,16 +41,13 @@ async function HeaderProfileSectionInner({
 
   // One Core read lists the switcher's workspaces (ADR 0051). Notification
   // Center + mobile Search stay outside this Suspense.
-  const list = await userService.getMyWorkspaces();
-  const workspaces = list?.workspaces ?? [];
+  const workspaces = (await userService.getMyWorkspaces())?.workspaces ?? [];
 
   return (
     <HeaderProfileSectionClient
       sessionUser={session.user}
-      organizations={workspaces.filter(({ kind }) => kind === "organization")}
-      hasPersonalWorkspace={
-        list ? workspaceAccessFrom(list).hasPersonalWorkspace : false
-      }
+      workspaces={workspaces}
+      hasPersonalWorkspace={workspaces.some(({ kind }) => kind === "personal")}
       activeOrganizationId={activeOrganizationId}
     />
   );

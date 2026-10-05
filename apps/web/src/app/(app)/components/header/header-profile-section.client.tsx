@@ -10,14 +10,14 @@ import HeaderWorkspaceSwitch from "./header-workspace-switch.client";
 
 interface HeaderProfileSectionClientProps {
   sessionUser: SessionUser;
-  organizations: UserWorkspace[];
+  workspaces: UserWorkspace[];
   hasPersonalWorkspace: boolean;
   activeOrganizationId: string | null;
 }
 
 export default function HeaderProfileSectionClient({
   sessionUser,
-  organizations,
+  workspaces,
   hasPersonalWorkspace,
   activeOrganizationId: serverActiveOrganizationId,
 }: HeaderProfileSectionClientProps) {
@@ -48,7 +48,7 @@ export default function HeaderProfileSectionClient({
     >
       <HeaderWorkspaceSwitch
         sessionUser={sessionUser}
-        organizations={organizations}
+        workspaces={workspaces}
         hasPersonalWorkspace={hasPersonalWorkspace}
         activeOrganizationId={activeOrganizationId}
         isPending={isPending}
