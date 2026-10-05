@@ -103,24 +103,6 @@ body:has(.ob) .site-header {
   white-space: nowrap;
 }
 
-.ob-mark {
-  flex: none;
-  border-radius: 8px;
-  object-fit: contain;
-  background: var(--background);
-  border: 1px solid var(--ob-line);
-}
-
-.ob-mark-letter {
-  display: grid;
-  place-items: center;
-  background: var(--foreground);
-  color: var(--background);
-  font-weight: 600;
-  font-size: 0.8em;
-  border: 0;
-}
-
 .ob-main {
   flex: 1;
   width: 100%;

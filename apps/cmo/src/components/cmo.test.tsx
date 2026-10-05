@@ -368,6 +368,7 @@ describe("pages", () => {
           ],
         })}
         compose={() => {}}
+        connect={async () => ({ url: null, error: null })}
       />,
     );
     expect(html).toContain("@acme");

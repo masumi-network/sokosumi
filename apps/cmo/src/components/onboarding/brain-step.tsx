@@ -12,8 +12,8 @@ import { motion } from "motion/react";
 import { useState, useTransition } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
+import { BusinessMark, businessDisplayName } from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
-import { BusinessMark, businessDisplayName } from "./flow";
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
 

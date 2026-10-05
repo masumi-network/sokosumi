@@ -1,6 +1,16 @@
+"use client";
+
 import type { CmoOverview } from "@sokosumi/core-client";
 
-import { channelLabel, entryReadiness } from "../../lib/calendar";
+import { Loader2 } from "lucide-react";
+import { useState, useTransition } from "react";
+
+import {
+  channelLabel,
+  entryReadiness,
+  SOCIAL_PROVIDERS,
+} from "../../lib/calendar";
+import { ChannelIcon } from "../channel-icon";
 import { formatMonth } from "./cards";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
@@ -210,15 +220,12 @@ function Lines({ items }: { items: string[] }) {
   );
 }
 
-/** What Sokosumi's Project Social can connect today. */
-const SOCIAL_PROVIDERS = [
-  ["x", "X"],
-  ["linkedin", "LinkedIn"],
-  ["instagram", "Instagram"],
-  ["facebook", "Facebook"],
-  ["tiktok", "TikTok"],
-  ["youtube", "YouTube"],
-] as const;
+type Provider = (typeof SOCIAL_PROVIDERS)[number];
+
+/** Starts a network's connection; the provider sends the founder back to CMO. */
+export type ConnectChannel = (
+  provider: Provider,
+) => Promise<{ url: string | null; error: string | null }>;
 
 const COMING_SOON = [
   ["Meta ads", "Ads"],
@@ -227,46 +234,76 @@ const COMING_SOON = [
   ["Newsletter", "Email"],
 ] as const;
 
-export function ChannelsPage({ overview }: PageProps) {
+export function ChannelsPage({
+  overview,
+  connect,
+  connectFailed = false,
+}: PageProps & { connect: ConnectChannel; connectFailed?: boolean }) {
+  const [pending, setPending] = useState<Provider | null>(null);
+  const [error, setError] = useState<string | null>(
+    connectFailed ? "That connection didn't finish. Try again." : null,
+  );
+  const [, startTransition] = useTransition();
+
+  function start(provider: Provider) {
+    setPending(provider);
+    setError(null);
+    startTransition(async () => {
+      const result = await connect(provider);
+      if (result.url) {
+        window.location.assign(result.url);
+        return;
+      }
+      setPending(null);
+      setError(
+        result.error && /configured|unavailable|set up/i.test(result.error)
+          ? "Connecting accounts isn't available here yet."
+          : (result.error ?? "Could not start connecting. Try again."),
+      );
+    });
+  }
+
   return (
     <div className="page-body">
+      {error ? (
+        <p className="alert" role="alert">
+          {error}
+        </p>
+      ) : null}
       <section className="panel">
         <h3>Social accounts</h3>
         <ul className="list">
-          {SOCIAL_PROVIDERS.map(([provider, label]) => {
-            const connected = overview.channels.find(
-              (channel) => channel.provider === provider,
+          {SOCIAL_PROVIDERS.map((provider) => {
+            const account = overview.channels.find(
+              (channel) => channel.provider.toLowerCase() === provider,
             );
+            const active = account?.status.toUpperCase() === "ACTIVE";
             return (
               <li key={provider} className="crow">
+                <ChannelIcon channel={provider} size={20} />
                 <span className="grow">
-                  <b>{label}</b>
+                  <b>{channelLabel(provider)}</b>
                   <br />
                   <span className="note">
-                    {connected
-                      ? (connected.handle ??
-                        connected.displayName ??
-                        "Connected")
-                      : "Social"}
+                    {account
+                      ? (account.handle ?? account.displayName ?? "Connected")
+                      : "Not connected"}
                   </span>
                 </span>
-                {connected ? (
-                  <span
-                    className={
-                      connected.status === "ACTIVE" ? "tag ok" : "tag warn"
-                    }
-                  >
-                    {connected.status === "ACTIVE" ? "Connected" : "Reconnect"}
-                  </span>
+                {active ? (
+                  <span className="tag ok">Connected</span>
                 ) : (
-                  <a
+                  <button
+                    type="button"
                     className="button button-secondary button-small"
-                    href={overview.connectChannelUrl}
-                    target="_blank"
-                    rel="noreferrer"
+                    disabled={pending !== null}
+                    onClick={() => start(provider)}
                   >
-                    Connect
-                  </a>
+                    {pending === provider ? (
+                      <Loader2 size={14} className="spin" aria-hidden="true" />
+                    ) : null}
+                    {account ? "Reconnect" : "Connect"}
+                  </button>
                 )}
               </li>
             );
@@ -289,7 +326,8 @@ export function ChannelsPage({ overview }: PageProps) {
         </ul>
       </section>
       <p className="note">
-        Channels come from Sokosumi. Whatever Cuso can reach, he plans for.
+        Cuso plans for every channel he can reach, and never posts outside the
+        strategy you approved.
       </p>
     </div>
   );

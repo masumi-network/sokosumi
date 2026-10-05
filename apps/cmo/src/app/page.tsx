@@ -27,6 +27,7 @@ interface HomePageProps {
   searchParams: Promise<{
     error?: string | string[];
     step?: string | string[];
+    connect?: string | string[];
   }>;
 }
 
@@ -70,12 +71,15 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         />
       );
     }
+    const { step, connect } = await searchParams;
     return (
       <CmoApp
         overview={overview}
         messages={await loadMessages().catch(() => [])}
         name={session.user.name}
         email={session.user.email}
+        initialView={step === "connect" ? "channels" : "chat"}
+        connectFailed={step === "connect" && connect === "failed"}
         actions={{
           loadState,
           sendMessage,
@@ -83,6 +87,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           revertUpdate,
           retryLearning,
           pauseEntry,
+          connectChannel,
           signOut,
         }}
       />

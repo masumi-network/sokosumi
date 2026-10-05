@@ -323,8 +323,9 @@ p {
 }
 
 /*
- * Signed-in app: sidebar, chat with cards, "Up next". Flat (borders only),
- * 4px grid, one accent for the action that matters and for Cuso's state.
+ * Signed-in app: sidebar, chat with cards, "Up next". A sibling of
+ * Sokosumi's web app: near-white sidebar, 64px header, 32px rows, hairline
+ * borders, 14px body. One accent, kept for the action that matters.
  */
 :root {
   /* TEMPORARY accent: the style guide leaves colour open; one accent only. */
@@ -333,7 +334,10 @@ p {
   --accent-soft: light-dark(rgb(61 78 214 / 0.08), rgb(115 129 240 / 0.16));
   --ok: light-dark(#2f7d55, #5cc28d);
   --warn: light-dark(#a3610f, #dd9a4a);
-  --radius-sm: 6px;
+  --sidebar: light-dark(#fafafa, #141414);
+  --hover: light-dark(#f2f2f2, #1f1f1f);
+  --radius-sm: 8px;
+  --radius-lg: 12px;
 }
 
 /* The app has its own header in the sidebar. */
@@ -347,12 +351,10 @@ body:has(.app) .site-header {
 
 .label {
   display: block;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
   color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
 }
 
 .muted {
@@ -365,11 +367,25 @@ body:has(.app) .site-header {
 }
 
 .button-small {
+  gap: 6px;
   min-height: 32px;
   padding: 0 12px;
   border-radius: var(--radius-sm);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
   font-weight: 500;
+}
+
+.button-secondary.button-small {
+  background: var(--background);
+}
+
+.button-secondary.button-small:hover {
+  border-color: var(--border);
+  background: var(--hover);
+}
+
+.button-secondary[aria-pressed="true"] {
+  background: var(--hover);
 }
 
 .button-ghost {
@@ -380,7 +396,7 @@ body:has(.app) .site-header {
 
 .button-ghost:hover {
   border-color: transparent;
-  background: var(--surface);
+  background: var(--hover);
   color: var(--foreground);
 }
 
@@ -405,12 +421,17 @@ a.button {
   text-decoration: none;
 }
 
+.spin {
+  animation: spin 800ms linear infinite;
+}
+
 .tag {
   display: inline-flex;
   align-items: center;
+  gap: 4px;
   padding: 2px 8px;
-  border-radius: 4px;
-  background: var(--surface);
+  border-radius: 999px;
+  background: var(--hover);
   color: var(--muted);
   font-size: 0.75rem;
   font-weight: 500;
@@ -418,20 +439,53 @@ a.button {
 }
 
 .tag.ok {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
   color: var(--ok);
 }
 
 .tag.warn {
-  background: transparent;
-  box-shadow: inset 0 0 0 1px var(--warn);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
   color: var(--warn);
 }
 
 .tag.accent {
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+.count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--hover);
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.dot.live {
+  background: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.alert {
+  padding: 10px 14px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  font-size: 0.875rem;
+  font-weight: 400;
 }
 
 .chips {
@@ -441,7 +495,7 @@ a.button {
 }
 
 .chip {
-  padding: 6px 12px;
+  padding: 4px 12px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: var(--background);
@@ -449,16 +503,36 @@ a.button {
   font: inherit;
   font-size: 0.8125rem;
   cursor: pointer;
+  transition: background-color 150ms;
 }
 
 .chip:hover {
-  border-color: var(--foreground);
+  background: var(--hover);
 }
 
 .chip.selected {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+
+/* The business's own mark, shared by onboarding and the app. */
+.ob-mark {
+  flex: none;
+  border-radius: 8px;
+  object-fit: contain;
+  background: var(--background);
+  border: 1px solid var(--border);
+}
+
+.ob-mark-letter {
+  display: grid;
+  place-items: center;
+  background: var(--foreground);
+  color: var(--background);
+  font-weight: 600;
+  font-size: 0.8em;
+  border: 0;
 }
 
 /* ── Landing ── */
@@ -504,10 +578,9 @@ textarea {
 }
 
 /* ── Shell ── */
-/* The app's type scale: 14px body, 13px secondary, 12px labels. */
 .app {
   display: grid;
-  grid-template-columns: 200px minmax(0, 1fr) 280px;
+  grid-template-columns: 224px minmax(0, 1fr) 300px;
   height: 100dvh;
   overflow: hidden;
   font-size: 0.875rem;
@@ -522,6 +595,10 @@ textarea {
 
 .app .note {
   font-size: 0.8125rem;
+}
+
+.app .list > li {
+  max-width: none;
 }
 
 .clamp {
@@ -548,77 +625,143 @@ textarea {
 }
 
 .app.upnext-closed {
-  grid-template-columns: 200px minmax(0, 1fr) 0;
+  grid-template-columns: 224px minmax(0, 1fr) 0;
 }
 
 .side {
   display: flex;
   flex-direction: column;
-  gap: 4px;
   min-height: 0;
-  padding: 16px 8px;
   border-right: 1px solid var(--border);
+  background: var(--sidebar);
 }
 
-.brand {
-  padding: 4px 8px 12px;
+.side-head {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 64px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--border);
 }
 
-.brand .logo {
+.side-head .logo {
   font-size: 1rem;
 }
 
 .business {
   display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.business-text {
+  display: flex;
   flex-direction: column;
-  gap: 2px;
-  margin: 0 0 12px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  overflow-wrap: anywhere;
+  min-width: 0;
+  line-height: 1.3;
 }
 
 .business-name {
-  font-size: 0.875rem;
+  overflow: hidden;
   font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.business-text .note {
+  overflow: hidden;
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .nav {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 12px 8px;
 }
 
 .nav button {
-  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 8px;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
-  color: var(--muted);
+  color: var(--foreground);
   font: inherit;
   font-size: 0.875rem;
-  font-weight: 500;
   text-align: left;
   white-space: nowrap;
   cursor: pointer;
 }
 
-.nav button:hover {
-  background: var(--surface);
-  color: var(--foreground);
+.nav button svg {
+  flex: none;
+  color: var(--muted);
+}
+
+.nav button:hover,
+.nav button.active {
+  background: var(--hover);
 }
 
 .nav button.active {
-  background: var(--surface);
+  font-weight: 500;
+}
+
+.nav button.active svg {
   color: var(--foreground);
 }
 
 .who {
-  padding: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: 0.8125rem;
+}
+
+.avatar,
+.mav {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--foreground);
+  color: var(--background);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.who-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.who-name,
+.who-text .note {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.who-name {
+  font-weight: 500;
+}
+
+.who-text .note {
+  font-size: 0.75rem;
 }
 
 .main {
@@ -633,14 +776,23 @@ textarea {
   flex: none;
   align-items: center;
   gap: 12px;
-  padding: 12px 24px;
+  height: 64px;
+  padding: 0 24px;
   border-bottom: 1px solid var(--border);
 }
 
 .vhead h2 {
   margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.8125rem;
 }
 
 .scroll {
@@ -657,6 +809,7 @@ textarea {
   gap: 12px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
+  background: color-mix(in srgb, var(--warn) 6%, var(--background));
   font-size: 0.875rem;
 }
 
@@ -668,12 +821,12 @@ textarea {
   background: var(--warn);
 }
 
-/* ── Chat ── */
+/* ── Chat: rows like Sokosumi's chat rooms, no bubbles ── */
 .thread {
   display: flex;
   flex-direction: column;
   gap: 20px;
-  max-width: 680px;
+  max-width: 720px;
   margin: 0 auto;
 }
 
@@ -684,54 +837,63 @@ textarea {
 }
 
 .mav {
-  display: grid;
-  flex: none;
-  place-items: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--surface);
+  background: var(--background);
+}
+
+.mav.user {
+  border: 0;
+  background: var(--hover);
+  color: var(--foreground);
 }
 
 .mbody {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   min-width: 0;
 }
 
 .meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  line-height: 1.2;
+}
+
+.meta b {
+  font-weight: 600;
+}
+
+.meta time {
   color: var(--muted);
   font-size: 0.75rem;
-  font-weight: 600;
 }
 
 .txt {
   font-size: 0.875rem;
   max-width: 62ch;
   white-space: pre-wrap;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
-.msg.user {
-  justify-content: flex-end;
+.txt a {
+  color: inherit;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
 }
 
-.bubble {
-  max-width: 46ch;
-  padding: 8px 12px;
-  border-radius: 12px 12px 4px 12px;
-  background: var(--foreground);
-  color: var(--background);
-  white-space: pre-wrap;
+.txt a:hover {
+  text-decoration-color: currentColor;
 }
 
 .typing {
   display: inline-flex;
   gap: 4px;
-  padding: 8px 0;
+  padding: 6px 0;
 }
 
 .typing i {
@@ -759,17 +921,13 @@ textarea {
 .card {
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   background: var(--background);
-}
-
-.card.highlight {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .flash .card {
   border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
 }
 
 .card .ch,
@@ -782,11 +940,17 @@ textarea {
 }
 
 .card .ch {
+  min-height: 52px;
   border-bottom: 1px solid var(--border);
+}
+
+.card .ch b {
+  font-weight: 600;
 }
 
 .card .cf {
   border-top: 1px solid var(--border);
+  background: var(--sidebar);
 }
 
 .card .cb {
@@ -816,13 +980,12 @@ textarea {
 
 .step .dot {
   display: grid;
-  flex: none;
   place-items: center;
-  width: 14px;
-  height: 14px;
-  border: 1.5px solid var(--border);
-  border-radius: 50%;
-  font-size: 9px;
+  width: 16px;
+  height: 16px;
+  border: 1px solid var(--border);
+  background: transparent;
+  font-size: 0.625rem;
 }
 
 .step.run {
@@ -833,6 +996,10 @@ textarea {
   border-color: var(--accent);
   border-top-color: transparent;
   animation: spin 800ms linear infinite;
+}
+
+.step.ok {
+  color: var(--foreground);
 }
 
 .step.ok .dot {
@@ -854,17 +1021,13 @@ textarea {
 .kv {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr);
-  gap: 8px 16px;
+  gap: 10px 16px;
   margin: 0;
 }
 
 .kv dt {
-  padding-top: 2px;
   color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+  font-size: 0.8125rem;
 }
 
 .kv dd {
@@ -892,8 +1055,8 @@ textarea {
 
 .cal .dow {
   color: var(--muted);
-  font-size: 0.625rem;
-  font-weight: 600;
+  font-size: 0.6875rem;
+  font-weight: 500;
   text-align: center;
 }
 
@@ -904,23 +1067,24 @@ textarea {
   gap: 2px;
   min-height: 28px;
   padding: 4px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: 6px;
+  background: var(--sidebar);
 }
 
 .cal .d.blank {
-  border-color: transparent;
+  background: transparent;
 }
 
 .cal.big .d {
   flex-direction: column;
   flex-wrap: nowrap;
   min-height: 80px;
+  padding: 6px;
 }
 
 .cal .n {
   color: var(--muted);
-  font-size: 0.625rem;
+  font-size: 0.6875rem;
   line-height: 1;
 }
 
@@ -957,11 +1121,11 @@ textarea {
 }
 
 .k.article {
-  border: 1.5px solid var(--foreground);
+  border: 1px solid var(--foreground);
 }
 
 .k.news {
-  border: 1.5px solid var(--accent);
+  border: 1px solid var(--accent);
   border-radius: 50%;
 }
 
@@ -992,7 +1156,7 @@ textarea {
   padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  background: var(--surface);
+  background: var(--sidebar);
   font-size: 0.8125rem;
 }
 
@@ -1020,8 +1184,8 @@ textarea {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 8px;
-  padding: 8px 0;
+  gap: 8px 12px;
+  padding: 10px 0;
   border-top: 1px solid var(--border);
 }
 
@@ -1043,16 +1207,15 @@ textarea {
 
 .composer-wrap {
   flex: none;
-  padding: 12px 24px 16px;
-  border-top: 1px solid var(--border);
+  padding: 8px 24px 20px;
 }
 
 .suggest {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  max-width: 680px;
-  margin: 0 auto 8px;
+  max-width: 720px;
+  margin: 0 auto 10px;
 }
 
 .suggest:empty {
@@ -1061,38 +1224,68 @@ textarea {
 
 .composer {
   display: flex;
-  align-items: flex-end;
-  gap: 8px;
-  max-width: 680px;
+  flex-direction: column;
+  max-width: 720px;
   margin: 0 auto;
-  padding: 4px 4px 4px 12px;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-lg);
+  background: var(--background);
+  transition: border-color 150ms;
 }
 
 .composer:focus-within {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px var(--accent-soft);
+  border-color: color-mix(in srgb, var(--foreground) 30%, var(--border));
 }
 
 .composer textarea {
-  flex: 1;
   min-width: 0;
-  padding: 6px 0;
+  padding: 14px 16px 4px;
   border: 0;
   outline: none;
   resize: none;
   background: transparent;
+  line-height: 1.5;
 }
 
-/* ── Up next ── */
+.composer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 12px 12px 16px;
+}
+
+.send {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--foreground);
+  color: var(--background);
+  cursor: pointer;
+  transition: opacity 150ms;
+}
+
+.send:disabled {
+  opacity: 0.25;
+  cursor: not-allowed;
+}
+
+.send:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* ── Up next: a column like the task board's ── */
 .upnext {
   display: flex;
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
   border-left: 1px solid var(--border);
-  background: var(--background);
+  background: var(--sidebar);
 }
 
 .app.upnext-closed .upnext {
@@ -1101,23 +1294,25 @@ textarea {
 
 .uh {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 8px;
-  padding: 12px 16px;
+  height: 64px;
+  padding: 0 12px 0 16px;
   border-bottom: 1px solid var(--border);
 }
 
 .uh b {
-  flex: 1;
-  font-size: 0.875rem;
+  font-size: 0.9375rem;
+  font-weight: 500;
 }
 
 .ub {
   display: flex;
   flex: 1;
   flex-direction: column;
-  gap: 16px;
-  padding: 16px;
+  gap: 20px;
+  padding: 16px 12px;
   overflow-y: auto;
 }
 
@@ -1127,26 +1322,48 @@ textarea {
   gap: 8px;
 }
 
+.ugroup .label {
+  margin: 0 4px 2px;
+}
+
 .uitem {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 8px 12px;
+  gap: 6px;
+  padding: 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
+  background: var(--background);
   font-size: 0.8125rem;
 }
 
 .uitem .top {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+}
+
+.uchannel {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.utitle {
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
 }
 
 .uitem .when {
   margin-left: auto;
   color: var(--muted);
   font-size: 0.75rem;
+}
+
+.uitem .acts .button-small {
+  min-height: 28px;
+  padding: 0 8px;
+  font-size: 0.8125rem;
 }
 
 .uitem.paused {
@@ -1167,7 +1384,7 @@ textarea {
 .empty .shape {
   width: 32px;
   height: 32px;
-  border: 1.5px dashed var(--border);
+  border: 1px dashed var(--border);
   border-radius: 50%;
 }
 
@@ -1177,7 +1394,7 @@ textarea {
 
 /* ── Pages ── */
 .page-wide {
-  max-width: 820px;
+  max-width: 840px;
   margin: 0 auto;
 }
 
@@ -1187,25 +1404,33 @@ textarea {
   gap: 16px;
 }
 
+.page-body > p:first-child {
+  font-size: 0.9375rem;
+  line-height: 1.6;
+}
+
 .panel {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 16px;
+  gap: 10px;
+  padding: 16px 18px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  background: var(--background);
 }
 
 .panel h3 {
-  margin: 0;
-  font-size: 0.875rem;
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 500;
 }
 
 .grid2 {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 16px;
+  gap: 12px;
 }
 
 .grid4 {
@@ -1218,14 +1443,20 @@ textarea {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 12px 16px;
+  padding: 14px 16px;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
+  background: var(--sidebar);
+}
+
+.kpi .label {
+  margin: 0;
 }
 
 .v {
-  font-size: 1.25rem;
+  font-size: 1.5rem;
   font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .plain {
@@ -1253,20 +1484,30 @@ textarea {
   .side {
     flex-direction: row;
     align-items: center;
-    padding: 8px 12px;
     overflow-x: auto;
     border-right: 0;
     border-bottom: 1px solid var(--border);
   }
 
-  .brand,
+  .side-head,
   .side .grow,
   .who {
     display: none;
   }
 
+  .business {
+    flex: none;
+    padding: 8px 12px;
+    border-bottom: 0;
+  }
+
+  .business-text .note {
+    display: none;
+  }
+
   .nav {
     flex-direction: row;
+    padding: 8px;
   }
 
   .upnext {
@@ -1306,13 +1547,17 @@ textarea {
     padding: 16px;
   }
 
-  .vhead,
+  .vhead {
+    height: 56px;
+    padding: 0 16px;
+  }
+
   .banner {
     padding: 12px 16px;
   }
 
   .composer-wrap {
-    padding: 12px 16px;
+    padding: 8px 16px 16px;
   }
 }
 
@@ -1325,11 +1570,17 @@ textarea {
 
 @media (prefers-reduced-motion: reduce) {
   .typing i,
-  .step.run .dot {
+  .step.run .dot,
+  .spin {
     animation: none;
   }
 
   .upnext {
     transition: none;
   }
+}
+
+.panel > .li {
+  padding: 0;
+  border-top: 0;
 }

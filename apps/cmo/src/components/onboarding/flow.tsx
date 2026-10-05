@@ -7,12 +7,12 @@ import { Check } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
 import type { CusoMessage } from "../../lib/chat-messages";
+import { BusinessMark } from "../business-mark";
 import { Logo } from "../logo";
 import { BrainStep } from "./brain-step";
 import { ConnectStep, strategySocialChannels } from "./connect-step";
 import { PricingStep } from "./pricing-step";
 import { ResearchStep } from "./research-step";
-import { vividColors } from "./showcases";
 import { StrategyStep } from "./strategy-step";
 
 export interface OnboardingActions {
@@ -249,48 +249,5 @@ export function OnboardingFlow({
         )}
       </main>
     </div>
-  );
-}
-
-/** The business as it names itself ("Cal.com"), else its domain. */
-export function businessDisplayName(overview: CmoOverview): string {
-  const siteName = overview.brandVisual?.siteName;
-  return siteName && siteName.length <= 40 ? siteName : overview.businessName;
-}
-
-/** The business's own mark: its logo when Cuso found one, else its initial. */
-export function BusinessMark({
-  overview,
-  size = 28,
-}: {
-  overview: CmoOverview;
-  size?: number;
-}) {
-  const logo = overview.brandVisual?.logoUrl ?? overview.projectLogo;
-  const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
-  if (logo) {
-    return (
-      <img
-        className="ob-mark"
-        src={logo}
-        alt=""
-        width={size}
-        height={size}
-        style={{ width: size, height: size }}
-      />
-    );
-  }
-  return (
-    <span
-      className="ob-mark ob-mark-letter"
-      style={{
-        width: size,
-        height: size,
-        ...(accent ? { background: accent, color: "#fff" } : {}),
-      }}
-      aria-hidden="true"
-    >
-      {overview.businessName.charAt(0).toUpperCase()}
-    </span>
   );
 }

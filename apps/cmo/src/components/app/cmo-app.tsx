@@ -1,9 +1,21 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
+import {
+  ArrowUp,
+  Brain,
+  ChartLine,
+  type LucideIcon,
+  MessageSquare,
+  PanelRight,
+  Settings,
+  Share2,
+  Target,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import type { CusoMessage } from "../../lib/chat-messages";
 import { buildThread, cusoStatus, type ThreadItem } from "../../lib/thread";
+import { BusinessMark, businessDisplayName } from "../business-mark";
 import { Logo } from "../logo";
 import {
   BrandBrainCard,
@@ -17,6 +29,7 @@ import {
 import {
   BrandBrainPage,
   ChannelsPage,
+  type ConnectChannel,
   ResultsPage,
   SettingsPage,
   StrategyPage,
@@ -26,14 +39,14 @@ import { UpNext } from "./up-next";
 const POLL_MS = 4_000;
 
 const VIEWS = [
-  ["chat", "Cuso"],
-  ["strategy", "Strategy"],
-  ["results", "Results"],
-  ["brain", "Brand Brain"],
-  ["channels", "Channels"],
-  ["settings", "Settings"],
-] as const;
-type View = (typeof VIEWS)[number][0];
+  ["chat", "Cuso", MessageSquare],
+  ["strategy", "Strategy", Target],
+  ["results", "Results", ChartLine],
+  ["brain", "Brand Brain", Brain],
+  ["channels", "Channels", Share2],
+  ["settings", "Settings", Settings],
+] as const satisfies readonly (readonly [string, string, LucideIcon])[];
+export type View = (typeof VIEWS)[number][0];
 
 export interface CmoAppActions {
   loadState: () => Promise<{
@@ -48,6 +61,7 @@ export interface CmoAppActions {
     error: string | null;
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
+  connectChannel: ConnectChannel;
   signOut: () => Promise<void>;
 }
 
@@ -56,6 +70,10 @@ interface CmoAppProps {
   messages: CusoMessage[];
   name: string;
   email: string;
+  /** Where a redirect (a channel connection) returns to. */
+  initialView?: View;
+  /** The channel connection that sent the founder back did not finish. */
+  connectFailed?: boolean;
   actions: CmoAppActions;
 }
 
@@ -120,11 +138,13 @@ export function CmoApp({
   messages: initialMessages,
   name,
   email,
+  initialView = "chat",
+  connectFailed = false,
   actions,
 }: CmoAppProps) {
   const [overview, setOverview] = useState(initialOverview);
   const [messages, setMessages] = useState(initialMessages);
-  const [view, setView] = useState<View>("chat");
+  const [view, setView] = useState<View>(initialView);
   const [upNextOpen, setUpNextOpen] = useState(true);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [draft, setDraft] = useState("");
@@ -132,6 +152,11 @@ export function CmoApp({
   const [highlight, setHighlight] = useState<string | null>(null);
   const input = useRef<HTMLTextAreaElement>(null);
   const end = useRef<HTMLDivElement>(null);
+
+  // A connection redirect lands on /?step=connect; keep the address clean.
+  useEffect(() => {
+    if (window.location.search) window.history.replaceState(null, "", "/");
+  }, []);
 
   const refresh = useCallback(async () => {
     const state = await actions.loadState().catch(() => null);
@@ -208,6 +233,8 @@ export function CmoApp({
     overview.strategyApprovedAt !== null &&
     overview.billing.availableCredits <= 0;
   const upNextCount = overview.upNext.length;
+  const host = siteHost(overview.websiteUrl);
+  const displayName = businessDisplayName(overview);
 
   return (
     <div
@@ -218,17 +245,18 @@ export function CmoApp({
       ].join(" ")}
     >
       <nav className="side" aria-label="Main">
-        <div className="brand">
+        <div className="side-head">
           <Logo />
         </div>
         <div className="business" title={overview.websiteUrl}>
-          <span className="business-name">{overview.businessName}</span>
-          {siteHost(overview.websiteUrl) !== overview.businessName ? (
-            <span className="note">{siteHost(overview.websiteUrl)}</span>
-          ) : null}
+          <BusinessMark overview={overview} size={28} />
+          <span className="business-text">
+            <span className="business-name">{displayName}</span>
+            {host !== displayName ? <span className="note">{host}</span> : null}
+          </span>
         </div>
         <div className="nav">
-          {VIEWS.map(([id, label]) => (
+          {VIEWS.map(([id, label, Icon]) => (
             <button
               key={id}
               type="button"
@@ -236,20 +264,37 @@ export function CmoApp({
               aria-current={view === id ? "page" : undefined}
               onClick={() => setView(id)}
             >
-              {label}
+              <Icon size={16} aria-hidden="true" />
+              <span>{label}</span>
             </button>
           ))}
         </div>
         <div className="grow" />
         <div className="who">
-          <span className="grow">{name}</span>
+          <span className="avatar" aria-hidden="true">
+            {initial(name || email)}
+          </span>
+          <span className="who-text">
+            <span className="who-name">{name || email}</span>
+            {name ? <span className="note">{email}</span> : null}
+          </span>
         </div>
       </nav>
 
       <main className="main">
         <div className="vhead">
           <h2>{VIEWS.find(([id]) => id === view)?.[1]}</h2>
-          {view === "chat" ? <span className="tag">{status}</span> : null}
+          {view === "chat" ? (
+            <span className="status">
+              <span
+                className={
+                  overview.botStatus === "RUNNING" ? "dot live" : "dot"
+                }
+                aria-hidden="true"
+              />
+              {status}
+            </span>
+          ) : null}
           {view === "strategy" && overview.strategy ? (
             <span className={overview.strategyApprovedAt ? "tag ok" : "tag"}>
               {overview.strategyApprovedAt ? "Approved" : "Draft"}
@@ -268,7 +313,8 @@ export function CmoApp({
           {view === "chat" ? (
             <button
               type="button"
-              className="button button-ghost button-small"
+              className="button button-secondary button-small"
+              aria-pressed={upNextOpen}
               onClick={() => {
                 if (window.matchMedia("(max-width: 860px)").matches) {
                   setDrawerOpen((open) => !open);
@@ -277,7 +323,8 @@ export function CmoApp({
                 }
               }}
             >
-              Up next <span className="tag num">{upNextCount}</span>
+              <PanelRight size={16} aria-hidden="true" />
+              Up next <span className="count num">{upNextCount}</span>
             </button>
           ) : null}
         </div>
@@ -311,23 +358,20 @@ export function CmoApp({
                     item={item}
                     overview={overview}
                     actions={cardActions}
+                    name={name || email}
                     highlighted={
                       item.kind === "update" && item.update.id === highlight
                     }
                   />
                 ))}
                 {overview.botStatus === "RUNNING" ? (
-                  <div className="msg">
-                    <CusoMark />
-                    <div className="mbody">
-                      <span className="meta">Cuso</span>
-                      <span className="typing" aria-label="Cuso is working">
-                        <i />
-                        <i />
-                        <i />
-                      </span>
-                    </div>
-                  </div>
+                  <CusoSays>
+                    <span className="typing" aria-label="Cuso is working">
+                      <i />
+                      <i />
+                      <i />
+                    </span>
+                  </CusoSays>
                 ) : null}
                 <div ref={end} />
               </div>
@@ -348,22 +392,25 @@ export function CmoApp({
               <form className="composer" onSubmit={send}>
                 <textarea
                   ref={input}
-                  rows={1}
+                  rows={2}
                   value={draft}
                   aria-label="Message Cuso"
-                  placeholder="Message Cuso"
+                  placeholder="Ask Cuso anything, or tell him what to change"
                   onChange={(event) => setDraft(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) send(event);
                   }}
                 />
-                <button
-                  type="submit"
-                  className="button button-small"
-                  disabled={sending || !draft.trim()}
-                >
-                  Send
-                </button>
+                <div className="composer-bar">
+                  <button
+                    type="submit"
+                    className="send"
+                    aria-label="Send"
+                    disabled={sending || !draft.trim()}
+                  >
+                    <ArrowUp size={16} aria-hidden="true" />
+                  </button>
+                </div>
               </form>
             </div>
           </>
@@ -381,7 +428,12 @@ export function CmoApp({
               ) : view === "brain" ? (
                 <BrandBrainPage overview={overview} compose={compose} />
               ) : view === "channels" ? (
-                <ChannelsPage overview={overview} compose={compose} />
+                <ChannelsPage
+                  overview={overview}
+                  compose={compose}
+                  connect={actions.connectChannel}
+                  connectFailed={connectFailed}
+                />
               ) : (
                 <SettingsPage
                   overview={overview}
@@ -428,23 +480,31 @@ function ThreadEntry({
   item,
   overview,
   actions,
+  name,
   highlighted,
 }: {
   item: ThreadItem;
   overview: CmoOverview;
   actions: CardActions;
+  name: string;
   highlighted: boolean;
 }) {
   if (item.kind === "message") {
     if (!item.message.fromCuso) {
       return (
-        <div className="msg user">
-          <div className="bubble">{item.message.content}</div>
+        <div className="msg">
+          <span className="mav user" aria-hidden="true">
+            {initial(name)}
+          </span>
+          <div className="mbody">
+            <MessageMeta author={item.message.author || name} at={item.at} />
+            <p className="txt">{item.message.content}</p>
+          </div>
         </div>
       );
     }
     return (
-      <CusoSays>
+      <CusoSays at={item.at}>
         <p className="txt">
           {renderInline(item.message.content, webOriginOf(overview))}
         </p>
@@ -470,7 +530,7 @@ function ThreadEntry({
       case "subscribe":
         return <SubscribeCard overview={overview} />;
       case "connect":
-        return <ConnectCard overview={overview} />;
+        return <ConnectCard actions={actions} />;
       case "update":
         return (
           <div
@@ -494,28 +554,60 @@ function ThreadEntry({
         );
     }
   })();
-  return card ? <CusoSays>{card}</CusoSays> : null;
+  return card ? <CusoSays at={item.at}>{card}</CusoSays> : null;
 }
 
-function CusoSays({ children }: { children: React.ReactNode }) {
+function CusoSays({
+  at,
+  children,
+}: {
+  at?: string;
+  children: React.ReactNode;
+}) {
   return (
     <div className="msg">
-      <CusoMark />
+      <span className="mav" aria-hidden="true">
+        <img alt="" src="/icon.svg" width={18} height={18} />
+      </span>
       <div className="mbody">
-        <span className="meta">Cuso</span>
+        <MessageMeta author="Cuso" at={at} />
         {children}
       </div>
     </div>
   );
 }
 
-/** Cuso's avatar: the CMO.xyz pointer mark on a tile. */
-function CusoMark() {
+function MessageMeta({ author, at }: { author: string; at?: string }) {
   return (
-    <span className="mav" aria-hidden="true">
-      <img alt="" src="/icon.svg" width={18} height={18} />
+    <span className="meta">
+      <b>{author}</b>
+      {at ? (
+        <time dateTime={at} suppressHydrationWarning>
+          {stamp(at)}
+        </time>
+      ) : null}
     </span>
   );
+}
+
+/** "14:02" today, "Mon 5 Oct, 14:02" before. */
+function stamp(at: string): string {
+  const date = new Date(at);
+  const time = date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  if (date.toDateString() === new Date().toDateString()) return time;
+  const day = date.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+  return `${day}, ${time}`;
+}
+
+function initial(text: string): string {
+  return text.trim().charAt(0).toUpperCase() || "?";
 }
 
 function siteHost(url: string): string {

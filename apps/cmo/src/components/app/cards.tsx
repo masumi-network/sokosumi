@@ -342,7 +342,8 @@ export function SubscribeCard({ overview }: { overview: CmoOverview }) {
   );
 }
 
-export function ConnectCard({ overview }: { overview: CmoOverview }) {
+/** Opens CMO's own Channels page, where each network connects in place. */
+export function ConnectCard({ actions }: { actions: CardActions }) {
   return (
     <div className="card">
       <div className="ch">
@@ -356,14 +357,13 @@ export function ConnectCard({ overview }: { overview: CmoOverview }) {
         </p>
       </div>
       <div className="cf">
-        <a
-          className="button button-accent button-small"
-          href={overview.connectChannelUrl}
-          target="_blank"
-          rel="noreferrer"
+        <button
+          type="button"
+          className="button button-small"
+          onClick={() => actions.open("channels")}
         >
           Connect a channel
-        </a>
+        </button>
         <span className="note">Until then I keep the posts as drafts.</span>
       </div>
     </div>

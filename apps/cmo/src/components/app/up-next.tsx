@@ -3,6 +3,7 @@ import type { CmoOverview } from "@sokosumi/core-client";
 import { useTransition } from "react";
 
 import { channelLabel, relativeDay } from "../../lib/calendar";
+import { ChannelIcon } from "../channel-icon";
 
 interface UpNextProps {
   overview: CmoOverview;
@@ -36,6 +37,8 @@ export function UpNext({
     <aside className="upnext" aria-label="Up next">
       <div className="uh">
         <b>Up next</b>
+        <span className="count num">{overview.upNext.length}</span>
+        <span className="sp" />
         <button
           type="button"
           className="button button-ghost button-small"
@@ -61,12 +64,13 @@ export function UpNext({
           <section className="ugroup">
             <span className="label">Running now</span>
             {working ? (
-              <div className="uitem">
+              <div className="uitem working">
                 <div className="top">
-                  <span className="tag accent">Cuso</span>
+                  <span className="dot live" aria-hidden="true" />
+                  <span className="uchannel">Cuso</span>
                   <span className="when">Now</span>
                 </div>
-                <span>Working on your marketing</span>
+                <span className="utitle">Working on your marketing</span>
               </div>
             ) : null}
             {runningToday.map((item) => (
@@ -118,12 +122,13 @@ function Item({
   return (
     <div className={paused ? "uitem paused" : "uitem"}>
       <div className="top">
-        <span className="tag">{channelLabel(item.channel)}</span>
+        <ChannelIcon channel={item.channel} size={14} />
+        <span className="uchannel">{channelLabel(item.channel)}</span>
         <span className="when">{relativeDay(item.date, today)}</span>
       </div>
-      <span>{item.title}</span>
+      <span className="utitle">{item.title}</span>
       <div className="top">
-        <span className="note">
+        <span className="tag">
           {paused ? "Paused" : (STATUS_LABELS[item.status] ?? item.status)}
         </span>
         <span className="acts">

@@ -5,8 +5,12 @@ import { motion } from "motion/react";
 import type { CSSProperties, ReactNode } from "react";
 
 import { calendarKind } from "../../lib/calendar";
+import {
+  BusinessMark,
+  businessDisplayName,
+  vividColors,
+} from "../business-mark";
 import { ChannelIcon } from "../channel-icon";
-import { BusinessMark, businessDisplayName } from "./flow";
 
 type Strategy = NonNullable<CmoOverview["strategy"]>;
 type Entry = Strategy["calendar"][number];
@@ -86,19 +90,6 @@ function host(url: string): string {
   } catch {
     return url;
   }
-}
-
-function saturation(hex: string): number {
-  const [r = 0, g = 0, b = 0] = [1, 3, 5].map((at) =>
-    Number.parseInt(hex.slice(at, at + 2), 16),
-  );
-  const max = Math.max(r, g, b);
-  return max === 0 ? 0 : (max - Math.min(r, g, b)) / max;
-}
-
-/** The brand's colours, the most vivid first: dark navies read as text, not brand. */
-export function vividColors(colors: string[]): string[] {
-  return [...colors].sort((a, b) => saturation(b) - saturation(a));
 }
 
 function brand(overview: CmoOverview): CSSProperties {
