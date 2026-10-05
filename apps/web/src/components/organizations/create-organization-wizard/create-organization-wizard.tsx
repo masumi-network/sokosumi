@@ -1050,7 +1050,9 @@ export function CreateOrganizationWizard({
               loading={isCreatingOrg}
             >
               {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
-              {!isCreatingOrg && <ArrowRight className="size-4" />}
+              {/* Keep the icon mounted. It is the only svg, so unmounting it
+                  drops `has-[>svg]` and the lg padding jumps while loading. */}
+              <ArrowRight className="size-4" />
             </Button>
           )}
           {step === 1 && (
