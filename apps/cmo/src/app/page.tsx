@@ -1,19 +1,19 @@
 import { headers } from "next/headers";
 
-import { CmoWorkspace } from "../components/cmo-workspace";
+import { CmoApp } from "../components/app/cmo-app";
 import { Onboarding } from "../components/onboarding";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import { getAuth } from "../lib/auth";
 import { createAccount, signIn, signOut } from "./actions";
 import {
+  approveStrategy,
   loadMessages,
   loadOverview,
+  loadState,
   onboard,
-  planMonth,
-  saveBrandBrain,
+  revertUpdate,
   sendMessage,
-  setAutonomy,
 } from "./cmo-actions";
 
 interface HomePageProps {
@@ -36,18 +36,19 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       );
     }
     if (overview === null) {
-      return <Onboarding name={session.user.name} onboard={onboard} />;
+      return <Onboarding onboard={onboard} />;
     }
     return (
-      <CmoWorkspace
+      <CmoApp
         overview={overview}
         messages={await loadMessages().catch(() => [])}
+        name={session.user.name}
+        email={session.user.email}
         actions={{
-          saveBrandBrain,
-          planMonth,
-          setAutonomy,
-          loadMessages,
+          loadState,
           sendMessage,
+          approveStrategy,
+          revertUpdate,
           signOut,
         }}
       />

@@ -2,128 +2,263 @@ import type { ChatRoomMessage, CmoOverview } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import { calendarKind, monthGrid, relativeDay } from "../lib/calendar";
 import { toCusoMessages } from "../lib/chat-messages";
-import { brandBrainFromForm } from "./brand-brain-editor";
-import { renderBold } from "./cuso-chat";
+import { buildThread, cusoStatus } from "../lib/thread";
+import { learningSteps, StrategyCard, UpdateCard } from "./app/cards";
+import { renderBold } from "./app/cmo-app";
+import { ChannelsPage, ResultsPage } from "./app/pages";
 import { Onboarding } from "./onboarding";
-import { groupCalendar, StrategyCalendar } from "./strategy-calendar";
 
 const strategy: NonNullable<CmoOverview["strategy"]> = {
   month: "2026-10",
   summary: "Founder led LinkedIn posts that show the product working.",
   goals: ["More demo requests"],
   pillars: ["Product stories"],
-  channels: [{ channel: "linkedin", cadence: "3 a week", autonomy: "ask" }],
+  channels: [{ channel: "linkedin", cadence: "3 a week" }],
   calendar: [
-    {
-      id: "b",
-      date: "2026-10-07",
-      channel: "linkedin",
-      title: "Customer story",
-      format: "post",
-      status: "draft",
-    },
     {
       id: "a",
       date: "2026-10-05",
       channel: "linkedin",
       title: "Why we built it",
       format: "post",
-      status: "idea",
+      status: "draft",
     },
   ],
-  reviewMode: "suggest",
-  weeklyReviews: [],
+  previews: [
+    { kind: "post", channel: "linkedin", title: "Hello", body: "First post" },
+    { kind: "ad", channel: "meta", title: "Try it", body: "Ad copy" },
+  ],
+};
+
+function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
+  return {
+    id: "cmo-1",
+    businessName: "Acme",
+    websiteUrl: "https://acme.io",
+    goals: "More sales",
+    organizationId: "org-1",
+    organizationSlug: "acme",
+    workspaceId: "ws-1",
+    sokoBotId: "bot-1",
+    projectId: "project-1",
+    roomId: "room-1",
+    botStatus: "IDLE",
+    subscriptionActive: false,
+    brandBrain: {
+      summary: "Acme sells rockets.",
+      voice: { tone: "Direct", do: [], dont: [], examples: [] },
+      audience: ["Founders"],
+      products: [],
+      competitors: [],
+      channels: [],
+    },
+    brandBrainUpdatedAt: new Date("2026-10-01T09:01:00Z"),
+    strategy,
+    strategyUpdatedAt: new Date("2026-10-01T09:02:00Z"),
+    strategyApprovedAt: null,
+    updates: [],
+    channels: [],
+    upNext: [],
+    connectChannelUrl: "http://web/social?projectId=project-1",
+    subscribeUrl: "http://web/billing",
+    billing: { plan: null, subscriptionStatus: null, availableCredits: 40 },
+    posts: { draft: 2, scheduled: 1, published: 0, failed: 0 },
+    createdAt: new Date("2026-10-01T09:00:00Z"),
+    ...patch,
+  };
+}
+
+const noop = {
+  approve: async () => {},
+  revert: async () => {},
+  compose: () => {},
+  open: () => {},
 };
 
 describe("Onboarding", () => {
-  it("asks for the website and the goals", () => {
-    const html = renderToStaticMarkup(
-      <Onboarding name="Ada" onboard={async () => {}} />,
-    );
+  it("asks for the website and one main goal", () => {
+    const html = renderToStaticMarkup(<Onboarding onboard={async () => {}} />);
     expect(html).toContain('name="websiteUrl"');
-    expect(html).toContain('name="goals"');
-    expect(html).toContain("Hi Ada");
+    expect(html).toContain('name="goals" value="More sales"');
+    expect(html).toContain("Launch something");
   });
 });
 
-describe("StrategyCalendar", () => {
-  it("groups the calendar by date in order", () => {
-    expect(groupCalendar(strategy.calendar).map(([date]) => date)).toEqual([
-      "2026-10-05",
-      "2026-10-07",
-    ]);
+describe("calendar", () => {
+  it("lays the month out Monday first", () => {
+    const cells = monthGrid("2026-10", strategy.calendar);
+    // 1 October 2026 is a Thursday: three blank cells first.
+    expect(cells.slice(0, 3).every((cell) => cell.date === null)).toBe(true);
+    expect(cells[3]?.date).toBe("2026-10-01");
+    expect(
+      cells.find((cell) => cell.date === "2026-10-05")?.entries,
+    ).toHaveLength(1);
   });
 
-  it("shows each channel with its autonomy", () => {
-    const html = renderToStaticMarkup(
-      <StrategyCalendar strategy={strategy} setAutonomy={async () => {}} />,
+  it("marks ads, newsletters and articles apart from posts", () => {
+    expect(calendarKind({ format: "post", channel: "linkedin" })).toBe("post");
+    expect(calendarKind({ format: "ad", channel: "meta" })).toBe("ad");
+    expect(calendarKind({ format: "newsletter", channel: "email" })).toBe(
+      "news",
     );
-    expect(html).toContain("Plan for 2026-10");
-    expect(html).toContain("Why we built it");
-    expect(html).toContain(
-      '<option value="ask" selected="">Ask me first</option>',
+    expect(calendarKind({ format: "article", channel: "blog" })).toBe(
+      "article",
     );
   });
-});
 
-describe("brandBrainFromForm", () => {
-  it("turns one item per line into lists and keeps the rest", () => {
-    const previous = {
-      summary: "Old",
-      voice: { tone: "Calm", do: [], dont: [], examples: [] },
-      audience: [],
-      products: [],
-      competitors: [{ name: "Rival" }],
-      channels: [],
-    };
-    const next = brandBrainFromForm(previous, {
-      summary: " New summary ",
-      tone: "Direct",
-      doLines: "Short sentences\n\nConcrete numbers",
-      dontLines: "Hype",
-      examples: "",
-      audience: "CTOs",
-      products: "The platform",
-    });
-    expect(next.voice.do).toEqual(["Short sentences", "Concrete numbers"]);
-    expect(next.summary).toBe("New summary");
-    expect(next.competitors).toEqual([{ name: "Rival" }]);
+  it("names nearby days", () => {
+    expect(relativeDay("2026-10-05", "2026-10-05")).toBe("Today");
+    expect(relativeDay("2026-10-06", "2026-10-05")).toBe("Tomorrow");
   });
 });
 
-describe("toCusoMessages", () => {
-  it("keeps top level messages, oldest first, and marks Cuso's", () => {
-    const base = {
-      parentMessageId: null,
-      deletedAt: null,
-    } as unknown as ChatRoomMessage;
+describe("thread", () => {
+  it("orders messages and cards by time", () => {
     const messages = toCusoMessages([
       {
-        ...base,
-        id: "2",
-        content: "Here is the plan.",
-        createdAt: new Date("2026-10-01T10:01:00Z"),
+        id: "m1",
+        parentMessageId: null,
+        deletedAt: null,
+        content: "Plan is ready.",
+        createdAt: new Date("2026-10-01T09:03:00Z"),
         sender: { type: "sokoBot", sokoBot: { name: "Cuso" } },
-      } as ChatRoomMessage,
-      {
-        ...base,
-        id: "1",
-        content: "Hi",
-        createdAt: new Date("2026-10-01T10:00:00Z"),
-        sender: { type: "user", user: { name: "Ada" } },
-      } as ChatRoomMessage,
-      {
-        ...base,
-        id: "3",
-        parentMessageId: "1",
-        content: "thread reply",
-        createdAt: new Date("2026-10-01T10:02:00Z"),
-        sender: { type: "user", user: { name: "Ada" } },
-      } as ChatRoomMessage,
+      } as unknown as ChatRoomMessage,
     ]);
-    expect(messages.map((message) => message.id)).toEqual(["1", "2"]);
-    expect(messages[1]?.fromCuso).toBe(true);
+    const kinds = buildThread(overview(), messages).map((item) => item.kind);
+    expect(kinds).toEqual(["learning", "brandBrain", "strategy", "message"]);
+  });
+
+  it("asks to subscribe and connect only after approval", () => {
+    const before = buildThread(overview(), []).map((item) => item.kind);
+    expect(before).not.toContain("subscribe");
+    const after = buildThread(
+      overview({ strategyApprovedAt: new Date("2026-10-01T09:05:00Z") }),
+      [],
+    ).map((item) => item.kind);
+    expect(after.slice(-2)).toEqual(["subscribe", "connect"]);
+  });
+
+  it("says what Cuso is waiting for", () => {
+    expect(cusoStatus(overview({ brandBrain: null }))).toBe("Learning");
+    expect(cusoStatus(overview())).toBe("Waiting for approval");
+    expect(
+      cusoStatus(
+        overview({
+          strategyApprovedAt: new Date(),
+          billing: {
+            plan: null,
+            subscriptionStatus: null,
+            availableCredits: 0,
+          },
+        }),
+      ),
+    ).toBe("Paused");
+  });
+});
+
+describe("learning steps", () => {
+  it("ticks only what the Brand Brain actually confirmed", () => {
+    const brain = overview().brandBrain;
+    if (!brain) throw new Error("fixture");
+    const steps = learningSteps({
+      ...brain,
+      audience: ["Not confirmed yet."],
+      products: ["Rockets"],
+    });
+    expect(Object.fromEntries(steps)).toEqual({
+      Website: true,
+      Products: true,
+      Audience: false,
+      Competitors: false,
+      "Existing marketing": false,
+    });
+  });
+});
+
+describe("cards", () => {
+  it("offers the only approval in the strategy proposal", () => {
+    const html = renderToStaticMarkup(
+      <StrategyCard overview={overview()} actions={noop} />,
+    );
+    expect(html).toContain("Approve strategy");
+    expect(html).toContain("Change something");
+    // Ads have no Sokosumi tool yet.
+    expect(html).toContain("Coming soon");
+  });
+
+  it("shows an approved strategy without the button", () => {
+    const html = renderToStaticMarkup(
+      <StrategyCard
+        overview={overview({ strategyApprovedAt: new Date() })}
+        actions={noop}
+      />,
+    );
+    expect(html).not.toContain("Approve strategy");
+    expect(html).toContain("Approved");
+  });
+
+  it("lets a weekly review be reverted, and says when it was", () => {
+    const update = {
+      id: "u1",
+      at: new Date("2026-10-05T09:00:00Z"),
+      kind: "weekly" as const,
+      headline: "Week 1",
+      done: [],
+      upNext: [],
+      changes: ["Two more LinkedIn posts"],
+      results: "No provider metrics yet.",
+      revertible: true,
+      revertedAt: null,
+    };
+    expect(
+      renderToStaticMarkup(<UpdateCard update={update} actions={noop} />),
+    ).toContain("Revert these changes");
+    const reverted = renderToStaticMarkup(
+      <UpdateCard
+        update={{ ...update, revertible: false, revertedAt: new Date() }}
+        actions={noop}
+      />,
+    );
+    expect(reverted).not.toContain("Revert these changes");
+    expect(reverted).toContain("Reverted");
+  });
+});
+
+describe("pages", () => {
+  it("shows real post counts and no invented reach", () => {
+    const html = renderToStaticMarkup(
+      <ResultsPage
+        overview={overview()}
+        compose={() => {}}
+        openUpdate={() => {}}
+      />,
+    );
+    expect(html).toContain("Drafts");
+    expect(html).toContain("report no reach or click numbers");
+  });
+
+  it("marks connected accounts and offers to connect the rest", () => {
+    const html = renderToStaticMarkup(
+      <ChannelsPage
+        overview={overview({
+          channels: [
+            {
+              id: "c1",
+              provider: "x",
+              handle: "@acme",
+              displayName: null,
+              status: "ACTIVE",
+            },
+          ],
+        })}
+        compose={() => {}}
+      />,
+    );
+    expect(html).toContain("@acme");
+    expect(html).toContain("Connected");
+    expect(html).toContain("Meta ads");
   });
 });
 

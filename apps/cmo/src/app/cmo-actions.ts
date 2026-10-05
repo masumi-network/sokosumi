@@ -1,15 +1,13 @@
 "use server";
 
 import {
-  type CmoBrandBrainRequest,
+  approveCmoStrategy,
   type CmoOverview,
   getChatsRoomsByIdMessages,
   getCmoOverview,
   postChatsRoomsByIdMessages,
-  requestCmoStrategy,
+  revertCmoUpdate,
   startCmoOnboarding,
-  updateCmoBrandBrain,
-  updateCmoStrategySettings,
 } from "@sokosumi/core-client";
 import { revalidatePath } from "next/cache";
 
@@ -31,88 +29,91 @@ export async function loadOverview(): Promise<CmoOverview | null> {
   return data.data;
 }
 
+/** "acme.io" or "https://acme.io/" both become a full URL. */
+export async function normalizeWebsite(value: string): Promise<string> {
+  const trimmed = value.trim();
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
 export async function onboard(formData: FormData): Promise<void> {
   const core = await requireCore();
-  const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
+  const websiteUrl = await normalizeWebsite(
+    String(formData.get("websiteUrl") ?? ""),
+  );
   const goals = String(formData.get("goals") ?? "").trim();
-  const businessName =
-    String(formData.get("businessName") ?? "").trim() || undefined;
   const { error } = await startCmoOnboarding({
     ...core,
-    body: { websiteUrl, goals, businessName },
+    body: { websiteUrl, goals },
   });
   if (error) throw new Error("Could not start CMO");
   revalidatePath("/");
 }
 
-export async function saveBrandBrain(
-  brandBrain: CmoBrandBrainRequest["brandBrain"],
-): Promise<void> {
+export async function approveStrategy(): Promise<CmoOverview> {
   const core = await requireCore();
-  const { error } = await updateCmoBrandBrain({
-    ...core,
-    body: { brandBrain },
-  });
-  if (error) throw new Error("Could not save the Brand Brain");
-  revalidatePath("/");
+  const { data } = await approveCmoStrategy(core);
+  if (!data) throw new Error("Could not approve the strategy");
+  return data.data;
 }
 
-export async function planMonth(formData: FormData): Promise<void> {
+export async function revertUpdate(id: string): Promise<CmoOverview> {
   const core = await requireCore();
-  const note = String(formData.get("note") ?? "").trim() || undefined;
-  const { error } = await requestCmoStrategy({ ...core, body: { note } });
-  if (error) throw new Error("Cuso could not start the plan yet");
-  revalidatePath("/");
+  const { data } = await revertCmoUpdate({ ...core, path: { id } });
+  if (!data) throw new Error("Could not revert the changes");
+  return data.data;
 }
 
-export async function setAutonomy(formData: FormData): Promise<void> {
-  const core = await requireCore();
-  const channel = String(formData.get("channel") ?? "");
-  const autonomy = String(formData.get("autonomy") ?? "");
-  if (autonomy !== "drafts" && autonomy !== "ask" && autonomy !== "autopilot") {
-    throw new Error("Unknown autonomy");
-  }
-  const { error } = await updateCmoStrategySettings({
-    ...core,
-    body: { channels: [{ channel, autonomy }] },
-  });
-  if (error) throw new Error("Could not save the setting");
-  revalidatePath("/");
+type Core = Awaited<ReturnType<typeof requireCore>>;
+
+function chatHeaders(core: Core, overview: CmoOverview) {
+  return { ...core.headers, "X-Organization-Slug": overview.organizationSlug };
 }
 
-async function chatScope() {
-  const core = await requireCore();
-  const overview = await loadOverview();
-  if (!overview) throw new Error("No CMO workspace yet");
-  return {
-    core,
-    overview,
-    headers: {
-      ...core.headers,
-      "X-Organization-Slug": overview.organizationSlug,
-    },
-  };
-}
-
-/** The latest messages with Cuso, oldest first. */
-export async function loadMessages(): Promise<CusoMessage[]> {
-  const { core, overview, headers } = await chatScope();
+async function messagesFor(
+  core: Core,
+  overview: CmoOverview,
+): Promise<CusoMessage[]> {
   const { data } = await getChatsRoomsByIdMessages({
     client: core.client,
-    headers,
+    headers: chatHeaders(core, overview),
     path: { id: overview.roomId },
     query: { limit: 50 },
   });
   return toCusoMessages(data?.data ?? []);
 }
 
+/** The latest messages with Cuso, oldest first. */
+export async function loadMessages(): Promise<CusoMessage[]> {
+  const core = await requireCore();
+  const overview = await loadOverview();
+  if (!overview) return [];
+  return messagesFor(core, overview);
+}
+
+/** Overview and messages in one go, for the app's polling. */
+export async function loadState(): Promise<{
+  overview: CmoOverview | null;
+  messages: CusoMessage[];
+}> {
+  const core = await requireCore();
+  const { data, response } = await getCmoOverview(core);
+  if (response?.status === 404 || !data)
+    return { overview: null, messages: [] };
+  return {
+    overview: data.data,
+    messages: await messagesFor(core, data.data),
+  };
+}
+
 export async function sendMessage(content: string): Promise<void> {
   const text = content.trim();
   if (!text) return;
-  const { core, overview, headers } = await chatScope();
+  const core = await requireCore();
+  const overview = await loadOverview();
+  if (!overview) throw new Error("No CMO workspace yet");
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
-    headers,
+    headers: chatHeaders(core, overview),
     path: { id: overview.roomId },
     body: { content: text, mentionedSokoBotIds: [overview.sokoBotId] },
   });
