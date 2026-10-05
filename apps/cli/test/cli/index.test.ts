@@ -317,7 +317,7 @@ test("help lists CLI_COMMANDS and every parseArgv global flag", async () => {
   }
   assert.match(
     help,
-    /Give its ID and your final Coworker name to the organizer/,
+    /Create a private Coworker: sokosumi --preprod coworkers provision --vendor-id VENDOR_ID/,
   );
   assert.match(
     help,

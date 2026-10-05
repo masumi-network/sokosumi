@@ -29,6 +29,7 @@ interface HttpClientOptions {
   fetchImpl: typeof fetch;
   organizationSlug?: string;
   rejectRedirects?: boolean;
+  contextUserId?: string;
 }
 
 export function validateOrganizationSlug(value: string): string {
@@ -97,6 +98,7 @@ function createHttpClient({
   fetchImpl,
   organizationSlug,
   rejectRedirects = false,
+  contextUserId,
 }: HttpClientOptions): CoreHttpClient {
   async function request<T>(
     method: string,
@@ -112,6 +114,7 @@ function createHttpClient({
       const headers = new Headers({ Accept: "application/json" });
       if (organizationSlug)
         headers.set("X-Organization-Slug", organizationSlug);
+      if (contextUserId) headers.set("X-Context-User-Id", contextUserId);
       if (token) headers.set("Authorization", `Bearer ${token}`);
       if (body !== undefined) headers.set("Content-Type", "application/json");
       response = await fetchImpl(url, {
@@ -200,9 +203,11 @@ function coworkerRequestUrl(pathname: string): string {
 export function createCoworkerHttpClient({
   apiKey,
   fetchImpl = fetch,
+  contextUserId,
 }: {
   apiKey: string;
   fetchImpl?: typeof fetch;
+  contextUserId?: string;
 }): CoreHttpClient {
   if (
     typeof apiKey !== "string" ||
@@ -214,10 +219,16 @@ export function createCoworkerHttpClient({
       "Coworker runtime requires a nonempty coworker_* API key without whitespace",
     );
   }
+  if (
+    contextUserId !== undefined &&
+    (!contextUserId.trim() || /[\p{Cc}\p{Cf}]/u.test(contextUserId))
+  )
+    throw new Error("Invalid Coworker personal context user ID");
   return createHttpClient({
     resolveUrl: coworkerRequestUrl,
     getToken: () => apiKey,
     fetchImpl,
     rejectRedirects: true,
+    contextUserId,
   });
 }
