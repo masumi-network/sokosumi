@@ -1,9 +1,10 @@
-import { CalendarPlus, ExternalLink, Globe, History } from "lucide-react";
+import { CalendarPlus, ExternalLink, Globe, Hash, History } from "lucide-react";
 
 import { getHostname } from "@/lib/utils/url";
 
 export interface ProjectPropertiesLabels {
   title: string;
+  identifier: string;
   website: string;
   updated: string;
   created: string;
@@ -11,6 +12,7 @@ export interface ProjectPropertiesLabels {
 
 interface ProjectPropertiesProps {
   labels: ProjectPropertiesLabels;
+  identifier?: string | null;
   websiteUrl?: string | null;
   updatedAt: string;
   createdAt: string;
@@ -25,6 +27,7 @@ interface ProjectPropertiesProps {
  */
 export function ProjectProperties({
   labels,
+  identifier,
   websiteUrl,
   updatedAt,
   createdAt,
@@ -37,6 +40,15 @@ export function ProjectProperties({
         {labels.title}
       </h2>
       <dl className="space-y-1">
+        {identifier ? (
+          <PropertyRow
+            icon={<Hash className="text-muted-foreground size-4" />}
+            label={labels.identifier}
+          >
+            <span className="truncate font-mono uppercase">{identifier}</span>
+          </PropertyRow>
+        ) : null}
+
         {websiteUrl && websiteHostname ? (
           <PropertyRow
             icon={<Globe className="text-muted-foreground size-4" />}

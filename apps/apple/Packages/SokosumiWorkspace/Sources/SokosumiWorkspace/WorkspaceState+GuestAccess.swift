@@ -3,9 +3,9 @@ import Foundation
 import SokosumiAuth
 import SokosumiChat
 
-/// Host-side guest access for external channels (web `guest-invite-section.tsx` inside `edit-channel-dialog.tsx`).
-/// Invitations and links are room-scoped sub-resources that never change the room DTO, so they only need the
-/// organization-bound request guard; removing a guest edits membership and shares the single-flight channel update.
+/// Host-side guest access for external channels (web `guest-invite-section.tsx`, the members panel's Invite from
+/// outside tab). Invitations and links are room-scoped sub-resources that never change the room DTO, so they only need
+/// the organization-bound request guard. Removing a Guest is a membership change (`WorkspaceState+ChannelMembers`).
 public extension WorkspaceState {
   func loadGuestAccess(roomId: String, context: UUID, auth: AuthState) async throws -> GuestAccessSnapshot {
     try await channelOperation(context: context, auth: auth) { client, _, slug in
@@ -37,27 +37,5 @@ public extension WorkspaceState {
     try await channelOperation(context: context, auth: auth) { client, _, slug in
       try await ChatService().revokeGuestInviteLink(client: client, roomId: roomId, token: token, organizationSlug: slug)
     }
-  }
-
-  /// Drops the guest from the room DTO in place (web refreshes the room after removal) without navigating; the
-  /// removed guest's own client receives Core's membership-revoked event.
-  @discardableResult
-  func removeGuest(roomId: String, userId: String, context: UUID, auth: AuthState) async throws -> Bool {
-    guard canStartMutation(context: context) else { return false }
-    updatingRoom = true
-    defer {
-      if context == compositionContext {
-        updatingRoom = false
-      }
-    }
-    try await channelOperation(context: context, auth: auth) { client, _, slug in
-      try await ChatService().removeGuest(client: client, roomId: roomId, userId: userId, organizationSlug: slug)
-    }
-    if let index = rooms.firstIndex(where: { $0.id == roomId }) {
-      var room = rooms[index]
-      room.userMembers.removeAll { $0.id == userId }
-      rooms[index] = room
-    }
-    return true
   }
 }

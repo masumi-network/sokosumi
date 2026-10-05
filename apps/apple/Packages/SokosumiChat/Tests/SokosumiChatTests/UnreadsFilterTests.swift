@@ -17,7 +17,7 @@ struct UnreadsFilterTests {
     muted: Bool = false, pinnedAt: Int? = nil
   ) -> Components.Schemas.ChatRoom {
     .init(
-      id: "room-\(name)", name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, discoverability: ._public,
+      id: "room-\(name)", name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, discoverability: ._public,
       createdByUserId: "user_1", createdAt: fixedDate, updatedAt: fixedDate.addingTimeInterval(Double(-age * 60)),
       unreadCount: channel + (threads ?? listed), channelUnreadCount: channel, threadUnreadCount: threads ?? listed,
       unreadThreadCount: threads, unreadThreads: (0 ..< listed).map {
@@ -25,7 +25,7 @@ struct UnreadsFilterTests {
               unreadReplyCount: 1, unreadMentionCount: 0)
       },
       unreadMentionCount: mentions, starredAt: pinnedAt.map { fixedDate.addingTimeInterval(Double($0)) },
-      mutedAt: muted ? fixedDate : nil, markedUnread: marked, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      mutedAt: muted ? fixedDate : nil, markedUnread: marked, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     )
   }
 

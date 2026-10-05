@@ -11,7 +11,6 @@ import { OrganizationChatList } from "@/components/chat/organization-chat-list.c
 import { Sheet } from "@/components/ui/sheet";
 import { SidebarSeparator } from "@/components/ui/sidebar";
 import { getSession } from "@/lib/auth/auth.server";
-import { hasSokoBotBetaAccess } from "@/lib/beta-access";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import type { ChatRoomsPage } from "@/lib/services/chat-room.service";
 import { CHAT_CHATS_MOBILE_LIST_SHELL_CLASS } from "./chat-chats-list-shell";
@@ -49,7 +48,7 @@ async function ChatChatsListWithArchived({
   const { archivedChatRoomsPage, members } =
     await getPrivateCachedChatListArchivedAndMembers(cacheArgs);
 
-  const canDeleteArchivedRooms = Boolean(
+  const isOrgOwnerOrAdmin = Boolean(
     activeOrganizationId &&
       members.some(
         (membership) =>
@@ -65,7 +64,7 @@ async function ChatChatsListWithArchived({
       archivedRooms={archivedChatRoomsPage.rooms}
       currentUserId={currentUserId}
       organizationId={activeOrganizationId}
-      canDeleteArchivedRooms={canDeleteArchivedRooms}
+      isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
       dismissSheetOnNavigate={false}
     />
   );
@@ -105,7 +104,6 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
 
   const chatRoomsPage = await getPrivateCachedMembershipVisibleRooms(cacheArgs);
 
-  const sokoBotMenuEnabled = hasSokoBotBetaAccess(session?.user ?? null);
   const listKey = activeOrganizationId ?? "personal";
 
   return (
@@ -118,8 +116,8 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
           the last row in main's scroll (no nested overflow height-lock).
         */}
         <div className={CHAT_CHATS_MOBILE_LIST_SHELL_CLASS}>
-          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
-          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <PersonalAssistantNav />
+          <SidebarSeparator className="-mt-px" />
           <Suspense
             fallback={
               <OrganizationChatList
@@ -128,7 +126,7 @@ export default async function ChatPage({ searchParams }: ChatPageProps) {
                 archivedRooms={[]}
                 currentUserId={currentUserId}
                 organizationId={activeOrganizationId}
-                canDeleteArchivedRooms={false}
+                isOrgOwnerOrAdmin={false}
                 dismissSheetOnNavigate={false}
               />
             }

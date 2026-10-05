@@ -2,6 +2,8 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   AgentJobStatus,
   Channel,
+  FileSourceKind,
+  FileSourceScope,
   type Prisma,
   TaskStatus,
 } from "@sokosumi/database";
@@ -56,8 +58,14 @@ import {
 } from "@sokosumi/soko-bot";
 import {
   buildOrganizationDriveFilePathname,
+  buildOrganizationDriveFilePathnameWithFolder,
   buildUserDriveFilePathname,
+  buildUserDriveFilePathnameWithFolder,
+  CHAT_ROOM_FILE_MAX_SIZE_BYTES,
   createDataTableSchema,
+  parseChatRoomFileUrl,
+  resolveUserUploadContentType,
+  socialPostMediaKindForMime,
   tableBatchSchema,
   tableMutationSchema,
   tableQuerySchema,
@@ -68,6 +76,7 @@ import { v5 as uuidv5 } from "uuid";
 import { z } from "zod";
 import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
+import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
 import {
   batchTableRows,
@@ -145,6 +154,7 @@ import {
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
+import { roundCredits, taskCreditsCharged } from "@/lib/soko-bot/task-charges";
 import {
   BEARER_USER_SELECT,
   isActiveUser,
@@ -167,7 +177,8 @@ import {
   loadLiveResources,
   searchFiles,
 } from "@/services/file-search.service";
-import { getJob } from "@/services/image-studio-assets.service";
+import { getJob, readAssetBytes } from "@/services/image-studio-assets.service";
+import { imageFileName } from "@/services/image-studio-files.service";
 import {
   createImageJob,
   DEFAULT_SETTINGS,
@@ -243,6 +254,13 @@ const CORE_TOOL_CALLS = {
 const MAX_DIRECTS_OPENED_PER_TURN = 5;
 /** Enough for a few variations; each one spends the owner's credits. */
 const MAX_IMAGES_PER_TURN = 4;
+/** Where the owner finds studio images the bot copied into Files. */
+const STUDIO_FILES_FOLDER = "Content Studio";
+
+type SocialMediaInput = NonNullable<
+  z.infer<(typeof SOKO_BOT_TOOL_INPUT_SCHEMAS)["create_social_post"]>["media"]
+>[number];
+type SocialMediaRef = Exclude<SocialMediaInput, { fileId: string }>;
 const ERROR_DETAIL_MAX_BYTES = 1_000;
 const SELLER_RESERVATION_MARKER_VERSION = 1;
 
@@ -988,8 +1006,9 @@ export class SokoBotRuntimeService {
    */
   private async listChats(authorized: AuthorizedSokoBotRuntime) {
     const sokoBotId = authorized.turn.sokoBotId;
+    const scope = await this.chatRoomScope(authorized, sokoBotId);
     const rooms = await prisma.chatRoom.findMany({
-      where: await this.chatRoomScope(authorized, sokoBotId),
+      where: scope,
       orderBy: { updatedAt: "desc" },
       take: 50,
       select: {
@@ -999,29 +1018,8 @@ export class SokoBotRuntimeService {
         kind: true,
         updatedAt: true,
         _count: { select: { messages: true } },
-        userMembers: {
-          where: { userId: authorized.turn.userId },
-          take: 1,
-          select: { userId: true },
-        },
       },
     });
-    // The owner's unread counts are theirs: only an owner turn sees them, and
-    // only for rooms the owner is in.
-    const ownerRoomIds =
-      authorized.askedByKind === "OWNER"
-        ? rooms
-            .filter((room) => room.userMembers.length > 0)
-            .map((room) => room.id)
-        : [];
-    const { getChatRoomUnreadCounts } = await import(
-      "@/routes/v1/chats/rooms/room-unread"
-    );
-    const unread = await getChatRoomUnreadCounts(
-      ownerRoomIds,
-      authorized.turn.userId,
-      prisma,
-    );
     return {
       rooms: rooms.map((room) => ({
         roomId: room.id,
@@ -1029,11 +1027,69 @@ export class SokoBotRuntimeService {
         kind: room.kind,
         messages: room._count.messages,
         lastActivityAt: room.updatedAt.toISOString(),
-        ...(ownerRoomIds.includes(room.id)
-          ? { ownerUnread: unread.get(room.id)?.total ?? 0 }
-          : {}),
       })),
+      ...(authorized.askedByKind === "OWNER"
+        ? { ownerUnread: await this.ownerUnreadRooms(authorized, scope) }
+        : {}),
     };
+  }
+
+  /**
+   * The owner's unread chats as their sidebar counts them: every room the
+   * owner is in within this workspace, the bot's own or not. Names and counts
+   * only; reading a room still needs the bot's own membership.
+   */
+  private async ownerUnreadRooms(
+    authorized: AuthorizedSokoBotRuntime,
+    scope: Prisma.ChatRoomWhereInput,
+  ) {
+    const rooms = await prisma.chatRoom.findMany({
+      where: {
+        archivedAt: null,
+        organizationId: scope.organizationId,
+        userMembers: { some: { userId: authorized.turn.userId } },
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 200,
+      select: {
+        id: true,
+        name: true,
+        groupName: true,
+        kind: true,
+        sokoBotMembers: {
+          where: { sokoBotId: authorized.turn.sokoBotId },
+          take: 1,
+          select: { sokoBotId: true },
+        },
+        userMembers: {
+          where: { userId: authorized.turn.userId },
+          take: 1,
+          select: { mutedAt: true },
+        },
+      },
+    });
+    const { getChatRoomUnreadCounts } = await import(
+      "@/routes/v1/chats/rooms/room-unread"
+    );
+    const unread = await getChatRoomUnreadCounts(
+      rooms.map((room) => room.id),
+      authorized.turn.userId,
+      prisma,
+    );
+    return rooms.flatMap((room) => {
+      const count = unread.get(room.id)?.total ?? 0;
+      if (count === 0) return [];
+      return [
+        {
+          roomId: room.id,
+          name: room.groupName ?? room.name,
+          kind: room.kind,
+          unread: count,
+          youAreMember: room.sokoBotMembers.length > 0,
+          ...(room.userMembers[0]?.mutedAt ? { muted: true } : {}),
+        },
+      ];
+    });
   }
 
   /**
@@ -1232,11 +1288,29 @@ export class SokoBotRuntimeService {
     }
     const member = members[0]!;
     // The owner is reachable in their own direct room; opening a second one
-    // would split the conversation in two.
+    // would split the conversation in two. A teammate asking the bot to tell
+    // its owner something posts there instead.
     if (member.user.id === authorized.turn.userId) {
-      throw new SokoBotRuntimeValidationError(
-        "You already have a direct chat with your owner",
-      );
+      const ownerRoom = await prisma.chatRoom.findFirst({
+        where: {
+          kind: "direct",
+          archivedAt: null,
+          sokoBotMembers: { some: { sokoBotId } },
+          userMembers: { some: { userId: authorized.turn.userId } },
+        },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      if (!ownerRoom || authorized.askedByKind !== "TEAMMATE") {
+        throw new SokoBotRuntimeValidationError(
+          "You already have a direct chat with your owner",
+        );
+      }
+      return this.postChat(authorized, {
+        roomId: ownerRoom.id,
+        content: input.message,
+        toolCallId: input.toolCallId,
+      });
     }
     const { createOrGetDirectRoom } = await import(
       "@/routes/v1/chats/rooms/helpers"
@@ -1547,10 +1621,10 @@ export class SokoBotRuntimeService {
     if (
       authorized.turn.source !== "CHAT" ||
       authorized.turn.chainDepth > 0 ||
-      authorized.askedByKind !== "OWNER"
+      authorized.askedByKind === "ASSISTANT"
     )
       throw new SokoBotRuntimeAuthorizationError(
-        "Images are generated only when your owner asks in chat. Describe the image you would make instead.",
+        "Images are generated only when a person asks in chat. Describe the image you would make instead.",
       );
     const started = await prisma.sokoBotToolCall.count({
       where: {
@@ -1676,17 +1750,147 @@ export class SokoBotRuntimeService {
       await reconcileProjectJobs(input.projectId);
       const job = await getJob({ ...scope, jobId: input.jobId });
       if (!job) return null;
+      // A copy that fails leaves the image where it is, in the studio; the
+      // bot is told there is no Files copy rather than the call failing.
+      const file = job.assetId
+        ? await this.imageInOwnerDrive(authorized, {
+            projectId: input.projectId,
+            assetId: job.assetId,
+            jobId: job.id,
+            prompt: job.prompt,
+          }).catch((error: unknown) => {
+            console.warn("[soko-bot] could not copy an image into Files", {
+              jobId: job.id,
+              error: error instanceof Error ? error.message : "unknown",
+            });
+            return null;
+          })
+        : null;
       return {
         jobId: job.id,
         status: job.status,
         failureReason: job.failureReason ?? null,
         studioUrl: studioLink(input.projectId, job.assetId),
+        ...(job.assetId ? { file } : {}),
       };
     } catch (error) {
       if (error instanceof HTTPException)
         throw new SokoBotRuntimeValidationError(error.message);
       throw error;
     }
+  }
+
+  /**
+   * A ready studio image, copied once into the owner's Files. Studio images
+   * live in the studio's private store, where neither list_files nor the
+   * Social tools can reach them, so "make an image and post it" failed. The
+   * copy is keyed by the job, so asking again returns the same file.
+   */
+  private async imageInOwnerDrive(
+    authorized: AuthorizedSokoBotRuntime,
+    image: {
+      projectId: string;
+      assetId: string;
+      jobId: string;
+      prompt: string;
+    },
+  ): Promise<{ id: string; name: string; link: string } | null> {
+    const drive = await this.ownerDrive(authorized);
+    const asset = await prisma.projectImageAsset.findFirst({
+      where: { id: image.assetId, projectId: image.projectId },
+      select: { blobPathname: true, contentType: true },
+    });
+    if (!asset) return null;
+    const name = imageFileName(image.prompt, image.jobId, asset.contentType);
+    const pathname = drive.pathnameIn(STUDIO_FILES_FOLDER, name);
+    const key = { ...drive.key, pathname };
+    const live = await prisma.fileResource.findUnique({
+      where: {
+        workspaceId_sourceKind_sourceScope_sourceId: {
+          workspaceId: key.workspaceId,
+          sourceKind: FileSourceKind.DRIVE_UPLOAD,
+          sourceScope:
+            key.scope === "organization"
+              ? FileSourceScope.ORGANIZATION
+              : FileSourceScope.USER,
+          sourceId: pathname,
+        },
+      },
+      select: { id: true, lifecycle: true, tombstonedAt: true },
+    });
+    if (live?.lifecycle === "ACTIVE" && !live.tombstonedAt)
+      return { id: live.id, name, link: `/drive/files/${live.id}` };
+    const bytes = await readAssetBytes(asset.blobPathname);
+    await reserveDriveUploadResource({
+      key,
+      displayName: name,
+      mimeType: asset.contentType,
+      sizeBytes: bytes.byteLength,
+    });
+    await put(pathname, Buffer.from(bytes), {
+      access: "public",
+      contentType: asset.contentType,
+      addRandomSuffix: false,
+      allowOverwrite: true,
+    });
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes: bytes.byteLength,
+      mimeType: asset.contentType,
+    });
+    if (!activated) return null;
+    nudgeFileIndexing();
+    return {
+      id: activated.resourceId,
+      name,
+      link: `/drive/files/${activated.resourceId}`,
+    };
+  }
+
+  /**
+   * Social media given as `{ fileId }` becomes the Drive reference the Social
+   * service stores. The bot never sees a file's storage address, so without
+   * this it could not attach any file at all.
+   */
+  private async resolveSocialMedia(
+    authorized: AuthorizedSokoBotRuntime,
+    media: readonly SocialMediaInput[] | undefined,
+  ): Promise<SocialMediaRef[] | undefined> {
+    if (!media) return undefined;
+    const ids = media.flatMap((item) =>
+      "fileId" in item ? [item.fileId] : [],
+    );
+    if (ids.length === 0) return media as SocialMediaRef[];
+    const drive = await this.ownerDrive(authorized);
+    const files = await loadLiveResources({
+      workspaceId: drive.key.workspaceId,
+      actor: drive.actor,
+      resourceIds: ids,
+    });
+    return Promise.all(
+      media.map(async (item) => {
+        if (!("fileId" in item)) return item;
+        const file = files.find((candidate) => candidate.id === item.fileId);
+        if (!file || file.sourceKind !== FileSourceKind.DRIVE_UPLOAD)
+          throw new SokoBotRuntimeValidationError(
+            `File ${item.fileId} is not in the owner's Files; use an id from list_files or get_image`,
+          );
+        const mimeType = file.mimeType ?? "";
+        const kind = socialPostMediaKindForMime(mimeType);
+        if (!kind)
+          throw new SokoBotRuntimeValidationError(
+            `"${file.displayName}" is not an image or video a Social post can carry`,
+          );
+        return {
+          pathname: file.sourceId,
+          fileUrl: (await head(file.sourceId)).url,
+          name: file.displayName,
+          size: file.sizeBytes ?? 0,
+          mimeType,
+          kind,
+        };
+      }),
+    );
   }
 
   /**
@@ -1716,6 +1920,14 @@ export class SokoBotRuntimeService {
         organizationId
           ? buildOrganizationDriveFilePathname(organizationId, filename)
           : buildUserDriveFilePathname(userId, filename),
+      pathnameIn: (folder: string, filename: string) =>
+        organizationId
+          ? buildOrganizationDriveFilePathnameWithFolder(
+              organizationId,
+              folder,
+              filename,
+            )
+          : buildUserDriveFilePathnameWithFolder(userId, folder, filename),
       actor: {
         userId,
         organizationId,
@@ -1825,11 +2037,27 @@ export class SokoBotRuntimeService {
     authorized: AuthorizedSokoBotRuntime,
     input: {
       filename: string;
-      content: string;
+      content?: string;
+      attachmentUrl?: string;
       contentType?: string;
       overwrite?: boolean;
     },
   ) {
+    if (input.attachmentUrl) {
+      if (input.content !== undefined)
+        throw new SokoBotRefusedUnsentError(
+          "Give either content or attachmentUrl, not both",
+        );
+      return this.saveChatAttachment(authorized, {
+        filename: input.filename,
+        url: input.attachmentUrl,
+        overwrite: input.overwrite,
+      });
+    }
+    if (input.content === undefined)
+      throw new SokoBotRefusedUnsentError(
+        "Give the file's text as content, or a chat attachment's link as attachmentUrl",
+      );
     const drive = await this.ownerDrive(authorized);
     const pathname = drive.pathname(input.filename);
     const contentType = input.contentType ?? "text/markdown";
@@ -1884,6 +2112,92 @@ export class SokoBotRuntimeService {
       link: activated ? `/drive/files/${activated.resourceId}` : null,
       size: sizeBytes,
       // Where the owner finds it, stated so a reply cannot claim elsewhere.
+      savedTo:
+        drive.key.scope === "organization"
+          ? "Files in this organization's workspace, visible to its members"
+          : "Files in the owner's personal workspace",
+    };
+  }
+
+  /**
+   * Copy a file someone attached in chat into the owner's Drive. Chat
+   * attachments live under the sender's chat prefix, out of reach of
+   * list_files and the Social tools, so "post these screenshots" had no way
+   * to use them. Only a link posted in a room both the bot and its owner are
+   * in qualifies, so a link cannot pull in an arbitrary file.
+   */
+  private async saveChatAttachment(
+    authorized: AuthorizedSokoBotRuntime,
+    input: { filename: string; url: string; overwrite?: boolean },
+  ) {
+    const file = parseChatRoomFileUrl(input.url);
+    if (!file)
+      throw new SokoBotRefusedUnsentError(
+        "That link is not a file attached in a Sokosumi chat",
+      );
+    const room = await this.requireChatMembership(authorized, file.roomId);
+    const posted = await prisma.chatRoomMessage.findFirst({
+      where: {
+        roomId: room.id,
+        deletedAt: null,
+        content: { contains: input.url },
+        room: { userMembers: { some: { userId: authorized.turn.userId } } },
+      },
+      select: { id: true },
+    });
+    if (!posted)
+      throw new SokoBotRefusedUnsentError(
+        "That attachment was not posted in a chat you and your owner are in",
+      );
+    const meta = await head(input.url);
+    if (meta.size > CHAT_ROOM_FILE_MAX_SIZE_BYTES)
+      throw new SokoBotRefusedUnsentError("That attachment is too large");
+    const contentType =
+      resolveUserUploadContentType(input.filename, meta.contentType) ??
+      meta.contentType;
+    const drive = await this.ownerDrive(authorized);
+    const pathname = drive.pathname(input.filename);
+    const existing = (await list({ prefix: pathname, limit: 1 })).blobs.find(
+      (blob) => blob.pathname === pathname,
+    );
+    if (existing && !input.overwrite)
+      throw new SokoBotRefusedUnsentError(
+        `A file named "${input.filename}" already exists. To replace it, call upload_file again with overwrite: true; to keep it, choose another name.`,
+      );
+    const response = await fetch(meta.url, {
+      signal: AbortSignal.timeout(60_000),
+    });
+    if (!response.ok)
+      throw new SokoBotRuntimeValidationError(
+        "The attachment could not be read; try again",
+      );
+    const bytes = Buffer.from(await response.arrayBuffer());
+    const key = { ...drive.key, pathname };
+    const displayName = pathname.split("/").pop() ?? input.filename;
+    await reserveDriveUploadResource({
+      key,
+      displayName,
+      mimeType: contentType,
+      sizeBytes: bytes.byteLength,
+    });
+    await put(pathname, bytes, {
+      access: "public",
+      contentType,
+      addRandomSuffix: false,
+      allowOverwrite: Boolean(existing),
+    });
+    const activated = await activateDriveUploadResource({
+      key,
+      sizeBytes: bytes.byteLength,
+      mimeType: contentType,
+    });
+    nudgeFileIndexing();
+    return {
+      id: activated?.resourceId ?? null,
+      filename: displayName,
+      replaced: Boolean(existing),
+      link: activated ? `/drive/files/${activated.resourceId}` : null,
+      size: bytes.byteLength,
       savedTo:
         drive.key.scope === "organization"
           ? "Files in this organization's workspace, visible to its members"
@@ -2019,6 +2333,7 @@ export class SokoBotRuntimeService {
       where,
       _count: { _all: true },
     });
+    const charged = await taskCreditsCharged(tasks.map((task) => task.id));
     return {
       tasks: tasks.map((task) => {
         const latest = task.events[0];
@@ -2036,6 +2351,9 @@ export class SokoBotRuntimeService {
           project: task.project,
           idleDays: Math.floor((now - task.updatedAt.getTime()) / DAY_MS),
           updatedAt: task.updatedAt.toISOString(),
+          ...(charged.has(task.id)
+            ? { creditsCharged: roundCredits(charged.get(task.id)!) }
+            : {}),
           latest: latest
             ? {
                 status: latest.status,
@@ -2182,6 +2500,9 @@ export class SokoBotRuntimeService {
       assignee: task.assignee ?? task.assigneeSokoBot,
       project: task.project,
       updatedAt: task.updatedAt,
+      creditsCharged: roundCredits(
+        (await taskCreditsCharged([task.id])).get(task.id) ?? 0,
+      ),
       events: [...task.events].reverse().map((event) => ({
         id: event.id,
         at: event.createdAt,
@@ -2904,7 +3225,8 @@ export class SokoBotRuntimeService {
         where: {
           id: input.taskId,
           workspaceId: authorized.turn.workspaceId,
-          ownerId: authorized.turn.userId,
+          // What the owner may change in the app, not only what they created.
+          ...buildTaskWriteAccessWhere(authorized.turn.userId),
         },
         select: {
           id: true,
@@ -2919,6 +3241,18 @@ export class SokoBotRuntimeService {
           assigneeUserId: true,
         },
       });
+      // A Task the bot can see but the owner may not change gets a reason the
+      // owner can act on, not a bare "Task not found".
+      if (
+        !before &&
+        (await tx.task.findFirst({
+          where: { id: input.taskId, workspaceId: authorized.turn.workspaceId },
+          select: { id: true },
+        }))
+      )
+        throw new SokoBotRuntimeAuthorizationError(
+          "This Task belongs to someone else and is private, so only its owner can change or archive it",
+        );
       const unassign =
         input.unassign === true &&
         Boolean(
@@ -3790,7 +4124,7 @@ export class SokoBotRuntimeService {
       .parse(rawInput);
     const ownerChat =
       authorized.turn.source === "CHAT" &&
-      (!authorized.askedByKind || authorized.askedByKind === "OWNER") &&
+      authorized.askedByKind !== "ASSISTANT" &&
       authorized.turn.chainDepth === 0;
     if (!ownerChat && !taskId)
       throw new SokoBotRuntimeAuthorizationError(
@@ -3806,10 +4140,10 @@ export class SokoBotRuntimeService {
   ) {
     if (
       authorized.turn.chainDepth > 0 ||
-      (authorized.askedByKind && authorized.askedByKind !== "OWNER")
+      authorized.askedByKind === "ASSISTANT"
     ) {
       throw new SokoBotRuntimeAuthorizationError(
-        "Project social tools are only available to the bot's owner",
+        "Project social tools are only available when a person asks",
       );
     }
     const owner = await tx.user.findUnique({
@@ -3887,7 +4221,18 @@ export class SokoBotRuntimeService {
       case "create_social_post":
       case "update_social_post":
       case "schedule_social_post":
-      case "cancel_social_post":
+      case "cancel_social_post": {
+        // Resolved before the transaction: it reads the blob store, and a
+        // serializable transaction should not wait on the network.
+        const media =
+          input.capability === "create_social_post" ||
+          input.capability === "update_social_post"
+            ? await this.resolveSocialMedia(
+                authorized,
+                SOKO_BOT_TOOL_INPUT_SCHEMAS[input.capability].parse(input.input)
+                  .media,
+              )
+            : undefined;
         return serializableTransaction(async (tx) => {
           await this.requireMutationAuthority(
             tx,
@@ -3912,6 +4257,7 @@ export class SokoBotRuntimeService {
                   {
                     ...params,
                     ...scope,
+                    media,
                     sokoBotId: authorized.turn.sokoBotId,
                     scheduledAt: params.scheduledAt
                       ? new Date(params.scheduledAt)
@@ -3925,7 +4271,7 @@ export class SokoBotRuntimeService {
                   SOKO_BOT_TOOL_INPUT_SCHEMAS.update_social_post.parse(
                     input.input,
                   );
-                return updateSocialPost({ ...params, ...scope }, tx);
+                return updateSocialPost({ ...params, ...scope, media }, tx);
               }
               case "schedule_social_post": {
                 const params =
@@ -3965,6 +4311,7 @@ export class SokoBotRuntimeService {
           });
           return result;
         }, "Social post changed concurrently");
+      }
       default:
         throw new SokoBotRuntimeValidationError("Unsupported social tool");
     }

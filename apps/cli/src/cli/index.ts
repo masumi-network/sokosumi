@@ -14,11 +14,8 @@ import {
 } from "../auth/bootstrap.js";
 import { type CliTargetConfig } from "../auth/config.js";
 import { redactErrorMessage } from "../error-redaction.js";
-import {
-  isNetworkSelectionLocked,
-  renderStatusApp,
-  type StatusAppOptions,
-} from "../tui/status-app.js";
+import { renderStatusApp, type StatusAppOptions } from "../tui/status-app.js";
+import { isNetworkSelectionLocked } from "../tui/status-network.js";
 import { type AuthLoginOptions, runAuthLogin } from "./auth-login.js";
 import { runAuthLogout } from "./auth-logout.js";
 import { runAuthStatus } from "./auth-status.js";
@@ -28,6 +25,7 @@ import { runAgentsCommand } from "./commands/agents.js";
 import type { CommandOutput } from "./commands/command-helpers.js";
 import { runCoworkersCommand } from "./commands/coworkers.js";
 import {
+  CLI_COMMAND_CATALOG,
   formatUnknownCommandUsage,
   runDiscoverCommand,
 } from "./commands/discover.js";
@@ -42,109 +40,16 @@ import { runVendorsCommand } from "./commands/vendors.js";
 import { runWorkspacesCommand } from "./commands/workspaces.js";
 import { buildJsonError, CliError } from "./errors.js";
 import {
+  type CliOptions,
   formatHelpText,
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
+  type ValueOptionName,
 } from "./help.js";
 import { CLI_VERSION } from "./metadata.js";
 import { requirePreprodCoworkerRegistration } from "./registration-authority.js";
 
-export { GLOBAL_BOOLEAN_FLAG_BY_TOKEN, GLOBAL_VALUE_OPTIONS };
-
-export type ValueOptionName =
-  | "auth-url"
-  | "api-url"
-  | "client-id"
-  | "oauth-port"
-  | "oauth-timeout-ms"
-  | "search"
-  | "limit"
-  | "scope"
-  | "capability"
-  | "channel"
-  | "id"
-  | "metadata-json"
-  | "metadata-file"
-  | "name"
-  | "caption"
-  | "company"
-  | "company-logo"
-  | "url"
-  | "base-url"
-  | "description"
-  | "image"
-  | "priority"
-  | "api-key-name"
-  | "api-key-expires-at"
-  | "coworker-id"
-  | "event-id"
-  | "status"
-  | "comment"
-  | "agent"
-  | "input-json"
-  | "input-file"
-  | "max-credits"
-  | "vendor-id"
-  | "workspace-id"
-  | "organization-id"
-  | "organization-slug"
-  | "provider"
-  | "model"
-  | "hermes-path"
-  | "hermes-home"
-  | "runtime-directory"
-  | "timeout-ms"
-  | "result-file"
-  | "email"
-  | "slug";
-
 type CliOptionValue = string | string[];
-
-export interface CliOptions {
-  [key: string]: string | string[] | boolean | undefined;
-  json?: boolean;
-  preprod?: boolean;
-  help?: boolean;
-  version?: boolean;
-  "auth-url"?: string;
-  "api-url"?: string;
-  "client-id"?: string;
-  "oauth-port"?: string;
-  "oauth-timeout-ms"?: string;
-  search?: string;
-  limit?: string;
-  scope?: string;
-  capability?: CliOptionValue;
-  channel?: CliOptionValue;
-  id?: string;
-  "metadata-json"?: string;
-  "metadata-file"?: string;
-  name?: string;
-  caption?: string;
-  company?: string;
-  "company-logo"?: string;
-  url?: string;
-  "base-url"?: string;
-  description?: string;
-  image?: string;
-  priority?: string;
-  "api-key-name"?: string;
-  "api-key-expires-at"?: string;
-  "coworker-id"?: string;
-  "event-id"?: string;
-  status?: string;
-  comment?: string;
-  agent?: string;
-  "input-json"?: string;
-  "input-file"?: string;
-  "max-credits"?: string;
-  "vendor-id"?: string;
-  "organization-slug"?: string;
-  slug?: string;
-  "api-key-stdin"?: boolean;
-  "create-api-key"?: boolean;
-  details?: boolean;
-}
 
 export interface CliDependencies {
   env?: AuthEnvironment;
@@ -170,7 +75,7 @@ export interface CliResult {
   tui?: boolean;
 }
 
-const BOOLEAN_OPTION_NAMES = ["create-api-key", "details"] as const;
+const BOOLEAN_OPTION_NAMES = ["create-api-key", "details", "personal"] as const;
 
 const VALUE_OPTIONS = new Set<ValueOptionName>([
   ...GLOBAL_VALUE_OPTIONS,
@@ -222,16 +127,12 @@ const REPEATED_VALUE_OPTIONS = new Set<ValueOptionName>([
 ]);
 
 const BOOLEAN_OPTIONS = new Set<string>(BOOLEAN_OPTION_NAMES);
-const CORE_COMMAND_SECTIONS = new Set([
-  "admin",
-  "discover",
-  "agents",
-  "coworkers",
-  "vendors",
-  "workspaces",
-  "tasks",
-  "jobs",
-]);
+const CORE_COMMAND_SECTIONS = new Set(
+  CLI_COMMAND_CATALOG.map((entry) => entry.command.split(" ")[0]).filter(
+    (section) =>
+      section !== "skills" && section !== "runtime" && section !== "auth",
+  ),
+);
 interface ParsedArgv {
   positionals: string[];
   options: CliOptions;
@@ -372,6 +273,24 @@ export async function runCli(
     }
   }
 
+  if (
+    options.personal &&
+    !(
+      (positionals[0] === "coworkers" &&
+        ["register", "connect"].includes(positionals[1])) ||
+      (positionals[0] === "tasks" && positionals[1] === "create") ||
+      (positionals[0] === "workspaces" && positionals[1] === "list") ||
+      (positionals[0] === "runtime" &&
+        ["start", "complete", "run"].includes(positionals[1]))
+    )
+  ) {
+    const error = new Error(
+      "--personal supports coworkers register/connect, tasks create, workspaces list, and runtime start/complete/run",
+    );
+    if (options.json) writeJsonError(stdout, error);
+    throw error;
+  }
+
   if (positionals[0] === "runtime") {
     try {
       await runRuntimeCommand({
@@ -399,6 +318,15 @@ export async function runCli(
         "Task commands do not accept --organization-id or --workspace-id. Use --organization-slug WORKSPACE_SLUG.",
       );
     }
+    if (
+      options.personal &&
+      (options["organization-slug"] !== undefined ||
+        options["organization-id"] !== undefined ||
+        options["workspace-id"] !== undefined)
+    )
+      throw new Error(
+        "--personal cannot be combined with organization or Workspace flags",
+      );
     if (options["organization-slug"] !== undefined) {
       if (positionals[0] !== "tasks") {
         throw new Error(
@@ -503,10 +431,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "agents" &&
-      (command === undefined || command === "list" || command === "hire")
-    ) {
+    if (section === "agents") {
       await runAgentsCommand({
         client: getCoreClient(session, dependencies),
         stdout,
@@ -517,19 +442,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "coworkers" &&
-      (command === undefined ||
-        [
-          "list",
-          "register",
-          "provision",
-          "connect",
-          "update",
-          "api-key",
-          "me",
-        ].includes(command))
-    ) {
+    if (section === "coworkers") {
       await runCoworkersCommand({
         client: getCoreClient(session, dependencies),
         stdout,
@@ -541,41 +454,29 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "vendors" &&
-      (command === "me" || command === "create") &&
-      positionalId === undefined
-    ) {
+    if (section === "vendors") {
       await runVendorsCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
+        positionalId,
         options,
       });
       return {};
     }
-    if (
-      section === "workspaces" &&
-      ((command === "list" && positionalId === undefined) ||
-        (command === "check" && positionalId !== undefined))
-    ) {
+    if (section === "workspaces") {
       await runWorkspacesCommand({
         client: getCoreClient(session, dependencies),
         stdout,
         json: options.json,
         subcommand: command,
         positionalId,
+        options,
       });
       return {};
     }
-    if (
-      section === "tasks" &&
-      (command === undefined ||
-        ["list", "create", "get", "events", "jobs", "comment"].includes(
-          command,
-        ))
-    ) {
+    if (section === "tasks") {
       await runTasksCommand({
         client: getCoreClient(session, dependencies, organizationSlug),
         stdout,
@@ -586,10 +487,7 @@ export async function runCli(
       });
       return {};
     }
-    if (
-      section === "jobs" &&
-      (command === undefined || ["list", "get", "input"].includes(command))
-    ) {
+    if (section === "jobs") {
       await runJobsCommand({
         client: getCoreClient(session, dependencies),
         stdout,

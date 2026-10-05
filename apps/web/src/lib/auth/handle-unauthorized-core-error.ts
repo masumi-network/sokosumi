@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 
 import { CoreApiRequestError } from "@/lib/clients/core.request";
 
-export function isUnauthorizedCoreApiError(error: unknown): boolean {
+function isUnauthorizedCoreApiError(error: unknown): boolean {
   if (!(error instanceof CoreApiRequestError)) {
     return false;
   }
@@ -17,9 +17,7 @@ export function isUnauthorizedCoreApiError(error: unknown): boolean {
   return /invalid, expired or missing session/i.test(error.message);
 }
 
-export async function redirectIfUnauthorizedCoreError(
-  error: unknown,
-): Promise<never> {
+async function redirectIfUnauthorizedCoreError(error: unknown): Promise<never> {
   if (isUnauthorizedCoreApiError(error)) {
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") ?? "";

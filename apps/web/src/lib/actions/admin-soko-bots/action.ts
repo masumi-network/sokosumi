@@ -4,6 +4,7 @@ import type {
   AdminSokoBotDetail,
   AdminSokoBotList,
   AdminSokoBotVersionMigrationResult,
+  ChatRoomMessage,
   SokoBotAvailability,
   SokoBotDeletionResult,
   SokoBotVersionDetail,
@@ -127,6 +128,48 @@ export const listAdminSokoBotsAction = withSession<
   }
 });
 
+const chatPageSchema = z.object({
+  sokoBotId: z.string().trim().min(1),
+  roomId: z.string().trim().min(1),
+  cursor: z.string().trim().min(1),
+});
+
+interface ChatPageParams extends AuthenticatedRequest {
+  sokoBotId: string;
+  roomId: string;
+  cursor: string;
+}
+
+/** An older page of a bot's chat for the read-only admin transcript. */
+export const loadAdminSokoBotChatPageAction = withSession<
+  ChatPageParams,
+  ActionResultDto<
+    { messages: ChatRoomMessage[]; nextCursor: string | null },
+    ActionError
+  >
+>(async ({ session, sokoBotId, roomId, cursor }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = chatPageSchema.safeParse({ sokoBotId, roomId, cursor });
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    return toActionResult(
+      ok(
+        await adminSokoBotService.listChatMessages(
+          parsed.data.sokoBotId,
+          parsed.data.roomId,
+          parsed.data.cursor,
+        ),
+      ),
+    );
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
 interface PerformActionParams extends AuthenticatedRequest {
   input: unknown;
 }
@@ -167,6 +210,33 @@ export const performAdminSokoBotAction = withSession<
 interface DeleteBotParams extends AuthenticatedRequest {
   input: unknown;
 }
+
+const setAvatarSchema = z.object({
+  sokoBotId: z.string().uuid(),
+  avatarId: z.string().uuid(),
+});
+
+/** Gives another user's bot a mascot from the shared pool. */
+export const setAdminSokoBotAvatarAction = withSession<
+  DeleteBotParams,
+  ActionResultDto<{ avatarImageUrl: string }, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = setAvatarSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    const { sokoBotId, avatarId } = parsed.data;
+    const result = await adminSokoBotService.setAvatar(sokoBotId, avatarId);
+    revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${sokoBotId}`);
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
 
 const deleteBotSchema = z.object({ sokoBotId: z.string().uuid() });
 

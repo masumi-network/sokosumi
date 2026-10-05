@@ -124,6 +124,7 @@ export async function dispatchTaskNotification(
       case "CANCELED":
         messageKey = "Notifications.Task.canceled";
         break;
+      case "CREATED":
       default:
         return;
     }

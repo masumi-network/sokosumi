@@ -4,7 +4,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 const { startTurn, scope } = vi.hoisted(() => ({
   startTurn: vi.fn(),
-  scope: { key: crypto.randomUUID(), botId: "" },
+  scope: { key: crypto.randomUUID() },
 }));
 vi.mock("@/lib/db/prisma", async () => {
   const value = process.env.LOCAL_RELIABILITY_DATABASE_URL;
@@ -47,9 +47,6 @@ vi.mock("@/lib/db/prisma", async () => {
 vi.mock("@/config/env", () => ({
   getEnv: () => ({ SOKO_BOT_ENABLED: true, SOKO_BOT_PROACTIVE_PAUSED: false }),
 }));
-vi.mock("@/helpers/soko-bot-beta", () => ({
-  withBetaBotOwner: (where: object) => ({ ...where, id: scope.botId }),
-}));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: vi.fn().mockResolvedValue({ ok: true }),
 }));
@@ -66,7 +63,6 @@ describe.skipIf(!process.env.LOCAL_RELIABILITY_DATABASE_URL)(
     const workspaceId = randomUUID();
     const botId = randomUUID();
     beforeAll(async () => {
-      scope.botId = botId;
       db = (await import("@/lib/db/prisma")).default;
       await db.user.create({
         data: {

@@ -137,27 +137,23 @@ vi.mock("../thread-panel", () => ({
   ThreadPanel: () => null,
 }));
 
-vi.mock("../edit-channel-dialog", () => ({
-  EditChannelDialog: ({
+// The members panel's Add picker is where the streamed roster lands.
+vi.mock("../add-room-members-dialog", () => ({
+  AddRoomMembersDialog: ({
     membersLoadFailed,
     members,
     coworkers,
-    children,
   }: {
-    membersLoadFailed?: boolean;
-    members?: unknown[];
-    coworkers?: unknown[];
-    children?: ReactNode;
+    membersLoadFailed: boolean;
+    members: unknown[];
+    coworkers: unknown[];
   }) => (
-    <>
-      {children}
-      <div
-        data-testid="edit-channel-dialog-probe"
-        data-members-load-failed={String(Boolean(membersLoadFailed))}
-        data-members-count={String(members?.length ?? 0)}
-        data-coworkers-count={String(coworkers?.length ?? 0)}
-      />
-    </>
+    <div
+      data-testid="add-members-dialog-probe"
+      data-members-load-failed={String(membersLoadFailed)}
+      data-members-count={String(members.length)}
+      data-coworkers-count={String(coworkers.length)}
+    />
   ),
 }));
 
@@ -171,6 +167,8 @@ function channelRoom(): ChatRoom {
     kind: "channel",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,
@@ -241,6 +239,7 @@ const baseProps = {
   rooms: [channelRoom()],
   organizationMembers: [] as [],
   currentUserId: "user-1",
+  isOrgOwnerOrAdmin: false,
   coworkers: [] as [],
   selectedRoomId: "room-channel",
   messageLoadFailed: false,
@@ -815,7 +814,8 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     expect(screen.getByText("general")).toBeTruthy();
     expect(screen.getByTestId("room-session-composer")).toBeTruthy();
     expect(screen.getByTestId("room-message-list-skeleton")).toBeTruthy();
-    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    fireEvent.click(screen.getByTestId("room-open-title"));
+    const probe = screen.getByTestId("add-members-dialog-probe");
     expect(probe).toHaveAttribute("data-members-load-failed", "false");
     expect(probe).toHaveAttribute("data-members-count", "0");
     expect(probe).toHaveAttribute("data-coworkers-count", "0");
@@ -947,6 +947,7 @@ describe("RoomsClient progressive roster (header + composer without members)", (
 
     const composer = screen.getByTestId("room-session-composer");
     expect(screen.getByText("general")).toBeTruthy();
+    fireEvent.click(screen.getByTestId("room-open-title"));
 
     await act(async () => {
       resolveRoster({
@@ -959,12 +960,12 @@ describe("RoomsClient progressive roster (header + composer without members)", (
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("edit-channel-dialog-probe")).toHaveAttribute(
+      expect(screen.getByTestId("add-members-dialog-probe")).toHaveAttribute(
         "data-members-load-failed",
         "true",
       );
     });
-    const probe = screen.getByTestId("edit-channel-dialog-probe");
+    const probe = screen.getByTestId("add-members-dialog-probe");
     expect(probe).toHaveAttribute("data-members-count", "1");
     expect(probe).toHaveAttribute("data-coworkers-count", "1");
     expect(screen.getByTestId("room-session-composer")).toBe(composer);

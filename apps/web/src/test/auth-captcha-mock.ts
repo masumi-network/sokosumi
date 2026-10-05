@@ -15,6 +15,12 @@ export const captchaFetchOptions: CaptchaFetchOptions = {
   headers: { [AUTH_CAPTCHA_HEADER]: "verified-token" },
 };
 
+/** What Core's email status answer carries for the code sent next. */
+export const CAPTCHA_PASS = "pass_from-email-status";
+export const captchaPassFetchOptions: CaptchaFetchOptions = {
+  headers: { [AUTH_CAPTCHA_HEADER]: CAPTCHA_PASS },
+};
+
 export function useAuthCaptcha(_entry: AuthCaptchaEntry): AuthCaptcha {
   return {
     widget: null,

@@ -213,6 +213,29 @@ describe("TaskStatusPicker", () => {
     await user.keyboard("3");
     expect(onSelect).toHaveBeenCalledWith(TaskStatus.COMPLETED);
   });
+
+  it("renders the quiet row trigger with a tooltip", async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      variant: "row",
+      labels: { ...labels, ariaLabel: "Status: Ready" },
+    });
+
+    const trigger = screen.getByRole("combobox", { name: "Status: Ready" });
+    expect(trigger).toHaveClass(
+      "h-8",
+      "w-[calc(100%+1rem)]",
+      "justify-start",
+      "px-2",
+    );
+    expect(trigger.querySelector("span.inline-flex")).toBeNull();
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
+
+    await user.hover(trigger);
+    expect(
+      await screen.findByRole("tooltip", { name: "Status: Ready" }),
+    ).toBeInTheDocument();
+  });
 });
 
 /**

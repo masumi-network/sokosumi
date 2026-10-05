@@ -8,7 +8,7 @@ public extension WorkspaceState {
       return
     }
     guard let client = resolveClient(auth: auth) else {
-      search.fail(ChatServiceError.unauthorized("Sign in to search messages."), query: query)
+      search.fail(ChatServiceError.unauthorized("Log in to search messages."), query: query)
       return
     }
     let generation = timeline.generation

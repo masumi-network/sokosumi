@@ -2,7 +2,6 @@ import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
-  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   SOKO_BOT_SCENARIOS,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
@@ -400,44 +399,4 @@ export async function judgeSokoBotLabTurn(input: {
     storeTurnVerdict(input.turnId, call),
   ]);
   return { verdict: call.verdict, model };
-}
-
-/**
- * Re-grades a settled turn with a named model and returns the verdict without
- * storing it. Comparing judges needs the same turn seen by each of them, and
- * a comparison that rewrote the recorded score would destroy what it measures.
- */
-export async function judgeTurnWithModel(
-  turnId: string,
-  model: string,
-): Promise<JudgeCall> {
-  const { turn, transcript } = await loadTranscript(turnId);
-  // A turn still running has half its evidence, and grading it would score
-  // the judge on a transcript no judge could get right.
-  if (turn.status !== "COMPLETED" && turn.status !== "FAILED") {
-    throw new SokoBotLabJudgeError(
-      `Turn is ${turn.status}; only a settled turn can be judged.`,
-    );
-  }
-  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  // The cost comes back with the verdict: comparing judges on agreement alone
-  // cannot say whether the more accurate one is worth what it charges on every
-  // settled turn.
-  return askJudge(
-    {
-      scenario: {
-        id: proactive ? "live-proactive-turn" : "live-turn",
-        title: proactive ? "Self-started turn" : "Live turn",
-        intent: proactive
-          ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
-          : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
-        rubric: proactive
-          ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
-          : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
-        ownerMessageOrTrigger: transcript.runtimeInput,
-      },
-      turn: transcript,
-    },
-    model,
-  );
 }

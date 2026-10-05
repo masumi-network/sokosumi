@@ -12,6 +12,7 @@ import {
   getComposeDraft,
   setComposeDraft,
 } from "@/app/chat/utils/compose-draft-storage";
+import { mobileCreateFabBottom } from "@/app/components/mobile-create-fab-geometry";
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
 import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
 import { useSocialCompose } from "@/app/social/components/social-compose-context";
@@ -29,7 +30,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { SOKO_BOT_ROUTE } from "@/lib/soko-bot/constants";
+import { cn } from "@/lib/utils";
 
 interface SocialNewPostMenuProps {
   /** The scoped project, or null on the all-projects view. */
@@ -55,6 +58,7 @@ export function SocialNewPostMenu({
   const t = useTranslations("App.Social.newPost");
   const router = useRouter();
   const compose = useSocialCompose();
+  const isApple = useIsApplePlatform();
   const [choosingProject, setChoosingProject] = useState(false);
   const [isOpeningChat, startOpeningChat] = useTransition();
 
@@ -99,20 +103,23 @@ export function SocialNewPostMenu({
           <Button
             type="button"
             size="sm"
+            className={cn(
+              "fixed end-4 z-50 size-14 rounded-full shadow-lg md:static md:z-auto md:h-8 md:w-auto md:rounded-md md:shadow-none",
+              mobileCreateFabBottom(isApple),
+            )}
             aria-busy={isOpeningChat}
             disabled={isOpeningChat}
           >
             {isOpeningChat ? (
               <Loader2
-                className="size-4 animate-spin motion-reduce:animate-none"
+                className="size-6 animate-spin motion-reduce:animate-none md:size-4"
                 aria-hidden
               />
             ) : (
-              <Plus className="size-4" aria-hidden />
+              <Plus className="size-6 md:size-4" aria-hidden />
             )}
-            {/* Icon only on a phone, so it fits on the tab row. */}
-            <span className="max-sm:sr-only">{t("label")}</span>
-            <ChevronDown className="size-4" aria-hidden />
+            <span className="sr-only md:not-sr-only">{t("label")}</span>
+            <ChevronDown className="hidden size-4 md:block" aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-72">

@@ -27,15 +27,12 @@
       "linkInstructions": "O copia esta URL y pégala en tu navegador:",
       "footer": "Si no solicitaste esta invitación, puedes ignorar este email."
     },
-    "magicLink": {
-      "subject": "Sokosumi - Inicia sesión en tu cuenta",
-      "title": "Inicia sesión en Sokosumi",
-      "greeting": "Hola {name}",
-      "greetingAnonymous": "Hola",
-      "message": "Usa el botón de abajo para iniciar sesión en tu cuenta de Sokosumi.",
-      "button": "Iniciar sesión",
-      "linkInstructions": "O copia esta URL y pégala en tu navegador:",
-      "footer": "Si no solicitaste este email, puedes ignorarlo con seguridad."
+    "emailCode": {
+      "subject": "Tu código de Sokosumi: {code}",
+      "title": "Tu código de Sokosumi",
+      "greeting": "Hola",
+      "message": "Introduce este código en Sokosumi para continuar. Caduca en {minutes} minutos.",
+      "footer": "Si no pediste este código, puedes ignorar este email. No compartas el código con nadie."
     }
   },
   "chat": {

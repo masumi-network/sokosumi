@@ -9,17 +9,18 @@ import {
 } from "@sokosumi/utils";
 import {
   adminClient,
+  emailOTPClient,
   inferAdditionalFields,
   inferOrgAdditionalFields,
   jwtClient,
   lastLoginMethodClient,
-  magicLinkClient,
   organizationClient,
 } from "better-auth/client/plugins";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 
-function getLastUsedLoginMethodCookieName(): string {
+/** Better Auth's `lastLoginMethod` cookie, named for this deployment. */
+export function getLastUsedLoginMethodCookieName(): string {
   const env = getEnvPublicConfig();
 
   return resolveBetterAuthCookieName(
@@ -48,7 +49,7 @@ export function getAuthClientPlugins() {
       }),
     }),
     passkeyClient(),
-    magicLinkClient(),
+    emailOTPClient(),
     lastLoginMethodClient({
       cookieName: getLastUsedLoginMethodCookieName(),
     }),

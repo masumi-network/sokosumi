@@ -18,6 +18,15 @@ import { coworkerCanChat } from "@/app/chat/utils/coworker-utils";
 import { useCreateTaskModal } from "@/app/tasks/components/create-task-modal";
 import { COWORKER_FALLBACK_IMAGES } from "@/app/tasks/utils/coworker-fallback-images";
 import {
+  GALLERY_DIVIDER_CLASS,
+  GALLERY_HERO_BAND_CLASS,
+  GALLERY_HERO_HEADLINE_CLASS,
+  GALLERY_HERO_INNER_CLASS,
+  GALLERY_SECTION_HEADLINE_CLASS,
+  GALLERY_SOCIAL_PROOF_CAPTION_CLASS,
+  GALLERY_SOCIAL_PROOF_FACE_CLASS,
+} from "@/components/agents/gallery-page-classes";
+import {
   OfferCard,
   OfferDetailDialog,
   type OfferDetailItem,
@@ -268,7 +277,7 @@ function VendorDashboard({
       </div>
 
       {/* Header rule — flush above the grid */}
-      <div aria-hidden className="border-border -mx-4 border-t" />
+      <div aria-hidden className={GALLERY_DIVIDER_CLASS} />
 
       {/* Master–detail. The detail column's left border is the divider; both
           columns pad to the bottom so it reaches the closing rule below. */}
@@ -420,7 +429,7 @@ function VendorDashboard({
       </div>
       {/* Closing rule — flush below the grid; connects the vertical divider
             and separates this company from the next. */}
-      <div aria-hidden className="border-border -mx-4 border-t" />
+      <div aria-hidden className={GALLERY_DIVIDER_CLASS} />
     </div>
   );
 }
@@ -558,8 +567,8 @@ function CoworkerGallerySectionInner({
   return (
     <section className="space-y-12 md:space-y-16">
       {/* Hero search — full-bleed header band, same surface as the page below */}
-      <div className="border-border -mx-4 -mt-4 border-b px-4 py-12 md:py-16">
-        <div className="mx-auto flex max-w-2xl flex-col items-center gap-6 text-center">
+      <div className={GALLERY_HERO_BAND_CLASS}>
+        <div className={GALLERY_HERO_INNER_CLASS}>
           {socialAvatars.length > 0 ? (
             <div className="flex items-center gap-2.5">
               <div className="flex -space-x-2">
@@ -567,19 +576,17 @@ function CoworkerGallerySectionInner({
                   <CoworkerAvatar
                     key={coworker.id}
                     coworker={coworker}
-                    className="size-7 rounded-full"
+                    className={GALLERY_SOCIAL_PROOF_FACE_CLASS}
                     sizes="28px"
                   />
                 ))}
               </div>
-              <span className="text-muted-foreground text-sm font-medium">
+              <span className={GALLERY_SOCIAL_PROOF_CAPTION_CLASS}>
                 {socialProofLabel}
               </span>
             </div>
           ) : null}
-          <h2 className="text-foreground text-2xl font-light text-balance md:text-3xl tracking-tight">
-            {t("heroHeadline")}
-          </h2>
+          <h2 className={GALLERY_HERO_HEADLINE_CLASS}>{t("heroHeadline")}</h2>
           {/* Brand gradient ring + soft glow; intensifies on focus. */}
           <div className="from-primary-tertiary to-chart-1-quinary focus-within:from-primary focus-within:to-chart-1 shadow-primary-quaternary focus-within:shadow-primary-tertiary relative w-full max-w-xl rounded-full bg-gradient-to-r p-0.5 shadow-lg transition-all duration-300 focus-within:shadow-xl">
             <div className="relative rounded-full">
@@ -634,7 +641,7 @@ function CoworkerGallerySectionInner({
 
       {vendorGroups.length > 0 ? (
         <div className="space-y-8">
-          <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
+          <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
             {t("coworkersTitle")}
           </h2>
           <div>

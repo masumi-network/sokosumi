@@ -10,7 +10,6 @@ import {
   SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
   SOKO_BOT_ROUTE_CAPABILITIES,
   SOKO_BOT_ROUTES,
-  SOKO_BOT_TEAMMATE_CAPABILITIES,
   SOKO_BOT_TOOL_DESCRIPTIONS,
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES,
@@ -283,14 +282,9 @@ describe("Social capability ceilings", () => {
     }
   });
 
-  it("keeps every social capability off teammate and bot-to-bot ceilings", () => {
-    for (const ceiling of [
-      SOKO_BOT_TEAMMATE_CAPABILITIES,
-      SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
-    ]) {
-      for (const capability of [...reads, ...writes]) {
-        expect(ceiling).not.toContain(capability);
-      }
+  it("keeps every social capability off the bot-to-bot ceiling", () => {
+    for (const capability of [...reads, ...writes]) {
+      expect(SOKO_BOT_BOT_TO_BOT_CAPABILITIES).not.toContain(capability);
     }
   });
 
@@ -311,7 +305,7 @@ describe("Social capability ceilings", () => {
     expect(
       applyVersionCapabilities(
         { ...version, capabilities: [...reads, ...writes] },
-        SOKO_BOT_TEAMMATE_CAPABILITIES,
+        SOKO_BOT_BOT_TO_BOT_CAPABILITIES,
       ),
     ).toEqual([]);
   });

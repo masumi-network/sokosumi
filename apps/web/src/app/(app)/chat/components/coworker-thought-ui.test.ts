@@ -1,6 +1,20 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { formatBeautifulElapsed } from "./coworker-thought-ui";
+import { formatBeautifulElapsed, ThoughtStepText } from "./coworker-thought-ui";
+
+describe("ThoughtStepText", () => {
+  it("renders a **heading** as bold instead of showing the asterisks", () => {
+    const html = renderToStaticMarkup(
+      createElement(ThoughtStepText, {
+        step: "**Finalizing calendar query** Checking tomorrow.",
+      }),
+    );
+    expect(html).toContain(">Finalizing calendar query</strong>");
+    expect(html).not.toContain("**");
+  });
+});
 
 describe("formatBeautifulElapsed", () => {
   it("shows tenths only under 10 seconds", () => {

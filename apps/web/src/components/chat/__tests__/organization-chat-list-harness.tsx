@@ -302,6 +302,8 @@ export function makeRoom(
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,
@@ -374,7 +376,7 @@ export function createOrganizationChatList({
       {...(pendingInvitations === undefined ? {} : { pendingInvitations })}
       currentUserId="user-1"
       organizationId={organizationId}
-      canDeleteArchivedRooms={false}
+      isOrgOwnerOrAdmin={false}
       dismissSheetOnNavigate={false}
       paintOnly={paintOnly}
     />

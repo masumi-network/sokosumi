@@ -22,6 +22,14 @@ const {
   },
 }));
 
+vi.mock("./components/social-calendar-preview", () => ({
+  SocialCalendarPreviewProvider: ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) => <>{children}</>,
+}));
+
 vi.mock("next/server", () => ({ connection: async () => undefined }));
 
 vi.mock("next/navigation", () => ({ notFound: notFoundMock }));

@@ -39,6 +39,7 @@ import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
+import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -166,7 +167,8 @@ interface OrganizationChatListProps {
   pendingInvitations?: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
-  canDeleteArchivedRooms?: boolean;
+  /** Caller is an owner or admin of the active organization. */
+  isOrgOwnerOrAdmin?: boolean;
   /**
    * Wrap room/section links in Radix `SheetClose` (sidebar Sheet).
    * Set false when the list is page-mounted outside a Sheet.
@@ -185,7 +187,7 @@ export function OrganizationChatList({
   pendingInvitations = EMPTY_PENDING_INVITATIONS,
   currentUserId,
   organizationId,
-  canDeleteArchivedRooms = false,
+  isOrgOwnerOrAdmin = false,
   dismissSheetOnNavigate = true,
   paintOnly = false,
 }: OrganizationChatListProps) {
@@ -482,6 +484,7 @@ export function OrganizationChatList({
       ),
       onRoomUpdated: replaceRoom,
       dismissSheetOnNavigate,
+      canManageSettings: canManageChannelSettings(room, isOrgOwnerOrAdmin),
     };
   }
 
@@ -872,7 +875,7 @@ export function OrganizationChatList({
                       const isDeleting = deletingRoomId === room.id;
                       const actionBusy =
                         restoringRoomId !== null || deletingRoomId !== null;
-                      const showOverflowMenu = canDeleteArchivedRooms;
+                      const showOverflowMenu = isOrgOwnerOrAdmin;
                       return (
                         <SidebarMenuItem
                           key={room.id}

@@ -26,7 +26,7 @@ const translations: Record<string, string> = {
     "Remove all other members before deleting this organization.",
   "Components.Organizations.RemoveModal.Errors.lastWorkspace":
     "You cannot delete your last workspace.",
-  "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Login",
+  "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Log in",
   "Components.Organizations.RemoveModal.Errors.inFlightJob":
     "Wait for in-flight jobs on this organization to finish before deleting it.",
   "Components.Organizations.RemoveModal.Errors.unsettledOnChainJob":
