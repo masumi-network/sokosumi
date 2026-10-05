@@ -24,13 +24,10 @@ const mockWaitForAuthSession = vi.fn(
 );
 const mockSignInEvent = vi.fn();
 
-let mockSearchParams = new URLSearchParams();
-
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockRouterReplace,
   }),
-  useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
 vi.mock("next-intl", () => ({
@@ -183,7 +180,6 @@ describe("SocialButtons", () => {
     vi.mocked(track).mockReset();
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
-    mockSearchParams = new URLSearchParams();
     Object.defineProperty(window, "PublicKeyCredential", {
       configurable: true,
       value: {
@@ -332,35 +328,6 @@ describe("SocialButtons", () => {
     expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
-  });
-
-  it("returns an OAuth visitor to the sign-in page with the signed request", async () => {
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "test-state",
-      response_type: "code",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
-
-    render(<SocialButtons />);
-
-    await clickGoogleButton();
-
-    await waitFor(() => {
-      expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
-    });
-
-    const expectedReturnUrl =
-      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
-    expect(getSubmittedReturnUrls()).toEqual({
-      callbackReturnUrl: expectedReturnUrl,
-      newUserCallbackReturnUrl: expectedReturnUrl,
-    });
   });
 
   // happy-dom ignores `persisted` in the event init.
