@@ -1,9 +1,7 @@
 import { CoworkerWorkspaceAccessStatus, MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
-
 import { forbidden } from "@/helpers/error";
-
 import {
   approveCoworkerWorkspaceAccess,
   type CoworkerWorkspaceAccessWithCoworker,
@@ -15,9 +13,9 @@ import {
   resolveCoworkerAccessTargetWorkspaceId,
   revokeCoworkerWorkspaceAccess,
   toCoworkerWorkspaceAccessApiShape,
-  upsertCoworkerWorkspaceAccess,
   userBelongsToWorkspace,
 } from "./coworker-workspace-access";
+import { upsertCoworkerWorkspaceAccess } from "./coworker-workspace-access-grant";
 
 const accessFindUnique = vi.fn();
 const accessFindFirst = vi.fn();
@@ -582,7 +580,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(accessUpsert).toHaveBeenCalled();
     });
 
-    it("vendor admin on member workspace grants immediately", async () => {
+    it("vendor admin on own personal workspace grants immediately", async () => {
       workspaceFindUnique
         .mockResolvedValueOnce({
           id: "workspace-1",
@@ -629,7 +627,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(accessCreate).not.toHaveBeenCalled();
     });
 
-    it("vendor admin on member workspace reopens DENIED to GRANTED", async () => {
+    it("vendor admin on own personal workspace reopens DENIED to GRANTED", async () => {
       workspaceFindUnique
         .mockResolvedValueOnce({
           id: "workspace-1",

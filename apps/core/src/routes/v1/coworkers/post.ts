@@ -1,14 +1,19 @@
 import { createRoute } from "@hono/zod-openapi";
 import slugify from "slugify";
+import { getEnv } from "@/config/env";
 import { coworkerInclude, mapCoworker } from "@/helpers/coworker";
-import { badRequest, conflict, notFound } from "@/helpers/error";
+import { badRequest, conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { isSlugUniqueConstraintError } from "@/helpers/prisma";
 import { nullableJsonInput } from "@/helpers/prisma-json";
 import { created } from "@/helpers/response";
+import {
+  lockVendorMembershipMutation,
+  requireVendorAdminMembership,
+} from "@/helpers/vendor-membership";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { requireAdminAuthContext } from "@/middleware/auth";
+import { hasAdminRole, requireUserAuthContext } from "@/middleware/auth";
 import { coworkerSchema } from "@/schemas/coworker.schema";
 
 import { normalizeCoworkerMetadata } from "./metadata";
@@ -17,7 +22,8 @@ import { createCoworkerRequestSchema } from "./schema";
 const route = createRoute({
   method: "post",
   path: "/",
-  description: "Create coworker (admin only)",
+  description:
+    "Create a private coworker. Platform admins may create on any network; Vendor admins may create under their own Vendor on Preprod.",
   tags: ["Coworkers"],
   request: {
     body: {
@@ -76,8 +82,15 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    requireAdminAuthContext(c.var.authContext);
+    const userAuth = requireUserAuthContext(c.var.authContext);
+    const isPlatformAdmin = hasAdminRole(userAuth.role);
+    if (!isPlatformAdmin && getEnv().NETWORK !== "Preprod") {
+      throw forbidden("Coworker self-service creation is Preprod only");
+    }
     const body = c.req.valid("json");
+    if (!isPlatformAdmin && body.priority !== undefined) {
+      throw forbidden("Coworker priority requires platform admin access");
+    }
 
     const metadata = normalizeCoworkerMetadata(body.metadata);
     const slug = slugify(body.name, {
@@ -93,6 +106,10 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const coworker = await prisma.$transaction(async (tx) => {
+      await lockVendorMembershipMutation(body.vendorId, tx);
+      if (!isPlatformAdmin) {
+        await requireVendorAdminMembership(userAuth.userId, body.vendorId, tx);
+      }
       const existingCoworker = await tx.coworker.findUnique({
         where: {
           slug,
