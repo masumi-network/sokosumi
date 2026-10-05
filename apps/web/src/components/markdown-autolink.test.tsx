@@ -14,16 +14,18 @@ describe("Markdown bare URL autolinks", () => {
     expect(link).toHaveTextContent(url);
   });
 
-  it("links an email whose local part looks like a domain as mailto", () => {
-    const email = "theshivangigupta.in@gmail.com";
-    const { container } = render(<Markdown>{email}</Markdown>);
+  it.each(["theshivangigupta.in@gmail.com", "name.in+tag@gmail.com"])(
+    "links %s whose local part looks like a domain as mailto",
+    (email) => {
+      const { container } = render(<Markdown>{email}</Markdown>);
 
-    const links = container.querySelectorAll("a");
+      const links = container.querySelectorAll("a");
 
-    expect(links).toHaveLength(1);
-    expect(links[0]).toHaveAttribute("href", `mailto:${email}`);
-    expect(links[0]).toHaveTextContent(email);
-  });
+      expect(links).toHaveLength(1);
+      expect(links[0]).toHaveAttribute("href", `mailto:${email}`);
+      expect(links[0]).toHaveTextContent(email);
+    },
+  );
 
   it("keeps & in the query string of a bare www link", () => {
     const { container } = render(<Markdown>www.a.test/?p=1&c=1</Markdown>);

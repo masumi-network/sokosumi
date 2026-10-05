@@ -253,6 +253,10 @@ function isHostChar(ch: string): boolean {
   return isLabelChar(ch) || ch === ".";
 }
 
+function isLocalPartChar(ch: string): boolean {
+  return isHostChar(ch) || ch === "+" || ch === "_";
+}
+
 function isStopChar(ch: string): boolean {
   return (
     ch === " " ||
@@ -399,10 +403,13 @@ function tryMatchBareDomain(
     i += 1;
   }
 
+  // Email local part (`name.in@gmail.com`, `name.in+tag@gmail.com`), not a host.
+  let local = i;
+  while (local < text.length && isLocalPartChar(text[local]!)) local += 1;
+  if (text[local] === "@") return null;
+
   if (i < text.length) {
     const next = text[i]!;
-    // Email local part (`name.in@gmail.com`), not a host.
-    if (next === "@") return null;
     if (next === "/" || next === "?" || next === "#") {
       while (i < text.length && !isStopChar(text[i]!)) {
         const ch = text[i]!;
