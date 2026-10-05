@@ -1,11 +1,11 @@
 import "server-only";
 
+import type { Coworker } from "@sokosumi/core-client";
 import {
   type CoworkerCapability,
   coworkerCanChat,
 } from "@/app/chat/utils/coworker-utils";
 import { coreClient } from "@/lib/clients/core.client";
-import type { Coworker } from "@/lib/clients/generated/core";
 
 export const coworkerService = (() => {
   async function listCoworkers(

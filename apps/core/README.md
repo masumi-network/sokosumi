@@ -49,6 +49,7 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 | `DATABASE_URL` | Postgres connection string (Neon pooled URL at runtime on Vercel) |
 | `DATABASE_URL_UNPOOLED` | Set by GitHub Actions for Preview and the Neon integration for Production. Non-pooler URL used by `prisma migrate deploy` during the Core build. Not required for local Postgres |
 | `BETTER_AUTH_SECRET` | Better Auth server secret (sessions, cookies, OAuth state) and the key for stored OAuth provider tokens. Do not replace it in place, or stored tokens become unreadable; rotate by setting `BETTER_AUTH_SECRETS` (`2:<new>,1:<old>`) and keeping this value. Independent of web `APP_SIGNING_SECRET` |
+| `OAUTH_PROXY_SECRET` | Vercel only, 32+ characters, one value shared by Production and Preview. Previews sign in with Google and Microsoft through production Core (`oAuthProxy`), which encrypts the hand-off with this key. Needed because `BETTER_AUTH_SECRET` differs between the two environments; unset, the proxy falls back to that secret and preview social sign-in fails with `state_mismatch`. Production rejects the proxy completion endpoints, so the key cannot mint a production session |
 | `BETTER_AUTH_URL` | Public base URL of **this** Core deployment (e.g. `http://localhost:8787`). Used as Better Auth `baseURL` when not on Vercel Preview |
 | `BETTER_AUTH_COOKIE_DOMAIN` | Optional shared cookie domain for Better Auth cross-subdomain cookies. Leave unset on localhost; set it explicitly in deployed environments that need shared auth cookies |
 | `RESEND_API_KEY` | Resend API key for transactional email |
@@ -66,22 +67,25 @@ Configuration is validated at startup with Zod (`src/config/env.ts`). Copy `apps
 Project social accounts support X, TikTok, Instagram, LinkedIn, Facebook, and
 YouTube. Connect accounts from the Project’s **Social** page. The same
 connection supports reconnection, replacement, and disconnection. Publishing
-and scheduling currently support **X only**; the other accounts cannot be
-selected by the post composer or attached to posts through the API.
+and scheduling work on every connected provider: the composer and the API
+apply the chosen account's rules (text limits, up to four images or one video,
+Instagram needs media, TikTok and YouTube need a video, LinkedIn and YouTube
+need text). Each provider's auth config must carry its publishing scope before
+posts can go out; publishing fails with a clear permission error until then.
 
 Set `COMPOSIO_API_KEY` and a separate auth-config ID for each enabled provider
 on the Core deployment. Create each OAuth configuration in the same Composio
 environment as that API key. Omit unconfigured variables; connecting that
 provider returns a setup error without starting authorization.
 
-| Provider | Composio toolkit | Core environment variable | Identity access |
-| --- | --- | --- | --- |
-| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) |
-| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` |
-| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` |
-| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` |
-| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` |
-| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` |
+| Provider | Composio toolkit | Core environment variable | Identity access | Publishing scope |
+| --- | --- | --- | --- | --- |
+| X | `twitter` | `COMPOSIO_X_AUTH_CONFIG_ID` | Existing custom OAuth configuration (`users.read`) | — |
+| TikTok | `tiktok` | `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | `user.info.basic` | `video.publish` |
+| Instagram | `instagram` | `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | `instagram_business_basic` | `instagram_business_content_publish` |
+| LinkedIn | `linkedin` | `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | `openid`, `profile` | `w_member_social` |
+| Facebook | `facebook` | `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | `public_profile` | `pages_show_list`, `pages_manage_posts`, `pages_read_engagement` |
+| YouTube | `youtube` | `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | `https://www.googleapis.com/auth/youtube.readonly` | `https://www.googleapis.com/auth/youtube.upload` |
 
 Use the provider OAuth callback shown by Composio when registering your OAuth
 app. The Sokosumi return URL is `<web-origin>/composio/callback`; it redeems the
@@ -93,17 +97,82 @@ Account types and setup requirements:
 
 - [TikTok](https://docs.composio.dev/toolkits/tiktok) requires your own OAuth app;
   Composio-managed OAuth is unavailable. Identity uses `open_id` and display name.
+  Publishing picks the most permissive privacy level the account offers and records
+  it on the attempt; until the Content Posting audit is approved that is `SELF_ONLY`.
 - [Instagram](https://docs.composio.dev/toolkits/instagram) supports Business and
   Creator accounts, not Personal accounts.
 - [LinkedIn](https://docs.composio.dev/toolkits/linkedin) connects the authorizing
-  member. [Facebook](https://docs.composio.dev/toolkits/facebook) connects the
-  authorizing user; this does not select a Facebook Page for publishing.
+  member and publishes as that person. [Facebook](https://docs.composio.dev/toolkits/facebook)
+  binds the connection to the Page the account manages; it requires exactly one
+  managed Page and rejects accounts with none or several instead of choosing one.
 - [YouTube](https://docs.composio.dev/toolkits/youtube) connects a channel. The
   identity lookup requires exactly one authenticated channel; it rejects missing
   or ambiguous channel identities instead of selecting one silently.
 
 Live OAuth requires configured provider apps and accounts. Unit tests use
 provider-response fixtures and do not replace a live authorization check.
+
+#### Vercel environment for Social publishing
+
+Set these on the **Core** Vercel project, for Production and for Preview.
+Preview may point at a separate Composio project, but every auth-config ID must
+come from the same Composio project as that environment's API key. Redeploy
+Core after changing them. The **Web** project needs no new variables.
+
+| Variable | Required | Value |
+| --- | --- | --- |
+| `COMPOSIO_API_KEY` | Yes | Composio project API key (starts with `ak_`). Mark it sensitive. |
+| `COMPOSIO_X_AUTH_CONFIG_ID` | Per provider | Composio auth-config ID (`ac_…`) for X. |
+| `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for TikTok. See [TikTok setup](#tiktok-setup). |
+| `COMPOSIO_INSTAGRAM_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Instagram. |
+| `COMPOSIO_LINKEDIN_AUTH_CONFIG_ID` | Per provider | Auth-config ID for LinkedIn. |
+| `COMPOSIO_FACEBOOK_AUTH_CONFIG_ID` | Per provider | Auth-config ID for Facebook. |
+| `COMPOSIO_YOUTUBE_AUTH_CONFIG_ID` | Per provider | Auth-config ID for YouTube. |
+| `COMPOSIO_API_BASE_URL` | No | Leave unset to use Composio's default API. |
+| `CRON_SECRET` | Yes | Vercel sends it to `/sync/social-posts-publish`, the every-minute cron in `vercel.json` that publishes due posts. Without it every run returns 401 and scheduled posts never go out. |
+| `BLOB_READ_WRITE_TOKEN` | Yes, for media | The Drive store that post attachments live in. Instagram, Facebook, TikTok, and LinkedIn video fetch the attachment by its public Blob URL, so the store must be public. |
+
+A provider whose `COMPOSIO_<PROVIDER>_AUTH_CONFIG_ID` is unset stays visible in
+the connect menu, and choosing it returns "This integration is not configured
+yet" without starting OAuth. Social itself is still gated to members of the
+beta organization (`SOCIAL_BETA_ORGANIZATION_SLUG` in `@sokosumi/utils`); that
+is code, not an environment variable.
+
+#### TikTok setup
+
+TikTok has no Composio-managed OAuth app, so each environment needs its own
+TikTok developer app.
+
+1. In the [TikTok for Developers](https://developers.tiktok.com/) portal, create
+   an app under your organization and add the **Login Kit** and **Content
+   Posting API** products. Turn on **Direct Post** in Content Posting API.
+2. Request the scopes `user.info.basic`, `video.upload`, and `video.publish`.
+3. In [Composio](https://docs.composio.dev/toolkits/tiktok), create an auth
+   config for the `tiktok` toolkit that uses your own developer app. Enter the
+   app's client key and client secret and the same scopes. Copy the redirect
+   URI Composio shows into the TikTok app's Login Kit redirect URIs.
+4. Copy the auth-config ID (`ac_…`) into `COMPOSIO_TIKTOK_AUTH_CONFIG_ID` on the
+   Core Vercel project for that environment, then redeploy Core.
+5. While the app is in sandbox, only TikTok accounts added as target users can
+   authorize it. Add the accounts you test with.
+6. Connect the account: open **Social**, choose a project, then **Connect
+   account → TikTok**.
+7. Post a test: a TikTok post needs exactly one MP4 video, and its caption is
+   at most 2,200 characters. Photos, GIFs, and a second video are rejected
+   before scheduling.
+
+Until TikTok approves the app's Content Posting audit, TikTok only offers the
+`SELF_ONLY` privacy level, so posts publish as private to the creator. Core
+always picks the most permissive level the account offers and records it on the
+attempt, so approved audits take effect without a code change. Submit the app
+for review (Login Kit) and the Content Posting audit before inviting accounts
+outside the sandbox.
+
+TikTok pulls the video from its URL. TikTok's Content Posting API only pulls
+from URL prefixes verified in the app's **URL properties**. Check that a test
+post publishes before relying on it. If TikTok rejects the Blob host
+(`*.public.blob.vercel-storage.com`, which cannot be verified), serve Drive
+media from a domain you control and verify that prefix.
 
 ### Turnstile protection for authentication email
 
@@ -119,7 +188,7 @@ logs a warning when its secret is missing in a deployed environment. Configure
 both keys or neither: a secret without a site key rejects every protected
 request. Deploy Web and Core together after configuring the keys. With its secret set, Core enforces
 verification on signup, email sign-in, email address changes, password reset
-requests, verification resends, and magic-link requests, before their email
+requests, verification resends, and email code requests, before their email
 callbacks. Existing database rate limits still
 apply. OAuth and passkeys are unaffected; Resend still delivers legitimate mail.
 A Cloudflare validation failure or outage blocks these protected requests.
@@ -147,7 +216,7 @@ no email was sent. The test-only badge does not appear with real widget keys.
 | `VERCEL_BRANCH_URL` | Optional. Stable branch URL on Vercel Preview |
 | `VERCEL_PROJECT_PRODUCTION_URL` | Optional. Vercel [system variable](https://vercel.com/docs/projects/environment-variables/system-environment-variables): production hostname for the project |
 
-**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`. When `VERCEL_ENV=preview`, Core prefers the branch URL (`VERCEL_BRANCH_URL`) over the deployment URL (`VERCEL_URL`), then `BETTER_AUTH_URL`. When only one of those is on a `*.sokosumi.com` host, that one wins. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so magic-link verify can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
+**Better Auth public base URL:** `getBetterAuthPublicBaseUrl()` (in `src/config/env.ts`) implements the same rules as `@sokosumi/utils` `resolveBetterAuthPublicBaseUrl`. When `VERCEL_ENV=preview`, Core prefers the branch URL (`VERCEL_BRANCH_URL`) over the deployment URL (`VERCEL_URL`), then `BETTER_AUTH_URL`. When only one of those is on a `*.sokosumi.com` host, that one wins. With [Preview Deployment Suffix](https://vercel.com/docs/deployments/preview-deployment-suffix) set to `preview.sokosumi.com`, those system vars already use a sokosumi host — required so Core can set session cookies with `BETTER_AUTH_COOKIE_DOMAIN=sokosumi.com`. When `VERCEL_ENV=production`, Core prefers `VERCEL_PROJECT_PRODUCTION_URL`, then `BETTER_AUTH_URL`. In other cases (including local) it uses `BETTER_AUTH_URL`.
 
 **Web app → Core API:** configure the web app’s `CORE_APP_BASE_URL` to point at this service (e.g. `http://localhost:8787` locally).
 
@@ -160,10 +229,6 @@ SENTRY_ENVIRONMENT=   # development | staging | production
 
 # Maintenance (HTTP 503 on all routes; read at startup)
 MAINTENANCE_MODE=false
-
-# Temporary. Vendor ids (comma separated) whose coworkers keep the old per-Task
-# schedule API. Empty: nobody.
-LEGACY_TASK_SCHEDULE_VENDOR_IDS=
 ```
 
 Maintenance mode is read at startup, so changing `MAINTENANCE_MODE` requires a restart/redeploy.
@@ -331,7 +396,7 @@ All other endpoints require authentication.
 
 ### Authentication Issues
 
-1. Verify `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_BRANCH_URL` is the sokosumi preview host — via Preview Deployment Suffix — so magic-link cookies work)
+1. Verify `BETTER_AUTH_SECRET` is set and `BETTER_AUTH_URL` reflects the **Core** public URL (on Vercel Preview, confirm `VERCEL_BRANCH_URL` is the sokosumi preview host — via Preview Deployment Suffix — so session cookies work)
 2. Verify the web app’s `CORE_APP_BASE_URL` points at this Core deployment
 3. For browser calls from the web app, confirm the page origin is allowlisted for CORS and Better Auth `trustedOrigins` (see **CORS Configuration** above)
 4. Verify coworker callers use dedicated `coworker_*` API keys where applicable

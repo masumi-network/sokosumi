@@ -1,3 +1,4 @@
+import { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import Link from "next/link";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { ProjectPinButton } from "@/app/projects/components/project-pin-button";
@@ -5,9 +6,11 @@ import {
   type ProjectResourceCountPillLabels,
   ProjectResourceCountPills,
 } from "@/app/projects/components/project-resource-count-pills";
-import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
+import {
+  PROJECTS_LIST_ROW_CARD_CLASS,
+  PROJECTS_LIST_ROW_LAYOUT_CLASS,
+} from "@/app/projects/constants";
 import { TimeAgo } from "@/components/time-ago";
-import { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { stripMarkdownToText } from "@/lib/utils/strip-markdown";
 
@@ -45,16 +48,21 @@ export function ProjectListItem({ project, labels }: ProjectListItemProps) {
     <article
       className={cn(
         PROJECTS_LIST_ROW_LAYOUT_CLASS,
-        "hover:bg-card-background-hover flex flex-row items-center pr-2 transition-colors",
+        PROJECTS_LIST_ROW_CARD_CLASS,
+        "hover:bg-card-background-hover flex flex-row items-center pr-2 transition-[background-color]",
+        // The link stops short of the Pin button, so its own outline would cut
+        // a line through the card. The ring goes around the whole row instead.
+        // Forced colors drop box-shadow and the row's paint containment clips
+        // the link's outline, so a transparent outline on the row carries
+        // focus there; the system colour paints it.
+        "has-[>a:focus-visible]:ring-ring has-[>a:focus-visible]:ring-2",
+        "has-[>a:focus-visible]:outline-2 has-[>a:focus-visible]:outline-transparent",
       )}
     >
       <Link
         href={`/projects/${project.id}`}
         className={cn(
-          // Square by design: the row runs the full width of the card, so its
-          // own radius would round the hover fill inside straight dividers.
-          // The card's overflow-hidden rounds the first and last rows for us.
-          "flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-none px-4 py-3 sm:flex-row sm:items-center sm:gap-4",
+          "flex min-w-0 flex-1 flex-col items-stretch gap-2 rounded-lg px-4 py-3 outline-hidden sm:flex-row sm:items-center sm:gap-4",
           "press content-in",
         )}
       >

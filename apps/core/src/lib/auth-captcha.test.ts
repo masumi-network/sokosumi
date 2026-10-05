@@ -1,7 +1,7 @@
 import { TURNSTILE_ALWAYS_PASS_SECRET } from "@sokosumi/utils";
 import { memoryAdapter } from "better-auth/adapters/memory";
 import { betterAuth } from "better-auth/minimal";
-import { magicLink } from "better-auth/plugins/magic-link";
+import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
@@ -15,7 +15,18 @@ function createTestAuth(
     basePath: "/auth",
     secret: "test-secret-that-is-long-enough-for-better-auth",
     database: memoryAdapter({
-      user: [],
+      // Password sign-up is closed (`disabledPaths` in `auth.ts`), so the
+      // account exists before any email action.
+      user: [
+        {
+          id: "person",
+          name: "Person",
+          email: "person@example.com",
+          emailVerified: false,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
       session: [],
       account: [],
       verification: [],
@@ -25,7 +36,7 @@ function createTestAuth(
     emailVerification: { sendOnSignUp: true, sendVerificationEmail: sendEmail },
     plugins: [
       createAuthCaptchaPlugin(secretKey),
-      magicLink({ sendMagicLink: sendEmail }),
+      emailOTP({ sendVerificationOTP: sendEmail }),
     ],
     rateLimit: { enabled: false },
   });
@@ -41,6 +52,8 @@ function createTestAuth(
           email: "person@example.com",
           name: "Person",
           password: "Password123!",
+          // The email code request names what the code is for.
+          type: "sign-in",
         }),
       }),
     );
@@ -70,28 +83,28 @@ describe("auth email abuse protection", () => {
     const { post, sendEmail } = createTestAuth({
       secretKey: TURNSTILE_ALWAYS_PASS_SECRET,
     });
-    expect((await post("/sign-up/email", "XXXX.DUMMY.TOKEN.XXXX")).status).toBe(
-      200,
-    );
+    expect(
+      (await post("/email-otp/send-verification-otp", "XXXX.DUMMY.TOKEN.XXXX"))
+        .status,
+    ).toBe(200);
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  it("allows signup without a challenge when no secret is configured", async () => {
+  it("allows email codes without a challenge when no secret is configured", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     const { auth, post, sendEmail } = createTestAuth({});
 
     expect((await auth.$context).getPlugin("captcha")).toBeNull();
-    expect((await post("/sign-up/email")).status).toBe(200);
+    expect((await post("/email-otp/send-verification-otp")).status).toBe(200);
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it.each([
-    "/sign-up/email",
     "/sign-in/email",
     "/send-verification-email",
-    "/sign-in/magic-link",
+    "/email-otp/send-verification-otp",
     "/request-password-reset",
   ])("blocks %s without a token before sending mail", async (path) => {
     const { post, sendEmail } = createTestAuth();
@@ -115,7 +128,10 @@ describe("auth email abuse protection", () => {
           ),
       );
       const { post, sendEmail } = createTestAuth();
-      expect((await post("/sign-up/email", "rejected-token")).status).toBe(403);
+      expect(
+        (await post("/email-otp/send-verification-otp", "rejected-token"))
+          .status,
+      ).toBe(403);
       expect(sendEmail).not.toHaveBeenCalled();
     },
   );
@@ -130,9 +146,19 @@ describe("auth email abuse protection", () => {
         ),
     );
     const { auth, post, sendEmail } = createTestAuth();
-    const signup = await post("/sign-up/email", "signup-token");
-    expect(signup.status).toBe(200);
-    const cookie = signup.headers
+    expect(
+      (await post("/email-otp/send-verification-otp", "code-token")).status,
+    ).toBe(200);
+    const [{ otp }] = sendEmail.mock.calls[0];
+    const signIn = await auth.handler(
+      new Request("https://auth.example.com/auth/sign-in/email-otp", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email: "person@example.com", otp }),
+      }),
+    );
+    expect(signIn.status).toBe(200);
+    const cookie = signIn.headers
       .getSetCookie()
       .map((value) => value.split(";")[0])
       .join("; ");
@@ -166,7 +192,9 @@ describe("auth email abuse protection", () => {
       vi.fn().mockResolvedValue(Response.json({ success: true })),
     );
     const { post, sendEmail } = createTestAuth();
-    expect((await post("/sign-up/email", "token")).status).toBe(403);
+    expect(
+      (await post("/email-otp/send-verification-otp", "token")).status,
+    ).toBe(403);
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
@@ -180,7 +208,9 @@ describe("auth email abuse protection", () => {
         ),
     );
     const { post, sendEmail } = createTestAuth();
-    expect((await post("/sign-up/email", "wrong-action")).status).toBe(403);
+    expect(
+      (await post("/email-otp/send-verification-otp", "wrong-action")).status,
+    ).toBe(403);
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
@@ -190,11 +220,13 @@ describe("auth email abuse protection", () => {
       vi.fn().mockResolvedValue(new Response("Unavailable", { status: 503 })),
     );
     const { post, sendEmail } = createTestAuth();
-    expect((await post("/sign-up/email", "token")).ok).toBe(false);
+    expect((await post("/email-otp/send-verification-otp", "token")).ok).toBe(
+      false,
+    );
     expect(sendEmail).not.toHaveBeenCalled();
   });
 
-  it("allows signup and subsequent email actions only after validation", async () => {
+  it("allows email actions only after validation", async () => {
     const fetchMock = vi
       .fn()
       .mockImplementation(() =>
@@ -203,14 +235,13 @@ describe("auth email abuse protection", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { post, sendEmail } = createTestAuth();
     for (const path of [
-      "/sign-up/email",
       "/send-verification-email",
-      "/sign-in/magic-link",
+      "/email-otp/send-verification-otp",
       "/request-password-reset",
     ]) {
       expect((await post(path, `token-for-${path}`)).status).toBe(200);
     }
-    expect(sendEmail).toHaveBeenCalledTimes(4);
-    expect(fetchMock).toHaveBeenCalledTimes(4);
+    expect(sendEmail).toHaveBeenCalledTimes(3);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 });

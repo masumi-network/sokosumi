@@ -12,6 +12,7 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
+  TaskPriority,
   TaskScheduleEndsMode,
   TaskScheduleState,
   TaskStatus,
@@ -32,10 +33,8 @@ import type Stripe from "stripe";
  * SokosumiJobStatus only — no Prisma enum). Drift: Core schema tests assert
  * OpenAPI ↔ Prisma; web drift asserts generated client values.
  *
- * Decision (SOK-590): keep codegen output web-only under
- * `apps/web/src/lib/clients/generated/core` — same as `TaskLinkRelation`. A
- * shared `packages/api-types` package is unnecessary while only web consumes
- * the generated client.
+ * Codegen output lives in `packages/core-client` (SOK-1222), so every app that
+ * calls Core imports the same generated client.
  */
 
 export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
@@ -43,6 +42,8 @@ export const taskStatusSchema = z.enum(TaskStatus).openapi("TaskStatus");
 export const taskVisibilitySchema = z
   .enum(TaskVisibility)
   .openapi("TaskVisibility");
+
+export const taskPrioritySchema = z.enum(TaskPriority).openapi("TaskPriority");
 
 export const taskScheduleStateSchema = z
   .enum(TaskScheduleState)

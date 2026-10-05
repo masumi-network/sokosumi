@@ -1,9 +1,8 @@
 "use client";
 
+import type { EnterpriseContractStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-
 import { Badge } from "@/components/ui/badge";
-import type { EnterpriseContractStatus } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 const STATUS_VARIANTS: Record<

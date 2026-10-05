@@ -63,9 +63,10 @@ vi.mock("@/services/soko-bot-proactive.service", () => ({
   stageSokoBotNudges: vi.fn(),
 }));
 
+import { commentNamesBot } from "@/lib/soko-bot/task-involvement";
+
 import {
   buildTaskboardMessage,
-  isRelevantBoardComment,
   SokoBotTaskboardSyncService,
 } from "./soko-bot-taskboard-sync.service";
 
@@ -126,37 +127,15 @@ describe("buildTaskboardMessage", () => {
   });
 });
 
-describe("isRelevantBoardComment", () => {
-  const memoryTokens = new Set(["marketplace", "launch"]);
-  it("lets through mentions, questions, and memory overlap only", () => {
-    expect(
-      isRelevantBoardComment({
-        comment: "Atlas, can you check?",
-        botName: "Atlas",
-        memoryTokens,
-      }),
-    ).toBe(true);
-    expect(
-      isRelevantBoardComment({
-        comment: "Which currency should we use?",
-        botName: "Atlas",
-        memoryTokens,
-      }),
-    ).toBe(true);
-    expect(
-      isRelevantBoardComment({
-        comment: "Draft done for the marketplace page.",
-        botName: "Atlas",
-        memoryTokens,
-      }),
-    ).toBe(true);
-    expect(
-      isRelevantBoardComment({
-        comment: "Looks good, shipping it.",
-        botName: "Atlas",
-        memoryTokens,
-      }),
-    ).toBe(false);
+describe("commentNamesBot", () => {
+  it("matches the name as a whole word only", () => {
+    expect(commentNamesBot("Atlas, can you check?", "Atlas")).toBe(true);
+    expect(commentNamesBot("@atlas please look", "Atlas")).toBe(true);
+    expect(commentNamesBot("Which currency should we use?", "Atlas")).toBe(
+      false,
+    );
+    expect(commentNamesBot("See the Atlassian page", "Atlas")).toBe(false);
+    expect(commentNamesBot("Anyone?", null)).toBe(false);
   });
 });
 
@@ -243,7 +222,7 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
           {
             createdAt: new Date(),
             status: null,
-            comment: "Which marketplace copy should we ship?",
+            comment: "Atlas, which marketplace copy should we ship?",
             userId: ALICE_USER_ID,
             coworkerId: null,
             sokoBotId: null,
@@ -285,10 +264,128 @@ describe("SokoBotTaskboardSyncService private Task visibility", () => {
     const startedMessage = startTurnMock.mock.calls[0]?.[0]?.message as string;
     expect(startedMessage).toContain("Public launch");
     expect(startedMessage).toContain("public-1");
-    expect(startedMessage).toContain("Which marketplace copy should we ship?");
+    expect(startedMessage).toContain(
+      "Atlas, which marketplace copy should we ship?",
+    );
     expect(startedMessage).not.toContain("Secret acquisition");
     expect(startedMessage).not.toContain("secret-1");
     expect(startedMessage).not.toContain("Offer terms are confidential");
+  });
+});
+
+describe("who a Task comment wakes", () => {
+  const at = new Date("2026-09-30T10:00:00Z");
+  function task(overrides: Record<string, unknown>) {
+    return {
+      id: "task-1",
+      name: "Launch copy",
+      status: "RUNNING",
+      ownerId: "someone-else",
+      assigneeId: null,
+      assigneeSokoBotId: null,
+      updatedAt: at,
+      sokoBotDelegations: [],
+      sokoBotWatches: [
+        {
+          id: "watch-1",
+          lastSeenEventAt: new Date("2026-09-29T00:00:00Z"),
+          lastSeenEventId: null,
+          lastSeenStatus: "RUNNING",
+        },
+      ],
+      ...overrides,
+    };
+  }
+  function comment(text: string, by: "human" | "bot") {
+    return {
+      id: `event-${text.length}`,
+      createdAt: at,
+      status: null,
+      comment: text,
+      userId: by === "human" ? "teammate" : null,
+      coworkerId: null,
+      sokoBotId: by === "bot" ? "other-bot" : null,
+      user: by === "human" ? { name: "Nina" } : null,
+      coworker: null,
+      sokoBot:
+        by === "bot" ? { name: "Jarvis", user: { name: "Andreas" } } : null,
+    };
+  }
+  async function sync(taskRow: unknown, event: unknown) {
+    vi.clearAllMocks();
+    botFindManyMock.mockResolvedValue([
+      {
+        id: ALICE_BOT_ID,
+        name: "Atlas",
+        userId: ALICE_USER_ID,
+        workspaceId: ALICE_WORKSPACE_ID,
+        followWholeBoard: true,
+        ingestTimezone: "UTC",
+      },
+    ]);
+    metadataUpsertMock.mockResolvedValue({
+      key: "board",
+      cursorId: null,
+      createdAt: new Date(0),
+    });
+    inboxFindManyMock.mockResolvedValue([]);
+    findAttentionItemsMock.mockResolvedValue([]);
+    followUpsBlockMock.mockResolvedValue([]);
+    proactiveGateMock.mockResolvedValue({ ok: true });
+    startTurnMock.mockResolvedValue({ turnId: "turn-1", status: "COMPLETED" });
+    taskFindManyMock.mockResolvedValue([taskRow]);
+    eventFindManyMock.mockResolvedValue([event]);
+    await new SokoBotTaskboardSyncService().syncTaskboard({
+      abortSignal: new AbortController().signal,
+      shouldContinue: () => true,
+    });
+    return startTurnMock.mock.calls.length > 0;
+  }
+
+  it("keeps a board-wide bot out of a question that does not name it", async () => {
+    expect(
+      await sync(task({}), comment("Which currency should we use?", "human")),
+    ).toBe(false);
+    expect(
+      await sync(task({}), comment("Atlas, which currency?", "human")),
+    ).toBe(true);
+  });
+
+  it("does not wake a bot on its own Task for another bot's comment", async () => {
+    const own = task({
+      ownerId: ALICE_USER_ID,
+      sokoBotDelegations: [{ id: "delegation-1" }],
+    });
+    expect(await sync(own, comment("Here are three options.", "bot"))).toBe(
+      false,
+    );
+    expect(await sync(own, comment("Anything else needed?", "human"))).toBe(
+      true,
+    );
+    expect(
+      await sync(own, comment("Atlas, can you confirm the budget?", "bot")),
+    ).toBe(true);
+    // Named with its owner, so it reads as that person's assistant.
+    expect(startTurnMock.mock.calls.at(-1)?.[0]?.message).toContain(
+      "Jarvis (Andreas's assistant): Atlas, can you confirm the budget?",
+    );
+  });
+
+  it("follows only Tasks the bot created, assigned or edited", async () => {
+    await sync(task({}), comment("x", "human"));
+    const where = taskFindManyMock.mock.calls[0]?.[0]?.where as {
+      AND: { OR: Record<string, unknown>[] }[];
+    };
+    expect(where.AND[0]?.OR).toContainEqual(
+      expect.objectContaining({
+        sokoBotDelegations: {
+          some: {
+            action: { not: "reply_to_task" },
+            turn: { sokoBotId: ALICE_BOT_ID },
+          },
+        },
+      }),
+    );
   });
 });
 

@@ -5,41 +5,52 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
+import { Form } from "@/components/ui/form";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { persistUserName, userHasName } from "@/lib/auth/persist-user-name";
-import { type NameFormType, nameFormSchema } from "@/lib/schemas/account";
+  persistFirstAndLastName,
+  userHasName,
+} from "@/lib/auth/persist-user-name";
+import {
+  type FirstAndLastNameFormType,
+  firstAndLastNameFormSchema,
+} from "@/lib/schemas/account";
 
-export function useCollectUserName(initialName: string) {
+export function useCollectUserName(
+  initialName: string,
+  initialFirstName?: string | null,
+  initialLastName?: string | null,
+) {
   const tName = useTranslations("Library.Auth.NameField");
   const tSchema = useTranslations("Library.Auth.Schema");
-  const needsName = !userHasName(initialName);
-  const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema(tSchema)),
-    defaultValues: { name: initialName },
+  const hasFirstName = Boolean(initialFirstName?.trim());
+  const hasLastName = Boolean(initialLastName?.trim());
+  // Asked of a user with no display name, and of one who has half a name (a
+  // provider sent one part). A user with a display name and no parts at all
+  // is left alone: that is every account from before the parts existed.
+  const needsName = !userHasName(initialName) || hasFirstName !== hasLastName;
+  const form = useForm<FirstAndLastNameFormType>({
+    resolver: zodResolver(firstAndLastNameFormSchema(tSchema)),
+    defaultValues: {
+      firstName: initialFirstName?.trim() ?? "",
+      lastName: initialLastName?.trim() ?? "",
+    },
   });
 
   async function persistIfNeeded(): Promise<boolean> {
     if (!needsName) {
       return true;
     }
-    const valid = await form.trigger();
-    if (!valid) {
-      return false;
-    }
-    const result = await persistUserName(form.getValues("name"));
-    if (result.isErr()) {
-      toast.error(result.error ?? tName("persistError"));
-      return false;
-    }
-    return true;
+    let saved = false;
+    await form.handleSubmit(async (values) => {
+      const result = await persistFirstAndLastName(values, initialName);
+      if (result.isErr()) {
+        toast.error(result.error ?? tName("persistError"));
+        return;
+      }
+      saved = true;
+    })();
+    return saved;
   }
 
   function NameFields({ disabled }: { disabled?: boolean }) {
@@ -48,24 +59,10 @@ export function useCollectUserName(initialName: string) {
     }
     return (
       <Form {...form}>
-        <FormField
+        <FirstAndLastNameFields
           control={form.control}
-          name="name"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>{tName("label")}</FormLabel>
-              <FormControl>
-                <Input
-                  {...field}
-                  autoComplete="name"
-                  disabled={disabled}
-                  placeholder={tName("placeholder")}
-                  data-testid="collect-user-name"
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
+          testIdPrefix="collect-user"
+          disabled={disabled}
         />
       </Form>
     );

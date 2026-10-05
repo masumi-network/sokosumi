@@ -1,6 +1,6 @@
 import "server-only";
 
-import type { VendorMembership } from "@/lib/clients/generated/core";
+import type { VendorMembership } from "@sokosumi/core-client";
 import { vendorService } from "@/lib/services/vendor.service";
 
 export interface DeveloperVendorAdminAccess {

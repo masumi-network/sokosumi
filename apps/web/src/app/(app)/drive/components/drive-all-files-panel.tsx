@@ -1,5 +1,11 @@
 "use client";
 
+import type {
+  FileCollection,
+  FileResource,
+  FileSearchMeta,
+  WorkspaceLabel,
+} from "@sokosumi/core-client";
 import {
   Bookmark,
   Loader2,
@@ -36,12 +42,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import type {
-  FileCollection,
-  FileResource,
-  FileSearchMeta,
-  WorkspaceLabel,
-} from "@/lib/clients/generated/core";
 import type { FilesViewMode } from "@/lib/ui-preferences/files-view-mode";
 import { cn } from "@/lib/utils";
 import {
@@ -141,6 +141,8 @@ export interface DriveAllFilesPanelProps {
    * The page owns rename, move and delete, so it passes them in.
    */
   folderActions?: ReactNode;
+  /** Listed with the root folders; see `DriveFolderNav`. */
+  virtualFolder?: { label: string; onOpen: () => void };
   /**
    * Bumped when the page changed the files behind this list — an upload, a
    * folder rename, a delete.
@@ -176,6 +178,7 @@ export function DriveAllFilesPanel({
   initialFolder = "",
   onFolderChange,
   folderActions,
+  virtualFolder,
   reloadToken = 0,
 }: DriveAllFilesPanelProps) {
   const t = useTranslations("App.Drive.Files");
@@ -725,6 +728,19 @@ export function DriveAllFilesPanel({
    * row sat below the fold on a list of ten files.
    */
   const appliedFacets: { key: string; label: string; remove: () => void }[] = [
+    // On a phone the type chips live in the Filters sheet, so the applied
+    // types show here instead.
+    ...(isMobile ? filters.typeFamilies : []).map((family) => ({
+      key: `type:${family}`,
+      label: t(`type.${family}`),
+      remove: () =>
+        setFilters((current) => ({
+          ...current,
+          typeFamilies: current.typeFamilies.filter(
+            (entry) => entry !== family,
+          ),
+        })),
+    })),
     ...filters.categoryLabelIds.map((id) => ({
       key: `category:${id}`,
       label: labelName(id),
@@ -782,17 +798,18 @@ export function DriveAllFilesPanel({
 
       <form
         role="search"
-        className="flex flex-col gap-3 @2xl:flex-row @2xl:items-center"
+        className="flex flex-wrap items-center gap-2 @2xl:gap-3"
         onSubmit={(event) => {
           event.preventDefault();
           debouncedSearch.cancel();
           setAppliedQuery(query);
         }}
       >
-        <div className="relative flex-1">
+        <div className="relative min-w-0 flex-1">
           <Search className="text-muted-foreground absolute left-2.5 top-1/2 size-4 -translate-y-1/2" />
           <Input
             type="search"
+            enterKeyHint="search"
             value={query}
             placeholder={t("searchPlaceholder")}
             aria-label={t("searchLabel")}
@@ -803,7 +820,7 @@ export function DriveAllFilesPanel({
             }}
             // The browser's own clear control is inconsistent and hidden in
             // some engines; ours is always the same and always there.
-            className="w-full pl-8 pr-9 [&::-webkit-search-cancel-button]:hidden"
+            className="h-11 w-full pl-8 pr-9 @2xl:h-10 [&::-webkit-search-cancel-button]:hidden"
             data-testid="drive-all-files-search"
           />
           {query ? (
@@ -824,7 +841,8 @@ export function DriveAllFilesPanel({
         </div>
 
         <div className="flex items-center gap-2">
-          <Button type="submit" className="gap-2">
+          {/* Enter submits on a phone; the button stays where there is room. */}
+          <Button type="submit" className="hidden gap-2 @2xl:inline-flex">
             <Search className="size-4" aria-hidden />
             {t("searchButton")}
           </Button>
@@ -833,7 +851,7 @@ export function DriveAllFilesPanel({
             <Button
               type="button"
               variant="outline"
-              className="gap-2"
+              className="min-h-11 gap-2"
               onClick={() => setFilterSheetOpen(true)}
             >
               <SlidersHorizontal className="size-4" />
@@ -858,7 +876,7 @@ export function DriveAllFilesPanel({
 
         {labelsState === "failed" ? (
           // Named for what actually failed, with a retry that retries it.
-          <span className="text-muted-foreground flex items-center gap-2 text-xs">
+          <span className="text-muted-foreground flex basis-full items-center gap-2 text-xs">
             {t("labelsUnavailable")}
             <button
               type="button"
@@ -879,7 +897,10 @@ export function DriveAllFilesPanel({
        * ask of a file list and it was three clicks deep.
        */}
       <div
-        className="flex flex-wrap items-center gap-2"
+        className={cn(
+          "flex flex-wrap items-center gap-2",
+          isMobile && "hidden",
+        )}
         role="group"
         aria-label={t("filterType")}
         data-testid="drive-all-files-types"
@@ -923,6 +944,7 @@ export function DriveAllFilesPanel({
           current={filters.folder}
           onSelect={(folder) => applyFilters({ ...filters, folder })}
           actions={filters.folder ? folderActions : null}
+          virtualFolder={virtualFolder}
         />
       ) : null}
 

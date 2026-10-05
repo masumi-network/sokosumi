@@ -151,6 +151,70 @@ describe("handleStripeAuthWebhookOnEvent", () => {
 
   it.each([
     {
+      name: "flexible billing mode sets only cancel_at",
+      previous_attributes: { cancel_at: null },
+      cancel_at_period_end: false,
+    },
+    {
+      name: "classic billing mode sets both fields",
+      previous_attributes: { cancel_at: null, cancel_at_period_end: false },
+      cancel_at_period_end: true,
+    },
+  ])("tells the wallet once when $name", async (variant) => {
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_updated",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_123",
+          customer: "cus_123",
+          cancel_at_period_end: variant.cancel_at_period_end,
+          cancel_at: 1_800_000_000,
+        },
+        previous_attributes: variant.previous_attributes,
+      },
+    } as never);
+
+    expect(notifySubscriptionEndingMock).toHaveBeenCalledTimes(1);
+    expect(notifySubscriptionEndingMock).toHaveBeenCalledWith(
+      { userId: "user-1", organizationId: null },
+      { stripeSubscriptionId: "sub_123", cancelAt: 1_800_000_000 },
+    );
+  });
+
+  it.each([
+    {
+      name: "a cancellation moved to another date",
+      previous_attributes: { cancel_at: 1_700_000_000 },
+      cancel_at_period_end: false,
+      cancel_at: 1_800_000_000,
+    },
+    {
+      name: "a flexible-mode cancellation that was resumed",
+      previous_attributes: { cancel_at: 1_800_000_000 },
+      cancel_at_period_end: false,
+      cancel_at: null,
+    },
+  ])("says nothing about $name", async (variant) => {
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_updated",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_123",
+          customer: "cus_123",
+          cancel_at_period_end: variant.cancel_at_period_end,
+          cancel_at: variant.cancel_at,
+        },
+        previous_attributes: variant.previous_attributes,
+      },
+    } as never);
+
+    expect(notifySubscriptionEndingMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
       name: "a subscription that stays set to end",
       previous_attributes: { items: {} },
       cancel_at_period_end: true,

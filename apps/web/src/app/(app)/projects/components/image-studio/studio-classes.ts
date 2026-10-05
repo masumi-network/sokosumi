@@ -18,3 +18,13 @@
  */
 export const STUDIO_PILL_CLASS =
   "focus-visible:ring-ring-halo inline-flex h-7 items-center rounded-md px-2.5 text-xs font-medium transition-colors outline-none focus-visible:ring-[3px]";
+
+export const STUDIO_COLUMN_MOBILE_SHELL_CLASS =
+  "max-md:-mt-4 max-md:-mb-4 max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] max-md:overflow-hidden" as const;
+
+/** Clear the floating Apple navigation bar as well as the fixed header. */
+export const STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS =
+  "max-md:h-[calc(100dvh-8rem-env(safe-area-inset-top)-max(0.75rem,env(safe-area-inset-bottom)))]" as const;
+
+export const STUDIO_COLUMN_FEED_HEIGHT_CLASS =
+  "md:h-[calc(100dvh-6rem-env(safe-area-inset-top))] min-h-0 md:min-h-[28rem]" as const;

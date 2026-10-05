@@ -1,5 +1,21 @@
 "use server";
 
+import type {
+  AcceptChatRoomGuestInviteLink,
+  ChatRoom,
+  ChatRoomGuestInviteLink,
+  ChatRoomInvitation,
+  ChatRoomMessage,
+  ChatRoomPinnedMessageListItem,
+  ChatRoomPinnedMessageMutation,
+  ChatRoomThread,
+  ChatRoomThreadReadState,
+  ChatRoomThreadsMarkAll,
+  ChatRoomThreadUnreadReplyCount,
+  Coworker,
+  DiscoverableChatRoom,
+  Member,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -16,22 +32,6 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import type {
-  AcceptChatRoomGuestInviteLink,
-  ChatRoom,
-  ChatRoomGuestInviteLink,
-  ChatRoomInvitation,
-  ChatRoomMessage,
-  ChatRoomPinnedMessageListItem,
-  ChatRoomPinnedMessageMutation,
-  ChatRoomThread,
-  ChatRoomThreadReadState,
-  ChatRoomThreadsMarkAll,
-  ChatRoomThreadUnreadReplyCount,
-  Coworker,
-  DiscoverableChatRoom,
-  Member,
-} from "@/lib/clients/generated/core";
 import { isOrganizationOwnerOrAdmin } from "@/lib/helpers/organization-member";
 import {
   type ChatUnreadRoomRead,
@@ -80,9 +80,6 @@ interface UpdateRoomInput {
   name?: string;
   topic?: string | null;
   discoverability?: ChannelDiscoverability;
-  memberUserIds?: string[];
-  coworkerIds?: string[];
-  sokoBotIds?: string[];
   /** Group Directs only; Core rejects it anywhere else. Blank clears it. */
   groupName?: string;
 }
@@ -150,7 +147,7 @@ export async function loadChatComposeRosterAction(): Promise<
 > {
   const session = await getSession();
   if (!session) {
-    return roomFail("Sign in required.");
+    return roomFail("Log in required.");
   }
 
   const self = {
@@ -400,15 +397,6 @@ export async function updateRoomAction(
     ...(input.topic !== undefined && { topic: cleanString(input.topic) }),
     ...(input.discoverability !== undefined && {
       discoverability: cleanDiscoverability(input.discoverability),
-    }),
-    ...(input.memberUserIds !== undefined && {
-      memberUserIds: cleanIds(input.memberUserIds),
-    }),
-    ...(input.coworkerIds !== undefined && {
-      coworkerIds: cleanIds(input.coworkerIds),
-    }),
-    ...(input.sokoBotIds !== undefined && {
-      sokoBotIds: cleanIds(input.sokoBotIds),
     }),
     ...(input.groupName !== undefined && {
       groupName: cleanString(input.groupName),
@@ -708,8 +696,51 @@ export async function acceptRoomGuestInviteLinkAction(
   }
 }
 
-/** Host: remove a guest from an external channel. */
-export async function removeRoomGuestAction(
+/** Channel members to add; Core ignores anyone already in the room. */
+export interface AddRoomMembersInput {
+  userIds?: string[];
+  coworkerIds?: string[];
+  sokoBotIds?: string[];
+}
+
+/** Host member: add people, Coworkers and their own Soko Bots to a Channel. */
+export async function addRoomMembersAction(
+  roomId: string,
+  input: AddRoomMembersInput,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  if (!cleanRoomId) {
+    return roomFail("Room is required.");
+  }
+  const body = {
+    userIds: cleanIds(input.userIds),
+    coworkerIds: cleanIds(input.coworkerIds),
+    sokoBotIds: cleanIds(input.sokoBotIds),
+  };
+  if (
+    body.userIds.length === 0 &&
+    body.coworkerIds.length === 0 &&
+    body.sokoBotIds.length === 0
+  ) {
+    return roomFail("Choose someone to add.");
+  }
+
+  try {
+    const room = await chatRoomService.addMembers(cleanRoomId, body);
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not add members.");
+  }
+}
+
+/**
+ * Remove a person from a Channel: any host member may remove a guest; only an
+ * organization owner or admin may remove a host member.
+ */
+export async function removeRoomMemberAction(
   roomId: string,
   userId: string,
 ): Promise<RoomActionResult<null>> {
@@ -729,7 +760,57 @@ export async function removeRoomGuestAction(
     revalidatePath("/chat");
     return roomOk(null);
   } catch (error) {
-    return roomCatch(error, "Could not remove guest.");
+    return roomCatch(error, "Could not remove member.");
+  }
+}
+
+/** Host member: remove a Coworker from a Channel. */
+export async function removeRoomCoworkerAction(
+  roomId: string,
+  coworkerId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanCoworkerId = cleanString(coworkerId);
+  if (!cleanRoomId || !cleanCoworkerId) {
+    return roomFail("Room and coworker are required.");
+  }
+
+  try {
+    const room = await chatRoomService.removeCoworker(
+      cleanRoomId,
+      cleanCoworkerId,
+    );
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not remove coworker.");
+  }
+}
+
+/** Owner only: remove your own Soko Bot from a Channel. */
+export async function removeRoomSokoBotAction(
+  roomId: string,
+  sokoBotId: string,
+): Promise<RoomActionResult<ChatRoom>> {
+  const cleanRoomId = cleanString(roomId);
+  const cleanSokoBotId = cleanString(sokoBotId);
+  if (!cleanRoomId || !cleanSokoBotId) {
+    return roomFail("Room and personal assistant are required.");
+  }
+
+  try {
+    const room = await chatRoomService.removeSokoBot(
+      cleanRoomId,
+      cleanSokoBotId,
+    );
+    await invalidateSidebarChatList();
+    revalidatePath("/");
+    revalidatePath("/chat");
+    return roomOk(room);
+  } catch (error) {
+    return roomCatch(error, "Could not remove personal assistant.");
   }
 }
 
@@ -751,6 +832,8 @@ export async function sendRoomMessageAction(
      * creates at most one row (unique on roomId + clientMessageId).
      */
     clientMessageId?: string;
+    /** skills.sh skills to attach; Core hands them to the agents addressed. */
+    skillIds?: string[];
   },
 ): Promise<RoomActionResult<ChatRoomMessage>> {
   const cleanContent = cleanString(content);
@@ -776,6 +859,9 @@ export async function sendRoomMessageAction(
       }),
       ...(options?.clientMessageId && {
         clientMessageId: options.clientMessageId,
+      }),
+      ...(options?.skillIds?.length && {
+        skillIds: cleanIds(options.skillIds),
       }),
     });
     // No revalidatePath: client appends/merges the returned message. Revalidating

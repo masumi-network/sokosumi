@@ -24,9 +24,24 @@ npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill t
 npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill jobs
 ```
 
-[CORRECTION, VERIFIED: local Skills CLI `1.7.0` discovery] The earlier repository-root examples omitted `--full-depth`. On this checkout, default discovery found three root Skills and missed the CLI Skills. Full-depth discovery found 51 Skills, including the six CLI Skills. These counts describe this checkout and installer version. Use `--full-depth` to search the monorepo.
+[CORRECTION, REPORTED: earlier local Skills CLI `1.7.0` discovery] The earlier repository-root examples omitted `--full-depth`. That check found three root Skills by default and missed the CLI Skills. Full-depth discovery found 51 Skills, including the six CLI Skills. These counts describe that checkout and installer version. They were not repeated in this audit. Use `--full-depth` to search the monorepo.
 
-These commands install Skill files only. They do not install the `sokosumi` CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`).
+[REPORTED: existing distribution instructions] These commands install Skill files only.
+Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build the checkout below.
+
+[VERIFIED: `apps/cli/package.json`] This checkout defines `@masumi_network/sokosumi` version `1.0.2` with public npm access.
+It requires Node.js 24 and includes `dist` and `skills` in the package.
+[VERIFIED: local documentation audit, 2026-09-30] Registry publication and package installation were not checked in this audit.
+
+[VERIFIED: `apps/cli/src/cli/commands/skills.ts`] An installed CLI can locate its bundled Skills:
+
+```bash
+sokosumi skills --json
+sokosumi skills path
+```
+
+Load `sokosumi/SKILL.md` from the returned directory through the host's Skill loader. Keep `references` beside it.
+CLI installation does not configure that loader. A separate repository Skill install is optional when the host can load bundled files.
 
 Focused skills are also under `apps/cli/skills`. Keep `SKILL.md` as each skill's source of truth. References are optional and additive. Do not add platform-specific metadata unless the installer requires it.
 

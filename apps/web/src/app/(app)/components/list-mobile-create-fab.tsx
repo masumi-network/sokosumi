@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export interface ListMobileCreateFabProps {
   /** Accessible name for the + control */
   ariaLabel: string;
+  /** Additional styles for the create button. */
+  className?: string;
   /** Opens the in-tree create modal (handleOpen from useCreate*Modal) */
   onOpen: () => void;
   /** Optional icon component (defaults to Plus) */
@@ -25,6 +27,7 @@ export interface ListMobileCreateFabProps {
  */
 export function ListMobileCreateFab({
   ariaLabel,
+  className,
   onOpen,
   icon: Icon = Plus,
   progress,
@@ -82,6 +85,7 @@ export function ListMobileCreateFab({
               isUploading
                 ? "bg-foreground text-background cursor-not-allowed"
                 : "bg-primary-solid text-primary-solid-foreground",
+              className,
             )}
           >
             {showProgress ? (

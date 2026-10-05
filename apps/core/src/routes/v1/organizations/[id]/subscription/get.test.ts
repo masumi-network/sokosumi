@@ -13,15 +13,22 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { resolveMemberOrganizationByIdMock, subscriptionFindFirstMock } =
-  vi.hoisted(() => ({
-    resolveMemberOrganizationByIdMock: vi.fn(),
-    subscriptionFindFirstMock: vi.fn(),
-  }));
+const {
+  resolveMemberOrganizationByIdMock,
+  subscriptionFindFirstMock,
+  subscriptionFindManyMock,
+} = vi.hoisted(() => ({
+  resolveMemberOrganizationByIdMock: vi.fn(),
+  subscriptionFindFirstMock: vi.fn(),
+  subscriptionFindManyMock: vi.fn(),
+}));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    subscription: { findFirst: subscriptionFindFirstMock },
+    subscription: {
+      findFirst: subscriptionFindFirstMock,
+      findMany: subscriptionFindManyMock,
+    },
   },
 }));
 
@@ -64,6 +71,7 @@ function createApp(authContext: AuthenticationContext = USER_AUTH_CONTEXT) {
 describe("GET /organizations/{id}/subscription", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    subscriptionFindManyMock.mockResolvedValue([]);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
       organization: { id: "org_1" },
       member: { role: "member" },
@@ -116,16 +124,18 @@ describe("GET /organizations/{id}/subscription", () => {
   });
 
   it("returns the active subscription for a member", async () => {
-    subscriptionFindFirstMock.mockResolvedValue({
-      id: "sub_1",
-      plan: "pro",
-      status: "active",
-      cancelAtPeriodEnd: false,
-      periodStart: new Date("2025-01-01T00:00:00.000Z"),
-      periodEnd: new Date("2025-02-01T00:00:00.000Z"),
-      seats: 5,
-      referenceId: "org_1",
-    });
+    subscriptionFindManyMock.mockResolvedValue([
+      {
+        id: "sub_1",
+        plan: "pro",
+        status: "active",
+        cancelAtPeriodEnd: false,
+        periodStart: new Date("2025-01-01T00:00:00.000Z"),
+        periodEnd: new Date("2025-02-01T00:00:00.000Z"),
+        seats: 5,
+        referenceId: "org_1",
+      },
+    ]);
 
     const response = await createApp().request(
       "http://localhost/org_1/subscription",
@@ -143,7 +153,7 @@ describe("GET /organizations/{id}/subscription", () => {
         seats: 5,
       },
     });
-    expect(subscriptionFindFirstMock).toHaveBeenCalledWith(
+    expect(subscriptionFindManyMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ referenceId: "org_1" }),
       }),

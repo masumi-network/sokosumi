@@ -1,15 +1,14 @@
+import type {
+  WorkspaceCalendarEntry,
+  WorkspaceCalendarItem,
+} from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-
 import {
   changeTaskScheduleRun,
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
-import type {
-  WorkspaceCalendarEntry,
-  WorkspaceCalendarItem,
-} from "@/lib/clients/generated/core";
 
 type RunChange =
   | { action: "skip" | "restore" }

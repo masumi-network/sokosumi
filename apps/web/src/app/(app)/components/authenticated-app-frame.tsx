@@ -1,3 +1,4 @@
+import type { Notice } from "@sokosumi/core-client";
 import { hasAdminRole } from "@sokosumi/utils";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
@@ -10,14 +11,14 @@ import { BreadcrumbOverrideProvider } from "@/contexts/breadcrumb-override-conte
 import { NotificationProvider } from "@/contexts/notification-provider";
 import { OrgPresenceProvider } from "@/contexts/org-presence-provider";
 import { OrganizationSeatContext } from "@/contexts/organization-seat-context";
-import { signInRedirectPath } from "@/lib/auth/auth.server";
+import { getRequestPath, signInRedirectPath } from "@/lib/auth/auth.server";
 import { readRouteSession } from "@/lib/auth/route-session";
-import type { Notice } from "@/lib/clients/generated/core";
+import { coreClient } from "@/lib/clients/core.client";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 import { cn } from "@/lib/utils";
-import { isWorkspaceReady, WORKSPACE_GATE_PATH } from "@/lib/workspace-gate";
+import { isWorkspaceReady, workspaceGatePath } from "@/lib/workspace-gate";
 import { AccountNoticeToast } from "./account-notice-toast.client";
 import { AppMobileChrome } from "./app-mobile-chrome.client";
 import AppShellOverlays from "./app-shell-overlays";
@@ -33,8 +34,20 @@ import { NewTaskWizardProvider } from "./new-task-wizard-provider";
 import { NoticeDialogProvider } from "./notice-dialog-context";
 import { NotificationToaster } from "./notification-toaster.client";
 import PrivateCachedAppSidebar from "./private-cached-app-sidebar";
+import {
+  type BadgeCampaignSummary,
+  FeatureBadgesProvider,
+} from "./sidebar/components/feature-badges";
 
 const EMPTY_NOTICES: Notice[] = [];
+
+/** Never rejects: a Core failure costs the sidebar its New badges, not its nav. */
+function loadBadgeCampaigns(): Promise<BadgeCampaignSummary[]> {
+  return coreClient.getMyBadgeCampaigns().catch((error: unknown) => {
+    console.error("Failed to load badge campaigns for the sidebar", error);
+    return [];
+  });
+}
 
 interface AuthenticatedAppFrameProps {
   children: React.ReactNode;
@@ -63,7 +76,7 @@ export default async function AuthenticatedAppFrame({
     console.error("Failed to load workspace access for app frame", error);
   }
   if (!isWorkspaceReady(workspaceGate)) {
-    redirect(WORKSPACE_GATE_PATH);
+    redirect(workspaceGatePath(await getRequestPath()));
   }
 
   const adminMenuEnabled = hasAdminRole(
@@ -114,12 +127,17 @@ export default async function AuthenticatedAppFrame({
                       workspaceId={activeOrganizationId}
                     >
                       <NewTaskWizardProvider>
-                        <PrivateCachedAppSidebar
-                          sessionUser={session.user}
-                          activeOrganizationId={activeOrganizationId}
-                          adminMenuEnabled={adminMenuEnabled}
-                          socialMenuEnabled={socialMenuEnabled}
-                        />
+                        <FeatureBadgesProvider
+                          userId={session.user.id}
+                          campaigns={loadBadgeCampaigns()}
+                        >
+                          <PrivateCachedAppSidebar
+                            sessionUser={session.user}
+                            activeOrganizationId={activeOrganizationId}
+                            adminMenuEnabled={adminMenuEnabled}
+                            socialMenuEnabled={socialMenuEnabled}
+                          />
+                        </FeatureBadgesProvider>
                         <Suspense fallback={null}>
                           <AppShellOverlays />
                         </Suspense>

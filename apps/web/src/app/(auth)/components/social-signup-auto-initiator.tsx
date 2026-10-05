@@ -1,5 +1,6 @@
 "use client";
 
+import { isUrlString } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -7,10 +8,12 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useMountEffect } from "@/hooks/use-mount-effect";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
+  buildAuthErrorCallbackUrl,
+  buildOAuthResumeUrlFromSearchParams,
 } from "@/lib/auth/auth.utils";
 import type { SocialProviderId } from "@/lib/schemas/auth";
 
@@ -27,14 +30,14 @@ export default function SocialSignupAutoInitiator({
   const searchParams = useSearchParams();
   const returnUrl = searchParams.get("returnUrl") ?? undefined;
   const effectiveReturnUrl =
-    returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams);
+    returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams);
   const [error, setError] = useState<string | null>(null);
   const [isInitiating, setIsInitiating] = useState(true);
 
   useEffect(() => {
     const initiateOAuth = async () => {
       try {
-        track("Sign In", { provider, direct_signup_link: true });
+        track("Sign Up", { provider, direct_signup_link: true });
 
         const result = await authClient.signIn.social({
           provider,
@@ -48,11 +51,21 @@ export default function SocialSignupAutoInitiator({
             provider,
             effectiveReturnUrl,
           ),
+          // Back to this page would start the sign-in again; /signup
+          // explains the error and offers every method.
+          errorCallbackURL: buildAuthErrorCallbackUrl("/signup"),
+          // Leave with `replace`, so Back from the provider skips this page
+          // instead of starting the sign-in again.
+          disableRedirect: true,
         });
 
-        if (result.error) {
+        // The client checks the scheme before its own redirect; keep that.
+        const providerUrl = result.data?.url;
+        if (isUrlString(providerUrl)) {
+          window.location.replace(providerUrl);
+        } else {
           const errorMessage =
-            result.error.message ?? t(`${providerName}.error`);
+            result.error?.message ?? t(`${providerName}.error`);
           setError(errorMessage);
           toast.error(errorMessage);
           setIsInitiating(false);
@@ -68,11 +81,27 @@ export default function SocialSignupAutoInitiator({
     initiateOAuth();
   }, [provider, providerName, effectiveReturnUrl, t]);
 
+  // A page restored from the back/forward cache does not run the effect
+  // again; offer the retry instead of a spinner with nothing behind it.
+  useMountEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) setIsInitiating(false);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  });
+
   const handleRetry = () => {
     setError(null);
     setIsInitiating(true);
     window.location.reload();
   };
+
+  const retryButton = (
+    <Button onClick={handleRetry} variant="primary" className="w-full">
+      {t(`${providerName}.retry`)}
+    </Button>
+  );
 
   if (error) {
     return (
@@ -84,9 +113,7 @@ export default function SocialSignupAutoInitiator({
             </h1>
             <p className="text-muted-foreground">{error}</p>
           </div>
-          <Button onClick={handleRetry} variant="primary" className="w-full">
-            {t(`${providerName}.retry`)}
-          </Button>
+          {retryButton}
         </div>
       </div>
     );
@@ -103,10 +130,12 @@ export default function SocialSignupAutoInitiator({
             {t(`${providerName}.description`)}
           </p>
         </div>
-        {isInitiating && (
+        {isInitiating ? (
           <div className="flex justify-center">
             <div className="border-primary size-8 animate-spin motion-reduce:animate-pulse rounded-full border-4 border-t-transparent" />
           </div>
+        ) : (
+          retryButton
         )}
       </div>
     </div>

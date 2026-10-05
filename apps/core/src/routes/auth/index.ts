@@ -9,6 +9,12 @@ import { cors } from "hono/cors";
 import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
+import {
+  handleOAuthRefreshTokenRequest,
+  isRefreshTokenRotating,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-provider.js";
+import prisma from "@/lib/db/prisma";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
 const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
@@ -43,7 +49,27 @@ app.get("/.well-known/openid-configuration", (c) =>
 
 // Mount Auth routes
 app.on(["POST", "GET"], "*", (c) => {
-  return auth.handler(c.req.raw);
+  return handleOAuthRefreshTokenRequest(
+    c.req.raw,
+    auth.handler,
+    (body, request) =>
+      auth.api.oauth2Token({
+        body,
+        request,
+        headers: request.headers,
+        asResponse: true,
+      }),
+    (refreshToken) =>
+      isRefreshTokenRotating(
+        refreshToken,
+        OAUTH_REFRESH_TOKEN_PREFIX,
+        (token) =>
+          prisma.oauthRefreshToken.findUnique({
+            where: { token },
+            select: { rotatedAt: true, rotationReplayExpiresAt: true },
+          }),
+      ),
+  );
 });
 
 export default app;

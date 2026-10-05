@@ -1,22 +1,31 @@
 "use client";
 
+import type {
+  ProjectSocialConnection,
+  SocialPost,
+  SocialPostMediaRef,
+  SocialPostStatus,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   AlertTriangle,
   ExternalLink,
+  Eye,
+  Link2,
   MoreHorizontal,
-  Plus,
   RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
-import { SiX } from "react-icons/si";
+import { parseAsStringLiteral, useQueryState } from "nuqs";
+import { type ReactNode, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { SocialPostComposerMode } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostComposerDialog } from "@/app/projects/components/social-posts/social-post-composer-dialog";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
+import { useSocialCompose } from "@/app/social/components/social-compose-context";
+import { SocialPostProviderIcon } from "@/components/social-post-provider-icon";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,6 +37,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,34 +62,40 @@ import {
   cancelProjectSocialPost,
   publishProjectSocialPost,
 } from "@/lib/actions/project/action";
-import type {
-  ProjectSocialConnection,
-  SocialPost,
-  SocialPostMediaRef,
-  SocialPostStatus,
-} from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 import { loadMoreSocialPosts } from "./actions";
-import { SECTION_ORDER, SECTION_STATUSES, type SectionKey } from "./constants";
+import {
+  SECTION_ORDER,
+  SECTION_STATUSES,
+  type SectionKey,
+  SOCIAL_TABS,
+  type SocialTab,
+} from "./constants";
+import { SocialPostPreviewDialog } from "./social-post-preview-dialog";
 
 interface ProjectSocialPostsProps {
+  /** Social's calendar, shown as the first tab when given. */
+  calendar?: ReactNode;
+  /** The project's Social accounts, shown as the last tab when given. */
+  accounts?: ReactNode;
+  /** Page actions (New post) that sit on the tab row. */
+  actions?: ReactNode;
   /** Active connections only; drives the account picker. */
   connections: ProjectSocialConnection[];
   posts: SocialPost[];
   nextCursors?: Partial<Record<SectionKey, string | null>>;
   projectId: string;
+  /** Render only the post dialog and its actions for an unscoped calendar. */
+  previewOnly?: boolean;
+  returnFocus?: () => void;
   /**
-   * The post a link names (`?postId=`). Its tab opens first. A published or
-   * canceled post has no tab, so it is shown above the tabs instead.
+   * The post a link names (`?postId=`), opened in a preview without changing tabs.
    */
   selectedPostId?: string;
 }
 
 /** Statuses whose previous attempt already ran, so the publish action reads as a retry. */
 const RETRY_STATUSES: readonly SocialPostStatus[] = ["FAILED", "MISSED"];
-
-/** Statuses the tab already names, so a badge on the row would only repeat it. */
-const TAB_STATUSES: readonly SocialPostStatus[] = ["SCHEDULED", "DRAFT"];
 
 function timeOf(value: Date | null): number {
   return value ? new Date(value).getTime() : 0;
@@ -91,17 +107,7 @@ function sectionOf(post: SocialPost): SectionKey | undefined {
   );
 }
 
-function tabFor(posts: SocialPost[], postId: string | undefined): SectionKey {
-  const post = posts.find((candidate) => candidate.id === postId);
-  return (post && sectionOf(post)) ?? "upcoming";
-}
-
-function sortSection(section: SectionKey, posts: SocialPost[]): SocialPost[] {
-  if (section === "upcoming") {
-    return [...posts].sort(
-      (a, b) => timeOf(a.scheduledAt) - timeOf(b.scheduledAt),
-    );
-  }
+function sortSection(posts: SocialPost[]): SocialPost[] {
   return [...posts].sort((a, b) => timeOf(b.updatedAt) - timeOf(a.updatedAt));
 }
 
@@ -157,11 +163,16 @@ function SocialPostMediaThumb({ media }: { media: SocialPostMediaRef }) {
 }
 
 export function ProjectSocialPosts({
+  accounts,
+  actions,
+  calendar,
   connections,
   posts: initialPosts,
   nextCursors,
   projectId,
   selectedPostId,
+  previewOnly = false,
+  returnFocus,
 }: ProjectSocialPostsProps) {
   const router = useRouter();
   const t = useTranslations("App.Projects.SocialPosts");
@@ -170,9 +181,10 @@ export function ProjectSocialPosts({
   const [posts, setPosts] = useState(initialPosts);
   const [cursors, setCursors] = useState(nextCursors ?? {});
   const [loadingSection, setLoadingSection] = useState<SectionKey | null>(null);
-  const [syncedSelectedPostId, setSyncedSelectedPostId] =
-    useState(selectedPostId);
-  const [tab, setTab] = useState(() => tabFor(initialPosts, selectedPostId));
+  const [tabParam, setTabParam] = useQueryState(
+    "tab",
+    parseAsStringLiteral(SOCIAL_TABS),
+  );
   const sourceRef = useRef(initialPosts);
   sourceRef.current = initialPosts;
   if (syncedPosts !== initialPosts) {
@@ -180,40 +192,59 @@ export function ProjectSocialPosts({
     setPosts(initialPosts);
     setCursors(nextCursors ?? {});
   }
-  // A link to another post opens the tab that lists it.
-  if (syncedSelectedPostId !== selectedPostId) {
-    setSyncedSelectedPostId(selectedPostId);
-    setTab(tabFor(initialPosts, selectedPostId));
-  }
   const [composer, setComposer] = useState<SocialPostComposerMode | null>(null);
+  // Social's top-level New post menu opens a fresh composer through context.
+  const compose = useSocialCompose();
+  const composerMode: SocialPostComposerMode | null =
+    composer ?? (compose?.open ? { kind: "create" } : null);
   const [cancelTarget, setCancelTarget] = useState<SocialPost | null>(null);
   const [cancelPending, setCancelPending] = useState(false);
   const [publishTarget, setPublishTarget] = useState<SocialPost | null>(null);
   const [publishPending, setPublishPending] = useState(false);
+  // The target outlives `previewOpen` so the dialog keeps its content while it
+  // animates closed.
+  const [previewTarget, setPreviewTarget] = useState<SocialPost | null>(
+    initialPosts.find((post) => post.id === selectedPostId) ?? null,
+  );
+  const [previewOpen, setPreviewOpen] = useState(Boolean(selectedPostId));
+  const [linkedPostId, setLinkedPostId] = useState(selectedPostId);
+  if (linkedPostId !== selectedPostId) {
+    setLinkedPostId(selectedPostId);
+    const linkedPost =
+      initialPosts.find((post) => post.id === selectedPostId) ?? null;
+    setPreviewTarget(linkedPost);
+    setPreviewOpen(Boolean(linkedPost));
+  }
 
-  const accountsHref = "#social-accounts";
+  function handleCloseAutoFocus(event: Event) {
+    if (!returnFocus) return;
+    event.preventDefault();
+    if (!composerMode && !cancelTarget && !publishTarget) returnFocus();
+  }
 
   function postsIn(section: SectionKey): SocialPost[] {
     return sortSection(
-      section,
       posts.filter((post) => SECTION_STATUSES[section].includes(post.status)),
     );
   }
 
   // Needs attention is a tab only while something needs it. Once the last
-  // post in it is dealt with, the list goes back to Upcoming.
-  const tabs = SECTION_ORDER.filter(
-    (section) =>
-      section !== "attention" ||
-      postsIn(section).length > 0 ||
-      Boolean(cursors[section]),
-  );
-  if (!tabs.includes(tab)) {
-    setTab("upcoming");
+  // post in it is dealt with, the page goes back to its first tab.
+  const tabs: SocialTab[] = SOCIAL_TABS.filter((candidate) => {
+    if (candidate === "calendar") return calendar !== undefined;
+    if (candidate === "accounts") return accounts !== undefined;
+    return (
+      candidate !== "attention" ||
+      postsIn(candidate).length > 0 ||
+      Boolean(cursors[candidate])
+    );
+  });
+  const tab: SocialTab =
+    tabParam && tabs.includes(tabParam) ? tabParam : tabs[0];
+
+  function showTab(next: SocialTab | null): void {
+    void setTabParam(next);
   }
-  const selectedUnlistedPost = posts.find(
-    (post) => post.id === selectedPostId && !sectionOf(post),
-  );
 
   function handleActionError(error: ActionError): void {
     if (error.code === CommonErrorCode.UNAUTHENTICATED) {
@@ -229,6 +260,7 @@ export function ProjectSocialPosts({
       setPublishTarget(null);
       toast.error(t("toasts.conflict"));
       setComposer(null);
+      compose?.setOpen(false);
       setCancelTarget(null);
       router.refresh();
       return;
@@ -255,10 +287,11 @@ export function ProjectSocialPosts({
 
   function handleSaved(post: SocialPost): void {
     setPosts((current) => upsertPost(current, post));
-    // Follow the post to the tab that lists it now, so a new draft, a
+    // Follow the post to the tab that shows it now, so a new draft, a
     // scheduled draft or a failed publish stays in view.
-    const section = sectionOf(post);
-    if (section) setTab(section);
+    if (previewOnly) router.refresh();
+    else
+      showTab(sectionOf(post) ?? (calendar !== undefined ? "calendar" : null));
   }
 
   async function handleConfirmCancel(): Promise<void> {
@@ -318,8 +351,7 @@ export function ProjectSocialPosts({
     }
   }
 
-  function renderPost(post: SocialPost) {
-    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
+  function renderPostActions(post: SocialPost, preview = false) {
     const isRetry = RETRY_STATUSES.includes(post.status);
     // A post that failed or missed its time has one thing left to do, so
     // Retry sits on the row, the way Reconnect does on a Social account.
@@ -327,6 +359,105 @@ export function ProjectSocialPosts({
     const canPublishNow = !isRetry && post.canPublishNow;
     const hasMenu =
       canPublishNow || post.canEdit || post.canSchedule || post.canCancel;
+    return (
+      <div
+        className="ms-auto flex items-center gap-2"
+        data-testid={preview ? `social-post-${post.id}` : undefined}
+      >
+        {!preview ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={t("preview.open")}
+            data-testid={`social-post-preview-open-${post.id}`}
+            onClick={() => {
+              setPreviewTarget(post);
+              setPreviewOpen(true);
+            }}
+          >
+            <Eye className="size-4" aria-hidden />
+          </Button>
+        ) : null}
+        {canRetry ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              if (preview) setPreviewOpen(false);
+              setPublishTarget(post);
+            }}
+          >
+            <RotateCcw className="size-4" aria-hidden />
+            {t("actions.retry")}
+          </Button>
+        ) : null}
+        {hasMenu ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label={t("moreActions")}
+              >
+                <MoreHorizontal className="size-4" aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {canPublishNow ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    setPublishTarget(post);
+                  }}
+                >
+                  {t("actions.publishNow")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canEdit ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    setComposer({ kind: "edit", post });
+                  }}
+                >
+                  {t("composer.edit")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canSchedule ? (
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    setComposer({ kind: "schedule", post });
+                  }}
+                >
+                  {post.status === "SCHEDULED" || isRetry
+                    ? t("composer.reschedule")
+                    : t("composer.schedule")}
+                </DropdownMenuItem>
+              ) : null}
+              {post.canCancel ? (
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={() => {
+                    if (preview) setPreviewOpen(false);
+                    setCancelTarget(post);
+                  }}
+                >
+                  {t("composer.cancel")}
+                </DropdownMenuItem>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
+      </div>
+    );
+  }
+
+  function renderPost(post: SocialPost) {
+    const handle = formatHandle(post.socialConnection?.externalHandle ?? null);
     const creatorLabel = post.creator.name
       ? `${t(`creator.${post.creator.kind}`)} · ${post.creator.name}`
       : t(`creator.${post.creator.kind}`);
@@ -340,14 +471,16 @@ export function ProjectSocialPosts({
       <li
         key={post.id}
         id={`social-post-${post.id}`}
-        className="flex flex-wrap items-start gap-3 p-3"
+        // The Task board's card: one border weight, the primary border on
+        // hover, and the status badge leading like a task's.
+        className="bg-background border-border flex flex-wrap items-start gap-3 rounded-lg border p-3 transition-[border-color,box-shadow] hover:border-primary hover:shadow-sm"
         data-testid={`social-post-${post.id}`}
       >
         <span
           aria-hidden
           className="bg-background flex size-9 shrink-0 items-center justify-center rounded-md border"
         >
-          <SiX className="size-5" />
+          <SocialPostProviderIcon provider={post.provider} className="size-5" />
         </span>
         <div className="min-w-48 flex-1 space-y-1.5">
           <p className="text-muted-foreground flex min-h-9 flex-wrap items-center gap-x-2 gap-y-1 text-sm">
@@ -356,16 +489,18 @@ export function ProjectSocialPosts({
                 className="text-foreground font-medium whitespace-nowrap tabular-nums"
                 dateTime={post.scheduledAt.toISOString()}
               >
-                {formatter.dateTime(post.scheduledAt, "dateTime")}
+                {/* Named, so a reader in another zone does not misread it. */}
+                {formatter.dateTime(post.scheduledAt, "dateTime", {
+                  timeZoneName: "short",
+                })}
               </time>
             ) : null}
             <span className="min-w-0 truncate">{handle ?? t("noAccount")}</span>
-            {TAB_STATUSES.includes(post.status) ? null : (
-              <SocialPostStatusBadge
-                label={t(`status.${post.status}`)}
-                status={post.status}
-              />
-            )}
+            <SocialPostStatusBadge
+              className="order-first"
+              label={t(`status.${post.status}`)}
+              status={post.status}
+            />
           </p>
           <p className="text-sm whitespace-pre-wrap break-words">{post.text}</p>
           {post.media.length > 0 ? (
@@ -394,12 +529,22 @@ export function ProjectSocialPosts({
                 <AlertTriangle className="size-3" aria-hidden />
                 {t("needsReconnect")}
               </span>
-              <Link
-                className="font-medium underline-offset-4 hover:underline"
-                href={accountsHref}
-              >
-                {t("needsReconnectLink")}
-              </Link>
+              {accounts !== undefined ? (
+                <button
+                  className="font-medium underline-offset-4 hover:underline"
+                  onClick={() => showTab("accounts")}
+                  type="button"
+                >
+                  {t("needsReconnectLink")}
+                </button>
+              ) : (
+                <Link
+                  className="font-medium underline-offset-4 hover:underline"
+                  href="#social-accounts"
+                >
+                  {t("needsReconnectLink")}
+                </Link>
+              )}
             </p>
           ) : null}
           {post.status === "PUBLISHED" ? (
@@ -418,7 +563,7 @@ export function ProjectSocialPosts({
                   rel="noreferrer"
                   target="_blank"
                 >
-                  {t("viewOnX")}
+                  {t("viewPost")}
                   <ExternalLink className="size-3" aria-hidden />
                 </a>
               ) : null}
@@ -445,193 +590,181 @@ export function ProjectSocialPosts({
             <p className="text-muted-foreground text-xs">{post.lastError}</p>
           ) : null}
         </div>
-        {canRetry || hasMenu ? (
-          <div className="ms-auto flex items-center gap-2">
-            {canRetry ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setPublishTarget(post)}
-              >
-                <RotateCcw className="size-4" aria-hidden />
-                {t("actions.retry")}
-              </Button>
-            ) : null}
-            {hasMenu ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    aria-label={t("moreActions")}
-                  >
-                    <MoreHorizontal className="size-4" aria-hidden />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  {canPublishNow ? (
-                    <DropdownMenuItem onSelect={() => setPublishTarget(post)}>
-                      {t("actions.publishNow")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canEdit ? (
-                    <DropdownMenuItem
-                      onSelect={() => setComposer({ kind: "edit", post })}
-                    >
-                      {t("composer.edit")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canSchedule ? (
-                    <DropdownMenuItem
-                      onSelect={() => setComposer({ kind: "schedule", post })}
-                    >
-                      {post.status === "SCHEDULED" || isRetry
-                        ? t("composer.reschedule")
-                        : t("composer.schedule")}
-                    </DropdownMenuItem>
-                  ) : null}
-                  {post.canCancel ? (
-                    <DropdownMenuItem
-                      variant="destructive"
-                      onSelect={() => setCancelTarget(post)}
-                    >
-                      {t("composer.cancel")}
-                    </DropdownMenuItem>
-                  ) : null}
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : null}
-          </div>
-        ) : null}
+        {renderPostActions(post)}
       </li>
     );
   }
 
   return (
     <section className="space-y-4" data-testid="project-social-posts">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="space-y-1">
-          <h2 className="text-base font-semibold">{t("title")}</h2>
-          <p className="text-muted-foreground text-sm">{t("description")}</p>
-        </div>
-        <Button
-          type="button"
-          size="sm"
-          onClick={() => setComposer({ kind: "create" })}
+      {!previewOnly ? (
+        <Tabs
+          className="gap-4"
+          value={tab}
+          onValueChange={(value) => {
+            const next = tabs.find((candidate) => candidate === value);
+            // The first tab is the default, so it keeps the URL clean.
+            if (next) {
+              showTab(next === tabs[0] ? null : next);
+            }
+          }}
         >
-          <Plus className="size-4" aria-hidden />
-          {t("newPost")}
-        </Button>
-      </div>
+          <div className="flex items-center justify-between gap-2">
+            <TabsList
+              aria-label={t("title")}
+              className={cn(
+                SEGMENTED_TABS_LIST_CLASS_NAME,
+                "app-scrollbar w-full min-w-0 max-w-full overflow-x-auto md:w-fit",
+              )}
+            >
+              {tabs.map((candidate) => {
+                const count =
+                  candidate === "drafts" || candidate === "attention"
+                    ? postsIn(candidate).length
+                    : candidate === "accounts"
+                      ? connections.length
+                      : 0;
+                return (
+                  <TabsTrigger
+                    key={candidate}
+                    className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
+                    data-testid={`social-posts-tab-${candidate}`}
+                    value={candidate}
+                  >
+                    {candidate === "attention" ? (
+                      <AlertTriangle
+                        className="text-semantic-warning size-4"
+                        aria-hidden
+                      />
+                    ) : null}
+                    {t(`sections.${candidate}`)}{" "}
+                    {count > 0 ? (
+                      <span className="text-muted-foreground tabular-nums">
+                        {candidate !== "calendar" &&
+                        candidate !== "accounts" &&
+                        cursors[candidate]
+                          ? `${count}+`
+                          : count}
+                      </span>
+                    ) : null}
+                  </TabsTrigger>
+                );
+              })}
+            </TabsList>
+            {actions}
+          </div>
 
-      {selectedUnlistedPost ? (
-        <section
-          aria-labelledby="social-posts-selected-heading"
-          className="space-y-2"
-          data-testid="social-posts-selected"
-        >
-          <h3
-            id="social-posts-selected-heading"
-            className="text-muted-foreground text-xs font-medium"
-          >
-            {t("selectedPost")}
-          </h3>
-          <ul className="rounded-lg border">
-            {renderPost(selectedUnlistedPost)}
-          </ul>
-        </section>
+          {accounts !== undefined &&
+          connections.length === 0 &&
+          tab !== "accounts" ? (
+            <div
+              className="bg-card-background flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+              data-testid="social-connect-prompt"
+            >
+              <div className="space-y-1">
+                <p className="text-sm font-medium">
+                  {t("connectPrompt.title")}
+                </p>
+                <p className="text-muted-foreground text-sm text-pretty">
+                  {t("connectPrompt.body")}
+                </p>
+              </div>
+              <Button
+                className="shrink-0"
+                onClick={() => showTab("accounts")}
+                size="sm"
+                type="button"
+              >
+                <Link2 className="size-4" aria-hidden />
+                {t("connectPrompt.action")}
+              </Button>
+            </div>
+          ) : null}
+
+          {calendar !== undefined ? (
+            <TabsContent
+              data-testid="social-posts-section-calendar"
+              value="calendar"
+            >
+              {calendar}
+            </TabsContent>
+          ) : null}
+
+          {SECTION_ORDER.filter((section) => tabs.includes(section)).map(
+            (section) => {
+              const sectionPosts = postsIn(section);
+              const cursor = cursors[section];
+              return (
+                <TabsContent
+                  key={section}
+                  className="space-y-3"
+                  data-testid={`social-posts-section-${section}`}
+                  value={section}
+                >
+                  {sectionPosts.length > 0 ? (
+                    <ul className="grid gap-2">
+                      {sectionPosts.map(renderPost)}
+                    </ul>
+                  ) : cursor ? null : (
+                    <div className="rounded-lg border border-dashed px-4 py-8 text-center">
+                      <p className="text-sm font-medium">
+                        {t(`empty.${section}`)}
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-sm text-pretty">
+                        {t(`emptyHint.${section}`)}
+                      </p>
+                    </div>
+                  )}
+                  {cursor ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={loadingSection !== null}
+                      onClick={() => {
+                        void handleLoadMore(section);
+                      }}
+                    >
+                      {loadingSection === section
+                        ? t("loading")
+                        : t("loadMore")}
+                    </Button>
+                  ) : null}
+                </TabsContent>
+              );
+            },
+          )}
+
+          {accounts !== undefined ? (
+            <TabsContent
+              data-testid="social-posts-section-accounts"
+              value="accounts"
+            >
+              {accounts}
+            </TabsContent>
+          ) : null}
+        </Tabs>
       ) : null}
 
-      <Tabs
-        className="gap-3"
-        value={tab}
-        onValueChange={(value) => {
-          const next = SECTION_ORDER.find((section) => section === value);
-          if (next) setTab(next);
-        }}
-      >
-        <TabsList
-          aria-label={t("title")}
-          className={cn(
-            SEGMENTED_TABS_LIST_CLASS_NAME,
-            "app-scrollbar w-fit max-w-full overflow-x-auto",
-          )}
-        >
-          {tabs.map((section) => {
-            const count = postsIn(section).length;
-            return (
-              <TabsTrigger
-                key={section}
-                className={SEGMENTED_TAB_TRIGGER_CLASS_NAME}
-                data-testid={`social-posts-tab-${section}`}
-                value={section}
-              >
-                {section === "attention" ? (
-                  <AlertTriangle
-                    className="text-semantic-warning size-4"
-                    aria-hidden
-                  />
-                ) : null}
-                {t(`sections.${section}`)}{" "}
-                {count > 0 ? (
-                  <span className="text-muted-foreground tabular-nums">
-                    {cursors[section] ? `${count}+` : count}
-                  </span>
-                ) : null}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {tabs.map((section) => {
-          const sectionPosts = postsIn(section);
-          const cursor = cursors[section];
-          return (
-            <TabsContent
-              key={section}
-              className="space-y-3"
-              data-testid={`social-posts-section-${section}`}
-              value={section}
-            >
-              {sectionPosts.length > 0 ? (
-                <ul className="divide-y rounded-lg border">
-                  {sectionPosts.map(renderPost)}
-                </ul>
-              ) : cursor ? null : (
-                <div className="rounded-lg border border-dashed px-4 py-8 text-center">
-                  <p className="text-sm font-medium">{t(`empty.${section}`)}</p>
-                  <p className="text-muted-foreground mt-1 text-sm text-pretty">
-                    {t(`emptyHint.${section}`)}
-                  </p>
-                </div>
-              )}
-              {cursor ? (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={loadingSection !== null}
-                  onClick={() => {
-                    void handleLoadMore(section);
-                  }}
-                >
-                  {loadingSection === section ? t("loading") : t("loadMore")}
-                </Button>
-              ) : null}
-            </TabsContent>
-          );
-        })}
-      </Tabs>
-
-      {composer ? (
+      {composerMode ? (
         <SocialPostComposerDialog
           connections={connections}
-          mode={composer}
+          mode={composerMode}
+          onConnectAccount={
+            accounts !== undefined
+              ? () => {
+                  setComposer(null);
+                  compose?.setOpen(false);
+                  showTab("accounts");
+                }
+              : undefined
+          }
+          onCloseAutoFocus={handleCloseAutoFocus}
           onError={handleActionError}
           onOpenChange={(open) => {
-            if (!open) setComposer(null);
+            if (open) return;
+            setComposer(null);
+            compose?.setOpen(false);
           }}
           onSaved={handleSaved}
           open
@@ -639,13 +772,44 @@ export function ProjectSocialPosts({
         />
       ) : null}
 
+      <SocialPostPreviewDialog
+        post={
+          previewTarget
+            ? {
+                ...previewTarget,
+                socialConnection: previewTarget.socialConnection
+                  ? {
+                      ...previewTarget.socialConnection,
+                      avatarUrl:
+                        connections.find(
+                          (connection) =>
+                            connection.id ===
+                            previewTarget.socialConnection?.id,
+                        )?.avatarUrl ??
+                        previewTarget.socialConnection.avatarUrl,
+                    }
+                  : null,
+              }
+            : null
+        }
+        onCloseAutoFocus={handleCloseAutoFocus}
+        open={previewOpen}
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+        }}
+        actions={
+          previewTarget ? renderPostActions(previewTarget, true) : undefined
+        }
+        onCompose={setComposer}
+      />
+
       <AlertDialog
         open={cancelTarget !== null}
         onOpenChange={(open) => {
           if (!open && !cancelPending) setCancelTarget(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("cancelDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>
@@ -675,7 +839,7 @@ export function ProjectSocialPosts({
           if (!open && !publishPending) setPublishTarget(null);
         }}
       >
-        <AlertDialogContent>
+        <AlertDialogContent onCloseAutoFocus={handleCloseAutoFocus}>
           <AlertDialogHeader>
             <AlertDialogTitle>{t("publishDialog.title")}</AlertDialogTitle>
             <AlertDialogDescription>

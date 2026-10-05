@@ -19,6 +19,7 @@ vi.mock("@/lib/auth/auth.client", () => ({
 }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
 vi.mock("sonner", () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -33,76 +34,61 @@ describe.each([
   {
     name: "password reset",
     Component: ForgotPasswordForm,
-    placeholder: "Fields.Email.placeholder",
     submit: "reset_password",
     send: requestPasswordReset,
-    errorFallback: "error",
+    errorFallback: "Errors.generic",
   },
   {
     name: "email change",
     Component: EmailForm,
-    placeholder: "mail@sokosumi.com",
     submit: "submit",
     send: changeEmail,
     errorFallback: "Captcha verification failed",
   },
-])(
-  "$name captcha",
-  ({ Component, placeholder, submit, send, errorFallback }) => {
-    it("applies the form error policy without reporting success", async () => {
-      const error = {
-        code: "VERIFICATION_FAILED",
-        message: "Captcha verification failed",
-      };
-      send.mockResolvedValueOnce({ data: null, error });
-      captchaErrorMessageMock.mockReturnValue("Translated captcha error");
-      const user = userEvent.setup();
-      render(<Component />);
-      await user.type(
-        screen.getByPlaceholderText(placeholder),
-        "person@example.com",
+])("$name captcha", ({ Component, submit, send, errorFallback }) => {
+  it("applies the form error policy without reporting success", async () => {
+    const error = {
+      code: "VERIFICATION_FAILED",
+      message: "Captcha verification failed",
+    };
+    send.mockResolvedValueOnce({ data: null, error });
+    captchaErrorMessageMock.mockReturnValue("Translated captcha error");
+    const user = userEvent.setup();
+    render(<Component />);
+    await user.type(screen.getByRole("textbox"), "person@example.com");
+    await user.click(screen.getByRole("button", { name: submit }));
+
+    expect(captchaErrorMessageMock).toHaveBeenCalledWith(error, errorFallback);
+    if (Component === ForgotPasswordForm) {
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "Translated captcha error",
       );
+    } else {
+      expect(toast.error).toHaveBeenLastCalledWith("Translated captcha error");
+    }
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it.each([true, false])(
+    "sends only after a completed check (verified=%s)",
+    async (verified) => {
+      if (!verified) requestCaptchaMock.mockResolvedValueOnce(null);
+      render(<Component />);
+      const user = userEvent.setup();
+      await user.type(screen.getByRole("textbox"), "person@example.com");
       await user.click(screen.getByRole("button", { name: submit }));
-
-      if (Component === ForgotPasswordForm) {
-        expect(captchaErrorMessageMock).not.toHaveBeenCalled();
-        expect(toast.error).not.toHaveBeenCalled();
+      expect(requestCaptchaMock).toHaveBeenCalledOnce();
+      if (verified) {
+        expect(send).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fetchOptions: captchaFetchOptions,
+          }),
+        );
       } else {
-        expect(captchaErrorMessageMock).toHaveBeenCalledWith(
-          error,
-          errorFallback,
-        );
-        expect(toast.error).toHaveBeenLastCalledWith(
-          "Translated captcha error",
-        );
+        expect(send).not.toHaveBeenCalled();
       }
-      expect(toast.success).not.toHaveBeenCalled();
-    });
-
-    it.each([true, false])(
-      "sends only after a completed check (verified=%s)",
-      async (verified) => {
-        if (!verified) requestCaptchaMock.mockResolvedValueOnce(null);
-        render(<Component />);
-        const user = userEvent.setup();
-        await user.type(
-          screen.getByPlaceholderText(placeholder),
-          "person@example.com",
-        );
-        await user.click(screen.getByRole("button", { name: submit }));
-        expect(requestCaptchaMock).toHaveBeenCalledOnce();
-        if (verified) {
-          expect(send).toHaveBeenCalledWith(
-            expect.objectContaining({
-              fetchOptions: captchaFetchOptions,
-            }),
-          );
-        } else {
-          expect(send).not.toHaveBeenCalled();
-        }
-      },
-    );
-  },
-);
+    },
+  );
+});
 
 vi.mock("@/components/auth-captcha", () => import("@/test/auth-captcha-mock"));

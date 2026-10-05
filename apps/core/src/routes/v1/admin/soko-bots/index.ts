@@ -1,9 +1,13 @@
 import { createNestedOpenAPIHono } from "@/lib/hono";
 import mountPerformAdminSokoBotAction from "./[sokoBotId]/actions/post.js";
+import mountSetAdminSokoBotAvatar from "./[sokoBotId]/avatar/post.js";
+import mountListAdminSokoBotChatMessages from "./[sokoBotId]/chats/[roomId]/messages/get.js";
+import mountListAdminSokoBotChats from "./[sokoBotId]/chats/get.js";
 import mountDeleteAdminSokoBot from "./[sokoBotId]/delete.js";
 import mountGetAdminSokoBot from "./[sokoBotId]/get.js";
 import mountGetAdminSokoBotAvailability from "./availability/get.js";
 import mountSetAdminSokoBotAvailability from "./availability/put.js";
+import mountGetAdminSokoBotModelEvaluations from "./evaluations/get.js";
 import mountListAdminSokoBots from "./get.js";
 import mountGetAdminSokoBotQuality from "./quality/get.js";
 import mountArchiveAdminSokoBotVersion from "./versions/[slug]/delete.js";
@@ -19,6 +23,7 @@ const app = createNestedOpenAPIHono();
 
 mountListAdminSokoBots(app);
 mountGetAdminSokoBotQuality(app);
+mountGetAdminSokoBotModelEvaluations(app);
 mountListAdminSokoBotVersions(app);
 mountListAdminSokoBotGatewayModels(app);
 mountCreateAdminSokoBotVersion(app);
@@ -30,7 +35,10 @@ mountArchiveAdminSokoBotVersion(app);
 mountPromoteAdminSokoBotVersion(app);
 mountGetAdminSokoBotVersionUsage(app);
 mountMigrateAdminSokoBotVersions(app);
+mountListAdminSokoBotChats(app);
+mountListAdminSokoBotChatMessages(app);
 mountGetAdminSokoBot(app);
 mountPerformAdminSokoBotAction(app);
+mountSetAdminSokoBotAvatar(app);
 
 export default app;

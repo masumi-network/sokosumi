@@ -1,4 +1,4 @@
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 
 export const TASKS_SCOPE_VALUES = ["owned", "workspace"] as const;
 
@@ -131,7 +131,7 @@ export function getDefaultTasksScope(
 ): TasksScope {
   // Inside an organization the board defaults to the whole workspace so
   // members see the shared board first; personal context has no workspace
-  // to show, so it stays on the user's own tasks. Drives Tasks + Jobs,
+  // to show, so it stays on the user's own tasks. Drives Tasks + Calendar,
   // server render + client, and the initial fetch (scope feeds the query).
   return activeOrganizationId !== null ? "workspace" : "owned";
 }

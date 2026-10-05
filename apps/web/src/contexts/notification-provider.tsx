@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  GetNotificationsData,
+  NotificationItem,
+} from "@sokosumi/core-client";
 import { isNeedsActionNotification } from "@sokosumi/utils";
 import { ChannelProvider } from "ably/react";
 import {
@@ -23,10 +27,6 @@ import { useNotificationRealtime } from "@/lib/ably/use-notification-realtime";
 import { usePushRecovery } from "@/lib/ably/use-push-recovery";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import type {
-  GetNotificationsData,
-  NotificationItem,
-} from "@/lib/clients/generated/core";
 import { NOTIFICATION_TOASTER_ID } from "@/lib/constants/notification-toaster";
 import { createNotificationReadQueue } from "./notification-read-queue";
 import {

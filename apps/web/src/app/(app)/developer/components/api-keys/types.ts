@@ -7,17 +7,13 @@ export type ApiKeyRecord = NonNullable<
   Awaited<ReturnType<typeof authClient.apiKey.list>>["data"]
 >["apiKeys"][number];
 
-export interface CreateApiKeyFormData {
+export interface CreateApiKeyRequest {
   name: string;
 }
 
 export interface DeleteApiKeyFormData {
   keyId: string;
   confirmName: string;
-}
-
-export interface CreateApiKeyRequest {
-  name: string;
 }
 
 export type CreateApiKeyResult = ActionResultDto<
@@ -93,8 +89,3 @@ export interface ApiKeySuccessDisplayProps {
 }
 
 export type TranslationFunction = ReturnType<typeof useTranslations>;
-
-export interface ApiKeyActionCallbacks {
-  onToggleStatus: (apiKey: ApiKeyRecord) => Promise<void>;
-  onDeleteClick: (apiKey: ApiKeyRecord) => void;
-}

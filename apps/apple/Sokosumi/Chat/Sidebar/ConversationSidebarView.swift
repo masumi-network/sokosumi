@@ -32,12 +32,6 @@ struct ConversationSidebarView: View {
     let hasOrganization: Bool
   }
 
-  /// Reloads the Archived section and pending invitations per workspace and after each room list refresh settles, like web's collection refresh.
-  private struct SidebarCollectionsLoadKey: Equatable {
-    let context: UUID
-    let ready: Bool
-  }
-
   var body: some View {
     let partitioned = workspaces.sidebar.partitioned
     // Web lists pending invitations above joined external rooms, in every workspace.
@@ -134,7 +128,7 @@ struct ConversationSidebarView: View {
       meSection
     }
     .sheet(item: $startDirect) { presentation in
-      StartDirectView(hasOrganization: presentation.hasOrganization, load: {
+      StartDirectView(hasOrganization: presentation.hasOrganization, currentUserId: workspaces.currentUserId, load: {
         try await workspaces.loadDirectRecipients(context: presentation.id, auth: auth)
       }, open: {
         try await workspaces.openDirect($0, context: presentation.id, auth: auth)
@@ -170,8 +164,9 @@ struct ConversationSidebarView: View {
       guard let pass else { return }
       Task { @MainActor in workspaces.sidebar.keepUnreadsFilterPass(pass) }
     }
-    .task(id: SidebarCollectionsLoadKey(context: workspaces.compositionContext, ready: workspaces.phase == .ready && !workspaces.roomsLoading)) {
-      guard workspaces.phase == .ready, !workspaces.roomsLoading else { return }
+    // First load of Archived and the invitations per workspace; afterwards each recovers on its own (`sidebarRecovery`).
+    .task(id: workspaces.collectionsLoadContext) {
+      guard workspaces.collectionsLoadContext != nil else { return }
       async let archived: Void = workspaces.loadArchivedChannels(auth: auth)
       async let invitations: Void = workspaces.loadPendingInvitations(auth: auth)
       _ = await (archived, invitations)
@@ -219,7 +214,7 @@ struct ConversationSidebarView: View {
               .foregroundStyle(.secondary)
           }
           ForEach(sidebarRoomListItems(partitioned.channels)) { item in
-            sidebarItem(item) { roomRow($0, icon: $0.discoverability == ._private ? "lock" : "number") }
+            sidebarItem(item) { roomRow($0, icon: ChannelMark($0.discoverability).systemImage) }
           }
         }
       }
@@ -284,7 +279,7 @@ struct ConversationSidebarView: View {
           ) { respondToInvitation($0, invitation: invitation) }
         }
         ForEach(sidebarRoomListItems(rooms)) { item in
-          sidebarItem(item) { roomRow($0, icon: "globe") }
+          sidebarItem(item) { roomRow($0, icon: ChannelMark.globe.systemImage) }
         }
       }
     }
@@ -494,8 +489,8 @@ struct ConversationSidebarView: View {
     _ room: Components.Schemas.ChatRoom, reorderingIn pinned: [Components.Schemas.ChatRoom]? = nil, dimmed: Bool = false
   ) -> some View {
     switch sidebarRoomKind(room) {
-    case .channel: roomRow(room, icon: room.discoverability == ._private ? "lock" : "number", reorderingIn: pinned, dimmed: dimmed)
-    case .external: roomRow(room, icon: "globe", reorderingIn: pinned, dimmed: dimmed)
+    case .channel: roomRow(room, icon: ChannelMark(room.discoverability).systemImage, reorderingIn: pinned, dimmed: dimmed)
+    case .external: roomRow(room, icon: ChannelMark.globe.systemImage, reorderingIn: pinned, dimmed: dimmed)
     case .direct: roomRow(room, icon: "person", showsDirectAvatars: true, reorderingIn: pinned, dimmed: dimmed)
     }
   }
@@ -557,7 +552,7 @@ struct ConversationSidebarView: View {
             .lineLimit(1)
             .fontWeight(attention.bold ? .bold : .regular)
             .foregroundStyle(room.mutedAt != nil && room.id != workspaces.selectedRoomId ? .secondary : .primary)
-          if room.myAccess == .guest, let organization = room.organizationName, !organization.isEmpty {
+          if room.myAccess.value1 == .guest, let organization = room.organizationName, !organization.isEmpty {
             Text(organization)
               .font(.caption)
               .foregroundStyle(.secondary)
@@ -731,7 +726,7 @@ struct ConversationSidebarView: View {
   /// Web's 1:1 Direct row announces its one peer's availability; group rows
   /// leave that to the roster so the label is not read twice.
   private func directPresence(_ room: Components.Schemas.ChatRoom, showsDirectAvatars: Bool) -> Components.Schemas.ChatRoomPresence? {
-    guard showsDirectAvatars, !room.isSelfDirect else { return nil }
+    guard showsDirectAvatars, !room.isSelfDirect, !room.isReadOnly else { return nil }
     let participants = directRoomAvatarParticipants(room, currentUserId: workspaces.currentUserId)
     guard participants.count == 1, let peer = participants.first else { return nil }
     return peer.isAI ? .online : workspaces.presence(forUser: peer.id, fallback: peer.presence)
@@ -767,7 +762,9 @@ struct ConversationSidebarView: View {
       Task { @MainActor in await workspaces.performSidebarAction(room.mutedAt == nil ? .mute : .unmute, roomId: room.id, auth: auth) }
     }
     .disabled(!workspaces.sidebar.canPerform(room.mutedAt == nil ? .mute : .unmute, roomId: room.id))
-    if ChannelEditPermissions.isEditable(room) || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
+    // Settings are for organization owners and admins; everyone else manages membership from the Members panel.
+    let managesSettings = ChannelEditPermissions(room: room, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin).canManageSettings
+    if managesSettings || ChannelEditPermissions.canLeave(room) || GroupNameDraft.canName(room) {
       Divider()
     }
     if GroupNameDraft.canName(room) {
@@ -778,7 +775,7 @@ struct ConversationSidebarView: View {
       }
       .disabled(workspaces.roomMutationInFlight)
     }
-    if ChannelEditPermissions.isEditable(room) {
+    if managesSettings {
       Button("Channel settings…", systemImage: "gearshape") {
         editChannel = .init(id: workspaces.compositionContext, roomId: room.id)
       }
@@ -879,6 +876,7 @@ private struct RoomLeadingIcon: View {
   let icon: String
   let showsDirectAvatars: Bool
   let showsPresence: Bool
+  let isReadOnly: Bool
   let participants: [DirectRoomAvatarParticipant]
   let livePresence: [String: Components.Schemas.ChatRoomPresence]
 
@@ -891,7 +889,9 @@ private struct RoomLeadingIcon: View {
   ) {
     self.icon = icon
     self.showsDirectAvatars = showsDirectAvatars
-    showsPresence = !room.isSelfDirect
+    // Former members are not here to be online, and their faces sit back.
+    showsPresence = !room.isSelfDirect && !room.isReadOnly
+    isReadOnly = room.isReadOnly
     participants = showsDirectAvatars
       ? directRoomAvatarParticipants(room, currentUserId: currentUserId)
       : []
@@ -900,7 +900,7 @@ private struct RoomLeadingIcon: View {
 
   var body: some View {
     if showsDirectAvatars {
-      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, livePresence: livePresence)
+      DirectRoomAvatarStack(participants: participants, showsPresence: showsPresence, isDimmed: isReadOnly, livePresence: livePresence)
     } else {
       Image(systemName: icon)
         .foregroundStyle(.secondary)
@@ -916,8 +916,10 @@ struct DirectRoomAvatarStack: View {
   private static let markSize: CGFloat = 8
 
   let participants: [DirectRoomAvatarParticipant]
-  /// Self Directs show no mark.
+  /// Self Directs and Read-only Directs show no mark.
   var showsPresence = true
+  /// A Read-only Direct's Former members: web's `opacity-50 grayscale`.
+  var isDimmed = false
   /// Live org map (userId → online/afk); humans fall back to their snapshot.
   var livePresence: [String: Components.Schemas.ChatRoomPresence] = [:]
 
@@ -944,6 +946,8 @@ struct DirectRoomAvatarStack: View {
             Circle()
               .strokeBorder(.background, lineWidth: 1)
           }
+          .grayscale(isDimmed ? 1 : 0)
+          .opacity(isDimmed ? 0.5 : 1)
           .overlay(alignment: .bottomTrailing) {
             if showsPresence {
               PresenceDot(presence: presence(for: participant), size: Self.markSize).offset(x: 2, y: 2)

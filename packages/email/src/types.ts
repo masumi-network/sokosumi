@@ -10,6 +10,8 @@ export interface LocalizedEmailProps {
 export interface VerificationEmailProps extends LocalizedEmailProps {
   name: string;
   verificationLink: string;
+  /** The app a person signed up for through Sign in with Sokosumi. */
+  clientName?: string | undefined;
 }
 
 export interface ResetPasswordEmailProps extends LocalizedEmailProps {
@@ -17,9 +19,9 @@ export interface ResetPasswordEmailProps extends LocalizedEmailProps {
   resetLink: string;
 }
 
-export interface MagicLinkEmailProps extends LocalizedEmailProps {
-  magicLink: string;
-  name?: string;
+export interface EmailCodeEmailProps extends LocalizedEmailProps {
+  code: string;
+  expiresInMinutes: number;
 }
 
 export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {

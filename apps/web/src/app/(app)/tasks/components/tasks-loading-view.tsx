@@ -14,7 +14,7 @@ import { ColumnHeader } from "./column-header";
 export interface TasksLoadingLabels {
   tabs: {
     tasks: string;
-    jobs: string;
+    calendar: string;
   };
   columns: Record<KanbanColumnId, string>;
   display: {
@@ -30,8 +30,8 @@ interface TasksLoadingViewProps {
 /** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
 export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
   tabs: {
-    tasks: "Tasks",
-    jobs: "Jobs",
+    tasks: "Board",
+    calendar: "Calendar",
   },
   columns: {
     backlog: "Backlog",
@@ -73,7 +73,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
               {labels.tabs.tasks}
             </div>
             <div className="text-muted-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors">
-              {labels.tabs.jobs}
+              {labels.tabs.calendar}
             </div>
           </div>
         </div>

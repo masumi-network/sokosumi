@@ -9,6 +9,7 @@ import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
 import { auth } from "@/lib/auth";
+import { OAUTH_ACCESS_TOKEN_PREFIX } from "@/lib/auth-oauth-provider";
 import {
   COWORKER_API_KEY_PREFIX,
   hashApiKey,
@@ -517,14 +518,17 @@ async function verifyAgentApiKey(
 }
 
 const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
+  const tokenWithoutPrefix = value.startsWith(OAUTH_ACCESS_TOKEN_PREFIX)
+    ? value.slice(OAUTH_ACCESS_TOKEN_PREFIX.length)
+    : value;
   return await hashApiKey(tokenWithoutPrefix);
 };
 
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
  * Requires `sokosumi:api` on the access token, consent, and the client's
- * allow-list (`OauthClient.scopes`). Rejects disabled clients.
+ * allow-list (`OauthClient.scopes`). Rejects disabled clients. A first-party
+ * client (`OauthClient.skipConsent`) needs no consent.
  * `openid`-only tokens are identity-scoped and must not authenticate Core `/v1`.
  *
  * @param token - The OAuth access token to verify
@@ -547,6 +551,7 @@ async function verifyOAuthToken(
         select: {
           disabled: true,
           scopes: true,
+          skipConsent: true,
         },
       },
     },
@@ -593,20 +598,23 @@ async function verifyOAuthToken(
     return false;
   }
 
-  const consent = await prisma.oauthConsent.findFirst({
-    where: {
-      userId: oauthToken.userId,
-      clientId: oauthToken.clientId,
-    },
-    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    select: {
-      id: true,
-      scopes: true,
-    },
-  });
+  // A first-party client skips consent, so it has no consent row (ADR 0046).
+  if (!client.skipConsent) {
+    const consent = await prisma.oauthConsent.findFirst({
+      where: {
+        userId: oauthToken.userId,
+        clientId: oauthToken.clientId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        scopes: true,
+      },
+    });
 
-  if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
-    return false;
+    if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
+      return false;
+    }
   }
 
   setAuthContext(c, {
@@ -637,8 +645,12 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    const apiKeyValid = await verifyApiKey(token, c);
-    if (apiKeyValid) {
+    // An OAuth access token is never an API key. Trying it as one makes
+    // Better Auth log "Failed to validate API key" at error level.
+    if (
+      !token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX) &&
+      (await verifyApiKey(token, c))
+    ) {
       return true;
     }
 

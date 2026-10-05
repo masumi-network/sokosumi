@@ -9,10 +9,12 @@ sokosumi/
 ├── apps/
 │   ├── web/         # Next.js 16 web app (TypeScript, Tailwind, Shadcn UI)
 │   ├── core/        # Hono API — owns all Postgres/Prisma access
+│   ├── cmo/         # Next.js 16 CMO app at app.cmo.xyz (Sign in with Sokosumi; no database)
 │   ├── apple/       # Native macOS + iOS — Xcode (outside turbo and Biome)
 │   └── cli/         # Developer CLI — Ink TUI and headless commands (SPEC + VISION)
 ├── packages/
 │   ├── database/    # @sokosumi/database — Prisma schema, client, helpers
+│   ├── core-client/ # @sokosumi/core-client — generated TypeScript client for Core's /v1 API
 │   ├── masumi/      # @sokosumi/masumi — protocol clients, hash, schemas
 │   ├── utils/       # @sokosumi/utils — client-safe helpers
 │   ├── net/         # @sokosumi/net — SSRF-safe fetch
@@ -30,6 +32,7 @@ sokosumi/
 
 - **apps/web/**: User-facing web application (Next.js 16, React 19.3, Tailwind CSS, Shadcn UI, next-intl). Reaches data only through the Core API — it does not use Prisma.
 - **apps/core/**: Hono API on Node.js. All database reads and writes live here.
+- **apps/cmo/**: CMO at app.cmo.xyz (Next.js 16). A separate product that signs in with Sokosumi through Core's OAuth provider; it has no database.
 
 ## Getting Started
 
@@ -69,14 +72,16 @@ Named local URLs (worktree-safe). Linked worktrees get a branch prefix (`https:/
 pnpm portless:dev     # web + core
 pnpm portless:web     # web only (still prints and injects both named URLs)
 pnpm portless:core    # core only
+pnpm portless:cmo     # CMO only
 ```
 
 - Web: `https://web.sokosumi.localhost` (`pnpm portless:url web`)
 - Core: `https://core.sokosumi.localhost` (`pnpm portless:url core`) — OpenAPI at `/v1/openapi.json`
+- CMO: `https://cmo.sokosumi.localhost` (`pnpm portless:url cmo`)
 
 Grok/Cursor copies under `.grok/worktrees/` are not git worktrees, so portless cannot prefix the branch. `pnpm portless:dev` prefixes the directory basename (`https://3877.web.sokosumi.localhost`) and uses `--force` so a leftover process cannot keep Core from starting. Restarting kills the previous process for that name. Linked `git worktree add` checkouts (including `.worktrees/`) keep Portless's branch prefix only — do not stack a second basename. Always print URLs with `pnpm portless:url web` / `core` (bare `portless get web.sokosumi` skips the Grok basename).
 
-Single-app commands still wire `WEB_APP_BASE_URL` / `BETTER_AUTH_URL` / `CORE_APP_BASE_URL` from those named URLs. Start the other named host separately; classic `:3000` / `:8787` is not in play.
+`portless:web` and `portless:core` still wire `WEB_APP_BASE_URL` / `BETTER_AUTH_URL` / `CORE_APP_BASE_URL` from those named URLs; `portless:cmo` passes none of them. Start the other named host separately; classic `:3000` / `:8787` is not in play.
 
 Classic single-checkout ports still work:
 
@@ -102,11 +107,12 @@ Other available scripts:
 
 ## Deployment
 
-- **Production:** A push to `main` production-deploys web and core on both mainnet and preprod through Vercel Git (`git.deploymentEnabled` allows `main` only). There is no GitHub Actions or GitHub Release production path.
-- **Preview:** Only a comment from someone with repository write access on an open, same-repository PR can deploy. `/deploy` shows help; `/deploy mainnet`, `/deploy preprod`, and `/deploy all` select networks. Opening, updating, or reopening a PR creates nothing. Commands must start the first line. Docs-only changes are skipped.
+- **Production:** A push to `main` production-deploys web and core on both mainnet and preprod, and CMO on mainnet, through Vercel Git (`git.deploymentEnabled` allows `main` only). Each project skips a push that changed neither its app nor a workspace package it depends on: `ignoreCommand` runs `scripts/ci/vercel-ignore.mjs`, which asks `turbo query affected`. Keep the Vercel project setting "Skip deployments when there are no changes to the root directory or its dependencies" off; it adds a Skipped row per project to every PR's Vercel comment. There is no GitHub Actions or GitHub Release production path.
+- **Production redeploys:** The ignore step always builds the last successfully deployed commit. To force a build of an older or previously canceled production deployment, uncheck **Use project's Ignore Build Step** in Vercel's [Redeploy dialog](https://vercel.com/docs/project-configuration/project-settings#ignore-build-step-on-redeploy); the SHA comparison cannot distinguish that redeploy from its original push.
+- **Preview:** Only a comment from someone with repository write access on an open, same-repository PR can deploy. `/deploy` shows help; `/deploy mainnet`, `/deploy preprod`, and `/deploy all` select networks. Mainnet also deploys CMO, which has no preprod project and signs in against the PR's mainnet Core preview. Opening, updating, or reopening a PR creates nothing. Commands must start the first line. Docs-only changes are skipped.
 - **Preview database:** Actions creates or reuses `preview/gh-<repo-id>-pr-<number>` in each selected network's Neon project, branching from its default production branch. It writes pooled `DATABASE_URL` and direct `DATABASE_URL_UNPOOLED` as encrypted, Git-branch-scoped Preview variables on Core only. Both build and runtime receive them. Redeployment preserves preview data and renews its 24-hour expiry. Each new commit to the PR also renews existing preview databases for 24 hours, without deploying or creating databases. Expiry deletes preview-only data; `/deploy <network>` recreates an expired database from its parent.
 - **Cleanup:** Closing or merging the PR deletes its tagged Vercel deployments, owned Core environment variables, and managed Neon branches. Daily reconciliation at 03:17 UTC (also available through **Run workflow**) retries missed closes. Deploy, reset, commit renewal, and cleanup share a per-PR queue and recheck PR state. Protected/default databases, production deployments, legacy `preview/<git-branch>` databases, and cloud-agent databases are excluded. Native Neon expiry bounds database cost even if GitHub cleanup fails. An open PR whose database expires needs another `/deploy <network>` before its preview works again.
-- **Preview database reset:** `/reset-db <mainnet|preprod>` or `/reset-db all` resets an existing managed preview to its parent and redeploys Core. `/deploy <network|all> --reset-db` resets, then deploys Web and Core; without a network it shows help. The flag must be on the first line. Preview-only data is lost. Use this after renaming a migration already applied in the preview.
+- **Preview database reset:** `/reset-db <mainnet|preprod>` or `/reset-db all` resets an existing managed preview to its parent and redeploys Core. `/deploy <network|all> --reset-db` resets, then deploys like `/deploy`; without a network it shows help. The flag must be on the first line. Preview-only data is lost. Use this after renaming a migration already applied in the preview.
 - **Database migrations:** Core's Vercel build runs `prisma migrate deploy` after a successful app build and before activation. Preview builds require `DATABASE_URL_UNPOOLED`; production continues using the integration's URLs. Web never receives database credentials or runs migrations. See [Core deployment](./apps/core/README.md#deployment-vercel).
 
 ### Preview workflow cutover

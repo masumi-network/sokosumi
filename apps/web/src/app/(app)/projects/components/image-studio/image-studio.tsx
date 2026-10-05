@@ -13,6 +13,7 @@ import {
 } from "react";
 
 import { Button } from "@/components/ui/button";
+import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,11 @@ import {
   resolveModel,
   settingsOf,
 } from "./catalog";
+import {
+  STUDIO_COLUMN_FEED_HEIGHT_CLASS,
+  STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
+  STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+} from "./studio-classes";
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
@@ -90,6 +96,7 @@ export function ImageStudio({
   const t = useTranslations("App.Studio");
   const router = useRouter();
   const pathname = usePathname();
+  const isApple = useIsApplePlatform();
   const searchParams = useSearchParams();
   const [checkedIds, setCheckedIds] = useState<string[]>([]);
   /**
@@ -393,14 +400,12 @@ export function ImageStudio({
   );
 
   return (
-    // One bounded column, chat-room shaped: feed scrolls, composer stays put.
-    // The page already pads 1rem all round under a 4rem header, so 6rem is the
-    // whole of what is not ours. With nothing to show there is nothing to
-    // scroll, so the column shrinks to the empty note and the composer.
     <div
       className={cn(
-        "flex min-w-0 flex-col gap-3",
-        !showsNothing && "h-[calc(100dvh-6rem)] min-h-[28rem]",
+        "flex min-h-0 min-w-0 flex-col gap-3",
+        STUDIO_COLUMN_MOBILE_SHELL_CLASS,
+        isApple && STUDIO_COLUMN_MOBILE_APPLE_HEIGHT_CLASS,
+        STUDIO_COLUMN_FEED_HEIGHT_CLASS,
       )}
     >
       {problem ? (
@@ -426,9 +431,9 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="pb-2">
-              <h3 className="text-sm font-medium">{labels.emptyTitle}</h3>
-              <p className="text-muted-foreground mt-1 max-w-prose text-sm leading-relaxed text-pretty">
+            <div className="border-border bg-card-background motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-md border border-dashed px-5 py-10 text-center duration-300">
+              <p className="font-medium">{labels.emptyTitle}</p>
+              <p className="text-muted-foreground mt-1 text-sm">
                 {labels.emptyBody}
               </p>
             </div>

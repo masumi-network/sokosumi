@@ -1,10 +1,9 @@
 "use client";
 
+import type { MarkNotificationsReadByReferenceRequest } from "@sokosumi/core-client";
 import { useEffect, useRef } from "react";
-
 import { useOptionalNotifications } from "@/contexts/notification-provider";
 import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
-import type { MarkNotificationsReadByReferenceRequest } from "@/lib/clients/generated/core/types.gen";
 
 interface MarkNotificationsReadProps {
   /**

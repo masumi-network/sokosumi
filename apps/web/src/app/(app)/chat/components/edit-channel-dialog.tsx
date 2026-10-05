@@ -1,6 +1,7 @@
 "use client";
 
-import { Archive as ArchiveIcon, Loader2, LogOut } from "lucide-react";
+import type { ChatRoom } from "@sokosumi/core-client";
+import { Archive as ArchiveIcon, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -11,12 +12,7 @@ import {
   useTransition,
 } from "react";
 import { toast } from "sonner";
-import type { ChatComposeSokoBot } from "@/app/chat/actions";
-import {
-  archiveRoomAction,
-  leaveRoomAction,
-  updateRoomAction,
-} from "@/app/chat/actions";
+import { archiveRoomAction, updateRoomAction } from "@/app/chat/actions";
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import {
   AlertDialog,
@@ -31,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -41,11 +38,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Textarea } from "@/components/ui/textarea";
-import type { ChatRoom, Coworker, Member } from "@/lib/clients/generated/core";
+import { cn } from "@/lib/utils";
 import type { Discoverability } from "./create-channel-wizard";
-import { GuestInviteSection } from "./guest-invite-section";
-import { ParticipantCheckboxes } from "./participant-checkboxes";
 
 function channelDiscoverability(
   value: ChatRoom["discoverability"],
@@ -56,52 +50,24 @@ function channelDiscoverability(
   return "public";
 }
 
+const VISIBILITY_OPTIONS = ["public", "private", "external"] as const;
+
 function isDiscoverability(value: string): value is Discoverability {
   return value === "public" || value === "private" || value === "external";
 }
 
-/** Host-org roster only. Guests are room-scoped and must not be sent as memberUserIds. */
-function hostRosterUserIds(channel: ChatRoom): string[] {
-  return channel.userMembers
-    .filter((member) => member.access !== "guest")
-    .map((member) => member.id);
-}
-
+/**
+ * Channel settings for an organization owner or admin: name, topic,
+ * visibility and Archive. Who is in the channel is managed in the members
+ * panel, not here.
+ */
 export function EditChannelDialog({
   channel,
-  members,
-  coworkers,
-  sokoBots = [],
-  currentUserId,
-  canEditMembers,
-  canManageSettings,
-  canArchive,
-  canLeave,
-  canInviteGuests = false,
-  membersLoadFailed = false,
   open,
   onOpenChange: setOpen,
   children,
 }: {
   channel: ChatRoom;
-  members: Member[];
-  coworkers: Coworker[];
-  sokoBots?: ChatComposeSokoBot[];
-  currentUserId: string;
-  /** Any active channel member may rewrite the roster. */
-  canEditMembers: boolean;
-  /** Organization owner/admin — name/topic/discoverability. */
-  canManageSettings: boolean;
-  /** Organization owner/admin — archive the channel. */
-  canArchive: boolean;
-  /** Any member can leave. Host-org last member cannot; matched last member can. */
-  canLeave: boolean;
-  /**
-   * Host-org room members (`myAccess=member`) on external channels may invite
-   * guests. Guests never invite.
-   */
-  canInviteGuests?: boolean;
-  membersLoadFailed?: boolean;
   /**
    * The room shell owns the flag, because the dialog has two ways in: the
    * title beside the room name, and a channel row's overflow menu, which
@@ -115,73 +81,42 @@ export function EditChannelDialog({
   const t = useTranslations("App.Channels");
   const tActions = useTranslations("App.Channels.Actions");
   const router = useRouter();
-  const showGuestInvite =
-    canInviteGuests &&
-    channelDiscoverability(channel.discoverability) === "external";
-  const [guestMembers, setGuestMembers] = useState(() =>
-    channel.userMembers.filter((member) => member.access === "guest"),
-  );
-  const [pendingKind, setPendingKind] = useState<"archive" | "leave" | null>(
-    null,
-  );
-  const [isExiting, setIsExiting] = useState(false);
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   const [name, setName] = useState(channel.name);
   const [topic, setTopic] = useState(channel.topic ?? "");
   const [discoverability, setDiscoverability] = useState<Discoverability>(
     channelDiscoverability(channel.discoverability),
   );
-  const [memberIds, setMemberIds] = useState<string[]>(() =>
-    hostRosterUserIds(channel),
-  );
-  const [coworkerIds, setCoworkerIds] = useState<string[]>(
-    channel.coworkerMembers.map((coworker) => coworker.id),
-  );
-  const [sokoBotIds, setSokoBotIds] = useState<string[]>(
-    channel.sokoBotMembers.map((sokoBot) => sokoBot.id),
-  );
   const [isPending, startTransition] = useTransition();
-
-  const canSubmit = canEditMembers || canManageSettings;
-  const isActionsOnly = !canSubmit && (canLeave || canArchive);
+  // Core refuses to take an External channel Public or Private while it still
+  // has guests (or open invites), so say so before the reader tries. Pending
+  // invites and links are not on the room; Core's error covers those.
+  const isVisibilityLocked =
+    channel.discoverability === "external" &&
+    channel.userMembers.some((member) => member.access === "guest");
 
   useEffect(() => {
     if (!open) return;
     setName(channel.name);
     setTopic(channel.topic ?? "");
     setDiscoverability(channelDiscoverability(channel.discoverability));
-    setMemberIds(hostRosterUserIds(channel));
-    setCoworkerIds(channel.coworkerMembers.map((coworker) => coworker.id));
-    setSokoBotIds(channel.sokoBotMembers.map((sokoBot) => sokoBot.id));
-    setGuestMembers(
-      channel.userMembers.filter((member) => member.access === "guest"),
-    );
   }, [channel, open]);
+
+  const trimmedTopic = topic.trim();
+  const hasChanges =
+    name.trim() !== channel.name ||
+    trimmedTopic !== (channel.topic ?? "") ||
+    discoverability !== channelDiscoverability(channel.discoverability);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canSubmit) return;
     startTransition(async () => {
-      // Roster-only body when the caller cannot change settings (R3).
-      const memberUserIds = memberIds.includes(currentUserId)
-        ? memberIds
-        : [currentUserId, ...memberIds];
-      const result = await updateRoomAction(
-        channel.id,
-        canManageSettings
-          ? {
-              name,
-              topic,
-              discoverability,
-              memberUserIds,
-              coworkerIds,
-              sokoBotIds,
-            }
-          : {
-              memberUserIds,
-              coworkerIds,
-              sokoBotIds,
-            },
-      );
+      const result = await updateRoomAction(channel.id, {
+        name,
+        topic,
+        discoverability,
+      });
       if (!result.ok) {
         toast.error(result.error.message);
         return;
@@ -191,277 +126,231 @@ export function EditChannelDialog({
     });
   }
 
-  async function handleConfirmExit() {
-    if (!pendingKind || isExiting) return;
-    setIsExiting(true);
-    const result =
-      pendingKind === "archive"
-        ? await archiveRoomAction(channel.id)
-        : await leaveRoomAction(channel.id);
-    setIsExiting(false);
+  async function handleConfirmArchive() {
+    if (isArchiving) return;
+    setIsArchiving(true);
+    const result = await archiveRoomAction(channel.id);
+    setIsArchiving(false);
 
     if (!result.ok) {
       toast.error(result.error.message);
-      setPendingKind(null);
+      setArchiveConfirmOpen(false);
       return;
     }
 
-    toast.success(
-      pendingKind === "archive"
-        ? tActions("archiveSuccess", { name: channel.name })
-        : tActions("leaveSuccess", { name: channel.name }),
-    );
-    setPendingKind(null);
+    toast.success(tActions("archiveSuccess", { name: channel.name }));
+    setArchiveConfirmOpen(false);
     setOpen(false);
     // Empty detail forces a full sidebar refresh (member list + joinables).
     notifyOrganizationChatRoomsChanged();
-    // The room is gone for this user either way, so land them back on the
-    // room list rather than a view they can no longer read.
+    // The room is gone, so land them back on the room list rather than a view
+    // they can no longer read.
     router.replace("/");
     router.refresh();
   }
 
-  function handleRequestExit(kind: "archive" | "leave") {
+  function handleRequestArchive() {
     // Close settings before opening confirm so the two modals are not stacked
     // (nested focus traps). Confirm stays mounted as a true Dialog sibling.
     setOpen(false);
-    setPendingKind(kind);
+    setArchiveConfirmOpen(true);
   }
 
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogTrigger asChild>{children}</DialogTrigger>
-        {/* The fixed-height participant list makes this dialog ~755px tall, which
-            overflows a shorter phone — on a 667px iPhone SE the title and close
-            button sat above the viewport and Cancel below it, with nothing to
-            scroll. Cap the dialog to the viewport and scroll the form body rather
-            than the padded dialog box, whose children do not reflow around their
-            own scrollbar. */}
-        {/* Settings form stays separate from guest invite (nested forms invalid). */}
-        <DialogContent className="app-scrollbar max-h-[calc(100dvh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-2xl">
-          <form className="min-w-0 space-y-4" onSubmit={handleSubmit}>
+        {/* Cap the dialog to the viewport and scroll the body, so a short
+            phone still reaches the title, the close button and Save. */}
+        <DialogContent className="app-scrollbar max-h-[calc(100dvh-2rem)] min-w-0 overflow-x-hidden overflow-y-auto px-5 py-6 shadow-none sm:max-w-lg">
+          <form className="min-w-0 space-y-5" onSubmit={handleSubmit}>
             <DialogHeader className="pr-6">
-              <DialogTitle>
-                {isActionsOnly
-                  ? t("Dialog.actionsOnlyTitle")
-                  : t("Dialog.editTitle")}
-              </DialogTitle>
+              <DialogTitle>{t("Dialog.editTitle")}</DialogTitle>
               <DialogDescription>
-                {isActionsOnly
-                  ? t("Dialog.actionsOnlyDescription")
-                  : t("Dialog.editDescription")}
+                {channel.slug ? `#${channel.slug}` : channel.name}
               </DialogDescription>
             </DialogHeader>
-            {canManageSettings || canEditMembers ? (
-              <div className="grid min-w-0 gap-4">
-                {canManageSettings ? (
-                  <>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-channel-name">
-                        {t("Dialog.name")}
-                      </Label>
-                      <Input
-                        id="edit-channel-name"
-                        value={name}
-                        onChange={(event) => setName(event.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-channel-topic">
-                        {t("Dialog.topic")}
-                      </Label>
-                      <Textarea
-                        id="edit-channel-topic"
-                        value={topic}
-                        onChange={(event) => setTopic(event.target.value)}
-                        rows={3}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>{t("Visibility.label")}</Label>
-                      <RadioGroup
-                        value={discoverability}
-                        onValueChange={(value) => {
-                          if (isDiscoverability(value)) {
-                            setDiscoverability(value);
-                          }
-                        }}
-                        className="flex flex-wrap gap-4"
-                      >
-                        <div className="flex items-center gap-2">
-                          <RadioGroupItem
-                            value="public"
-                            id="edit-channel-public"
-                          />
-                          <Label
-                            htmlFor="edit-channel-public"
-                            className="cursor-pointer font-normal"
-                          >
-                            {t("Visibility.public")}
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <RadioGroupItem
-                            value="private"
-                            id="edit-channel-private"
-                          />
-                          <Label
-                            htmlFor="edit-channel-private"
-                            className="cursor-pointer font-normal"
-                          >
-                            {t("Visibility.private")}
-                          </Label>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <RadioGroupItem
-                            value="external"
-                            id="edit-channel-external"
-                          />
-                          <Label
-                            htmlFor="edit-channel-external"
-                            className="cursor-pointer font-normal"
-                          >
-                            {t("Visibility.external")}
-                          </Label>
-                        </div>
-                      </RadioGroup>
-                      <p className="text-muted-foreground text-xs">
-                        {discoverability === "public"
-                          ? t("Visibility.publicHelp")
-                          : discoverability === "private"
-                            ? t("Visibility.privateHelp")
-                            : t("Visibility.externalHelp")}
-                      </p>
-                    </div>
-                  </>
-                ) : null}
-                {canEditMembers ? (
-                  <ParticipantCheckboxes
-                    members={members}
-                    coworkers={coworkers}
-                    sokoBots={sokoBots}
-                    memberIds={memberIds}
-                    coworkerIds={coworkerIds}
-                    sokoBotIds={sokoBotIds}
-                    lockedUserId={currentUserId}
-                    onMemberIdsChange={setMemberIds}
-                    onCoworkerIdsChange={setCoworkerIds}
-                    onSokoBotIdsChange={setSokoBotIds}
-                    membersLoadFailed={membersLoadFailed}
-                  />
-                ) : null}
-              </div>
-            ) : null}
-            {canSubmit ? (
-              <DialogFooter>
-                <Button type="submit" variant="primary" disabled={isPending}>
-                  {isPending ? (
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
-                  {t("Dialog.save")}
-                </Button>
-              </DialogFooter>
-            ) : null}
-          </form>
-          {/* Mount only while open so pending invites load on remount, not via open-synced Effect. */}
-          {showGuestInvite && open ? (
-            <div className="min-w-0">
-              <GuestInviteSection
-                key={channel.id}
-                roomId={channel.id}
-                guests={guestMembers}
-                onGuestRemoved={(userId) => {
-                  setGuestMembers((prev) =>
-                    prev.filter((member) => member.id !== userId),
-                  );
-                  router.refresh();
-                }}
+            <div className="space-y-2">
+              <Label htmlFor="edit-channel-name">{t("Dialog.name")}</Label>
+              <Input
+                id="edit-channel-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                required
               />
             </div>
-          ) : null}
-          {canArchive || canLeave ? (
-            <div
-              className={
-                isActionsOnly ? "space-y-3 pt-1" : "space-y-3 border-t pt-4"
-              }
-            >
-              {isActionsOnly ? null : (
-                <p className="text-sm font-medium">
-                  {tActions("sectionTitle")}
-                </p>
-              )}
-              <div className="flex flex-col gap-2 sm:flex-row">
-                {canLeave ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="justify-center gap-2"
-                    onClick={() => handleRequestExit("leave")}
-                  >
-                    <LogOut className="size-4" aria-hidden />
-                    {tActions("leave")}
-                  </Button>
-                ) : null}
-                {canArchive ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="text-semantic-destructive hover:text-semantic-destructive justify-center gap-2"
-                    onClick={() => handleRequestExit("archive")}
-                  >
-                    <ArchiveIcon className="size-4" aria-hidden />
-                    {tActions("archive")}
-                  </Button>
-                ) : null}
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-channel-topic">{t("Dialog.topic")}</Label>
+              <Input
+                id="edit-channel-topic"
+                value={topic}
+                placeholder={t("Dialog.topicPlaceholder")}
+                onChange={(event) => setTopic(event.target.value)}
+              />
             </div>
-          ) : null}
+            <fieldset className="min-w-0 space-y-2">
+              <legend className="mb-2 text-sm font-medium">
+                {t("Visibility.label")}
+              </legend>
+              <RadioGroup
+                value={discoverability}
+                onValueChange={(value) => {
+                  if (isDiscoverability(value)) {
+                    setDiscoverability(value);
+                  }
+                }}
+                aria-describedby={
+                  isVisibilityLocked
+                    ? "edit-channel-visibility-locked"
+                    : undefined
+                }
+                className="gap-2"
+              >
+                {VISIBILITY_OPTIONS.map((value) => {
+                  const locked = isVisibilityLocked && value !== "external";
+                  return (
+                    <Label
+                      key={value}
+                      htmlFor={`edit-channel-${value}`}
+                      className={cn(
+                        "flex items-start gap-3 rounded-lg border p-3 font-normal",
+                        value === discoverability
+                          ? "border-primary bg-primary-quinary"
+                          : "border-border",
+                        locked
+                          ? "cursor-not-allowed opacity-60"
+                          : "cursor-pointer",
+                      )}
+                    >
+                      <RadioGroupItem
+                        className="mt-0.5"
+                        value={value}
+                        id={`edit-channel-${value}`}
+                        disabled={locked}
+                        aria-labelledby={`edit-channel-${value}-title`}
+                        aria-describedby={`edit-channel-${value}-help`}
+                      />
+                      <span className="min-w-0 space-y-0.5">
+                        <span className="flex items-center gap-2 text-sm font-medium">
+                          <span id={`edit-channel-${value}-title`}>
+                            {t(`Visibility.${value}`)}
+                          </span>
+                          {locked ? (
+                            <span className="bg-semantic-warning-quinary text-semantic-warning-label rounded-full px-2 py-0.5 text-xs font-medium">
+                              {t("Visibility.hasGuests")}
+                            </span>
+                          ) : null}
+                        </span>
+                        <span
+                          id={`edit-channel-${value}-help`}
+                          // Muted text falls under 4.5:1 on the selected
+                          // card's tint, so only that card's goes full.
+                          className={cn(
+                            "block text-xs",
+                            value === discoverability
+                              ? "text-foreground"
+                              : "text-muted-foreground",
+                          )}
+                        >
+                          {t(`Visibility.${value}Help`)}
+                        </span>
+                      </span>
+                    </Label>
+                  );
+                })}
+              </RadioGroup>
+              {isVisibilityLocked ? (
+                <p
+                  id="edit-channel-visibility-locked"
+                  className="text-muted-foreground text-xs"
+                >
+                  {t("Visibility.externalLocked")}
+                </p>
+              ) : null}
+            </fieldset>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  {t("Dialog.cancel")}
+                </Button>
+              </DialogClose>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={isPending || !hasChanges}
+              >
+                {isPending ? (
+                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
+                ) : null}
+                {t("Dialog.save")}
+              </Button>
+            </DialogFooter>
+          </form>
+          {/* Its own bordered box, apart from the form: archiving is rare and
+              hides the channel for everyone, so it never sits beside Save. */}
+          <section
+            aria-labelledby="edit-channel-archive-title"
+            className="border-semantic-destructive-tertiary mt-6 flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div className="min-w-0 space-y-0.5">
+              <h3
+                id="edit-channel-archive-title"
+                className="text-sm font-medium"
+              >
+                {tActions("archive")}
+              </h3>
+              <p className="text-muted-foreground text-xs">
+                {tActions("archiveHint")}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="text-semantic-destructive hover:text-semantic-destructive border-semantic-destructive-tertiary shrink-0 gap-2"
+              onClick={handleRequestArchive}
+            >
+              <ArchiveIcon className="size-4" aria-hidden />
+              {tActions("archiveButton")}
+            </Button>
+          </section>
         </DialogContent>
       </Dialog>
 
       <AlertDialog
-        open={pendingKind !== null}
+        open={archiveConfirmOpen}
         onOpenChange={(nextOpen) => {
-          if (!nextOpen && !isExiting) setPendingKind(null);
+          if (!nextOpen && !isArchiving) setArchiveConfirmOpen(false);
         }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>
-              {pendingKind === "archive"
-                ? tActions("archiveConfirmTitle", { name: channel.name })
-                : tActions("leaveConfirmTitle", { name: channel.name })}
+              {tActions("archiveConfirmTitle", { name: channel.name })}
             </AlertDialogTitle>
             <AlertDialogDescription>
-              {pendingKind === "archive"
-                ? tActions("archiveConfirmDescription", { name: channel.name })
-                : tActions("leaveConfirmDescription", { name: channel.name })}
+              {tActions("archiveConfirmDescription", { name: channel.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isExiting}>
+            <AlertDialogCancel disabled={isArchiving}>
               {tActions("cancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={isExiting}
+              disabled={isArchiving}
               onClick={(event) => {
                 // Keep the confirm mounted while the action runs, so the
                 // spinner is visible and a second click cannot double-submit.
                 event.preventDefault();
-                void handleConfirmExit();
+                void handleConfirmArchive();
               }}
             >
-              {isExiting ? (
+              {isArchiving ? (
                 <Loader2
                   className="size-4 animate-spin motion-reduce:animate-pulse"
                   aria-hidden
                 />
               ) : null}
-              {pendingKind === "archive"
-                ? tActions("archiveConfirm")
-                : tActions("leaveConfirm")}
+              {tActions("archiveConfirm")}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

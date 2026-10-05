@@ -14,6 +14,7 @@ const BOT_TEAM_SELECT = {
   avatarImageUrl: true,
   avatarSeed: true,
   status: true,
+  lastActivityAt: true,
   archivedAt: true,
 } as const;
 
@@ -52,6 +53,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       avatarImageUrl: string | null;
       avatarSeed: string | null;
       status: string;
+      lastActivityAt: Date | null;
       archivedAt: Date | null;
     }) =>
       bot.archivedAt
@@ -62,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             avatarImageUrl: bot.avatarImageUrl,
             avatarSeed: bot.avatarSeed,
             status: bot.status,
+            lastActivityAt: bot.lastActivityAt,
           };
     if (workspace.organizationId) {
       const organization = await prisma.organization.findUnique({

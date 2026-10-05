@@ -1,9 +1,9 @@
 "use client";
 
+import type { AgentExampleOutput } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AgentExampleOutput } from "@/lib/clients/generated/core";
 
 import ExampleDetailThumbnail from "./example-detail-thumbnail";
 

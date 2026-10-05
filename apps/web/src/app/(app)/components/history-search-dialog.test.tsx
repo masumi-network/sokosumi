@@ -35,17 +35,17 @@ vi.mock("@/components/jobs/job-status-badge", () => ({
 
 vi.mock("@/lib/utils/datetime.client", () => ({
   useLocalizedDateTime: () => ({
-    formatTimeAgo: (date: string | Date) =>
+    formatDateWithYear: (date: string | Date) =>
       new Date(date).toISOString().split("T")[0],
   }),
 }));
 
+import type { HistoryItem } from "@sokosumi/core-client";
 import { HistorySearchDialog } from "@/app/components/history-search-dialog";
 import {
   HISTORY_SEARCH_DEBOUNCE_MS,
   HISTORY_SEARCH_PAGE_SIZE,
 } from "@/app/components/use-history-search-corpus";
-import type { HistoryItem } from "@/lib/clients/generated/core/types.gen";
 
 const labels = {
   dialogTitle: "Search history",
@@ -54,7 +54,7 @@ const labels = {
   empty: "No history found",
   loading: "Loading history...",
   error: "Failed to load history",
-  updated: "Updated",
+  created: "Created",
   filesGroup: "Files",
   filesSeeAll: "See all files",
   filesFilenameMatch: "Filename match",
@@ -66,7 +66,7 @@ function createTaskItem(id: string, title: string): HistoryItem {
     kind: "task",
     title,
     status: "DRAFT",
-    updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+    createdAt: new Date("2026-01-01T00:00:00.000Z"),
     archivedAt: null,
     description: null,
     credits: null,
@@ -86,7 +86,7 @@ function createImageItem(id: string, title: string): HistoryItem {
     // The literal Core sends. An image has no lifecycle of its own, and
     // `JobStatusBadge` has no case for this value.
     status: "active",
-    updatedAt: new Date("2026-09-27T00:00:00.000Z"),
+    createdAt: new Date("2026-09-27T00:00:00.000Z"),
     archivedAt: null,
     description: "fal-ai/flux-2-pro \u00b7 3 credits",
     credits: 3,
@@ -301,5 +301,48 @@ describe("HistorySearchDialog", () => {
 
     expect(await screen.findByText("Analyze data")).toBeInTheDocument();
     expect(screen.getByTestId("job-status-badge")).toBeInTheDocument();
+  });
+
+  /**
+   * The defect this whole task was opened for, at the surface that shows it:
+   * `history.sortAt` was the source row's `updatedAt`, so a backfill on an
+   * unrelated column made every old result read "Yesterday". The palette now
+   * prints the entity's creation date, which is what its own card shows.
+   */
+  it("prints the result's creation date, not a relative label", async () => {
+    getHistoryMock.mockImplementation(async () => ({
+      data: [createTaskItem("task-old", "Summarise the report")],
+    }));
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={() => {}}
+        labels={labels}
+        activeOrganizationId={null}
+      />,
+    );
+
+    expect(await screen.findByText("Summarise the report")).toBeInTheDocument();
+    // The mocked formatter renders an ISO date, so a relative label could not
+    // produce this string.
+    expect(screen.getByText("2026-01-01")).toBeInTheDocument();
+  });
+
+  it("labels the date as created, not updated", async () => {
+    getHistoryMock.mockImplementation(async () => ({
+      data: [createTaskItem("task-old", "Summarise the report")],
+    }));
+
+    renderWithQuery(
+      <HistorySearchDialog
+        open
+        onOpenChange={() => {}}
+        labels={labels}
+        activeOrganizationId={null}
+      />,
+    );
+
+    expect(await screen.findByTitle("Created")).toBeInTheDocument();
   });
 });

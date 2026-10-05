@@ -33,10 +33,15 @@ const actionSchema = z.object({
   name: z.string().min(1).max(64),
   toolCallId: z.string().min(1).max(200),
   input: z.unknown().optional(),
+  status: z.enum(["completed", "failed"]).optional(),
+  output: z.string().max(10_000).optional(),
+  sources: z.array(z.string().max(2_000)).max(50).optional(),
 });
 const completeSchema = z.object({
   text: z.string().max(200_000),
   finishReason: z.string().max(64),
+  /** The provider's reasoning summary, when the model returned one. */
+  reasoning: z.string().max(20_000).optional(),
 });
 const failSchema = z.object({
   code: z.string().max(100),

@@ -5,6 +5,7 @@ import {
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SIGN_UP_CONVERSION_PROVIDERS } from "@/lib/auth-sign-up-conversion";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -114,6 +115,16 @@ export const userSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
+    firstName: z.string().nullable().openapi({
+      description:
+        "Null when never given: older accounts, or one an email code created without names",
+      example: "John",
+    }),
+    lastName: z.string().nullable().openapi({
+      description:
+        "Null when never given: older accounts, or one an email code created without names",
+      example: "Doe",
+    }),
     email: z.email().openapi({ example: "john.doe@example.com" }),
     emailVerified: z.boolean().openapi({ example: true }),
     image: z
@@ -238,6 +249,22 @@ export const utmAttributionResponseSchema = z
     }),
   })
   .openapi("UtmAttributionResponse");
+
+export const signUpConversionResponseSchema = z
+  .object({
+    provider: z.enum(SIGN_UP_CONVERSION_PROVIDERS).nullable().openapi({
+      description:
+        "The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.",
+      example: "google",
+    }),
+  })
+  .openapi("SignUpConversionResponse");
+
+export const signUpConversionRequestSchema = z
+  .object({
+    utmAttribution: utmAttributionRequestSchema.optional(),
+  })
+  .openapi("SignUpConversionRequest");
 
 const creditWalletScopeSchema = z.enum(["organization", "personal"]).openapi({
   description:

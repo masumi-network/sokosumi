@@ -1,5 +1,18 @@
 "use client";
 
+import type { DriveItem, DriveTasksListItem } from "@sokosumi/core-client";
+import {
+  deleteDriveFilesDelete,
+  deleteDriveFoldersDelete,
+  getProjectsById,
+  getTasksById,
+  getUsersByIdOrganizations,
+  patchDriveFilesMove,
+  patchDriveFilesRename,
+  patchDriveFoldersRename,
+  postDriveFolders,
+  postDriveTasksCopy,
+} from "@sokosumi/core-client";
 import { getExtensionFromUrl } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -103,22 +116,6 @@ import { useRegisterBreadcrumbOverride } from "@/contexts/breadcrumb-override-co
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type {
-  DriveItem,
-  DriveTasksListItem,
-} from "@/lib/clients/generated/core";
-import {
-  deleteDriveFilesDelete,
-  deleteDriveFoldersDelete,
-  getProjectsById,
-  getTasksById,
-  getUsersByIdOrganizations,
-  patchDriveFilesMove,
-  patchDriveFilesRename,
-  patchDriveFoldersRename,
-  postDriveFolders,
-  postDriveTasksCopy,
-} from "@/lib/clients/generated/core";
 import {
   effectiveFilesViewMode,
   type FilesViewMode,
@@ -1502,27 +1499,11 @@ function DrivePageWorkspace({
    * They act on the folder the reader is standing in, so they sit beside the
    * folder trail as labelled buttons and are absent at the root, where there is
    * no folder to act on.
-   *
-   * `Task outputs` is its own button for the same reason: the Tasks view was
-   * reachable only through a "Tasks" card in the grid this page replaced.
    */
   const facetFolderItem: DriveItem | null = facetFolder
     ? { type: "folder", name: facetFolder, path: facetFolder }
     : null;
   const folderName = facetFolder.split("/").at(-1) ?? facetFolder;
-  const tasksOutputsButton = (testId: string) => (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className="gap-1.5"
-      onClick={navigateToTasksRoot}
-      data-testid={testId}
-    >
-      <Folders className="size-4" aria-hidden />
-      {t("tasksFolder")}
-    </Button>
-  );
   const folderActions = facetFolderItem ? (
     <>
       <Button
@@ -1589,6 +1570,34 @@ function DrivePageWorkspace({
               activeView={primaryView}
               onViewChange={navigateToPrimaryView}
             />
+            {/* Phone only: Tasks and New folder share one overflow menu beside
+                the tabs. Upload stays the FAB, the thumb-reach create control
+                every list uses. */}
+            {!isTasksView && isWorkspaceView ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="size-11 shrink-0 @2xl:hidden"
+                    aria-label={t("moreActions")}
+                    data-testid="files-mobile-actions"
+                  >
+                    <MoreHorizontal className="size-4" aria-hidden />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onSelect={openCreateFolderDialog}
+                    data-testid="files-mobile-create-folder"
+                  >
+                    <FolderPlus className="size-4" aria-hidden />
+                    {t("createFolder")}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : null}
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2 sm:gap-3">
             {isTasksView && (
@@ -1628,7 +1637,6 @@ function DrivePageWorkspace({
                     on the page, directly under the tabs, and two search boxes
                     over one list is the duplication this tab was merged to
                     remove. */}
-                {tasksOutputsButton("files-tasks-outputs")}
                 <Button
                   type="button"
                   size="sm"
@@ -1796,25 +1804,6 @@ function DrivePageWorkspace({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        </div>
-      )}
-
-      {!isTasksView && isWorkspaceView && (
-        <div className="mb-6 flex items-center justify-end gap-2 @2xl:hidden">
-          {/* Same rule as the desktop header: the search on this tab is the
-              catalog's own, at the top of its own panel. Upload is the FAB. */}
-          {tasksOutputsButton("files-mobile-tasks-outputs")}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={openCreateFolderDialog}
-            data-testid="files-mobile-create-folder"
-          >
-            <FolderPlus className="size-4" aria-hidden />
-            {t("createFolder")}
-          </Button>
         </div>
       )}
 
@@ -2188,6 +2177,10 @@ function DrivePageWorkspace({
           initialFolder={folderParam}
           onFolderChange={applyFolderFacet}
           folderActions={folderActions}
+          virtualFolder={{
+            label: t("tasksFolder"),
+            onOpen: navigateToTasksRoot,
+          }}
           reloadToken={catalogReloadToken}
         />
       ) : null}

@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import type { ChatRoomMessageFullEventData } from "@/lib/ably/schema";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 function toDate(value: string): Date {
   return new Date(value);
@@ -37,5 +37,8 @@ export function hydrateChatRoomMessageFromRealtime(
     groupNameChange: (message.groupNameChange ??
       null) as ChatRoomMessage["groupNameChange"],
     unfurls: message.unfurls as ChatRoomMessage["unfurls"],
+    ...(Array.isArray(message.skills)
+      ? { skills: message.skills as ChatRoomMessage["skills"] }
+      : {}),
   };
 }

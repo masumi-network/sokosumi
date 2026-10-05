@@ -1,10 +1,14 @@
 "use client";
 
+import type {
+  AdminAgentDetail,
+  AdminAgentMetadataOverrideExample,
+  PatchAdminAgentMetadataOverrideBody,
+} from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ExpandableMarkdown } from "@/components/expandable-markdown";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,11 +18,6 @@ import {
   deleteAdminAgentMetadataOverrideAction,
   patchAdminAgentMetadataOverrideAction,
 } from "@/lib/actions/admin-agents/action";
-import type {
-  AdminAgentDetail,
-  AdminAgentMetadataOverrideExample,
-  PatchAdminAgentMetadataOverrideBody,
-} from "@/lib/clients/generated/core";
 
 interface AgentMetadataFormProps {
   agentId: string;

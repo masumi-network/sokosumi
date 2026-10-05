@@ -1,14 +1,22 @@
 # ADR 0007: Cardano payments for Sokosumi Coworkers
 
-- Status: Accepted MPS-first direction; payment receipt contract remains open
+- Status: Accepted MPS-first direction; full paid lifecycle remains open
 - Date: 2026-09-24
 - Decision source: [REPORTED] The user wants existing agents to register as Sokosumi Coworkers, receive payments through Sokosumi, and later reach outside x402 buyers through Sokosumi.
 
+## Progress on 2026-09-30
+
+[CORRECTION, VERIFIED: merge commit `c2271e4418faae9f8cae527bc1e29354975c8fa5`] [PR #5342](https://github.com/masumi-network/sokosumi/pull/5342) added `GET /v1/tasks/{id}/receipt` and `runtime receipt`. The earlier open receipt-interface question now has an implementation. The [receipt helper](../../../core/src/helpers/coworker-task-receipt.ts) checks stored purchase terms before reading settlement state.
+
+[VERIFIED: `apps/cli/src/coworker/runtime-task.ts:195-203`] Runtime completion sends Task status and its result. It does not submit `masumiPayment`. [OPEN] Seller setup, customer approval, paid execution, and intended-wallet payout proof remain open. A merged receipt reader does not establish a live payout.
+
+[PROPOSED] The [three payment drafts](../mps-payment-stack/01-seller-authorization.md) cover the remaining MPS workflow. They currently contain documentation only. The September 24 x402 assessment below remains historical; it does not verify current SDK or deployment compatibility.
+
 ## Context
 
-[VERIFIED] Core accepts a Coworker-only `masumiPayment` Task event. It applies the Task charge, stores a durable `TaskPaymentClaim`, and sends the claim to MPS through `POST /purchase`. [Task event schema](../../../core/src/routes/v1/tasks/[id]/events/schema.ts#L180) · [Claim processor](../../../core/src/services/task-payment-claim.service.ts#L437) · [MPS client](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L618)
+[CORRECTION, VERIFIED: source at `ebe21986c`] Core accepts a `masumiPayment` Task event from an authorized assigned Coworker or Soko Bot. The earlier Coworker-only description omitted Soko Bots. It applies the Task charge, stores a durable `TaskPaymentClaim`, and sends the claim to MPS through `POST /purchase`. [Agent authentication](../../../core/src/middleware/auth.ts#L224) · [Task event guard](../../../core/src/routes/v1/tasks/[id]/events/post.ts#L328) · [Claim processor](../../../core/src/services/task-payment-claim.service.ts#L437) · [MPS client](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L618)
 
-[VERIFIED] The existing `masumiPayment` event charges the Task owner's credits from the reported amounts, then creates an MPS purchase with the supplied Masumi agent and seller identity. This proves a Task-linked MPS purchase. It does not prove generic x402 receipt or payment into a Coworker's own wallet. [Task charge](../../../core/src/routes/v1/tasks/[id]/events/post.ts#L99) · [Purchase input](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L86) · [Purchase builder](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L302)
+[VERIFIED] The existing `masumiPayment` event charges the Task owner's credits from the reported amounts, then creates an MPS purchase with the supplied Masumi agent and seller identity. This provides a Task-linked MPS purchase path. It does not prove generic x402 receipt or payment into a Coworker's own wallet. [Task charge](../../../core/src/routes/v1/tasks/[id]/events/post.ts#L99) · [Purchase input](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L86) · [Purchase builder](../../../../packages/masumi/src/clients/masumi-payment.client.ts#L302)
 
 [VERIFIED] MPS `POST /payment/x402` is a Cardano transaction builder for an existing `PaymentRequest`. Its API says: “No state is saved” and “the returned CBOR must be signed by the buyer and submitted to the network.” It requires the request's `blockchainIdentifier` and the buyer's Cardano address. [MPS OpenAPI snapshot](../../../../packages/masumi/spec/payment.openapi.json#L18661) · [MPS route at inspected clone commit](https://github.com/masumi-network/masumi-payment-service/blob/ce960265eac56b9d468173e052e64fa4c9e7a2f2/src/routes/api/payments/x402/index.ts#L35-L74)
 
@@ -53,6 +61,6 @@
 ## Least confident decisions
 
 1. [OPEN] Whether the existing MPS purchase created from `masumiPayment` pays the intended Coworker wallet. Source shows a credit debit and purchase ID, not seller receipt.
-2. [OPEN] Which Sokosumi or MPS operation produces Cardano Preprod receipt evidence for that wallet.
+2. [OPEN] Whether a live Task passes the implemented receipt lookup and proves payout to the intended wallet. See the [receipt verification limits](../coworker-mps-receipt-plan.md).
 3. [OPEN] Whether MPS `/payment/x402` can fit a standard x402 request and signed retry. Its API requires an existing payment identifier and a buyer address.
 4. [OPEN] Which Sokosumi service should host the later x402 resource route and any facilitator role.

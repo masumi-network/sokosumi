@@ -1,3 +1,8 @@
+import {
+  MemberRole,
+  type StripeCustomerBillingDetails,
+  type UserDeletionEvaluation,
+} from "@sokosumi/core-client";
 import { getUserMetadata } from "@sokosumi/utils";
 import { cookies } from "next/headers";
 import { connection } from "next/server";
@@ -10,11 +15,6 @@ import { AUTO_DETECT_VALUE } from "@/i18n/locales";
 import { parseTimeFormat, TIME_FORMAT_COOKIE_NAME } from "@/i18n/time-format";
 import { getSession, listUserAccounts } from "@/lib/auth/auth.server";
 import { coreClient } from "@/lib/clients/core.client";
-import {
-  MemberRole,
-  type StripeCustomerBillingDetails,
-  type UserDeletionEvaluation,
-} from "@/lib/clients/generated/core";
 import { toDesignMdProfileValue } from "@/lib/helpers/design-md-profile";
 import { designMdService } from "@/lib/services/design-md.service";
 import { userService } from "@/lib/services/user.service";
@@ -109,6 +109,10 @@ async function AccountPageContent() {
               />
             ) : undefined
           }
+          userName={session?.user.name}
+          userEmail={session?.user.email}
+          userFirstName={session?.user.firstName}
+          userLastName={session?.user.lastName}
           userImage={session?.user.image}
           userLogo={session?.user.logo}
           userMetadata={session?.user.metadata}

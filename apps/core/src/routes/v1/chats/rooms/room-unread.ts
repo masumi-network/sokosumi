@@ -1,16 +1,19 @@
-import { NotificationKind, type Prisma } from "@sokosumi/database";
+import type { Prisma } from "@sokosumi/database";
 
-import { CHAT_ROOM_BADGE_MESSAGE_KEYS } from "@/helpers/notification-delivery";
 import {
   CHAT_ROOM_UNREAD_THREAD_CAP,
   CHAT_ROOM_UNREAD_THREAD_CONTENT_CHARS,
+  chatRoomSchema,
 } from "@/schemas/chat-room.schema";
 
 import {
+  type ChatRoomWithMembers,
   chatRoomMessageInclude,
   mapChatRoomMessage,
+  mapChatRoomWithSidebarFlags,
   normalizeUniqueStrings,
 } from "./helpers";
+import { getChatRoomUnreadMentionCounts } from "./room-mention-counts";
 
 /**
  * A completed response becomes readable when its mention reaches responded.
@@ -550,6 +553,58 @@ export async function roomUnreadFields(
     ...unreadCountFields(breakdown),
     unreadThreads: unreadThreads.get(roomId) ?? emptyChatRoomUnreadThreads(),
   };
+}
+
+interface RoomSidebarPayloadExtras {
+  /** Skip the mention scan and use this. Room-read answers 0 after clearing. */
+  unreadMentionCount?: number;
+  activeOrganizationId?: string | null;
+  /** GET loads the host org name. Mute/star/unread/read leave it null. */
+  loadOrganizationName?: boolean;
+}
+
+/**
+ * The sidebar room payload single-room routes answer with: unread counts,
+ * mention badge, mapped flags, schema wrap.
+ *
+ * Mute, star, unread, read, and GET answer with this. GET also loads the host
+ * org name and the viewer's active org.
+ */
+export async function roomSidebarPayload(
+  room: ChatRoomWithMembers,
+  userId: string,
+  tx: Prisma.TransactionClient,
+  extras: RoomSidebarPayloadExtras = {},
+) {
+  const [unreadCounts, unreadMentionCounts, organization] = await Promise.all([
+    getChatRoomUnreadCounts([room.id], userId, tx),
+    extras.unreadMentionCount === undefined
+      ? getChatRoomUnreadMentionCounts([room.id], userId, tx)
+      : Promise.resolve(undefined),
+    extras.loadOrganizationName && room.organizationId
+      ? tx.organization.findUnique({
+          where: { id: room.organizationId },
+          select: { name: true },
+        })
+      : Promise.resolve(null),
+  ]);
+
+  return chatRoomSchema.parse(
+    await mapChatRoomWithSidebarFlags(room, userId, tx, {
+      ...(await roomUnreadFields(
+        unreadCounts.get(room.id),
+        room.id,
+        userId,
+        tx,
+      )),
+      unreadMentionCount:
+        extras.unreadMentionCount ?? unreadMentionCounts?.get(room.id) ?? 0,
+      activeOrganizationId: extras.activeOrganizationId,
+      organizationName: extras.loadOrganizationName
+        ? (organization?.name ?? null)
+        : null,
+    }),
+  );
 }
 
 export interface ChatEarlierThread {
@@ -1196,40 +1251,4 @@ export async function markAllChatRoomThreadsRead(
   }
 
   return parents.length;
-}
-
-/**
- * Per-room count of the unread chat notifications a badge is for.
- *
- * `referenceId` is the room id, and every chat notification carries the same
- * `NotificationKind.CHAT`, so the message key is the only thing that says which
- * of them was addressed to the reader. `CHAT_ROOM_BADGE_MESSAGE_KEYS` is that
- * list. Counting the kind alone made a badge out of every message in a room the
- * moment `CHAT_ROOM_MESSAGE` gave rooms a third notification.
- */
-export async function getChatRoomUnreadMentionCounts(
-  roomIds: readonly string[],
-  userId: string,
-  tx: Prisma.TransactionClient,
-): Promise<Map<string, number>> {
-  const uniqueRoomIds = normalizeUniqueStrings(roomIds);
-  if (uniqueRoomIds.length === 0) {
-    return new Map();
-  }
-
-  const groups = await tx.notification.groupBy({
-    by: ["referenceId"],
-    where: {
-      userId,
-      kind: NotificationKind.CHAT,
-      messageKey: { in: [...CHAT_ROOM_BADGE_MESSAGE_KEYS] },
-      isRead: false,
-      referenceId: { in: uniqueRoomIds },
-    },
-    _count: { _all: true },
-  });
-
-  return new Map(
-    groups.map((group) => [group.referenceId, group._count._all] as const),
-  );
 }

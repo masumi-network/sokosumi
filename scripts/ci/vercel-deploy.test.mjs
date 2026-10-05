@@ -15,7 +15,6 @@ import {
   listPullRequestFiles,
   noPreviewChangesMessage,
   parseDeployComment,
-  pickPreviewUrl,
   pollDeploymentUntilSettled,
   runPreviewDeployComment,
   runPreviewFromGithubEvent,
@@ -149,24 +148,44 @@ describe("usageMessage", () => {
     assert.match(message, /\/deploy preprod/);
     assert.match(message, /\/deploy mainnet preprod/);
     assert.match(message, /\/deploy all/);
+    assert.match(message, /CMO on mainnet/);
     assert.doesNotMatch(message, /@vercel/);
   });
 });
 
 describe("deployTargets", () => {
-  it("always deploys web and core together per network", () => {
+  it("always deploys web and core together per network, and CMO on mainnet", () => {
     const mainnet = deployTargets(["mainnet"]);
     assert.deepEqual(
       mainnet.map((target) => `${target.network}:${target.app}`),
-      ["mainnet:web", "mainnet:core"],
+      ["mainnet:web", "mainnet:core", "mainnet:cmo"],
     );
     assert.equal(mainnet[0].projectId, VERCEL_PROJECTS.mainnet.web.id);
     assert.equal(mainnet[1].projectId, VERCEL_PROJECTS.mainnet.core.id);
+    assert.equal(mainnet[2].projectId, VERCEL_PROJECTS.mainnet.cmo.id);
 
     const both = deployTargets(["mainnet", "preprod"]);
-    assert.equal(both.length, 4);
-    assert.equal(both[2].projectId, VERCEL_PROJECTS.preprod.web.id);
-    assert.equal(both[3].projectId, VERCEL_PROJECTS.preprod.core.id);
+    assert.deepEqual(
+      both.map((target) => `${target.network}:${target.app}`),
+      [
+        "mainnet:web",
+        "mainnet:core",
+        "mainnet:cmo",
+        "preprod:web",
+        "preprod:core",
+      ],
+    );
+    assert.equal(both[3].projectId, VERCEL_PROJECTS.preprod.web.id);
+    assert.equal(both[4].projectId, VERCEL_PROJECTS.preprod.core.id);
+  });
+
+  it("limits targets to the named apps", () => {
+    assert.deepEqual(
+      deployTargets(["mainnet", "preprod"], ["core"]).map(
+        (target) => `${target.network}:${target.app}`,
+      ),
+      ["mainnet:core", "preprod:core"],
+    );
   });
 });
 
@@ -184,6 +203,31 @@ describe("project ids", () => {
     assert.ok(core.relatedProjects.includes(VERCEL_PROJECTS.mainnet.web.id));
     assert.ok(core.relatedProjects.includes(VERCEL_PROJECTS.preprod.web.id));
     assert.match(VERCEL_TEAM_ID, /^team_/);
+  });
+
+  it("holds real Vercel project ids", () => {
+    // `/deploy` and PR cleanup run this map from main; one unknown id fails
+    // them for every pull request.
+    for (const network of Object.values(VERCEL_PROJECTS)) {
+      for (const project of Object.values(network)) {
+        assert.match(project.id, /^prj_[A-Za-z0-9]{28}$/, project.name);
+      }
+    }
+  });
+
+  it("deploys CMO like web", async () => {
+    const web = JSON.parse(
+      await readFile(path.join(repoRoot, "apps/web/vercel.json"), "utf8"),
+    );
+    const cmo = JSON.parse(
+      await readFile(path.join(repoRoot, "apps/cmo/vercel.json"), "utf8"),
+    );
+
+    assert.equal(
+      cmo.installCommand,
+      "pnpm install --frozen-lockfile --filter cmo...",
+    );
+    assert.deepEqual(cmo.git, web.git);
   });
 });
 
@@ -232,26 +276,54 @@ describe("createGitDeployment", () => {
     assert.equal(body.gitSource.sha, "abc123");
     assert.equal(body.target, undefined);
   });
-});
 
-describe("pickPreviewUrl", () => {
-  it("prefers the git preview.sokosumi.com alias", () => {
-    assert.equal(
-      pickPreviewUrl({
-        url: "sokosumi-app-mainnet-abc.vercel.app",
-        alias: [
-          "sokosumi-app-mainnet-abc.vercel.app",
-          "sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
-        ],
+  it("puts Vercel's error code and message in the thrown error", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 400,
+      json: async () => ({
+        error: { code: "bad_request", message: "Invalid preview suffix" },
       }),
-      "https://sokosumi-app-mainnet-git-feat-preview.preview.sokosumi.com",
+    });
+    const target = deployTargets(["mainnet"], ["cmo"])[0];
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target,
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      {
+        message:
+          "Vercel deploy failed for sokosumi-cmo (400): bad_request: Invalid preview suffix",
+      },
     );
   });
 
-  it("falls back to the deployment url", () => {
-    assert.equal(
-      pickPreviewUrl({ url: "sokosumi-app-mainnet-abc.vercel.app" }),
-      "https://sokosumi-app-mainnet-abc.vercel.app",
+  it("keeps the status when the error body is not JSON", async () => {
+    const fetchImpl = async () => ({
+      ok: false,
+      status: 502,
+      json: async () => {
+        throw new SyntaxError("Unexpected token <");
+      },
+    });
+
+    await assert.rejects(
+      createGitDeployment({
+        token: "tok",
+        teamId: VERCEL_TEAM_ID,
+        target: deployTargets(["mainnet"], ["web"])[0],
+        repoId: 123,
+        ref: "feat/preview",
+        sha: "abc123",
+        fetchImpl,
+      }),
+      { message: "Vercel deploy failed for sokosumi-app-mainnet (502)" },
     );
   });
 });
@@ -343,7 +415,7 @@ describe("runPreviewDeployComment", () => {
     assert.match(posted[0], /fork/i);
   });
 
-  it("creates web and core previews for the named network", async () => {
+  it("creates web, core, and CMO previews for mainnet", async () => {
     const posted = [];
     const reactions = [];
     const created = [];
@@ -380,10 +452,10 @@ describe("runPreviewDeployComment", () => {
       },
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
     assert.deepEqual(
       created.map((item) => item.target.app),
-      ["web", "core"],
+      ["web", "core", "cmo"],
     );
     assert.equal(created[0].sha, "deadbeef");
     assert.equal(created[0].ref, "feat/x");
@@ -674,7 +746,7 @@ describe("settlePreviewDeployments", () => {
     assert.equal(await settledBefore(run, core.resolve), false);
     // web comes first in the target order, so its create error wins.
     await assert.rejects(run, /Vercel 500/);
-    assert.deepEqual(polled, ["core"]);
+    assert.deepEqual(polled, ["core", "cmo"]);
   });
 });
 
@@ -720,7 +792,7 @@ describe("runPreviewFromGithubEvent", () => {
       addReaction: async () => {},
     });
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
   });
 });
 
@@ -760,9 +832,10 @@ describe("summarizeCliDeployResult", () => {
 });
 
 describe("preview change gating", () => {
-  it("matches web, core, and workspace package paths", () => {
+  it("matches web, core, CMO, and workspace package paths", () => {
     assert.equal(isPreviewRelevantPath("apps/web/app/page.tsx"), true);
     assert.equal(isPreviewRelevantPath("apps/core/src/index.ts"), true);
+    assert.equal(isPreviewRelevantPath("apps/cmo/src/app/page.tsx"), true);
     assert.equal(
       isPreviewRelevantPath("packages/database/prisma/schema.prisma"),
       true,
@@ -810,6 +883,7 @@ describe("preview change gating", () => {
     assert.match(message, /No preview deployment/);
     assert.match(message, /apps\/web/);
     assert.match(message, /apps\/core/);
+    assert.match(message, /apps\/cmo/);
     assert.match(message, /packages\//);
     assert.match(message, /\/deploy <network>/);
   });
@@ -1052,7 +1126,7 @@ describe("preview skip on /deploy", () => {
       }),
     );
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
   });
 
   it("deploys conservatively when the file list hits the GitHub cap", async () => {
@@ -1076,7 +1150,7 @@ describe("preview skip on /deploy", () => {
       }),
     );
     assert.equal(result.kind, "deploy");
-    assert.equal(created.length, 2);
+    assert.equal(created.length, 3);
     assert.deepEqual(posted, []);
   });
 

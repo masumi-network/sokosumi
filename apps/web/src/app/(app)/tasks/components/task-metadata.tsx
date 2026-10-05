@@ -1,138 +1,68 @@
+import type { Task } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
+import { Box, Building2, Lock, Repeat, UserRound } from "lucide-react";
 import Link from "next/link";
-
+import type { ReactNode } from "react";
 import { getCoworkerImage } from "@/app/tasks/utils/coworker-image";
 import { AssistantOrb } from "@/components/aurora-orb";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { defaultOrbSeed } from "@/lib/aurora-orb";
-import type { Task } from "@/lib/clients/generated/core/types.gen";
 import type { TaskStatus } from "@/lib/types/core-dto";
-
+import { cn } from "@/lib/utils";
+import {
+  TaskMetadataPriorityField,
+  type TaskPriorityLabels,
+} from "./task-metadata-priority-field";
 import {
   TaskMetadataStatusField,
   type TaskMetadataStatusFieldLabels,
 } from "./task-metadata-status-field";
-import { TaskStatusBadge } from "./task-status-badge";
+import { TaskPriorityIcon } from "./task-priority-icon";
+import { getTaskStatusMarker } from "./task-status-badge";
 
 interface TaskMetadataLabels {
-  visibility: string;
   privateBadge: string;
   status: string;
   statusLabels: Record<TaskStatus, string>;
   owner: string;
-  creator: string;
   organization: string;
   personalWorkspace: string;
   project: string;
+  noProject: string;
   schedule: string;
-  coworker: string;
-  credits: string;
-  created: string;
-  updated: string;
+  assignee: string;
+  noAssignee: string;
+  memberFallback: string;
   personalAssistantFallback: string;
-  formatSokoBotRole: (values: { owner: string }) => string;
 }
 
 interface TaskMetadataTask {
   status: Task["status"];
+  priority: Task["priority"];
   visibility?: Task["visibility"];
   selectableStatuses: Task["selectableStatuses"];
   owner: Task["owner"];
   organization: Task["organization"];
   assignee: Task["assignee"];
-  creator: Task["creator"];
-  credits: Task["credits"];
 }
 
-interface TaskCreatorDisplay {
+interface PersonDisplay {
   name: string;
   image: string | null;
   avatarSeed?: string | null;
-  /** Under the name: what this creator is, when it is not a person. */
-  role?: string | null;
-}
-
-function resolveTaskCreatorDisplay(
-  task: TaskMetadataTask,
-  labels: Pick<
-    TaskMetadataLabels,
-    "formatSokoBotRole" | "personalAssistantFallback"
-  >,
-): TaskCreatorDisplay | null {
-  switch (task.creator.type) {
-    case "user": {
-      if (task.creator.id === task.owner.id) {
-        return null;
-      }
-
-      return {
-        name: task.creator.user.name,
-        image: task.creator.user.image
-          ? resolveIpfsOrHttpUrl(task.creator.user.image)
-          : null,
-      };
-    }
-    case "coworker": {
-      const coworker = task.creator.coworker;
-      return {
-        name: coworker.name,
-        image: getCoworkerImage(coworker),
-      };
-    }
-    case "sokoBot": {
-      const sokoBot = task.creator.sokoBot;
-      if (!sokoBot) {
-        return null;
-      }
-
-      // The assistant's own name reads as a person's here, so the line
-      // underneath says what it is and who it belongs to. Without it a Task
-      // created by "Jarvis" gives the reader no way to tell that a colleague's
-      // assistant did it, or on whose behalf.
-      const assistantName =
-        sokoBot.name?.trim() || labels.personalAssistantFallback;
-      const role = labels.formatSokoBotRole({
-        owner: sokoBot.owner.name,
-      });
-      // A claimed mascot is the bot's face everywhere else, so the orb is the
-      // fallback, not the rule.
-      const claimed = sokoBot.avatarImageUrl
-        ? resolveIpfsOrHttpUrl(sokoBot.avatarImageUrl)
-        : null;
-      return {
-        name: assistantName,
-        // A bot named "Ada's personal assistant" would otherwise print the
-        // same sentence twice.
-        role: role.toLowerCase() === assistantName.toLowerCase() ? null : role,
-        image: claimed,
-        // Same fallback the sidebar and the Soko Bots page use. `avatarSeed`
-        // is null for every bot, and passing that through rendered a different
-        // face here than the one the owner sees everywhere else.
-        avatarSeed: claimed
-          ? null
-          : (sokoBot.avatarSeed ?? defaultOrbSeed(sokoBot.owner.id)),
-      };
-    }
-    default: {
-      const _exhaustive: never = task.creator;
-      return _exhaustive;
-    }
-  }
 }
 
 function resolveTaskAssigneeDisplay(
-  assignee: Task["assignee"],
+  assignee: NonNullable<Task["assignee"]>,
   personalAssistantFallback: string,
-): {
-  name: string;
-  image: string | null;
-  avatarSeed?: string | null;
-} {
-  if (!assignee) {
-    return { name: "—", image: null };
-  }
-
+  memberFallback: string,
+): PersonDisplay {
   if (assignee.type === "sokoBot") {
     const sokoBot = assignee.sokoBot;
     const claimed = sokoBot.avatarImageUrl
@@ -149,7 +79,7 @@ function resolveTaskAssigneeDisplay(
 
   if (assignee.type === "user") {
     return {
-      name: assignee.user.name.trim() || "Member",
+      name: assignee.user.name.trim() || memberFallback,
       image: assignee.user.image
         ? resolveIpfsOrHttpUrl(assignee.user.image)
         : null,
@@ -168,15 +98,17 @@ interface TaskMetadataProps {
   task: TaskMetadataTask;
   project: { id: string; name: string } | null;
   /** Rendered in a Schedule row when the Task came from a Task Schedule. */
-  schedule?: React.ReactNode;
+  schedule?: ReactNode;
   labels: TaskMetadataLabels;
   statusFieldLabels: TaskMetadataStatusFieldLabels;
+  priorityLabels: TaskPriorityLabels;
   editable: boolean;
-  createdAtLabel: string;
-  updatedAtLabel: string;
-  creditsDisplay: string;
 }
 
+/**
+ * Properties are label-free rows (icon or avatar + value, as in Linear); the
+ * label lives in the accessible name and the hover tooltip.
+ */
 export function TaskMetadata({
   title,
   taskId,
@@ -185,32 +117,28 @@ export function TaskMetadata({
   schedule,
   labels,
   statusFieldLabels,
+  priorityLabels,
   editable,
-  createdAtLabel,
-  updatedAtLabel,
-  creditsDisplay,
 }: TaskMetadataProps) {
-  const ownerImage = task.owner.image
-    ? resolveIpfsOrHttpUrl(task.owner.image)
+  const owner: PersonDisplay = {
+    name: task.owner.name,
+    image: task.owner.image ? resolveIpfsOrHttpUrl(task.owner.image) : null,
+  };
+  const assignee = task.assignee
+    ? resolveTaskAssigneeDisplay(
+        task.assignee,
+        labels.personalAssistantFallback,
+        labels.memberFallback,
+      )
     : null;
-  const assignee = resolveTaskAssigneeDisplay(
-    task.assignee,
-    labels.personalAssistantFallback,
-  );
-  const creator = resolveTaskCreatorDisplay(task, labels);
+  const statusMarker = getTaskStatusMarker(task.status);
+  const statusLabel = labels.statusLabels[task.status];
+  const organizationName = task.organization?.name ?? labels.personalWorkspace;
+
   return (
     <section className="space-y-3">
       <h2 className="text-muted-foreground text-xs font-medium">{title}</h2>
-      {task.visibility === "PRIVATE" ? (
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.visibility}
-          </span>
-          <Badge variant="secondary">{labels.privateBadge}</Badge>
-        </div>
-      ) : null}
-      <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-sm">{labels.status}</span>
+      <div className="space-y-1">
         {editable ? (
           <TaskMetadataStatusField
             key={`${taskId}-${task.status}`}
@@ -220,179 +148,179 @@ export function TaskMetadata({
             labels={statusFieldLabels}
           />
         ) : (
-          <TaskStatusBadge
-            status={task.status}
-            label={labels.statusLabels[task.status]}
-            showLabel
-          />
-        )}
-      </div>
-
-      <MetadataAvatarValue
-        label={labels.owner}
-        name={task.owner.name}
-        image={ownerImage}
-        fallback={task.owner.name}
-      />
-
-      {creator ? (
-        <MetadataAvatarValue
-          label={labels.creator}
-          name={creator.name}
-          image={creator.image}
-          fallback={creator.name}
-          avatarSeed={creator.avatarSeed}
-          role={creator.role}
-        />
-      ) : null}
-
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-muted-foreground text-sm">
-          {labels.organization}
-        </span>
-        <span className="text-right text-sm font-medium">
-          {task.organization?.name ?? labels.personalWorkspace}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between gap-4">
-        <span className="text-muted-foreground text-sm">{labels.project}</span>
-        {project ? (
-          <Link
-            href={`/projects/${project.id}`}
-            className="hover:text-primary truncate text-right text-sm font-medium transition-colors"
+          <PropertyRow
+            label={labels.status}
+            value={statusLabel}
+            icon={
+              <StatusMarker
+                spec={statusMarker}
+                tone={getToneStyle(statusMarker.tone).labelOnSurface}
+              />
+            }
           >
-            {project.name}
-          </Link>
-        ) : (
-          <span className="text-right text-sm font-medium">—</span>
+            <span className="truncate">{statusLabel}</span>
+          </PropertyRow>
         )}
-      </div>
 
-      {schedule ? (
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground shrink-0 text-sm">
-            {labels.schedule}
-          </span>
-          {schedule}
-        </div>
-      ) : null}
+        {editable ? (
+          <TaskMetadataPriorityField
+            key={`${taskId}-${task.priority}`}
+            taskId={taskId}
+            priority={task.priority}
+            labels={priorityLabels}
+          />
+        ) : (
+          <PropertyRow
+            label={priorityLabels.priority}
+            value={priorityLabels.levels[task.priority]}
+            icon={<TaskPriorityIcon priority={task.priority} />}
+          >
+            <span
+              className={cn(
+                "truncate",
+                task.priority === "NONE" && "text-muted-foreground",
+              )}
+            >
+              {priorityLabels.levels[task.priority]}
+            </span>
+          </PropertyRow>
+        )}
 
-      <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-sm">{labels.coworker}</span>
-        <div className="flex min-w-0 items-center gap-2">
-          {assignee.avatarSeed ? (
-            <AssistantOrb
-              seed={assignee.avatarSeed}
-              expression="idle"
-              animate={false}
-              size={20}
-              className="size-5 shrink-0"
-              alt={assignee.name}
-            />
+        <PropertyRow
+          label={labels.assignee}
+          value={assignee?.name ?? labels.noAssignee}
+          icon={
+            assignee ? (
+              <PersonAvatar person={assignee} />
+            ) : (
+              <UserRound className="text-muted-foreground size-4" />
+            )
+          }
+        >
+          {assignee ? (
+            <span className="truncate">{assignee.name}</span>
           ) : (
-            <Avatar className="size-5">
-              {assignee.image ? (
-                <AvatarImage
-                  src={assignee.image}
-                  alt={assignee.name}
-                  className="object-cover"
-                />
-              ) : null}
-              <AvatarFallback className="bg-muted text-[0.625rem]">
-                {assignee.name === "—"
-                  ? "?"
-                  : assignee.name.slice(0, 1).toUpperCase()}
-              </AvatarFallback>
-            </Avatar>
+            <span className="text-muted-foreground truncate">
+              {labels.noAssignee}
+            </span>
           )}
-          <span className="truncate text-right text-sm font-medium">
-            {assignee.name}
+        </PropertyRow>
+
+        <PropertyRow
+          label={labels.owner}
+          value={owner.name}
+          icon={<PersonAvatar person={owner} />}
+        >
+          <span className="truncate">{owner.name}</span>
+          <span className="text-muted-foreground shrink-0 text-xs">
+            {labels.owner}
           </span>
-        </div>
-      </div>
+        </PropertyRow>
 
-      {task.credits > 0 ? (
-        <div className="flex items-center justify-between gap-4">
-          <span className="text-muted-foreground text-sm">
-            {labels.credits}
-          </span>
-          <span className="text-right text-sm font-medium tabular-nums">
-            {creditsDisplay}
-          </span>
-        </div>
-      ) : null}
+        <PropertyRow
+          label={labels.organization}
+          value={organizationName}
+          icon={<Building2 className="text-muted-foreground size-4" />}
+        >
+          <span className="truncate">{organizationName}</span>
+        </PropertyRow>
 
-      <div className="border-border my-3 border-t" />
+        <PropertyRow
+          label={labels.project}
+          value={project?.name ?? labels.noProject}
+          icon={<Box className="text-muted-foreground size-4" />}
+        >
+          {project ? (
+            <Link
+              href={`/projects/${project.id}`}
+              className="hover:text-primary truncate transition-colors"
+            >
+              {project.name}
+            </Link>
+          ) : (
+            <span className="text-muted-foreground truncate">
+              {labels.noProject}
+            </span>
+          )}
+        </PropertyRow>
 
-      <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-sm">{labels.created}</span>
-        <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-          {createdAtLabel}
-        </span>
-      </div>
+        {schedule ? (
+          <PropertyRow
+            label={labels.schedule}
+            icon={<Repeat className="text-muted-foreground size-4" />}
+          >
+            {schedule}
+          </PropertyRow>
+        ) : null}
 
-      <div className="flex items-center justify-between">
-        <span className="text-muted-foreground text-sm">{labels.updated}</span>
-        <span className="text-muted-foreground text-sm whitespace-nowrap tabular-nums">
-          {updatedAtLabel}
-        </span>
+        {task.visibility === "PRIVATE" ? (
+          <PropertyRow
+            label={labels.privateBadge}
+            icon={<Lock className="text-muted-foreground size-4" />}
+          >
+            <span className="truncate">{labels.privateBadge}</span>
+          </PropertyRow>
+        ) : null}
       </div>
     </section>
   );
 }
 
-interface MetadataAvatarValueProps {
+interface PropertyRowProps {
   label: string;
-  name: string;
-  image: string | null;
-  fallback: string;
-  avatarSeed?: string | null;
-  role?: string | null;
+  value?: string;
+  /** Sits in a fixed slot so every row's text starts at the same x. */
+  icon: ReactNode;
+  children: ReactNode;
 }
 
-function MetadataAvatarValue({
-  label,
-  name,
-  image,
-  fallback,
-  avatarSeed,
-  role,
-}: MetadataAvatarValueProps) {
+function PropertyRow({ label, value, icon, children }: PropertyRowProps) {
+  const description = value ? `${label}: ${value}` : label;
   return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-muted-foreground text-sm">{label}</span>
-      <div className="flex min-w-0 items-center gap-2">
-        {avatarSeed ? (
-          <AssistantOrb
-            seed={avatarSeed}
-            // Resting eyes so the creator chip reads as the assistant's
-            // face, not a blank disc.
-            expression="idle"
-            animate={false}
-            size={20}
-            className="size-5 shrink-0"
-            alt={name}
-          />
-        ) : (
-          <Avatar className="size-5">
-            {image ? (
-              <AvatarImage src={image} alt={name} className="object-cover" />
-            ) : null}
-            <AvatarFallback className="bg-muted text-[0.625rem]">
-              {fallback.slice(0, 1).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-        )}
-        <div className="min-w-0 text-right">
-          <span className="block truncate text-sm font-medium">{name}</span>
-          {role ? (
-            <span className="text-muted-foreground block truncate text-xs">
-              {role}
-            </span>
-          ) : null}
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <div
+          role="group"
+          aria-label={description}
+          className="flex h-8 min-w-0 items-center gap-2 text-sm"
+        >
+          <span className="flex size-5 shrink-0 items-center justify-center">
+            {icon}
+          </span>
+          {children}
         </div>
-      </div>
-    </div>
+      </TooltipTrigger>
+      <TooltipContent side="left">{description}</TooltipContent>
+    </Tooltip>
+  );
+}
+
+function PersonAvatar({ person }: { person: PersonDisplay }) {
+  if (person.avatarSeed) {
+    return (
+      <AssistantOrb
+        seed={person.avatarSeed}
+        expression="idle"
+        animate={false}
+        size={20}
+        className="size-5 shrink-0"
+        alt={person.name}
+      />
+    );
+  }
+
+  return (
+    <Avatar className="size-5">
+      {person.image ? (
+        <AvatarImage
+          src={person.image}
+          alt={person.name}
+          className="object-cover"
+        />
+      ) : null}
+      <AvatarFallback className="bg-muted text-[0.625rem]">
+        {person.name.slice(0, 1).toUpperCase()}
+      </AvatarFallback>
+    </Avatar>
   );
 }

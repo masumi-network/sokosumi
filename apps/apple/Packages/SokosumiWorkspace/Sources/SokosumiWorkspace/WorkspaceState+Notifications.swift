@@ -37,7 +37,7 @@ public extension WorkspaceState {
   /// first, which is where web asks the browser.
   func setNotificationReach(_ changes: [ChatNotificationKind: ChatNotificationReach], auth: AuthState) async throws {
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to change notification preferences.")
+      throw ChatServiceError.unauthorized("Log in to change notification preferences.")
     }
     let presenter = notificationPresenter
     do {

@@ -1,6 +1,5 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateSokoBotRequest,
   CreateSokoBotScheduleRequest,
@@ -26,11 +25,16 @@ import type {
   SokoBotVersion,
   StartSokoBotTurnRequest,
   UpdateSokoBotScheduleRequest,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 import {
   type SokoBotChatState,
   toSokoBotChatState,
 } from "@/lib/soko-bot/chat-state";
+import {
+  connectOffers,
+  type SokoBotConnectPromptState,
+} from "@/lib/soko-bot/connect-prompt";
 
 /** Turns the chat surface renders and polls; keeps one Core round-trip small. */
 export const SOKO_BOT_RECENT_TURN_LIMIT = 20;
@@ -155,6 +159,19 @@ export const sokoBotService = {
   async listIntegrations(): Promise<SokoBotIntegrations> {
     const response = await coreClient.listMySokoBotIntegrations();
     return response.data;
+  },
+
+  /** Null when there is no bot, integrations are off, or nothing is missing. */
+  async getConnectPromptState(): Promise<SokoBotConnectPromptState | null> {
+    const [bot, { configured, integrations }] = await Promise.all([
+      this.getMine(),
+      this.listIntegrations(),
+    ]);
+    if (!bot || !configured) return null;
+    const offers = connectOffers(integrations);
+    return offers.length > 0
+      ? { botId: bot.id, botName: bot.name ?? "Soko Bot", offers }
+      : null;
   },
 
   async searchIntegrationCatalog(

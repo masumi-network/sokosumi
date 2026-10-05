@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import {
   isFailedMentionThoughtShell,
   isPersistedMentionThoughtShell,
@@ -202,12 +202,12 @@ function isSavedQuoteMessage(message: ChatRoomMessage): boolean {
 }
 
 /**
- * Empty coworker shells for a mention stay while the Thought streams and after
- * it fails: Core keeps the failed bubble so "Failed to reply" and Retry can
- * live on it (`failMentionThoughtPlaceholder`).
+ * Empty coworker and Soko Bot shells for a mention stay while the Thought
+ * streams and after it fails: Core keeps the failed bubble so "Failed to
+ * reply" and Retry can live on it, and fills the same row with the answer.
  */
-function isMentionCoworkerShell(message: ChatRoomMessage): boolean {
-  if (message.sender.type !== "coworker") {
+function isMentionThoughtShell(message: ChatRoomMessage): boolean {
+  if (message.sender.type !== "coworker" && message.sender.type !== "sokoBot") {
     return false;
   }
   return (
@@ -221,7 +221,7 @@ function shouldKeepPersistedMessage(message: ChatRoomMessage): boolean {
     isRoomStatusMessage(message) ||
     hasVisibleMessageBody(message) ||
     isSavedQuoteMessage(message) ||
-    isMentionCoworkerShell(message)
+    isMentionThoughtShell(message)
   );
 }
 

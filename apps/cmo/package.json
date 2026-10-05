@@ -1,0 +1,40 @@
+{
+  "name": "cmo",
+  "version": "0.1.0",
+  "engines": {
+    "node": "24.x"
+  },
+  "private": true,
+  "portless": {
+    "name": "cmo.sokosumi"
+  },
+  "scripts": {
+    "dev": "next dev --port ${PORT:-3100}",
+    "build": "next build",
+    "start": "next start",
+    "check": "biome check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:ci": "vitest run"
+  },
+  "dependencies": {
+    "@sokosumi/core-client": "workspace:*",
+    "@sokosumi/utils": "workspace:*",
+    "@vercel/related-projects": "1.1.1",
+    "better-auth": "1.7.7",
+    "next": "16.3.8",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.1",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@types/three": "0.186.0",
+    "happy-dom": "20.14.5",
+    "jose": "6.2.12",
+    "typescript": "7.0.2",
+    "vitest": "5.0.3"
+  }
+}

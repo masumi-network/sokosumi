@@ -1,5 +1,6 @@
 "use client";
 
+import type { DiscoverableChatRoom } from "@sokosumi/core-client";
 import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { DiscoverableChatRoom } from "@/lib/clients/generated/core";
 
 export function BrowseChannelsDialog({
   triggerClassName,

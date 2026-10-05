@@ -1,7 +1,7 @@
+import type { ProjectSummary } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import type { ProjectSummary } from "@/lib/clients/generated/core/types.gen";
 
 import { TaskMetaDetails } from "./task-meta";
 
@@ -33,6 +33,7 @@ function buildMetaProps(
 const autumnProject: ProjectSummary = {
   id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
   name: "Autumn",
+  identifier: "SOK",
   logo: "https://example.com/logo.png",
 };
 
@@ -140,6 +141,7 @@ describe("TaskMetaDetails", () => {
           project: {
             id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
             name: "   ",
+            identifier: "SOK",
             logo: null,
           },
           variant: "card",

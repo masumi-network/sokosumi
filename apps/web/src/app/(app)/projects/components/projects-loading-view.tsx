@@ -1,8 +1,10 @@
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_CARD_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
 } from "@/app/projects/constants";
@@ -42,11 +44,11 @@ export function ProjectsLoadingView() {
       <div
         data-testid="projects-loading-browse"
         className={cn(
-          "bg-card-background overflow-hidden rounded-xl",
+          PROJECTS_BROWSE_CARD_CLASS,
           PROJECTS_LIST_CARD_MIN_H_CLASS,
         )}
       >
-        <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+        <div className={PROJECTS_BROWSE_LIST_CLASS}>
           {Array.from({ length: 4 }, (_, index) => (
             <ProjectListItemSkeleton key={index} />
           ))}
@@ -62,8 +64,13 @@ export function ProjectsLoadingView() {
  */
 function ProjectListItemSkeleton() {
   return (
-    <article className={PROJECTS_LIST_ROW_LAYOUT_CLASS}>
-      <div className="flex min-w-0 flex-col items-stretch gap-2 rounded-none px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
+    <article
+      className={cn(
+        PROJECTS_LIST_ROW_LAYOUT_CLASS,
+        PROJECTS_LIST_ROW_CARD_CLASS,
+      )}
+    >
+      <div className="flex min-w-0 flex-col items-stretch gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 flex-1 items-center gap-3">
           <Skeleton className="size-8 shrink-0 rounded-lg" />
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">

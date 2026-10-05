@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import {
   Bell,
   BellOff,
@@ -10,6 +11,7 @@ import {
   Pencil,
   Pin,
   PinOff,
+  Users,
 } from "lucide-react";
 import { type MotionProps, motion } from "motion/react";
 import Link from "next/link";
@@ -24,6 +26,7 @@ import {
 import { toast } from "sonner";
 import { leaveRoomAction } from "@/app/chat/actions";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
+import { canLeaveChannel } from "@/app/chat/utils/channel-member-permissions";
 import {
   CHAT_CHATS_LIST_PATH,
   CHAT_EDIT_CHANNEL_PARAM,
@@ -90,7 +93,6 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import { SIDEBAR_ROW_LABEL_CLASS } from "@/components/ui/sidebar-classes";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { CHAT_MESSAGE_PARAM } from "@/lib/utils/notification-href";
 
@@ -151,6 +153,11 @@ export interface ChatRoomSidebarRowProps {
    * the row stops being a link, so a press moves the room instead of opening it.
    */
   reorderHandle?: ReactNode;
+  /**
+   * Organization owner/admin of this Channel: its menu opens the settings.
+   * Anyone else's opens the members panel.
+   */
+  canManageSettings?: boolean;
 }
 
 /**
@@ -320,6 +327,7 @@ export function ChatRoomSidebarRow({
   itemProps,
   itemMotion,
   reorderHandle,
+  canManageSettings = false,
 }: ChatRoomSidebarRowProps) {
   const selectedPath = useRoomSelection();
   const isActive = selectedPath
@@ -339,14 +347,7 @@ export function ChatRoomSidebarRow({
   const isPinned = room.starredAt != null;
   const isMuted = room.mutedAt != null;
   const isChannel = room.kind === "channel";
-  // Match rooms-client: guests and matched may always leave; host-org last
-  // host keeps Leave hidden when they are the sole `member` access row.
-  const canLeave =
-    isChannel &&
-    (room.myAccess === "guest" ||
-      room.discoverability === "matched" ||
-      room.userMembers.filter((member) => member.access === "member").length >
-        1);
+  const canLeave = canLeaveChannel(room);
   const badgeCountsMentions = roomBadgeCountsMentions(room);
   const showUnreadCount = useShowRoomUnreadCount();
   const { bold, badgeCount, mentionCount, unreadTextCount } =
@@ -430,7 +431,8 @@ export function ChatRoomSidebarRow({
 
   // The dialog needs the org roster and the reader's role, which this row does
   // not have and the room already loads. So the row asks the room to open it:
-  // a Channel's settings, or a group Direct's name, which is all it has.
+  // a Channel's settings (its members panel for anyone who cannot change
+  // them), or a group Direct's name, which is all it has.
   const canEditRoom = isChannel || room.isGroupDirect;
   const editRoomItem = (
     <DropdownMenuItem
@@ -459,8 +461,16 @@ export function ChatRoomSidebarRow({
         router.push(chatRoomEditHref(room.id));
       }}
     >
-      <Pencil className="size-4" aria-hidden />
-      {isChannel ? tChannels("editChannel") : tChannels("GroupName.rename")}
+      {isChannel && !canManageSettings ? (
+        <Users className="size-4" aria-hidden />
+      ) : (
+        <Pencil className="size-4" aria-hidden />
+      )}
+      {!isChannel
+        ? tChannels("GroupName.rename")
+        : canManageSettings
+          ? tChannels("editChannel")
+          : tChannels("RoomRoster.title")}
     </DropdownMenuItem>
   );
 

@@ -1,5 +1,13 @@
 "use client";
 
+import type {
+  ChatRoom,
+  ChatRoomMessage,
+  ChatRoomUserParticipant,
+  Coworker,
+  Member,
+  Organization,
+} from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { skipToken, useQuery } from "@tanstack/react-query";
 import { Hash } from "lucide-react";
@@ -51,6 +59,7 @@ import {
   readStoredStreamParentMessageId,
   useCoworkerDirectRoomStream,
 } from "@/app/chat/hooks/use-coworker-direct-room-stream";
+import { useOpenRoomUnreadRecheck } from "@/app/chat/hooks/use-open-room-unread-recheck";
 import { useQuietHoverWhileScrolling } from "@/app/chat/hooks/use-quiet-hover-while-scrolling";
 import {
   TRANSCRIPT_SNAPSHOT_RETRIES,
@@ -63,6 +72,7 @@ import { useRoomUrlAsk } from "@/app/chat/hooks/use-room-url-ask";
 import { useUnreadThreadReplyCounts } from "@/app/chat/hooks/use-unread-thread-reply-counts";
 import type { RoomShellRosterPage } from "@/app/chat/load-room-shell-roster";
 import { getRoomMessageAction } from "@/app/chat/message-actions";
+import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   filterTopLevelChatRoomMessages,
   isReplyUnderThreadParent,
@@ -125,6 +135,7 @@ import {
 } from "@/app/chat/utils/pending-reactions";
 import { peekPendingRoomMessage } from "@/app/chat/utils/pending-room-message";
 import { roomMentionNames as buildRoomMentionNames } from "@/app/chat/utils/room-mention-names";
+import { endsWithAttachmentRow } from "@/app/chat/utils/room-message-segments";
 import { isRoomStatusMessage } from "@/app/chat/utils/room-status-message";
 import type {
   RoomTranscriptCache,
@@ -174,14 +185,6 @@ import {
 } from "@/lib/ably/schema";
 import { useChatRoomRealtime } from "@/lib/ably/use-chat-room-realtime";
 import { useSelectedRoomChannelHealth } from "@/lib/ably/use-selected-room-channel-health";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  ChatRoomUserParticipant,
-  Coworker,
-  Member,
-  Organization,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { slugifyMentionValue } from "@/lib/utils/mention-parser";
 import {
@@ -194,6 +197,10 @@ import {
   openDirectWithParticipant,
   participantDirectKey,
 } from "./open-direct-with-participant";
+import {
+  ReadOnlyDirectNotice,
+  useReadOnlyDirectNotice,
+} from "./read-only-direct-notice";
 import { useRoomCache, useRoomSelection } from "./room-cache-provider";
 import { type RoomComposerHandle } from "./room-composer";
 import { RoomFileDropZone } from "./room-file-drop-zone";
@@ -203,7 +210,6 @@ import {
   buildRoomAllMentionRecord,
   type ChatParticipantHoverProfile,
   getRoomDisplayName,
-  getRoomParticipantPreviews,
   isMessageContinuation,
   isRoomComposerContentOverLimit,
   membershipVisibleChannelLinks,
@@ -214,6 +220,7 @@ import {
   pendingQuoteFromMessage,
   ROOM_MENTION_ALL_ID,
   type RoomMentionParticipant,
+  shouldAllowRoomSkills,
   shouldConsumePendingCoworkerStream,
   shouldIncludeRoomAllMention,
   shouldShowChatRoomThreadButton,
@@ -221,6 +228,7 @@ import {
   shouldUseCoworkerRoomStream,
   sokoBotMentionSlug,
 } from "./room-helpers";
+import { RoomMembersPanel } from "./room-members-panel";
 import { RoomMessageListSkeleton } from "./room-message-list-skeleton";
 import { ChatMessageRow } from "./room-message-row";
 import {
@@ -228,7 +236,6 @@ import {
   RoomMessagesHydrator,
 } from "./room-messages-hydrator";
 import { RoomOpenLoadingView } from "./room-open-loading-view";
-import { RoomRosterPanel } from "./room-roster-panel";
 import { RoomSeenByLine, seenByReadersFor } from "./room-seen-by-line";
 import {
   RoomSessionComposer,
@@ -243,6 +250,7 @@ import {
 import { RoomShellRosterHydrator } from "./room-shell-roster-hydrator";
 import { RoomStatusRow } from "./room-status-row";
 import { RoomTypingProvider } from "./room-typing-provider";
+import { SokoBotConnectPrompt } from "./soko-bot-connect-prompt.client";
 import { ThreadPanel } from "./thread-panel";
 import type { TranscriptPosition } from "./transcript-viewport";
 
@@ -254,6 +262,12 @@ export interface RoomsClientProps {
   rooms: ChatRoom[];
   organizationMembers: Member[];
   currentUserId: string;
+  /**
+   * Caller's own role in the active organization, from their membership. Not
+   * derived from `organizationMembers`: that list is empty while it loads
+   * and when it fails.
+   */
+  isOrgOwnerOrAdmin: boolean;
   coworkers: Coworker[];
   sokoBots?: ChatComposeSokoBot[];
   selectedRoomId: string | null;
@@ -515,6 +529,7 @@ function RoomView({
   rooms,
   organizationMembers: organizationMembersProp,
   currentUserId,
+  isOrgOwnerOrAdmin,
   coworkers: coworkersProp,
   sokoBots: sokoBotsProp = [],
   selectedRoomId,
@@ -732,9 +747,6 @@ function RoomView({
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [pinnedListGeneration, setPinnedListGeneration] = useState(0);
   const [rosterOpen, setRosterOpen] = useState(false);
-  const handleOpenEditChannel = useCallback(() => {
-    setEditChannelOpen(true);
-  }, []);
   const [threadOpenedFromList, setThreadOpenedFromList] = useState(false);
   const [threadParentMessage, setThreadParentMessage] =
     useState<ChatRoomMessage | null>(null);
@@ -966,7 +978,31 @@ function RoomView({
     }
   }
 
-  const selectedRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const pageRoom = rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const sidebarRoom = sidebarRooms.find((room) => room.id === pageRoom?.id);
+  // Prefer a page fetch to the sidebar roster already in memory. Later fetched
+  // rosters can learn exits and returns; local attention overlays keep these
+  // member arrays, so marking a room read cannot reopen an older roster.
+  const [pageRoomSnapshot, setPageRoomSnapshot] = useState({
+    room: pageRoom,
+    sidebarRoom,
+  });
+  if (pageRoom !== pageRoomSnapshot.room) {
+    setPageRoomSnapshot({ room: pageRoom, sidebarRoom });
+  }
+  const sidebarRosterChanged =
+    sidebarRoom != null &&
+    (sidebarRoom.userMembers !== pageRoomSnapshot.sidebarRoom?.userMembers ||
+      sidebarRoom.formerUserMembers !==
+        pageRoomSnapshot.sidebarRoom?.formerUserMembers ||
+      sidebarRoom.coworkerMembers !==
+        pageRoomSnapshot.sidebarRoom?.coworkerMembers ||
+      sidebarRoom.sokoBotMembers !==
+        pageRoomSnapshot.sidebarRoom?.sokoBotMembers);
+  const selectedRoom =
+    pageRoom?.kind === "direct" && sidebarRosterChanged
+      ? sidebarRoom
+      : pageRoom;
   // The dialog goes with the room. Losing the room takes it off screen, and a
   // reader who is let back in has not asked for it a second time.
   if (selectedRoom == null && editChannelOpen) {
@@ -1000,6 +1036,7 @@ function RoomView({
   const selectedRoomDisplayName = selectedRoom
     ? getRoomDisplayName(selectedRoom, currentUserId, t("SelfDirect.you"))
     : "";
+  const readOnlyNotice = useReadOnlyDirectNotice(selectedRoom);
 
   // Seen by. Seeded from the room payload, topped up by room read events; both
   // the header stack and the transcript line read it, so neither reaches for
@@ -1015,56 +1052,17 @@ function RoomView({
   if (rosterOpen && !showRoomRosterControl) {
     setRosterOpen(false);
   }
-  const isGuestInSelectedRoom = selectedRoom?.myAccess === "guest";
-  // Matched channels are roster-managed only from the admin hub.
-  const isMatchedChannel = selectedRoom?.discoverability === "matched";
   const canOpenHumanDirect = canOpenHumanDirectFromSelectedRoom({
     kind: selectedRoom?.kind,
     discoverability: selectedRoom?.discoverability,
     myAccess: selectedRoom?.myAccess,
     hasActiveOrganization: Boolean(activeOrganization),
   });
-  const currentMemberRole = organizationMembers.find(
-    (member) => member.user.id === currentUserId,
-  )?.role;
-  const isOrgOwnerOrAdmin =
-    currentMemberRole === "owner" || currentMemberRole === "admin";
-  // Host-org channel members rewrite roster; guests and matched cannot.
-  const canEditSelectedRoomMembers = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      !isMatchedChannel,
-  );
-  // Name/topic/discoverability and archive: organization owner/admin only.
-  // Guests and matched members never manage host channel settings.
-  const canManageSelectedRoomSettings = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      !isMatchedChannel &&
-      isOrgOwnerOrAdmin,
-  );
-  const canArchiveSelectedRoom = canManageSelectedRoomSettings;
-  // Host members on external channels invite guests; guests never invite.
-  const canInviteGuestsToSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      !isGuestInSelectedRoom &&
-      selectedRoom.myAccess === "member" &&
-      selectedRoom.discoverability === "external",
-  );
-  // Any participant can leave. Host-org channels keep the last host member so
-  // an empty roster cannot block archive (org owner/admin). Matched channels
-  // allow last-member leave (Core auto-archives). Guests may always leave.
-  const canLeaveSelectedRoom = Boolean(
-    selectedRoom &&
-      !isDirectRoom &&
-      (isGuestInSelectedRoom ||
-        isMatchedChannel ||
-        selectedRoom.userMembers.filter((member) => member.access === "member")
-          .length > 1),
-  );
+  // Name/topic/visibility and archive: organization owner/admin only. Everyone
+  // else manages membership from the members panel instead.
+  const canManageSelectedRoomSettings =
+    selectedRoom != null &&
+    canManageChannelSettings(selectedRoom, isOrgOwnerOrAdmin);
   const isCoworkerStreamRoom = selectedRoom
     ? shouldUseCoworkerRoomStream(selectedRoom)
     : false;
@@ -1837,6 +1835,11 @@ function RoomView({
     refreshOnMount: Boolean(retained),
   });
   if (registerRefresh) registerRefresh.current = refreshLatestRef.current;
+  useOpenRoomUnreadRecheck({
+    room: selectedRoom,
+    messagesPending,
+    requestRefresh: refreshLatestRef.current,
+  });
 
   function mergeUpdatedMessage(updatedMessage: ChatRoomMessage) {
     setMessagesState((current) => {
@@ -1972,17 +1975,21 @@ function RoomView({
     setThreadListOpen(true);
   }
 
-  function handleToggleRoster() {
-    if (rosterOpen) {
-      setRosterOpen(false);
-      return;
-    }
+  function openRoster() {
     if (threadParentMessage) {
       closeThreadSidePanel();
     }
     setThreadListOpen(false);
     setPinnedOpen(false);
     setRosterOpen(true);
+  }
+
+  function handleToggleRoster() {
+    if (rosterOpen) {
+      setRosterOpen(false);
+      return;
+    }
+    openRoster();
   }
 
   function openPinnedPanel() {
@@ -2132,6 +2139,21 @@ function RoomView({
     open: handleOpenThreadListFromUrl,
   });
 
+  // A Channel's settings are for an owner or admin; anyone else asking gets
+  // its members panel. A group Direct's name is anyone's to change. Reached
+  // through a ref so the URL reader's effect keeps one `open`.
+  const openEditChannelRef = useRef(() => {});
+  openEditChannelRef.current = () => {
+    if (selectedRoom?.kind === "channel" && !canManageSelectedRoomSettings) {
+      openRoster();
+      return;
+    }
+    setEditChannelOpen(true);
+  };
+  const handleOpenEditChannelFromUrl = useCallback(() => {
+    openEditChannelRef.current();
+  }, []);
+
   useRoomUrlAsk({
     // Channels and group Directs only, the way the row that asks is. Any
     // other Direct has no dialog to open, so it has no ask to read either.
@@ -2143,7 +2165,7 @@ function RoomView({
     pathname,
     searchParams,
     replace: router.replace,
-    open: handleOpenEditChannel,
+    open: handleOpenEditChannelFromUrl,
   });
 
   useRoomNotificationDeepLink({
@@ -2626,6 +2648,7 @@ function RoomView({
         parentMessageId: job.parentMessageId,
         quote: job.quote,
         clientMessageId: job.clientMessageId,
+        skillIds: job.skillIds,
       },
     );
     if (!result.ok) {
@@ -2854,6 +2877,7 @@ function RoomView({
                 snippet: "",
               }
             : null,
+        skills: request.skills,
       });
 
       setMessagesState((current) => appendMessage(current, pending));
@@ -2867,6 +2891,7 @@ function RoomView({
         mentionedUserIds,
         quote: request.quote,
         clientMessageId: request.clientMessageId,
+        skillIds: request.skills?.map((skill) => skill.id),
       });
 
       // Composer must not restore draft — failure lives on the pending shell.
@@ -2953,6 +2978,7 @@ function RoomView({
                 snippet: "",
               }
             : null,
+        skills: request.skills,
       });
 
       setThreadMessages((current) => appendMessage(current, pending));
@@ -2966,6 +2992,7 @@ function RoomView({
         quote: request.quote,
         clientMessageId: request.clientMessageId,
         parentMessageId,
+        skillIds: request.skills?.map((skill) => skill.id),
       });
 
       return { ok: true };
@@ -2995,16 +3022,9 @@ function RoomView({
         onToggleThreadList={() => showThreadList({ toggle: true })}
         rosterOpen={rosterOpen}
         onToggleRoster={handleToggleRoster}
+        onOpenRoster={openRoster}
         currentUserId={currentUserId}
-        organizationMembers={organizationMembers}
-        coworkers={coworkers}
-        sokoBots={sokoBots}
-        canEditMembers={canEditSelectedRoomMembers}
         canManageSettings={canManageSelectedRoomSettings}
-        canArchive={canArchiveSelectedRoom}
-        canLeave={canLeaveSelectedRoom}
-        canInviteGuests={canInviteGuestsToSelectedRoom}
-        membersLoadFailed={membersLoadFailed}
         editOpen={editChannelOpen}
         onEditOpenChange={setEditChannelOpen}
         showParticipants={showHeaderParticipants}
@@ -3046,6 +3066,16 @@ function RoomView({
         isPersistedMentionThoughtShell(message.metadata) ||
         isFailedMentionThoughtShell(message.metadata);
       const isOutboundLocal = isOutboundLocalMessage(message);
+      // A read-only Direct takes no replies, so only a Thread that already
+      // exists is worth opening.
+      const canOpenThread =
+        !isOutboundLocal &&
+        shouldShowChatRoomThreadButton({
+          room,
+          isStreamOverlay,
+          isThinkingShell,
+        }) &&
+        (!room.isReadOnly || message.threadReplyCount > 0);
       // Asked once: an empty answer means no trailing faces and no gutter.
       const seenByReaders = seenByReadersFor({
         readersAsOf: readReceipts.readersAsOf,
@@ -3082,19 +3112,19 @@ function RoomView({
               canOpenHumanDirect={canOpenHumanDirect}
               onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
               openingDirectParticipantKey={openingDirectKey}
-              onToggleReaction={stableMessageHandlers.onToggleReaction}
-              onOpenThread={
-                !isOutboundLocal &&
-                shouldShowChatRoomThreadButton({
-                  room,
-                  isStreamOverlay,
-                  isThinkingShell,
-                })
-                  ? stableMessageHandlers.onOpenThread
-                  : undefined
+              onToggleReaction={
+                room.isReadOnly
+                  ? undefined
+                  : stableMessageHandlers.onToggleReaction
               }
+              onOpenThread={
+                canOpenThread ? stableMessageHandlers.onOpenThread : undefined
+              }
+              // Quoting fills the composer, which a read-only Direct lacks.
               onQuote={
-                isOutboundLocal ? undefined : stableMessageHandlers.onQuote
+                isOutboundLocal || room.isReadOnly
+                  ? undefined
+                  : stableMessageHandlers.onQuote
               }
               onPin={
                 !isDirectRoom && !isOutboundLocal
@@ -3144,19 +3174,16 @@ function RoomView({
               isSavingEdit={
                 isSavingEdit && editSession?.messageId === message.id
               }
-              showThreadButton={
-                !isOutboundLocal &&
-                shouldShowChatRoomThreadButton({
-                  room,
-                  isStreamOverlay,
-                  isThinkingShell,
-                })
-              }
+              showThreadButton={canOpenThread}
               isFirstOfDay={showDaySeparator}
               isContinuation={
                 localCalendarReady &&
                 !showDaySeparator &&
                 isMessageContinuation(previousMessage, message)
+              }
+              newestEndsInAttachment={
+                message.id === newestMessageId &&
+                endsWithAttachmentRow(message.content)
               }
               seenBy={
                 seenByReaders.length > 0 ? (
@@ -3260,7 +3287,7 @@ function RoomView({
           }
           wrapColumn={(columnBody) => (
             <RoomFileDropZone
-              enabled
+              enabled={!selectedRoom.isReadOnly}
               onFiles={(files) => {
                 roomComposerRef.current?.attachFiles(files);
               }}
@@ -3278,52 +3305,69 @@ function RoomView({
               roomId={selectedRoom.id}
               currentUserId={currentUserId}
             >
-              <RoomSessionComposer
-                ref={roomComposerRef}
-                roomId={selectedRoom.id}
-                draftKey={composeDraftKey.room(selectedRoom.id)}
-                mentions={mentionRecords}
-                usersById={usersById}
-                usersBySlug={usersBySlug}
-                coworkersById={coworkersById}
-                coworkersBySlug={coworkersBySlug}
-                sokoBotsById={sokoBotsById}
-                sokoBotsBySlug={sokoBotsBySlug}
-                channels={channelOptions}
-                channelLinks={channelLinks}
-                placeholder={
-                  isDirectRoom
-                    ? t("directComposerPlaceholder", {
-                        member: selectedRoomDisplayName,
-                      })
-                    : t("composerPlaceholderWithChannel", {
-                        channel: selectedRoomDisplayName,
-                      })
-                }
-                isSending={isCoworkerStreaming}
-                showMentionShortcut={shouldShowRoomMentionShortcut(
-                  selectedRoom,
-                )}
-                pendingQuote={pendingQuote}
-                onClearPendingQuote={() => setPendingQuote(null)}
-                onSetPendingQuote={setPendingQuote}
-                onResolveMessageLink={handleResolveMessageLink}
-                requireBody={isCoworkerStreamRoom}
-                // Autofocus only after history settles. Send stays enabled so
-                // optimistic posts work during progressive open (merge into list).
-                focusOnMount={!messagesPending}
-                onBeforeSend={handleChannelBeforeSend}
-                onSend={handleChannelSend}
-                currentUserId={currentUserId}
-                canOpenHumanDirect={canOpenHumanDirect}
-                onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
-                openingDirectParticipantKey={openingDirectKey}
-              />
+              {readOnlyNotice ? (
+                <ReadOnlyDirectNotice message={readOnlyNotice} />
+              ) : (
+                <RoomSessionComposer
+                  aboveCard={
+                    // Inside the composer, so a read-only Direct (bot gone)
+                    // drops the prompt with the composer it would sit on.
+                    isDirectRoom && selectedRoom.sokoBotMembers.length === 1 ? (
+                      <SokoBotConnectPrompt
+                        sokoBotId={selectedRoom.sokoBotMembers[0]!.id}
+                      />
+                    ) : null
+                  }
+                  ref={roomComposerRef}
+                  roomId={selectedRoom.id}
+                  draftKey={composeDraftKey.room(selectedRoom.id)}
+                  mentions={mentionRecords}
+                  usersById={usersById}
+                  usersBySlug={usersBySlug}
+                  coworkersById={coworkersById}
+                  coworkersBySlug={coworkersBySlug}
+                  sokoBotsById={sokoBotsById}
+                  sokoBotsBySlug={sokoBotsBySlug}
+                  channels={channelOptions}
+                  channelLinks={channelLinks}
+                  placeholder={
+                    isDirectRoom
+                      ? t("directComposerPlaceholder", {
+                          member: selectedRoomDisplayName,
+                        })
+                      : t("composerPlaceholderWithChannel", {
+                          channel: selectedRoomDisplayName,
+                        })
+                  }
+                  isSending={isCoworkerStreaming}
+                  showMentionShortcut={shouldShowRoomMentionShortcut(
+                    selectedRoom,
+                  )}
+                  pendingQuote={pendingQuote}
+                  onClearPendingQuote={() => setPendingQuote(null)}
+                  onSetPendingQuote={setPendingQuote}
+                  onResolveMessageLink={handleResolveMessageLink}
+                  requireBody={isCoworkerStreamRoom}
+                  allowSkills={shouldAllowRoomSkills(selectedRoom)}
+                  // Autofocus only after history settles. Send stays enabled so
+                  // optimistic posts work during progressive open (merge into list).
+                  focusOnMount={!messagesPending}
+                  onBeforeSend={handleChannelBeforeSend}
+                  onSend={handleChannelSend}
+                  currentUserId={currentUserId}
+                  canOpenHumanDirect={canOpenHumanDirect}
+                  onOpenDirectMessage={
+                    stableMessageHandlers.onOpenDirectMessage
+                  }
+                  openingDirectParticipantKey={openingDirectKey}
+                />
+              )}
             </RoomTypingProvider>
           }
           mainEnd={
             threadParentMessage ? (
               <ThreadPanel
+                composerDisabledMessage={readOnlyNotice ?? undefined}
                 parentMessage={
                   displayThreadParentMessage ?? threadParentMessage
                 }
@@ -3372,8 +3416,14 @@ function RoomView({
                 outboundSentTickIds={outboundSentTickIds}
                 onBack={threadOpenedFromList ? backToThreadList : undefined}
                 onClose={closeThreadSidePanel}
-                onToggleReaction={stableMessageHandlers.onToggleReaction}
-                onQuote={handleQuoteThreadMessage}
+                onToggleReaction={
+                  selectedRoom.isReadOnly
+                    ? undefined
+                    : stableMessageHandlers.onToggleReaction
+                }
+                onQuote={
+                  selectedRoom.isReadOnly ? undefined : handleQuoteThreadMessage
+                }
                 currentUserId={currentUserId}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirectMessage={stableMessageHandlers.onOpenDirectMessage}
@@ -3391,6 +3441,7 @@ function RoomView({
                 onSetPendingQuote={setPendingThreadQuote}
                 onResolveMessageLink={handleResolveMessageLink}
                 requireBody={isCoworkerStreamRoom}
+                allowSkills={shouldAllowRoomSkills(selectedRoom)}
                 showMentionShortcut={shouldShowRoomMentionShortcut(
                   selectedRoom,
                 )}
@@ -3476,30 +3527,20 @@ function RoomView({
                 }}
               />
             ) : showRoomRosterControl && rosterOpen ? (
-              <RoomRosterPanel
-                participants={getRoomParticipantPreviews(selectedRoom)}
+              <RoomMembersPanel
+                room={selectedRoom}
                 currentUserId={currentUserId}
+                isOrgOwnerOrAdmin={isOrgOwnerOrAdmin}
+                organizationMembers={organizationMembers}
+                coworkers={coworkers}
+                sokoBots={sokoBots}
+                membersLoadFailed={membersLoadFailed}
                 readStateFor={readReceipts.readStateFor}
                 canOpenHumanDirect={canOpenHumanDirect}
                 onOpenDirect={stableMessageHandlers.onOpenDirectMessage}
                 openingDirectKey={openingDirectKey}
                 onClose={() => {
                   setRosterOpen(false);
-                }}
-                labels={{
-                  title: t("RoomRoster.title"),
-                  humansTitle: t("RoomRoster.humansTitle"),
-                  agentsTitle: t("RoomRoster.agentsTitle"),
-                  close: t("RoomRoster.close"),
-                  readAt: (time) => t("SeenBy.readAt", { time }),
-                  notRead: t("SeenBy.notRead"),
-                  empty: t("RoomRoster.empty"),
-                  coworkerBadge: t("coworkerBadge"),
-                  personalAssistantBadge: t("personalAssistantBadge"),
-                  message: (name) => t("RoomRoster.message", { name }),
-                  copy: (value) => t("RoomRoster.copy", { value }),
-                  copySuccess: t("RoomRoster.copySuccess"),
-                  copyError: t("RoomRoster.copyError"),
                 }}
               />
             ) : null

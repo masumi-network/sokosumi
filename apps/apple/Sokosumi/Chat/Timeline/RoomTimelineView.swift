@@ -44,7 +44,11 @@ import SwiftUI
     @State private var userIsScrolling = false
     @State private var pendingBottomAlignment = false
     @State private var pendingQuote: Components.Schemas.ChatRoomMessageQuote?
-    @State private var highlightedId: String?
+    /// The mark the last jump left on the row it landed on (row 25b1). The open thread keeps its own.
+    @State private var jumpMark: JumpMark?
+    /// The Thread's parent a reply jump marked while the Thread covered the room (row 25c). The rows behind the
+    /// Thread are not laid out, so the room lands on it when the Thread closes (user decision, 2026-10-04).
+    @State private var parentBehindThread: String?
     @State private var jumpError: String?
     @State private var jumpCompletion: CheckedContinuation<Bool, Never>?
     @State private var quoteTarget: String?
@@ -66,8 +70,14 @@ import SwiftUI
     }
 
     private func reactionAction(for message: Components.Schemas.ChatRoomMessage) -> ((String) async throws -> Bool)? {
-      guard canReactToMessage(message) else { return nil }
+      guard canReactToMessage(message), roomTakesNewMessages(room) else { return nil }
       return { emoji in try await workspaces.toggleReaction(message, emoji: emoji, auth: auth) }
+    }
+
+    /// The turn's thumbs send through the coordinator, which keeps the rating for the session (row 38b).
+    private func sokoBotFeedbackAction(for message: Components.Schemas.ChatRoomMessage) -> ((Bool) async throws -> Void)? {
+      guard let turnId = SokoBotFeedback.turnId(for: message) else { return nil }
+      return { useful in try await workspaces.sendSokoBotFeedback(turnId: turnId, useful: useful, auth: auth) }
     }
 
     private func sendToSelfAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Components.Schemas.ChatRoomMessage)? {
@@ -82,26 +92,50 @@ import SwiftUI
 
     private func mentionRetryAction(for message: Components.Schemas.ChatRoomMessage) -> (() async throws -> Void)? {
       guard workspaces.canRetryMention(message) else { return nil }
-      return { try await workspaces.retryMention(message, auth: auth) }
+      return { try await workspaces.retryMention(message, auth: auth, now: Date()) }
     }
 
     var body: some View {
       transcriptBody
         .scrollEdgeEffectStyle(.soft, for: .bottom)
         .safeAreaInset(edge: .bottom, spacing: 0) {
-          ChatComposerView(
-            userId: workspaces.currentUserId,
-            organizationId: workspaces.selection?.workspace.organizationId,
-            roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
-          )
-          .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          if let notice = ReadOnlyDirectNotice(room: room) {
+            ReadOnlyDirectNoticeView(notice: notice, horizontalInset: 20)
+          } else {
+            ChatComposerView(
+              userId: workspaces.currentUserId,
+              organizationId: workspaces.selection?.workspace.organizationId,
+              roomId: roomId, pendingQuote: $pendingQuote, quoteFocusRequest: quoteFocusRequest
+            )
+            .id([workspaces.currentUserId, workspaces.selectionId ?? "", roomId])
+          }
         }
         .modifier(RoomToolsModifier(roomId: roomId, jump: { try await jumpToMessage($0) }))
         .task(id: workspaces.messageJump) {
           guard let target = workspaces.messageJump, target.roomId == roomId else { return }
           scrollIntent.readOlder()
-          quoteTarget = target.messageId
+          if target.isThreadParent {
+            // Row 25c: the Thread's parent, marked now on the room's own clock (web's `landOn`), so its hold runs
+            // under the Thread; the room lands on it when the Thread closes. It replaces a room jump still landing.
+            quoteTarget = nil
+            jumpCompletion?.resume(returning: false)
+            jumpCompletion = nil
+            jumpMark = JumpMark(messageId: target.messageId, landedAt: Date())
+            parentBehindThread = target.messageId
+          } else {
+            parentBehindThread = nil
+            quoteTarget = target.messageId
+          }
           workspaces.consumeMessageJump(target.requestId)
+        }
+        .onChange(of: workspaces.thread.parent == nil) { _, closed in
+          guard closed, let parent = parentBehindThread else { return }
+          if workspaces.displayedTranscript.contains(where: { $0.id == parent }) {
+            quoteTarget = parent
+          } else {
+            // Gone from the loaded rows while the Thread was open: nothing to land on, so forget it.
+            parentBehindThread = nil
+          }
         }
         .task(id: roomId) {
           if room?.kind == .channel {
@@ -118,14 +152,15 @@ import SwiftUI
         .onChange(of: workspaces.timeline.historicalAnchor) { old, new in
           if old != nil, new == nil {
             scrollIntent.followLatest()
-            highlightedId = nil
+            jumpMark = nil
           }
         }
         .onDisappear { jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
         }
         .onChange(of: roomId) { _, _ in
-          highlightedId = nil
+          jumpMark = nil
+          parentBehindThread = nil
           jumpCompletion?.resume(returning: false)
           jumpCompletion = nil
           pendingQuote = nil
@@ -145,6 +180,14 @@ import SwiftUI
       } else if !hasLiveMessages {
         if let error = workspaces.transcriptError {
           transcriptError(error, retryOlder: false)
+        } else if room?.isSelfDirect == true {
+          // Web's private-notes empty state (`rooms-client.tsx`:3219-3230).
+          ContentUnavailableView(
+            "Message yourself",
+            systemImage: "bubble.left",
+            description: Text("Send yourself notes and to-dos. Only you can see them.")
+          )
+          .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
           ContentUnavailableView(
             "No messages yet",
@@ -166,6 +209,9 @@ import SwiftUI
       // scroll event expensive. Keep each message unary and anchored by ID.
       let transcriptRoom = room
       let channels = workspaces.composerChannels
+      // Seen by rides the newest row only; asked once per pass.
+      let readReceipts = workspaces.roomReadReceipts
+      let newestMessageId = messages.last?.id
       return ScrollViewReader { proxy in
         ScrollView {
           LazyVStack(alignment: .leading, spacing: 0) {
@@ -204,15 +250,16 @@ import SwiftUI
                     }
                   }
                 }
-                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt) {
+                if let label = daySeparatorLabel(for: message.createdAt, previous: previous?.createdAt, now: Date()) {
                   DaySeparatorRow(label: label)
                 }
                 if let status = roomStatusText(message) {
                   RoomStatusRow(text: status)
                     .padding(.horizontal, 12)
+                    .jumpSpotlightRow(messageId: message.id)
                 } else {
                   let outbound = workspaces.outboundShells.first { $0.id == message.id }
-                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.documents[message.id],
+                  MessageRowView(channels: channels, room: transcriptRoom, preparedDocument: preparedTranscript?.document(for: message),
                                  message: message,
                                  isContinuation: isMessageContinuation(previous: hasGap ? nil : previous, current: message),
                                  outbound: outbound,
@@ -224,14 +271,17 @@ import SwiftUI
                                    { workspaces.removeOutbound(clientTurnId: shell.clientTurnId) }
                                  },
                                  onRetryMention: mentionRetryAction(for: message),
-                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`).
-                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && CoworkerMentionShell(message: message) == nil
+                                 // Web hides the thread button on stream overlays and mention shells (`shouldShowChatRoomThreadButton`),
+                                 // and in a Read-only Direct on a message with no replies yet (`canOpenThread`).
+                                 onReply: outbound == nil && !message.id.hasPrefix("stream:") && MentionThoughtShell(message: message) == nil
+                                   && canOpenThread(message, in: transcriptRoom)
                                    ? { workspaces.openThread(message, auth: auth) } : nil,
-                                 onQuote: canQuoteMessage(message) ? { pendingQuote = messageQuote(from: message)
+                                 // Quoting fills the composer, which a Read-only Direct lacks.
+                                 onQuote: canQuoteMessage(message) && roomTakesNewMessages(transcriptRoom) ? { pendingQuote = messageQuote(from: message)
                                    quoteFocusRequest = UUID().uuidString
                                  } : nil,
                                  onEdit: canModifyOwnMessage(message, userId: workspaces.currentUserId) ? { workspaces.startEditing(message) } : nil,
-                                 isHighlighted: highlightedId == message.id,
+                                 jumpMark: jumpMark?.messageId == message.id ? jumpMark : nil,
                                  isPinned: workspaces.canUsePins && workspaces.isPinned(message),
                                  isUpdatingPin: workspaces.isUpdatingPin(message.id),
                                  onTogglePin: pinAction(for: message),
@@ -241,14 +291,20 @@ import SwiftUI
                                  editing: workspaces.messageEditing,
                                  onQuoteJump: { id in Task {
                                    do {
-                                     if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+                                     // Same-room quote: no Thread parent marked (row 25c).
+                                     if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
                                        jumpError = "This message is no longer available."
                                      }
                                    } catch { jumpError = friendlyMessage(for: error) }
                                  } },
                                  onSendToSelf: sendToSelfAction(for: message),
+                                 sokoBotFeedback: workspaces.sokoBotFeedback(for: message),
+                                 onSokoBotFeedback: sokoBotFeedbackAction(for: message),
                                  horizontalInset: 12,
-                                 streamThinking: isLiveCoworkerOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy)
+                                 streamThinking: isCoworkerStreamOverlay(message) && ComposerContent(message.content).text.isEmpty && workspaces.directStream.isBusy,
+                                 newestEndsInAttachment: message.id == newestMessageId && MessageMarkdown.endsWithAttachmentRun(message.content),
+                                 seenBy: readReceipts.seenBy(messageId: message.id, createdAt: message.createdAt, newestMessageId: newestMessageId))
+                    .jumpSpotlightRow(messageId: message.id)
                 }
               }
               .background {
@@ -270,6 +326,8 @@ import SwiftUI
           .scrollTargetLayout()
           .padding(.top, 8)
         }
+        // Row 25b2: the other rows step back while the mark holds.
+        .jumpSpotlight(for: jumpMark)
         .task {
           // Position after the lazy list mounts. A default initial bottom
           // anchor can leave the viewport unrealized on macOS 27.
@@ -282,6 +340,9 @@ import SwiftUI
           guard let target else { return }
           guard workspaces.displayedTranscript.contains(where: { $0.id == target }) else {
             quoteTarget = nil
+            if parentBehindThread == target {
+              parentBehindThread = nil
+            }
             jumpCompletion?.resume(returning: false)
             jumpCompletion = nil
             return
@@ -296,8 +357,15 @@ import SwiftUI
         }
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
-          if phase == .interacting || phase == .tracking {
-            highlightedId = nil
+          if phase.endsJumpMark {
+            jumpMark = jumpMark?.readerScrolled(at: Date())
+          }
+        }
+        .task(id: jumpMark) {
+          guard let mark = jumpMark else { return }
+          try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+          if !Task.isCancelled, jumpMark == mark {
+            jumpMark = nil
           }
         }
         .onChange(of: messages.last?.id) { _, _ in
@@ -313,7 +381,7 @@ import SwiftUI
                   if try await workspaces.returnToLatest(auth: auth) {
                     scrollPosition = ScrollPosition(idType: String.self)
                     scrollIntent.followLatest()
-                    highlightedId = nil
+                    jumpMark = nil
                     proxy.scrollTo("timeline-bottom", anchor: .bottom)
                   }
                 } catch { jumpError = friendlyMessage(for: error) }
@@ -323,10 +391,10 @@ import SwiftUI
         }
         .onScrollGeometryChange(for: CGFloat.self) { $0.containerSize.width } action: { old, new in
           // Closing Pins widens and reflows rich text. Restore the acknowledged
-          // target after that layout change, until the reader starts scrolling.
-          if old != new, let highlightedId, !userIsScrolling {
-            scrollPosition.scrollTo(id: highlightedId, anchor: .center)
-            proxy.scrollTo(highlightedId, anchor: .center)
+          // target after that layout change while its mark lasts, until the reader starts scrolling.
+          if old != new, let marked = jumpMark?.messageId, !userIsScrolling {
+            scrollPosition.scrollTo(id: marked, anchor: .center)
+            proxy.scrollTo(marked, anchor: .center)
           }
         }
         .onScrollGeometryChange(for: TranscriptScrollEdges.self) { TranscriptScrollEdges($0) } action: { oldEdges, edges in
@@ -376,7 +444,12 @@ import SwiftUI
 
     private func completeVisibleJump(_ target: String) {
       guard quoteTarget == target else { return }
-      highlightedId = target
+      // The Thread's parent keeps the mark it got when the jump arrived, or none once that hold has run out.
+      if parentBehindThread == target {
+        parentBehindThread = nil
+      } else {
+        jumpMark = JumpMark(messageId: target, landedAt: Date())
+      }
       quoteTarget = nil
       jumpCompletion?.resume(returning: true)
       jumpCompletion = nil
@@ -423,10 +496,6 @@ import SwiftUI
           .foregroundStyle(.secondary)
         Button("Retry", action: retry)
       }
-    }
-
-    private func isLiveCoworkerOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-      message.id.hasPrefix("stream:") && isCoworkerMessage(message)
     }
   }
 

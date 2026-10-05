@@ -1,4 +1,8 @@
-import type { Vendor } from "@/lib/clients/generated/core";
+"use client";
+
+import type { Vendor } from "@sokosumi/core-client";
+import { useState } from "react";
+
 import { cn } from "@/lib/utils";
 
 const VENDOR_LOGOS: Record<string, { light: string; dark: string }> = {
@@ -19,11 +23,13 @@ function VendorLogoImages({
   darkSrc,
   alt,
   className,
+  onError,
 }: {
   lightSrc: string;
   darkSrc: string;
   alt: string;
   className?: string;
+  onError: () => void;
 }) {
   return (
     <>
@@ -31,12 +37,14 @@ function VendorLogoImages({
       <img
         src={lightSrc}
         alt={alt}
+        onError={onError}
         className={cn("w-auto object-contain dark:hidden", className)}
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={darkSrc}
         alt={alt}
+        onError={onError}
         className={cn("hidden w-auto object-contain dark:block", className)}
       />
     </>
@@ -44,34 +52,28 @@ function VendorLogoImages({
 }
 
 /**
- * Renders vendor logos when available, otherwise falls back to the vendor name.
+ * Renders vendor logos when available, otherwise — or when a logo fails to
+ * load — the vendor name, so a broken image never shows its alt text.
  */
 export function VendorMark({
   vendor,
   className = "h-5",
   textClassName,
 }: VendorMarkProps) {
+  const [logoFailed, setLogoFailed] = useState(false);
   const { light, dark } = vendor.logos;
-
-  if (light || dark) {
-    return (
-      <VendorLogoImages
-        lightSrc={light ?? dark ?? ""}
-        darkSrc={dark ?? light ?? ""}
-        alt={vendor.name}
-        className={className}
-      />
-    );
-  }
-
   const asset = VENDOR_LOGOS[vendor.slug];
-  if (asset) {
+  const lightSrc = light ?? dark ?? asset?.light;
+  const darkSrc = dark ?? light ?? asset?.dark;
+
+  if (lightSrc && darkSrc && !logoFailed) {
     return (
       <VendorLogoImages
-        lightSrc={asset.light}
-        darkSrc={asset.dark}
+        lightSrc={lightSrc}
+        darkSrc={darkSrc}
         alt={vendor.name}
         className={className}
+        onError={() => setLogoFailed(true)}
       />
     );
   }

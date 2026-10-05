@@ -9,7 +9,7 @@ private let roomId = testRoomId
 
 private func roomJSON(unreadCount: Int) -> String {
   """
-  {"id":"\(roomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":\(unreadCount),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(roomId)","organizationId":null,"organizationName":null,"name":"general","slug":null,"kind":"channel","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(testTimestamp)","updatedAt":"\(testTimestamp)","unreadCount":\(unreadCount),"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -80,7 +80,7 @@ struct RoomTranscriptTests {
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440104", content: "a", sender: testUserSender(name: "Ada", email: "ada@example.com")),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440105", content: "b", sender: testUserSender(name: "", email: "nameless@example.com")),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440106", content: "c", sender: "{\"type\":\"coworker\",\"coworker\":{\"id\":\"cw_1\",\"name\":\"Helper\",\"slug\":\"helper\",\"presence\":\"online\"}}"),
-        testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440107", content: "d", sender: "{\"type\":\"sokoBot\",\"sokoBot\":{\"id\":\"bot_1\",\"name\":\"Soko\",\"presence\":\"online\"}}"),
+        testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440107", content: "d", sender: "{\"type\":\"sokoBot\",\"sokoBot\":{\"id\":\"bot_1\",\"name\":\"Soko\",\"ownerUserId\":\"user_1\",\"presence\":\"online\"}}"),
         testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440108", content: "e", sender: "{\"type\":\"unknown\"}")
       ], nextCursor: nil))
     ])

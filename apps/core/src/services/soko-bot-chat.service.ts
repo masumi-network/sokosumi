@@ -28,7 +28,6 @@ const CAPABILITY_LABELS: Record<string, string> = {
   hire_agent: "Hiring an Agent",
   get_job_status: "Checking Job status",
   provide_job_input: "Answering a Job",
-  request_user_decision: "Asking for your approval",
   read_memory: "Reading memory",
   update_memory: "Updating memory",
   web_search: "Searching the web",
@@ -70,6 +69,33 @@ async function publishRealtime(
   await publishChatRoomMessageRealtimeById(messageId, eventType);
 }
 
+/**
+ * What the chat shows as the bot's Thought: the provider's reasoning summary
+ * first, then the tools it used. The summary can mention the owner's mail or
+ * memory, so a teammate asking sees only the tool steps.
+ */
+function thoughtSteps(turn: {
+  userId: string;
+  requestedByUserId: string | null;
+  events: { type: string; toolName: string | null; summary: string | null }[];
+}): string[] {
+  const ownerAsked =
+    turn.requestedByUserId === null || turn.requestedByUserId === turn.userId;
+  const summaries = ownerAsked
+    ? turn.events.flatMap((event) =>
+        event.type === "reasoning.completed" && event.summary
+          ? [event.summary]
+          : [],
+      )
+    : [];
+  const tools = turn.events.flatMap((event) =>
+    event.type === "actions.requested"
+      ? [sokoBotCapabilityLabel(event.toolName)]
+      : [],
+  );
+  return [...summaries, ...tools];
+}
+
 async function loadChatLinkedTurn(
   turnId: string,
   client: Prisma.TransactionClient = prisma,
@@ -102,10 +128,12 @@ async function loadChatLinkedTurn(
           message: { select: { roomId: true } },
         },
       },
+      userId: true,
+      requestedByUserId: true,
       events: {
-        where: { type: "actions.requested" },
+        where: { type: { in: ["actions.requested", "reasoning.completed"] } },
         orderBy: { sequence: "asc" },
-        select: { toolName: true },
+        select: { type: true, toolName: true, summary: true },
       },
       pendingDecisions: {
         where: { status: "PENDING" },
@@ -127,13 +155,21 @@ async function loadChatLinkedTurn(
           roomId: turn.chatMention.message.roomId,
         }
       : null,
-    steps: turn.events.map((event) => sokoBotCapabilityLabel(event.toolName)),
+    steps: thoughtSteps(turn),
     pendingDecisionIds: turn.pendingDecisions.map((decision) => decision.id),
-    taskIds: turn.delegations
-      .map((delegation) => delegation.taskId)
-      .filter((id): id is string => id !== null),
+    // Creating and assigning one Task are two delegations, not two Tasks.
+    taskIds: [
+      ...new Set(
+        turn.delegations
+          .map((delegation) => delegation.taskId)
+          .filter((id): id is string => id !== null),
+      ),
+    ],
   };
 }
+
+/** The Thought of an answer with no reasoning summary and no tool calls. */
+export const ANSWERED_DIRECTLY = "Answered directly, without using any tools.";
 
 const lastProgressPublishAt = new Map<string, number>();
 
@@ -238,16 +274,102 @@ export async function introduceSokoBot(input: {
     });
     return created;
   });
+  await announceBotMessage(room.id, message.id);
+  return { messageId: message.id };
+}
+
+async function announceBotMessage(roomId: string, messageId: string) {
   const { publishChatRoomMessageRealtimeById } = await import(
     "@/helpers/chat-room-message-realtime"
   );
   await Promise.all([
-    invalidateChatRoomMessageReaders({
-      roomId: room.id,
-    }),
-    publishChatRoomMessageRealtimeById(message.id, "create"),
+    invalidateChatRoomMessageReaders({ roomId }),
+    publishChatRoomMessageRealtimeById(messageId, "create"),
   ]);
+}
+
+/**
+ * A fixed message from the bot into its owner's direct chat, outside any
+ * turn: nothing is classified and nothing wakes the bot. `key` makes it
+ * idempotent, so a retry posts once. An owner who never opened the chat gets
+ * it opened, with the bot's introduction first. Null when the bot is gone.
+ */
+export async function postSokoBotOwnerNotice(input: {
+  sokoBotId: string;
+  content: string;
+  key: string;
+}): Promise<{ messageId: string } | null> {
+  const bot = await prisma.sokoBot.findFirst({
+    where: { id: input.sokoBotId, archivedAt: null },
+    select: {
+      id: true,
+      userId: true,
+      workspaceId: true,
+      workspace: { select: { organizationId: true } },
+    },
+  });
+  if (!bot) return null;
+  const room = await findOrOpenOwnerDirectRoom(bot);
+  const message = await prisma.$transaction(async (tx) => {
+    const posted = await tx.chatRoomMessage.upsert({
+      where: {
+        roomId_clientMessageId: {
+          roomId: room.id,
+          clientMessageId: `soko-bot:notice:${input.key}`,
+        },
+      },
+      create: {
+        roomId: room.id,
+        clientMessageId: `soko-bot:notice:${input.key}`,
+        senderSokoBotId: bot.id,
+        content: input.content,
+      },
+      update: {},
+      select: { id: true },
+    });
+    await tx.chatRoom.update({
+      where: { id: room.id },
+      data: { updatedAt: new Date() },
+    });
+    return posted;
+  });
+  await announceBotMessage(room.id, message.id);
   return { messageId: message.id };
+}
+
+export async function findOrOpenOwnerDirectRoom(bot: {
+  id: string;
+  userId: string;
+  workspaceId: string;
+  workspace: { organizationId: string | null };
+}): Promise<{ id: string }> {
+  const existing = await prisma.chatRoom.findFirst({
+    where: {
+      kind: "direct",
+      sokoBotMembers: { some: { sokoBotId: bot.id } },
+      userMembers: { some: { userId: bot.userId } },
+    },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true },
+  });
+  if (existing) return existing;
+  const { createOrGetDirectRoom } = await import(
+    "@/routes/v1/chats/rooms/helpers"
+  );
+  const { room, created } = await createOrGetDirectRoom({
+    organizationId: bot.workspace.organizationId,
+    currentUserId: bot.userId,
+    memberUserIds: [],
+    coworkerIds: [],
+    sokoBotIds: [bot.id],
+  });
+  if (created)
+    await introduceSokoBot({
+      userId: bot.userId,
+      workspaceId: bot.workspaceId,
+      roomId: room.id,
+    });
+  return { id: room.id };
 }
 
 export async function persistSokoBotChatTurn(
@@ -303,15 +425,13 @@ export async function persistSokoBotChatTurn(
           mention_id: mention.id,
           // Same shape `thoughtMetadataFields` writes for coworkers, inlined
           // so this module never drags the realtime/auth import chain in.
-          ...(turn.steps.length > 0
-            ? {
-                reasoning: turn.steps.map((text) => ({
-                  type: "reasoning",
-                  text,
-                })),
-                thought_timing_ms: { start: startedAtMs, end: endedAtMs },
-              }
-            : {}),
+          // Every answer gets a Thought, as a Coworker's does: the summary
+          // and tools when there are any, otherwise a plain note.
+          reasoning: (turn.steps.length > 0
+            ? turn.steps
+            : [ANSWERED_DIRECTLY]
+          ).map((text) => ({ type: "reasoning", text })),
+          thought_timing_ms: { start: startedAtMs, end: endedAtMs },
           soko_bot: {
             turn_id: turn.id,
             pending_decision_ids: turn.pendingDecisionIds,

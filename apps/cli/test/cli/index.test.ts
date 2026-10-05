@@ -19,9 +19,8 @@ import {
 import {
   GLOBAL_BOOLEAN_FLAG_BY_TOKEN,
   GLOBAL_VALUE_OPTIONS,
-  parseArgv,
-  runCli,
-} from "../../src/cli/index.js";
+} from "../../src/cli/help.js";
+import { parseArgv, runCli } from "../../src/cli/index.js";
 
 function createTestAuthManager(): AuthManager {
   return new AuthManager({
@@ -382,6 +381,57 @@ test("unknown command usage comes from the command catalog", async () => {
     error: formatUnknownCommandUsage(),
     code: "UNKNOWN",
   });
+});
+
+test("unknown subcommands fail inside the command module", async () => {
+  const unknownUsage = formatUnknownCommandUsage();
+  const unusedClient = {
+    get: async <T>(): Promise<T> => {
+      throw new Error("Core should not be called");
+    },
+    post: async <T>(): Promise<T> => {
+      throw new Error("Core should not be called");
+    },
+    put: async (): Promise<never> => {
+      throw new Error("Core should not be called");
+    },
+    patch: async <T>(): Promise<T> => {
+      throw new Error("Core should not be called");
+    },
+  };
+  const cases = [
+    { argv: ["agents", "bogus"], message: /Unknown agents subcommand: bogus/ },
+    {
+      argv: ["coworkers", "bogus"],
+      message: /Unknown coworkers subcommand: bogus/,
+    },
+    { argv: ["tasks", "bogus"], message: /Unknown tasks subcommand: bogus/ },
+    { argv: ["jobs", "bogus"], message: /Unknown jobs subcommand: bogus/ },
+    { argv: ["vendors", "bogus"], message: /Usage: sokosumi vendors me/ },
+    {
+      argv: ["workspaces", "bogus"],
+      message: /Usage: sokosumi workspaces list/,
+    },
+  ] as const;
+
+  for (const testCase of cases) {
+    const output: string[] = [];
+    await assert.rejects(
+      runCli([...testCase.argv, "--json"], {
+        env: {
+          SOKOSUMI_API_URL: "https://api.example.test",
+          SOKOSUMI_AUTH_TOKEN: "token",
+        },
+        authManager: createTestAuthManager(),
+        coreClient: unusedClient,
+        stdout: { write: (value) => output.push(value) },
+      }),
+      testCase.message,
+    );
+    const parsed = JSON.parse(output.join("")) as { error: string };
+    assert.match(parsed.error, testCase.message);
+    assert.notEqual(parsed.error, unknownUsage);
+  }
 });
 
 test("parses coworker registration vendor ID", () => {
@@ -1030,16 +1080,20 @@ test("new read commands reject unauthenticated calls before Core", async () => {
 });
 
 test("new commands require their exact subcommand and no trailing args", async () => {
+  const unknownUsage = formatUnknownCommandUsage();
   const invalidArgs = [
-    ["vendors"],
-    ["workspaces"],
-    ["vendors", "me", "extra"],
-    ["workspaces", "list", "extra"],
+    { args: ["vendors"], message: /Usage: sokosumi vendors me/ },
+    { args: ["workspaces"], message: /Usage: sokosumi workspaces list/ },
+    { args: ["vendors", "me", "extra"], message: /Usage: sokosumi vendors me/ },
+    {
+      args: ["workspaces", "list", "extra"],
+      message: /Usage: sokosumi workspaces list/,
+    },
   ];
-  for (const args of invalidArgs) {
+  for (const testCase of invalidArgs) {
     const output: string[] = [];
     await assert.rejects(
-      runCli([...args, "--json"], {
+      runCli([...testCase.args, "--json"], {
         env: {
           SOKOSUMI_API_URL: "https://api.example.test",
           SOKOSUMI_AUTH_TOKEN: "token",
@@ -1055,9 +1109,12 @@ test("new commands require their exact subcommand and no trailing args", async (
         },
         stdout: { write: (value) => output.push(value) },
       }),
-      /Usage:|Unexpected argument:/,
+      testCase.message,
     );
     assert.equal(output.length, 1);
+    const parsed = JSON.parse(output[0]!) as { error: string };
+    assert.match(parsed.error, testCase.message);
+    assert.notEqual(parsed.error, unknownUsage);
   }
 });
 

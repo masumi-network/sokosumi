@@ -54,7 +54,8 @@ vi.mock("@vercel/blob", () => ({
 // The SSRF guard is unit-tested in `@sokosumi/net`. Here we stub it to
 // delegate straight to the mocked `global.fetch` so these orchestration tests
 // keep exercising the worker's scheduling/cancellation behavior.
-vi.mock("@sokosumi/net", () => ({
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
   ssrfSafeFetch: (url: string, init: SsrfSafeFetchInit) =>
     global.fetch(url, init),
 }));

@@ -148,7 +148,7 @@
 
       private static func overview(firstMuted: Bool, dark: Bool, record: Bool) async throws -> NSBitmapImageRep {
         let sender = Components.Schemas.ChatRoomUserParticipant(id: "user", name: "Ada Lovelace", email: "ada@example.com", presence: .online)
-        var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "Release checklist", sender: sender))
+        var first = chatRoomMessage(from: OutboundShell(clientTurnId: "first", roomId: "room", content: "Release checklist", createdAt: Date(), sender: sender))
         first.id = "first"
         var second = first
         second.id = "second"

@@ -1,6 +1,8 @@
+import { inspect } from "node:util";
+
 import { MemberRole } from "@sokosumi/database";
 import { ENTERPRISE_SUBSCRIPTION_EXCLUSIVITY_MESSAGE } from "@sokosumi/database/helpers";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 interface AuthorizeReferenceConfig {
   subscription: {
@@ -29,10 +31,11 @@ const {
   jwtPluginMock,
   lastLoginMethodPluginMock,
   oauthProviderPluginMock,
+  getOAuthProviderStateMock,
   oAuthProxyPluginMock,
   openAPIPluginMock,
   organizationPluginMock,
-  magicLinkPluginMock,
+  emailOTPPluginMock,
   markOutOfCreditsTasksAsToppedUpMock,
   getMemberByUserIdAndOrganizationIdMock,
   getMembersByOrganizationIdMock,
@@ -42,10 +45,14 @@ const {
   prismaMock,
   prismaTransactionMock,
   prismaUserUpdateManyMock,
+  prismaVerificationCreateManyMock,
   reconcileActiveStripeBackedSubscriptionMock,
-  renderMagicLinkEmailMock,
+  renderEmailCodeEmailMock,
+  renderVerificationEmailMock,
   resolveActiveOrganizationIdForSessionMock,
   sentryCaptureExceptionMock,
+  sentrySetExtrasMock,
+  setSessionCookieMock,
   stripeCreateUserCustomerMock,
   stripeCreateOrganizationCustomerMock,
   stripePluginMock,
@@ -75,6 +82,7 @@ const {
     async (callback: (tx: unknown) => unknown) => callback({}),
   );
   const prismaUserUpdateManyMock = vi.fn();
+  const prismaVerificationCreateManyMock = vi.fn();
   const prismaUserFindUniqueMock = vi.fn();
   const prismaOrganizationFindUniqueMock = vi.fn();
   const prismaMemberFindFirstMock = vi.fn();
@@ -116,9 +124,16 @@ const {
     enterpriseContract: {
       findFirst: prismaEnterpriseContractFindFirstMock,
     },
+    verification: {
+      createMany: prismaVerificationCreateManyMock,
+    },
+    oauthClient: {
+      findFirst: vi.fn(),
+    },
   };
 
   return {
+    prismaVerificationCreateManyMock,
     adminPluginMock: vi.fn(),
     apiKeyPluginMock: vi.fn(),
     betterAuthMock: vi.fn(),
@@ -135,10 +150,11 @@ const {
     jwtPluginMock: vi.fn(),
     lastLoginMethodPluginMock: vi.fn(),
     oauthProviderPluginMock: vi.fn(),
+    getOAuthProviderStateMock: vi.fn(),
     oAuthProxyPluginMock: vi.fn(),
     openAPIPluginMock: vi.fn(),
     organizationPluginMock: vi.fn(),
-    magicLinkPluginMock: vi.fn(),
+    emailOTPPluginMock: vi.fn(),
     markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
     getMemberByUserIdAndOrganizationIdMock: vi.fn(),
     getMembersByOrganizationIdMock: vi.fn(),
@@ -151,9 +167,12 @@ const {
     prismaUserFindUniqueMock,
     prismaOrganizationFindUniqueMock,
     reconcileActiveStripeBackedSubscriptionMock: vi.fn(),
-    renderMagicLinkEmailMock: vi.fn(),
+    renderEmailCodeEmailMock: vi.fn(),
+    renderVerificationEmailMock: vi.fn(),
     resolveActiveOrganizationIdForSessionMock: vi.fn(),
     sentryCaptureExceptionMock: vi.fn(),
+    sentrySetExtrasMock: vi.fn(),
+    setSessionCookieMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
     stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
@@ -214,6 +233,14 @@ function envRequiringPersonalWorkspace() {
   };
 }
 
+vi.mock("better-auth/cookies", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("better-auth/cookies")>();
+  return {
+    ...actual,
+    setSessionCookie: (...args: unknown[]) => setSessionCookieMock(...args),
+  };
+});
+
 vi.mock("better-auth/minimal", () => ({
   betterAuth: (...args: unknown[]) => betterAuthMock(...args),
 }));
@@ -228,7 +255,7 @@ vi.mock("better-auth/plugins", async (importOriginal) => ({
   admin: (...args: unknown[]) => adminPluginMock(...args),
   jwt: (...args: unknown[]) => jwtPluginMock(...args),
   lastLoginMethod: (...args: unknown[]) => lastLoginMethodPluginMock(...args),
-  magicLink: (...args: unknown[]) => magicLinkPluginMock(...args),
+  emailOTP: (...args: unknown[]) => emailOTPPluginMock(...args),
   oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
   organization: (...args: unknown[]) => organizationPluginMock(...args),
@@ -248,6 +275,7 @@ vi.mock("@better-auth/api-key", () => ({
 
 vi.mock("@better-auth/oauth-provider", () => ({
   oauthProvider: (...args: unknown[]) => oauthProviderPluginMock(...args),
+  getOAuthProviderState: () => getOAuthProviderStateMock(),
 }));
 
 vi.mock("@better-auth/i18n", () => ({
@@ -256,17 +284,21 @@ vi.mock("@better-auth/i18n", () => ({
 
 // Keep the real APIError (the hooks throw it and tests assert its shape) but
 // reduce createAuthMiddleware to an identity wrapper so the terms guards can be
-// invoked directly with a plain context in unit tests.
+// invoked directly with a plain context in unit tests. Those run outside a
+// request, so there is no social OAuth state to read.
 vi.mock("better-auth/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("better-auth/api")>();
   return {
     ...actual,
     createAuthMiddleware: (callback: unknown) => callback,
+    getOAuthState: async () => null,
   };
 });
 
 vi.mock("@sentry/node", () => ({
   captureException: (...args: unknown[]) => sentryCaptureExceptionMock(...args),
+  withScope: (callback: (scope: { setExtras: unknown }) => void) =>
+    callback({ setExtras: sentrySetExtrasMock }),
 }));
 
 vi.mock("@vercel/functions", () => ({
@@ -324,14 +356,14 @@ vi.mock("@/clients/stripe.client", () => ({
   },
 }));
 
-vi.mock("@/config/env", () => ({
+vi.mock("@/config/env", async (importOriginal) => ({
   getEnv: () => getEnvMock(),
+  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
   getBetterAuthPublicBaseUrl: () => getBetterAuthPublicBaseUrlMock(),
   getWebAppBaseUrl: () => getWebAppBaseUrlMock(),
-}));
-
-vi.mock("@/config/better-auth-production-url", () => ({
-  getBetterAuthProductionUrl: () => getBetterAuthProductionUrlMock(),
+  isProductionEnvironment: (
+    await importOriginal<typeof import("@/config/env")>()
+  ).isProductionEnvironment,
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
@@ -421,8 +453,10 @@ vi.mock("@/helpers/design-md-metadata-auth", () => ({
 }));
 
 vi.mock("@sokosumi/email", () => ({
-  renderMagicLinkEmail: (...args: unknown[]) =>
-    renderMagicLinkEmailMock(...args),
+  renderEmailCodeEmail: (...args: unknown[]) =>
+    renderEmailCodeEmailMock(...args),
+  renderVerificationEmail: (...args: unknown[]) =>
+    renderVerificationEmailMock(...args),
 }));
 
 describe("core auth config", () => {
@@ -438,7 +472,16 @@ describe("core auth config", () => {
     getWebAppBaseUrlMock.mockReturnValue("https://preprod.sokosumi.com");
     jwtPluginMock.mockReturnValue("jwt-plugin");
     lastLoginMethodPluginMock.mockReturnValue("last-login-method-plugin");
-    magicLinkPluginMock.mockReturnValue("magic-link-plugin");
+    emailOTPPluginMock.mockReturnValue({
+      id: "email-otp",
+      endpoints: {
+        signInEmailOTP: {
+          path: "/sign-in/email-otp",
+          options: { method: "POST" },
+        },
+      },
+      hooks: { after: [] },
+    });
     oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
@@ -447,9 +490,15 @@ describe("core auth config", () => {
     reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
     sendEmailMock.mockResolvedValue({ id: "email_123" });
     prismaAdapterMock.mockReturnValue("prisma-adapter");
-    renderMagicLinkEmailMock.mockResolvedValue({
-      html: "<html>magic link</html>",
-      subject: "Sokosumi - Sign in to your account",
+    getOAuthProviderStateMock.mockResolvedValue(null);
+    prismaMock.oauthClient.findFirst.mockResolvedValue(null);
+    renderVerificationEmailMock.mockResolvedValue({
+      html: "<html>verification</html>",
+      subject: "Sokosumi - Verify your email address",
+    });
+    renderEmailCodeEmailMock.mockResolvedValue({
+      html: "<html>email code</html>",
+      subject: "Your Sokosumi code: 042917",
     });
     sentryCaptureExceptionMock.mockReset();
     stripeCreateUserCustomerMock.mockResolvedValue({ id: "cus_123" });
@@ -514,6 +563,15 @@ describe("core auth config", () => {
 
     expect(config.socialProviders).toBe(socialProviderOptions);
     expect(config.account).toBe(accountOptions);
+  });
+
+  it("passes the refresh token options to the OAuth provider", async () => {
+    await import("./auth");
+    const { oauthRefreshTokenOptions } = await import("./auth-oauth-provider");
+
+    expect(oauthProviderPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining(oauthRefreshTokenOptions),
+    );
   });
 
   it("fires account-created webhook when a social account is linked", async () => {
@@ -634,7 +692,18 @@ describe("core auth config", () => {
 
     expect(lastLoginMethodPluginMock).toHaveBeenCalledWith({
       cookieName: "sokosumi.last_used_login_method",
+      customResolveMethod: expect.any(Function),
     });
+    // A password sign-up goes through the email code, and is still `email`.
+    const [[options]] = lastLoginMethodPluginMock.mock.calls as Array<
+      [{ customResolveMethod: (ctx: unknown) => string | null }]
+    >;
+    expect(
+      options.customResolveMethod({
+        path: "/sign-in/email-otp",
+        body: { password: "Password123!" },
+      }),
+    ).toBe("email");
   });
 
   it("configures subscription checkout for billing, tax IDs, and customer updates", async () => {
@@ -977,12 +1046,15 @@ describe("core auth config", () => {
     >;
 
     expect(config.basePath).toBe("/auth");
+    expect(prismaAdapterMock).toHaveBeenCalledWith(expect.anything(), {
+      provider: "postgresql",
+      transaction: true,
+    });
     expect(config.plugins).toEqual(
       expect.arrayContaining([
         "admin-plugin",
         "api-key-plugin",
         "jwt-plugin",
-        "magic-link-plugin",
         "i18n-plugin",
         "openapi-plugin",
         "organization-plugin",
@@ -991,6 +1063,7 @@ describe("core auth config", () => {
         "oauth-provider-plugin",
         "oauth-proxy-plugin",
         "stripe-plugin",
+        expect.objectContaining({ id: "email-code-sign-in" }),
       ]),
     );
     expect(apiKeyPluginMock).toHaveBeenCalledWith(
@@ -1100,6 +1173,28 @@ describe("core auth config", () => {
     ]);
   });
 
+  it("sends sign-in errors without a callback to the related web preview's error page", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      NODE_ENV: "production",
+      VERCEL_ENV: "preview",
+      VERCEL_GIT_COMMIT_REF: "fix/web-preview-core-url",
+    });
+    getWebAppBaseUrlMock.mockReturnValue(
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com",
+    );
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ onAPIError: { errorURL: string } }]
+    >;
+
+    expect(config.onAPIError.errorURL).toBe(
+      "https://sokosumi-app-preprod-git-fix-web-preview-core-url.preview.sokosumi.com/auth/error",
+    );
+  });
+
   it("uses uuid database ids and database-backed rate limits", async () => {
     await import("./auth");
 
@@ -1205,16 +1300,67 @@ describe("core auth config", () => {
     expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
   });
 
-  it("configures the magic link plugin", async () => {
+  it("signs in with a six-digit email code that lasts ten minutes, allows five tries and survives a resend", async () => {
     await import("./auth");
 
-    expect(magicLinkPluginMock).toHaveBeenCalledTimes(1);
+    expect(emailOTPPluginMock).toHaveBeenCalledTimes(1);
+    expect(emailOTPPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        otpLength: 6,
+        expiresIn: 600,
+        allowedAttempts: 5,
+        // A resend repeats the code, so a late first email still works.
+        storeOTP: "encrypted",
+        resendStrategy: "reuse",
+        disableSignUp: false,
+      }),
+    );
+  });
 
-    const [[config]] = magicLinkPluginMock.mock.calls as Array<
-      [{ sendMagicLink: unknown }]
+  // Better Auth keys the bucket by IP and path, and this plugin rule overrides
+  // its default three a minute for sending.
+  it("asks the email code plugin for ten requests a minute, so a shared office network still signs in", async () => {
+    await import("./auth");
+
+    expect(emailOTPPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({ rateLimit: { window: 60, max: 10 } }),
+    );
+  });
+
+  it("closes the email code endpoints Sokosumi does not use", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ disabledPaths: string[] }]
     >;
 
-    expect(config.sendMagicLink).toEqual(expect.any(Function));
+    expect(config.disabledPaths).toEqual(
+      expect.arrayContaining([
+        "/email-otp/check-verification-otp",
+        "/email-otp/verify-email",
+        "/email-otp/request-password-reset",
+        "/forget-password/email-otp",
+        "/email-otp/reset-password",
+        "/email-otp/request-email-change",
+        "/email-otp/change-email",
+      ]),
+    );
+    expect(config.disabledPaths).not.toContain("/sign-in/email-otp");
+    expect(config.disabledPaths).not.toContain(
+      "/email-otp/send-verification-otp",
+    );
+  });
+
+  // Password sign-up sends the password with the email code instead, so no
+  // new account starts with an unproven address.
+  it("closes password sign-up without an email code", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ disabledPaths: string[] }]
+    >;
+
+    expect(config.disabledPaths).toContain("/sign-up/email");
   });
 
   it("uses the canonical production URL for the OAuth proxy", async () => {
@@ -1226,6 +1372,36 @@ describe("core auth config", () => {
 
     expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
       productionURL: "https://canonical.example.com",
+      currentURL: "https://example.com/auth",
+    });
+  });
+
+  it("tells the OAuth proxy its own URL instead of leaving it to the request", async () => {
+    getBetterAuthPublicBaseUrlMock.mockReturnValue(
+      "https://core-pr.preview.example.com",
+    );
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentURL: "https://core-pr.preview.example.com",
+      }),
+    );
+  });
+
+  it("encrypts the OAuth proxy hand-off with its own secret", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      OAUTH_PROXY_SECRET: "proxy-secret",
+    });
+
+    await import("./auth");
+
+    expect(oAuthProxyPluginMock).toHaveBeenCalledWith({
+      productionURL: "https://example.com/auth",
+      currentURL: "https://example.com/auth",
+      secret: "proxy-secret",
     });
   });
 
@@ -1267,6 +1443,160 @@ describe("core auth config", () => {
     >;
 
     expect(config.emailAndPassword.revokeSessionsOnPasswordReset).toBe(true);
+  });
+
+  describe("app tokens", () => {
+    const now = new Date("2026-10-02T12:00:00Z");
+    const updateMany = vi.fn();
+
+    function expectAppTokensRevokedFor(userId: string) {
+      const where = [
+        { field: "userId", value: userId },
+        { field: "revoked", operator: "eq", value: null },
+      ];
+      expect(updateMany).toHaveBeenCalledTimes(2);
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthAccessToken",
+        where,
+        update: { revoked: now },
+      });
+      expect(updateMany).toHaveBeenCalledWith({
+        model: "oauthRefreshToken",
+        where,
+        update: { revoked: now },
+      });
+    }
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"], now });
+      updateMany.mockReset();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("revokes every app token when a password is reset", async () => {
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions: vi.fn() },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } });
+
+      expectAppTokensRevokedFor("user-1");
+    });
+
+    it("ends every session on a reset even when revoking app tokens fails", async () => {
+      // Better Auth deletes sessions only after this callback returns.
+      const deleteUserSessions = vi.fn();
+      updateMany.mockRejectedValue(new Error("database gone"));
+      betterAuthMock.mockReturnValue({
+        api: {},
+        handler: vi.fn(),
+        $context: Promise.resolve({
+          adapter: { updateMany },
+          internalAdapter: { deleteUserSessions },
+        }),
+      });
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailAndPassword: {
+              onPasswordReset: (data: {
+                user: { id: string };
+              }) => Promise<void>;
+            };
+          },
+        ]
+      >;
+
+      await expect(
+        config.emailAndPassword.onPasswordReset({ user: { id: "user-1" } }),
+      ).rejects.toThrow("database gone");
+      expect(deleteUserSessions).toHaveBeenCalledWith("user-1");
+    });
+
+    async function runAfterHook(ctx: {
+      path: string;
+      body?: Record<string, unknown>;
+      returned: unknown;
+    }) {
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { after: (ctx: unknown) => Promise<void> } }]
+      >;
+
+      await config.hooks.after({
+        path: ctx.path,
+        body: ctx.body,
+        context: {
+          adapter: { updateMany },
+          returned: ctx.returned,
+          session: { user: { id: "user-1" } },
+        },
+      });
+    }
+
+    it.each([true, false])(
+      "revokes every app token when a password is changed (revokeOtherSessions: %s)",
+      async (revokeOtherSessions) => {
+        await runAfterHook({
+          path: "/change-password",
+          body: { revokeOtherSessions },
+          returned: { token: null, user: { id: "user-1" } },
+        });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it.each(["/revoke-sessions", "/revoke-other-sessions"])(
+      "revokes every app token on %s",
+      async (path) => {
+        await runAfterHook({ path, returned: { status: true } });
+
+        expectAppTokensRevokedFor("user-1");
+      },
+    );
+
+    it("keeps app tokens when the person signs out of Sokosumi", async () => {
+      await runAfterHook({ path: "/sign-out", returned: { success: true } });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
+
+    it("keeps app tokens when the current password is wrong", async () => {
+      const { APIError } = await import("better-auth/api");
+
+      await runAfterHook({
+        path: "/change-password",
+        body: { revokeOtherSessions: true },
+        returned: new APIError("BAD_REQUEST", { code: "INVALID_PASSWORD" }),
+      });
+
+      expect(updateMany).not.toHaveBeenCalled();
+    });
   });
 
   it("disables cross-subdomain cookies when no cookie domain is configured", async () => {
@@ -1421,62 +1751,329 @@ describe("core auth config", () => {
     expect(config.advanced.cookiePrefix).toBe("sokosumi-preview-preprod");
   });
 
-  it("prefers the locale cookie over accept-language for magic-link emails", async () => {
+  it("emails the code in the reader's language", async () => {
     await import("./auth");
 
-    const [[config]] = magicLinkPluginMock.mock.calls as Array<
+    const [[config]] = emailOTPPluginMock.mock.calls as Array<
       [
         {
-          sendMagicLink: (
-            data: {
-              email: string;
-              token: string;
-              url: string;
-            },
-            ctx?: {
-              body?: { name?: string };
-              headers?: Headers;
-              request?: Request;
-            },
+          sendVerificationOTP: (
+            data: { email: string; otp: string; type: string },
+            ctx?: { headers?: Headers; request?: Request },
           ) => Promise<void>;
         },
       ]
     >;
 
-    const request = new Request("https://example.com/auth/sign-in/magic-link", {
-      headers: {
-        "accept-language": "de-DE,de;q=0.9",
-        cookie: "sokosumi.locale=pt-BR",
-      },
-    });
-
-    await config.sendMagicLink(
+    const request = new Request(
+      "https://example.com/auth/email-otp/send-verification-otp",
       {
-        email: "andreas@example.com",
-        url: "https://example.com/auth/magic-link/verify?token=secret",
-        token: "secret-token",
-      },
-      {
-        body: {
-          name: "Andreas",
-        },
-        headers: new Headers({
+        headers: {
+          "accept-language": "de-DE,de;q=0.9",
           cookie: "sokosumi.locale=pt-BR",
-        }),
+        },
+      },
+    );
+
+    await config.sendVerificationOTP(
+      { email: "andreas@example.com", otp: "042917", type: "sign-in" },
+      {
+        headers: new Headers({ cookie: "sokosumi.locale=pt-BR" }),
         request,
       },
     );
 
-    expect(renderMagicLinkEmailMock).toHaveBeenCalledWith({
+    expect(renderEmailCodeEmailMock).toHaveBeenCalledWith({
       locale: "de",
-      magicLink: "https://example.com/auth/magic-link/verify?token=secret",
-      name: "Andreas",
+      code: "042917",
+      expiresInMinutes: 10,
     });
     expect(sendEmailMock).toHaveBeenCalledWith({
       to: "andreas@example.com",
-      tag: "magic-link",
-      subject: "Sokosumi - Sign in to your account",
-      html: "<html>magic link</html>",
+      tag: "email-code",
+      subject: "Your Sokosumi code: 042917",
+      html: "<html>email code</html>",
+    });
+  });
+
+  // Local Core has no working email key, so the console is the inbox.
+  describe("email code in the console", () => {
+    async function sendCode() {
+      await import("./auth");
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+    }
+
+    async function expectCodeLine(printed: boolean) {
+      const write = vi
+        .spyOn(process.stdout, "write")
+        .mockImplementation(() => true);
+
+      try {
+        await sendCode();
+
+        if (printed) {
+          expect(write).toHaveBeenCalledWith(
+            "[email code] andreas@example.com: 042917\n",
+          );
+        } else {
+          expect(write).not.toHaveBeenCalledWith(
+            expect.stringContaining("042917"),
+          );
+        }
+        expect(sendEmailMock).toHaveBeenCalledOnce();
+      } finally {
+        write.mockRestore();
+      }
+    }
+
+    it("prints the code in development, and still emails it", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+
+      await expectCodeLine(true);
+    });
+
+    it("keeps the development code usable when email delivery fails", async () => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        NODE_ENV: "development",
+      });
+      const failure = Object.assign(new Error("Email transport unavailable"), {
+        name: "application_error",
+        statusCode: null,
+      });
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+
+      try {
+        await expectCodeLine(true);
+        await expect(flushWaitUntil()).resolves.toBeUndefined();
+        expect(warn).toHaveBeenCalledWith(
+          "[email_code_email] suppressed external failure",
+          {
+            error: "Email code delivery failed",
+          },
+        );
+        expect(JSON.stringify(warn.mock.calls)).not.toContain("042917");
+        expect(JSON.stringify(warn.mock.calls)).not.toContain(
+          "andreas@example.com",
+        );
+      } finally {
+        warn.mockRestore();
+      }
+    });
+
+    it.each(["production", "staging"])(
+      "never prints it when NODE_ENV is %s, and still emails it",
+      async (nodeEnv) => {
+        getEnvMock.mockReturnValue({
+          ...getDefaultEnv(),
+          NODE_ENV: nodeEnv,
+        });
+
+        await expectCodeLine(false);
+      },
+    );
+
+    it("reports a failed send to Sentry without the address", async () => {
+      const failure = new Error("Resend rejected the request");
+      sendEmailMock.mockRejectedValueOnce(failure);
+
+      await sendCode();
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledOnce();
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+        expect.objectContaining({ message: "Email code delivery failed" }),
+        { tags: { context: "email_code_email" } },
+      );
+      expect(
+        JSON.stringify(sentryCaptureExceptionMock.mock.calls),
+      ).not.toContain("andreas@example.com");
+    });
+  });
+
+  it.each([422, 503])(
+    "keeps recipient-bearing provider errors out of telemetry (%s)",
+    async (statusCode) => {
+      const failure = Object.assign(
+        new Error("Unable to send to andreas@example.com: 042917"),
+        {
+          name: "application_error",
+          statusCode,
+          cause: { message: "andreas@example.com", code: "042917" },
+        },
+      );
+      sendEmailMock.mockRejectedValueOnce(failure);
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      await import("./auth");
+
+      const [[config]] = emailOTPPluginMock.mock.calls as Array<
+        [
+          {
+            sendVerificationOTP: (data: {
+              email: string;
+              otp: string;
+              type: string;
+            }) => Promise<void>;
+          },
+        ]
+      >;
+
+      await config.sendVerificationOTP({
+        email: "andreas@example.com",
+        otp: "042917",
+        type: "sign-in",
+      });
+      await flushWaitUntil();
+
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(
+        statusCode === 503 ? 0 : 1,
+      );
+      expect(warn).toHaveBeenCalledTimes(statusCode === 503 ? 1 : 0);
+      const reported = inspect(
+        [
+          sentryCaptureExceptionMock.mock.calls,
+          sentrySetExtrasMock.mock.calls,
+          warn.mock.calls,
+        ],
+        { depth: null },
+      );
+      expect(reported).not.toContain("andreas@example.com");
+      expect(reported).not.toContain("042917");
+      expect(reported).toContain("Email code delivery failed");
+      warn.mockRestore();
+    },
+  );
+
+  describe("verification email", () => {
+    type SendVerificationEmail = (
+      data: { user: { id: string; email: string; name: string }; url: string },
+      request?: Request,
+    ) => Promise<void>;
+
+    const VERIFY_URL =
+      "https://example.com/auth/verify-email?token=abc&callbackURL=%2F";
+    const user = { id: "user_1", email: "ada@example.com", name: "Ada" };
+
+    async function sendVerificationEmail(): Promise<void> {
+      await import("./auth");
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            emailVerification: { sendVerificationEmail: SendVerificationEmail };
+          },
+        ]
+      >;
+      await config.emailVerification.sendVerificationEmail(
+        { user, url: VERIFY_URL },
+        new Request("https://example.com/auth/sign-up/email", {
+          headers: { "accept-language": "en" },
+        }),
+      );
+      await flushWaitUntil();
+    }
+
+    function renderedLinkCallback(): string | null {
+      const [[props]] = renderVerificationEmailMock.mock.calls as Array<
+        [{ verificationLink: string }]
+      >;
+      return new URL(props.verificationLink).searchParams.get("callbackURL");
+    }
+
+    it("names the app a sign-up came from and sends the link back to it", async () => {
+      getOAuthProviderStateMock.mockResolvedValue({
+        query: "response_type=code&client_id=cmo-client&scope=openid",
+      });
+      prismaMock.oauthClient.findFirst.mockResolvedValue({ name: "CMO" });
+
+      await sendVerificationEmail();
+
+      expect(prismaMock.oauthClient.findFirst).toHaveBeenCalledWith({
+        where: { clientId: "cmo-client", disabled: false },
+        select: { name: true },
+      });
+      expect(renderVerificationEmailMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Ada", clientName: "CMO" }),
+      );
+      expect(renderedLinkCallback()).toBe(
+        "https://preprod.sokosumi.com/auth/email-confirmed?client_id=cmo-client",
+      );
+      expect(sendEmailMock).toHaveBeenCalledWith({
+        to: "ada@example.com",
+        tag: "verification-email",
+        subject: "Sokosumi - Verify your email address",
+        html: "<html>verification</html>",
+      });
+    });
+
+    it("keeps Sokosumi's email and link for a sign-up without an OAuth request", async () => {
+      await sendVerificationEmail();
+
+      expect(prismaMock.oauthClient.findFirst).not.toHaveBeenCalled();
+      expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+        locale: "en",
+        name: "Ada",
+        verificationLink: expect.any(String),
+      });
+      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+    });
+
+    it.each([null, "", "   "])(
+      "keeps Sokosumi's email and link when the client has no name (%j)",
+      async (name) => {
+        getOAuthProviderStateMock.mockResolvedValue({
+          query: "response_type=code&client_id=unnamed",
+        });
+        prismaMock.oauthClient.findFirst.mockResolvedValue({ name });
+
+        await sendVerificationEmail();
+
+        expect(renderVerificationEmailMock).toHaveBeenCalledWith({
+          locale: "en",
+          name: "Ada",
+          verificationLink: expect.any(String),
+        });
+        expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+      },
+    );
+
+    it("still sends Sokosumi's email when the client lookup fails", async () => {
+      getOAuthProviderStateMock.mockResolvedValue({
+        query: "response_type=code&client_id=cmo-client",
+      });
+      const lookupError = new Error("database unavailable");
+      prismaMock.oauthClient.findFirst.mockRejectedValue(lookupError);
+
+      await sendVerificationEmail();
+
+      expect(renderedLinkCallback()).toBe("https://preprod.sokosumi.com/");
+      expect(sendEmailMock).toHaveBeenCalledWith(
+        expect.objectContaining({ to: "ada@example.com" }),
+      );
+      expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+        lookupError,
+        expect.objectContaining({
+          tags: { context: "verification_email_client" },
+        }),
+      );
     });
   });
 
@@ -1634,6 +2231,78 @@ describe("core auth config", () => {
         userId: "user_123",
       }),
       expect.anything(),
+    );
+  });
+
+  it("records a social sign-up before the provider callback answers", async () => {
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (
+                  user: { email: string; id: string; name: string },
+                  ctx: { path: string; params: Record<string, string> },
+                ) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await config.databaseHooks.user.create.after(
+      { email: "andreas@example.com", id: "user_123", name: "Andreas" },
+      { path: "/callback/:id", params: { id: "google" } },
+    );
+
+    expect(prismaVerificationCreateManyMock).toHaveBeenCalledWith({
+      data: expect.arrayContaining([
+        expect.objectContaining({
+          identifier: "sign-up-conversion:user_123",
+          value: "google",
+        }),
+      ]),
+    });
+  });
+
+  it("reports a failed social sign-up record to Sentry without blocking the sign-up", async () => {
+    prismaVerificationCreateManyMock.mockRejectedValueOnce(
+      new Error("database unavailable"),
+    );
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [
+        {
+          databaseHooks: {
+            user: {
+              create: {
+                after: (
+                  user: { email: string; id: string; name: string },
+                  ctx: { path: string; params: Record<string, string> },
+                ) => Promise<void>;
+              };
+            };
+          };
+        },
+      ]
+    >;
+
+    await expect(
+      config.databaseHooks.user.create.after(
+        { email: "andreas@example.com", id: "user_123", name: "Andreas" },
+        { path: "/callback/:id", params: { id: "microsoft" } },
+      ),
+    ).resolves.toBeUndefined();
+    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(
+      expect.any(Error),
+      expect.objectContaining({
+        tags: { context: "sign_up_conversion" },
+      }),
     );
   });
 
@@ -1805,7 +2474,7 @@ describe("core auth config", () => {
     });
   });
 
-  it("reports Stripe customer creation failures to Sentry", async () => {
+  it("reports Stripe customer creation failures to Sentry without the address or name", async () => {
     stripeCreateUserCustomerMock.mockRejectedValueOnce(
       new Error("stripe failed"),
     );
@@ -1840,15 +2509,14 @@ describe("core auth config", () => {
     await flushWaitUntil();
     expect(sentryCaptureExceptionMock).toHaveBeenCalledTimes(1);
     expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        email: "andreas@example.com",
-        name: "Andreas",
-        userId: "user_123",
-      },
+      extra: { userId: "user_123" },
       tags: {
         context: "stripe_user_customer_creation",
       },
     });
+    const report = JSON.stringify(sentryCaptureExceptionMock.mock.calls[0][1]);
+    expect(report).not.toContain("andreas@example.com");
+    expect(report).not.toContain("Andreas");
   });
 
   it("reports organization workspace creation failures to Sentry", async () => {
@@ -2325,7 +2993,34 @@ describe("core auth config", () => {
     });
   });
 
-  it("rejects email sign-up when terms are not accepted", async () => {
+  it.each(["email-verification", "forget-password"])(
+    "refuses to send an email code for %s",
+    async (type) => {
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            hooks: {
+              before: (ctx: {
+                body?: Record<string, unknown>;
+                path: string;
+              }) => Promise<unknown>;
+            };
+          },
+        ]
+      >;
+
+      await expect(
+        config.hooks.before({
+          body: { email: "ada@example.com", type },
+          path: "/email-otp/send-verification-otp",
+        }),
+      ).rejects.toMatchObject({ status: "BAD_REQUEST" });
+    },
+  );
+
+  it("names a new email-code account from the names sent with the code", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -2335,31 +3030,7 @@ describe("core auth config", () => {
             before: (ctx: {
               body?: Record<string, unknown>;
               path: string;
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.hooks.before({ body: {}, path: "/sign-up/email" }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: { code: "TERMS_NOT_ACCEPTED" },
-    });
-  });
-
-  it("allows email sign-up when terms are accepted", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          hooks: {
-            before: (ctx: {
-              body?: Record<string, unknown>;
-              path: string;
-            }) => Promise<void>;
+            }) => Promise<unknown>;
           };
         },
       ]
@@ -2367,9 +3038,116 @@ describe("core auth config", () => {
 
     await expect(
       config.hooks.before({
-        body: { termsAccepted: true },
-        path: "/sign-up/email",
+        body: {
+          email: "ada@example.com",
+          otp: "042917",
+          firstName: "Ada",
+          lastName: "Lovelace",
+        },
+        path: "/sign-in/email-otp",
       }),
+    ).resolves.toEqual({
+      context: {
+        body: {
+          email: "ada@example.com",
+          otp: "042917",
+          firstName: "Ada",
+          lastName: "Lovelace",
+          name: "Ada Lovelace",
+        },
+      },
+    });
+  });
+
+  // A password sign-up goes through the email code, and keeps the checks
+  // `/sign-up/email` made.
+  describe("password sign-up through the email code", () => {
+    async function before(body: Record<string, unknown>) {
+      await import("./auth");
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [
+          {
+            hooks: {
+              before: (ctx: {
+                body?: Record<string, unknown>;
+                path: string;
+              }) => Promise<unknown>;
+            };
+          },
+        ]
+      >;
+      return config.hooks.before({
+        body: { email: "ada@example.com", otp: "042917", ...body },
+        path: "/sign-in/email-otp",
+      });
+    }
+
+    it("refuses it when the terms are not accepted", async () => {
+      await expect(
+        before({ password: "Password123!", firstName: "Ada", lastName: "L" }),
+      ).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+        body: { code: "TERMS_NOT_ACCEPTED" },
+      });
+    });
+
+    it("refuses it without the names", async () => {
+      await expect(
+        before({ password: "Password123!", termsAccepted: true }),
+      ).rejects.toMatchObject({
+        status: "BAD_REQUEST",
+        body: { code: "NAME_REQUIRED" },
+      });
+    });
+
+    it("names the account from the two parts", async () => {
+      await expect(
+        before({
+          password: "Password123!",
+          termsAccepted: true,
+          firstName: "Ada",
+          lastName: "Lovelace",
+        }),
+      ).resolves.toMatchObject({
+        context: { body: { name: "Ada Lovelace", password: "Password123!" } },
+      });
+    });
+  });
+
+  it.each(["/callback/:id/oauth-proxy", "/oauth-proxy-callback"])(
+    "refuses a proxied sign-in on %s outside a preview",
+    async (path) => {
+      getEnvMock.mockReturnValue({
+        ...getDefaultEnv(),
+        VERCEL_ENV: "production",
+      });
+
+      await import("./auth");
+
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { before: (ctx: { path: string }) => Promise<void> } }]
+      >;
+
+      await expect(config.hooks.before({ path })).rejects.toMatchObject({
+        status: "NOT_FOUND",
+      });
+    },
+  );
+
+  it("completes a proxied sign-in on a preview", async () => {
+    getEnvMock.mockReturnValue({
+      ...getDefaultEnv(),
+      VERCEL_ENV: "preview",
+    });
+
+    await import("./auth");
+
+    const [[config]] = betterAuthMock.mock.calls as Array<
+      [{ hooks: { before: (ctx: { path: string }) => Promise<void> } }]
+    >;
+
+    await expect(
+      config.hooks.before({ path: "/callback/:id/oauth-proxy" }),
     ).resolves.toBeUndefined();
   });
 
@@ -2408,8 +3186,24 @@ describe("core auth config", () => {
         {
           hooks: {
             after: (ctx: {
-              context: { newSession?: { user?: { termsAccepted?: boolean } } };
+              context: {
+                authCookies?: {
+                  dontRememberToken: {
+                    attributes: { httpOnly: boolean; path: string };
+                    name: string;
+                  };
+                };
+                newSession?: {
+                  session: object;
+                  user?: { termsAccepted?: boolean };
+                };
+              };
               path: string;
+              setCookie?: (
+                name: string,
+                value: string,
+                attributes: object,
+              ) => void;
             }) => Promise<void>;
           };
         },
@@ -2418,12 +3212,161 @@ describe("core auth config", () => {
 
     await expect(
       config.hooks.after({
-        context: { newSession: { user: { termsAccepted: true } } },
+        context: {
+          authCookies: {
+            dontRememberToken: {
+              attributes: { httpOnly: true, path: "/" },
+              name: "sokosumi.dont_remember",
+            },
+          },
+          newSession: { session: {}, user: { termsAccepted: true } },
+        },
         path: "/sign-in/email",
+        setCookie: vi.fn(),
       }),
     ).resolves.toBeUndefined();
   });
 
+  describe("persistent sessions", () => {
+    type AfterHookContext = {
+      context: {
+        authCookies: {
+          dontRememberToken: {
+            attributes: { httpOnly: boolean; path: string };
+            name: string;
+          };
+        };
+        newSession?: {
+          session: { id?: string; impersonatedBy?: string | null };
+          user?: { termsAccepted?: boolean };
+        };
+        returned?: unknown;
+      };
+      path: string;
+      setCookie: (
+        name: string,
+        value: string,
+        attributes: { httpOnly: boolean; maxAge: number; path: string },
+      ) => void;
+    };
+
+    async function runAfterHook(
+      path: string,
+      context: Pick<AfterHookContext["context"], "newSession" | "returned">,
+    ) {
+      await import("./auth");
+      const [[config]] = betterAuthMock.mock.calls as Array<
+        [{ hooks: { after: (ctx: AfterHookContext) => Promise<void> } }]
+      >;
+      const setCookie = vi.fn();
+      await config.hooks.after({
+        context: {
+          authCookies: {
+            dontRememberToken: {
+              attributes: { httpOnly: true, path: "/" },
+              name: "sokosumi.dont_remember",
+            },
+          },
+          ...context,
+        },
+        path,
+        setCookie,
+      });
+      return setCookie;
+    }
+
+    function expectRewritten(
+      setCookie: ReturnType<typeof vi.fn>,
+      newSession: unknown,
+    ) {
+      expect(setSessionCookieMock).toHaveBeenCalledWith(
+        expect.objectContaining({ setCookie }),
+        newSession,
+        false,
+      );
+      expect(setCookie).toHaveBeenCalledWith("sokosumi.dont_remember", "", {
+        httpOnly: true,
+        maxAge: 0,
+        path: "/",
+      });
+    }
+
+    it("keeps a new session persistent and drops a stale dont_remember cookie", async () => {
+      const newSession = { session: {}, user: { termsAccepted: true } };
+      const setCookie = await runAfterHook("/sign-in/email-otp", {
+        newSession,
+        returned: { token: "session-token" },
+      });
+
+      expectRewritten(setCookie, newSession);
+    });
+
+    // The social callback ends with `throw c.redirect(...)`, an APIError with
+    // status FOUND. It is a success, and its cookies still reach the browser.
+    it("keeps a session from an OAuth callback redirect persistent", async () => {
+      const { APIError } = await import("better-auth/api");
+      const newSession = { session: {}, user: { termsAccepted: true } };
+      const setCookie = await runAfterHook("/callback/google", {
+        newSession,
+        returned: new APIError("FOUND"),
+      });
+
+      expectRewritten(setCookie, newSession);
+    });
+
+    it("leaves the cookies alone when the endpoint failed", async () => {
+      const { APIError } = await import("better-auth/api");
+      const setCookie = await runAfterHook("/passkey/verify-authentication", {
+        newSession: { session: {}, user: { termsAccepted: true } },
+        returned: new APIError("UNAUTHORIZED"),
+      });
+
+      expect(setSessionCookieMock).not.toHaveBeenCalled();
+      expect(setCookie).not.toHaveBeenCalled();
+    });
+
+    // The OAuth provider resumes authorize through these hooks after a
+    // sign-in; setting the cookie there would make it resume again.
+    it("leaves the cookie to the sign-in when the OAuth provider resumes authorize", async () => {
+      const setCookie = await runAfterHook("/oauth2/authorize", {
+        newSession: { session: {}, user: { termsAccepted: true } },
+        returned: { redirect: true, url: "https://app.cmo.xyz/callback" },
+      });
+
+      expect(setSessionCookieMock).not.toHaveBeenCalled();
+      expect(setCookie).not.toHaveBeenCalled();
+    });
+
+    // Impersonation is session-only on purpose: closing the browser ends it.
+    it("keeps an impersonation session session-only", async () => {
+      const setCookie = await runAfterHook("/admin/impersonate-user", {
+        newSession: {
+          session: { impersonatedBy: "admin-1" },
+          user: { termsAccepted: true },
+        },
+        returned: { session: {} },
+      });
+
+      expect(setSessionCookieMock).not.toHaveBeenCalled();
+      expect(setCookie).not.toHaveBeenCalled();
+    });
+
+    // The provider's after hook runs next and continues this request.
+    it("lets a session started for an OAuth request answer its Create account prompt", async () => {
+      const oauthRequest = { query: "client_id=cmo&prompt=create+consent" };
+      getOAuthProviderStateMock.mockResolvedValue(oauthRequest);
+
+      await runAfterHook("/sign-in/email-otp", {
+        newSession: {
+          session: { id: "session-new" },
+          user: { termsAccepted: true },
+        },
+        returned: { token: "session-token" },
+      });
+
+      expect(oauthRequest.query).toBe("client_id=cmo&prompt=consent");
+    });
+  });
   it("delivers the committed Calendar revocation after leaving an organization", async () => {
     await import("./auth");
 

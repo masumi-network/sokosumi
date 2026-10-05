@@ -1,11 +1,12 @@
 import type { CoreHttpClient } from "../http-client.js";
 import { type AgentJob, parseAgentJob } from "../models/agent-job.js";
 import { type ApiResponse, parseApiResponse } from "../models/api-response.js";
+import { listResponse, requireId } from "../models/parse-helpers.js";
 import { parseTask, type Task } from "../models/task.js";
 
 const TASKS_PATH = "/v1/tasks";
 
-export interface FetchTasksOptions {
+interface FetchTasksOptions {
   q?: string;
   status?: string | readonly string[];
   scope?: string;
@@ -13,20 +14,16 @@ export interface FetchTasksOptions {
   take?: number | string;
 }
 
-export interface CreateTaskData {
+interface CreateTaskData {
   name?: string;
   description?: string | null;
   coworkerId?: string | null;
   status?: string;
 }
 
-export interface CreateTaskEventData {
+interface CreateTaskEventData {
   status?: string;
   comment?: string;
-}
-
-function requireId(id: string, name: string): void {
-  if (!id) throw new Error(`${name} is required`);
 }
 
 function values(input: string | readonly string[] | undefined): string[] {
@@ -55,10 +52,6 @@ function tasksPath(options: FetchTasksOptions = {}): string {
   for (const status of values(options.status)) params.append("status", status);
   const query = params.toString();
   return query ? `${TASKS_PATH}?${query}` : TASKS_PATH;
-}
-
-function listResponse(parsed: ApiResponse<unknown>): ApiResponse<unknown[]> {
-  return { ...parsed, data: Array.isArray(parsed.data) ? parsed.data : [] };
 }
 
 export async function createTask(

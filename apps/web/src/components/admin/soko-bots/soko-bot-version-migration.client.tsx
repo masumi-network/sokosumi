@@ -1,11 +1,12 @@
 "use client";
 
+import type { AdminSokoBotVersionMigrationResult } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -16,10 +17,9 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { migrateAdminSokoBotVersionsAction } from "@/lib/actions/admin-soko-bots/action";
-import type { AdminSokoBotVersionMigrationResult } from "@/lib/clients/generated/core";
 
 interface SokoBotVersionMigrationProps {
-  versions: { id: string; name: string }[];
+  versions: { id: string; name: string; euPinned: boolean }[];
   defaultVersionId: string;
   /**
    * Every version the live fleet runs, counted in Core rather than from a page
@@ -47,9 +47,13 @@ export function SokoBotVersionMigration({
   const fromId = useId();
   const toId = useId();
   const reasonId = useId();
+  const notifyId = useId();
   const [from, setFrom] = useState<string>(EVERY_BOT);
   const [to, setTo] = useState(defaultVersionId);
   const [reason, setReason] = useState("");
+  // On by default: a version change can move where an owner's data is
+  // processed, and a bot that answers differently looks broken unannounced.
+  const [notifyOwners, setNotifyOwners] = useState(true);
   const [result, setResult] =
     useState<AdminSokoBotVersionMigrationResult | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -65,6 +69,11 @@ export function SokoBotVersionMigration({
         ? 0
         : (inUse.find((entry) => entry.versionId === from)?.count ?? 0);
 
+  // Core tells owners regardless when the target runs outside the EU.
+  const noticeRequired =
+    versions.find((version) => version.id === to)?.euPinned === false;
+  const willNotify = notifyOwners || noticeRequired;
+
   function migrate() {
     startTransition(async () => {
       const outcome = await migrateAdminSokoBotVersionsAction({
@@ -72,6 +81,7 @@ export function SokoBotVersionMigration({
           ...(from === EVERY_BOT ? {} : { fromVersionId: from }),
           toVersionId: to,
           reason: reason.trim(),
+          notifyOwners: willNotify,
         },
       });
       if (!outcome.ok) {
@@ -145,6 +155,21 @@ export function SokoBotVersionMigration({
         />
       </div>
 
+      <div className="flex items-start gap-3">
+        <Checkbox
+          id={notifyId}
+          checked={willNotify}
+          onCheckedChange={(checked) => setNotifyOwners(checked === true)}
+          disabled={isPending || noticeRequired}
+        />
+        <Label htmlFor={notifyId} className="block min-w-0 cursor-pointer">
+          <span className="block">{t("notifyLabel")}</span>
+          <span className="text-muted-foreground mt-1 block text-xs font-normal leading-relaxed">
+            {noticeRequired ? t("notifyRequired") : t("notifyHint")}
+          </span>
+        </Label>
+      </div>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button
           type="button"
@@ -166,7 +191,8 @@ export function SokoBotVersionMigration({
               moved: result.moved,
               alreadyOnVersion: result.alreadyOnVersion,
               failed: result.failed,
-            })}
+            })}{" "}
+            {t("notifiedResult", { notified: result.notified })}
           </p>
           {/* Named, so a partial run says which bots still need a look. */}
           {result.failures.length > 0 && (

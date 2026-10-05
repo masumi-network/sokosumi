@@ -69,7 +69,7 @@ struct SessionRaceTests {
     let session = try session(store: store, transport: transport)
     let task = Task {
       try await session.signIn(
-        callbackURL: #require(URL(string: "com.sokosumi.app:/auth?code=c&state=s")),
+        callbackURL: #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=s")),
         expectedState: "s", codeVerifier: "v"
       )
     }
@@ -82,7 +82,7 @@ struct SessionRaceTests {
 
   @Test func signOutDuringRefreshCannotRestoreTokens() async throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let transport = SuspendedTokenTransport()
     let session = try session(store: store, transport: transport)
     let task = Task { try await session.validAccessToken() }
@@ -95,7 +95,7 @@ struct SessionRaceTests {
 
   @Test func concurrentRequestsShareOneRefresh() async throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let transport = SuspendedTokenTransport()
     let session = try session(store: store, transport: transport)
     let requests = (0 ..< 20).map { _ in Task { try await session.validAccessToken() } }

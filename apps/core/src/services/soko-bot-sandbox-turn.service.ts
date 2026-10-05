@@ -2,7 +2,9 @@ import { z } from "@hono/zod-openapi";
 import {
   isSokoBotCapability,
   isSokoBotSandboxCapability,
+  redactSokoBotSensitiveText,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { getEnv } from "@/config/env";
 import {
   badGateway,
@@ -11,15 +13,23 @@ import {
   forbidden,
   internalServerError,
 } from "@/helpers/error";
+import { jsonInput } from "@/helpers/prisma-json";
 import prisma from "@/lib/db/prisma";
-import { ACTION_CAPABILITIES } from "@/lib/soko-bot/action-receipts";
+import {
+  ACTION_CAPABILITIES,
+  actionInputHash,
+} from "@/lib/soko-bot/action-receipts";
 import { gatewayCallUsage, gatewayRanTool } from "@/lib/soko-bot/gateway-cost";
 import {
   assertSokoBotInferenceRegion,
   sokoBotInferenceEvidence,
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
-import { sanitizePersistedValue } from "@/lib/soko-bot/persisted-value";
+import {
+  persistedToolResult,
+  sanitizePersistedValue,
+  truncateUtf8,
+} from "@/lib/soko-bot/persisted-value";
 import { stopTurnSandbox } from "@/lib/soko-bot/sandbox/sandbox-runtime";
 import type { TurnTokenClaims } from "@/lib/soko-bot/sandbox/turn-token";
 import {
@@ -35,6 +45,7 @@ import {
   SOKO_BOT_MAX_STEPS,
   WEB_TAINT_EVENT,
 } from "@/lib/soko-bot/turn-loop";
+import { withTurnSkills } from "@/services/chat-message-skills.service";
 import { resolveRunnableSokoBotVersion } from "@/services/soko-bot-version.service";
 
 /**
@@ -57,11 +68,50 @@ const FORWARDED_MODEL_HEADERS = [
   "ai-gateway-protocol-version",
 ] as const;
 
+function asRecord(value: unknown): Record<string, unknown> | undefined {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : undefined;
+}
+
+/**
+ * The reasoning-summary switches a runner request may carry, and nothing
+ * else: a summary is what the provider chooses to show, never raw thoughts.
+ * Replacing the whole `providerOptions` dropped these, so no bot reply ever
+ * had a summary to show.
+ */
+export function reasoningSummaryOptions(
+  value: unknown,
+): Record<string, Record<string, unknown>> {
+  const options = asRecord(value) ?? {};
+  const out: Record<string, Record<string, unknown>> = {};
+  const summary = asRecord(options.openai)?.reasoningSummary;
+  if (summary === "auto" || summary === "detailed")
+    out.openai = { reasoningSummary: summary };
+  const thinking = asRecord(asRecord(options.google)?.thinkingConfig);
+  if (thinking?.includeThoughts === true)
+    out.google = { thinkingConfig: { includeThoughts: true } };
+  return out;
+}
+
 function logFor(claims: TurnTokenClaims): RuntimeEventLog {
   return new RuntimeEventLog(claims.turnId, claims.sessionId);
 }
 
-/** Cancelled, paused or expired turns answer 409; the runner stops on it. */
+/**
+ * Cancelled, paused or expired turns answer 409 with this kind; the runner
+ * stops on it. Any other 409, such as a write that lost a race, is only that
+ * call's failure.
+ */
+function turnInactive(error: unknown) {
+  return conflict(
+    error instanceof Error ? error.message : "Turn is not active",
+    {
+      kind: CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE,
+    },
+  );
+}
+
 async function authorizeTurn(claims: TurnTokenClaims) {
   const { sokoBotRuntimeService } = await import(
     "@/services/soko-bot-runtime.service"
@@ -72,9 +122,7 @@ async function authorizeTurn(claims: TurnTokenClaims) {
       turnId: claims.turnId,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
 }
 
@@ -95,9 +143,7 @@ export async function startSandboxTurn(
       sandbox: true,
     });
   } catch (error) {
-    throw conflict(
-      error instanceof Error ? error.message : "Turn is not active",
-    );
+    throw turnInactive(error);
   }
   const started = await prisma.sokoBotRuntimeEvent.findFirst({
     where: { turnId: claims.turnId, type: "turn.started" },
@@ -112,7 +158,7 @@ export async function startSandboxTurn(
   const { inferenceRegion: _region, ...turn } = prepared;
   return {
     ...turn,
-    message: stored.userMessage,
+    message: await withTurnSkills(claims.turnId, stored.userMessage),
     deadlineAt: stored.deadlineAt.toISOString(),
     maxSteps: SOKO_BOT_MAX_STEPS,
   };
@@ -136,6 +182,14 @@ export async function runSandboxTool(
     toolInput: input.toolInput,
   });
 }
+
+/**
+ * Sandbox tools that bring nothing new into the turn: the plan, and a file
+ * the bot writes from what it already has. Anything that could have come from
+ * the web was tainted when it was read; writing it down adds no input. Without
+ * this, "write the notes and put them in my Files" was refused halfway.
+ */
+const SANDBOX_TOOLS_WITHOUT_INPUT = new Set(["update_plan", "workspace_write"]);
 
 async function markUntrusted(
   log: RuntimeEventLog,
@@ -164,7 +218,26 @@ export async function recordSandboxAction(
   )
     throw forbidden("Tool is not granted");
   const log = logFor(claims);
-  if (input.name !== "update_plan") await markUntrusted(log, input.name);
+  if (!SANDBOX_TOOLS_WITHOUT_INPUT.has(input.name))
+    await markUntrusted(log, input.name);
+  // A tool-call row like Core's own tools, so what the bot read shows in the
+  // turn's record. No actor bot: a read in the sandbox is never a receipt.
+  await prisma.sokoBotToolCall.upsert({
+    where: {
+      turnId_toolCallId: {
+        turnId: claims.turnId,
+        toolCallId: input.toolCallId,
+      },
+    },
+    create: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      capability: input.name,
+      inputHash: actionInputHash(input.toolInput ?? null),
+      input: persistedToolResult(input.toolInput ?? null),
+    },
+    update: {},
+  });
   await log.append(
     runtimeEvent("actions.requested", {
       actions: [
@@ -178,17 +251,112 @@ export async function recordSandboxAction(
   );
 }
 
+const SANDBOX_OUTPUT_MAX_BYTES = 12_288;
+const SANDBOX_ERROR_DETAIL_MAX_BYTES = 1_000;
+
 export async function recordSandboxActionResult(
   claims: TurnTokenClaims,
-  input: { name: string; toolCallId: string },
+  input: {
+    name: string;
+    toolCallId: string;
+    status?: "completed" | "failed";
+    output?: string;
+    sources?: string[];
+  },
 ): Promise<void> {
   await authorizeTurn(claims);
+  if (!isSokoBotSandboxCapability(input.name))
+    throw forbidden("Not a sandbox tool");
+  const failed = input.status === "failed";
+  await prisma.sokoBotToolCall.updateMany({
+    where: {
+      turnId: claims.turnId,
+      toolCallId: input.toolCallId,
+      // Only the row the runner recorded for this tool: a reused call id
+      // must not settle one of Core's own calls.
+      capability: input.name,
+      status: "PENDING",
+    },
+    data: {
+      status: failed ? "FAILED" : "COMPLETED",
+      // The output is bounded on its own, so a long result can never crowd
+      // out the sources the answer's citations are checked against.
+      result: jsonInput(
+        sanitizePersistedValue({
+          output:
+            input.output === undefined
+              ? null
+              : truncateUtf8(input.output, SANDBOX_OUTPUT_MAX_BYTES),
+          sources: input.sources ?? [],
+        }),
+      ),
+      // Redacted as Core's own tool errors are: a failed fetch can echo a URL
+      // with a token in it, and this row is shown to the owner and the judge.
+      ...(failed
+        ? {
+            errorDetail: truncateUtf8(
+              redactSokoBotSensitiveText(input.output ?? ""),
+              SANDBOX_ERROR_DETAIL_MAX_BYTES,
+            ),
+          }
+        : {}),
+    },
+  });
   await logFor(claims).append(
     runtimeEvent("action.result", {
       name: input.name,
       callId: input.toolCallId,
+      ...(input.output === undefined
+        ? {}
+        : { output: sanitizePersistedValue(input.output) }),
     }),
   );
+}
+
+/**
+ * The runner's web search, exactly as `searchWeb` sends it: the Gateway's
+ * Perplexity tool forced, and one user message that is only the search
+ * terms. Perplexity makes no zero-retention commitment, so this call keeps
+ * "no prompt training" but not zero retention; anything else — a system
+ * prompt, history, another tool — keeps both.
+ */
+const MAX_SEARCH_PROMPT_LENGTH = 1_000;
+const gatewaySearchCallSchema = z.object({
+  tools: z.tuple([
+    z.object({
+      type: z.literal("provider"),
+      id: z.literal("gateway.perplexity_search"),
+    }),
+  ]),
+  toolChoice: z.object({
+    type: z.literal("tool"),
+    toolName: z.literal("perplexity_search"),
+  }),
+  prompt: z.tuple([
+    z.object({
+      role: z.literal("user"),
+      content: z.tuple([
+        z.object({
+          type: z.literal("text"),
+          text: z
+            .string()
+            .startsWith("Search the web for: ")
+            .max(MAX_SEARCH_PROMPT_LENGTH),
+        }),
+      ]),
+    }),
+  ]),
+});
+
+function isGatewaySearchCall(payload: Record<string, unknown>): boolean {
+  return gatewaySearchCallSchema.safeParse(payload).success;
+}
+
+function withoutZeroRetention(
+  options: Record<string, unknown>,
+): Record<string, unknown> {
+  const { zeroDataRetention: _dropped, ...rest } = options;
+  return rest;
 }
 
 /**
@@ -226,7 +394,14 @@ export async function proxySandboxModelCall(
     model: version.model,
     inferenceRegion: version.inferenceRegion,
   });
-  payload.providerOptions = { gateway: policy.providerOptions.gateway };
+  payload.providerOptions = {
+    // The runner may only ask for a reasoning summary; routing, region and
+    // retention stay Core's.
+    ...reasoningSummaryOptions(payload.providerOptions),
+    gateway: isGatewaySearchCall(payload)
+      ? withoutZeroRetention(policy.providerOptions.gateway)
+      : policy.providerOptions.gateway,
+  };
 
   const log = logFor(claims);
   await log.append(runtimeEvent("step.started", { modelId: version.model }));
@@ -265,13 +440,19 @@ export async function proxySandboxModelCall(
     }),
   );
   try {
-    assertSokoBotInferenceRegion(result.providerMetadata);
+    assertSokoBotInferenceRegion(result.providerMetadata, {
+      model: version.model,
+      role: "agent",
+    });
   } catch (error) {
     throw badGateway(
       error instanceof Error ? error.message : "Inference region rejected",
     );
   }
-  if (gatewayRanTool(result.content, "web_search"))
+  if (
+    gatewayRanTool(result.content, "web_search") ||
+    gatewayRanTool(result.content, "perplexity_search")
+  )
     await markUntrusted(log, "web_search");
   return { status: 200, body: text };
 }
@@ -289,11 +470,19 @@ async function settleAndStop(log: RuntimeEventLog): Promise<void> {
 /** The loop finished: build the owner's answer and settle. */
 export async function completeSandboxTurn(
   claims: TurnTokenClaims,
-  input: { text: string; finishReason: string },
+  input: { text: string; finishReason: string; reasoning?: string },
 ): Promise<void> {
   const authorized = await authorizeTurn(claims);
   const log = logFor(claims);
   try {
+    // The provider's own summary, never raw chain of thought. The event
+    // projection redacts and bounds it before it is stored.
+    const reasoning = input.reasoning?.trim();
+    if (reasoning) {
+      await log.append(
+        runtimeEvent("reasoning.completed", { text: reasoning }),
+      );
+    }
     await finishTurn({
       log,
       turnId: claims.turnId,

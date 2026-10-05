@@ -38,6 +38,7 @@ export default async function EditProjectPage({
       }}
       initialValues={{
         name: project.name,
+        identifier: project.identifier,
         briefing: project.briefing ?? "",
         websiteUrl: project.websiteUrl,
       }}

@@ -63,7 +63,7 @@ describe("AppSidebarFallback", () => {
     renderFallback();
 
     // `/drive` is desktop-only, and `use-mobile` is mocked to desktop above.
-    for (const href of ["/agents", "/tasks", "/drive", "/history"]) {
+    for (const href of ["/agents", "/tasks", "/drive"]) {
       expect(
         screen.getByRole("link", {
           name: (_, element) => element.getAttribute("href") === href,

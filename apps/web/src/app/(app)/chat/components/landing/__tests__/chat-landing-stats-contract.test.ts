@@ -34,7 +34,7 @@ describe("chat landing stats row contract", () => {
     },
   );
 
-  it.each(["chat-landing.tsx", "chat-landing.mobile.tsx"])(
+  it.each(["chat-landing.tsx"])(
     "%s top-aligns the middle column so CTA cannot re-center",
     (filename) => {
       const source = readFileSync(
@@ -50,6 +50,17 @@ describe("chat landing stats row contract", () => {
       );
     },
   );
+
+  it("mobile landing centers via my-auto so overflow stays scrollable", () => {
+    const source = readFileSync(
+      join(import.meta.dirname, "..", "chat-landing.mobile.tsx"),
+      "utf8",
+    );
+
+    expect(source).toContain("my-auto");
+    // justify-center on the scroll column clips content taller than the viewport.
+    expect(source).not.toContain("justify-center overflow-y-auto");
+  });
 
   it("mobile landing omits content-area brand mark (header owns the logo)", () => {
     const source = readFileSync(

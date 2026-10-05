@@ -1,8 +1,8 @@
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import OrganizationRemoveForm from "@/components/organizations/organization-remove/form";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 const deleteOrganizationMock = vi.fn();
 const mockRouterPush = vi.fn();
@@ -26,7 +26,7 @@ const translations: Record<string, string> = {
     "Remove all other members before deleting this organization.",
   "Components.Organizations.RemoveModal.Errors.lastWorkspace":
     "You cannot delete your last workspace.",
-  "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Login",
+  "Components.Organizations.RemoveModal.Errors.unauthorizedAction": "Log in",
   "Components.Organizations.RemoveModal.Errors.inFlightJob":
     "Wait for in-flight jobs on this organization to finish before deleting it.",
   "Components.Organizations.RemoveModal.Errors.unsettledOnChainJob":

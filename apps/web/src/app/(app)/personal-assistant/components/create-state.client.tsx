@@ -1,5 +1,6 @@
 "use client";
 
+import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
@@ -12,7 +13,6 @@ import {
   createSokoBotAction,
   introduceSokoBotAction,
 } from "@/lib/actions/soko-bot/action";
-import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import { AvatarPicker } from "./avatar-picker.client";
@@ -21,7 +21,11 @@ import { AvatarPicker } from "./avatar-picker.client";
  * First visit: the bot's orb, what it does, a name, and a picture.
  * Core upserts on the user, so this also reactivates an archived bot.
  */
-export function CreateState() {
+export function CreateState({
+  paidByOrganization,
+}: {
+  paidByOrganization: boolean;
+}) {
   const t = useTranslations("App.SokoBot.Create");
   const tChat = useTranslations("App.SokoBot.Chat");
   const router = useRouter();
@@ -114,6 +118,10 @@ export function CreateState() {
           <Label>{t("avatarLabel")}</Label>
           <AvatarPicker value={avatar?.id ?? null} onChange={setAvatar} />
         </div>
+
+        <p className="text-muted-foreground text-xs leading-relaxed text-pretty">
+          {t(paidByOrganization ? "spendNoticeOrganization" : "spendNotice")}
+        </p>
 
         <Button
           type="submit"

@@ -1,10 +1,10 @@
 "use client";
 
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { CalendarSync, Plus } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useOptimistic, useRef, useState, useTransition } from "react";
-
 import { loadMoreTaskSchedules } from "@/app/tasks/actions";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import {
@@ -13,6 +13,7 @@ import {
 } from "@/app/tasks/utils/task-schedules-filters";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { Button } from "@/components/ui/button";
+import { HOLDER_CLASS } from "@/components/ui/holder-surface";
 import { ListGridViewSwitch } from "@/components/ui/list-grid-view-switch";
 import {
   SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -23,10 +24,6 @@ import {
   TabsTrigger,
 } from "@/components/ui/tabs";
 import { useLoadWhenVisible } from "@/hooks/use-load-when-visible";
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import type { TaskSchedulesPage } from "@/lib/services/task-schedule.service";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import {
@@ -50,8 +47,6 @@ interface TaskSchedulesViewProps {
   selectedState: TaskScheduleState | null;
   canCreate: boolean;
   canCreatePrivate: boolean;
-  /** Only the owner of a schedule can change it from its row. */
-  currentUserId: string | null;
 }
 
 /**
@@ -69,7 +64,6 @@ export function TaskSchedulesView({
   selectedState,
   canCreate,
   canCreatePrivate,
-  currentUserId,
 }: TaskSchedulesViewProps) {
   const t = useTranslations("App.Tasks.Schedules");
   const [viewMode, setViewMode] = useState(defaultViewMode);
@@ -209,7 +203,7 @@ export function TaskSchedulesView({
 
       {/* One panel, always the shown state's, so the list is its tab's panel. */}
       <TabsContent
-        className="bg-card-background flex flex-col gap-4 rounded-xl p-2"
+        className={cn(HOLDER_CLASS, "flex flex-col gap-4")}
         value={shownValue}
       >
         {rows.length === 0 ? (
@@ -236,7 +230,6 @@ export function TaskSchedulesView({
                 assigneeDisplayOptions={assigneeDisplayOptions}
                 canCreatePrivate={canCreatePrivate}
                 coworkerOptions={coworkerOptions}
-                currentUserId={currentUserId}
                 onChanged={handleScheduleChanged}
                 key={schedule.id}
                 projectOptions={projectOptions}

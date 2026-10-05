@@ -1,7 +1,9 @@
 # Soko Bot deployment
 
-Soko Bot has no deployment of its own. The agent loop runs inside `apps/core`,
-so it ships with Core and is deployed by the same pipeline: `/deploy <network>`
+Soko Bot has no deployment of its own. The production loop is the sandbox
+adapter ([ADR 0043](../adr/0043-soko-bot-runs-in-per-bot-sandboxes.md)): each
+turn runs in a fresh Vercel Sandbox VM, and Core stays the control plane. It
+ships with Core and is deployed by the same pipeline: `/deploy <network>`
 on a pull request, or a merge to `main` for production.
 
 ## Enabling it
@@ -36,10 +38,36 @@ Optional, per network:
   picks the route through the Gateway evaluation API. It has no EU region, so
   this is an owner-approved exception to the EU-only model policy; requests set
   zero data retention and no prompt training. Without the key every turn
-  falls back to read-only CLARIFY. Only text a person wrote is classified:
+  falls back to read-only CLARIFY. Only text a person wrote is routed:
   turns whose prompt Core writes (task-board and delegation events, inbox
   sync, the stand-up and weekly wrap) run on fixed routes in
   `apps/core/src/lib/soko-bot/system-routes.ts`, none of which can hire.
+  The same exception (widened 2026-09-30) covers the bot's own text: the
+  router also sees the bot's previous reply, so a bare "yes" has a referent;
+  the claim check reads each reply on a turn that could act, to hold back
+  one that claims an unconfirmed change; and `find_agents` sends the
+  request. Replies can quote mail, calendar and Tasks, so this applies to
+  EU-pinned versions too: their answers are written in the EU, these checks
+  are not.
+- The agent model is the turn's version model. The default, GPT-6 Luna
+  (`openai/gpt-6-luna`), has no EU region on the Gateway either, so it is a
+  second owner-approved exception (2026-09-29), for the agent role only:
+  owner prompts, Tasks and mail are processed by OpenAI outside the EU, with
+  zero data retention and no prompt training. One call is the exception: the
+  web search itself, which Perplexity runs through the Gateway, carries only
+  the search terms and keeps no prompt training but not zero retention, which
+  Perplexity does not offer. The search terms are written by the model and can
+  quote the owner's request. EU-pinned versions (v20, on
+  Gemini 3.8) stay available, and the lab judge and preview evaluation runs
+  stay EU-only. The policy lives in `apps/core/src/lib/soko-bot/model-policy.ts`.
+- `SOKO_BOT_JUDGE_MODEL` — the behaviour lab's judge, Claude Opus 5.5 in the EU
+  by default. It agreed with hand grades most often of the EU-routable models
+  compared on 2026-09-30 (Haiku 4.5, Sonnet 5 and 5.5, Gemini 3.8 Flash), and
+  gave the same verdict on every re-run. Only lab turns are judged: settled
+  real turns are not scored, which cost a model call per turn. Re-run the
+  comparison with `pnpm --filter @sokosumi/core soko-bot:judge-eval`, and the
+  route classifier's with `soko-bot:router-eval`; results appear under Admin →
+  Soko Bots → Model evaluations.
 
 Environment changes only apply to the *next* build, so redeploy after setting
 them.
@@ -96,14 +124,50 @@ the old prefix after DB URLs are clean:
   with `scripts/soko-bot-runner-local.mts`, which needs neither.
 - The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
   per-turn token its network proxy injects. Core serves the prompt, executes
-  Sokosumi tools, proxies and meters every model call under the EU policy, and
+  Sokosumi tools, proxies and meters every model call under the model policy
+  (EU pinning, or the owner-approved global agent models above), and
   settles the turn through `soko_bot_runtime_event` and the
   `/sync/soko-bot-turns` drain as before.
 - Turns are bounded by the 15-minute turn deadline and `SOKO_BOT_MAX_STEPS`.
 - Capability scoping, the pinned context snapshot, lease and deadline checks,
   and administrator pause gate every Sokosumi tool call. After a turn reads the
   web or runs a command, outward actions (hire, job input, integrations,
-  uploads, chat posts) are refused until the owner approves.
+  uploads, image generation, chat posts) are refused until the owner approves.
+- Sandbox tools (web search and fetch, bash, the workspace) are recorded as
+  tool-call rows with their clipped output and the pages they give grounds to
+  cite. They have no actor bot, so they are never receipts, and they do not
+  count toward the per-turn tool limit. A turn's answer keeps only links it
+  found or loaded, was given, or that point into Sokosumi.
+
+## Crash-fenced Agent hire
+
+An accepted `hire_agent` decision creates a unique Delegation reservation
+before seller-side execution. Local Job creation and the exact Delegation
+`jobId` link commit in the same serializable transaction. After seller dispatch
+starts, failures leave the decision `PROCESSING`; never reset it to `PENDING` or
+accept it by rerunning Job creation. That could hire and charge twice.
+
+For a `PROCESSING` decision older than normal Job-start latency:
+
+1. Inspect decision, its `decision:{decisionId}` Delegation, user, workspace,
+   Agent proposal, and nearby Jobs in admin telemetry.
+2. If Delegation already has `jobId`, same user may repeat accept request with
+   same decision id. Core only finalizes `ACCEPTED`; it does not hire again.
+3. If reservation has no `jobId`, keep decision fenced and escalate. Never
+   infer a link from Job input shape, timestamps, or nearby rows. Repository
+   ships no repair command.
+4. If no local Job exists, confirm seller-side result before further action.
+   Keep decision fenced while result is uncertain. Never infer failure from
+   missing local row alone.
+5. If repair or closure is required, build incident-scoped tooling first. It
+   must support dry-run, validate expected current state, update link and
+   decision in one transaction, be idempotent, and emit operator/incident
+   evidence. Review and test it before production use; do not hand-edit state
+   or invoke an unnamed script.
+
+Admin fleet/detail views retain `PROCESSING` decision and reservation for
+diagnosis. User turn history retains resolved decisions but hides expired
+unresolved approvals.
 
 ## History
 

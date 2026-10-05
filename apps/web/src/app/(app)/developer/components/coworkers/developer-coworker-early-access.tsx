@@ -1,11 +1,11 @@
 "use client";
 
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-
 import { WorkspaceAccessRow } from "@/components/coworker-access/workspace-access-row";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,7 +22,6 @@ import {
   grantDeveloperCoworkerEarlyAccessAction,
   revokeDeveloperCoworkerEarlyAccessAction,
 } from "@/lib/actions/coworkers/workspace-access.action";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 
 interface DeveloperCoworkerEarlyAccessProps {
   coworkerId: string;

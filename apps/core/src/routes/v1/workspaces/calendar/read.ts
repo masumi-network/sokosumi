@@ -11,6 +11,7 @@ import {
 import { requireCoworkerCapability } from "@/helpers/access-control";
 import { getCalendarSourceId } from "@/helpers/calendar-source";
 import { badRequest, notFound } from "@/helpers/error";
+import { requireAssignedOrganizationSeat } from "@/helpers/organization-assigned-seat";
 import { parseSocialPostMedia } from "@/helpers/social-post-media";
 import {
   buildHumanTaskVisibilityWhere,
@@ -21,7 +22,10 @@ import {
   hasGrantedWorkspaceAccess,
 } from "@/helpers/vendor-grants";
 import prisma from "@/lib/db/prisma";
-import { type AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  resolveUserContext,
+} from "@/middleware/auth";
 import {
   socialPostCalendarItemSchema,
   workspaceCalendarEntrySchema,
@@ -74,6 +78,13 @@ export async function getCalendarAccessWhere(
   authContext: AuthenticationContext,
   workspaceId: string,
 ): Promise<CalendarAccessWhere | undefined> {
+  const userContext = resolveUserContext(authContext);
+  if (userContext) {
+    await requireAssignedOrganizationSeat(
+      userContext.userId,
+      userContext.organizationId,
+    );
+  }
   // Soko Bots do not work with Task Schedules; they see the Tasks created.
   if (authContext.actor === "sokoBot") {
     return {
@@ -364,6 +375,7 @@ export async function readWorkspaceCalendar(
             id: true,
             name: true,
             ownerId: true,
+            visibility: true,
             state: true,
             revision: true,
             creatorCoworkerId: true,
@@ -422,7 +434,7 @@ export async function readWorkspaceCalendar(
         kind: "RUN",
         scheduleId: schedule.id,
         scheduleRevision: schedule.revision,
-        // The same Runs PATCH /runs/{runId} accepts from their owner.
+        // The same Runs PATCH /runs/{runId} accepts from this caller.
         canChangeRun:
           run.state === TaskScheduleRunState.PLANNED &&
           schedule.state === TaskScheduleState.ACTIVE &&
@@ -520,6 +532,7 @@ export async function readWorkspaceCalendar(
           orderBy: [{ scheduledAt: "asc" }, { id: "asc" }],
           select: {
             id: true,
+            provider: true,
             text: true,
             status: true,
             scheduledAt: true,
@@ -538,25 +551,30 @@ export async function readWorkspaceCalendar(
         prisma.socialPost.count({ where: socialBaseWhere }),
       ])
     : [[], 0];
-  const socialItems = posts.map((post) =>
-    socialPostCalendarItemSchema.parse({
+  const socialItems = posts.map((post) => {
+    const media = parseSocialPostMedia(post.media, post.id);
+    return socialPostCalendarItemSchema.parse({
       kind: "socialPost",
       id: `social:${post.id}`,
       postId: post.id,
+      provider: post.provider,
       text: post.text,
       status: post.status,
       externalHandle: post.socialConnection?.externalHandle ?? null,
       projectName: post.project.name,
       scheduledByName: post.scheduledByUser?.name ?? null,
       scheduledByImage: post.scheduledByUser?.image ?? null,
-      attachmentCount: parseSocialPostMedia(post.media, post.id).length,
+      attachmentCount: media.length,
+      previewMedia: media[0]
+        ? { fileUrl: media[0].fileUrl, kind: media[0].kind }
+        : null,
       scheduledAt: post.scheduledAt?.toISOString(),
       sourceId: `project:${post.projectId}`,
       sourceProjectId: post.projectId,
       sourceWorkspaceId: post.workspaceId,
       sourceType: "PROJECT",
-    }),
-  );
+    });
+  });
   const merged: z.infer<typeof workspaceCalendarEntrySchema>[] = [
     ...runItems,
     ...runAtItems,

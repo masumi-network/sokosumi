@@ -1,5 +1,5 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { AgentJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const listCoworkersMock = vi.fn();
 const getMineMock = vi.fn();
@@ -7,8 +7,6 @@ const getAvailableAgentsWithCreditsPriceMock = vi.fn();
 const resolveEffectiveDesignMdMock = vi.fn();
 const getTasksColumnPageMock = vi.fn();
 const getTasksListPageMock = vi.fn();
-const listJobsMock = vi.fn();
-const mapJobsToTasksViewDataMock = vi.fn();
 const getSessionMock = vi.fn();
 const listTaskAssigneeOptionsMock = vi.fn();
 const listTaskScheduleAssigneeOptionsMock = vi.fn();
@@ -38,17 +36,6 @@ vi.mock("@/lib/services/design-md.service", () => ({
     resolveEffectiveDesignMd: (...args: unknown[]) =>
       resolveEffectiveDesignMdMock(...args),
   },
-}));
-
-vi.mock("@/lib/services/task.service", () => ({
-  taskService: {
-    listJobs: (...args: unknown[]) => listJobsMock(...args),
-  },
-}));
-
-vi.mock("@/app/tasks/utils/jobs-view-data", () => ({
-  mapJobsToTasksViewData: (...args: unknown[]) =>
-    mapJobsToTasksViewDataMock(...args),
 }));
 
 vi.mock("./utils/tasks-column-page", () => ({
@@ -83,8 +70,6 @@ vi.mock("@/lib/helpers/project-filter-options", () => ({
 
 import {
   loadCreateTaskModalData,
-  loadJobsTabData,
-  loadMoreJobs,
   loadMoreTasksColumn,
   loadMoreTasksList,
   loadNewTaskWizardOptions,
@@ -454,208 +439,6 @@ describe("loadMoreTasksList", () => {
     expect(getTasksListPageMock.mock.calls[0][0]).toMatchObject({
       status: TaskStatus.READY,
     });
-  });
-});
-
-describe("loadMoreJobs", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: "org-1" },
-    });
-  });
-
-  it("loads jobs from taskService without prefetching the agents catalog", async () => {
-    const coworkers = [{ id: "coworker-1", name: "Coworker" }];
-    const jobsPage = {
-      jobs: [{ id: "job-1" }],
-      pagination: {
-        cursor: null,
-        limit: 20,
-        total: 1,
-        nextCursor: "job-2",
-      },
-    };
-    const mappedJobs = [{ id: "job-1" }];
-    const agentPreviewById = {
-      "agent-1": { name: "Agent", icon: null },
-    };
-
-    listCoworkersMock.mockResolvedValue(coworkers);
-    listJobsMock.mockResolvedValue(jobsPage);
-    mapJobsToTasksViewDataMock.mockResolvedValue({
-      jobs: mappedJobs,
-      agentPreviewById,
-    });
-
-    const result = await loadMoreJobs(
-      "job-1",
-      "workspace",
-      "agent-1",
-      AgentJobStatus.RUNNING,
-      PROJECT_ID,
-    );
-
-    expect(getAvailableAgentsWithCreditsPriceMock).not.toHaveBeenCalled();
-    expect(listJobsMock).toHaveBeenCalledWith({
-      scope: "workspace",
-      agentId: "agent-1",
-      status: AgentJobStatus.RUNNING,
-      projectId: PROJECT_ID,
-      cursor: "job-1",
-      limit: 20,
-    });
-    expect(mapJobsToTasksViewDataMock).toHaveBeenCalledWith({
-      jobs: jobsPage.jobs,
-      coworkersById: new Map([["coworker-1", coworkers[0]]]),
-    });
-    expect(result).toEqual({
-      jobs: mappedJobs,
-      nextCursor: "job-2",
-      agentPreviewById,
-    });
-  });
-
-  it("falls back to owned jobs when workspace scope is requested without an organization", async () => {
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: null },
-    });
-    listCoworkersMock.mockResolvedValue([]);
-    listJobsMock.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    mapJobsToTasksViewDataMock.mockResolvedValue({
-      jobs: [],
-      agentPreviewById: {},
-    });
-
-    await loadMoreJobs(null, "workspace", null, null, null);
-
-    expect(listJobsMock).toHaveBeenCalledWith({
-      scope: "owned",
-      agentId: undefined,
-      status: undefined,
-      projectId: undefined,
-      cursor: null,
-      limit: 20,
-    });
-  });
-
-  it("keeps agent filter for pagination when agent is not in the availability catalog", async () => {
-    listCoworkersMock.mockResolvedValue([]);
-    listJobsMock.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    mapJobsToTasksViewDataMock.mockResolvedValue({
-      jobs: [],
-      agentPreviewById: {},
-    });
-
-    await loadMoreJobs(
-      null,
-      "workspace",
-      "offline-agent",
-      "not-a-status" as never,
-      null,
-    );
-
-    expect(listJobsMock).toHaveBeenCalledWith({
-      scope: "workspace",
-      agentId: "offline-agent",
-      status: undefined,
-      projectId: undefined,
-      cursor: null,
-      limit: 20,
-    });
-  });
-
-  it("drops invalid job status and rejects oversized agent id before loading more jobs", async () => {
-    listCoworkersMock.mockResolvedValue([]);
-    listJobsMock.mockResolvedValue({
-      jobs: [],
-      pagination: null,
-    });
-    mapJobsToTasksViewDataMock.mockResolvedValue({
-      jobs: [],
-      agentPreviewById: {},
-    });
-
-    const tooLongAgentId = "a".repeat(129);
-
-    await loadMoreJobs(
-      null,
-      "workspace",
-      tooLongAgentId,
-      "not-a-status" as never,
-      null,
-    );
-
-    expect(listJobsMock).toHaveBeenCalledWith({
-      scope: "workspace",
-      agentId: undefined,
-      status: undefined,
-      projectId: undefined,
-      cursor: null,
-      limit: 20,
-    });
-  });
-});
-
-describe("loadJobsTabData", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getSessionMock.mockResolvedValue({
-      session: { activeOrganizationId: "org-1" },
-      user: { id: "user-1" },
-    });
-  });
-
-  it("returns first jobs page, agent filter options, and previews", async () => {
-    const coworkers = [{ id: "coworker-1", name: "Coworker" }];
-    const agents = [
-      {
-        id: "agent-1",
-        name: "Agent One",
-        icon: null,
-      },
-    ];
-    const jobsPage = {
-      jobs: [{ id: "job-1", agentId: "agent-1" }],
-      pagination: { nextCursor: "job-2" },
-    };
-
-    listCoworkersMock.mockResolvedValue(coworkers);
-    getAvailableAgentsWithCreditsPriceMock.mockResolvedValue(agents);
-    listJobsMock.mockResolvedValue(jobsPage);
-    mapJobsToTasksViewDataMock.mockResolvedValue({
-      jobs: [{ id: "job-1" }],
-      agentPreviewById: {
-        "agent-1": { name: "Agent One", icon: null },
-      },
-    });
-
-    const result = await loadJobsTabData(
-      "workspace",
-      "agent-1",
-      AgentJobStatus.RUNNING,
-      PROJECT_ID,
-    );
-
-    expect(listJobsMock).toHaveBeenCalledWith({
-      scope: "workspace",
-      agentId: "agent-1",
-      status: AgentJobStatus.RUNNING,
-      projectId: PROJECT_ID,
-      cursor: null,
-      limit: 20,
-    });
-    expect(result.jobAgentOptions).toEqual([
-      { id: "agent-1", name: "Agent One", image: null },
-    ]);
-    expect(result.jobs).toEqual([{ id: "job-1" }]);
-    expect(result.nextCursor).toBe("job-2");
   });
 });
 

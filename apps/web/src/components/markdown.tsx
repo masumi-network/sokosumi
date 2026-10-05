@@ -3,12 +3,14 @@ import Link from "next/link";
 import { type ComponentPropsWithoutRef, type ReactNode, useMemo } from "react";
 import ReactMarkdown, { type Components } from "react-markdown";
 import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
 import remarkBreaks from "remark-breaks";
 import remarkEmoji from "remark-emoji";
 import remarkGfm from "remark-gfm";
-import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
+import { rehypeSearchTermHighlight } from "@/components/markdown-highlight";
 import { markdownHighlightThemeCss } from "@/components/markdown-highlight-theme";
 import { rehypeMarkdownCodeHighlight } from "@/components/markdown-highlighter";
+import { remarkRestoreInlineCodeEntities } from "@/components/markdown-inline-code";
 import { prepareMermaidMarkdown } from "@/components/mermaid/markdown-mermaid";
 import { MermaidBlock } from "@/components/mermaid/mermaid-block";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
@@ -19,7 +21,59 @@ import {
   isVideoUrl,
   stripForcedDownloadParam,
 } from "@/lib/utils/file-preview";
-import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+import {
+  markdownHastSchema,
+  sanitizeMarkdown,
+} from "@/lib/utils/sanitizeMarkdown";
+
+interface AutolinkNode {
+  type: string;
+  url?: string;
+  value?: string;
+  children?: AutolinkNode[];
+  position?: { start?: { offset?: number }; end?: { offset?: number } };
+}
+
+// Only GFM bare links retain sanitize-html's ampersands as literal entities.
+// Explicit links, HTML attributes and code keep their existing decoding rules.
+function remarkBareUrlAmpersands() {
+  return (tree: AutolinkNode, file: { value: unknown }) => {
+    const source = String(file.value);
+    function visit(parent: AutolinkNode) {
+      parent.children?.forEach((node, index) => {
+        const start = node.position?.start?.offset;
+        let end = node.position?.end?.offset;
+        if (
+          node.type === "link" &&
+          start !== undefined &&
+          end !== undefined &&
+          /^(?:https?:\/\/|www\.)/i.test(source.slice(start, end))
+        ) {
+          node.url = node.url?.replaceAll("&amp;", "&");
+          const label = node.children?.[0];
+          if (label?.type !== "text") return;
+          label.value = label.value?.replaceAll("&amp;", "&");
+          // GFM places a terminal &amp; in the following text node. Reattach
+          // the query delimiter that was only split because of HTML escaping.
+          const next = parent.children?.[index + 1];
+          while (
+            source.startsWith("&amp;", end) &&
+            next?.type === "text" &&
+            next.value?.startsWith("&")
+          ) {
+            node.url += "&";
+            label.value += "&";
+            next.value = next.value.slice(1);
+            end += "&amp;".length;
+          }
+          return;
+        }
+        if (node.type !== "link") visit(node);
+      });
+    }
+    visit(tree);
+  };
+}
 
 function isInternalAppPath(href: string | undefined): href is string {
   return Boolean(href?.startsWith("/") && !href.startsWith("//"));
@@ -71,6 +125,13 @@ function isMarkdownInlineCode(
     return false;
   }
   return !markdownCodeText(children).includes("\n");
+}
+
+function toDisplayMarkdown(source: string) {
+  const normalized = normalizeLooseInlineMarkdown(source);
+  const sanitized = sanitizeMarkdown(normalized);
+  // Display-only: bare domains become links; stored message text stays plain.
+  return linkifyBareDomainsInMarkdown(sanitized);
 }
 
 interface MarkdownProps {
@@ -277,7 +338,7 @@ export default function Markdown({
   );
 
   const baseTypographyClassName =
-    "[&_pre]:app-scrollbar wrap-anywhere prose prose-sm prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground prose-strong:font-bold prose-strong:text-foreground prose-em:italic prose-ul:my-2 prose-ul:list-disc prose-ul:ps-6 prose-ol:my-2 prose-ol:list-decimal prose-ol:ps-6 prose-li:my-1 prose-li:ps-1 prose-li:marker:text-muted-foreground prose-li:text-foreground prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary hover:prose-a:decoration-primary prose-pre:my-3 prose-pre:rounded-md prose-pre:border prose-pre:border-border prose-pre:bg-card-background prose-pre:px-4 prose-pre:py-3 prose-pre:text-sm prose-pre:leading-6 prose-pre:font-normal prose-pre:[tab-size:2] prose-pre:[text-wrap:pretty] prose-blockquote:my-3 prose-hr:my-4 prose-hr:border-border prose-hr:border-t prose-hr:border-b-0 prose-table:my-0 prose-thead:border-b prose-thead:border-border prose-th:bg-card-background prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-medium prose-th:text-foreground prose-td:px-3 prose-td:py-2 prose-td:align-top prose-td:text-foreground prose-tr:border-b prose-tr:border-border prose-tr:last:border-b-0 max-w-none dark:prose-invert [&_u]:underline [&_s]:line-through [&_del]:line-through [&_strike]:line-through [&_pre]:max-w-full [&_pre]:overflow-x-auto";
+    "[&_pre]:app-scrollbar wrap-anywhere prose prose-sm prose-headings:mt-4 prose-headings:mb-2 prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-h1:text-lg prose-h2:text-base prose-h3:text-sm prose-h4:text-sm prose-h5:text-sm prose-h6:text-sm prose-p:my-2 prose-p:leading-relaxed prose-p:text-foreground prose-strong:font-bold prose-strong:text-foreground prose-em:italic prose-ul:my-2 prose-ul:list-disc prose-ul:ps-6 prose-ol:my-2 prose-ol:list-decimal prose-ol:ps-6 prose-li:my-1 prose-li:ps-1 prose-li:marker:text-muted-foreground prose-li:text-foreground prose-a:text-primary prose-a:font-medium prose-a:underline prose-a:underline-offset-4 prose-a:decoration-primary hover:prose-a:decoration-primary prose-pre:my-3 prose-pre:rounded-md prose-pre:border prose-pre:border-border prose-pre:bg-card-background prose-pre:px-4 prose-pre:py-3 prose-pre:text-sm prose-pre:leading-6 prose-pre:font-normal prose-pre:[tab-size:2] prose-pre:[text-wrap:pretty] prose-blockquote:my-3 prose-hr:my-4 prose-hr:border-border prose-hr:border-t prose-hr:border-b-0 prose-table:my-0 prose-thead:border-b prose-thead:border-border prose-th:bg-card-background prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-medium prose-th:text-foreground prose-th:wrap-break-word prose-td:px-3 prose-td:py-2 prose-td:align-top prose-td:text-foreground prose-td:wrap-break-word prose-tr:border-b prose-tr:border-border prose-tr:last:border-b-0 max-w-none dark:prose-invert [&_u]:underline [&_s]:line-through [&_del]:line-through [&_strike]:line-through [&_pre]:max-w-full [&_pre]:overflow-x-auto";
 
   // The parse runs inside ReactMarkdown's render, so the element is memoized
   // and handed back unchanged while the source and components hold. React
@@ -285,31 +346,32 @@ export default function Markdown({
   // longer re-parses every message on screen. A room transcript with a
   // hundred or two messages felt that on every keystroke and every jump.
   const rendered = useMemo(() => {
-    function transform(source: string) {
-      const highlighted = applyMarkdownHighlighting(source, {
-        term: highlightTerm,
-      });
-      const normalized = normalizeLooseInlineMarkdown(highlighted);
-      const sanitized = sanitizeMarkdown(normalized);
-      // Display-only: bare domains become links; stored message text stays plain.
-      return linkifyBareDomainsInMarkdown(sanitized);
-    }
     const mermaid = enableMermaid
-      ? prepareMermaidMarkdown({ source: children, highlightTerm, transform })
+      ? prepareMermaidMarkdown({
+          source: children,
+          transform: toDisplayMarkdown,
+        })
       : undefined;
-    const displayMarkdown = mermaid?.markdown ?? transform(children);
+    const displayMarkdown = mermaid?.markdown ?? toDisplayMarkdown(children);
     return (
       <ReactMarkdown
         remarkPlugins={[
           remarkBreaks,
           remarkGfm,
+          remarkBareUrlAmpersands,
           [remarkEmoji, { emoticon: true }],
+          remarkRestoreInlineCodeEntities,
         ]}
-        rehypePlugins={
-          mermaid
-            ? [rehypeRaw, mermaid.rehypeMermaid, rehypeMarkdownCodeHighlight]
-            : [rehypeRaw, rehypeMarkdownCodeHighlight]
-        }
+        // The sanitizer sits directly behind `rehype-raw`, ahead of the
+        // plugins that add our own elements, classes and data attributes.
+        rehypePlugins={[
+          rehypeRaw,
+          [rehypeSanitize, markdownHastSchema],
+          ...(mermaid ? [mermaid.rehypeMermaid] : []),
+          // Before the code highlighter, while a fence is still one text node.
+          [rehypeSearchTermHighlight, highlightTerm],
+          rehypeMarkdownCodeHighlight,
+        ]}
         components={components}
       >
         {displayMarkdown}

@@ -25,7 +25,6 @@ vi.mock("@/config/env", () => ({
     NETWORK: "Preprod",
     SOKO_BOT_EVALUATION_ALLOWANCE: config.raw,
     SOKO_BOT_PROACTIVE_PAUSED: true,
-    SOKO_BOT_TURN_JUDGE_ENABLED: false,
   }),
 }));
 vi.mock("@/lib/db/prisma", async () => {

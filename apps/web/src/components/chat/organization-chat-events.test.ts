@@ -1,5 +1,5 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import {
   notifyOrganizationChatRoomsChanged,
   ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT,
@@ -15,6 +15,8 @@ function makeRoom(id = "room-1"): ChatRoom {
     kind: "channel",
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,

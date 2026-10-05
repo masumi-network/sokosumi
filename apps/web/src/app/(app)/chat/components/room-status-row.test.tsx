@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { RoomStatusRow } from "./room-status-row";
 
@@ -13,6 +12,12 @@ vi.mock("next-intl", () => ({
       }
       if (key === "MembershipStatus.left" && values) {
         return `${values.name} left`;
+      }
+      if (key === "MembershipStatus.added" && values) {
+        return `${values.actor} added ${values.name}`;
+      }
+      if (key === "MembershipStatus.removed" && values) {
+        return `${values.actor} removed ${values.name}`;
       }
       if (key === "GroupName.named" && values) {
         return `${values.name} named the group ${values.groupName}`;
@@ -55,11 +60,13 @@ function membershipMessage(
   action: "joined" | "left",
   name: string,
   subjectType: "user" | "coworker" = "user",
+  actor?: { id: string; name: string },
 ): ChatRoomMessage {
   return statusMessage({
     membership: {
       action,
       subject: { type: subjectType, id: "subject-1", name },
+      ...(actor ? { actor } : {}),
     },
   });
 }
@@ -83,6 +90,36 @@ describe("RoomStatusRow", () => {
     );
 
     expect(screen.getByRole("status")).toHaveTextContent("Jamal left");
+    expect(screen.getByRole("status")).toHaveAttribute(
+      "data-membership-status",
+      "left",
+    );
+  });
+
+  it("says who added the subject when someone else did", () => {
+    render(
+      <RoomStatusRow
+        message={membershipMessage("joined", "Jamal", "coworker", {
+          id: "user-1",
+          name: "Alice",
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Alice added Jamal");
+  });
+
+  it("says who removed the subject when someone else did", () => {
+    render(
+      <RoomStatusRow
+        message={membershipMessage("left", "Bob", "user", {
+          id: "user-1",
+          name: "Alice",
+        })}
+      />,
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent("Alice removed Bob");
     expect(screen.getByRole("status")).toHaveAttribute(
       "data-membership-status",
       "left",

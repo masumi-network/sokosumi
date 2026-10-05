@@ -1,5 +1,6 @@
 import {
   Channel,
+  TaskPriority,
   TaskStatus,
   TaskVisibility,
   VendorGrantStatus,
@@ -151,6 +152,9 @@ function buildMapTaskResponse(task: {
     description: task.description ?? null,
     status: task.status ?? TaskStatus.DRAFT,
     visibility: TaskVisibility.PUBLIC,
+    priority: TaskPriority.NONE,
+    number: null,
+    identifier: null,
     credits: 0,
     events: [],
     jobs: [],
@@ -289,6 +293,33 @@ describe("createTaskRequestSchema", () => {
     });
 
     expect(result.visibility).toBe(TaskVisibility.PRIVATE);
+  });
+
+  it("leaves priority undefined when omitted", () => {
+    const result = createTaskRequestSchema.parse({
+      name: "New Task",
+      description: null,
+      assigneeId: null,
+    });
+
+    expect(result.priority).toBeUndefined();
+  });
+
+  it.each(Object.values(TaskPriority))("accepts priority %s", (priority) => {
+    const result = createTaskRequestSchema.parse({
+      name: "New Task",
+      description: null,
+      assigneeId: null,
+      priority,
+    });
+
+    expect(result.priority).toBe(priority);
+  });
+
+  it("rejects an unknown priority", () => {
+    expect(() => {
+      createTaskRequestSchema.parse({ name: "New Task", priority: "HUGE" });
+    }).toThrow();
   });
 
   it("accepts READY status", () => {
@@ -874,6 +905,52 @@ describe("POST /tasks", () => {
         }),
       }),
     );
+  });
+
+  it("persists the requested priority", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Urgent Task",
+        description: null,
+        assigneeId: null,
+        priority: TaskPriority.URGENT,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ priority: TaskPriority.URGENT }),
+      }),
+    );
+  });
+
+  it("leaves priority to the database default when omitted", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: "Plain Task",
+        description: null,
+        assigneeId: null,
+      }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(taskCreateMock.mock.calls[0]![0].data.priority).toBeUndefined();
+  });
+
+  it("rejects an invalid priority", async () => {
+    const response = await createApp().request("http://localhost/", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Bad", priority: "HUGE" }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(taskCreateMock).not.toHaveBeenCalled();
   });
 
   it("rejects PRIVATE visibility in a personal workspace", async () => {

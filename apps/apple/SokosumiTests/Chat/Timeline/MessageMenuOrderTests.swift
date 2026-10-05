@@ -11,6 +11,7 @@
     private static func message(from sender: String = "Ada") -> Components.Schemas.ChatRoomMessage {
       var message = chatRoomMessage(from: .init(
         clientTurnId: "turn", roomId: "room_1", content: "Release notes are up.",
+        createdAt: Date(),
         sender: .init(id: "user_\(sender)", name: sender, email: "\(sender.lowercased())@example.com", presence: .offline)
       ))
       message.id = "message_1"
@@ -88,6 +89,20 @@
     @Test func aSelectionAloneStillOffersCopy() {
       #expect(MessageMenuAvailability().sections(hasSelection: true) == [[.copySelection]])
       #expect(MessageMenuAvailability().sections(hasSelection: false).isEmpty)
+    }
+
+    /// Row 38b: a Soko Bot reply's thumbs lead its menu as they lead web's hover pill; a selection's Copy stays first.
+    @Test func aSokoBotReplyLeadsWithItsThumbs() {
+      let reply = Self.message(from: "Soko")
+      let row = MessageRowView(message: reply, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
+                               onReply: {}, onQuote: {}, onToggleReaction: { _ in true }, onSendToSelf: { reply },
+                               sokoBotFeedback: SokoBotFeedback(turnId: "turn_1"), onSokoBotFeedback: { _ in })
+      #expect(row.menuAvailability.sections(hasSelection: false) == [
+        [.useful, .notUseful],
+        [.addReaction, .quote, .reply],
+        [.copyLink, .sendToSelf]
+      ])
+      #expect(row.menuAvailability.sections(hasSelection: true).prefix(2) == [[.copySelection], [.useful, .notUseful]])
     }
 
     /// A deleted thread root keeps its tombstone row; the actions that need a live message leave its menu.

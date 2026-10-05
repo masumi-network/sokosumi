@@ -1,11 +1,17 @@
 import { z } from "@hono/zod-openapi";
-import { Channel, TaskStatus, TaskVisibility } from "@sokosumi/database";
+import {
+  Channel,
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { isDesignMdBlobUrl } from "@sokosumi/utils";
 import { dateTimeSchema } from "@/helpers/datetime.js";
 import { taskTagsSchema } from "@/helpers/task-tags";
 import { coworkerSummarySchema } from "@/schemas/coworker.schema";
 import {
   channelSchema,
+  taskPrioritySchema,
   taskStatusSchema,
   taskVisibilitySchema,
 } from "@/schemas/domain-enums.schema";
@@ -315,6 +321,16 @@ const taskBaseSchema = z.object({
       "Deprecated. Use creator when type is sokoBot. Only set when a Soko Bot created the task.",
   }),
   tags: taskTagsSchema.optional(),
+  number: z.number().int().positive().nullable().openapi({
+    example: 123,
+    description:
+      "Sequence number within the project. Null when the task has no project.",
+  }),
+  identifier: z.string().nullable().openapi({
+    example: "SOK-123",
+    description:
+      "Project identifier and number, e.g. SOK-123. Null when the task has no project.",
+  }),
   name: z.string().openapi({ example: "Review onboarding" }),
   description: z.string().nullable().openapi({ example: "Notes go here" }),
   status: taskStatusSchema.openapi({
@@ -326,6 +342,10 @@ const taskBaseSchema = z.object({
     example: TaskVisibility.PUBLIC,
     description:
       "PUBLIC (default) or PRIVATE. Private Tasks are visible only to the owner, that owner's Soko Bot, and the assigned coworker's vendor family. Set at create; immutable.",
+  }),
+  priority: taskPrioritySchema.openapi({
+    example: TaskPriority.NONE,
+    description: "URGENT, HIGH, MEDIUM, LOW, or NONE (default).",
   }),
   grantResumeStatus: z.enum(["DRAFT", "READY"]).nullable().openapi({
     description:
@@ -425,8 +445,8 @@ export const taskSummaryResponseSchema = z
   .object({
     since: dateTimeSchema.openapi({
       description:
-        "Start of the reporting window, echoed back. Always set: either the caller's last session activity or the start of the rolling 24h fallback when that activity is missing or too recent.",
-      example: "2026-08-10T09:00:00.000Z",
+        "Start of the reporting window (now minus 24h), echoed back.",
+      example: "2026-08-10T12:00:00.000Z",
     }),
     completed: z.number().int().nonnegative().openapi({
       description:
@@ -443,20 +463,20 @@ export const taskSummaryResponseSchema = z
         "Tasks created within the window by a different human in the same workspace, narrowed by `scope` like the other counters. Always 0 in a personal workspace.",
       example: 3,
     }),
-    lastVisitAt: dateTimeSchema.nullable().openapi({
-      description:
-        "Caller's most recent session activity (`max(Session.updatedAt)`), unmodified. Null only if the user has no sessions. Same signal as admin member last-seen.",
-      example: "2026-08-10T09:00:00.000Z",
-    }),
-    basis: z.enum(["lastVisit", "recent"]).openapi({
-      description:
-        "Which window the counts cover: since the caller's last session activity (`lastVisit`), or a rolling 24h fallback (`recent`) when that activity is missing or too recent to be interesting.",
-      example: "lastVisit",
-    }),
     workedMinutes: z.number().int().nonnegative().openapi({
       description:
         "Minutes tasks spent in RUNNING inside the window, summed from status-transition events and clipped to the window bounds. Wall-clock time in progress, not billed compute.",
       example: 47,
     }),
+    previous: z
+      .object({
+        completed: z.number().int().nonnegative(),
+        createdByOtherHumans: z.number().int().nonnegative(),
+        workedMinutes: z.number().int().nonnegative(),
+      })
+      .openapi({
+        description:
+          "Same counters for the 24h before the window (48h to 24h ago), for trend arrows. `awaitingInput` is point-in-time and has no previous value.",
+      }),
   })
   .openapi("TaskActivitySummary");

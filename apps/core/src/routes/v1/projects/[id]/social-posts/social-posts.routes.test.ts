@@ -150,6 +150,8 @@ const scheduledPost = {
   socialConnection: {
     id: SOCIAL_CONNECTION_ID,
     externalHandle: "sokosumi",
+    displayName: null,
+    avatarUrl: null,
     status: "active",
   },
   scheduledByUserId: USER_ID,
@@ -457,7 +459,7 @@ describe("Project social post routes", () => {
     );
     const tooLong = await app.request(
       `http://localhost/${PROJECT_ID}/social-posts`,
-      json("POST", { text: "x".repeat(281) }),
+      json("POST", { text: "x".repeat(63207) }),
     );
     const badDate = await app.request(
       `http://localhost/${PROJECT_ID}/social-posts`,

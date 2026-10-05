@@ -1,4 +1,5 @@
 import type { DragEndEvent, DragStartEvent } from "@dnd-kit/core";
+import { TaskStatus } from "@sokosumi/core-client";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps, ReactNode } from "react";
@@ -10,11 +11,8 @@ import type {
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
-import type { JobsListFilters } from "@/app/tasks/utils/jobs-filters";
 import type { TasksFilters } from "@/app/tasks/utils/tasks-filters";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import type { AgentJobStatus } from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { parseTasksDensity } from "@/lib/ui-preferences/tasks-density";
 import { TasksView } from "./tasks-view";
 
@@ -117,8 +115,6 @@ vi.mock("@/lib/actions/task/action", () => ({
 }));
 
 vi.mock("@/app/tasks/actions", () => ({
-  loadJobsTabData: vi.fn(),
-  loadMoreJobs: vi.fn(),
   loadMoreTasksColumn: vi.fn(),
   loadMoreTasksList: vi.fn(),
 }));
@@ -134,8 +130,6 @@ vi.mock("./create-task-modal", () => ({
   }),
 }));
 
-vi.mock("./jobs-list-view", () => ({ JobsListView: () => null }));
-vi.mock("./jobs-view-filters", () => ({ JobsViewFilters: () => null }));
 vi.mock("./tasks-view-filters", () => ({
   TasksViewFilters: () => <button type="button">Filters</button>,
 }));
@@ -168,6 +162,8 @@ const TASK: TaskWithCoworker = {
   id: "task-1",
   name: "Weekly report",
   status: TaskStatus.DRAFT,
+  identifier: null,
+  priority: "NONE",
   visibility: "PUBLIC",
   ownerId: "user-1",
   owner: { id: "user-1", name: "Ada", email: "ada@example.com" },
@@ -190,7 +186,7 @@ const CANCELED_TASK: TaskWithCoworker = {
 };
 
 const labels = {
-  tabs: { tasks: "Tasks", jobs: "Jobs" },
+  tabs: { tasks: "Board", calendar: "Calendar" },
   filters: {
     title: "Filters",
     searchPlaceholder: "Search",
@@ -212,18 +208,6 @@ const labels = {
     "input-required": "Input required",
     done: "Done",
   } as Record<KanbanColumnId, string>,
-  jobs: {
-    filterButton: "Filter",
-    agentLabel: "Agent",
-    jobStatusLabel: "Status",
-    jobStatusOptions: {} as Record<AgentJobStatus, string>,
-    recentTitle: "Recent",
-    emptyRecent: "No recent jobs",
-    emptyList: "No jobs",
-    emptySection: "Nothing here",
-    untitled: "Untitled",
-    unknownAgent: "Unknown agent",
-  },
   display: {
     button: "Display",
     list: "List",
@@ -237,7 +221,6 @@ const labels = {
   loading: "Loading",
   dragError: "Could not update the task",
   loadMoreError: "Could not load more",
-  loadJobsError: "Could not load jobs",
   reopenToReady: {
     title: "Reopen task",
     description: "Say why",
@@ -257,13 +240,6 @@ const EMPTY_FILTERS: TasksFilters = {
   status: null,
   projectId: null,
   visibility: null,
-};
-
-const EMPTY_JOBS_FILTERS: JobsListFilters = {
-  scope: "owned",
-  agentId: null,
-  jobStatus: null,
-  projectId: null,
 };
 
 function renderBoard(
@@ -296,7 +272,6 @@ function boardView(
       userId={null}
       activeOrganizationId={null}
       initialFilters={EMPTY_FILTERS}
-      initialJobsListFilters={EMPTY_JOBS_FILTERS}
       defaultViewMode="board"
       defaultDensity={defaultDensity}
       canCreateTask
@@ -472,11 +447,11 @@ describe("TasksView without the task-board guide", () => {
           "[data-tasks-empty-state-overlay], [data-tasks-empty-state-overlay-mobile]",
         ),
       ).toBeNull();
-      expect(screen.getByRole("tab", { name: "Tasks" })).toHaveAttribute(
+      expect(screen.getByRole("tab", { name: "Board" })).toHaveAttribute(
         "data-state",
         "active",
       );
-      expect(screen.getByRole("tab", { name: "Jobs" })).toBeEnabled();
+      expect(screen.getByRole("tab", { name: "Calendar" })).toBeEnabled();
       expect(screen.getByRole("button", { name: "Filters" })).toBeEnabled();
       await user.click(screen.getByRole("button", { name: "createTaskFab" }));
       expect(openCreateTaskMock).toHaveBeenCalledOnce();

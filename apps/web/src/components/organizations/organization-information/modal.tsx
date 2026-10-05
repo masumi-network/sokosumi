@@ -1,5 +1,6 @@
 "use client";
 
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import {
@@ -8,7 +9,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import OrganizationInformationForm from "./form";
 

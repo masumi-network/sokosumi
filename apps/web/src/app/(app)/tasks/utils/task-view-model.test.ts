@@ -1,10 +1,11 @@
+import type { Task, TaskListItem } from "@sokosumi/core-client";
+import {
+  TaskPriority,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
-import type {
-  Task,
-  TaskListItem,
-} from "@/lib/clients/generated/core/types.gen";
 
 function buildTask(
   status: TaskStatus,
@@ -39,6 +40,9 @@ function buildTask(
     name: "Test task",
     description: null,
     status,
+    number: null,
+    identifier: null,
+    priority: TaskPriority.NONE,
     visibility: TaskVisibility.PUBLIC,
     runAt: null,
     scheduleId: null,
@@ -210,6 +214,7 @@ describe("mapTaskToTaskWithCoworker", () => {
     const project = {
       id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       name: "Autumn",
+      identifier: "SOK",
       logo: "https://example.com/logo.png",
     };
     const task = buildTask(TaskStatus.READY, { project });

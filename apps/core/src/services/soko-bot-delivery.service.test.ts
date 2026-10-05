@@ -26,6 +26,9 @@ const mocks = vi.hoisted(() => ({
   findUnique: vi.fn(),
   effects: vi.fn(),
   deliverEffect: vi.fn(),
+  mentionUpdate: vi.fn(),
+  mentionFind: vi.fn(),
+  messageClose: vi.fn(),
 }));
 vi.mock("@/helpers/chat-human-mentions", () => ({
   persistChatHumanMentions: mocks.persistHumanMentions,
@@ -55,6 +58,11 @@ vi.mock("@/lib/db/prisma", () => ({
       upsert: mocks.message,
       findFirst: mocks.messageFind,
       findUniqueOrThrow: mocks.storedContent,
+      updateMany: mocks.messageClose,
+    },
+    chatRoomMention: {
+      updateMany: mocks.mentionUpdate,
+      findUnique: mocks.mentionFind,
     },
     sokoBotNudge: { updateMany: mocks.nudge },
   },
@@ -254,6 +262,34 @@ describe("durable delivery", () => {
     });
   });
 
+  it("tags an unprompted message with the schedule that started it", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "SCHEDULE",
+          scheduleRun: {
+            schedule: { name: "Daily stand-up", systemKey: "standup" },
+          },
+        }),
+      }),
+    );
+    expect(await deliverSokoBotDelivery("delivery")).toBe(true);
+    expect(mocks.message).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          metadata: {
+            soko_bot: {
+              turn_id: "turn",
+              source: "SCHEDULE",
+              schedule_name: "Daily stand-up",
+              schedule_key: "standup",
+            },
+          },
+        }),
+      }),
+    );
+  });
+
   it("retries publication after a crash without touching persisted content", async () => {
     mocks.find.mockResolvedValue(
       delivery({ status: "PERSISTED", messageId: "message" }),
@@ -315,6 +351,79 @@ describe("durable delivery", () => {
       }),
     );
     expect(mocks.publish).not.toHaveBeenCalled();
+  });
+
+  it("closes a chat reply's Thinking placeholder when the room changed mid-turn", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          chatResponseMessageId: "placeholder",
+          chatMentionId: "mention",
+        }),
+      }),
+    );
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "owner" }, { userId: "new-reader" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    mocks.messageClose.mockResolvedValue({ count: 1 });
+    mocks.mentionFind.mockResolvedValue({ messageId: "asked" });
+    await deliverSokoBotDelivery("delivery");
+    expect(mocks.persistChat).not.toHaveBeenCalled();
+    expect(mocks.mentionUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "mention", status: { in: ["pending", "sent"] } },
+        data: expect.objectContaining({ status: "failed" }),
+      }),
+    );
+    expect(mocks.messageClose).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: "placeholder", deletedAt: null }),
+      }),
+    );
+    expect(mocks.publish).toHaveBeenCalledWith("placeholder", "delete");
+    expect(mocks.publish).toHaveBeenCalledWith("asked", "mention_status");
+  });
+
+  it("delivers a reply to a teammate in their own direct chat with the bot", async () => {
+    mocks.find.mockResolvedValue(
+      delivery({
+        turn: turn({
+          source: "CHAT",
+          requestedByUserId: "teammate",
+          chatResponseMessageId: "placeholder",
+          chatMentionId: "mention",
+          destinationAudience: {
+            userIds: ["teammate"],
+            coworkerIds: [],
+            botIds: ["bot"],
+          },
+        }),
+      }),
+    );
+    mocks.room.mockResolvedValue({
+      id: "room",
+      userMembers: [{ userId: "teammate" }],
+      coworkerMembers: [],
+      sokoBotMembers: [{ sokoBotId: "bot" }],
+    });
+    await deliverSokoBotDelivery("delivery");
+    expect(mocks.room).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userMembers: { some: { userId: "teammate" } },
+        }),
+      }),
+    );
+    expect(mocks.persistChat).toHaveBeenCalledWith("turn", expect.anything());
+    expect(mocks.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: "SUPPRESSED" }),
+      }),
+    );
   });
 
   it("revoked workspace membership suppresses even with the chat roster intact", async () => {

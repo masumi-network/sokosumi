@@ -3,13 +3,16 @@ import {
   CORE_API_ERROR_KINDS,
   convertCentsToCredits,
   countSetAssignees,
+  formatTaskIdentifier,
   hasAssigneeValue,
   isAgentOnlyTaskStatus,
-  type TaskAssigneeKind,
 } from "@sokosumi/utils";
 import { getSelectableTaskStatuses } from "@/helpers/task-selectable-statuses";
 import { mapTaskTags } from "@/helpers/task-tags";
-import type { AuthenticationContext } from "@/middleware/auth";
+import {
+  type AuthenticationContext,
+  isCoworkerAuthContext,
+} from "@/middleware/auth";
 import { flattenJob } from "@/types/job";
 import {
   type TaskDetailPayload,
@@ -125,6 +128,7 @@ type TaskEventForMapping = TaskEventWithOptionalTransaction & {
   sokoBot?: {
     id: string;
     name: string | null;
+    userId?: string;
   } | null;
 };
 
@@ -133,23 +137,6 @@ interface ValidateTaskAssigneeAssignmentParams {
   assigneeId: string | null | undefined;
   assigneeSokoBotId?: string | null | undefined;
   assigneeUserId?: string | null | undefined;
-}
-
-export function taskAssigneeKind(task: {
-  assigneeId: string | null | undefined;
-  assigneeSokoBotId?: string | null | undefined;
-  assigneeUserId?: string | null | undefined;
-}): TaskAssigneeKind {
-  if (hasAssigneeValue(task.assigneeId)) {
-    return "coworker";
-  }
-  if (hasAssigneeValue(task.assigneeSokoBotId)) {
-    return "sokoBot";
-  }
-  if (hasAssigneeValue(task.assigneeUserId)) {
-    return "human";
-  }
-  return "unset";
 }
 
 /**
@@ -284,7 +271,16 @@ export function mapTaskEventActor(event: TaskEventForMapping) {
   };
 }
 
-export function mapTaskEvent(event: TaskEventForMapping) {
+/**
+ * Coworker runtimes key on `userId` to see the owner speaking; a bot's reply
+ * carried none, so answers from a Soko Bot never woke the Coworker. For
+ * Coworker readers only, a bot-authored event carries its owner's id as
+ * `userId`; `actor` stays the bot and the stored row is unchanged.
+ */
+export function mapTaskEvent(
+  event: TaskEventForMapping,
+  options?: { onBehalfOfOwner?: boolean },
+) {
   const {
     cents,
     channel,
@@ -295,9 +291,14 @@ export function mapTaskEvent(event: TaskEventForMapping) {
     ...rest
   } = event;
   const actor = mapTaskEventActor(event);
+  const onBehalfOfUserId =
+    options?.onBehalfOfOwner && sokoBotId != null && rest.userId == null
+      ? (event.sokoBot?.userId ?? null)
+      : null;
 
   return {
     ...rest,
+    ...(onBehalfOfUserId ? { userId: onBehalfOfUserId } : {}),
     sokoBotId: sokoBotId ?? null,
     channel,
     origin: channel,
@@ -474,10 +475,13 @@ function mapTaskSummary(task: TaskListItemWithIncludes | TaskWithIncludes) {
     // Deprecated aliases for legacy sokoBot-created tasks.
     sokoBotId: creator.type === "sokoBot" ? creator.id : null,
     sokoBot: creator.type === "sokoBot" ? creator.sokoBot : null,
+    number: task.number,
+    identifier: formatTaskIdentifier(task.project?.identifier, task.number),
     name: task.name,
     description: task.description,
     tags: mapTaskTags(task),
     status: task.status,
+    priority: task.priority,
     // DB default is PUBLIC; coalesce for incomplete test fixtures / selects.
     visibility: task.visibility ?? TaskVisibility.PUBLIC,
     // Grant parking fields are intentional API surface while GRANT_PENDING so
@@ -511,7 +515,10 @@ function mapTaskParticipants(
   }));
 }
 
-function mapTaskBase(task: TaskWithIncludes) {
+function mapTaskBase(
+  task: TaskWithIncludes,
+  options?: { onBehalfOfOwner?: boolean },
+) {
   const credits = task.events.reduce((total, event) => {
     const amount = event.transaction?.amount;
     if (amount === undefined || amount === null) {
@@ -527,7 +534,7 @@ function mapTaskBase(task: TaskWithIncludes) {
 
   return {
     ...mapTaskSummary(task),
-    events: task.events.map(mapTaskEvent),
+    events: task.events.map((event) => mapTaskEvent(event, options)),
     jobs: task.jobs.map(flattenJob),
     credits,
   };
@@ -541,7 +548,9 @@ export function mapTask(
   const files = "files" in task && Array.isArray(task.files) ? task.files : [];
 
   return {
-    ...mapTaskBase(task),
+    ...mapTaskBase(task, {
+      onBehalfOfOwner: isCoworkerAuthContext(authContext),
+    }),
     share: task.share,
     links,
     files: files.map(mapTaskFile),

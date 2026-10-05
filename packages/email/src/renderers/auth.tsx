@@ -1,8 +1,9 @@
 import { createEmailTranslator } from "../i18n/translate.js";
 import { renderActionEmail } from "../templates/action-email.js";
+import { renderCodeEmail } from "../templates/code-email.js";
 import type {
   ChatRoomInvitationEmailProps,
-  MagicLinkEmailProps,
+  EmailCodeEmailProps,
   OrganizationInvitationEmailProps,
   RenderedEmail,
   ResetPasswordEmailProps,
@@ -60,22 +61,33 @@ function renderAuthActionEmail({
 }
 
 export async function renderVerificationEmail({
+  clientName,
   locale,
   name,
   verificationLink,
 }: VerificationEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
+  const copy = clientName
+    ? {
+        actionLabel: t("auth.verification.client.button"),
+        body: t("auth.verification.client.message", { client: clientName }),
+        subject: t("auth.verification.client.subject", { client: clientName }),
+        title: t("auth.verification.client.title", { client: clientName }),
+      }
+    : {
+        actionLabel: t("auth.verification.button"),
+        body: t("auth.verification.message"),
+        subject: t("auth.verification.subject"),
+        title: t("auth.verification.title"),
+      };
 
   return renderAuthActionEmail({
+    ...copy,
     lang,
     actionUrl: verificationLink,
-    actionLabel: t("auth.verification.button"),
-    body: t("auth.verification.message"),
     footer: t("auth.verification.footer"),
     greeting: formatGreeting(t, "auth.verification.greeting", name),
     linkInstructions: t("auth.verification.linkInstructions"),
-    subject: t("auth.verification.subject"),
-    title: t("auth.verification.title"),
   });
 }
 
@@ -99,25 +111,21 @@ export async function renderResetPasswordEmail({
   });
 }
 
-export async function renderMagicLinkEmail({
+export async function renderEmailCodeEmail({
+  code,
+  expiresInMinutes,
   locale,
-  magicLink,
-  name,
-}: MagicLinkEmailProps): Promise<RenderedEmail> {
+}: EmailCodeEmailProps): Promise<RenderedEmail> {
   const { locale: lang, t } = createEmailTranslator(locale);
 
-  return renderAuthActionEmail({
+  return renderCodeEmail({
     lang,
-    actionUrl: magicLink,
-    actionLabel: t("auth.magicLink.button"),
-    body: t("auth.magicLink.message"),
-    footer: t("auth.magicLink.footer"),
-    greeting: name?.trim()
-      ? t("auth.magicLink.greeting", { name: name.trim() })
-      : t("auth.magicLink.greetingAnonymous"),
-    linkInstructions: t("auth.magicLink.linkInstructions"),
-    subject: t("auth.magicLink.subject"),
-    title: t("auth.magicLink.title"),
+    body: t("auth.emailCode.message", { minutes: expiresInMinutes }),
+    code,
+    footer: t("auth.emailCode.footer"),
+    greeting: t("auth.emailCode.greeting"),
+    subject: t("auth.emailCode.subject", { code }),
+    title: t("auth.emailCode.title"),
   });
 }
 

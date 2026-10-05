@@ -1,9 +1,8 @@
 import "server-only";
 
-import { cache } from "react";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AcceptChatRoomGuestInviteLink,
+  AddChatRoomMembersRequest,
   ChannelSlugAvailability,
   ChatEarlierThread,
   ChatRoom,
@@ -17,6 +16,7 @@ import type {
   ChatRoomThreadReadState,
   ChatRoomThreadsMarkAll,
   ChatRoomThreadUnreadReplyCount,
+  ChatSkillCatalogItem,
   ChatUnreadThread,
   CreateChatRoomGuestInviteLinkRequest,
   CreateChatRoomMessageRequest,
@@ -25,7 +25,9 @@ import type {
   ResolveChatRoomGuestInviteLink,
   StarredChatRoomOrder,
   UpdateChatRoomRequest,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { cache } from "react";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 const ROOM_MESSAGE_LIMIT = 100;
 const THREAD_LIST_PAGE_LIMIT = 50;
@@ -299,8 +301,35 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function addMembers(
+    roomId: string,
+    body: AddChatRoomMembersRequest,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.addChatRoomMembers(roomId, body);
+    return response.data;
+  }
+
   async function removeMember(roomId: string, userId: string) {
     const response = await coreClient.removeChatRoomMember(roomId, userId);
+    return response.data;
+  }
+
+  async function removeCoworker(
+    roomId: string,
+    coworkerId: string,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.removeChatRoomCoworker(
+      roomId,
+      coworkerId,
+    );
+    return response.data;
+  }
+
+  async function removeSokoBot(
+    roomId: string,
+    sokoBotId: string,
+  ): Promise<ChatRoom> {
+    const response = await coreClient.removeChatRoomSokoBot(roomId, sokoBotId);
     return response.data;
   }
 
@@ -585,6 +614,11 @@ export const chatRoomService = (() => {
     return response.data;
   }
 
+  async function searchSkills(q: string): Promise<ChatSkillCatalogItem[]> {
+    const response = await coreClient.searchChatSkills(q);
+    return response.data;
+  }
+
   /** Idempotent: repeating either direction leaves the Reaction as asked. */
   async function setReaction(
     roomId: string,
@@ -678,7 +712,10 @@ export const chatRoomService = (() => {
     getMessage,
     getThread,
     leaveRoom,
+    addMembers,
     removeMember,
+    removeCoworker,
+    removeSokoBot,
     markRead,
     markAllUnreadThreadsRead,
     markThreadRead,
@@ -692,6 +729,7 @@ export const chatRoomService = (() => {
     removeUnfurl,
     resolveRoomGuestInviteLink,
     restoreRoom,
+    searchSkills,
     revokeRoomGuestInviteLink,
     revokeRoomInvitation,
     unpinMessage,

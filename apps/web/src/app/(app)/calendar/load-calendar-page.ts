@@ -1,5 +1,11 @@
 import "server-only";
 
+import {
+  type Project,
+  TaskStatus,
+  type WorkspaceCalendarEntry,
+  type WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { isValidTimezone } from "@sokosumi/utils";
 import { format } from "date-fns";
 import { notFound } from "next/navigation";
@@ -8,12 +14,6 @@ import { Temporal } from "temporal-polyfill";
 import { listTaskAssigneeOptions } from "@/app/tasks/utils/task-assignee-options";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { getSession } from "@/lib/auth/auth.server";
-import {
-  type Project,
-  TaskStatus,
-  type WorkspaceCalendarEntry,
-  type WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 import { getProjectFilterOptions } from "@/lib/helpers/project-filter-options";
 import {
   getCalendarRange,
@@ -35,6 +35,7 @@ export interface CalendarPageSearchParams {
   projectId?: string;
   sourceId?: string;
   scope?: string;
+  socialOnly?: string;
   status?: string;
   view?: string;
   timezone?: string;

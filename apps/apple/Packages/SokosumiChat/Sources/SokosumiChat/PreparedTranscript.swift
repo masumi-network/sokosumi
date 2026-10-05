@@ -25,10 +25,27 @@ public struct PreparedTranscript: Sendable {
   /// Markdown is prepared async; chips and edits overlay that snapshot.
   /// Rows the live transcript already dropped (a deleted message) stay
   /// dropped — falling back to the snapshot would keep them on screen
-  /// until re-prepare finishes.
+  /// until re-prepare finishes. A pending shell Core confirmed takes its
+  /// server row in place, so the send never blinks out while the id swaps.
   public func overlaying(_ live: [Components.Schemas.ChatRoomMessage]) -> [Components.Schemas.ChatRoomMessage] {
     let byId = Dictionary(live.map { ($0.id, $0) }, uniquingKeysWith: { _, latest in latest })
-    return input.messages.compactMap { byId[$0.id] }
+    let confirmedByTurn = Dictionary(live.compactMap { message in
+      isOutboundLocalMessage(message) ? nil : realtimeClientTurnId(message).map { ($0, message) }
+    }, uniquingKeysWith: { _, latest in latest })
+    return input.messages.compactMap { snapshot in
+      byId[snapshot.id] ?? (isOutboundLocalMessage(snapshot) ? realtimeClientTurnId(snapshot).flatMap { confirmedByTurn[$0] } : nil)
+    }
+  }
+
+  /// The prepared document for a row, including a confirmed send still keyed by its pending shell.
+  public func document(for message: Components.Schemas.ChatRoomMessage) -> MessageMarkdown? {
+    if let document = documents[message.id] {
+      return document
+    }
+    guard let turnId = realtimeClientTurnId(message),
+          input.messages.contains(where: { $0.id == outboundLocalMessageId(turnId) && $0.content == message.content })
+    else { return nil }
+    return documents[outboundLocalMessageId(turnId)]
   }
 
   public static func prepare(_ input: Input, reusing previous: Self?) async throws -> Self {

@@ -22,15 +22,13 @@ export {
 export {
   betterAuthOrganizationAdditionalFields,
   betterAuthUserAdditionalFields,
+  EMAIL_CODE_SIGN_IN_METHODS_REMOVED,
 } from "./better-auth-client-schema.js";
 export {
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
 } from "./better-auth-cookie-prefix.js";
-export {
-  resolveBetterAuthProductionUrl,
-  resolveBetterAuthPublicBaseUrl,
-} from "./better-auth-public-url.js";
+export { resolveBetterAuthPublicBaseUrl } from "./better-auth-public-url.js";
 export type {
   Account,
   Session,
@@ -95,9 +93,11 @@ export {
   buildSokoBotChatRoomFilePathname,
   buildUserChatRoomFilePathname,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  chatRoomFileLinks,
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedSokoBotChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
+  parseChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 export {
   CHAT_ROOM_MESSAGE_CONTENT_COUNT_VISIBLE_AT,
@@ -267,6 +267,11 @@ export {
   extractHttpLinks,
 } from "./markdown-links-extract.js";
 export {
+  collectMarkdownUrlExcludedRanges,
+  findBareHttpUrlHits,
+  findHttpAutolinks,
+} from "./markdown-url-scan.js";
+export {
   NextJobAction,
   NextJobActionErrorType,
   OnChainTransactionStatus,
@@ -275,7 +280,6 @@ export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
-export { isNmkrEmail } from "./nmkr-email.js";
 export {
   BROWSER_ONLY_NOTIFICATION_KINDS,
   CHAT_FEED_MESSAGE_KEYS,
@@ -356,21 +360,41 @@ export {
   buildProjectContextMdPathname,
 } from "./project-files-path.js";
 export {
+  isValidProjectIdentifier,
+  PROJECT_IDENTIFIER_ERROR,
+  PROJECT_IDENTIFIER_MAX_LENGTH,
+  PROJECT_IDENTIFIER_PATTERN,
+  projectIdentifierSchema,
+  sanitizeProjectIdentifier,
+} from "./project-identifier.js";
+export {
   buildProjectLogoContentHashPathname,
   isOwnedProjectLogoUrl,
   isProjectLogoBlobUrl,
 } from "./project-logo-path.js";
+export {
+  buildSocialAccountAvatarPathname,
+  isOwnedSocialAccountAvatarUrl,
+  isSocialAccountAvatarAllowedContentType,
+  SOCIAL_ACCOUNT_AVATAR_MAX_SIZE_BYTES,
+} from "./social-account-avatar.js";
 export { SOCIAL_BETA_ORGANIZATION_SLUG } from "./social-beta.js";
 export {
+  SOCIAL_POST_MEDIA_MAX,
+  SOCIAL_POST_MEDIA_REQUIREMENTS,
   SOCIAL_POST_MEDIA_RULES,
   SOCIAL_POST_MIN_SCHEDULE_LEAD_MS,
   SOCIAL_POST_TEXT_LIMITS,
+  SOCIAL_POST_TEXT_MAX,
+  SOCIAL_POST_TEXT_REQUIRED,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
   type SocialPostMediaValidationReason,
   type SocialPostProvider,
+  socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
   socialPostMimeForFileName,
+  socialPostProviderLabel,
   validateSocialPostMedia,
 } from "./social-post.js";
 export { SokosumiJobStatus } from "./sokosumi-job-status.js";
@@ -409,6 +433,12 @@ export {
   TASK_FILE_MAX_SIZE_BYTES,
 } from "./task-file-upload.js";
 export {
+  formatTaskIdentifier,
+  parseTaskRef,
+  type TaskRef,
+} from "./task-identifier.js";
+export { isTaskScheduleCronShape } from "./task-schedule-cron.js";
+export {
   isAgentOnlyTaskStatus,
   type TaskAssigneeKind,
   userTaskStatusTransitionRequiresComment,
@@ -426,7 +456,10 @@ export {
 } from "./user-metadata.js";
 export {
   getFirstName,
+  isFirstAndLastNameWithinLimit,
+  joinFirstAndLastName,
   resolveAccountDisplayName,
+  USER_NAME_MAX_LENGTH,
 } from "./user-name.js";
 export { hasAdminRole } from "./user-role.js";
 export {
@@ -441,11 +474,6 @@ export {
   buildVendorLogoPathname,
   isOwnedVendorLogoUrl,
 } from "./vendor-logo-path.js";
-export {
-  buildWebhookFailureContext,
-  DEFAULT_WEBHOOK_TIMEOUT_MS,
-  postWebhook,
-} from "./webhook.js";
 export {
   isEmptyOrValidWebsiteUrl,
   isValidHttpUrl,

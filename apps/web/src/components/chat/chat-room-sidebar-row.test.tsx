@@ -1,3 +1,4 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
@@ -14,7 +15,6 @@ import {
   CHAT_CHATS_LIST_PATH,
   chatRoomEditHref,
 } from "@/app/chat/utils/chat-route-base";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom, makeUser } from "./__tests__/chat-room-fixtures";
 import { DirectRoomAvatarStack } from "./direct-room-avatar-stack";
 
@@ -94,6 +94,7 @@ vi.mock("next-intl", () => ({
         cancel: "Cancel",
         markUnread: "Mark as unread",
         editChannel: "Edit channel",
+        "RoomRoster.title": "Members",
         "GroupName.rename": "Rename",
         pin: "Pin",
         unpin: "Unpin",
@@ -1412,6 +1413,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
         isActive={false}
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        canManageSettings
       />,
     );
 
@@ -1432,6 +1434,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
         isActive
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        canManageSettings
       />,
     );
 
@@ -1457,6 +1460,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
         isActive
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        canManageSettings
       />,
     );
 
@@ -1483,6 +1487,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
         isActive
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        canManageSettings
       />,
     );
 
@@ -1508,6 +1513,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
         isActive
         leading={<span>#</span>}
         onRoomUpdated={vi.fn()}
+        canManageSettings
       />,
     );
 
@@ -1517,6 +1523,29 @@ describe("ChatRoomSidebarRow edit menu", () => {
     expect(replaceMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"), {
       scroll: false,
     });
+  });
+
+  // Settings are an owner's or admin's. Anyone else's row asks for the same
+  // thing, and the room shows them its members panel instead.
+  it("offers Members rather than Edit channel to a reader who cannot change settings", async () => {
+    render(
+      <ChatRoomSidebarRow
+        room={makeRoom()}
+        href="/chat/rooms/room-1"
+        label="general"
+        isActive={false}
+        leading={<span>#</span>}
+        onRoomUpdated={vi.fn()}
+      />,
+    );
+
+    const user = await openRoomMenu();
+    expect(
+      screen.queryByRole("menuitem", { name: "Edit channel" }),
+    ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("menuitem", { name: "Members" }));
+
+    expect(pushMock).toHaveBeenCalledWith(chatRoomEditHref("room-1"));
   });
 
   // The dialog is for channels. A direct room's header shows a plain title.
@@ -1582,7 +1611,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
   });
 
   // A channel nobody may leave still opens its dialog from the same menu.
-  it("offers Edit channel when Leave is hidden", async () => {
+  it("offers Members when Leave is hidden", async () => {
     render(
       <ChatRoomSidebarRow
         room={makeRoom({ userMembers: [makeUser("user-1")] })}
@@ -1597,7 +1626,7 @@ describe("ChatRoomSidebarRow edit menu", () => {
     await openRoomMenu();
 
     expect(
-      screen.getByRole("menuitem", { name: "Edit channel" }),
+      screen.getByRole("menuitem", { name: "Members" }),
     ).toBeInTheDocument();
   });
 });

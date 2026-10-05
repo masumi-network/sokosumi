@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   userTaskStatusTransitionRequiresComment,
@@ -7,15 +8,15 @@ import {
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { setTaskStatusFromDrag } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { TaskReopenToReadyDialog } from "./task-reopen-to-ready-dialog";
 import { TaskStatusPicker } from "./task-status-picker";
 
 export interface TaskMetadataStatusFieldLabels {
+  /** Field name, prefixed to the trigger's accessible name: "Status: Running". */
+  status: string;
   statusLabels: Record<TaskStatus, string>;
   changeStatus: string;
   noStatusMatches: string;
@@ -124,13 +125,15 @@ export function TaskMetadataStatusField({
         options={selectableStatuses}
         labels={{
           statusLabels: labels.statusLabels,
-          ariaLabel: labels.statusLabels[displayStatus],
+          ariaLabel: `${labels.status}: ${labels.statusLabels[displayStatus]}`,
           searchPlaceholder: labels.changeStatus,
           noResults: labels.noStatusMatches,
         }}
         onSelect={handleStatusSelect}
         isPending={isPending}
         openShortcutKey="s"
+        align="start"
+        variant="row"
       />
 
       <TaskReopenToReadyDialog

@@ -1,6 +1,9 @@
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
-import { oauthProvider } from "@better-auth/oauth-provider";
+import {
+  getOAuthProviderState,
+  oauthProvider,
+} from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -14,7 +17,7 @@ import {
 } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
 import {
-  renderMagicLinkEmail,
+  renderEmailCodeEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
 } from "@sokosumi/email";
@@ -32,21 +35,22 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { betterAuth } from "better-auth/minimal";
 import {
   admin,
+  emailOTP,
   jwt,
   lastLoginMethod,
-  magicLink,
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
 import Stripe from "stripe";
 import { sendEmail } from "@/clients/email.client";
 import { stripeClient } from "@/clients/stripe.client";
-import { getBetterAuthProductionUrl } from "@/config/better-auth-production-url";
 import { LIMITS, TIME } from "@/config/constants";
 import {
+  getBetterAuthProductionUrl,
   getBetterAuthPublicBaseUrl,
   getEnv,
   getWebAppBaseUrl,
+  isProductionEnvironment,
 } from "@/config/env";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
@@ -72,12 +76,39 @@ import { getBetterAuthSubscriptionPlans } from "@/services/subscription-catalog.
 import { markOutOfCreditsTasksAsToppedUp } from "@/services/task-topup.service";
 import { webhookService } from "@/services/webhook.service";
 import { createAuthCaptchaPlugin } from "./auth-captcha.js";
+import {
+  emailCodeSignIn,
+  resolveEmailCodeSignUpLoginMethod,
+} from "./auth-email-code-sign-in";
+import {
+  acceptCmoPreviewCallback,
+  answerCreatePromptWithNewSession,
+  jwtKeyStoreOptions,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+  oauthRefreshTokenOptions,
+  revokeUserOAuthTokens,
+} from "./auth-oauth-provider";
+import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
+import { keepNewSessionPersistent } from "./auth-persistent-session";
+import {
+  oauthSignUpOptions,
+  recordSignUpConversion,
+} from "./auth-sign-up-conversion";
+import { signUpEmailStatus } from "./auth-sign-up-email-status";
 import { accountOptions, socialProviderOptions } from "./auth-social-providers";
+import {
+  resolveEmailCodeSignInNameBody,
+  resolveSignUpNameBody,
+  validateUpdatedUserName,
+  validateUserNameLength,
+} from "./auth-user-name";
 import { anchorVerificationCallbackToWebApp } from "./verification-email-callback";
 
 const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
   "ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE";
+const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
 const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
@@ -91,6 +122,41 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
+
+interface SignUpOAuthClient {
+  clientId: string;
+  name: string;
+}
+
+/**
+ * The app a sign-up came from, when the request carries an OAuth request this
+ * provider signed (Web's auth client adds `oauth_query`, and the provider's
+ * hook verifies it before the endpoint runs). A disabled or unnamed client
+ * gets Sokosumi's own email, and so does a failed lookup: naming the app is
+ * not worth losing the email.
+ */
+async function getSignUpOAuthClient(): Promise<SignUpOAuthClient | undefined> {
+  try {
+    const query = (await getOAuthProviderState())?.query;
+    const clientId = query
+      ? new URLSearchParams(query).get("client_id")
+      : undefined;
+    if (!clientId) {
+      return undefined;
+    }
+    const client = await prisma.oauthClient.findFirst({
+      where: { clientId, disabled: false },
+      select: { name: true },
+    });
+    return client?.name?.trim() ? { clientId, name: client.name } : undefined;
+  } catch (error) {
+    captureExternalServiceError(error, {
+      label: "verification_email_client",
+      sentry: { tags: { context: "verification_email_client" } },
+    });
+    return undefined;
+  }
+}
 
 async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
   const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
@@ -166,6 +232,13 @@ async function reconcileAfterSubscriptionUpdate({
   }
 }
 
+/** Session endpoints that also revoke every app token of the person. */
+const APP_TOKEN_REVOKING_PATHS = new Set([
+  "/change-password",
+  "/revoke-sessions",
+  "/revoke-other-sessions",
+]);
+
 export const auth = betterAuth({
   appName: "Sokosumi",
   advanced: {
@@ -198,6 +271,7 @@ export const auth = betterAuth({
   },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
+    transaction: true,
   }),
   socialProviders: socialProviderOptions,
   account: accountOptions,
@@ -263,6 +337,7 @@ export const auth = betterAuth({
     user: {
       create: {
         before: async (user, _ctx) => {
+          validateUserNameLength(user.firstName, user.lastName);
           const withName = {
             ...user,
             name: user.name?.trim() ?? "",
@@ -271,7 +346,15 @@ export const auth = betterAuth({
             data: applyDesignMdMetadataGuardToUserCreate(withName),
           };
         },
-        after: async (user, _ctx) => {
+        after: async (user, ctx) => {
+          // Awaited: the OAuth provider's after hook in this same request
+          // takes the sign-up's redirect through Web.
+          await recordSignUpConversion(user.id, ctx).catch((error) => {
+            Sentry.captureException(error, {
+              tags: { context: "sign_up_conversion" },
+              extra: { userId: user.id },
+            });
+          });
           waitUntil(grantSignupBonusForCreatedUser(user.id));
           waitUntil(
             stripeClient
@@ -287,8 +370,6 @@ export const auth = betterAuth({
                   },
                   extra: {
                     userId: user.id,
-                    email: user.email,
-                    name: user.name,
                   },
                 });
               }),
@@ -337,6 +418,25 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: betterAuthBaseUrl,
   basePath: "/auth",
+  // Failures with no error URL of their own (a social callback whose state is
+  // gone, an unreturnable authorize request, a failed account link or proxy
+  // hand-off) land here instead of Core's `/auth/error`, which on production
+  // bounces to the API host's root. Web's own `errorCallbackURL` still wins.
+  onAPIError: { errorURL: `${webAppBaseUrl}/auth/error` },
+  // The email code plugin also offers password reset, email verification and
+  // email change by code. Sokosumi keeps links for those.
+  disabledPaths: [
+    // Password sign-up sends the password with an email code instead, so no
+    // new account starts with an unproven address (`auth-email-code-sign-in`).
+    "/sign-up/email",
+    "/email-otp/check-verification-otp",
+    "/email-otp/verify-email",
+    "/email-otp/request-password-reset",
+    "/forget-password/email-otp",
+    "/email-otp/reset-password",
+    "/email-otp/request-email-change",
+    "/email-otp/change-email",
+  ],
   rateLimit: {
     storage: "database",
   },
@@ -359,14 +459,36 @@ export const auth = betterAuth({
   ),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
+
       switch (ctx.path) {
-        case "/sign-up/email": {
-          if (!ctx.body?.termsAccepted) {
+        case "/email-otp/send-verification-otp": {
+          // Codes only sign people in. Password resets and email
+          // verification keep their links.
+          if (ctx.body?.type !== "sign-in") {
             throw new APIError("BAD_REQUEST", {
-              code: "TERMS_NOT_ACCEPTED",
+              message: "Email codes only sign in",
             });
           }
-
+          break;
+        }
+        case "/sign-in/email-otp": {
+          // A password sign-up (see `auth-email-code-sign-in`) keeps the
+          // checks `/sign-up/email` made before it was closed.
+          if (ctx.body?.password !== undefined) {
+            if (!ctx.body.termsAccepted) {
+              throw new APIError("BAD_REQUEST", {
+                code: "TERMS_NOT_ACCEPTED",
+              });
+            }
+            return { context: { body: resolveSignUpNameBody(ctx.body) } };
+          }
+          return {
+            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
+          };
+        }
+        case "/update-user": {
+          await validateUpdatedUserName(ctx);
           break;
         }
       }
@@ -390,6 +512,24 @@ export const auth = betterAuth({
           );
         }
       }
+
+      // Signing out everywhere else, or changing the password (even when the
+      // person keeps their other sessions), is a compromise signal like a
+      // reset. Plain sign-out keeps app tokens (ADR 0046). After hooks also
+      // run when the endpoint threw.
+      if (
+        APP_TOKEN_REVOKING_PATHS.has(ctx.path) &&
+        ctx.context.session &&
+        !(ctx.context.returned instanceof APIError)
+      ) {
+        await revokeUserOAuthTokens(
+          ctx.context.adapter,
+          ctx.context.session.user.id,
+        );
+      }
+
+      await keepNewSessionPersistent(ctx);
+      await answerCreatePromptWithNewSession(ctx);
     }),
   },
   emailAndPassword: {
@@ -401,6 +541,19 @@ export const auth = betterAuth({
     // A password reset is what someone does when they suspect their account is
     // compromised, so every existing session has to go with the old password.
     revokeSessionsOnPasswordReset: true,
+    // Sessions alone leave app tokens alive (see `revokeUserOAuthTokens`).
+    // A reset has no session, so the after hook cannot name the user; this
+    // callback is the one place that gets them. Better Auth ends sessions
+    // only after it returns, so a failed token write would keep them alive:
+    // end them here first, and attempt both whichever fails.
+    onPasswordReset: async ({ user }) => {
+      const context = await auth.$context;
+      try {
+        await context.internalAdapter.deleteUserSessions(user.id);
+      } finally {
+        await revokeUserOAuthTokens(context.adapter, user.id);
+      }
+    },
     sendResetPassword: async ({ user, url }, request) => {
       const email = await renderResetPasswordEmail({
         locale: getEmailLocale(request),
@@ -432,12 +585,15 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }, request) => {
+      const client = await getSignUpOAuthClient();
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
+        clientName: client?.name,
         verificationLink: anchorVerificationCallbackToWebApp(
           url,
           webAppBaseUrl,
+          client?.clientId,
         ),
       });
 
@@ -463,7 +619,6 @@ export const auth = betterAuth({
       );
     },
     sendOnSignUp: true,
-    sendOnSignIn: true,
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
@@ -505,42 +660,63 @@ export const auth = betterAuth({
   },
   plugins: [
     createAuthCaptchaPlugin(env.TURNSTILE_SECRET_KEY),
-    magicLink({
-      disableSignUp: false,
-      expiresIn: 60 * 10, // 10 minutes
-      storeToken: "hashed",
-      sendMagicLink: async ({ email, url }, ctx) => {
-        const locale = getEmailLocale(ctx?.request, ctx?.headers);
-        const name =
-          typeof ctx?.body?.name === "string" ? ctx.body.name : undefined;
-        const renderedEmail = await renderMagicLinkEmail({
-          locale,
-          magicLink: url,
-          name,
-        });
+    signUpEmailStatus(),
+    // A code, not a link: it goes back into the tab that asked for it, so a
+    // sign-in for another app keeps that app's state, and a mail scanner
+    // that opens links cannot use it up.
+    emailCodeSignIn(
+      emailOTP({
+        otpLength: 6,
+        expiresIn: EMAIL_CODE_EXPIRES_IN_SECONDS,
+        allowedAttempts: 5,
+        // Per IP, for sending and for signing in with a code. The default (3 a
+        // minute) turns away an office or event behind one address. Guessing
+        // stays capped by the five tries per code, and every send by the
+        // captcha.
+        rateLimit: { window: 60, max: 10 },
+        // A resend repeats the code rather than replacing it, so whichever email
+        // arrives first works. Reuse needs the code recoverable, so it is stored
+        // encrypted with the auth secret instead of hashed.
+        storeOTP: "encrypted",
+        resendStrategy: "reuse",
+        disableSignUp: false,
+        sendVerificationOTP: async ({ email, otp }, ctx) => {
+          // Local Core has no working email key; sign-up needs the code
+          // (ADR 0050). Never outside development: the code signs in.
+          // stdout, not console: Sentry's default console integration would
+          // keep this line as a breadcrumb on the send failure below.
+          if (env.NODE_ENV === "development") {
+            process.stdout.write(`[email code] ${email}: ${otp}\n`);
+          }
+          const renderedEmail = await renderEmailCodeEmail({
+            locale: getEmailLocale(ctx?.request, ctx?.headers),
+            code: otp,
+            expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
+          });
 
-        waitUntil(
-          sendEmail({
-            to: email,
-            tag: "magic-link",
-            subject: renderedEmail.subject,
-            html: renderedEmail.html,
-          }).catch((error) => {
-            captureExternalServiceError(error, {
-              label: "magic_link_email",
-              sentry: {
-                tags: {
-                  context: "magic_link_email",
+          waitUntil(
+            sendEmail({
+              to: email,
+              tag: "email-code",
+              subject: renderedEmail.subject,
+              html: renderedEmail.html,
+            }).catch((error) => {
+              captureExternalServiceError(error, {
+                label: "email_code_email",
+                message: "Email code delivery failed",
+                sentry: {
+                  tags: {
+                    context: "email_code_email",
+                  },
                 },
-              },
-              extra: {
-                email,
-              },
-            });
-          }),
-        );
-      },
-    }),
+                // Provider errors can echo the address or code. Report only
+                // fixed text, without the original message, stack or cause.
+              });
+            }),
+          );
+        },
+      }),
+    ),
     i18n({
       translations: authTranslations,
       defaultLocale: "en",
@@ -567,7 +743,10 @@ export const auth = betterAuth({
       // middleware, so no first-party caller needs the session.
       enableSessionForAPIKeys: false,
     }),
-    jwt({ disableSettingJwtHeader: true }),
+    jwt({
+      disableSettingJwtHeader: true,
+      ...jwtKeyStoreOptions(isProductionEnvironment(env)),
+    }),
     createAuthOrganizationPlugin(),
     passkey({
       rpID: env.BETTER_AUTH_RP_ID,
@@ -578,9 +757,17 @@ export const auth = betterAuth({
         betterAuthCookiePrefixParams,
         "last_used_login_method",
       ),
+      customResolveMethod: resolveEmailCodeSignUpLoginMethod,
     }),
     oauthProvider({
       loginPage: `${webAppBaseUrl}/signin`,
+      // Where `prompt=create` lands, signed in or not, and where a social
+      // sign-up no Web page has counted yet goes before the client. The page
+      // reports back through `/oauth2/continue`.
+      signup: oauthSignUpOptions(webAppBaseUrl),
+      // The sign-in and sign-up pages name the requesting client before
+      // anyone is signed in. Answered only for a request this provider signed.
+      allowPublicClientPrelogin: true,
       consentPage: `${webAppBaseUrl}/oauth/consent`,
       scopes: [...OAUTH_PROVIDER_SCOPES],
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
@@ -590,18 +777,27 @@ export const auth = betterAuth({
       ],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
+      // Production keeps exact redirect URI matching (ADR 0045).
+      ...(env.VERCEL_ENV === "preview"
+        ? { validateRedirectUri: acceptCmoPreviewCallback }
+        : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
-      refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
+      ...oauthRefreshTokenOptions,
       idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
-        opaqueAccessToken: "soko_access_token_",
-        refreshToken: "soko_refresh_token_",
+        opaqueAccessToken: OAUTH_ACCESS_TOKEN_PREFIX,
+        refreshToken: OAUTH_REFRESH_TOKEN_PREFIX,
         clientSecret: "soko_client_secret_",
       },
     }),
     oAuthProxy({
       productionURL: getBetterAuthProductionUrl(),
+      // Without this the plugin compares the production URL to the request
+      // URL. That was plain HTTP behind Vercel's TLS termination until
+      // `withPublicScheme`, so production proxied its own sign-ins.
+      currentURL: betterAuthBaseUrl,
+      secret: env.OAUTH_PROXY_SECRET,
     }),
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.

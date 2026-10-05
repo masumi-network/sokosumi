@@ -1,14 +1,13 @@
 "use client";
 
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-
 import {
   StripeBillingInformationFields,
   type StripeBillingInformationTranslationNamespace,
 } from "@/components/billing/stripe-billing-information-fields";
 import { buildStripeBillingInformationFieldsProps } from "@/lib/billing/build-stripe-billing-information-fields-props";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 export interface StripeBillingInformationContentProps {
   billingDetails: StripeCustomerBillingDetails;

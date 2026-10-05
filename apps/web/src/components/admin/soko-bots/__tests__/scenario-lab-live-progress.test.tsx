@@ -35,7 +35,7 @@ vi.mock("@/lib/actions/soko-bot/action", () => ({
   startSokoBotTurnAction: (...args: unknown[]) => startTurnMock(...args),
 }));
 
-import type { SokoBotVersion } from "@/lib/clients/generated/core";
+import type { SokoBotVersion } from "@sokosumi/core-client";
 import { ScenarioLab } from "../scenario-lab.client";
 
 const VERSIONS: SokoBotVersion[] = [

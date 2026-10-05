@@ -23,6 +23,7 @@ import {
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   evaluationBinding,
   prepareEvaluationStep,
@@ -65,9 +66,7 @@ async function runTurn(
     for (const capability of turn.capabilities) {
       if (
         evaluationBinding() &&
-        !["get_task_status", "archive_task", "request_user_decision"].includes(
-          capability,
-        )
+        !["get_task_status", "archive_task"].includes(capability)
       )
         continue;
       tools[capability] = tool({
@@ -93,6 +92,7 @@ async function runTurn(
 
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
+    const userMessage = await withTurnSkills(input.turnId, input.message);
     await log.append(runtimeEvent("step.started", { modelId: turn.model }));
     const result = await withEvaluationTurn(input.turnId, () =>
       generateText({
@@ -102,13 +102,16 @@ async function runTurn(
           inferenceRegion: turn.inferenceRegion,
         }),
         system: turn.system,
-        messages: [{ role: "user", content: input.message }],
+        messages: [{ role: "user", content: userMessage }],
         tools,
         prepareStep: prepareEvaluationStep,
         stopWhen: stepCountIs(SOKO_BOT_MAX_STEPS),
         abortSignal,
         async onStepFinish(step) {
-          assertSokoBotInferenceRegion(step.providerMetadata);
+          assertSokoBotInferenceRegion(step.providerMetadata, {
+            model: turn.model,
+            role: "agent",
+          });
           await log.append(
             runtimeEvent("step.completed", {
               modelId: turn.model,
@@ -128,11 +131,18 @@ async function runTurn(
       }),
     );
 
-    assertSokoBotInferenceRegion(result.providerMetadata);
+    assertSokoBotInferenceRegion(result.providerMetadata, {
+      model: turn.model,
+      role: "agent",
+    });
     await finishTurn({
       log,
       turnId: input.turnId,
-      text: result.text,
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      text:
+        result.text ||
+        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
       requiresActionProof: turn.requiresActionProof,
     });

@@ -32,7 +32,7 @@ vi.mock("@/components/ui/tooltip", () => ({
   TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
 }));
 
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 
 import { ChatMessageRow } from "../room-message-row";
 
@@ -155,11 +155,11 @@ describe("Seen by reserve", () => {
 
   it("reserves nothing when the Soko Bot footer follows the body", () => {
     const { container } = renderRow({
-      metadata: { soko_bot: { turn_id: "turn-1" } },
+      metadata: { soko_bot: { turn_id: "turn-1", task_ids: ["task-1"] } },
     });
 
     expect(inlineReserve(container)).toBeNull();
-    expect(container.textContent).toContain("feedbackAsk");
+    expect(container.querySelector('a[href="/tasks/task-1"]')).not.toBeNull();
   });
 
   it("reserves nothing when a reaction row already clears the corner", () => {
@@ -183,6 +183,35 @@ describe("Seen by reserve", () => {
     });
 
     expect(inlineReserve(container)).toBeNull();
+  });
+
+  it("reserves no line after a picture, which would grow the row as the faces land", () => {
+    const { container } = renderRow({
+      content: "the logo\n\n[cmo.png](https://example.com/cmo.png)",
+    });
+
+    expect(inlineReserve(container)).toBeNull();
+  });
+
+  it("keeps the corner clear under a newest picture before the faces arrive", () => {
+    const content = "the logo\n\n[cmo.png](https://example.com/cmo.png)";
+    const column = (seenBy: boolean, isNewest: boolean) =>
+      render(
+        <ChatMessageRow
+          message={message({ content })}
+          coworkersById={new Map()}
+          coworkersBySlug={new Map()}
+          onToggleReaction={vi.fn()}
+          newestEndsInAttachment={isNewest}
+          seenBy={seenBy ? <span data-testid="seen-by-faces" /> : undefined}
+        />,
+      )
+        .container.querySelector('[data-testid="room-message-body"]')
+        ?.closest(".text-foreground")?.className;
+
+    expect(column(false, true)).toContain("pb-3");
+    expect(column(true, true)).toBe(column(false, true));
+    expect(column(false, false)).not.toContain("pb-3");
   });
 
   it("reserves nothing on a row without Seen by faces", () => {

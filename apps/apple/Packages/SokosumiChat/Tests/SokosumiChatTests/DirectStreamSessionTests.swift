@@ -25,9 +25,9 @@ struct DirectStreamSessionTests {
   """
 
   private func room() -> Components.Schemas.ChatRoom {
-    .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
-          unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .member,
-          userMembers: [sender], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
+    .init(id: testRoomId, name: "Coworker", kind: .direct, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, createdByUserId: "me", createdAt: Date(), updatedAt: Date(),
+          unreadCount: 0, unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
+          userMembers: [sender], formerUserMembers: [], coworkerMembers: [.init(id: "coworker", name: "Coworker", slug: "coworker", presence: .online)], sokoBotMembers: [])
   }
 
   @Test func failedQuotedSendRestoresQuoteWithDraft() async throws {
@@ -238,7 +238,7 @@ struct DirectStreamSessionTests {
   @Test func onlyCoworkerOneToOneDirectsUseStream() {
     var candidate = room()
     #expect(DirectStreamSession.supports(candidate))
-    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", presence: .online)]
+    candidate.sokoBotMembers = [.init(id: "bot", name: "Soko Bot", ownerUserId: "user_1", presence: .online)]
     #expect(!DirectStreamSession.supports(candidate))
     candidate.sokoBotMembers = []
     candidate.kind = .channel
@@ -258,7 +258,7 @@ struct DirectStreamSessionTests {
     #expect(session.send("Hello", client: client, organizationSlug: nil,
                          settled: { false }, failed: { Issue.record($0) }))
     await session.task?.value
-    var older = chatRoomMessage(from: .init(clientTurnId: "old", roomId: testRoomId, content: "Hello", sender: sender))
+    var older = chatRoomMessage(from: .init(clientTurnId: "old", roomId: testRoomId, content: "Hello", createdAt: Date(), sender: sender))
     older.id = "old"
     var newest = older
     newest.id = "new"

@@ -1,8 +1,8 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeAll, describe, expect, it, vi } from "vitest";
 import { getToneStyle } from "@/components/ui/status-marker";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { getTaskStatusMarker } from "./task-status-badge";
 
 import { TaskStatusPicker } from "./task-status-picker";
@@ -212,6 +212,29 @@ describe("TaskStatusPicker", () => {
     // The digits skip the disabled row, so 3 is Completed.
     await user.keyboard("3");
     expect(onSelect).toHaveBeenCalledWith(TaskStatus.COMPLETED);
+  });
+
+  it("renders the quiet row trigger with a tooltip", async () => {
+    const user = userEvent.setup();
+    renderPicker({
+      variant: "row",
+      labels: { ...labels, ariaLabel: "Status: Ready" },
+    });
+
+    const trigger = screen.getByRole("combobox", { name: "Status: Ready" });
+    expect(trigger).toHaveClass(
+      "h-8",
+      "w-[calc(100%+1rem)]",
+      "justify-start",
+      "px-2",
+    );
+    expect(trigger.querySelector("span.inline-flex")).toBeNull();
+    expect(trigger.querySelector("svg.lucide-chevron-down")).toBeNull();
+
+    await user.hover(trigger);
+    expect(
+      await screen.findByRole("tooltip", { name: "Status: Ready" }),
+    ).toBeInTheDocument();
   });
 });
 

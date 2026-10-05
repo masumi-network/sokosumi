@@ -20,6 +20,7 @@ const {
   prismaTransactionMock,
   sendFollowUpsMock,
   purgeExpiredTaskX402PaymentHeadersMock,
+  purgeExpiredCaptchaPassesMock,
   syncProjectClosesMock,
   releaseDueTaskSchedulesMock,
   releaseDueRunAtsMock,
@@ -42,6 +43,7 @@ const {
   prismaTransactionMock: vi.fn(),
   sendFollowUpsMock: vi.fn(),
   purgeExpiredTaskX402PaymentHeadersMock: vi.fn(),
+  purgeExpiredCaptchaPassesMock: vi.fn(),
   syncProjectClosesMock: vi.fn(),
 }));
 
@@ -160,6 +162,12 @@ vi.mock("@/services/stripe-customer-sync.service", () => ({
 vi.mock("@/helpers/chat-room-invitation", () => ({
   expireStalePendingInvitations: (...args: unknown[]) =>
     expireStalePendingInvitationsMock(...args),
+}));
+
+vi.mock("@/services/captcha-pass.purge", () => ({
+  captchaPassPurgeService: {
+    purgeExpiredCaptchaPasses: purgeExpiredCaptchaPassesMock,
+  },
 }));
 
 vi.mock("@/services/task-x402-payment.purge", () => ({
@@ -613,6 +621,9 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(prismaTransactionMock).toHaveBeenCalledTimes(1);
     expect(syncEnterpriseContractRenewalMock).toHaveBeenCalledTimes(1);
+    expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
+      isolationLevel: "Serializable",
+    });
   });
 
   it("returns 200 and starts free-subscription renewal sync exactly once in background", async () => {
@@ -1063,6 +1074,51 @@ describe("sync routes", () => {
     await flushMicrotasks();
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledTimes(1);
     expect(purgeExpiredTaskX402PaymentHeadersMock).toHaveBeenCalledWith(
+      expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
+    );
+    expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");
+  });
+
+  it("returns 401 for missing cron auth on captcha pass purge sync", async () => {
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/captcha-passes-purge",
+    );
+
+    expect(response.status).toBe(401);
+    expect(acquireLockMock).not.toHaveBeenCalled();
+    expect(purgeExpiredCaptchaPassesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 409 when the captcha pass purge lock is already held", async () => {
+    acquireLockMock.mockRejectedValue(new Error("LOCK_IS_LOCKED"));
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/captcha-passes-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(409);
+    expect(purgeExpiredCaptchaPassesMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 200 and starts the captcha pass purge exactly once in background", async () => {
+    purgeExpiredCaptchaPassesMock.mockResolvedValue({ purged: 4 });
+    const app = createApp();
+
+    const response = await app.request(
+      "http://localhost/sync/captcha-passes-purge",
+      { headers: { Authorization: "Bearer test-cron-secret" } },
+    );
+
+    expect(response.status).toBe(200);
+    expect(acquireLockMock).toHaveBeenCalledWith("captcha-passes-purge-sync");
+
+    await flushMicrotasks();
+    expect(purgeExpiredCaptchaPassesMock).toHaveBeenCalledTimes(1);
+    expect(purgeExpiredCaptchaPassesMock).toHaveBeenCalledWith(
       expect.objectContaining({ abortSignal: expect.any(AbortSignal) }),
     );
     expect(releaseLockMock).toHaveBeenCalledWith("lock-key", "owner-token");

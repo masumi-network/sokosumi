@@ -82,8 +82,10 @@ jobs:
         with:
           turbo_team: ${{ vars.TURBO_TEAM }}
 
+      # CMO rides this leg: a Next.js app with no workspace dependencies,
+      # too small for a job of its own.
       - name: Run Tests
-        run: pnpm exec turbo run test:ci --filter=web
+        run: pnpm exec turbo run test:ci --filter=web --filter=cmo
 
   core:
     name: Test Core

@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronDown, Loader2, X } from "lucide-react";
+import { Check, ChevronDown, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState } from "react";
 import {
@@ -443,7 +443,7 @@ export function StudioComposer({
               >
                 {STUDIO_TEMPLATES.map((template) => (
                   <button
-                    className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex shrink-0 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
+                    className="bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 flex shrink-0 transition-[transform,background-color] duration-200 ease-out motion-safe:hover:-translate-y-0.5 motion-safe:active:scale-95 cursor-pointer items-center gap-2 rounded-lg p-1 pr-3 text-left outline-none focus-visible:ring-[3px]"
                     key={template.id}
                     onClick={() => onApplyTemplate(template)}
                     type="button"
@@ -470,21 +470,12 @@ export function StudioComposer({
           submit();
         }}
         removeAttachmentLabel={() => ""}
-        sendAriaLabel={labels.generateOne}
-        sendDisabled={!canGenerate}
-        submitControl={
-          <Button
-            disabled={!canGenerate}
-            onClick={submit}
-            size="sm"
-            variant="primary"
-          >
-            {busy ? <Loader2 aria-hidden className="animate-spin" /> : null}
-            {totalJobs > 1
-              ? t("generateMany", { count: totalJobs })
-              : labels.generateOne}
-          </Button>
+        sendAriaLabel={
+          totalJobs > 1
+            ? t("generateMany", { count: totalJobs })
+            : labels.generateOne
         }
+        sendDisabled={!canGenerate}
         toolbarStart={
           <>
             <Popover>
@@ -606,7 +597,10 @@ export function StudioComposer({
                   </TriggerLabel>
                 </Button>
               </PopoverTrigger>
-              <PopoverContent align="start" className="w-80 space-y-3">
+              <PopoverContent
+                align="start"
+                className="w-80 max-w-[calc(100vw-2rem)] space-y-3"
+              >
                 {/* Every row below reads its options from the chosen models, so
                 with none chosen they are all empty. Saying so beats three
                 labelled rows with nothing in them. */}
@@ -840,13 +834,17 @@ export function StudioComposer({
           </>
         }
         withOuterPadding={false}
+        withSafeAreaPadding
       >
         <Textarea
           aria-label={labels.promptPlaceholder}
           className={ROOM_COMPOSER_TEXTAREA_CLASSNAME}
           onChange={(event) => onPromptChange(event.currentTarget.value)}
           onKeyDown={(event) => {
-            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            if (
+              event.key === "Enter" &&
+              (event.shiftKey || event.metaKey || event.ctrlKey)
+            ) {
               event.preventDefault();
               submit();
             }

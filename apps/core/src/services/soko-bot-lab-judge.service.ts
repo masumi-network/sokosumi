@@ -1,9 +1,7 @@
-import * as Sentry from "@sentry/node";
 import type { Prisma } from "@sokosumi/database";
 import {
   type ScenarioCheck,
   SOKO_BOT_JUDGE_RUBRIC,
-  SOKO_BOT_PROACTIVE_JUDGE_RUBRIC,
   SOKO_BOT_SCENARIOS,
   type SokoBotJudgeVerdict,
   sokoBotJudgeVerdictSchema,
@@ -101,6 +99,7 @@ async function loadTranscript(turnId: string, userId?: string) {
       userMessage: true,
       finalAnswer: true,
       versionId: true,
+      sokoBot: { select: { name: true } },
       toolCalls: {
         orderBy: { createdAt: "asc" },
         select: {
@@ -121,14 +120,16 @@ async function loadTranscript(turnId: string, userId?: string) {
   if (!turn) throw new SokoBotLabJudgeError("Turn not found");
   const runtimeInput = clip(turn.userMessage);
   const finalAnswer = clip(turn.finalAnswer) || "(no answer)";
+  // Sandbox tools (web, shell, workspace) are tool calls too, in order.
+  const calls = turn.toolCalls;
   const fitted = fitWithinBudget(
-    turn.toolCalls.flatMap((call) => [
+    calls.flatMap((call) => [
       clip(call.input),
       call.status === "FAILED" ? clip(call.errorDetail) : clip(call.result),
     ]),
     TOOL_BUDGET,
   );
-  const toolCalls = turn.toolCalls.map((call, index) => ({
+  const toolCalls = calls.map((call, index) => ({
     step: index + 1,
     tool: call.capability,
     status: call.status,
@@ -142,6 +143,9 @@ async function loadTranscript(turnId: string, userId?: string) {
   return {
     turn,
     transcript: {
+      // The assistant's own name, so signing a message with it does not read
+      // as impersonating somebody.
+      assistantName: turn.sokoBot.name,
       source: turn.source,
       status: turn.status,
       route: turn.route,
@@ -184,7 +188,10 @@ export async function generateSokoBotJudgeText(options: {
     instructions: SOKO_BOT_JUDGE_RUBRIC,
     prompt: JSON.stringify(options.payload),
   });
-  assertSokoBotInferenceRegion(result.providerMetadata);
+  assertSokoBotInferenceRegion(result.providerMetadata, {
+    model: options.model,
+    role: "judge",
+  });
   return result;
 }
 
@@ -318,6 +325,39 @@ async function storeTurnVerdict(turnId: string, call: JudgeCall) {
   });
 }
 
+type LabScenario = (typeof SOKO_BOT_SCENARIOS)[number];
+type Transcript = Awaited<ReturnType<typeof loadTranscript>>["transcript"];
+
+/** What the judge reads for a lab turn: the scenario's rubric and the turn. */
+function labJudgePayload(scenario: LabScenario, transcript: Transcript) {
+  return {
+    scenario: {
+      id: scenario.id,
+      title: scenario.title,
+      intent: scenario.intent,
+      rubric: scenario.rubric,
+      ownerMessageOrTrigger:
+        scenario.trigger?.kind === "task_event"
+          ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
+          : scenario.trigger?.kind === "ingest"
+            ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
+            : scenario.prompt,
+    },
+    turn: transcript,
+  };
+}
+
+/**
+ * The exact judge input for a stored lab turn, so candidate judges can be
+ * compared on what the lab's judge saw, without re-running the bot.
+ */
+export async function loadLabJudgePayload(turnId: string, scenarioId: string) {
+  const scenario = SOKO_BOT_SCENARIOS.find((s) => s.id === scenarioId);
+  if (!scenario) throw new SokoBotLabJudgeError("Unknown scenario");
+  const { transcript } = await loadTranscript(turnId);
+  return labJudgePayload(scenario, transcript);
+}
+
 /**
  * Grades one lab turn against its scenario rubric and records the run
  * (deterministic checks + verdict) so the admin overview can compare
@@ -353,121 +393,10 @@ export async function judgeSokoBotLabTurn(input: {
     });
   };
   await record(null);
-  const call = await askJudge({
-    scenario: {
-      id: scenario.id,
-      title: scenario.title,
-      intent: scenario.intent,
-      rubric: scenario.rubric,
-      ownerMessageOrTrigger:
-        scenario.trigger?.kind === "task_event"
-          ? `Coworker set the task to ${scenario.trigger.status}: ${scenario.trigger.comment}`
-          : scenario.trigger?.kind === "ingest"
-            ? `Self-started ${scenario.trigger.beat} turn built from the connected mail and calendar (see the packet in the prompt).`
-            : scenario.prompt,
-    },
-    turn: transcript,
-  });
+  const call = await askJudge(labJudgePayload(scenario, transcript));
   await Promise.all([
     record(call.verdict),
     storeTurnVerdict(input.turnId, call),
   ]);
   return { verdict: call.verdict, model };
-}
-
-/**
- * Re-grades a settled turn with a named model and returns the verdict without
- * storing it. Comparing judges needs the same turn seen by each of them, and
- * a comparison that rewrote the recorded score would destroy what it measures.
- */
-export async function judgeTurnWithModel(
-  turnId: string,
-  model: string,
-): Promise<JudgeCall> {
-  const { turn, transcript } = await loadTranscript(turnId);
-  // The same bar `judgeTurnQuality` sets: a turn still running has half its
-  // evidence, and grading it would score the judge on a transcript no judge
-  // could get right.
-  if (turn.status !== "COMPLETED" && turn.status !== "FAILED") {
-    throw new SokoBotLabJudgeError(
-      `Turn is ${turn.status}; only a settled turn can be judged.`,
-    );
-  }
-  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  // The cost comes back with the verdict: comparing judges on agreement alone
-  // cannot say whether the more accurate one is worth what it charges on every
-  // settled turn.
-  return askJudge(
-    {
-      scenario: {
-        id: proactive ? "live-proactive-turn" : "live-turn",
-        title: proactive ? "Self-started turn" : "Live turn",
-        intent: proactive
-          ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
-          : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
-        rubric: proactive
-          ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
-          : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
-        ownerMessageOrTrigger: transcript.runtimeInput,
-      },
-      turn: transcript,
-    },
-    model,
-  );
-}
-
-/**
- * Scores an ordinary (non-lab) turn with the same judge against the generic
- * expectation of a good project-manager turn. Runs after settlement.
- */
-export async function judgeTurnQuality(turnId: string): Promise<void> {
-  if (!getEnv().SOKO_BOT_TURN_JUDGE_ENABLED) return;
-  const { turn, transcript } = await loadTranscript(turnId);
-  if (turn.status !== "COMPLETED" && turn.status !== "FAILED") return;
-  const proactive = turn.source !== "CHAT" && turn.source !== "ADMIN_RETRY";
-  const call = await askJudge({
-    scenario: {
-      id: proactive ? "live-proactive-turn" : "live-turn",
-      title: proactive ? "Self-started turn" : "Live turn",
-      intent: proactive
-        ? "A turn the bot started on its own; its answer reaches the owner's chat unattended. Judge whether the owner is better off for receiving it."
-        : "An ordinary turn from the owner. Judge whether a careful human project manager would be satisfied with what happened and how it was reported.",
-      rubric: proactive
-        ? SOKO_BOT_PROACTIVE_JUDGE_RUBRIC
-        : "Work is delegated as clear tasks, follow-ups exist as schedules, coworker questions and failures are handled on the task, the owner is told exactly what happened, and nothing is claimed that the tool results do not show.",
-      ownerMessageOrTrigger: transcript.runtimeInput,
-    },
-    turn: transcript,
-  });
-  await storeTurnVerdict(turnId, call);
-}
-
-/**
- * Records what a judge call cost when it produced nothing usable. The verdict
- * is lost either way; the spend is not, and a bot's reported usage has to
- * include the calls that failed.
- */
-export async function recordFailedJudgeUsage(
-  turnId: string,
-  error: unknown,
-): Promise<void> {
-  if (!(error instanceof SokoBotJudgeFailure)) return;
-  if (error.usage.costUsd === 0 && error.usage.inputTokens === 0) return;
-  await addTurnOverheadUsage(turnId, error.usage).catch(() => undefined);
-}
-
-/** Background quality scoring: page Sentry, then keep the spend. */
-export async function reportFailedTurnJudge(
-  turnId: string,
-  error: unknown,
-): Promise<void> {
-  console.error("Soko Bot turn judge failed", {
-    turnId,
-    error: error instanceof Error ? error.message : "unknown",
-  });
-  Sentry.captureException(error, {
-    tags: { error_type: "soko_bot_turn_judge_failed" },
-    extra: { turnId },
-  });
-  await recordFailedJudgeUsage(turnId, error);
 }

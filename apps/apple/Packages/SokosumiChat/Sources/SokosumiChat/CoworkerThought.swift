@@ -2,10 +2,12 @@ import CoreAPI
 import Foundation
 import OpenAPIRuntime
 
-/// The reasoning trace of a coworker message: live on a stream overlay or a
-/// persisted mention shell, and the Thought disclosure once the answer is
-/// there. Both read `metadata.reasoning`, which the stream overlay fills from
-/// its reasoning parts as web's does, so one join rule serves every state.
+/// The reasoning trace of a coworker or Soko Bot message (`hasThoughtView`;
+/// named after web's `coworker-thought.ts`, which kept its name when #5304
+/// added Soko Bot): live on a stream overlay or a persisted mention shell, and
+/// the Thought disclosure once the answer is there. Both read
+/// `metadata.reasoning`, which the stream overlay fills from its reasoning
+/// parts as web's does, so one join rule serves every state.
 public struct CoworkerThought: Sendable {
   /// Every non-empty reasoning beat, trimmed, joined by a blank line (web
   /// `extractThoughtTextFromMetadata`).
@@ -74,4 +76,33 @@ public struct CoworkerThought: Sendable {
     }
     return result.flatMap { $0.isFinite ? $0 : nil }
   }
+}
+
+/// Whether a row resolves the Thought view: web `ChatMessageRow`'s `thoughtView`
+/// is null for a deleted row and for a person; a coworker and, since web #5304,
+/// a Soko Bot draw their mention trace and "Thought for Ns" the same way.
+public func hasThoughtView(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  guard message.deletedAt == nil else { return false }
+  switch message.sender {
+  case .case2, .case3:
+    return true
+  case .case1, .case4:
+    return false
+  }
+}
+
+/// Coworker sender, not a person, Soko Bot, or unknown.
+func isCoworkerSender(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  switch message.sender {
+  case .case2:
+    true
+  case .case1, .case3, .case4:
+    false
+  }
+}
+
+/// Direct-stream coworker overlay: `DirectStreamSession` prefixes the id `stream:`.
+/// The user turn of the same stream also uses that prefix.
+public func isCoworkerStreamOverlay(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
+  message.id.hasPrefix("stream:") && isCoworkerSender(message)
 }

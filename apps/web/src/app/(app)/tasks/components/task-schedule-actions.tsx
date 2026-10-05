@@ -1,11 +1,11 @@
 "use client";
 
-import { Pause, Pencil, Play, Square, Trash2 } from "lucide-react";
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
+import { Pause, Pencil, Play, Square, Trash2, Zap } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { TASK_SCHEDULES_PATH } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import {
@@ -22,13 +22,10 @@ import { Button } from "@/components/ui/button";
 import {
   changeTaskScheduleState,
   deleteTaskSchedule,
+  runTaskScheduleNow,
   type TaskScheduleActionError,
 } from "@/lib/actions/task-schedule/action";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { TaskScheduleDialog } from "./task-schedule-dialog";
 
@@ -47,8 +44,9 @@ const STATE_ACTION_TOAST = {
 } as const satisfies Record<TaskScheduleStateAction, string>;
 
 /**
- * Edit, pause, resume, end, and delete for the schedule's owner. An Ended
- * schedule is final: it can only be deleted.
+ * Edit, run now, pause, resume, end, and delete, for whoever Core says may
+ * change the schedule (`canWrite`). An Ended schedule is final: it can only be
+ * deleted.
  */
 export function TaskScheduleActions({
   schedule,
@@ -64,6 +62,11 @@ export function TaskScheduleActions({
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [confirming, setConfirming] = useState<"end" | "delete" | null>(null);
   const isEnded = schedule.state === TaskScheduleState.ENDED;
+
+  function refreshAfterChange() {
+    if (onChanged) onChanged();
+    else router.refresh();
+  }
 
   function reportError(error: TaskScheduleActionError) {
     toast.error(
@@ -83,8 +86,30 @@ export function TaskScheduleActions({
       }
       toast.success(tActions(STATE_ACTION_TOAST[action]));
       setConfirming(null);
-      if (onChanged) onChanged();
-      else router.refresh();
+      refreshAfterChange();
+    });
+  }
+
+  function handleRunNow() {
+    startTransition(async () => {
+      const result = await runTaskScheduleNow({
+        scheduleId: schedule.id,
+        expectedRevision: schedule.revision,
+      });
+      if (!result.ok) {
+        reportError(result.error);
+        return;
+      }
+      const { taskId } = result.value;
+      toast.success(tActions("ranNow"), {
+        duration: Infinity,
+        closeButton: true,
+        action: {
+          label: tActions("openTask"),
+          onClick: () => router.push(`/tasks/${taskId}`),
+        },
+      });
+      refreshAfterChange();
     });
   }
 
@@ -113,6 +138,15 @@ export function TaskScheduleActions({
           >
             <Pencil className="size-4" aria-hidden />
             {tActions("edit")}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRunNow}
+            disabled={isPending}
+          >
+            <Zap className="size-4" aria-hidden />
+            {tActions("runNow")}
           </Button>
           {schedule.state === TaskScheduleState.ACTIVE ? (
             <Button

@@ -3,21 +3,16 @@ import type { AuthMethodId } from "@/lib/schemas/auth";
 const AUTH_SESSION_INITIAL_WAIT_MS = 200;
 const AUTH_SESSION_RETRY_WAIT_MS = 500;
 const AUTH_SESSION_GET_TIMEOUT_MS = 5_000;
-const OAUTH_CONSENT_PATH = "/oauth/consent";
-const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set(["returnUrl", "email"]);
+// `error` and `error_description` are what a failed sign-in brings back to the
+// page (see `buildAuthErrorCallbackUrl`), not part of the OAuth request.
+const AUTH_ERROR_QUERY_KEYS = ["error", "error_description"];
+const AUTH_REDIRECT_EXCLUDED_QUERY_KEYS = new Set([
+  "returnUrl",
+  "email",
+  "invitationId",
+  ...AUTH_ERROR_QUERY_KEYS,
+]);
 const SIGNED_OAUTH_QUERY_PARAMETER_NAMES_KEY = "ba_param";
-
-const OAUTH_CONSENT_QUERY_KEYS = [
-  "client_id",
-  "redirect_uri",
-  "code_challenge",
-  "code_challenge_method",
-  "scope",
-  "state",
-  "response_type",
-  "exp",
-  "sig",
-] as const;
 
 interface WaitForAuthSessionOptions<TSession = unknown> {
   context: "login" | "signup";
@@ -133,9 +128,13 @@ export async function waitForAuthSession<TSession = unknown>({
   return retrySession ?? null;
 }
 
-interface BuildSignUpUrlParams {
+/** Where an auth page sends the person once they are through. */
+export interface AuthPageContext {
   returnUrl?: string;
-  email?: string;
+  /** A signed OAuth request. It travels as the page's own query. */
+  oauthQuery?: string;
+  /** The invitation whose address the next page looks up and locks. */
+  invitationId?: string | undefined;
 }
 
 export interface AuthRedirectSearchParams {
@@ -164,21 +163,74 @@ export async function getRedirectQueryString(
   return preservedSearchParams.toString();
 }
 
-export function buildSignUpUrlFromSignIn({
-  returnUrl,
-  email,
-}: BuildSignUpUrlParams): string {
-  const searchParams = new URLSearchParams();
+/**
+ * The returnUrl, or else the signed OAuth request, and the invitation; each
+ * auth page passes them on to the next.
+ */
+export function readAuthPageContext(
+  searchParams: URLSearchParams,
+): AuthPageContext {
+  const returnUrl = searchParams.get("returnUrl") ?? undefined;
+  return {
+    returnUrl,
+    oauthQuery: returnUrl
+      ? undefined
+      : buildSignedOAuthQueryFromSearchParams(searchParams),
+    invitationId: searchParams.get("invitationId") ?? undefined,
+  };
+}
+
+// Typed emails travel as editable session hints, never in the query, which
+// reaches server logs and analytics. An invitation travels as its id; each
+// page looks up the address and locks it.
+export function buildAuthPageUrl(
+  path:
+    | "/signin"
+    | "/signup"
+    | "/forgot-password"
+    | "/reset-password"
+    | "/reset-password/exchange",
+  { returnUrl, oauthQuery, invitationId }: AuthPageContext,
+): string {
+  const searchParams = new URLSearchParams(oauthQuery);
 
   if (returnUrl) {
     searchParams.set("returnUrl", returnUrl);
   }
-  if (email) {
-    searchParams.set("email", email);
+  if (invitationId) {
+    searchParams.set("invitationId", invitationId);
   }
 
   const query = searchParams.toString();
-  return query ? `/signup?${query}` : "/signup";
+  return query ? `${path}?${query}` : path;
+}
+
+/** Better Auth's `error` for an expired, used or unknown reset link. */
+export const INVALID_RESET_LINK_ERROR = "INVALID_TOKEN";
+
+/**
+ * Where a dead reset link goes: the request form, which explains the link
+ * expired and keeps the sign-in it started from.
+ */
+export function buildRequestNewResetLinkUrl(context: AuthPageContext): string {
+  return appendQueryParam(
+    buildAuthPageUrl("/forgot-password", context),
+    "error",
+    INVALID_RESET_LINK_ERROR,
+  );
+}
+
+/**
+ * Adds one parameter to a built auth page URL without re-serializing the
+ * signed OAuth query already in it.
+ */
+export function appendQueryParam(
+  url: string,
+  name: string,
+  value: string,
+): string {
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${name}=${encodeURIComponent(value)}`;
 }
 
 // Resolution base used to validate redirect paths when `window` is unavailable
@@ -199,7 +251,9 @@ function sanitizeAuthRedirectPath(
   // origin during SSR. Either way, only same-origin relative paths survive —
   // absolute (`https://evil`) and protocol-relative (`//evil`) URLs resolve to
   // a different origin and fall back, closing the open-redirect vector in both
-  // contexts.
+  // contexts. A survivor comes back as its path alone: a value naming the
+  // placeholder origin must not reach the browser with it, and a bare
+  // `#fragment` must leave the current page.
   const baseOrigin =
     typeof window !== "undefined"
       ? window.location.origin
@@ -207,7 +261,9 @@ function sanitizeAuthRedirectPath(
 
   try {
     const parsedUrl = new URL(returnUrl, baseOrigin);
-    return parsedUrl.origin === baseOrigin ? returnUrl : fallback;
+    return parsedUrl.origin === baseOrigin
+      ? parsedUrl.pathname + parsedUrl.search + parsedUrl.hash
+      : fallback;
   } catch {
     return fallback;
   }
@@ -267,7 +323,7 @@ export function getAbsoluteAuthRedirectUrl(
 
 /**
  * Builds an absolute auth callback URL for Better Auth `callbackURL` /
- * `newUserCallbackURL` (social, credential, magic-link).
+ * `newUserCallbackURL` (social, credential).
  *
  * The result is an **absolute** URL anchored to the current web origin. This
  * matters when the browser `authClient` targets the Core Better Auth instance
@@ -292,6 +348,31 @@ export function buildAuthCallbackUrl(
   return `${origin}${path}?${params.toString()}`;
 }
 
+/**
+ * Better Auth `errorCallbackURL` for social sign-in: the page the person
+ * started on, which explains the `error` Better Auth appends. Without it a
+ * failure lands on Core's bare error page. `pathname` sends
+ * the failure to another auth page with the same query instead, for a page
+ * that would only start the sign-in again.
+ */
+export function buildAuthErrorCallbackUrl(
+  pathname?: string,
+): string | undefined {
+  if (typeof window === "undefined") {
+    return undefined;
+  }
+
+  const url = new URL(window.location.href);
+  if (pathname) {
+    url.pathname = pathname;
+  }
+  for (const key of AUTH_ERROR_QUERY_KEYS) {
+    url.searchParams.delete(key);
+  }
+  url.hash = "";
+  return url.href;
+}
+
 export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   const normalized = returnUrl?.trim() || "";
   const sanitizedReturnUrl =
@@ -300,34 +381,26 @@ export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
   return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
 }
 
-type OAuthConsentParamRecord = Partial<
-  Record<(typeof OAUTH_CONSENT_QUERY_KEYS)[number], string | undefined>
->;
-
-function normalizeOAuthConsentQueryValue(key: string, value: string): string {
-  // Better Auth signs with standard base64. Its magic-link verifier decodes an
-  // already-parsed callback URL, turning `%2B` into `+`; subsequent form-style
-  // query parsing turns that `+` into a space. Restore the signature before
-  // serializing it back to `%2B`.
+function normalizeOAuthQueryValue(key: string, value: string): string {
+  // Better Auth signs with standard base64. A `+` that reaches the query
+  // unescaped parses as a space under form-style parsing. Restore the
+  // signature before serializing it back to `%2B`.
   return key === "sig" ? value.replaceAll(" ", "+") : value;
 }
 
-export function serializeOAuthConsentSearchParams(
+export function serializeOAuthSearchParams(
   searchParams: URLSearchParams,
 ): string {
   const normalizedSearchParams = new URLSearchParams();
 
   for (const [key, value] of searchParams.entries()) {
-    normalizedSearchParams.append(
-      key,
-      normalizeOAuthConsentQueryValue(key, value),
-    );
+    normalizedSearchParams.append(key, normalizeOAuthQueryValue(key, value));
   }
 
   return normalizedSearchParams.toString();
 }
 
-export function buildSignedOAuthConsentQueryFromSearchParams(
+export function buildSignedOAuthQueryFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
   if (
@@ -355,55 +428,111 @@ export function buildSignedOAuthConsentQueryFromSearchParams(
     }
   }
 
-  return serializeOAuthConsentSearchParams(signedSearchParams);
+  return serializeOAuthSearchParams(signedSearchParams);
 }
 
-function buildOAuthConsentReturnUrl(
-  params: OAuthConsentParamRecord,
-): string | undefined {
-  if (!params.client_id || !params.redirect_uri || !params.code_challenge) {
-    return undefined;
-  }
-
-  const searchParams = new URLSearchParams();
-
-  for (const key of OAUTH_CONSENT_QUERY_KEYS) {
-    const value = params[key];
-    if (value) {
-      searchParams.set(key, normalizeOAuthConsentQueryValue(key, value));
-    }
-  }
-
-  return `${OAUTH_CONSENT_PATH}?${searchParams.toString()}`;
+/**
+ * The signed request asks the person to sign in again (`prompt=login`, or a
+ * `max_age`), even when they already have a session.
+ */
+export function oauthRequestRequiresSignIn(oauthQuery: string): boolean {
+  return (
+    new URLSearchParams(oauthQuery).has("max_age") ||
+    hasOAuthPrompt(oauthQuery, "login")
+  );
 }
 
-export function buildOAuthConsentReturnUrlFromSearchParams(
+/**
+ * Less of the signed request's life is left than a new sign-in or sign-up
+ * takes. Core signs a request for ten minutes (`exp`, in seconds, from its
+ * `codeExpiresIn`) and refuses it afterwards.
+ */
+const OAUTH_REQUEST_MIN_REMAINING_MS = 2 * 60_000;
+
+export function oauthRequestExpiresSoon(oauthQuery: string): boolean {
+  return !(
+    oauthRequestExpiresAt(oauthQuery) - Date.now() >
+    OAUTH_REQUEST_MIN_REMAINING_MS
+  );
+}
+
+/**
+ * How long past `exp` a request still goes to Core, whose clock may lag this
+ * one. Calling it expired early would turn away a request Core still accepts.
+ */
+const OAUTH_REQUEST_CLOCK_SKEW_MS = 30_000;
+
+/**
+ * The signed request is past its `exp`, beyond the clock-skew margin, so Core
+ * refuses it.
+ */
+export function oauthRequestHasExpired(oauthQuery: string): boolean {
+  const expirations = new URLSearchParams(oauthQuery).getAll("exp");
+  // This shortcut only recognizes the integer seconds Core issues. Missing,
+  // ambiguous or malformed expiry still needs Core's request validation.
+  if (expirations.length !== 1 || !/^[1-9]\d*$/.test(expirations[0] ?? "")) {
+    return false;
+  }
+  const expiresAt = oauthRequestExpiresAt(oauthQuery);
+  return (
+    Number.isSafeInteger(expiresAt) &&
+    Number.isFinite(new Date(expiresAt).getTime()) &&
+    Date.now() > expiresAt + OAUTH_REQUEST_CLOCK_SKEW_MS
+  );
+}
+
+function oauthRequestExpiresAt(oauthQuery: string): number {
+  return Number(new URLSearchParams(oauthQuery).get("exp")) * 1000;
+}
+
+function hasOAuthPrompt(oauthQuery: string, prompt: string): boolean {
+  return (
+    new URLSearchParams(oauthQuery)
+      .get("prompt")
+      ?.split(" ")
+      .includes(prompt) ?? false
+  );
+}
+
+/**
+ * The signed request comes from a product's "Create account"
+ * (`prompt=create`).
+ */
+export function oauthRequestAsksForNewAccount(oauthQuery: string): boolean {
+  return hasOAuthPrompt(oauthQuery, "create");
+}
+
+/**
+ * Where a person with an OAuth request goes when a sign-in leaves the page
+ * (a social sign-in the OAuth provider did not answer): the
+ * sign-in page with the signed request as its own query. Arriving there signed
+ * in hands the request back to the provider. Explicit reauthentication resumes
+ * at consent, whose provider endpoint checks that the new session satisfies
+ * the signed request before clearing its login prompt or maximum age.
+ */
+export function buildOAuthResumeUrlFromSearchParams(
   searchParams: URLSearchParams,
 ): string | undefined {
-  const filteredSearchParams = new URLSearchParams();
-  for (const [key, value] of searchParams.entries()) {
-    if (!AUTH_REDIRECT_EXCLUDED_QUERY_KEYS.has(key)) {
-      filteredSearchParams.append(key, value);
-    }
+  const oauthQuery = buildSignedOAuthQueryFromSearchParams(searchParams);
+  if (!oauthQuery) return undefined;
+
+  if (oauthRequestRequiresSignIn(oauthQuery)) {
+    return `/oauth/consent?${oauthQuery}`;
   }
 
-  const signedOAuthQuery =
-    buildSignedOAuthConsentQueryFromSearchParams(filteredSearchParams);
+  return buildAuthPageUrl("/signin", { oauthQuery });
+}
 
-  if (signedOAuthQuery) {
-    return `${OAUTH_CONSENT_PATH}?${signedOAuthQuery}`;
-  }
-
-  return buildOAuthConsentReturnUrl({
-    client_id: filteredSearchParams.get("client_id") ?? undefined,
-    redirect_uri: filteredSearchParams.get("redirect_uri") ?? undefined,
-    code_challenge: filteredSearchParams.get("code_challenge") ?? undefined,
-    code_challenge_method:
-      filteredSearchParams.get("code_challenge_method") ?? undefined,
-    scope: filteredSearchParams.get("scope") ?? undefined,
-    state: filteredSearchParams.get("state") ?? undefined,
-    response_type: filteredSearchParams.get("response_type") ?? undefined,
-    exp: filteredSearchParams.get("exp") ?? undefined,
-    sig: filteredSearchParams.get("sig") ?? undefined,
-  });
+/**
+ * Core's OAuth provider refused the signed OAuth request the page carries: it
+ * is older than ten minutes, or it was altered. Retrying cannot succeed; the
+ * person has to start again from the product that sent them.
+ */
+export function isRejectedOAuthRequestError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "error" in error &&
+    error.error === "invalid_signature"
+  );
 }

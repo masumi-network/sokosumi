@@ -131,7 +131,7 @@ vi.mock("@/lib/clients/core.browser.client", () => ({
   getBrowserCoreClient: () => ({ id: "browser-core-client" }),
 }));
 
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   deleteDriveFilesDelete: vi.fn(),
   deleteDriveFoldersDelete: vi.fn(),
   getUsersByIdOrganizations: (...args: unknown[]) =>
@@ -247,11 +247,13 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
     initialFolder,
     onFolderChange,
     folderActions,
+    virtualFolder,
   }: {
     initialQuery?: string;
     initialFolder?: string;
     onFolderChange?: (folder: string) => void;
     folderActions?: React.ReactNode;
+    virtualFolder?: { label: string; onOpen: () => void };
   }) => (
     <div
       data-testid="drive-all-files"
@@ -270,6 +272,15 @@ vi.mock("@/app/drive/components/drive-all-files-panel", () => ({
       {/* The page's own folder controls, which the real panel seats beside
           the folder trail. */}
       {folderActions}
+      {virtualFolder ? (
+        <button
+          type="button"
+          data-testid="drive-virtual-folder"
+          onClick={virtualFolder.onOpen}
+        >
+          {virtualFolder.label}
+        </button>
+      ) : null}
     </div>
   ),
 }));
@@ -1063,7 +1074,7 @@ describe("DrivePage files view mode", () => {
     );
   });
 
-  it("workspace mobile header shows create folder and task outputs as buttons", async () => {
+  it("workspace mobile header folds create folder and task outputs into one menu", async () => {
     const user = userEvent.setup();
     searchParams = new URLSearchParams("view=workspace");
     listDriveItemsMock.mockResolvedValue([]);
@@ -1074,19 +1085,21 @@ describe("DrivePage files view mode", () => {
       expect(screen.getByTestId("drive-all-files")).toBeInTheDocument();
     });
 
-    // No "..." menu: both are out in the open.
-    expect(screen.queryByTestId("files-mobile-actions")).toBeNull();
     // Desktop create-folder control remains in the header for wide containers.
     expect(
       screen.getAllByRole("button", { name: "createFolder" }).length,
     ).toBeGreaterThan(0);
+    // The menu shares the tab row, so no second control row sits above the list.
+    const header = screen.getByTestId("files-desktop-header");
+    await user.click(
+      within(header).getByRole("button", { name: "moreActions" }),
+    );
 
+    // Sokosumi Projects is a folder row now, not a menu item.
+    expect(screen.queryByTestId("files-mobile-tasks-outputs")).toBeNull();
     expect(screen.getByTestId("files-mobile-create-folder")).toHaveTextContent(
       "createFolder",
     );
-    // The Tasks view was reachable only through a card in the grid, so without
-    // this the grid's removal would have orphaned a whole view.
-    expect(screen.getByTestId("files-mobile-tasks-outputs")).toBeVisible();
 
     await user.click(screen.getByTestId("files-mobile-create-folder"));
     expect(
@@ -1111,30 +1124,12 @@ describe("DrivePage files view mode", () => {
       within(header).getByRole("tab", { name: "recentsTab" }),
     ).toBeVisible();
     expect(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     ).toBeVisible();
     // And no search field: the catalog's own is the first thing on the page.
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),
     ).toBeNull();
-  });
-
-  it("keeps mobile create-folder path outside the desktop header row", async () => {
-    useIsMobileMock.mockReturnValue(true);
-    searchParams = new URLSearchParams("view=browse");
-    listDriveItemsMock.mockResolvedValue([]);
-
-    renderDrive();
-
-    await waitFor(() => {
-      expect(listDriveItemsMock).toHaveBeenCalled();
-    });
-
-    const header = screen.getByTestId("files-desktop-header");
-    expect(screen.getByTestId("files-mobile-create-folder")).toBeVisible();
-    expect(
-      within(header).queryByTestId("files-mobile-create-folder"),
-    ).not.toBeInTheDocument();
   });
 });
 
@@ -1657,8 +1652,8 @@ describe("one catalog, not two", () => {
     expect(screen.getByTestId("files-rename-folder")).toBeInTheDocument();
     expect(screen.getByTestId("files-move-folder")).toBeInTheDocument();
     expect(screen.getByTestId("files-delete-folder")).toBeInTheDocument();
-    // And the Tasks view, which was reachable only through a card in the grid.
-    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+    // The Tasks button is gone; Sokosumi Projects is a folder row at the root.
+    expect(screen.queryByTestId("files-tasks-outputs")).toBeNull();
   });
 
   it("lands in a folder it just created, so the folder is not lost", async () => {
@@ -1681,7 +1676,7 @@ describe("one catalog, not two", () => {
 
     const header = screen.getByTestId("files-desktop-header");
     await user.click(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     );
     await user.type(screen.getByPlaceholderText("folderName"), "Reports");
     await user.click(
@@ -1738,7 +1733,11 @@ describe("one catalog, not two", () => {
     });
     expect(screen.queryByTestId("files-rename-folder")).toBeNull();
     expect(screen.queryByTestId("files-delete-folder")).toBeNull();
-    expect(screen.getByTestId("files-tasks-outputs")).toBeInTheDocument();
+    expect(screen.queryByTestId("files-tasks-outputs")).toBeNull();
+    // Sokosumi Projects is handed to the panel to list beside the real folders.
+    expect(screen.getByTestId("drive-virtual-folder")).toHaveTextContent(
+      "tasksFolder",
+    );
   });
 
   it("keeps the catalog inside a folder, narrowed rather than replaced", async () => {
@@ -1826,7 +1825,7 @@ describe("one catalog, not two", () => {
     // every width.
     const header = screen.getByTestId("files-desktop-header");
     expect(
-      within(header).getByRole("button", { name: "createFolder" }),
+      within(header).getAllByRole("button", { name: "createFolder" }).at(-1)!,
     ).toBeVisible();
     expect(
       within(header).queryByPlaceholderText("searchPlaceholder"),

@@ -21,10 +21,17 @@ const {
   publishNotificationEventMock,
   userFindUniqueMock,
   notificationFindManyMock,
+  findPassedRowsMock,
 } = vi.hoisted(() => ({
   publishNotificationEventMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   notificationFindManyMock: vi.fn(),
+  findPassedRowsMock: vi.fn(),
+}));
+
+vi.mock("@/helpers/chat-thread-reply-notifications", () => ({
+  findThreadReplyRowsPassedByRoomRead: (...args: unknown[]) =>
+    findPassedRowsMock(...args),
 }));
 
 vi.mock("@/lib/ably/publish", () => ({
@@ -1042,6 +1049,7 @@ describe("chat room arrival count", () => {
     publishNotificationEventMock.mockResolvedValue(undefined);
     notificationFindManyMock.mockReset();
     notificationFindManyMock.mockResolvedValue([]);
+    findPassedRowsMock.mockReset().mockResolvedValue([]);
   });
 
   const chatInput: CreateNotificationInput = {
@@ -1157,6 +1165,36 @@ describe("chat room arrival count", () => {
       expect(publishedGroupCount()).toBe(2);
     },
   );
+
+  /**
+   * SOK-1217. Room last-read leaves a Thread reply's row unread for its
+   * Thread. Once the reader has opened the room past it, it is no arrival.
+   */
+  it("leaves out the Thread-reply rows Room last-read has passed", async () => {
+    const passed = chatRecord({
+      id: "passed_thread_reply",
+      messageKey: "Notifications.Chat.mentioned",
+    });
+    const next = chatRecord({
+      id: "next_message",
+      messageKey: "Notifications.Chat.directMessage",
+    });
+    notificationFindManyMock.mockResolvedValue([passed, next]);
+    findPassedRowsMock.mockResolvedValue([{ id: "passed_thread_reply" }]);
+
+    await publishNotificationRow(next, {
+      inApp: true,
+      osBanner: true,
+      email: false,
+    });
+
+    expect(publishedGroupCount()).toBe(1);
+    expect(findPassedRowsMock).toHaveBeenCalledWith(
+      [chatInput.referenceId],
+      chatInput.userId,
+      expect.anything(),
+    );
+  });
 
   it("counts a room holding only this arrival as one", async () => {
     notificationFindManyMock.mockResolvedValue([

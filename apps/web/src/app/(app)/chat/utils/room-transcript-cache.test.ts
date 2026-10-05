@@ -1,7 +1,7 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { QueryClient } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchRoomMessages } from "@/components/chat/fetch-room-messages";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { RoomTranscriptCache } from "./room-transcript-cache";
 
 vi.mock("@/components/chat/fetch-room-messages", () => ({
@@ -41,6 +41,7 @@ function retained() {
     rooms: [],
     organizationMembers: [],
     currentUserId: "reader",
+    isOrgOwnerOrAdmin: false,
     coworkers: [],
     selectedRoomId: "room",
     messageLoadFailed: false,

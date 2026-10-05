@@ -155,6 +155,7 @@ const COLOR_LITERAL =
 const LITERAL_ALLOWLIST = new Set([
   // Brand marks belong to the providers, not to us.
   "components/social-icons.tsx",
+  "components/soko-bot/provider-logos.tsx",
   // The user picks the value; these are the swatches and the empty state.
   "components/ui/color-picker.tsx",
   "components/job-input/inputs/color-input.tsx",
@@ -334,7 +335,6 @@ describe("whole pixels", () => {
     const violations: string[] = [];
 
     for (const file of SRC_FILES) {
-      if (file.relSrc.startsWith("lib/clients/generated/")) continue;
       if (file.relSrc.endsWith(".test.ts") || file.relSrc.endsWith(".test.tsx"))
         continue;
 
@@ -425,7 +425,6 @@ describe("full-bleed rules", () => {
 
     for (const file of SRC_FILES) {
       if (file.ext !== ".tsx") continue;
-      if (file.relSrc.startsWith("lib/clients/generated/")) continue;
       if (file.relSrc.endsWith(".test.tsx")) continue;
 
       file.lines.forEach((line, index) => {

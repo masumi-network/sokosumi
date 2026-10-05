@@ -1,8 +1,8 @@
 "use client";
 
+import type { TaskSchedule } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import type { TaskAssigneeView } from "@/app/tasks/types/task-board";
@@ -13,9 +13,11 @@ import {
   taskSchedulePath,
 } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import type { TaskSchedule } from "@/lib/clients/generated/core";
+import {
+  HOLDER_ITEM_CLASS,
+  HOLDER_ITEM_HOVER_CLASS,
+} from "@/components/ui/holder-surface";
 import type { CoworkerOption } from "@/lib/types/coworker";
-
 import type { SchedulesViewMode } from "@/lib/ui-preferences/schedules-view-mode";
 import { cn } from "@/lib/utils";
 
@@ -30,7 +32,6 @@ interface TaskScheduleRowProps {
   /** The create picker's choices, for the edit dialog. */
   coworkerOptions: CoworkerOption[];
   projectOptions: ProjectFilterOption[];
-  currentUserId: string | null;
   canCreatePrivate: boolean;
   onChanged: () => void;
 }
@@ -48,7 +49,8 @@ function toAssigneeView(option: CoworkerOption): TaskAssigneeView {
 
 /**
  * One Task Schedule: who runs it and where it lives, its rule, its state, and
- * its next run. Its owner manages it in place; everyone opens its detail page.
+ * its next run. Members who may change it do so in place; everyone opens its
+ * detail page.
  */
 export function TaskScheduleRow({
   schedule,
@@ -56,7 +58,6 @@ export function TaskScheduleRow({
   assigneeDisplayOptions,
   coworkerOptions,
   projectOptions,
-  currentUserId,
   canCreatePrivate,
   onChanged,
 }: TaskScheduleRowProps) {
@@ -88,7 +89,9 @@ export function TaskScheduleRow({
   return (
     <li
       className={cn(
-        "bg-background press hover:bg-card-background-hover relative flex min-w-0 flex-col gap-3 rounded-lg border border-border p-3 transition-colors",
+        HOLDER_ITEM_CLASS,
+        HOLDER_ITEM_HOVER_CLASS,
+        "press relative flex min-w-0 flex-col gap-3 p-3 transition-colors",
         viewMode === "list" && "lg:flex-row lg:items-center",
       )}
       data-testid="schedule-row"
@@ -144,7 +147,7 @@ export function TaskScheduleRow({
           </div>
         </div>
       </div>
-      {schedule.ownerId === currentUserId ? (
+      {schedule.canWrite ? (
         <div className="relative z-10 shrink-0">
           <TaskScheduleActions
             onChanged={onChanged}

@@ -4,7 +4,6 @@ import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
-  import AppKit
 
   /// Delivery mark in the header or continuation gutter; retains the header clock until needed.
   private struct DeliveryFeedback: View {
@@ -60,7 +59,8 @@ import SwiftUI
     var onReply: (() -> Void)?
     var onQuote: (() -> Void)?
     var onEdit: (() -> Void)?
-    var isHighlighted = false
+    /// The mark a jump left on this row, while it lasts (row 25b1).
+    var jumpMark: JumpMark?
     var isPinned = false
     var isUpdatingPin = false
     var onTogglePin: (() async throws -> Void)?
@@ -72,27 +72,28 @@ import SwiftUI
     var onQuoteJump: ((String) -> Void)?
     /// Send to yourself. Absent inside the Self Direct and for rows that are not durable.
     var onSendToSelf: (() async throws -> Components.Schemas.ChatRoomMessage)?
+    /// The Soko Bot turn's useful / not useful thumbs, on a row that carries them (row 38b).
+    var sokoBotFeedback: SokoBotFeedback?
+    var onSokoBotFeedback: ((Bool) async throws -> Void)?
     var horizontalInset: CGFloat = 0
     var streamThinking = false
+    /// The room transcript's newest message, whose body ends in a run of files (row 31b3, web
+    /// `newestEndsInAttachment`). Known before the read state, so the corner the faces need is there from the
+    /// first layout and nothing moves when they arrive.
+    var newestEndsInAttachment = false
+    /// Who has read this far: set on the room transcript's newest message only (row 31b1).
+    var seenBy: SeenBy?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.openURL) private var openURL
     @Environment(\.timeFormat) private var timeFormat
     @State private var quickReactions = ReactionEmojiHistory.defaultQuickReactions
     @State private var showsReactionPicker = false
-    @State private var pinError: String?
-    @State private var showsPinError = false
-    @State private var reactionError: String?
-    @State private var showsReactionError = false
     @State private var confirmsDeletion = false
     @State private var isDeleting = false
-    @State private var deletionError: String?
-    @State private var showsDeletionError = false
     @State private var isRetryingMention = false
-    @State private var mentionRetryError: String?
-    @State private var showsMentionRetryError = false
     @State private var isSendingToSelf = false
     @State private var sentToSelf: Components.Schemas.ChatRoomMessage?
-    @State private var sendToSelfError: String?
+    @State private var failure: Failure?
     @State private var isHovered = false
     @State private var isReplyHovered = false
     @State private var hoveredAction: MessageAction?
@@ -103,6 +104,13 @@ import SwiftUI
     private enum MessageAction: Hashable {
       case quote, reply, more, react
       case quickReaction(Int)
+      case feedback(useful: Bool)
+    }
+
+    /// One OK-dismiss alert for pin, reaction, delete, mention retry, and send-to-self failures.
+    private struct Failure {
+      let title: String
+      let message: String
     }
 
     private var showsActions: Bool {
@@ -110,8 +118,8 @@ import SwiftUI
     }
 
     /// Persisted mention shell (thinking or failed); nil for ordinary rows.
-    private var mentionShell: CoworkerMentionShell? {
-      CoworkerMentionShell(message: message)
+    private var mentionShell: MentionThoughtShell? {
+      MentionThoughtShell(message: message)
     }
 
     /// Web `isDurableRoomMessage`: no link while the shell is still thinking.
@@ -131,7 +139,43 @@ import SwiftUI
       message.deletedAt == nil
         && mentionShell?.isThinking != true
         && (onReply != nil || onQuote != nil || onEdit != nil || onDelete != nil
-          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil)
+          || onTogglePin != nil || onToggleReaction != nil || canCopyMessageLink || onSendToSelf != nil || sokoBotChain != nil
+          || sokoBotFeedback != nil)
+    }
+
+    private var isEditingThisRow: Bool {
+      editing?.source?.id == message.id
+    }
+
+    private var showsReactions: Bool {
+      message.deletedAt == nil && outbound == nil && !message.reactions.isEmpty
+    }
+
+    /// Link previews and the Soko Bot footer follow a settled body only.
+    private var showsBodyExtras: Bool {
+      outbound == nil && mentionShell == nil
+    }
+
+    private var unfurls: [Components.Schemas.ChatRoomMessageUnfurl] {
+      showsBodyExtras ? message.unfurls ?? [] : []
+    }
+
+    /// Web renders the Soko Bot footer only once the turn's answer is in the row, and only with approvals or Tasks.
+    private var sokoBotFooter: SokoBotTurnMetadata? {
+      guard showsBodyExtras, let turn = SokoBotTurnMetadata(message: message), turn.hasFooter else { return nil }
+      return turn
+    }
+
+    private var threadReplyBar: ThreadReplyBar? {
+      onReply == nil ? nil : ThreadReplyBar(message: message)
+    }
+
+    /// Web `keepsSeenByCornerClear` (row 31b3): the newest message's body ends in attachments and nothing is drawn
+    /// after it — no reactions, Thread bar, link preview, Soko Bot footer or failed send, and it is not being
+    /// edited. The faces then sit under the attachment instead of beside it, so the column never narrows for them.
+    private var keepsSeenByCornerClear: Bool {
+      newestEndsInAttachment && message.deletedAt == nil && mentionShell == nil && !isEditingThisRow && !showsReactions
+        && threadReplyBar == nil && unfurls.isEmpty && sokoBotFooter == nil && outbound?.status != .failed
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -149,8 +193,7 @@ import SwiftUI
             ReactionEmojiHistory().record(emoji)
           }
         } catch {
-          reactionError = friendlyMessage(for: error)
-          showsReactionError = true
+          failure = Failure(title: "Couldn’t update reaction", message: friendlyMessage(for: error))
         }
       }
     }
@@ -161,8 +204,7 @@ import SwiftUI
       Task { @MainActor in
         defer { isDeleting = false }
         do { try await onDelete() } catch {
-          deletionError = friendlyMessage(for: error)
-          showsDeletionError = true
+          failure = Failure(title: "Couldn’t delete message", message: friendlyMessage(for: error))
         }
       }
     }
@@ -175,8 +217,7 @@ import SwiftUI
       Task { @MainActor in
         defer { isRetryingMention = false }
         do { try await onRetryMention() } catch {
-          mentionRetryError = friendlyMessage(for: error)
-          showsMentionRetryError = true
+          failure = Failure(title: "Couldn’t retry the mention", message: friendlyMessage(for: error))
         }
       }
     }
@@ -237,9 +278,13 @@ import SwiftUI
             }
           }
           let mentionShell = mentionShell
+          // Web draws it at the top of a settled body, above the Thought and the text; not while the row is edited (row 38c).
+          if let sourceLabel = SokoBotSourceLabel(message: message), editing?.source?.id != message.id {
+            SokoBotSourceLabelView(label: sourceLabel)
+          }
           if case .failed? = mentionShell {
             failedMentionView
-          } else if isCoworkerMessage(message), message.deletedAt == nil {
+          } else if hasThoughtView(message) {
             // A persisted mention shell keeps the live Thought header until Core
             // fills the answer; its clock starts at `thought_timing_ms.start`.
             CoworkerThoughtView(thought: CoworkerThought(message: message),
@@ -255,30 +300,27 @@ import SwiftUI
               MessageQuoteView(quote: quote, room: room, channels: channels, jump: quoteJump(for: quote))
                 .id(quote.messageId + quote.snippet)
             }
-            if let editing, editing.source?.id == message.id {
+            if let editing, isEditingThisRow {
               MessageEditComposer(editing: editing).id(message.id)
             } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
               // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
             }
-            if outbound == nil, mentionShell == nil {
-              ForEach(message.unfurls ?? [], id: \.url) { preview in
-                MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
-                  .id(preview.url + (preview.imageUrl ?? ""))
-              }
-              // Web renders the Soko Bot footer only once the turn's answer is in the row.
-              if let turn = SokoBotTurnMetadata(message: message) {
-                SokoBotMessageFooterView(turn: turn)
-              }
+            ForEach(unfurls, id: \.url) { preview in
+              MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })
+                .id(preview.url + (preview.imageUrl ?? ""))
+            }
+            if let sokoBotFooter {
+              SokoBotMessageFooterView(turn: sokoBotFooter)
             }
             if isContinuation, message.editedAt != nil {
               Text("Edited").help(message.editedAt.map { timeFormat.dateTime($0) } ?? "").font(.caption).foregroundStyle(.secondary)
             }
           }
-          if message.deletedAt == nil, outbound == nil, !message.reactions.isEmpty {
+          if showsReactions {
             MessageReactionsView(reactions: message.reactions, toggle: reactionAction)
           }
-          if let onReply, let bar = ThreadReplyBar(message: message) {
+          if let onReply, let bar = threadReplyBar {
             ThreadReplyBarButton(bar: bar, open: onReply)
               .padding(.top, 4)
           }
@@ -300,16 +342,29 @@ import SwiftUI
             .font(.caption)
           }
         }
+        // The faces sit in the corner, out of the text flow; the column gives up their width so no line runs under
+        // them. A newest body ending in attachments keeps their height under it instead, from the first layout, with
+        // the 4 pt they keep from the row's edge between them and the attachment.
+        .padding(.trailing, keepsSeenByCornerClear ? 0 : seenBy.map { SeenByFaces.width(for: $0) + 8 } ?? 0)
+        .padding(.bottom, keepsSeenByCornerClear ? SeenByFaces.faceDiameter + 4 : 0)
         .frame(maxWidth: .infinity, alignment: .leading)
       }
       .padding(.vertical, 4)
       .padding(.horizontal, horizontalInset)
       .contentShape(.rect)
       .background {
-        if isHighlighted {
-          Color.accentColor.opacity(0.12)
+        if let jumpMark {
+          JumpMarkBackground(mark: jumpMark)
         } else if isHovered || isReplyHovered, showsActionChrome {
           Color.primary.opacity(0.04)
+        }
+      }
+      // Web's `absolute end-2 bottom-1`: the action pill's trailing edge, at the bottom of the row.
+      .overlay(alignment: .bottomTrailing) {
+        if let seenBy {
+          SeenByButton(seenBy: seenBy)
+            .padding(.trailing, horizontalInset)
+            .padding(.bottom, 4)
         }
       }
       .overlay(alignment: .topTrailing) {
@@ -344,6 +399,11 @@ import SwiftUI
           quickReactions = ReactionEmojiHistory().quickReactions
         }
       }
+      .onChange(of: onToggleReaction != nil) { _, canReact in
+        if !canReact {
+          showsReactionPicker = false
+        }
+      }
       // Track the complete row, including its action overlay. The toolbar
       // must not change the hover region when it becomes interactive.
       .onContinuousHover { phase in
@@ -355,13 +415,10 @@ import SwiftUI
           isHovered = hovering
         }
       }
-      .alert("Couldn’t update pin", isPresented: $showsPinError) {
+      .alert(failure?.title ?? "", item: $failure) { _ in
         Button("OK", role: .cancel) {}
-      } message: { Text(pinError ?? "Try again.") }
-      .alert("Couldn’t update reaction", isPresented: $showsReactionError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(reactionError ?? "Try again.")
+      } message: { failure in
+        Text(failure.message)
       }
       .alert("Sent to yourself", isPresented: Binding(get: { sentToSelf != nil }, set: {
         if !$0 {
@@ -371,28 +428,11 @@ import SwiftUI
         Button("Open") { openSavedMessage(saved) }
         Button("OK", role: .cancel) {}
       }
-      .alert("Couldn’t send to yourself", isPresented: Binding(get: { sendToSelfError != nil }, set: {
-        if !$0 {
-          sendToSelfError = nil
-        }
-      })) {
-        Button("OK", role: .cancel) {}
-      } message: { Text(sendToSelfError ?? "Try again.") }
       .alert("Delete message?", isPresented: $confirmsDeletion) {
         Button("Cancel", role: .cancel) {}
         Button("Delete", role: .destructive) { deleteMessage() }
       } message: {
         Text("This message will be deleted for everyone. This cannot be undone.")
-      }
-      .alert("Couldn’t delete message", isPresented: $showsDeletionError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(deletionError ?? "Try again.")
-      }
-      .alert("Couldn’t retry the mention", isPresented: $showsMentionRetryError) {
-        Button("OK", role: .cancel) {}
-      } message: {
-        Text(mentionRetryError ?? "Try again.")
       }
       // AppKit answers a right-click on selectable text with its own editing menu, so the row opens its menu itself.
       .overlay { menuArea }
@@ -411,6 +451,11 @@ import SwiftUI
         if let sokoBotChain {
           SokoBotChainBadge(chain: sokoBotChain)
             .padding(.horizontal, 4)
+        }
+        // Web puts a turn's thumbs after the hop badge and ahead of the reactions (row 38b).
+        if let sokoBotFeedback {
+          sokoBotFeedbackButton(sokoBotFeedback, useful: true)
+          sokoBotFeedbackButton(sokoBotFeedback, useful: false)
         }
         if onToggleReaction != nil {
           ForEach(Array(quickReactions.enumerated()), id: \.element.id) { index, emoji in
@@ -505,6 +550,34 @@ import SwiftUI
       .accessibilityLabel(title)
     }
 
+    /// Web `SokoBotFeedbackButtons`: an icon-only control; the chosen one fills, and both lock at half strength
+    /// (web's `disabled:opacity-50`) while the rating is sent and once it stuck.
+    private func sokoBotFeedbackButton(_ feedback: SokoBotFeedback, useful: Bool) -> some View {
+      let focus = MessageAction.feedback(useful: useful)
+      let chosen = feedback.isChosen(useful: useful)
+      let symbol = (useful ? "hand.thumbsup" : "hand.thumbsdown") + (chosen ? ".fill" : "")
+      return Button { rateSokoBotTurn(useful: useful) } label: {
+        MessageActionLabel(title: SokoBotFeedback.title(useful: useful), symbol: symbol,
+                           hovered: hoveredAction == focus && !feedback.isLocked, compact: true,
+                           iconSize: actionIconSize, height: replyActionHeight)
+      }
+      .buttonStyle(.plain)
+      .disabled(feedback.isLocked || onSokoBotFeedback == nil)
+      // The label's resolved foreground does not dim with `.disabled`.
+      .opacity(feedback.isLocked ? 0.5 : 1)
+      .onHover { hoveredAction = $0 ? focus : nil }
+      .focused($focusedAction, equals: focus)
+      .help(feedback.help(useful: useful))
+      .accessibilityLabel(SokoBotFeedback.title(useful: useful))
+      .accessibilityAddTraits(chosen ? .isSelected : [])
+    }
+
+    /// Web drops a rejected rating without a word: the thumbs simply unlock.
+    private func rateSokoBotTurn(useful: Bool) {
+      guard let onSokoBotFeedback, sokoBotFeedback?.isLocked == false else { return }
+      Task { @MainActor in try? await onSokoBotFeedback(useful) }
+    }
+
     private var pendingSince: Date? {
       outbound?.status == .pending ? outbound?.createdAt : nil
     }
@@ -517,8 +590,7 @@ import SwiftUI
       guard let url = ChatLink.href(roomId: message.roomId, messageId: message.id, webBaseURL: CoreSettings.webBaseURL) else {
         return
       }
-      NSPasteboard.general.clearContents()
-      _ = NSPasteboard.general.setString(url.absoluteString, forType: .string)
+      PlatformPasteboard.copy(url.absoluteString)
     }
 
     private var sendToSelfButton: some View {
@@ -534,7 +606,7 @@ import SwiftUI
         do {
           sentToSelf = try await onSendToSelf()
         } catch {
-          sendToSelfError = friendlyMessage(for: error)
+          failure = Failure(title: "Couldn’t send to yourself", message: friendlyMessage(for: error))
         }
       }
     }
@@ -562,8 +634,8 @@ import SwiftUI
       Task { @MainActor in
         do {
           try await onTogglePin?()
-        } catch { pinError = friendlyMessage(for: error)
-          showsPinError = true
+        } catch {
+          failure = Failure(title: "Couldn’t update pin", message: friendlyMessage(for: error))
         }
       }
     }
@@ -577,6 +649,7 @@ import SwiftUI
     var menuAvailability: MessageMenuAvailability {
       let live = message.deletedAt == nil
       return MessageMenuAvailability(
+        sokoBotFeedback: sokoBotFeedback,
         canReact: onToggleReaction != nil && live,
         canEdit: onEdit != nil,
         canQuote: onQuote != nil,
@@ -599,12 +672,16 @@ import SwiftUI
       if isUpdatingPin {
         busy.formUnion([.pin, .unpin])
       }
+      if sokoBotFeedback?.isLocked == true {
+        busy.formUnion([.useful, .notUseful])
+      }
       return busy
     }
 
     private func performMenuAction(_ action: MessageMenuAction) {
       switch action {
       case .copySelection: break // The menu item sends `copy:` to the text view itself.
+      case .useful, .notUseful: rateSokoBotTurn(useful: action == .useful)
       case .addReaction: showsReactionPicker = true
       case .edit: onEdit?()
       case .quote: onQuote?()
@@ -690,10 +767,3 @@ import SwiftUI
   #endif
 
 #endif
-
-func isCoworkerMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
-  if case .case2 = message.sender {
-    return true
-  }
-  return false
-}

@@ -37,6 +37,7 @@ const DOM_TEST_TS = [
   "src/lib/ui-preferences/chat-unreads-filter.test.ts",
   "src/lib/analytics/consent.test.ts",
   "src/lib/analytics/internal-traffic.test.ts",
+  "src/lib/auth/auth-email-hint.test.ts",
   "src/lib/auth/auth.utils.test.ts",
   "src/lib/auth/finish-auth.client.test.ts",
   "src/lib/auth/sign-out.client.test.ts",
@@ -107,7 +108,13 @@ export default defineConfig({
           // `agents/**` too: the studio agent's channel is this app's code and
           // carries its authorization policy, so it belongs in the same run.
           include: ["src/**/*.test.ts", "agents/**/*.test.ts"],
-          exclude: [...defaultExclude, ...DOM_TEST_TS],
+          // `*.webkit.test.ts` launches a browser; `vitest.webkit.config.ts`
+          // runs those.
+          exclude: [
+            ...defaultExclude,
+            ...DOM_TEST_TS,
+            "src/**/*.webkit.test.{ts,tsx}",
+          ],
         },
       },
       {
@@ -116,6 +123,7 @@ export default defineConfig({
           name: "happy-dom",
           environment: "happy-dom",
           include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
+          exclude: [...defaultExclude, "src/**/*.webkit.test.{ts,tsx}"],
         },
       },
     ],

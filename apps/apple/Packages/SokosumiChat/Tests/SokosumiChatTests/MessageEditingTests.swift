@@ -9,6 +9,7 @@ import Testing
 struct MessageEditingTests {
   private func message() -> Components.Schemas.ChatRoomMessage {
     var value = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: testRoomId, content: "Original",
+                                            createdAt: Date(timeIntervalSince1970: 1_790_000_000),
                                             sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
     value.id = "550e8400-e29b-41d4-a716-446655440123"
     return value
@@ -42,6 +43,44 @@ struct MessageEditingTests {
     }
     editing.draft = " \(String(repeating: "😀", count: 5000)) "
     #expect(editing.canSave)
+  }
+
+  /// Web's `handleCommit` and `canSaveEdit` (message-edit-composer.tsx): a save in flight and an over-limit
+  /// draft keep editing, an empty or unchanged draft cancels, anything else saves. Both sides are trimmed.
+  @Test(arguments: [
+    ("Changed", "Original", false, MessageEditCommit.save),
+    ("  Changed  ", "Original", false, .save),
+    ("original", "Original", false, .save),
+    ("Words", "", false, .save),
+    (" \(String(repeating: "😀", count: 5000)) ", "Original", false, .save),
+    ("Original", "Original", false, .cancel),
+    ("  Original\n", "Original", false, .cancel),
+    ("Original", " Original ", false, .cancel),
+    ("", "Original", false, .cancel),
+    (" \n\u{00A0}", "Original", false, .cancel),
+    ("", "", false, .cancel),
+    (String(repeating: "😀", count: 5001), "Original", false, .keepEditing),
+    (String(repeating: "a", count: 10001), String(repeating: "a", count: 10001), false, .keepEditing),
+    ("Changed", "Original", true, .keepEditing),
+    ("Original", "Original", true, .keepEditing),
+    ("", "Original", true, .keepEditing)
+  ])
+  func commitFollowsWebsRule(draft: String, original: String, isSaving: Bool, expected: MessageEditCommit) {
+    #expect(MessageEditCommit(draft: draft, original: original, isSaving: isSaving) == expected)
+  }
+
+  /// Save is enabled exactly when a commit would save: the ✓ control and Return read one rule.
+  @Test func saveIsEnabledOnlyForASavingCommit() {
+    let editing = MessageEditing()
+    #expect(editing.commitAction == .keepEditing, "Nothing is being edited.")
+    #expect(!editing.canSave)
+    editing.start(message(), userId: "user")
+    for (draft, expected) in [("Original", MessageEditCommit.cancel), ("", .cancel), ("Changed", .save),
+                              (String(repeating: "a", count: 10001), .keepEditing)] {
+      editing.draft = draft
+      #expect(editing.commitAction == expected, "\(draft.prefix(12).debugDescription)")
+      #expect(editing.canSave == (expected == .save), "\(draft.prefix(12).debugDescription)")
+    }
   }
 
   @Test(arguments: [false, true])
@@ -117,6 +156,8 @@ extension MessageEditingTests {
     let save = Task { try await editing.save(client: client, organizationSlug: nil) }
     await transport.waitForRequest()
     #expect(editing.isSaving)
+    #expect(editing.commitAction == .keepEditing, "A commit during a save neither saves again nor cancels.")
+    #expect(!editing.canSave)
     editing.cancel()
     #expect(editing.source != nil)
     editing.reset()

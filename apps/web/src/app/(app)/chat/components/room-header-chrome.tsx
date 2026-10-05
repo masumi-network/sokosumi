@@ -1,20 +1,14 @@
 "use client";
 
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import { MessageCircle } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { ChatComposeSokoBot } from "@/app/chat/actions";
 import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
 import { ChannelDiscoverabilityIcon } from "@/components/chat/channel-discoverability-icon";
 import { DirectRoomAvatarStack } from "@/components/chat/direct-room-avatar-stack";
 import { LiveMemberPresenceDot } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type {
-  ChatRoom,
-  ChatRoomMessage,
-  Coworker,
-  Member,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
 import { EditChannelDialog } from "./edit-channel-dialog";
@@ -26,7 +20,10 @@ import { ROOM_ROSTER_PANEL_ID } from "./room-roster-panel";
 import { RoomSearchPanel } from "./room-search-panel";
 import { UnreadThreadsPanel } from "./unread-threads-panel";
 
-/** The room title as the way into its settings: a Channel's, or a group Direct's name. */
+/**
+ * The room title as the way into its settings: a Channel's (its members panel
+ * for anyone who cannot change them), or a group Direct's name.
+ */
 const ROOM_TITLE_BUTTON_CLASS =
   "text-foreground press [@media(hover:hover)]:hover:bg-accent [@media(hover:hover)]:dark:hover:bg-card-background flex min-w-0 max-w-full cursor-pointer items-center gap-1.5 rounded-md px-1.5 py-0.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset md:gap-2";
 
@@ -130,16 +127,14 @@ export interface RoomHeaderChromeProps {
   onTogglePinned: () => void;
   rosterOpen: boolean;
   onToggleRoster: () => void;
+  /** Show the members panel: a Channel title's click for a non-admin. */
+  onOpenRoster: () => void;
   currentUserId: string;
-  organizationMembers: Member[];
-  coworkers: Coworker[];
-  sokoBots: ChatComposeSokoBot[];
-  canEditMembers: boolean;
+  /**
+   * Organization owner/admin: the Channel title opens its settings. Anyone
+   * else's title opens the members panel.
+   */
   canManageSettings: boolean;
-  canArchive: boolean;
-  canLeave: boolean;
-  canInviteGuests: boolean;
-  membersLoadFailed: boolean;
   /** The dialog's open flag. The shell owns it: the title is one way in. */
   editOpen: boolean;
   onEditOpenChange: (open: boolean) => void;
@@ -161,16 +156,9 @@ export function RoomHeaderChrome({
   onTogglePinned,
   rosterOpen,
   onToggleRoster,
+  onOpenRoster,
   currentUserId,
-  organizationMembers,
-  coworkers,
-  sokoBots,
-  canEditMembers,
   canManageSettings,
-  canArchive,
-  canLeave,
-  canInviteGuests,
-  membersLoadFailed,
   editOpen,
   onEditOpenChange,
   showParticipants,
@@ -179,6 +167,15 @@ export function RoomHeaderChrome({
   const t = useTranslations("App.Channels");
   const trimmedTopic = room.topic?.trim() ?? "";
   const channelTopic = !isDirectRoom && trimmedTopic ? trimmedTopic : null;
+  const channelTitle = (
+    <>
+      <ChannelDiscoverabilityIcon
+        className="text-muted-foreground"
+        discoverability={room.discoverability}
+      />
+      <span className="min-w-0 truncate">{displayName}</span>
+    </>
+  );
 
   return (
     <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 overflow-hidden py-1.5 md:gap-4">
@@ -220,37 +217,40 @@ export function RoomHeaderChrome({
           </>
         ) : (
           <>
-            <EditChannelDialog
-              channel={room}
-              members={organizationMembers}
-              coworkers={coworkers}
-              sokoBots={sokoBots}
-              currentUserId={currentUserId}
-              canEditMembers={canEditMembers}
-              canManageSettings={canManageSettings}
-              canArchive={canArchive}
-              canLeave={canLeave}
-              canInviteGuests={canInviteGuests}
-              membersLoadFailed={membersLoadFailed}
-              open={editOpen}
-              onOpenChange={onEditOpenChange}
-            >
+            {canManageSettings ? (
+              <EditChannelDialog
+                channel={room}
+                open={editOpen}
+                onOpenChange={onEditOpenChange}
+              >
+                <button
+                  type="button"
+                  className={cn(
+                    ROOM_TITLE_BUTTON_CLASS,
+                    channelTopic && "shrink-0",
+                  )}
+                  title={t("editChannel")}
+                  data-testid="room-open-title"
+                >
+                  {channelTitle}
+                </button>
+              </EditChannelDialog>
+            ) : (
               <button
                 type="button"
                 className={cn(
                   ROOM_TITLE_BUTTON_CLASS,
                   channelTopic && "shrink-0",
                 )}
-                title={t("editChannel")}
+                title={t("RoomRoster.open")}
+                aria-expanded={rosterOpen}
+                aria-controls={ROOM_ROSTER_PANEL_ID}
                 data-testid="room-open-title"
+                onClick={onOpenRoster}
               >
-                <ChannelDiscoverabilityIcon
-                  className="text-muted-foreground"
-                  discoverability={room.discoverability}
-                />
-                <span className="min-w-0 truncate">{displayName}</span>
+                {channelTitle}
               </button>
-            </EditChannelDialog>
+            )}
             {channelTopic ? (
               <p
                 className="text-muted-foreground min-w-0 flex-1 truncate text-sm"

@@ -68,6 +68,9 @@ vi.mock("@/lib/db/prisma", () => ({
     member: {
       findMany: memberFindManyMock,
     },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
@@ -1892,6 +1895,39 @@ describe("POST /chats/rooms", () => {
           sokoBotMembers: {
             create: [{ sokoBotId: SOKO_BOT_ID }],
           },
+        }),
+      }),
+    );
+  });
+
+  it("opens a direct chat with a colleague's assistant in an organization", async () => {
+    sokoBotFindManyMock.mockResolvedValue([
+      { id: SOKO_BOT_ID, userId: OTHER_USER_ID, name: "Soko Bot" },
+    ]);
+    roomFindFirstMock.mockResolvedValueOnce(null);
+    roomCreateMock.mockResolvedValueOnce(
+      channelRoom({
+        name: "Soko Bot",
+        slug: null,
+        kind: "direct",
+        groupName: null,
+        discoverability: null,
+        coworkerMembers: [],
+        sokoBotMembers: [],
+      }),
+    );
+
+    const response = await createApp(userAuthContext).request("/", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ kind: "direct", sokoBotIds: [SOKO_BOT_ID] }),
+    });
+
+    expect(response.status).toBe(201);
+    expect(roomCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sokoBotMembers: { create: [{ sokoBotId: SOKO_BOT_ID }] },
         }),
       }),
     );
