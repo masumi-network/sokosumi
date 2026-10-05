@@ -2169,7 +2169,7 @@ describe("NotificationKinds", () => {
     expect(setAccountEnabled).toHaveBeenCalledTimes(1);
   });
 
-  it("shows a spinner throughout push activation and prevents another press", async () => {
+  it("shows the loading bar throughout push activation and prevents another press", async () => {
     isDeviceEnabled = false;
     const user = userEvent.setup();
     const view = renderKinds();
@@ -2186,7 +2186,9 @@ describe("NotificationKinds", () => {
     expect(button).toHaveAttribute("aria-busy", "true");
     expect(button).toHaveAttribute("aria-disabled", "true");
     expect(button).toBeEnabled();
-    expect(button.querySelector("svg")).toHaveClass("motion-safe:animate-spin");
+    expect(
+      button.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
     await user.click(button);
     expect(setDeviceEnabled).toHaveBeenCalledTimes(1);
 
@@ -2196,9 +2198,9 @@ describe("NotificationKinds", () => {
         <AccountHost />
       </QueryClientProvider>,
     );
-    expect(button).toHaveAttribute("aria-busy", "false");
+    expect(button).not.toHaveAttribute("aria-busy");
     expect(button).not.toHaveAttribute("aria-disabled");
-    expect(button.querySelector("svg")).toBeNull();
+    expect(button.querySelector('[data-slot="button-loading-bar"]')).toBeNull();
   });
 
   it("asks for nothing when the browser already pushes", async () => {
@@ -3017,9 +3019,9 @@ describe("NotificationKinds", () => {
       expect(silenceButton()).toBeEnabled();
       expect(silenceButton()).toHaveAttribute("aria-disabled", "true");
       expect(silenceButton()).toHaveAttribute("aria-busy", "true");
-      expect(silenceButton().querySelector("svg")).toHaveClass(
-        "motion-safe:animate-spin",
-      );
+      expect(
+        silenceButton().querySelector('[data-slot="button-loading-bar"]'),
+      ).not.toBeNull();
 
       await user.click(silenceButton());
 

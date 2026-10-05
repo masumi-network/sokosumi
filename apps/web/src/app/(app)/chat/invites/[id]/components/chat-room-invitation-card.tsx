@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChatRoomInvitation } from "@sokosumi/core-client";
-import { AlertCircle, CheckIcon, Loader2, XIcon } from "lucide-react";
+import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -170,16 +170,15 @@ export default function ChatRoomInvitationCard({
           variant="outline"
           onClick={() => void handleDecline()}
           disabled={loading}
+          loading={loading && action === "decline"}
         >
-          {loading && action === "decline" ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {t("Actions.decline")}
         </Button>
-        <Button onClick={() => void handleAccept()} disabled={loading}>
-          {loading && action === "accept" ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
+        <Button
+          onClick={() => void handleAccept()}
+          disabled={loading}
+          loading={loading && action === "accept"}
+        >
           {t("Actions.accept")}
         </Button>
       </CardFooter>

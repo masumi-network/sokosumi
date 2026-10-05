@@ -126,7 +126,6 @@ export default async function HistoryPage({ searchParams }: HistoryPageProps) {
               description: t("Empty.description"),
             },
             loadMore: t("List.loadMore"),
-            loading: t("List.loading"),
             loadMoreError: t("List.loadMoreError"),
             row: {
               credit: t("Row.credit"),

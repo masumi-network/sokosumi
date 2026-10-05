@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -123,11 +122,9 @@ export function VendorGrantCreateForm({
         type="submit"
         size="default"
         className="w-full shrink-0 sm:w-auto"
-        disabled={loading || !resolvedVendorId}
+        disabled={!resolvedVendorId}
+        loading={loading}
       >
-        {loading ? (
-          <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-        ) : null}
         {t("submit")}
       </Button>
     </form>

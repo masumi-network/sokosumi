@@ -175,9 +175,10 @@ export function SokoBotVersionMigration({
           type="button"
           size="sm"
           onClick={migrate}
-          disabled={isPending || affected === 0 || reason.trim().length < 3}
+          loading={isPending}
+          disabled={affected === 0 || reason.trim().length < 3}
         >
-          {isPending ? t("working") : t("confirm", { count: affected })}
+          {t("confirm", { count: affected })}
         </Button>
         {affected === 0 && (
           <p className="text-muted-foreground text-xs">{t("nothingToMove")}</p>

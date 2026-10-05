@@ -2347,7 +2347,7 @@ function DrivePageWorkspace({
               {t("deleteDialogCancel")}
             </AlertDialogCancel>
             <AlertDialogAction
-              disabled={copying}
+              loading={copying}
               onClick={(event) => {
                 event.preventDefault();
                 void handleCopyConfirm();

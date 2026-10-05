@@ -296,12 +296,10 @@ export function SokoBotConsole({
                 type="button"
                 className="flex-1 sm:flex-none"
                 onClick={openChat}
-                disabled={isOpeningChat}
+                loading={isOpeningChat}
               >
                 <MessageSquare aria-hidden className="size-4" />
-                {isOpeningChat
-                  ? t("Console.openingChat")
-                  : t("Console.openChat")}
+                {t("Console.openChat")}
               </Button>
             </div>
           </header>
@@ -539,10 +537,10 @@ export function SokoBotConsole({
                       <Button
                         type="button"
                         size="sm"
-                        disabled={isSavingAvatar}
+                        loading={isSavingAvatar}
                         onClick={saveAvatar}
                       >
-                        {isSavingAvatar ? t("Avatar.saving") : t("Avatar.save")}
+                        {t("Avatar.save")}
                       </Button>
                     ) : null
                   }

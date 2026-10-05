@@ -120,9 +120,10 @@ export function AdminSokoBotVersion({
         type="button"
         size="sm"
         onClick={apply}
-        disabled={isPending || unchanged || reason.trim().length < 3}
+        loading={isPending}
+        disabled={unchanged || reason.trim().length < 3}
       >
-        {isPending ? t("working") : t("confirm")}
+        {t("confirm")}
       </Button>
     </section>
   );

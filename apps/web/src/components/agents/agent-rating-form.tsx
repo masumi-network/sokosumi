@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -112,19 +112,13 @@ export function AgentRatingForm({
       <div className="mt-2 flex items-center gap-3">
         <Button
           onClick={handleSubmit}
-          disabled={isSubmitting || rating === 0}
+          disabled={rating === 0}
+          loading={isSubmitting}
           className="ml-auto size-7 rounded-full"
           size="icon"
           aria-label={t("submitButton")}
         >
-          {isSubmitting ? (
-            <Loader2
-              className="size-3.5 animate-spin motion-reduce:animate-pulse"
-              aria-hidden
-            />
-          ) : (
-            <ArrowUp className="size-3.5" aria-hidden />
-          )}
+          <ArrowUp className="size-3.5" aria-hidden />
         </Button>
       </div>
     </div>

@@ -85,10 +85,11 @@ export function DeleteSokoBotButton({ botName }: { botName: string | null }) {
           <Button
             variant="destructive"
             size="sm"
-            disabled={!armed || pending}
+            loading={pending}
+            disabled={!armed}
             onClick={handleDelete}
           >
-            {pending ? t("deleting") : t("deleteConfirm")}
+            {t("deleteConfirm")}
           </Button>
         </DialogFooter>
       </DialogContent>

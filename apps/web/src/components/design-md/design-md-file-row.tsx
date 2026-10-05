@@ -168,12 +168,12 @@ export function DesignMdFileRow({
             {labels.cancel}
           </AlertDialogCancel>
           <AlertDialogAction
-            disabled={isRemoving}
+            loading={isRemoving}
             onClick={() => {
               onRemove();
             }}
           >
-            {isRemoving ? labels.removing : labels.confirmRemove}
+            {labels.confirmRemove}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

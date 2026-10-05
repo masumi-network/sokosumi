@@ -5,7 +5,6 @@ import {
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -280,10 +279,7 @@ export function EditOAuthClientDialog({
                 >
                   {t("EditDialog.cancelButton")}
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
+                <Button type="submit" loading={isSubmitting}>
                   {t("EditDialog.saveButton")}
                 </Button>
               </DialogFooter>

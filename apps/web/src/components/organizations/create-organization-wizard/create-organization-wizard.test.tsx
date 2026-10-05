@@ -225,7 +225,10 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
 
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
 
     await user.keyboard("{Escape}");
 
@@ -253,7 +256,10 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /close/i }));
 
     expect(screen.getByRole("dialog")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Nav.finish/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 
   it("lets logo and brand steps advance empty", async () => {

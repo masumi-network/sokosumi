@@ -6,7 +6,6 @@ import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -169,10 +168,7 @@ export function VendorProfileForm({
   });
 
   const isDisabled =
-    isSaving ||
-    isUploadingLightLogo ||
-    isUploadingDarkLogo ||
-    !form.formState.isDirty;
+    isUploadingLightLogo || isUploadingDarkLogo || !form.formState.isDirty;
 
   return (
     <Form {...form}>
@@ -253,10 +249,7 @@ export function VendorProfileForm({
           </FormItem>
         </div>
 
-        <Button type="submit" disabled={isDisabled}>
-          {isSaving ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
+        <Button type="submit" disabled={isDisabled} loading={isSaving}>
           {t("save")}
         </Button>
       </form>

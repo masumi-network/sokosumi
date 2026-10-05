@@ -710,7 +710,7 @@ describe("SignUpForm with a password", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("keeps a left-edge submit spinner after password signup succeeds", async () => {
+  it("keeps the submit button loading after password signup succeeds", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: {
         user: { id: "user-5" },
@@ -727,19 +727,14 @@ describe("SignUpForm with a password", () => {
     });
 
     const submitButton = screen.getByRole("button", { name: "submit" });
-    const spinner = submitButton.querySelector("svg.animate-spin");
 
-    expect(submitButton).toBeDisabled();
-    expect(spinner).not.toBeNull();
-    expect(spinner).toHaveClass(
-      "absolute",
-      "top-1/2",
-      "left-4",
-      "-translate-y-1/2",
-    );
+    expect(submitButton).toHaveAttribute("aria-busy", "true");
+    expect(
+      submitButton.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
   });
 
-  it("releases the submit spinner after password signup fails", async () => {
+  it("releases the submit button after password signup fails", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", status: 400 },
@@ -752,10 +747,13 @@ describe("SignUpForm with a password", () => {
     const submitButton = screen.getByRole("button", { name: "submit" });
 
     await waitFor(() => {
-      expect(submitButton).toBeEnabled();
+      expect(submitButton).not.toHaveAttribute("aria-busy");
     });
 
-    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+    expect(submitButton).toBeEnabled();
+    expect(
+      submitButton.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeNull();
   });
 });
 

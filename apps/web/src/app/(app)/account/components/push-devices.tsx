@@ -4,7 +4,6 @@ import type { PushDevice } from "@sokosumi/core-client";
 import {
   ChevronRight,
   CircleHelp,
-  Loader2,
   Monitor,
   MonitorSmartphone,
   RefreshCw,
@@ -81,18 +80,10 @@ export function PushDevices({ userId }: PushDevicesProps) {
             size="sm"
             className="text-muted-foreground size-8 p-0 @sm:w-auto @sm:px-2.5"
             aria-label={t("refresh")}
-            disabled={query.isFetching}
-            aria-busy={query.isFetching}
+            loading={query.isFetching}
             onClick={() => void query.refetch()}
           >
-            {query.isFetching ? (
-              <Loader2
-                className="size-3.5 motion-safe:animate-spin motion-reduce:animate-pulse"
-                aria-hidden="true"
-              />
-            ) : (
-              <RefreshCw className="size-3.5" aria-hidden="true" />
-            )}
+            <RefreshCw className="size-3.5" aria-hidden="true" />
             <span className="hidden @sm:inline">{t("refresh")}</span>
           </Button>
         ) : null}
@@ -271,16 +262,9 @@ export function PushDevices({ userId }: PushDevicesProps) {
             <Button
               type="button"
               variant="destructive"
-              disabled={query.isRemoving}
-              aria-busy={query.isRemoving}
+              loading={query.isRemoving}
               onClick={query.removeSelectedDevice}
             >
-              {query.isRemoving ? (
-                <Loader2
-                  className="size-4 motion-safe:animate-spin motion-reduce:animate-pulse"
-                  aria-hidden="true"
-                />
-              ) : null}
               {t("removeConfirm")}
             </Button>
           </AlertDialogFooter>

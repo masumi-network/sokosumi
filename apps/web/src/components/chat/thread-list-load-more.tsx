@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRef } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +15,6 @@ interface ThreadListLoadMoreProps {
   labels: {
     /** Idle: what pressing it does. */
     load: string;
-    loading: string;
     error: string;
     retry: string;
   };
@@ -57,8 +55,7 @@ export function ThreadListLoadMore({
         variant="ghost"
         size="sm"
         className="text-muted-foreground hover:text-foreground h-auto flex-wrap gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium"
-        disabled={isLoading}
-        aria-busy={isLoading}
+        loading={isLoading}
         onClick={onLoad}
       >
         {status === "failed" ? (
@@ -67,14 +64,6 @@ export function ThreadListLoadMore({
               {labels.error}
             </span>
             {labels.retry}
-          </>
-        ) : isLoading ? (
-          <>
-            <Loader2
-              className="size-3.5 animate-spin motion-reduce:animate-none"
-              aria-hidden
-            />
-            {labels.loading}
           </>
         ) : (
           // Idle is a button waiting to be pressed, not a load in flight: it

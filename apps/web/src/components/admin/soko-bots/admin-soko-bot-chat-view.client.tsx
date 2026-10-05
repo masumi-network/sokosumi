@@ -127,9 +127,9 @@ export function AdminSokoBotChatView({
             variant="outline"
             size="sm"
             onClick={loadOlder}
-            disabled={loading}
+            loading={loading}
           >
-            {loading ? t("loading") : t("loadOlder")}
+            {t("loadOlder")}
           </Button>
         </div>
       ) : null}

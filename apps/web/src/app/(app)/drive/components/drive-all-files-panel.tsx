@@ -8,7 +8,6 @@ import type {
 } from "@sokosumi/core-client";
 import {
   Bookmark,
-  Loader2,
   MoreHorizontal,
   Search,
   SlidersHorizontal,
@@ -1237,12 +1236,9 @@ export function DriveAllFilesPanel({
             <Button
               variant="outline"
               className="self-center"
-              disabled={state.loadingMore}
+              loading={state.loadingMore}
               onClick={() => void loadMore()}
             >
-              {state.loadingMore ? (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
               {t("loadMore")}
             </Button>
           ) : state.meta?.truncated ? (
