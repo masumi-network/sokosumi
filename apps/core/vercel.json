@@ -102,6 +102,10 @@
       "schedule": "30 * * * *"
     },
     {
+      "path": "/sync/captcha-passes-purge",
+      "schedule": "45 * * * *"
+    },
+    {
       "path": "/sync/soko-bot-schedules",
       "schedule": "* * * * *"
     },
