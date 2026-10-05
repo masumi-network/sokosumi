@@ -7,6 +7,16 @@ import { uploadProfileImage } from "@/lib/blob";
 
 const env = getEnv();
 
+/** The providers a person can sign in or sign up with, besides email. */
+export const SOCIAL_PROVIDER_IDS = ["google", "microsoft"] as const;
+export type SocialProviderId = (typeof SOCIAL_PROVIDER_IDS)[number];
+
+export function isSocialProviderId(
+  value: string | undefined,
+): value is SocialProviderId {
+  return SOCIAL_PROVIDER_IDS.some((provider) => provider === value);
+}
+
 export const socialProviderOptions = {
   google: {
     clientId: env.GOOGLE_CLIENT_ID,
@@ -22,12 +32,13 @@ export const socialProviderOptions = {
     overrideUserInfoOnSignIn: false,
     mapProfileToUser,
   },
-} satisfies BetterAuthOptions["socialProviders"];
+} satisfies BetterAuthOptions["socialProviders"] &
+  Record<SocialProviderId, object>;
 
 export const accountOptions = {
   accountLinking: {
     enabled: true,
-    trustedProviders: ["google", "microsoft"],
+    trustedProviders: [...SOCIAL_PROVIDER_IDS],
     // requireLocalEmailVerified omitted so the 1.7 default (true) applies.
   },
   // The key derives from BETTER_AUTH_SECRET, or from the first entry of
