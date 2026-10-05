@@ -107,6 +107,8 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Ada Lovelace",
       organizationId: null,
       slug: null,
+      logo: null,
+      websiteUrl: null,
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -139,6 +141,8 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Acme Studio",
       organizationId: "org_1",
       slug: "acme-studio-abc123",
+      logo: null,
+      websiteUrl: null,
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -178,6 +182,8 @@ describe("POST /users/{id}/workspaces", () => {
       name: "Acme",
       organizationId: "org_1",
       slug: "acme-abc123",
+      logo: null,
+      websiteUrl: null,
       preferred: false,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);

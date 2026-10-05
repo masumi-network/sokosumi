@@ -117,6 +117,8 @@ describe("GET /users/{id}/workspaces", () => {
           id: "org_1",
           name: "Acme",
           slug: "acme-x1y2z3",
+          logo: "https://cdn.example/acme.png",
+          metadata: JSON.stringify({ url: "https://acme.com" }),
           workspace: { id: ORG_WORKSPACE_ID },
         },
       },
@@ -135,6 +137,8 @@ describe("GET /users/{id}/workspaces", () => {
           name: "Ada Lovelace",
           organizationId: null,
           slug: null,
+          logo: null,
+          websiteUrl: null,
           preferred: false,
         },
         {
@@ -143,6 +147,8 @@ describe("GET /users/{id}/workspaces", () => {
           name: "Acme",
           organizationId: "org_1",
           slug: "acme-x1y2z3",
+          logo: "https://cdn.example/acme.png",
+          websiteUrl: "https://acme.com",
           preferred: true,
         },
       ],
@@ -168,6 +174,8 @@ describe("GET /users/{id}/workspaces", () => {
           id: "org_1",
           name: "Acme",
           slug: "acme-x1y2z3",
+          logo: null,
+          metadata: null,
           workspace: null,
         },
       },
@@ -182,7 +190,12 @@ describe("GET /users/{id}/workspaces", () => {
       expect.objectContaining({ organizationId: "org_1" }),
     );
     expect(body.data.workspaces).toEqual([
-      expect.objectContaining({ id: ORG_WORKSPACE_ID, preferred: true }),
+      expect.objectContaining({
+        id: ORG_WORKSPACE_ID,
+        logo: null,
+        websiteUrl: null,
+        preferred: true,
+      }),
     ]);
   });
 });

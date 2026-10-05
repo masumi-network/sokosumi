@@ -96,6 +96,8 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       name: "Ada Lovelace",
       organizationId: null,
       slug: null,
+      logo: null,
+      websiteUrl: null,
       preferred: true,
     };
     getUserWorkspaceMock.mockResolvedValue(workspace);
@@ -121,6 +123,8 @@ describe("PUT /users/{id}/workspaces/preferred", () => {
       name: "Acme",
       organizationId: "org_1",
       slug: "acme-x1y2z3",
+      logo: null,
+      websiteUrl: null,
       preferred: true,
     });
 

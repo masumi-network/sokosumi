@@ -53,6 +53,8 @@ const route = createRoute({
         name: "Acme",
         organizationId: "org_123",
         slug: "acme-x1y2z3",
+        logo: null,
+        websiteUrl: "https://acme.com",
         preferred: true,
       },
       meta: {

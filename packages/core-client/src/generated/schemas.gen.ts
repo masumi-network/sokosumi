@@ -15881,6 +15881,22 @@ export const UserWorkspaceSchema = {
             description: 'Organization slug, or null for a personal workspace',
             example: 'acme-x1y2z3'
         },
+        logo: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization logo URL (or IPFS reference), or null for none and for a personal workspace',
+            example: 'https://cdn.example.com/acme.png'
+        },
+        websiteUrl: {
+            type: [
+                'string',
+                'null'
+            ],
+            description: 'Organization website from its metadata, or null for none and for a personal workspace',
+            example: 'https://acme.com'
+        },
         preferred: {
             type: 'boolean',
             description: 'Whether a new session opens this workspace',
@@ -15893,6 +15909,8 @@ export const UserWorkspaceSchema = {
         'name',
         'organizationId',
         'slug',
+        'logo',
+        'websiteUrl',
         'preferred'
     ]
 } as const;

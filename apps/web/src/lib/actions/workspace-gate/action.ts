@@ -67,11 +67,8 @@ export const ensureOAuthWorkspaceAction = withSession<
   ActionResultDto<OAuthWorkspacePrepared, ActionError>
 >(async () => {
   try {
-    const { data: workspaceAccess } = await coreClient.getMyWorkspaceAccess();
-    if (
-      workspaceAccess.hasPersonalWorkspace ||
-      workspaceAccess.hasOrganizationMembership
-    ) {
+    const { data } = await coreClient.getMyWorkspaces();
+    if (data.workspaces.length > 0) {
       return toActionResult(ok({ createdPersonalWorkspace: false }));
     }
 

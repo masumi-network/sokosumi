@@ -303,7 +303,7 @@ import {
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
-  getUsersByIdWorkspaceAccess as coreGetUsersByIdWorkspaceAccess,
+  getUsersByIdWorkspaces as coreGetUsersByIdWorkspaces,
   getWorkspacesById as coreGetWorkspacesById,
   getWorkspacesCalendar as coreGetWorkspacesCalendar,
   getWorkspacesCalendarSources as coreGetWorkspacesCalendarSources,
@@ -4497,19 +4497,19 @@ export function createCoreClient(getClient: GetCoreClient) {
   }
 
   /**
-   * Current-user workspace access from Core.
+   * The current user's workspaces and pending invitation count (ADR 0051).
    * Sole source of truth for the workspace gate (not `onboardingCompleted`).
    */
-  async function getMyWorkspaceAccess() {
+  async function getMyWorkspaces() {
     return executeCoreOperation(
       getClient,
       (client) =>
-        coreGetUsersByIdWorkspaceAccess({
+        coreGetUsersByIdWorkspaces({
           client,
           path: { id: CURRENT_USER_PATH_ID },
           cache: "no-store",
         }),
-      "Failed to fetch workspace access",
+      "Failed to fetch workspaces",
     );
   }
 
@@ -5982,7 +5982,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getMyDeletion,
     getMyMemberInOrganization,
     getMyMembersWithOrganizations,
-    getMyWorkspaceAccess,
+    getMyWorkspaces,
     getMyPendingOrganizationInvitations,
     getMyOrganizationCredits,
     getMyOrganizations,
