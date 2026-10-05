@@ -71,7 +71,7 @@ describe("SignInFlow after Register handed over", () => {
     expect(codeField()).toHaveAccessibleDescription(
       "Handover.codeSent sentNoAddress",
     );
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "ada@example.com",
     );
     expect(
@@ -155,7 +155,7 @@ describe("SignInFlow after Register handed over", () => {
 
     expect(codeField()).toBeVisible();
     expect(screen.getByText("Handover.codeSent")).toBeVisible();
-    expect(screen.getByTestId("confirmed-email")).toHaveTextContent(
+    expect(screen.getByTestId("auth-email-chip")).toHaveTextContent(
       "invited@example.com",
     );
     expect(

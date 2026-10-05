@@ -10,9 +10,8 @@ import {
   useRef,
   useState,
 } from "react";
-
-import { ConfirmedEmail } from "@/auth/components/confirmed-email";
 import Divider from "@/auth/components/divider";
+import { EmailChip } from "@/auth/components/email-chip";
 import { EmailStep } from "@/auth/components/email-step";
 import SocialButtons from "@/auth/components/social-buttons";
 import { useEmailCode } from "@/auth/components/use-email-code";
@@ -152,7 +151,7 @@ export default function SignInFlow({
       <div className="flex flex-1 flex-col">
         <SignInHeader client={client} />
         <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-          <ConfirmedEmail
+          <EmailChip
             email={email}
             onChange={
               // An invitation fixes the address.
@@ -164,7 +163,7 @@ export default function SignInFlow({
                     setStep("email");
                   }
             }
-            changeDisabled={isMethodPending}
+            disabled={isMethodPending}
           />
           <SignInForm
             email={email}
@@ -237,7 +236,7 @@ export default function SignInFlow({
           disabled={isEmailPending}
           onPendingChange={setIsProviderPending}
         />
-        <div className="flex flex-row items-center gap-2">
+        <div className="flex flex-row items-center justify-center gap-2">
           <span className="text-muted-foreground text-sm">
             {t("Register.message")}
           </span>

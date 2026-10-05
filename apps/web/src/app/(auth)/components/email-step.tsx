@@ -336,7 +336,7 @@ export function EmailStep({
           )}
         >
           <div className="min-h-0 overflow-hidden">
-            <div className="grid gap-0.5 pb-3">
+            <div className="grid gap-0.5 pb-3 text-center">
               <p className="font-medium tracking-tight">{notice?.title}</p>
               <p className="text-muted-foreground">{notice?.description}</p>
             </div>
