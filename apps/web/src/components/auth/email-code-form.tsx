@@ -15,16 +15,12 @@ import {
 } from "./email-code-field";
 
 interface EmailCodeFormProps {
-  /** Where the code went, when the page does not already show it. */
-  email?: string | undefined;
+  /** Where the code went. */
+  email: string;
   /** Names what the code does here: sign in, confirm. */
   submitLabel: string;
-  /**
-   * Resolves with Better Auth's error, nothing once the code worked, or
-   * `false` when the page did not send the code and marked what to fix
-   * itself.
-   */
-  onSubmitCode: (code: string) => Promise<EmailCodeError | false | undefined>;
+  /** Resolves with Better Auth's error, or nothing once the code worked. */
+  onSubmitCode: (code: string) => Promise<EmailCodeError | undefined>;
   /** When the current code went out, in epoch milliseconds. */
   sentAt: number;
   onResend: () => void;
@@ -33,9 +29,8 @@ interface EmailCodeFormProps {
 
 /**
  * The second half of an email code on its own: the field and the button that
- * spends the code. The code is typed into the tab that asked for it, so
- * whatever that tab was doing (a sign-in for another app, a gated action)
- * carries on.
+ * spends the code. Re-authentication types it into the tab that asked for it,
+ * so the gated action there carries on.
  */
 export function EmailCodeForm({
   email,
@@ -85,9 +80,6 @@ export function EmailCodeForm({
     let accepted = false;
     try {
       const answer = await onSubmitCode(submitted);
-      if (answer === false) {
-        return;
-      }
       if (answer) {
         setError(refusal.refuse(answer));
         return;
