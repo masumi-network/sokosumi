@@ -25,15 +25,22 @@ const ANNOUNCE_DELAY_MS = 100
 function ButtonLoadingAnnouncer({ children }: { children: React.ReactNode }) {
   const t = useTranslations("Components.Button")
   const [message, setMessage] = React.useState("")
+  const latestRun = React.useRef(0)
 
   const announce = React.useCallback<AnnounceLoading>(
     (label) => {
+      const run = ++latestRun.current
       setMessage("")
       const timer = window.setTimeout(() => {
         setMessage(label ? t("loading", { label }) : t("loadingUnnamed"))
       }, ANNOUNCE_DELAY_MS)
-      // A request that is already over is not worth announcing.
-      return () => window.clearTimeout(timer)
+      return () => {
+        // A request that is already over is not worth announcing.
+        window.clearTimeout(timer)
+        // Nor worth keeping: someone browsing the region later would hear a
+        // stale "in progress". A newer button's announcement stays.
+        if (latestRun.current === run) setMessage("")
+      }
     },
     [t]
   )

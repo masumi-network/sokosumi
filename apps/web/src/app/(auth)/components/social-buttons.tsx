@@ -40,11 +40,15 @@ interface SocialButtonsProps {
 }
 
 /** Marks the method used last, in the corner of its button. */
-function LastUsedBadge({ label }: { label: string }) {
+function LastUsedBadge({ label, busy }: { label: string; busy?: boolean }) {
   return (
     <span
       aria-hidden="true"
-      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
+      className={cn(
+        "text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium",
+        // The button it marks keeps full contrast while it loads, so does it.
+        !busy && "group-has-[:disabled]/provider:opacity-50",
+      )}
     >
       {label}
     </span>
@@ -231,7 +235,9 @@ export default function SocialButtons({
             aria-busy={isPending || undefined}
             key={socialButton.key}
           >
-            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
+            {isLastUsed && (
+              <LastUsedBadge label={t("lastUsed")} busy={isPending} />
+            )}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
               disabled={isWaiting}

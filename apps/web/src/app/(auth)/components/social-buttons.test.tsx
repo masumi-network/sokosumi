@@ -323,6 +323,17 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
+  it("keeps the marker at full contrast while its own provider loads", async () => {
+    mockSocialSignIn.mockReturnValue(createDeferred<object>().promise);
+    render(<SocialButtons lastUsedMethod="google" />);
+
+    await clickGoogleButton();
+
+    expect(screen.getByText("last-used")).not.toHaveClass(
+      "group-has-[:disabled]/provider:opacity-50",
+    );
+  });
+
   it("shows an inline marker on the passkey button", () => {
     render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
 

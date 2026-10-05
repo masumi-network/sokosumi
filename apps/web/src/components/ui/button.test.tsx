@@ -197,6 +197,42 @@ describe("Button loading announcement", () => {
     expect(region).toHaveTextContent(/^Save, in progress$/);
   });
 
+  it("clears the announcement once loading ends", () => {
+    const { region, rerender } = renderAnnounced(<Button loading>Save</Button>);
+    flush();
+    expect(region).toHaveTextContent(/^Save, in progress$/);
+
+    rerender(<Button>Save</Button>);
+
+    expect(region).toBeEmptyDOMElement();
+  });
+
+  it("keeps a newer button's announcement when an older one ends", () => {
+    const { region, rerender } = renderAnnounced(
+      <>
+        <Button loading>Save</Button>
+        <Button>Publish</Button>
+      </>,
+    );
+    flush();
+    rerender(
+      <>
+        <Button loading>Save</Button>
+        <Button loading>Publish</Button>
+      </>,
+    );
+    flush();
+
+    rerender(
+      <>
+        <Button>Save</Button>
+        <Button loading>Publish</Button>
+      </>,
+    );
+
+    expect(region).toHaveTextContent(/^Publish, in progress$/);
+  });
+
   it("stays silent when loading ends before the announcement", () => {
     const { region, rerender } = renderAnnounced(<Button loading>Save</Button>);
     rerender(<Button>Save</Button>);
