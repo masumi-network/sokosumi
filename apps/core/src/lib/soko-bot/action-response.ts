@@ -440,16 +440,17 @@ function inputCovers(later: unknown, earlier: unknown): boolean {
   );
 }
 
-/** Whether the turn ran on a CMO (Cuso) version. */
-async function isCmoTurn(
+/** Whether a Cuso turn filed its report as a chat card (report_update). */
+async function cmoReportedByCard(
   tx: Prisma.TransactionClient,
   turnId: string,
+  cmo: boolean,
 ): Promise<boolean> {
-  const turn = await tx.sokoBotTurn.findUnique({
-    where: { id: turnId },
-    select: { versionId: true },
+  if (!cmo) return false;
+  const reports = await tx.sokoBotToolCall.count({
+    where: { turnId, capability: "report_update", status: "COMPLETED" },
   });
-  return getSokoBotVersion(turn?.versionId).profile === "cmo";
+  return reports > 0;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -594,7 +595,7 @@ export async function buildActionResponse(
   );
   // One line per kind of effect: a hire recorded twice, or one Task reached
   // two ways, is still one thing done, and thirteen archives are one line.
-  const actionText = collapseActionLines(
+  const receiptLines = collapseActionLines(
     unique.map((call) => ({
       head: `${call.turnId !== turnId ? "Previously verified: " : ""}${
         call.disposition === "ALREADY_SATISFIED"
@@ -604,6 +605,24 @@ export async function buildActionResponse(
       target: actionTarget(call, tasks, jobAgents, assignedTaskIds),
     })),
   );
+  // Cuso reports through a card in the founder's chat. Once he filed one this
+  // turn, the receipts repeat the card; only refusals and unknowns, which the
+  // card does not carry, still follow as lines.
+  // One read of the turn serves every question about it below.
+  let turnRow:
+    | Promise<{ source: string | null; versionId: string | null } | null>
+    | undefined;
+  const turnInfo = () => {
+    turnRow ??= tx.sokoBotTurn.findUnique({
+      where: { id: turnId },
+      select: { source: true, versionId: true },
+    });
+    return turnRow;
+  };
+  const isCmo = async () =>
+    getSokoBotVersion((await turnInfo())?.versionId).profile === "cmo";
+  const reportedByCard = await cmoReportedByCard(tx, turnId, await isCmo());
+  const actionText: string[] = reportedByCard ? [] : receiptLines;
   // A file link on its own line renders as the file's card in chat.
   const attachments = [
     ...new Set(
@@ -624,9 +643,9 @@ export async function buildActionResponse(
   // at the top of a morning update. An unknown outcome is always said.
   let ownerStarted: boolean | undefined;
   const isOwnerStarted = async () => {
-    ownerStarted ??= await tx.sokoBotTurn
-      .findUnique({ where: { id: turnId }, select: { source: true } })
-      .then((row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source));
+    ownerStarted ??= await turnInfo().then(
+      (row) => !row?.source || OWNER_STARTED_SOURCES.has(row.source),
+    );
     return ownerStarted;
   };
   const ownerAsked = unfulfilledActions.some(
@@ -725,7 +744,7 @@ export async function buildActionResponse(
   // CMO bot (Cuso) never shows them: its reports are cards in the founder's
   // chat, and raw ids and statuses there read as a leak.
   const showObservations =
-    !message && observations.length > 0 && !(await isCmoTurn(tx, turnId));
+    !message && observations.length > 0 && !(await isCmo());
   const narrativeText = message
     ? [message]
     : actionText.length
@@ -755,11 +774,11 @@ export async function buildActionResponse(
       : calls.length || narrativeText.length
         ? [
             actionText.join("\n"),
-            attachments.join("\n"),
+            reportedByCard ? "" : attachments.join("\n"),
             narrativeText.join("\n"),
           ]
             .filter(Boolean)
-            .join("\n\n")
+            .join("\n\n") || "Nothing to add."
         : actionRequested
           ? "Nothing was changed in this turn."
           : answerText,

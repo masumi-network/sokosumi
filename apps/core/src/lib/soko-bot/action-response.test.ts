@@ -9,7 +9,7 @@ import {
 } from "./action-response";
 
 const db = vi.hoisted(() => ({
-  sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn() },
+  sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn(), count: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
   task: { findFirst: vi.fn(), findMany: vi.fn() },
   job: { findMany: vi.fn() },
@@ -718,6 +718,48 @@ describe("authoritative action responses", () => {
       'Connected at: "2026-09-28T10:00:00Z"',
     );
     expect(response.answerText).not.toContain("job");
+  });
+
+  it("lets Cuso's report card stand in for the receipts", async () => {
+    const posted = receipt({
+      capability: "create_social_post",
+      targetId: "post-one",
+    });
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "cmo-v1",
+    });
+    db.sokoBotToolCall.count.mockResolvedValue(1);
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([posted]);
+    const cuso = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: "Two posts are scheduled; the card has the details.",
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(cuso.answerText).toBe(
+      "Two posts are scheduled; the card has the details.",
+    );
+
+    // A personal Soko Bot keeps its receipt lines.
+    db.sokoBotTurn.findUnique.mockResolvedValue({
+      source: "SCHEDULE",
+      versionId: "v19",
+    });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([posted]);
+    const personal = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "",
+      true,
+      {
+        kind: "REPORT",
+        message: "Done.",
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(personal.answerText).toContain("Created social post");
   });
 
   it("never posts raw observations to a CMO (Cuso) chat", async () => {
