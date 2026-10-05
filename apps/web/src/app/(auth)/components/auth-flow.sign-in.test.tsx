@@ -488,6 +488,23 @@ describe("AuthFlow signIn", () => {
     );
   });
 
+  // A provider sign-in leaves the page; it comes back to the request.
+  it("sends the provider buttons back to the OAuth request", () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+    expect(socialButtonsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        returnUrl: "/signin?client_id=cmo&exp=1772367377&sig=signed-value",
+      }),
+    );
+  });
+
   it("says to start again when the OAuth request expired before the first step", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValue({

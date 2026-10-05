@@ -215,7 +215,7 @@ export default function AuthFlow({
         {isSignIn ? (
           <SignInForm
             email={email}
-            returnUrl={effectiveReturnUrl}
+            returnUrl={returnUrl}
             initialMethod={initialMethod}
             handedOver={handedOver}
             emailCode={emailCode}
@@ -320,7 +320,7 @@ export default function AuthFlow({
         <hr className="h-0 flex-1 border-0 border-t border-border" />
       </div>
       <SocialButtons
-        returnUrl={returnUrl}
+        returnUrl={effectiveReturnUrl}
         lastUsedMethod={toProviderAuthMethod(lastUsedMethod)}
         showPasskey={isSignIn}
         eventType={mode}
