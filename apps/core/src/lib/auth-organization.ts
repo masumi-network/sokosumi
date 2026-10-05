@@ -55,18 +55,6 @@ async function ensureWorkspaceForCreatedOrganization(organization: {
   }
 }
 
-async function ensureStripeCustomerForCreatedOrganization(organization: {
-  id: string;
-  name: string;
-  slug: string;
-}): Promise<void> {
-  await stripeClient.createOrganizationCustomer({
-    organizationId: organization.id,
-    slug: organization.slug,
-    name: organization.name,
-  });
-}
-
 /**
  * Seeds the local free subscription (and its member credit grants) the moment
  * an organization exists. Previously this only happened when Stripe's
@@ -126,8 +114,13 @@ export function createAuthOrganizationPlugin() {
         await pinPreferredOrganizationIfUnset(user.id, organization.id);
         await ensureFreeSubscriptionForCreatedOrganization(organization);
         waitUntil(
-          ensureStripeCustomerForCreatedOrganization(organization).catch(
-            (error) => {
+          stripeClient
+            .createOrganizationCustomer({
+              organizationId: organization.id,
+              slug: organization.slug,
+              name: organization.name,
+            })
+            .catch((error) => {
               Sentry.captureException(error, {
                 tags: {
                   context: "stripe_organization_customer_creation",
@@ -138,8 +131,7 @@ export function createAuthOrganizationPlugin() {
                   organizationSlug: organization.slug,
                 },
               });
-            },
-          ),
+            }),
         );
       },
       beforeUpdateOrganization: async ({ organization, member }) => {
