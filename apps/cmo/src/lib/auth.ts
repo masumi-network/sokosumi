@@ -390,8 +390,8 @@ export async function sokosumiSignInRedirect(
   // The proxy skips renewal for prefetch, but the route still runs. A new
   // state cookie here would invalidate a sign-in already in progress. Not a
   // 2xx: Chrome serves a 2xx prefetch for the click, and a 204 swallows it.
-  // The same headers as the matcher in `proxy.ts`, which Next needs written
-  // out there; change both together.
+  // The prefetch headers of the matcher in `proxy.ts`, which Next needs
+  // written out there; change both together.
   if (
     request.headers.has("next-router-prefetch") ||
     request.headers.has("next-router-segment-prefetch") ||
