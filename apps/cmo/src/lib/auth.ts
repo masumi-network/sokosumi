@@ -67,7 +67,7 @@ function coreDiscoveryUrl(coreBaseUrl: string): string {
   return `${coreBaseUrl}/auth/.well-known/openid-configuration`;
 }
 
-/** Missing while Core's discovery failed on this instance. */
+/** Sokosumi's provider, missing while Core's discovery failed on this instance. */
 function sokosumiProvider({
   socialProviders,
 }: Pick<AuthContext, "socialProviders">) {
