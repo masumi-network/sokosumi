@@ -32,12 +32,21 @@ interface AuthRequestContext {
   params?: Record<string, string | undefined>;
 }
 
+/**
+ * Every conversion row's identifier starts with one of these; the purge sync
+ * deletes the rows no Web page claimed before they expired.
+ */
+export const SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES = [
+  "sign-up-conversion:",
+  "sign-up-conversion-redirect:",
+] as const;
+
 function identifierFor(userId: string): string {
-  return `sign-up-conversion:${userId}`;
+  return `${SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES[0]}${userId}`;
 }
 
 function redirectIdentifierFor(userId: string): string {
-  return `sign-up-conversion-redirect:${userId}`;
+  return `${SIGN_UP_CONVERSION_IDENTIFIER_PREFIXES[1]}${userId}`;
 }
 
 function isSignUpConversionProvider(
