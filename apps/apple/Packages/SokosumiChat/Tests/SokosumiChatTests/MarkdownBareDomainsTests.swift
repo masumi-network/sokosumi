@@ -11,7 +11,8 @@ struct MarkdownBareDomainsTests {
       "(google.com).": "([google.com](https://google.com)).",
       "xn--fsq.com": "[xn--fsq.com](https://xn--fsq.com)",
       "google.com/a\\b*c": "[google.com/a\\\\b\\*c](https://google.com/a\\\\b*c)",
-      "👋 example.com": "👋 [example.com](https://example.com)"
+      "👋 example.com": "👋 [example.com](https://example.com)",
+      "medium.com/@user": "[medium.com/@user](https://medium.com/@user)"
     ]
     for (source, expected) in fixtures {
       #expect(MarkdownBareDomains(source).linkified() == expected)
@@ -22,7 +23,9 @@ struct MarkdownBareDomainsTests {
     let fixtures = [
       "[google.com](https://example.com \"Docs\")", "[docs](https://example.com/path)",
       "foo.bar", "report.pdf?x=1 photo.png#a", "https://google.com http://example.com/a",
-      "www.google.com", "user@google.com", "`google.com`", "``google.com``",
+      "www.google.com", "user@google.com", "theshivangigupta.in@gmail.com",
+      "mail theshivangigupta.in@gmail.com please",
+      "name.in+tag@gmail.com", "name.in_x@gmail.com", "`google.com`", "``google.com``",
       "```\ngoogle.com\n```", "~~~\ngoogle.com\n~~~", "```\ngoogle.com",
       "192.168.1.1 localhost:3000 v1.2.3 i.e.", "report.pdf photo.png", "hello world",
       "<https://example.com>", "<span title='example.com'>", "_example.com", "/example.com"
