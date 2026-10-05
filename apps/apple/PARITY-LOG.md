@@ -3850,3 +3850,28 @@ Main merge: `origin/main` `d6686b51f` (#5776, web only) and `b93b945a6` (#5774, 
 Still read from pixels: no copy assertion. The renders are only attachments, and the repo's existing OCR helpers (other slices' tests) are unchanged.
 
 Unverified: VoiceOver actually speaking the hint (the test host has none; the test records what would be posted), and whether VoiceOver repeats the announcement when SwiftUI re-creates the hint while the composer stays over the limit (a room switch remounts the composer). `hostedTexts` on the CI runner is proven only by the next `Xcode test` run there.
+
+### SOK-1304 workspaces resource — 2026-10-05
+
+Not a parity row: the Apple half of [SOK-1304](https://linear.app/masumi/issue/SOK-1304)'s client migration. The app reads and selects workspaces through Core's workspaces resource ([ADR 0051](../../docs/adr/0051-cmo-runs-identity-onboarding-over-a-workspaces-resource.md)), as web did in #5770 and #5772. It no longer calls the deprecated routes. Removing those routes from Core stays out of scope until shipped Apple builds are unsupported.
+
+- Launch reads `GET /users/me/workspaces` and `GET /users/me`. Before, it read workspace-access, `GET /users/me/organizations`, `GET /users/me` and `GET /users/me/preferred-organization`. The list gives the options (personal first, then organizations, in Core's order), and its `preferred` row is the default selection. Because one read replaces three, the "membership changed between the reads" retry is gone.
+- An empty list blocks chat the way web's `workspaceAccessFrom` does. With pending invitations it shows `pendingInvites`; otherwise it shows `identityOnboarding`. The portable `WorkspaceGate` (`SokosumiChat`) replaces Core's `WorkspaceGateStatus`, so the blocked copy no longer has a `ready` case.
+- A switch sends `PUT /users/me/workspaces/preferred` with the option's Core workspace id, which `WorkspaceSession.Option` now carries as `workspaceId`. The rollback works the same way: on a failed room load it puts back the previous option's id. Option ids are unchanged (organization id, or `personal`), so saved rooms and drafts keep their scope.
+- `ExplicitNullPreferredOrganizationMiddleware` existed only for the old PUT's `{"organizationId":null}`, so it is deleted.
+- Snapshot: refreshed from Core's current spec with `scripts/update-core-api.py`, which now drops a path when it is prefixed with `-`: `'/users/{id}/workspaces#get' '/users/{id}/workspaces/preferred#put' '-/users/{id}/workspace-access' '-/users/{id}/preferred-organization' '-/users/{id}/organizations'`. The refresh also brought in Core drift for operations the app already uses: the `skills` field on messages, `skillIds` on send, and a description change on `User` names. All of it is additive, and the app does not read any of it yet. The snapshot's `info.description` named the old routes, so it now names the new ones.
+
+Tests first. The fixtures were moved to the new routes in `ChatServiceTests`, `WorkspaceSessionTests`, `WorkspaceStateTests` and `WorkspaceRealtimeTests`, including 86 load sequences and 13 PUT replies in the two Workspace suites. The new and changed tests are:
+- `setPreferredWorkspaceSendsWorkspaceId`
+- `emptyWorkspaceListBlocksBeforeReadingUser` (0 invitations gives identity onboarding, 2 give pending invites)
+- `switchToPersonalSendsItsWorkspaceIdWithoutSlug`
+- the switch and rollback tests, which now assert the workspace ids
+- `setupStopsBeforeReadingSelection`, which now asserts the blocked phase for each gate
+
+Red: against the old source the suites do not compile, because `WorkspaceGate`, `setPreferredWorkspace` and `Option.workspaceId` are missing. Green: `swift test --package-path Packages/SokosumiChat` passed **1,029 tests**.
+
+Verification, all from `apps/apple` on `69160221d` plus this change:
+- `xcodebuild test -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- -enableCodeCoverage NO`: **1,679 tests, 1,678 passed, 1 failed**. By suite: CoreAPI 1, Auth 35, Chat 1,029, Realtime 57, Workspace 184, app 373. The failure was the known-flaky `ThreadParentMarkTests/closingTheThreadInsideTheHoldShowsTheParentsMark(dark:)` ("The hold is over."). Rerunning `-only-testing:SokosumiTests/NativeWindowTests/ThreadParentMarkTests` gave **TEST SUCCEEDED**.
+- `mint run swiftformat --lint .`: **0 files require formatting**. `mint run swiftlint lint --strict`: **0 violations in 543 files**. No test host remained running.
+
+Unverified: the signed app was not launched against Core. That leaves three things untested against a real server: the launch read, a switch persisting across sessions, and the blocked screen for an account with no workspace. The fixtures carry Core's documented shapes (`userWorkspaceSchema`, `userWorkspacesSchema`).
