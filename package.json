@@ -2,7 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@12.8.1",
+  "packageManager": "pnpm@12.9.1",
   "scripts": {
     "dev": "pnpm -r --parallel dev",
     "web:dev": "pnpm --filter web dev",
@@ -56,8 +56,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "husky": "9.1.7",
-    "portless": "0.15.6",
+    "portless": "0.15.7",
     "tsx": "4.23.15",
-    "turbo": "2.11.6"
+    "turbo": "2.11.7"
   }
 }
