@@ -23,6 +23,7 @@ import {
   sokoBotModelRequest,
 } from "@/lib/soko-bot/model-policy";
 import { IN_PROCESS_RUNTIME_VERSION } from "@/lib/soko-bot/runtime-version";
+import { withTurnSkills } from "@/services/chat-message-skills.service";
 import {
   evaluationBinding,
   prepareEvaluationStep,
@@ -91,6 +92,7 @@ async function runTurn(
 
     // The drain reads the model from `step.started` and meters usage from
     // `step.completed`; billing depends on both, so emit them per step.
+    const userMessage = await withTurnSkills(input.turnId, input.message);
     await log.append(runtimeEvent("step.started", { modelId: turn.model }));
     const result = await withEvaluationTurn(input.turnId, () =>
       generateText({
@@ -100,7 +102,7 @@ async function runTurn(
           inferenceRegion: turn.inferenceRegion,
         }),
         system: turn.system,
-        messages: [{ role: "user", content: input.message }],
+        messages: [{ role: "user", content: userMessage }],
         tools,
         prepareStep: prepareEvaluationStep,
         stopWhen: stepCountIs(SOKO_BOT_MAX_STEPS),

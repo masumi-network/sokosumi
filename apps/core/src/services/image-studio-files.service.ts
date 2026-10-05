@@ -3,6 +3,7 @@ import { buildTaskFilePathname } from "@sokosumi/utils";
 import { put } from "@vercel/blob";
 
 import { getEnv } from "@/config/env";
+import { taskCreationEvents } from "@/helpers/task-creation-events";
 import prisma from "@/lib/db/prisma";
 
 /**
@@ -88,11 +89,11 @@ export async function folderTaskId(input: {
         status: TaskStatus.COMPLETED,
         creatorUserId: input.userId,
         events: {
-          create: {
+          create: taskCreationEvents({
             status: TaskStatus.COMPLETED,
             channel: Channel.SOKOSUMI,
-            userId: input.userId,
-          },
+            actorFields: { userId: input.userId },
+          }),
         },
       },
       select: { id: true },

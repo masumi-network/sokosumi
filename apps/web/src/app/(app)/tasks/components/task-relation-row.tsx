@@ -1,75 +1,55 @@
-import { type TaskLinkRelation, TaskStatus } from "@sokosumi/core-client";
-import { TaskStatusBadge } from "@/app/tasks/components/task-status-badge";
-import { cn } from "@/lib/utils";
+import { TaskStatus } from "@sokosumi/core-client";
+import { getTaskStatusMarker } from "@/app/tasks/components/task-status-badge";
+import { taskLinkHref } from "@/app/tasks/utils/task-href";
+import { getToneStyle, StatusMarker } from "@/components/ui/status-marker";
 
 import { TaskDetailLink } from "./task-detail-link";
-import { getTaskLinkRelationIcon } from "./task-link-relation-icon";
 
 interface TaskRelationRowProps {
   taskId: string;
   taskName: string;
+  taskIdentifier: string | null;
   taskStatus: TaskStatus;
-  relation: TaskLinkRelation;
-  relationLabel?: string;
-  relationTone?: "default" | "destructive";
+  statusLabel: string;
+  hrefBasePath?: string;
 }
 
-function getFallbackRelationLabel(relation: TaskLinkRelation): string {
-  switch (relation) {
-    case "related":
-      return "Related";
-    case "blocks":
-      return "Blocks";
-    case "blocked_by":
-      return "Blocked by";
-    case "parent":
-      return "Sub-task";
-    case "child":
-      return "Parent task";
-    case "duplicate":
-      return "Duplicate";
-    default: {
-      const _exhaustive: never = relation;
-      return _exhaustive;
-    }
-  }
-}
-
+/** A sidebar row: status marker in the same 20px slot as the property rows, then the name. */
 export function TaskRelationRow({
   taskId,
   taskName,
+  taskIdentifier,
   taskStatus,
-  relation,
-  relationLabel,
-  relationTone = "default",
+  statusLabel,
+  hrefBasePath,
 }: TaskRelationRowProps) {
-  const RelationIcon = getTaskLinkRelationIcon(relation);
-  const badgeLabel = relationLabel ?? getFallbackRelationLabel(relation);
-  const iconBadge = (
-    <span
-      aria-label={badgeLabel}
-      title={badgeLabel}
-      className={cn(
-        "inline-flex size-6 shrink-0 items-center justify-center",
-        relationTone === "destructive"
-          ? "text-destructive"
-          : "text-muted-foreground",
-      )}
-    >
-      <RelationIcon className="size-4" aria-hidden />
-    </span>
+  const marker = getTaskStatusMarker(taskStatus);
+  const href = taskLinkHref(
+    {
+      id: taskId,
+      identifier: taskIdentifier,
+      name: taskName,
+    },
+    hrefBasePath,
   );
 
   return (
     <TaskDetailLink
-      href={`/tasks/${taskId}`}
-      className="bg-card-background border-border press hover:bg-card-background-hover flex items-center justify-between gap-3 rounded-lg border p-3 transition-colors"
+      href={href}
+      className="hover:bg-muted -mx-2 flex h-8 w-[calc(100%+1rem)] items-center gap-2 rounded-md px-2 text-sm transition-colors"
     >
-      <div className="flex min-w-0 items-center gap-2">
-        {iconBadge}
-        <p className="truncate text-sm">{taskName}</p>
-      </div>
-      <TaskStatusBadge status={taskStatus} className="shrink-0" />
+      <span
+        role="img"
+        aria-label={statusLabel}
+        title={statusLabel}
+        className="flex size-5 shrink-0 items-center justify-center"
+      >
+        <StatusMarker
+          spec={marker}
+          tone={getToneStyle(marker.tone).labelOnSurface}
+        />
+      </span>
+      <span className="truncate">{taskName}</span>
     </TaskDetailLink>
   );
 }

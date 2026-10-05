@@ -20,7 +20,7 @@ function size(
 }
 
 /** Customer marks from sokosumi.com — one quiet row on the dark auth panel. */
-export const AUTH_CUSTOMER_LOGOS: AuthCustomerLogo[] = [
+const AUTH_CUSTOMER_LOGOS: AuthCustomerLogo[] = [
   {
     src: "/images/logos/customers/telekom.svg",
     alt: "Deutsche Telekom",

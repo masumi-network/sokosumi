@@ -5,7 +5,7 @@ import {
   parseOrganizationWorkspace,
 } from "../models/organization-workspace.js";
 
-export interface FetchOrganizationWorkspacesResult {
+interface FetchOrganizationWorkspacesResult {
   response: ApiResponse<unknown[]>;
   organizationWorkspaces: OrganizationWorkspace[];
 }

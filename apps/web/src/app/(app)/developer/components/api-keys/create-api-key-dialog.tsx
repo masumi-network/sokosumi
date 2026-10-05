@@ -26,7 +26,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
-import type { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
+import type { CreateApiKeyDialogProps, CreateApiKeyRequest } from "./types";
 import {
   createApiKeySchema,
   DEFAULT_CREATE_FORM_VALUES,
@@ -45,7 +45,7 @@ export function CreateApiKeyDialog({
 
   const schema = createApiKeySchema(t);
 
-  const form = useForm<CreateApiKeyFormData>({
+  const form = useForm<CreateApiKeyRequest>({
     resolver: zodResolver(schema),
     defaultValues: DEFAULT_CREATE_FORM_VALUES,
   });
@@ -65,7 +65,7 @@ export function CreateApiKeyDialog({
     form.reset();
   };
 
-  const onSubmit = async (values: CreateApiKeyFormData) => {
+  const onSubmit = async (values: CreateApiKeyRequest) => {
     const result = await createApiKey({
       name: values.name,
     });

@@ -1,11 +1,11 @@
 # Sign in
 
-Sign in lets a user authenticate with email and password, reach the authenticated app, and confirm the session survives a reload of a protected route.
+Sign in lets a user authenticate with email and password (or an emailed code), reach the authenticated app, and confirm the session survives a reload of a protected route.
 
 ## Sub-features
 
-- `signin-form` shows email and password fields on `/signin`.
-- `signin-submit` creates a session via Enter submit.
+- `signin-form` asks for the email on `/signin`, checks it has an account, then asks for the code or the password on a second step.
+- `signin-submit` creates a session via Enter submit on the password step.
 - `signin-landing` lands on the authenticated default (**Welcome `/`**, or a `returnUrl` when present). Users without a ready workspace are then gated to `/setup`.
 - `signin-persist` keeps the session after reload of a protected URL.
 
@@ -38,12 +38,14 @@ export AGENT_BROWSER_SESSION="${AGENT_BROWSER_SESSION:-$AGENT_BROWSER_SESSION_NA
 # UI-only proof of signin-submit (fixtures only): … sign-in --method ui
 ```
 
-`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, and cookie bootstrap **only if UI fails**. If Core rejects it: coworker vault `agent-browser auth login` with the email/password testids, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
+`auto` (default) probes the fixture. If Core accepts it: UI Enter-submit, and cookie bootstrap **only if UI fails**. If Core rejects it: the harness types the vault profile's username on step 1, then `agent-browser auth login --no-navigate` fills the hidden username and the password testids on step 2, then persist on `/agents`. Writes `.cursor/verify-sokosumi-artifacts/sign-in/` (`after-login.snapshot.txt`, `after-login.png`, `account.txt`, `method.txt` = `ui` | `cookie` | `vault`). For feature proof of `signin-submit`, require `method=ui` in that dir (cookie/vault unlock the rest of the map).
 
 ### Manual UI recipe
 
-- **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. The page exposes `[data-testid="auth-field-email"]` and `[data-testid="auth-field-currentPassword"]` (locale may label fields `E-Mail` / `Passwort`). Google / Microsoft / Passkey / Magic Link sit **above** the password form — ignore them.
-- **Fill credentials.** Either `agent-browser auth login sokosumi --username-selector '[data-testid="auth-field-email"]' --password-selector '[data-testid="auth-field-currentPassword"]'` (vault) or `agent-browser fill` those same testids. Prefer CSS testids over snapshot refs so OAuth buttons are not selected by accident.
+- **Open form.** Run `agent-browser open $WEB_URL/signin` then `agent-browser snapshot -i`. Step 1 is one email field (`[data-testid="auth-field-email"]`, accessible name and placeholder `Email` / `E-Mail`; the label is visually hidden) with **Continue with Email**, then Google / Microsoft / Passkey under "or" — ignore those.
+- **Continue.** `agent-browser fill '[data-testid="auth-field-email"]' <email>`, wait ~400ms, `agent-browser press Enter`. Core checks the address (`/sign-up/email-status`, behind the captcha). An address without an account shows **No account for this address** with **Create account** instead of step 2. Create account sends the sign-up code, then opens `/signup` on its second step (name and code). In development that code is Core's console line `[email code] <address>: <code>`, not an inbox message, when the Resend key is a placeholder.
+- **Step 2.** It opens on the password, and sends no code, when the account has a password (including after `cookies clear`) or when this browser last signed in with a password (`last_used_login_method` cookie `email`). Otherwise it opens on the code, which Continue has sent (same console line in development). From the code, switch with `[data-testid="auth-use-password"]` (**Use a password instead**); from the password, **Email me a code instead** sends one and switches. The password is `[data-testid="auth-field-currentPassword"]` (placeholder "Password"); **Forgot password?** sits under **Log in**, beside **Email me a code instead** from the `sm` breakpoint (stacked above it on phones). The confirmed address shows as a pill under the header (`[data-testid="auth-email-chip"]`, a button named "Change email" that goes back to step 1) and also sits in a hidden `[data-testid="auth-field-username"]` for password managers and the vault. Prefer CSS testids over snapshot refs.
+- **Fill credentials.** Either `agent-browser auth login sokosumi --no-navigate --username-selector '[data-testid="auth-field-username"]' --password-selector '[data-testid="auth-field-currentPassword"]'` (vault, on step 2) or `agent-browser fill` the password testid.
 - **Submit.** Wait briefly after fill (~400ms), then `agent-browser press Enter` if still on `/signin`. Expect a full document load straight to Welcome `/` (or `returnUrl`); there is no callback hop for credential login. The leave waits for the session first (~200ms plus a `getSession`), so give it a condition poll, not a fixed sleep. Do **not** `wait --load networkidle` here; Ably can hang that wait on chat-adjacent shells.
 - **Persist.** Run `agent-browser open $WEB_URL/agents` then `agent-browser wait --url "**/agents"`. URL stays on `/agents` (not bounced to `/signin`). Snapshot authenticated chrome there. Fixture users with a workspace should land on the coworker gallery; brand-new users may hit `/setup` instead — that still proves auth if not `/signin`.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/sign-in`, save `snapshot -i` to `after-login.snapshot.txt`, run `agent-browser screenshot`, copy newest `~/.agent-browser/tmp/screenshots/*.png` to `after-login.png`. Artifacts show authenticated UI, not the sign-in form.
@@ -80,18 +82,18 @@ Computer-use notes (live-proved):
 
 - **Do not invent users.** Run `verify-sokosumi credentials-status` (or doctor). If `verify_credentials_email=unset`, stop and report missing `VERIFY_SOKOSUMI_*` secrets — do not create `you-*@sokosumi.test` accounts for general UI proof.
 - **Prefer harness auth first:** `verify-sokosumi sign-in` (agent-browser) reads `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` from the process env. Computer-use should drive post-login UI. Typing a Runtime Secret password in the GUI fails because tool output redacts it as `[REDACTED]`.
-- If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Scroll past Google / Microsoft / Passkey / Magic Link. Magic Link also has its **own** email field + “Send me a Magic Link” — do **not** type there. Target fields under the password divider (**or sign in with password** / locale equivalent) only.
+- If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Type the email into the one field on step 1 and press Enter. On step 2, click **Use a password instead** when the code field shows, then type the password.
 - **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting` or `isLeaving`).
-- Submit with **Enter** (or the purple **Login** button under the password form).
+- Submit with **Enter** (or the **Login** button under the password).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.
 - When computer-use keeps failing, run `verify-sokosumi sign-in --method cookie` (agent-browser), then continue the map.
 
 ## Gotchas
 
 - Prefer `verify-sokosumi sign-in` over ad-hoc clicks — most cloud-agent failures are OAuth/passkey focus steal, submit-click races, missing fixtures, or cookie-domain traps.
-- Only OAuth and magic-link pass through `/auth/callback/signin`; credential and passkey finish in place and then replace the document. Harness `wait_leave_auth_page` polls until the URL is off both the auth entry pages and the callback path; `assert_authed_url` still allows `/auth/callback/`.
+- Only OAuth passes through `/auth/callback/signin`; credential, passkey and email code finish in place and then replace the document. Harness `wait_leave_auth_page` polls until the URL is off both the auth entry pages and the callback path; `assert_authed_url` still allows `/auth/callback/`.
 - Clicking `[data-testid="auth-submit"]` after vault fill can no-op; always submit with Enter after a short wait.
-- OAuth, magic-link, and passkey are not valid verification paths with placeholder credentials. Passkey also runs conditional mediation (`autoFill`) when the browser supports it — that can steal focus from the email field (`autoComplete="username webauthn"`).
+- OAuth and passkey are not valid verification paths with placeholder credentials. An email code is: in development Core prints it to its console as `[email code] <address>: <code>`. An account with a password opens on the password and sends no code. Passkey also runs conditional mediation (`autoFill`) when the browser supports it — that can steal focus from the email field (`autoComplete="username webauthn"`).
 - Wrong password / missing fixtures leave the user on `/signin` (Core returns non-2xx). Doctor `fixture_auth=fail` on a **cloud-agent** branch means provision/seed first. On a **coworker / shared Neon** it means use the vault or [Sign up](./sign-up.md) — do not seed Alice onto that database, and do not keep retrying the Alice form.
 - Fixtures exist only on cloud-agent Neon branches.
 - `127.0.0.1` can break auth cookies/origin; stick to `localhost`.

@@ -1,6 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import mountPostArchiveChatRoom from "./[id]/archive/post.js";
+import mountDeleteChatRoomCoworker from "./[id]/coworkers/[coworkerId]/delete.js";
 import mountDeleteChatRoom from "./[id]/delete.js";
 import mountPostChatRoomFile from "./[id]/files/post.js";
 import mountGetChatRoom from "./[id]/get.js";
@@ -13,6 +14,7 @@ import mountPostChatRoomGuestInviteLink from "./[id]/invite-links/post.js";
 import mountDeleteChatRoomMember from "./[id]/members/[userId]/delete.js";
 import mountDeleteChatRoomSelfMembership from "./[id]/members/me/delete.js";
 import mountPostChatRoomSelfMembership from "./[id]/members/me/post.js";
+import mountPostChatRoomMembers from "./[id]/members/post.js";
 import mountDeleteChatRoomMessage from "./[id]/messages/[messageId]/delete.js";
 import mountGetChatRoomMessage from "./[id]/messages/[messageId]/get.js";
 import mountRetryChatRoomMention from "./[id]/messages/[messageId]/mentions/[mentionId]/retry/post.js";
@@ -31,6 +33,7 @@ import mountPatchChatRoom from "./[id]/patch.js";
 import mountGetChatRoomPinnedMessages from "./[id]/pinned-messages/get.js";
 import mountPostChatRoomRead from "./[id]/read/post.js";
 import mountPostRestoreChatRoom from "./[id]/restore/post.js";
+import mountDeleteChatRoomSokoBot from "./[id]/soko-bots/[sokoBotId]/delete.js";
 import mountDeleteChatRoomStar from "./[id]/star/delete.js";
 import mountPostChatRoomStar from "./[id]/star/post.js";
 import mountRoomStream from "./[id]/stream/index.js";
@@ -77,6 +80,9 @@ mountDeleteChatRoomGuestInviteLink(app);
 mountPostChatRoomSelfMembership(app);
 mountDeleteChatRoomSelfMembership(app);
 mountDeleteChatRoomMember(app);
+mountPostChatRoomMembers(app);
+mountDeleteChatRoomCoworker(app);
+mountDeleteChatRoomSokoBot(app);
 mountPostChatRoomRead(app);
 mountPostChatRoomUnread(app);
 // Static `/threads/unread-count` and `/threads/read` before

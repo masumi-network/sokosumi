@@ -32,7 +32,7 @@ struct CreateChannelView: View {
       }
       if model.loading {
         ProgressView("Loading participants…").frame(maxWidth: .infinity, minHeight: 160)
-      } else if model.roster == nil || model.roster?.recipients.membersLoadFailed == true {
+      } else if model.roster == nil || model.participantsUnavailable {
         Text(model.errorMessage ?? "Couldn’t load organization members.").foregroundStyle(.secondary)
         Button("Retry") { retry += 1 }
       } else if model.step == .details {
@@ -60,7 +60,7 @@ struct CreateChannelView: View {
             }
           }
           .keyboardShortcut(.defaultAction)
-          .disabled(model.loading || model.roster?.recipients.membersLoadFailed != false)
+          .disabled(model.loading || model.roster == nil || model.participantsUnavailable)
         }
       }
     }

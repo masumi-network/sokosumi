@@ -1,24 +1,42 @@
 import SokosumiChat
 import SwiftUI
 
-/// Searchable people / AI coworker / assistant toggles shared by channel creation and editing.
+/// Searchable people / AI coworker / assistant toggles shared by channel creation and the members panel's Add picker.
 /// The current user stays selected and disabled, matching web's locked checkbox.
 struct RecipientSelectionList: View {
   let sections: [ChatRecipientSection]
   let currentUserId: String
   @Binding var query: String
   @Binding var selection: Set<DirectRecipient>
+  /// Web `participant-checkboxes.tsx`: a failed member page puts its notice where the People toggles go, and the
+  /// other sections stay.
+  var membersLoadFailed = false
+  var retryMembers: () -> Void = {}
+  /// Channel creation's reminder under the list; the Add picker lists only non-members, so it passes nil.
+  var note: LocalizedStringKey? = "You are always included in the channel."
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
       TextField("Search participants", text: $query)
       list
-      Text("You are always included in the channel.").font(.caption).foregroundStyle(.secondary)
+      if let note {
+        Text(note).font(.caption).foregroundStyle(.secondary)
+      }
     }
   }
 
   private var list: some View {
     List {
+      if membersLoadFailed {
+        Section(sectionTitle(.people)) {
+          VStack(alignment: .leading, spacing: 4) {
+            Text("Members could not be loaded").fontWeight(.medium)
+            Text("Organization members are temporarily unavailable. Try again in a moment.").font(.caption).foregroundStyle(.secondary)
+            Button("Retry", action: retryMembers).padding(.top, 4)
+          }
+          .listRowSeparator(.hidden)
+        }
+      }
       ForEach(sections) { section in
         Section(sectionTitle(section.id)) {
           ForEach(section.targets) { target in
@@ -46,7 +64,7 @@ struct RecipientSelectionList: View {
           }
         }
       }
-      if sections.isEmpty {
+      if sections.isEmpty, !membersLoadFailed {
         Text("No matching participants").foregroundStyle(.secondary)
       }
     }

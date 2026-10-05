@@ -3,9 +3,9 @@ import { describe, expect, it } from "vitest";
 import {
   renderAccessRequestEmail,
   renderChatRoomInvitationEmail,
+  renderEmailCodeEmail,
   renderJobFailureNotificationEmail,
   renderLowBalanceEmail,
-  renderMagicLinkEmail,
   renderOrganizationInvitationEmail,
   renderResetPasswordEmail,
   renderVerificationEmail,
@@ -68,23 +68,28 @@ describe("email renderers", () => {
     expect(rendered.html).not.toContain("Hello   ");
   });
 
-  it("renders magic-link emails without exposing a token fallback", async () => {
-    const rendered = await renderMagicLinkEmail({
+  it("puts the email code in the subject and the body, with no link", async () => {
+    const rendered = await renderEmailCodeEmail({
       locale: "en",
-      magicLink: "https://example.com/magic",
-      name: "Andreas",
+      code: "042917",
+      expiresInMinutes: 10,
     });
 
-    expect(rendered.subject).toBe("Sokosumi - Sign in to your account");
-    expect(rendered.html).toContain(
-      `background-color:${LIGHT_PALETTE.accentSolid};border-radius:10px`,
-    );
-    expect(rendered.html).toContain(
-      `background-color:${LIGHT_PALETTE.accent};font-size:0`,
-    );
-    expect(rendered.html).toContain("Hello Andreas");
-    expect(rendered.html).not.toContain("one-time token");
-    expect(rendered.html).not.toContain("secret-token");
+    expect(rendered.subject).toBe("Your Sokosumi code: 042917");
+    expect(rendered.html).toContain(">042917</");
+    expect(rendered.html).toContain("It expires in 10 minutes.");
+    expect(rendered.html).not.toContain("href=");
+  });
+
+  it("writes the email code email in the reader's language", async () => {
+    const rendered = await renderEmailCodeEmail({
+      locale: "de",
+      code: "042917",
+      expiresInMinutes: 10,
+    });
+
+    expect(rendered.subject).toBe("Dein Sokosumi-Code: 042917");
+    expect(rendered.html).toContain('lang="de"');
   });
 
   it("renders organization invitation emails with interpolation", async () => {

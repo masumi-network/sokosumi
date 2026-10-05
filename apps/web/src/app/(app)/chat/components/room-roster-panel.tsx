@@ -1,6 +1,14 @@
 "use client";
 
-import { Loader2, MessageCircle, X } from "lucide-react";
+import {
+  Ellipsis,
+  Loader2,
+  LogOut,
+  MessageCircle,
+  UserMinus,
+  UserPlus,
+  X,
+} from "lucide-react";
 import { useFormatter } from "next-intl";
 import type { RoomMemberReadState } from "@/app/chat/hooks/use-room-read-receipts";
 import { AuroraOrb } from "@/components/aurora-orb";
@@ -10,6 +18,12 @@ import {
 } from "@/components/chat/live-member-presence-dot";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { copyTextWithToast } from "@/hooks/use-clipboard";
 import { cn } from "@/lib/utils";
 import { getInitials } from "@/lib/utils/text";
@@ -29,6 +43,8 @@ export interface RoomRosterPanelLabels {
   humansTitle: string;
   /** Section heading over the Coworkers and Soko Bots. */
   agentsTitle: string;
+  /** Section heading over the external guests. */
+  guestsTitle: string;
   /** "Read 2 minutes ago" for a member whose Room last-read is known. */
   readAt: (time: string) => string;
   /** For a member on the roster who has never opened the room. */
@@ -41,6 +57,25 @@ export interface RoomRosterPanelLabels {
   copy: (value: string) => string;
   copySuccess: string;
   copyError: string;
+  /** Header button that opens the add-members picker. */
+  add: string;
+  /** A row's overflow menu, e.g. "More actions for Ada". */
+  memberActions: (name: string) => string;
+  remove: string;
+  leave: string;
+}
+
+/**
+ * What the reader may change about the roster. Absent for a read-only roster:
+ * a Direct, or a channel the reader can neither change nor leave.
+ */
+export interface RoomRosterManagement {
+  /** Opens the add-members picker. Absent when the reader cannot add. */
+  onAdd?: () => void;
+  canRemove: (participant: ChatParticipantHoverProfile) => boolean;
+  onRemove: (participant: ChatParticipantHoverProfile) => void;
+  /** Leave the channel. Absent when the reader cannot leave. */
+  onLeave?: () => void;
 }
 
 function rosterMemberCaption(
@@ -152,6 +187,7 @@ function RosterMemberRow({
   isDirectActionBusy,
   onOpenDirect,
   readState,
+  onRemove,
   labels,
 }: {
   participant: ChatParticipantHoverProfile;
@@ -164,6 +200,8 @@ function RosterMemberRow({
    * pass null: they sit under their own subheading, which says it once.
    */
   readState: { kind: "read"; lastReadAt: Date } | null;
+  /** Remove this member from the channel; absent when the reader may not. */
+  onRemove: (() => void) | null;
   labels: RoomRosterPanelLabels;
 }) {
   const messageLabel = labels.message(participant.name);
@@ -284,6 +322,29 @@ function RosterMemberRow({
           {messageIcon}
         </button>
       ) : null}
+      {onRemove ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-7 shrink-0 rounded-full lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:data-[state=open]:opacity-100"
+              aria-label={labels.memberActions(participant.name)}
+              title={labels.memberActions(participant.name)}
+              data-testid="room-roster-member-actions"
+            >
+              <Ellipsis className="size-4" aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem variant="destructive" onSelect={onRemove}>
+              <UserMinus className="size-4" aria-hidden />
+              {labels.remove}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
     </div>
   );
 }
@@ -297,6 +358,9 @@ interface RoomRosterPanelProps {
   onClose: () => void;
   /** Seen by: what a row should say about a member, or null for silence. */
   readStateFor: (userId: string) => RoomMemberReadState | null;
+  /** Ids of the external guests on the roster; they get their own section. */
+  guestIds?: ReadonlySet<string>;
+  management?: RoomRosterManagement;
   labels: RoomRosterPanelLabels;
 }
 
@@ -308,12 +372,15 @@ export function RoomRosterPanel({
   openingDirectKey,
   onClose,
   readStateFor,
+  guestIds,
+  management,
   labels,
 }: RoomRosterPanelProps) {
-  const { people, neverRead, agents } = groupRosterMembers(
+  const { people, neverRead, guests, agents } = groupRosterMembers(
     participants,
     currentUserId,
     { readStateFor },
+    guestIds,
   );
   // The count is every human on the roster, read or not — the heading answers
   // "how big is this room", not "how many have read".
@@ -332,6 +399,13 @@ export function RoomRosterPanel({
           : null,
     },
     {
+      key: "guests",
+      heading: labels.guestsTitle,
+      count: guests.length,
+      members: guests,
+      subgroup: null,
+    },
+    {
       key: "agents",
       heading: labels.agentsTitle,
       count: agents.length,
@@ -339,9 +413,18 @@ export function RoomRosterPanel({
       subgroup: null,
     },
   ] as const;
-  // Only worth naming once both halves are there. A room of people alone needs
+  // Only worth naming once two kinds are there. A room of people alone needs
   // no heading saying so.
-  const showHeadings = humanCount > 0 && agents.length > 0;
+  const showHeadings =
+    [humanCount, guests.length, agents.length].filter((count) => count > 0)
+      .length > 1;
+
+  function rowRemoval(participant: ChatParticipantHoverProfile) {
+    if (!management?.canRemove(participant)) {
+      return null;
+    }
+    return () => management.onRemove(participant);
+  }
 
   return (
     <aside
@@ -351,17 +434,33 @@ export function RoomRosterPanel({
     >
       <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b px-4">
         <h2 className="truncate text-sm font-semibold">{labels.title}</h2>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="size-8 rounded-full"
-          aria-label={labels.close}
-          title={labels.close}
-          onClick={onClose}
-        >
-          <X className="size-4" aria-hidden />
-        </Button>
+        <div className="flex shrink-0 items-center gap-1">
+          {management?.onAdd ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8 rounded-full"
+              aria-label={labels.add}
+              title={labels.add}
+              data-testid="room-roster-add"
+              onClick={management.onAdd}
+            >
+              <UserPlus className="size-4" aria-hidden />
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-8 rounded-full"
+            aria-label={labels.close}
+            title={labels.close}
+            onClick={onClose}
+          >
+            <X className="size-4" aria-hidden />
+          </Button>
+        </div>
       </header>
       <div className="app-scrollbar min-h-0 flex-1 overflow-y-auto p-1">
         {participants.length === 0 ? (
@@ -399,6 +498,7 @@ export function RoomRosterPanel({
                     isDirectActionBusy={openingDirectKey != null}
                     onOpenDirect={onOpenDirect}
                     readState={rowReadState(participant, readStateFor)}
+                    onRemove={rowRemoval(participant)}
                     labels={labels}
                   />
                 ))}
@@ -430,6 +530,7 @@ export function RoomRosterPanel({
                         onOpenDirect={onOpenDirect}
                         // The subheading above already said it.
                         readState={null}
+                        onRemove={rowRemoval(participant)}
                         labels={labels}
                       />
                     ))}
@@ -440,6 +541,19 @@ export function RoomRosterPanel({
           )
         )}
       </div>
+      {management?.onLeave ? (
+        <footer className="shrink-0 border-t p-2">
+          <Button
+            type="button"
+            variant="ghost"
+            className="w-full justify-start gap-2"
+            onClick={management.onLeave}
+          >
+            <LogOut className="size-4" aria-hidden />
+            {labels.leave}
+          </Button>
+        </footer>
+      ) : null}
     </aside>
   );
 }

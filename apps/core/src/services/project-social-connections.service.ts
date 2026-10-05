@@ -266,6 +266,63 @@ async function requireTargetConnection(input: {
   return connection;
 }
 
+/** Backfill legacy connections without asking the user to reconnect. */
+async function fillMissingAvatar(
+  connection: ProjectSocialConnectionRecord,
+): Promise<ProjectSocialConnectionRecord | null> {
+  if (
+    connection.avatarUrl ||
+    connection.status !== "active" ||
+    !isProjectSocialProvider(connection.provider)
+  )
+    return connection;
+  let avatarUrl: string | null = null;
+  try {
+    const identity = await getConnectedSocialIdentity({
+      provider: connection.provider,
+      connectedAccountId: connection.composioConnectedAccountId,
+      executorUserId: projectExecutorUserId(connection.projectId),
+    });
+    if (identity.id !== connection.externalAccountId || !identity.avatarUrl)
+      return connection;
+    avatarUrl = await snapshotSocialAccountAvatar({
+      projectId: connection.projectId,
+      provider: connection.provider,
+      externalAccountId: connection.externalAccountId,
+      avatarUrl: identity.avatarUrl,
+    });
+    if (!avatarUrl) return connection;
+    const storedAvatar = avatarUrl;
+    const updated = await serializableTransaction(async (tx) => {
+      const current = await tx.projectSocialConnection.findUnique({
+        where: { id: connection.id },
+      });
+      // A reconnect, replacement or disconnect may have happened while fetching.
+      if (
+        !current ||
+        current.avatarUrl ||
+        current.status !== "active" ||
+        current.composioConnectedAccountId !==
+          connection.composioConnectedAccountId ||
+        current.externalAccountId !== connection.externalAccountId
+      )
+        return current;
+      return tx.projectSocialConnection.update({
+        where: { id: current.id },
+        data: { avatarUrl: storedAvatar },
+      });
+    }, "Project social connection changed. Please retry.");
+    if (updated?.avatarUrl !== avatarUrl)
+      await deleteSocialAccountAvatarIfOwned(avatarUrl, connection.projectId);
+    return updated;
+  } catch {
+    if (avatarUrl)
+      await deleteSocialAccountAvatarIfOwned(avatarUrl, connection.projectId);
+    // A missing photo must never prevent composing or previewing a post.
+    return connection;
+  }
+}
+
 async function refreshActiveConnectionStatus(
   connection: ProjectSocialConnectionRecord,
 ): Promise<ProjectSocialConnectionRecord | null> {
@@ -295,7 +352,7 @@ async function refreshActiveConnectionStatus(
     account.toolkitSlug ===
       PROJECT_SOCIAL_PROVIDERS[connection.provider].toolkitSlug
   ) {
-    return connection;
+    return fillMissingAvatar(connection);
   }
 
   return serializableTransaction(async (tx) => {

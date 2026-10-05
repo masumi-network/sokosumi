@@ -162,6 +162,8 @@ const TASK: TaskWithCoworker = {
   id: "task-1",
   name: "Weekly report",
   status: TaskStatus.DRAFT,
+  identifier: null,
+  priority: "NONE",
   visibility: "PUBLIC",
   ownerId: "user-1",
   owner: { id: "user-1", name: "Ada", email: "ada@example.com" },
