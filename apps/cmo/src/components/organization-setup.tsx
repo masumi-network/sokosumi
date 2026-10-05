@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState } from "react";
 
 import type { OrganizationFormState } from "../app/workspace-actions";
+import { FormAlert, FormField, useFocusFirstInvalid } from "./form-field";
 import { Mascot } from "./mascot";
 import { SubmitButton } from "./submit-button";
 
@@ -20,11 +21,6 @@ const INITIAL_STATE: OrganizationFormState = {
   errors: {},
 };
 
-/** Tells assistive tech which messages describe a field. */
-function describedBy(...ids: (string | false)[]): string | undefined {
-  return ids.filter(Boolean).join(" ") || undefined;
-}
-
 /**
  * The workspace gate's organization step (ADR 0051): the organization's name
  * and website. Errors sit by their fields and what was typed stays.
@@ -37,75 +33,42 @@ export function OrganizationSetup({
     INITIAL_STATE,
   );
   const { errors } = state;
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // After a failed submit, move to the first field to fix; its error is read
-  // out with it. The remount below would otherwise drop focus to the page.
-  useEffect(() => {
-    if (state.attempt === 0) return;
-    formRef.current
-      ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
-      ?.focus();
-  }, [state.attempt]);
+  const formRef = useFocusFirstInvalid(state.attempt);
 
   return (
     <main className="hero">
       <div className="hero-copy">
         <h1>Set up your organization.</h1>
-        {/* A form resets after its action; remounting shows the kept values
-            and reads out a repeated alert again. */}
+        {/* Remounts after each submit (useFocusFirstInvalid). */}
         <form
           key={state.attempt}
           ref={formRef}
           className="fields"
           action={formAction}
         >
-          {errors.form ? <p role="alert">{errors.form}</p> : null}
-          <div className="field">
-            <label htmlFor="organization-name">Organization name</label>
-            <input
-              id="organization-name"
-              name="name"
-              required
-              minLength={2}
-              maxLength={50}
-              autoComplete="organization"
-              defaultValue={state.name}
-              aria-invalid={errors.name ? true : undefined}
-              aria-describedby={describedBy(
-                !!errors.name && "organization-name-error",
-              )}
-            />
-            {errors.name ? (
-              <p id="organization-name-error" className="field-error">
-                {errors.name}
-              </p>
-            ) : null}
-          </div>
-          <div className="field">
-            <label htmlFor="organization-website">Website</label>
-            <input
-              id="organization-website"
-              name="websiteUrl"
-              required
-              inputMode="url"
-              autoComplete="url"
-              aria-describedby={describedBy(
-                "organization-website-hint",
-                !!errors.websiteUrl && "organization-website-error",
-              )}
-              defaultValue={state.websiteUrl}
-              aria-invalid={errors.websiteUrl ? true : undefined}
-            />
-            <p id="organization-website-hint" className="note">
-              Your company's website, like acme.com.
-            </p>
-            {errors.websiteUrl ? (
-              <p id="organization-website-error" className="field-error">
-                {errors.websiteUrl}
-              </p>
-            ) : null}
-          </div>
+          <FormAlert message={errors.form} />
+          <FormField
+            id="organization-name"
+            name="name"
+            label="Organization name"
+            required
+            minLength={2}
+            maxLength={50}
+            autoComplete="organization"
+            defaultValue={state.name}
+            error={errors.name}
+          />
+          <FormField
+            id="organization-website"
+            name="websiteUrl"
+            label="Website"
+            hint="Your company's website, like acme.com."
+            required
+            inputMode="url"
+            autoComplete="url"
+            defaultValue={state.websiteUrl}
+            error={errors.websiteUrl}
+          />
           <div className="actions">
             <SubmitButton className="button">Create organization</SubmitButton>
             <a className="button button-secondary" href="/">

@@ -2,24 +2,10 @@
 
 import { postUsersByIdWorkspaces } from "@sokosumi/core-client";
 import { normalizeWebsiteUrl } from "@sokosumi/utils";
-import { headers } from "next/headers";
 import { redirect, unstable_rethrow } from "next/navigation";
 
 import { WORKSPACE_FAILED_ERROR } from "../components/workspace-gate";
-import { asSignedInPerson } from "../lib/core";
-
-/**
- * As the signed-in person, or home when the session is gone (signed out in
- * another tab): the home page then shows where they stand.
- */
-async function asSignedInPersonOrHome() {
-  try {
-    return await asSignedInPerson(await headers());
-  } catch (error) {
-    unstable_rethrow(error);
-    redirect("/");
-  }
-}
+import { asSignedInPersonOrHome } from "../lib/core";
 
 /**
  * The workspace gate's "Just me". An existing personal workspace (409) is
