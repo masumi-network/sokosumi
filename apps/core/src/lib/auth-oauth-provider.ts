@@ -11,9 +11,6 @@ import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
 import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
 
-export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
-export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
-
 export const oauthRefreshTokenOptions = {
   refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
   // Refresh tokens rotate on every use, and reusing a rotated one revokes the

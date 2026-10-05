@@ -12,8 +12,8 @@ import { auth } from "@/lib/auth.js";
 import {
   handleOAuthTokenRequest,
   isRefreshTokenRotating,
-  OAUTH_REFRESH_TOKEN_PREFIX,
 } from "@/lib/auth-oauth-provider.js";
+import { OAUTH_REFRESH_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes.js";
 import prisma from "@/lib/db/prisma";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 

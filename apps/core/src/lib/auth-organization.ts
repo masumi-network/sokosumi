@@ -1,7 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { ensureInitialLocalFreeSubscriptionPeriod } from "@sokosumi/database/helpers";
 import { workspaceRepository } from "@sokosumi/database/repositories";
-import { renderOrganizationInvitationEmail } from "@sokosumi/email";
 import {
   betterAuthOrganizationAdditionalFields,
   getEmailLocale,
@@ -216,6 +215,9 @@ export function createAuthOrganizationPlugin() {
     },
     async sendInvitationEmail(data, request) {
       const inviteLink = `${webAppBaseUrl}/accept-invitation/${data.id}`;
+      const { renderOrganizationInvitationEmail } = await import(
+        "@sokosumi/email"
+      );
       const email = await renderOrganizationInvitationEmail({
         invitationLink: inviteLink,
         invitorUsername: data.inviter.user.name,

@@ -6,10 +6,7 @@ import {
   jobRepository,
 } from "@sokosumi/database/repositories";
 import type { JobWithSokosumiStatus } from "@sokosumi/database/types/job";
-import {
-  type JobFailureNotificationEmailProps,
-  renderJobFailureNotificationEmail,
-} from "@sokosumi/email";
+import type { JobFailureNotificationEmailProps } from "@sokosumi/email";
 import type { PostPurchaseResponses } from "@sokosumi/masumi/clients";
 import type { JobStatusResponseSchemaType } from "@sokosumi/masumi/schemas";
 import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
@@ -138,6 +135,9 @@ async function dispatchJobFailureNotification(
       return;
     }
 
+    const { renderJobFailureNotificationEmail } = await import(
+      "@sokosumi/email"
+    );
     const email = await renderJobFailureNotificationEmail({
       ...notificationData,
       locale: "en",
