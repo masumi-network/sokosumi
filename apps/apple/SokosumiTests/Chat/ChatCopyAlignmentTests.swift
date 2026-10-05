@@ -9,12 +9,11 @@
   import SokosumiWorkspace
   import SwiftUI
   import Testing
-  import Vision
 
   extension NativeWindowTests {
     /// Row 41: the chat's own words follow web's catalogue (`apps/web/messages/en.json`). Each view is the real one,
-    /// hosted over the window background in light and dark; Vision reads the words on a local run only (the CI runner
-    /// returns nil), so there the renders and the pixel checks carry the test.
+    /// hosted over the window background in light and dark and recorded as a render; its words are read from the
+    /// hosted view (`hostedTexts`), never from the pixels.
     @MainActor struct ChatCopyAlignmentTests {
       private static let created = Date(timeIntervalSince1970: 1_790_000_000)
       private static let roomId = "550e8400-e29b-41d4-a716-446655440041"
@@ -29,7 +28,7 @@
       }
 
       /// `content` in a window of `size`, drawn after its layout settles; the window background shows through nowhere.
-      private static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> NSBitmapImageRep {
+      private static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> Drawn {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height)
           .background(.background)
@@ -48,21 +47,18 @@
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
         host.cacheDisplay(in: host.bounds, to: bitmap)
         try CreateChannelGuidanceTests.expectWindowBackground(bitmap, dark: dark)
-        return bitmap
+        return await Drawn(bitmap: bitmap, texts: hostedTexts(in: host))
       }
 
-      /// Light beside dark, recorded as one attachment; the words Vision read in each, or nil on the CI runner.
-      private static func lightAndDark(named name: String, _ draw: (Bool) async throws -> NSBitmapImageRep) async throws -> [String]? {
+      /// Light beside dark, recorded as one attachment; the words each appearance exposes.
+      private static func lightAndDark(named name: String, _ draw: (Bool) async throws -> Drawn) async throws -> [[String]] {
         var columns: [[CGImage]] = []
-        var texts: [String]? = []
+        var texts: [[String]] = []
         for dark in [false, true] {
-          let bitmap = try await draw(dark)
-          try columns.append([#require(bitmap.cgImage)])
-          if let lines = try recognizedLines(in: bitmap) {
-            texts?.append(lines.joined(separator: " "))
-          } else {
-            texts = nil
-          }
+          let drawn = try await draw(dark)
+          try columns.append([#require(drawn.bitmap.cgImage)])
+          // A button speaks its children's words as one label joined by ", " ("Reports, Folder"); keep each part too.
+          texts.append(drawn.texts.flatMap { [$0] + $0.components(separatedBy: ", ") })
         }
         let combined = try RoomHeaderTests.stitched(columns)
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "\(name).png")
@@ -71,7 +67,7 @@
 
       /// Web `Empty.noMessagesTitle` over `Empty.noMessagesDescription` (`rooms-client.tsx`).
       @Test func anEmptyChannelInvitesTheFirstMessage() async throws {
-        let texts = try await Self.lightAndDark(named: "copy-empty-transcript") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-empty-transcript") { dark in
           let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
           state.rooms = [Self.channel()]
           state.timeline.reset(roomId: Self.roomId)
@@ -80,22 +76,11 @@
           return try await Self.render(RoomTimelineView(roomId: Self.roomId).environmentObject(state).environmentObject(AuthState()),
                                        size: NSSize(width: 640, height: 300), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("No messages yet"), "Vision read \(text)")
-          // Vision reads "AI" as "Al" at times, so the drawn line is checked around it; `exactCopy` pins the words.
-          #expect(text.contains("Start the channel with a message or mention an") && text.contains("coworker."), "Vision read \(text)")
-          #expect(!text.contains("New messages will appear here"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("No messages yet"), "\(texts)")
+          #expect(texts.contains("Start the channel with a message or mention an AI coworker."), "\(texts)")
+          #expect(!texts.contains("New messages will appear here."), "\(texts)")
         }
-      }
-
-      /// The exact words behind the renders Vision cannot read letter for letter: "AI" against "Al", and the
-      /// Files root (exact in `drivePickerRootNamesTheWorkspacesFiles`).
-      @Test func exactCopy() {
-        #expect(String(localized: RoomTimelineView.emptyDescription) == "Start the channel with a message or mention an AI coworker.")
-        #expect(ParticipantDetailsView.aiKindLabel(.coworker("cow_1")) == "AI coworker")
-        #expect(ParticipantDetailsView.aiKindLabel(.sokoBot("bot_1")) == "Personal assistant")
-        #expect(ParticipantDetailsView.aiKindLabel(.human("user_ada")) == nil)
-        #expect(String(localized: ComposerTooLongHint.message) == "Too long to send as text")
       }
 
       /// Web `RoomSearch.idle`, `RoomSearch.empty` and `RoomSearch.replyBadge` (`room-search-panel.tsx`).
@@ -115,7 +100,7 @@
         func panel(_ search: RoomSearch, _ query: String) -> some View {
           RoomSearchResultsView(search: search, query: query, jumpingId: nil, jumpError: nil, select: { _ in }, retry: {}, close: {})
         }
-        let texts = try await Self.lightAndDark(named: "copy-search") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-search") { dark in
           try await Self.render(HStack(spacing: 0) {
             panel(RoomSearch(debounce: .zero), "")
             Divider()
@@ -124,10 +109,11 @@
             panel(answered, "matching")
           }, size: NSSize(width: 860, height: 240), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("Type to search messages in this chat."), "Vision read \(text)")
-          #expect(text.contains("No messages match your search."), "Vision read \(text)")
-          #expect(text.contains("Thread reply"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("Type to search messages in this chat."), "\(texts)")
+          #expect(texts.contains("No messages match your search."), "\(texts)")
+          #expect(texts.contains("Thread reply"), "\(texts)")
+          #expect(!texts.contains("Reply"), "\(texts)")
         }
       }
 
@@ -140,16 +126,15 @@
                                     size: 1_024_000, uploadedAt: Date(timeIntervalSince1970: 1_791_194_400)),
                       value2: .init(_type: .file)))
         ]
-        let texts = try await Self.lightAndDark(named: "copy-files-picker") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-files-picker") { dark in
           try await Self.render(DriveFilePickerView(load: { _, _ in items }, select: { _ in }),
                                 size: NSSize(width: 520, height: 360), dark: dark)
         }
-        for text in texts ?? [] {
-          // The root crumb's words are exact in `drivePickerRootNamesTheWorkspacesFiles`; Vision has read its
-          // "My" with Cyrillic letters.
-          #expect(text.contains("Select from Files"), "Vision read \(text)")
-          #expect(text.contains("Oct 5") && text.contains("Folder"), "Vision read \(text)")
-          #expect(!text.contains("Attach from Files"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("Select from Files"), "\(texts)")
+          #expect(texts.contains("My Files"), "\(texts)")
+          #expect(texts.contains("Folder") && texts.contains("Oct 5"), "\(texts)")
+          #expect(!texts.contains("Attach from Files") && !texts.contains("Files"), "\(texts)")
         }
       }
 
@@ -159,12 +144,12 @@
           messageId: "source", authorName: "Ben",
           snippet: (1 ... 8).map { "Line \($0) of the quoted release plan." }.joined(separator: "\n\n")
         )
-        let texts = try await Self.lightAndDark(named: "copy-quote-more") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-quote-more") { dark in
           try await Self.render(MessageQuoteView(quote: quote).padding(12), size: NSSize(width: 420, height: 220), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("More"), "Vision read \(text)")
-          #expect(!text.contains("Show more"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("More"), "\(texts)")
+          #expect(!texts.contains("Show more"), "\(texts)")
         }
       }
 
@@ -174,7 +159,7 @@
         let userId = UUID().uuidString
         let saved = SavedComposeDraft(userId: userId, organizationId: nil, roomId: Self.roomId)
         defer { saved.save("") }
-        func composer(draft: String, dark: Bool) async throws -> NSBitmapImageRep {
+        func composer(draft: String, dark: Bool) async throws -> Drawn {
           saved.save(draft)
           let state = WorkspaceState()
           state.rooms = [Self.channel()]
@@ -186,42 +171,42 @@
             size: NSSize(width: 560, height: draft.isEmpty ? 200 : 380), dark: dark)
         }
         let empty = try await Self.lightAndDark(named: "copy-composer-empty") { try await composer(draft: "", dark: $0) }
-        for text in empty ?? [] {
-          #expect(text.contains("Message #launch"), "Vision read \(text)")
+        for texts in empty {
+          #expect(texts.contains("Message #launch"), "\(texts)")
         }
         let long = try await Self.lightAndDark(named: "copy-composer-too-long") {
           try await composer(draft: String(repeating: "word ", count: 2100), dark: $0)
         }
-        for text in long ?? [] {
-          #expect(text.contains("Too long to send as text"), "Vision read \(text)")
-          #expect(text.contains("Convert to file"), "Vision read \(text)")
-          #expect(!text.contains("Markdown file"), "Vision read \(text)")
+        for texts in long {
+          #expect(texts.contains("Too long to send as text"), "\(texts)")
+          #expect(texts.contains("Convert to file"), "\(texts)")
+          #expect(!texts.contains("Attach message as Markdown file"), "\(texts)")
         }
       }
 
       /// Web `PinnedMessages.couldNotLoad`: a pin whose message is gone.
       @Test func aPinWithoutItsMessageSaysItCouldNotBeLoaded() async throws {
         let item = Components.Schemas.ChatRoomPinnedMessageListItem(messageId: "gone", pinnedAt: Self.created, message: nil)
-        let texts = try await Self.lightAndDark(named: "copy-pin-gone") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-pin-gone") { dark in
           try await Self.render(PinnedMessageCard(item: item, room: Self.channel(), channels: [], isJumping: false, isUpdating: false,
                                                   jump: {}, unpin: {})
               .padding(12).environmentObject(WorkspaceState()).environmentObject(AuthState()),
             size: NSSize(width: 340, height: 80), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("Message could not be loaded"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("Message could not be loaded"), "\(texts)")
         }
       }
 
       /// Web `RoomRoster.empty`, shown only when the room lists nobody at all.
       @Test func anEmptyRosterSaysNoMembersToShow() async throws {
-        let texts = try await Self.lightAndDark(named: "copy-roster-empty") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-roster-empty") { dark in
           try await Self.render(RoomDetailsView(room: Self.channel(), close: {})
             .environmentObject(WorkspaceState()).environmentObject(AuthState()),
             size: NSSize(width: 320, height: 360), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("No members to show."), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("No members to show."), "\(texts)")
         }
       }
 
@@ -233,7 +218,7 @@
         let coworker = try #require(ChatParticipantProfile(sender: .case2(.init(_type: .coworker, coworker: .init(
           id: "cow_1", name: "Elena", slug: "elena", caption: nil, image: nil, presence: .online
         )))))
-        let texts = try await Self.lightAndDark(named: "copy-participant-cards") { dark in
+        let appearances = try await Self.lightAndDark(named: "copy-participant-cards") { dark in
           try await Self.render(HStack(alignment: .top, spacing: 0) {
             ParticipantDetailsView(profile: person)
             Divider()
@@ -242,10 +227,9 @@
           .environmentObject(WorkspaceState()).environmentObject(AuthState()),
           size: NSSize(width: 600, height: 160), dark: dark)
         }
-        for text in texts ?? [] {
-          #expect(text.contains("Ada Lovelace") && !text.contains("Person"), "Vision read \(text)")
-          // A kind line is drawn for the coworker; its exact words ("AI", not "Al") are pinned by `exactCopy`.
-          #expect(text.contains(" coworker"), "Vision read \(text)")
+        for texts in appearances {
+          #expect(texts.contains("Ada Lovelace") && !texts.contains("Person"), "\(texts)")
+          #expect(texts.contains("AI coworker") && !texts.contains("Coworker"), "\(texts)")
         }
       }
 
@@ -289,22 +273,6 @@
 
       // MARK: - Helpers
 
-      /// Vision's lines in `bitmap`, or nil where it cannot read at all (the CI runner). Accurate first; where its
-      /// model fails to load (seen on macOS 27.0.1 with an e5rt error), the fast recogniser, which still reads these
-      /// short UI strings.
-      static func recognizedLines(in bitmap: NSBitmapImageRep) throws -> [String]? {
-        let image = try #require(bitmap.cgImage)
-        for level in [VNRequestTextRecognitionLevel.accurate, .fast] {
-          let request = VNRecognizeTextRequest()
-          request.recognitionLevel = level
-          request.recognitionLanguages = ["en-US"]
-          request.usesLanguageCorrection = false
-          guard (try? VNImageRequestHandler(cgImage: image).perform([request])) != nil else { continue }
-          return (request.results ?? []).compactMap { $0.topCandidates(1).first?.string }
-        }
-        return nil
-      }
-
       private static func views<V: NSView>(_ type: V.Type, in view: NSView) -> [V] {
         ((view as? V).map { [$0] } ?? []) + view.subviews.flatMap { views(type, in: $0) }
       }
@@ -323,6 +291,12 @@
         return try Client.connecting(to: #require(URL(string: "https://example.com")), transport: FixedBodyTransport(body: body))
       }
     }
+  }
+
+  /// What a hosted view drew, and the words it exposes.
+  private struct Drawn {
+    let bitmap: NSBitmapImageRep
+    let texts: [String]
   }
 
   private struct FixedBodyTransport: ClientTransport {

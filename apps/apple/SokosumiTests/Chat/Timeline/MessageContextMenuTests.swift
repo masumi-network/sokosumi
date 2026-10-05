@@ -398,13 +398,11 @@
           sheet.cacheDisplay(in: sheet.bounds, to: drawn)
           let bitmap = try CreateChannelGuidanceTests.overWindowBackground(drawn, appearance: #require(fixture.window.appearance))
           try columns.append([#require(bitmap.cgImage)])
-          // Vision reads text only on a local run (the CI runner returns nil).
-          guard let lines = try ChatCopyAlignmentTests.recognizedLines(in: bitmap) else { continue }
-          let text = lines.joined(separator: " ")
-          #expect(text.contains("Delete this message") && text.contains("Others will see that it was deleted."), "Vision read \(lines)")
-          #expect(!text.contains("Delete message"), "Web's title is Delete alone: \(lines)")
-          #expect(!text.contains("cannot be undone"), "Vision read \(lines)")
-          #expect(lines.contains("Cancel"), "Vision read \(lines)")
+          // The alert's own text fields and buttons, read from the sheet rather than its pixels.
+          let texts = await hostedTexts(in: sheet)
+          #expect(texts.contains("Delete") && texts.contains("Cancel"), "\(texts)")
+          #expect(texts.contains("Delete this message? Others will see that it was deleted."), "\(texts)")
+          #expect(!texts.contains("Delete message?"), "\(texts)")
         }
         let combined = try RoomHeaderTests.stitched(columns)
         try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "copy-delete-confirmation.png")

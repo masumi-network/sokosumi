@@ -107,11 +107,10 @@
         #expect(corner.alphaComponent == 1, "Hosted over the window background: alpha \(corner.alphaComponent)")
         #expect(dark ? corner.brightnessComponent < 0.5 : corner.brightnessComponent > 0.5)
         // Row 41: web's `reasoning.thinking` heads the live trace and `reasoning.expandSteps` labels a disclosure
-        // without timing.
-        if let headers = try ChatCopyAlignmentTests.recognizedLines(in: bitmap) {
-          #expect(headers.contains { $0.contains("Thinking…") || $0.contains("Thinking...") }, "\(headers)")
-          #expect(headers.contains { $0.contains("Show thought") }, "\(headers)")
-        }
+        // without timing, read from the hosted view rather than its pixels.
+        let headers = await hostedTexts(in: host)
+        #expect(headers.contains { $0.hasPrefix("Thinking… ") }, "\(headers)")
+        #expect(headers.contains("Show thought"), "\(headers)")
         // Vision reads text only on a local run (the CI runner returns nil); the height test carries the rest.
         guard let lines = try RoomThreadOverviewGroupsViewTests.recognizedText(in: bitmap) else { return }
         // Vision reads the short lines reliably, the long ones not; the long rows are inspected in the render.

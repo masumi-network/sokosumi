@@ -54,7 +54,7 @@ struct ParticipantDetailsView: View {
   }
 
   /// Web `coworkerBadge` / `personalAssistantBadge`; nil for a person, whose card names no kind.
-  static func aiKindLabel(_ recipient: DirectRecipient) -> String? {
+  private static func aiKindLabel(_ recipient: DirectRecipient) -> String? {
     switch recipient {
     case .human: nil
     case .coworker: "AI coworker"
