@@ -21,6 +21,7 @@ import { genericOAuth } from "better-auth/plugins/generic-oauth";
 import { unstable_rethrow } from "next/navigation";
 
 import { type CmoAuthConfig, readCmoAuthConfig } from "./auth-config";
+import { CMO_SIGN_IN_ERROR } from "./sign-in-errors";
 
 /**
  * The Better Auth generic OAuth provider id for Core. It names the callback
@@ -346,7 +347,7 @@ export function getAuth(): CmoAuth {
 }
 
 /** Where sign in goes when it cannot start; the signed-out page explains. */
-const SIGN_IN_UNAVAILABLE_PATH = "/?error=unavailable";
+const SIGN_IN_UNAVAILABLE_PATH = `/?error=${CMO_SIGN_IN_ERROR.unavailable}`;
 
 /**
  * Starts Sign in with Sokosumi: Core's authorize URL, and the `Set-Cookie`
@@ -389,6 +390,8 @@ export async function sokosumiSignInRedirect(
   // The proxy skips renewal for prefetch, but the route still runs. A new
   // state cookie here would invalidate a sign-in already in progress. Not a
   // 2xx: Chrome serves a 2xx prefetch for the click, and a 204 swallows it.
+  // The same headers as the matcher in `proxy.ts`, which Next needs written
+  // out there; change both together.
   if (
     request.headers.has("next-router-prefetch") ||
     request.headers.has("next-router-segment-prefetch") ||
