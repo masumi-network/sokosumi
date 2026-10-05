@@ -16,7 +16,7 @@ import {
 } from "@/schemas/project-social-connection.schema";
 import { initiateProjectAdConnection } from "@/services/project-ad-accounts.service";
 
-import { mapProjectAdServiceError } from "../../route-helpers.js";
+import { mapAdsServiceError } from "../../route-helpers.js";
 
 const route = withOrganizationSlugHeaderParameter(
   createRoute({
@@ -74,7 +74,7 @@ export default function mount(app: Pick<OpenAPIHonoWithAuth, "openapi">): void {
         initiateProjectSocialConnectionResponseSchema.parse(connection),
       );
     } catch (error) {
-      return mapProjectAdServiceError(error);
+      return mapAdsServiceError(error);
     }
   });
 }

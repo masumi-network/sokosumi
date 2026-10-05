@@ -19204,6 +19204,248 @@ export const CreateAdCampaignRequestSchema = {
     description: 'There is no status: a new campaign is always created paused'
 } as const;
 
+export const GetAdMarketProfileResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/AdMarketProfile'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'Null until a market profile is saved'
+        }
+    },
+    required: [
+        'profile'
+    ]
+} as const;
+
+export const AdMarketProfileSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'string'
+            }
+        },
+        countryCode: {
+            $ref: '#/components/schemas/AdMarketCountryCode'
+        },
+        languageCode: {
+            $ref: '#/components/schemas/AdMarketLanguageCode'
+        },
+        updatedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'keywords',
+        'countryCode',
+        'languageCode',
+        'updatedAt'
+    ]
+} as const;
+
+export const AdMarketCountryCodeSchema = {
+    type: 'string',
+    enum: [
+        'US',
+        'GB',
+        'DE',
+        'FR',
+        'ES',
+        'IT',
+        'NL',
+        'CH',
+        'AT',
+        'BE',
+        'IE',
+        'CA',
+        'AU',
+        'BR',
+        'MX',
+        'IN',
+        'JP'
+    ],
+    description: 'ISO 3166-1 alpha-2 code of a supported market',
+    example: 'DE'
+} as const;
+
+export const AdMarketLanguageCodeSchema = {
+    type: 'string',
+    enum: [
+        'en',
+        'de',
+        'fr',
+        'es',
+        'it',
+        'nl',
+        'pt',
+        'ja'
+    ],
+    example: 'de'
+} as const;
+
+export const PutAdMarketProfileResponseSchema = {
+    type: 'object',
+    properties: {
+        profile: {
+            $ref: '#/components/schemas/AdMarketProfile'
+        }
+    },
+    required: [
+        'profile'
+    ]
+} as const;
+
+export const PutAdMarketProfileRequestSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                type: 'string',
+                minLength: 1,
+                maxLength: 80
+            },
+            minItems: 1,
+            maxItems: 10,
+            description: '1 to 10 keywords of at most 80 characters; duplicates (ignoring case) are dropped',
+            example: [
+                'running shoes'
+            ]
+        },
+        countryCode: {
+            $ref: '#/components/schemas/AdMarketCountryCode'
+        },
+        languageCode: {
+            $ref: '#/components/schemas/AdMarketLanguageCode'
+        }
+    },
+    required: [
+        'keywords',
+        'countryCode',
+        'languageCode'
+    ]
+} as const;
+
+export const ListAdMarketKeywordsResponseSchema = {
+    type: 'object',
+    properties: {
+        keywords: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/AdMarketKeyword'
+            },
+            description: 'At most 50, by search volume descending, nulls last'
+        },
+        fetchedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When DataForSEO was last asked; results are cached for 24h'
+        }
+    },
+    required: [
+        'keywords',
+        'fetchedAt'
+    ]
+} as const;
+
+export const AdMarketKeywordSchema = {
+    type: 'object',
+    properties: {
+        keyword: {
+            type: 'string'
+        },
+        searchVolume: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        trend: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    year: {
+                        type: 'number'
+                    },
+                    month: {
+                        type: 'number'
+                    },
+                    searchVolume: {
+                        type: [
+                            'number',
+                            'null'
+                        ]
+                    }
+                },
+                required: [
+                    'year',
+                    'month',
+                    'searchVolume'
+                ]
+            }
+        },
+        competition: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'LOW',
+                'MEDIUM',
+                'HIGH',
+                null
+            ]
+        },
+        competitionIndex: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        cpc: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        lowTopOfPageBid: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        highTopOfPageBid: {
+            type: [
+                'number',
+                'null'
+            ]
+        }
+    },
+    required: [
+        'keyword',
+        'searchVolume',
+        'trend',
+        'competition',
+        'competitionIndex',
+        'cpc',
+        'lowTopOfPageBid',
+        'highTopOfPageBid'
+    ],
+    description: 'Money is USD. Fields DataForSEO does not report are null. trend is the 12 most recent months, oldest to newest, with null volume for months without data.'
+} as const;
+
 export const SocialPostSchema = {
     type: 'object',
     properties: {
