@@ -215,7 +215,7 @@ describe("sign-up email status", () => {
     expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 
-  // The captcha-passes-purge sync finds expired passes by this prefix.
+  // The expired-verifications-purge sync finds expired passes by this prefix.
   it("stores a pass under the prefix the purge deletes", async () => {
     passCaptcha();
     const { askForPass, verification } = createTestAuth();
