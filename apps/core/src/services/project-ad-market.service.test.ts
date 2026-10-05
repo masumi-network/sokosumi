@@ -2,13 +2,14 @@ import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { notFound } from "@/helpers/error";
-import type { MarketKeyword } from "@/lib/ads/dataforseo";
+import type { MarketAd, MarketKeyword } from "@/lib/ads/dataforseo";
 
 const m = vi.hoisted(() => {
   const fns = {
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     fetchMarketKeywords: vi.fn(),
+    fetchMarketAds: vi.fn(),
     profileFindUnique: vi.fn(),
     profileUpsert: vi.fn(),
     snapshotFindUnique: vi.fn(),
@@ -39,6 +40,7 @@ vi.mock("@/services/project-social-connections.service", () => ({
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
   fetchMarketKeywords: m.fetchMarketKeywords,
+  fetchMarketAds: m.fetchMarketAds,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: (run: (client: typeof m.tx) => unknown) => run(m.tx),
@@ -47,6 +49,7 @@ vi.mock("@/lib/db/prisma", () => ({ default: m.tx }));
 
 import {
   getProjectAdMarketProfile,
+  listProjectAdMarketAds,
   listProjectAdMarketKeywords,
   setProjectAdMarketProfile,
 } from "./project-ad-market.service";
@@ -75,10 +78,26 @@ const keyword: MarketKeyword = {
   highTopOfPageBid: 2,
 };
 
+const marketAd: MarketAd = {
+  creativeId: "CR1",
+  advertiserId: "AR1",
+  advertiserName: "Acme Shoes",
+  format: "image",
+  previewImage: {
+    url: "https://tpc.googlesyndication.com/archive/simgad/1",
+    width: 300,
+    height: 250,
+  },
+  previewUrl: "https://adstransparency.google.com/advertiser/AR1/creative/CR1",
+  firstShown: "2026-09-01T08:00:00.000Z",
+  lastShown: "2026-09-30T10:30:00.000Z",
+  verified: true,
+};
+
 function requestKey(input: {
   keywords: string[];
   locationCode: number;
-  languageCode: string;
+  languageCode?: string;
 }) {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
@@ -97,6 +116,7 @@ describe("project ad market service", () => {
     m.requireLockedOpenProject.mockResolvedValue(undefined);
     m.profileFindUnique.mockResolvedValue(storedProfile);
     m.fetchMarketKeywords.mockResolvedValue([keyword]);
+    m.fetchMarketAds.mockResolvedValue([marketAd]);
     m.snapshotDeleteMany.mockResolvedValue({ count: 0 });
     m.snapshotUpsert.mockImplementation(
       async (args: { create: { fetchedAt: Date } }) => ({
@@ -315,6 +335,80 @@ describe("project ad market service", () => {
       });
       expect(m.profileFindUnique).not.toHaveBeenCalled();
       expect(m.fetchMarketKeywords).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("ads", () => {
+    // Ads do not depend on the language.
+    const ADS_KEY = requestKey({
+      keywords: ["running shoes", "trail"],
+      locationCode: 2276,
+    });
+
+    it("is 404 without a profile and never calls DataForSEO", async () => {
+      m.profileFindUnique.mockResolvedValue(null);
+      await expect(listProjectAdMarketAds(scope)).rejects.toMatchObject({
+        status: 404,
+      });
+      expect(m.fetchMarketAds).not.toHaveBeenCalled();
+    });
+
+    it("fetches on a cache miss and stores the ads under the ads key", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      expect(await listProjectAdMarketAds(scope)).toEqual({
+        ads: [marketAd],
+        fetchedAt: NOW,
+      });
+      expect(m.fetchMarketAds).toHaveBeenCalledWith(
+        expect.objectContaining({
+          keywords: ["Running Shoes", "trail"],
+          locationCode: 2276,
+        }),
+      );
+      expect(m.snapshotUpsert).toHaveBeenCalledWith(
+        expect.objectContaining({
+          create: expect.objectContaining({
+            kind: "ads",
+            requestKey: ADS_KEY,
+            payload: [marketAd],
+            fetchedAt: NOW,
+          }),
+        }),
+      );
+    });
+
+    it("serves a fresh snapshot without calling DataForSEO", async () => {
+      const fetchedAt = new Date(NOW.getTime() - HOUR);
+      m.snapshotFindUnique.mockResolvedValue({
+        payload: [marketAd],
+        fetchedAt,
+      });
+      expect(await listProjectAdMarketAds(scope)).toEqual({
+        ads: [marketAd],
+        fetchedAt,
+      });
+      expect(m.fetchMarketAds).not.toHaveBeenCalled();
+    });
+
+    it("caches an empty list", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      m.fetchMarketAds.mockResolvedValue([]);
+      await listProjectAdMarketAds(scope);
+      expect(m.snapshotUpsert.mock.calls[0]?.[0].create.payload).toEqual([]);
+    });
+
+    it("keeps the snapshot when only the language changes", async () => {
+      m.snapshotFindUnique.mockResolvedValue(null);
+      await listProjectAdMarketAds(scope);
+      m.profileFindUnique.mockResolvedValue({
+        ...storedProfile,
+        languageCode: "en",
+      });
+      await listProjectAdMarketAds(scope);
+      const keys = m.snapshotFindUnique.mock.calls.map(
+        ([args]) => args.where.projectId_kind_requestKey.requestKey,
+      );
+      expect(keys).toEqual([ADS_KEY, ADS_KEY]);
     });
   });
 });
