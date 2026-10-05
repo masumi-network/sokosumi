@@ -19,10 +19,11 @@ import { PasswordInput } from "@/auth/components/form/password-input";
 import { SubmitButton } from "@/auth/components/form/submit-button";
 import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { UsernameHint } from "@/auth/components/username-hint";
 import {
-  EMAIL_CODE_LENGTH,
   EmailCodeField,
   useEmailCodeRefusal,
+  useEmailCodeSchema,
 } from "@/components/auth/email-code-field";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import {
@@ -80,9 +81,9 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const authT = useTranslations("Auth");
-  const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
   const oauthT = useTranslations("Auth.OAuthHandBack");
+  const code = useEmailCodeSchema();
   const [isLeaving, setIsLeaving] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const [prefersPassword, setPrefersPassword] = useState(
@@ -118,9 +119,7 @@ export default function SignInForm({
   });
   const codeStepSchema = signInFormSchema(schemaT).safeExtend({
     currentPassword: z.string(),
-    code: z
-      .string()
-      .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") }),
+    code,
   });
   type Values = z.infer<typeof passwordStepSchema>;
   const form = useForm<Values>({
@@ -234,19 +233,7 @@ export default function SignInForm({
       onSubmit={isCodeStep ? handleCodeSubmit : handlePasswordSubmit}
       onChange={onFormStart}
     >
-      {/* Password managers pair the password with this address. */}
-      <input
-        data-testid="auth-field-username"
-        type="email"
-        autoComplete="username"
-        autoCapitalize="none"
-        spellCheck={false}
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-      />
+      <UsernameHint email={email} />
       {isCodeStep ? (
         <Controller
           control={form.control}
