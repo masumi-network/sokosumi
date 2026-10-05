@@ -33,7 +33,7 @@ vi.mock("./workspace-actions", () => ({
 const { default: HomePage } = await import("./page");
 
 function render(
-  error?: string,
+  error?: string | string[],
 ): Promise<ReactElement<{ failed?: boolean; error?: string }>> {
   return HomePage({ searchParams: Promise.resolve({ error }) });
 }
@@ -79,6 +79,14 @@ describe("CMO home page", () => {
     getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
 
     expect((await render("workspace_failed")).props.failed).toBe(true);
+  });
+
+  it("tells the gate when the error query repeats", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+
+    const page = await render(["workspace_failed", "workspace_failed"]);
+
+    expect(page.props.failed).toBe(true);
   });
 
   it("lets a person with a workspace into CMO", async () => {

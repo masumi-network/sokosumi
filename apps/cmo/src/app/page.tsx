@@ -20,7 +20,9 @@ interface HomePageProps {
 export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
-  const { error } = await searchParams;
+  const { error: errorParam } = await searchParams;
+  // A repeated query param arrives as a list; the first one counts.
+  const error = Array.isArray(errorParam) ? errorParam[0] : errorParam;
   const signedOut = (signedOutError: string | undefined) => (
     <SignedOut
       error={signedOutError}
@@ -32,11 +34,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   if (!session) {
     // A choice made in a tab that was signed out elsewhere is not a sign-in
     // failure.
-    return signedOut(
-      typeof error === "string" && error !== WORKSPACE_FAILED_ERROR
-        ? error
-        : undefined,
-    );
+    return signedOut(error === WORKSPACE_FAILED_ERROR ? undefined : error);
   }
 
   const { data, response } = await getUsersByIdWorkspaces({
