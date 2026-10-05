@@ -27,6 +27,9 @@ describe("brand visual", () => {
     expect(
       brandFonts("font-family:&quot;Inter Display&quot;, sans-serif"),
     ).toEqual(["Inter Display"]);
+    expect(
+      brandFonts("a{font-family:Inter} b{font-family:'Inter Fallback'}"),
+    ).toEqual(["Inter"]);
   });
 
   it("finds the logo image, else the touch icon", () => {

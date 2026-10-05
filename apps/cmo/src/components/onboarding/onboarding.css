@@ -441,6 +441,7 @@ body:has(.ob) .site-header {
 
 .ob-url input {
   flex: 1;
+  padding: 0;
   min-width: 0;
   border: 0;
   outline: none;
@@ -1140,7 +1141,7 @@ body:has(.ob) .site-header {
   font-variant-numeric: tabular-nums;
 }
 
-.ob-entry-meta svg:last-child {
+.ob-entry-written {
   margin-left: auto;
   color: var(--ok);
 }
@@ -1754,6 +1755,18 @@ body:has(.ob) .site-header {
 
   .ob-change-row {
     flex-direction: column;
+  }
+
+  .ob-approve-bar {
+    padding: 10px;
+  }
+
+  .ob-approve-bar p {
+    display: none;
+  }
+
+  .ob-approve-bar .ob-button {
+    flex: 1;
   }
 }
 

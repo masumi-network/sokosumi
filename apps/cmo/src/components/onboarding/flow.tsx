@@ -12,6 +12,7 @@ import { BrainStep } from "./brain-step";
 import { ConnectStep, strategySocialChannels } from "./connect-step";
 import { PricingStep } from "./pricing-step";
 import { ResearchStep } from "./research-step";
+import { vividColors } from "./showcases";
 import { StrategyStep } from "./strategy-step";
 
 export interface OnboardingActions {
@@ -266,7 +267,7 @@ export function BusinessMark({
   size?: number;
 }) {
   const logo = overview.brandVisual?.logoUrl ?? overview.projectLogo;
-  const accent = overview.brandVisual?.colors[0];
+  const accent = vividColors(overview.brandVisual?.colors ?? [])[0];
   if (logo) {
     return (
       <img

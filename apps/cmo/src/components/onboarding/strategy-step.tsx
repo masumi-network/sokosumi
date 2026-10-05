@@ -272,7 +272,11 @@ export function StrategyStep({
                           <ChannelIcon channel={entry.channel} size={12} />
                           {entry.time ?? ""}
                           {entry.draft ? (
-                            <Check size={11} aria-label="Written" />
+                            <Check
+                              size={11}
+                              className="ob-entry-written"
+                              aria-label="Written"
+                            />
                           ) : null}
                         </span>
                         <span className="ob-entry-title">

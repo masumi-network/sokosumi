@@ -134,7 +134,8 @@ export function brandFonts(css: string, limit = 3): string[] {
       .split(",")[0]
       ?.trim()
       .replace(/^["']|["']$/g, "");
-    if (!first || !/^[\w][\w -]*$/.test(first)) continue;
+    if (!first || !/^[\w][\w -]*$/.test(first) || /fallback/i.test(first))
+      continue;
     if (GENERIC_FONTS.has(first.toLowerCase())) continue;
     counts.set(first, (counts.get(first) ?? 0) + 1);
   }
