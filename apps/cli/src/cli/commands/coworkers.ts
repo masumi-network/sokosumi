@@ -9,15 +9,17 @@ import {
   grantCoworkerWorkspaceAccess,
   updateCoworker,
 } from "../../api/services/coworker-service.js";
-import { fetchOrganizationWorkspaces } from "../../api/services/organization-workspace-service.js";
+import {
+  ensurePersonalWorkspace,
+  verifyPersonalWorkspace,
+} from "../../api/services/personal-workspace-service.js";
 import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import { fetchVendorMemberships } from "../../api/services/vendor-service.js";
 import type { CliTargetConfig } from "../../auth/config.js";
+import { selectCoworkerWorkspaceTarget } from "../coworker-workspace-target.js";
 import {
   requireAdministeredVendorForRegistration,
-  requireOrganizationWorkspacesForRegistration,
   requirePreprodCoworkerRegistration,
-  requireSelectedOrganizationWorkspace,
 } from "../registration-authority.js";
 import {
   applyListFilters,
@@ -249,6 +251,10 @@ export async function runCoworkersCommand({
   }
   if (command === "provision") {
     requirePreprodCoworkerRegistration(target);
+    if (optionBoolean(options, "personal"))
+      throw new Error(
+        "Use --personal with coworkers register or connect, not provision",
+      );
     if (option(options, "workspace-id") !== undefined) {
       throw new Error(
         "Use `coworkers connect` to grant Workspace access after provisioning. Omit --workspace-id here.",
@@ -324,24 +330,26 @@ export async function runCoworkersCommand({
   }
   if (command === "register") {
     requirePreprodCoworkerRegistration(target);
-    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
+    const workspace = await selectCoworkerWorkspaceTarget(
       client,
+      options,
       signal,
-    );
-    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
-    const workspace = requireSelectedOrganizationWorkspace(
-      organizationWorkspaces,
-      optionString(options, "workspace-id"),
     );
     const payload = await buildPayload(options, "register");
     const vendorId = String(payload.vendorId);
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
+    if (optionBoolean(options, "personal"))
+      await ensurePersonalWorkspace(client, signal);
     let coworker: Awaited<ReturnType<typeof createCoworker>>["coworker"];
     try {
       ({ coworker } = await createCoworker(client, payload, signal));
     } catch (error) {
-      rethrowCoworkerCreationError(error, vendorId, workspace.organizationId);
+      rethrowCoworkerCreationError(
+        error,
+        vendorId,
+        workspace.organizationId ?? "PERSONAL_WORKSPACE",
+      );
     }
     const coworkerId = String(record(coworker).id || "");
     let workspaceAccess: CoworkerWorkspaceAccess;
@@ -349,17 +357,28 @@ export async function runCoworkersCommand({
       ({ access: workspaceAccess } = await grantCoworkerWorkspaceAccess(
         client,
         coworkerId,
-        { organizationId: workspace.organizationId },
+        workspace.target,
         signal,
       ));
     } catch (error) {
       throw new Error(
-        `Coworker ${coworkerId} was created, but Workspace access could not be confirmed. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId} --preprod\`. Cause: ${error instanceof Error ? error.message : String(error)}`,
+        `Coworker ${coworkerId} was created, but Workspace access could not be confirmed. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} ${workspace.connectionOptions} --preprod\`. Cause: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
     if (!["GRANTED", "PENDING"].includes(workspaceAccess.status)) {
       throw new Error(
         `Coworker ${coworkerId} was created, but Workspace access is ${workspaceAccess.status}. Keep this Coworker ID. A Workspace owner or admin must resolve the access state. Do not register again.`,
+      );
+    }
+    if (optionBoolean(options, "personal")) {
+      if (workspaceAccess.coworkerId !== coworkerId)
+        throw new Error(
+          "Core returned access for a different Coworker. Keep the created Coworker ID and inspect access before retrying.",
+        );
+      await verifyPersonalWorkspace(
+        client,
+        workspaceAccess.workspaceId,
+        signal,
       );
     }
     let apiKey: unknown = null;
@@ -377,7 +396,7 @@ export async function runCoworkersCommand({
         apiKey = result.apiKey;
       } catch (error) {
         throw new Error(
-          `Coworker ${coworkerId} exists with Workspace access ${workspaceAccess.status} for ${workspace.organizationId}, but API key creation could not be confirmed. Do not register again. If you did not receive a usable key, run \`sokosumi --preprod coworkers api-key ${coworkerId} --json\` to create one. Cause: ${error instanceof Error ? error.message : String(error)}`,
+          `Coworker ${coworkerId} exists with Workspace access ${workspaceAccess.status} for ${workspace.name || workspace.organizationId}, but API key creation could not be confirmed. Do not register again. If you did not receive a usable key, run \`sokosumi --preprod coworkers api-key ${coworkerId} --json\` to create one. Cause: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -387,9 +406,9 @@ export async function runCoworkersCommand({
       writeText(stdout, [
         workspaceAccess.status === "PENDING"
           ? `Workspace approval requested for Coworker ${coworkerId}. Access ID: ${workspaceAccess.id}. Keep this Coworker ID. Do not register again.`
-          : `Registered coworker ${String(coworkerValue.name || coworkerValue.id)} [${coworkerId}] in Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+          : `Registered coworker ${String(coworkerValue.name || coworkerValue.id)} [${coworkerId}] in Workspace ${workspace.name || workspace.organizationId} [${workspaceAccess.workspaceId}]`,
         workspaceAccess.status === "PENDING"
-          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.`
+          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} ${workspace.connectionOptions}\`.`
           : undefined,
         workspaceAccess.status === "PENDING" ? PENDING_KEY_GUIDANCE : undefined,
         coworkerValue.baseURL
@@ -423,14 +442,10 @@ export async function runCoworkersCommand({
       throw new Error(
         "vendor id is required for `coworkers connect`. Run `sokosumi --preprod vendors me` to find the Vendor you administer.",
       );
-    const { organizationWorkspaces } = await fetchOrganizationWorkspaces(
+    const workspace = await selectCoworkerWorkspaceTarget(
       client,
+      options,
       signal,
-    );
-    requireOrganizationWorkspacesForRegistration(organizationWorkspaces);
-    const workspace = requireSelectedOrganizationWorkspace(
-      organizationWorkspaces,
-      optionString(options, "workspace-id"),
     );
     const { vendors } = await fetchVendorMemberships(client, signal);
     requireAdministeredVendorForRegistration(vendors, vendorId);
@@ -445,12 +460,14 @@ export async function runCoworkersCommand({
         `Coworker ${coworkerId} belongs to Vendor ${coworker.vendor.id}, but --vendor-id selected ${vendorId}. Check the Coworker ID and Vendor ID with the organizer before retrying.`,
       );
     }
+    if (optionBoolean(options, "personal"))
+      await ensurePersonalWorkspace(client, signal);
     let access: CoworkerWorkspaceAccess;
     try {
       ({ access } = await grantCoworkerWorkspaceAccess(
         client,
         coworkerId,
-        { organizationId: workspace.organizationId },
+        workspace.target,
         signal,
       ));
     } catch (error) {
@@ -461,15 +478,24 @@ export async function runCoworkersCommand({
         `Coworker ${coworkerId} Workspace access is ${access.status}. Keep this Coworker ID. A Workspace owner or admin must resolve the access state. Do not register again.`,
       );
     }
+    if (optionBoolean(options, "personal")) {
+      if (access.coworkerId !== coworkerId)
+        throw new Error(
+          "Core returned access for a different Coworker. Inspect access before retrying.",
+        );
+      await verifyPersonalWorkspace(client, access.workspaceId, signal);
+    }
     if (json) writeJson(stdout, { coworkerId, workspaceAccess: access });
     else
       writeText(stdout, [
         access.status === "PENDING"
           ? `Workspace approval requested for Coworker ${coworkerId}. Access ID: ${access.id}. Keep this Coworker ID. Do not register again.`
-          : `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+          : `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${access.workspaceId}]`,
         access.status === "PENDING"
-          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.`
-          : `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} ${workspace.connectionOptions}\`.`
+          : workspace.organizationId === null
+            ? "Next: sokosumi --preprod tasks create --personal --coworker-id COWORKER_ID --description DESCRIPTION"
+            : `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
         access.status === "PENDING" ? PENDING_KEY_GUIDANCE : undefined,
         `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,
         "The operator supplies the Coworker key through secure stdin.",

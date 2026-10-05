@@ -100,3 +100,5 @@ Surface new task comments, task status events, job messages, and job status chan
 Stop at success, failure, cancellation, or a new task or job input request. Report IDs, status, errors, output files, links, and the next user action. Do not claim completion from an intermediate event.
 
 Do not create a skill for one coworker. New coworkers become available through returned API data.
+
+[VERIFIED source: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/commands/tasks.ts`, `apps/cli/src/cli/commands/runtime.ts`] For private testing, use `coworkers register --personal` or `coworkers connect COWORKER_ID --personal`. Keep `--vendor-id` explicit. Registration or connection creates a missing personal Workspace, but read-only `workspaces list --personal` does not. Use `tasks create --personal` and `runtime start`, `complete`, or `run --personal`. Never combine `--personal` with organization flags. Runtime uses only the Coworker key and checks Core-authorized personal ownership before mutation. Request event access later with `connect` and its organization ID.

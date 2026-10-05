@@ -95,6 +95,7 @@ export interface CliOptions {
   slug?: string;
   "api-key-stdin"?: boolean;
   "create-api-key"?: boolean;
+  personal?: boolean;
   details?: boolean;
 }
 
@@ -199,11 +200,13 @@ Organization Tasks:
   Add --organization-slug WORKSPACE_SLUG to any tasks command to select that organization.
   Core checks Workspace membership and Task permissions. The selected network stays unchanged.
   Without this flag, Core uses the credential's default context. OAuth defaults to the personal Workspace.
+  Personal setup: coworkers register/connect --personal; workspaces list --personal checks existence without creating.
+  Personal Tasks: tasks create --personal --coworker-id ID --description TEXT --status READY
   Example: sokosumi --preprod tasks create --organization-slug WORKSPACE_SLUG --coworker-id ID --description TEXT --status READY
 
 Agent runtime tools on Preprod:
   runtime key-import requires --coworker-id ID --api-key-stdin and stores a verified key in the OS vault.
-  runtime start, complete, and run require --coworker-id ID --organization-id ID. They use that Coworker's stored key or --api-key-stdin.
+  runtime start, complete, and run require --coworker-id ID and either --organization-id ID or --personal. They use that Coworker's stored key or --api-key-stdin.
   Runtime commands do not read developer credentials or target configuration.
   runtime start returns the Task after moving it to RUNNING. Your existing agent performs the work.
   runtime complete requires --result-file FILE containing the finished answer as UTF-8 text, at most 1 MiB.
