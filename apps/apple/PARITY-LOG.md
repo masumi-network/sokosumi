@@ -3702,7 +3702,7 @@ Verification on this change: `-only-testing:SokosumiTests/NativeWindowTests/Room
 
 ## Slice 15c — a file link inside a sentence stays a link
 
-Draft [#5773](https://github.com/masumi-network/sokosumi/pull/5773), branch `claude/apple-parity-15c-inline-file-link` started on `origin/main` `1d30fb6570f779cc91cb2892be4ae649b699ebba` and fast-forwarded to `9f796b469820aaf94b21fbd023c3586e051ecaf6` before the commit (#5771, Core background email only; no Apple or audited file), 2026-10-05, run by a `/apple-parity-next` session while another session worked on row 41. Web, Core and the shared TypeScript packages were read-only. No Core contract, snapshot, project, entitlement or dependency change.
+Draft [#5774](https://github.com/masumi-network/sokosumi/pull/5774), branch `claude/apple-parity-15c-inline-file-link` started on `origin/main` `1d30fb6570f779cc91cb2892be4ae649b699ebba` and fast-forwarded to `9f796b469820aaf94b21fbd023c3586e051ecaf6` before the commit (#5771, Core background email only; no Apple or audited file), 2026-10-05, run by a `/apple-parity-next` session while another session worked on row 41. Web, Core and the shared TypeScript packages were read-only. No Core contract, snapshot, project, entitlement or dependency change.
 
 ### Audit (web and Apple at `1d30fb657`, source and tests)
 
