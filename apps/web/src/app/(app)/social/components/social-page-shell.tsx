@@ -1,3 +1,4 @@
+import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { PROJECTS_WORKSPACE_SHELL_CLASS } from "@/app/projects/constants";
 import { cn } from "@/lib/utils";
 
@@ -24,7 +25,13 @@ export function SocialPageShell({
   title: string;
 }) {
   return (
-    <div className={cn(PROJECTS_WORKSPACE_SHELL_CLASS, "min-w-0 pt-2 md:pt-3")}>
+    <div
+      className={cn(
+        PROJECTS_WORKSPACE_SHELL_CLASS,
+        "min-w-0 pt-2 md:pt-3",
+        LIST_MOBILE_CREATE_FAB_CLEARANCE,
+      )}
+    >
       <h1 className="sr-only">{title}</h1>
       {children}
     </div>

@@ -20,6 +20,7 @@ import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { hasCurrentUserSocialBetaAccess } from "@/lib/social-beta-access.server";
 
 import { SocialAllProjectsTabs } from "./components/social-all-projects-tabs";
+import { SocialCalendarPreviewProvider } from "./components/social-calendar-preview";
 import { SocialComposeProvider } from "./components/social-compose-context";
 import { SocialNewPostMenu } from "./components/social-new-post-menu";
 import { SocialPageShell } from "./components/social-page-shell";
@@ -81,13 +82,18 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
     ]);
     return (
       <SocialPageShell title={t("title")}>
-        <SocialAllProjectsTabs
-          actions={
-            <SocialNewPostMenu project={null} sokoBotId={sokoBot?.id ?? null} />
-          }
-          calendar={<SocialCalendar calendar={calendar} />}
-          notice={projectId ? t("pickUnavailable") : undefined}
-        />
+        <SocialCalendarPreviewProvider>
+          <SocialAllProjectsTabs
+            actions={
+              <SocialNewPostMenu
+                project={null}
+                sokoBotId={sokoBot?.id ?? null}
+              />
+            }
+            calendar={<SocialCalendar calendar={calendar} />}
+            notice={projectId ? t("pickUnavailable") : undefined}
+          />
+        </SocialCalendarPreviewProvider>
       </SocialPageShell>
     );
   }
@@ -125,35 +131,40 @@ export default async function SocialPage({ searchParams }: SocialPageProps) {
 
   return (
     <SocialPageShell title={t("title")}>
-      <SocialComposeProvider>
-        <ProjectSocialPosts
-          accounts={
-            <ProjectSocialAccounts
-              projectId={project.id}
-              connections={connections}
-            />
-          }
-          actions={
-            <SocialNewPostMenu
-              project={{ id: project.id, name: project.name }}
-              sokoBotId={sokoBot?.id ?? null}
-            />
-          }
-          calendar={
-            <SocialCalendar calendar={calendar} lockedProjectId={project.id} />
-          }
-          connections={activeConnections}
-          nextCursors={Object.fromEntries(
-            SECTION_ORDER.map((section, index) => [
-              section,
-              pages[index].nextCursor,
-            ]),
-          )}
-          posts={posts}
-          projectId={project.id}
-          selectedPostId={selectedPost?.id}
-        />
-      </SocialComposeProvider>
+      <SocialCalendarPreviewProvider>
+        <SocialComposeProvider>
+          <ProjectSocialPosts
+            accounts={
+              <ProjectSocialAccounts
+                projectId={project.id}
+                connections={connections}
+              />
+            }
+            actions={
+              <SocialNewPostMenu
+                project={{ id: project.id, name: project.name }}
+                sokoBotId={sokoBot?.id ?? null}
+              />
+            }
+            calendar={
+              <SocialCalendar
+                calendar={calendar}
+                lockedProjectId={project.id}
+              />
+            }
+            connections={activeConnections}
+            nextCursors={Object.fromEntries(
+              SECTION_ORDER.map((section, index) => [
+                section,
+                pages[index].nextCursor,
+              ]),
+            )}
+            posts={posts}
+            projectId={project.id}
+            selectedPostId={selectedPost?.id}
+          />
+        </SocialComposeProvider>
+      </SocialCalendarPreviewProvider>
     </SocialPageShell>
   );
 }
