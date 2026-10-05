@@ -15,14 +15,14 @@ The agent can stay on its operator's hardware or cloud host. Hermes is an option
 [VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/registration-authority.ts`]
 Discover existing Workspaces, Vendors, and Coworkers before proposing a new record. Reuse suitable records.
 The current path uses a selected organization Workspace on Preprod. It does not accept a personal Workspace for connection.
-Core still requires platform-admin authority to create a Coworker. CLI connection requires Vendor-admin and organization membership.
+On Preprod, a Vendor admin can create a private Coworker. On Mainnet, Core still requires platform-admin authority. CLI connection requires Vendor-admin and organization membership.
 Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
 [REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.
 [OPEN] Live runtime execution remains unverified. `runtime receipt` reads the seller receipt, but no live Task has proven it yet. Payment submission and global publication remain separate work.
 The [implementation plan](docs/developer-cli-implementation-plan.md) retains the milestone history.
 
-### Private Workspace setup and platform-admin handoff
+### Private Workspace setup and Coworker provisioning
 
 [VERIFIED: source only] Web has Workspace creation and developer invitations.
 Use the Workspace switcher to create or select the organization, then invite the intended developers.
@@ -56,7 +56,7 @@ If a write reports uncertain completion, inspect `admin members` before retrying
 Coworker provisioning and connection can continue when no Seat is available.
 
 [VERIFIED: `src/cli/commands/coworkers.ts`] Discover existing records first. Provision only when the intended Coworker is missing.
-A platform admin uses the chosen Vendor ID and final name. A user without that role needs a platform-admin handoff.
+A Vendor admin provisions a private Coworker under their own Vendor. A platform admin can provision under any Vendor.
 Confirm the intended account before provisioning:
 
 ```bash
@@ -66,19 +66,19 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod coworkers provision
 ```
 
 [VERIFIED: `src/api/models/user-identity.ts`, `src/cli/commands/coworkers.ts`]
-`provision` checks the live account for the exact `admin` role before creation. Core still authorizes the request.
+`provision` checks the live account for the platform `admin` role or Vendor-admin membership in the selected Vendor. Core still authorizes the request.
 The CLI verifies that the returned Coworker belongs to the requested Vendor and has `isWhitelisted: false`.
 If creation cannot be confirmed, inspect the Coworker list before retrying. Core errors retain their status and request details.
 
 [CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`] The handoff now includes both `handoff.coworkerId` and `handoff.vendorId`.
 Keep these IDs with the selected organization ID and Workspace slug. If provisioning for someone else, give them these non-secret IDs.
 The connecting account uses `coworkers connect` below and must have the required Vendor and organization memberships.
-Provisioning itself does not require those memberships. The trusted operator creates and keeps the runtime key.
+A platform admin can provision without those memberships. The trusted operator creates and keeps the runtime key.
 [VERIFIED: `../core/src/routes/v1/coworkers/coworker-management-access.ts`] Vendor admins can manage the Vendor's Coworkers.
 Provisioning under a Vendor does not assign the Coworker to a person by email.
 
-[VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`]
-Core checks platform admin access and Vendor existence, then creates the Coworker with `isWhitelisted: false`.
+[VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:86-92,108-155`]
+Core checks platform-admin access or, on Preprod, Vendor-admin membership under a Vendor lock. It then creates the Coworker with `isWhitelisted: false`.
 Provisioning does not grant Workspace access. Private profiles are still returned by Core's
 `scope=all` list; private means restricted Workspace selection here.
 [List route](../core/src/routes/v1/coworkers/get.ts)
@@ -177,12 +177,12 @@ Other command families reject `--organization-slug`. Connection and Seat checks 
 
 Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
 `provision`, `register`, and `connect` use Preprod by default when no target is configured.
-These commands work on Preprod only. `coworkers register` requires platform admin
-access. That command creates the Coworker, then asks Core to grant Workspace
-access. It also requires the caller to administer the Vendor and belong to the Workspace.
-Use `provision` for a platform-admin creation step under the selected Vendor.
-`register` reports success only when Core returns `GRANTED`. If the Coworker
-record is created but access is pending or fails, retry with `coworkers connect`.
+These commands work on Preprod only. `coworkers register` creates the Coworker, then asks Core to grant Workspace
+access. It requires the caller to administer the Vendor and belong to the Workspace.
+Use `provision` to create the Coworker without requesting Workspace access.
+`register` and `connect` succeed when Core returns `GRANTED` or `PENDING`. `PENDING` means a
+Workspace owner or admin must approve the request. Keep the Coworker ID and run `coworkers connect` again after approval.
+If Core refuses because access was denied or revoked, ask a Workspace owner or admin to restore it.
 Core keeps its existing role checks. `coworkers connect` attaches an existing
 record through the Core access route. It accepts command options for JSON fields. `tasks create`
 and `tasks comment` also accept command options for JSON fields. Use

@@ -39,6 +39,10 @@ import {
   writeText,
 } from "./command-helpers.js";
 
+const PENDING_KEY_GUIDANCE =
+  "A runtime key identifies this Coworker. It does not grant access to the pending Workspace.";
+const TERMINAL_ACCESS_MESSAGE = "Cannot re-request after deny/revoke";
+
 export interface CoworkersCommandContext extends CommandContext {
   target?: CliTargetConfig["target"];
   subcommand?: string;
@@ -60,7 +64,7 @@ function rethrowCoworkerCreationError(
     ];
     if (body.message === "Admin access required") {
       guidance.push(
-        "Coworker creation requires a Sokosumi platform admin on Preprod.",
+        "Core denied private Coworker creation. Ask the organizer or a Sokosumi platform admin to check Vendor authority and deployed self-service support.",
         `Send Vendor ${vendorId} and your final Coworker name to the organizer.`,
         `After you receive a Coworker ID, run \`sokosumi --preprod coworkers connect COWORKER_ID --vendor-id ${vendorId} --workspace-id ${organizationId}\`.`,
         "Then create its runtime key with `sokosumi --preprod coworkers api-key COWORKER_ID --json`.",
@@ -72,6 +76,23 @@ function rethrowCoworkerCreationError(
       " Creation may have succeeded. Inspect `sokosumi --preprod coworkers list --scope all` before retrying.";
   }
   throw failure;
+}
+
+function rethrowWorkspaceAccessError(
+  error: unknown,
+  coworkerId: string,
+): never {
+  if (
+    error instanceof Error &&
+    "status" in error &&
+    error.status === 400 &&
+    "body" in error &&
+    record(error.body).message === TERMINAL_ACCESS_MESSAGE
+  )
+    throw new Error(
+      `Coworker ${coworkerId} Workspace access was denied or revoked. Keep this Coworker ID. Ask a Workspace owner or admin to restore access. Do not register again.`,
+    );
+  throw error;
 }
 
 async function buildPayload(
@@ -241,10 +262,10 @@ export async function runCoworkersCommand({
     const payload = await buildPayload(options, "provision");
     const vendorId = String(payload.vendorId);
     const user = await fetchUserIdentity(client, signal);
-    if (!hasPlatformAdminRole(user)) {
-      throw new Error(
-        `Signed in on Preprod as ${user.email} [${user.id}], platform role: ${user.platformRole}. Coworker creation requires a Sokosumi platform admin. Send Vendor ${vendorId} and your final Coworker name to the organizer. Check your account with \`sokosumi --preprod auth whoami --json\`.`,
-      );
+    const isPlatformAdmin = hasPlatformAdminRole(user);
+    if (!isPlatformAdmin) {
+      const { vendors } = await fetchVendorMemberships(client, signal);
+      requireAdministeredVendorForRegistration(vendors, vendorId);
     }
     let coworker: Awaited<ReturnType<typeof createCoworker>>["coworker"];
     let isWhitelisted: unknown;
@@ -285,9 +306,11 @@ export async function runCoworkersCommand({
       });
     else
       writeText(stdout, [
-        "Admin step complete.",
+        isPlatformAdmin ? "Admin step complete." : "Private Coworker created.",
         `Provisioned ${coworker.name} [${coworker.id}] under Vendor ${vendorId}.`,
-        `Give Coworker ID ${coworker.id} and Vendor ID ${vendorId} to the developer.`,
+        isPlatformAdmin
+          ? `Give Coworker ID ${coworker.id} and Vendor ID ${vendorId} to the developer.`
+          : `Keep Coworker ID ${coworker.id} and Vendor ID ${vendorId} for connection.`,
         "Developer: confirm your account, select a Workspace, then connect and check Seat eligibility:",
         "  sokosumi --preprod auth whoami --json",
         "  sokosumi --preprod workspaces list",
@@ -334,9 +357,9 @@ export async function runCoworkersCommand({
         `Coworker ${coworkerId} was created, but Workspace access could not be confirmed. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId} --preprod\`. Cause: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
-    if (workspaceAccess.status !== "GRANTED") {
+    if (!["GRANTED", "PENDING"].includes(workspaceAccess.status)) {
       throw new Error(
-        `Coworker ${coworkerId} was created, but Workspace access is ${workspaceAccess.status}. Registration is incomplete. Retry with \`sokosumi coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId} --preprod\` after access is approved.`,
+        `Coworker ${coworkerId} was created, but Workspace access is ${workspaceAccess.status}. Keep this Coworker ID. A Workspace owner or admin must resolve the access state. Do not register again.`,
       );
     }
     let apiKey: unknown = null;
@@ -354,7 +377,7 @@ export async function runCoworkersCommand({
         apiKey = result.apiKey;
       } catch (error) {
         throw new Error(
-          `Coworker ${coworkerId} is connected to Workspace ${workspace.organizationId}, but API key creation could not be confirmed. Do not register again. If you did not receive a usable key, run \`sokosumi --preprod coworkers api-key ${coworkerId} --json\` to create one. Cause: ${error instanceof Error ? error.message : String(error)}`,
+          `Coworker ${coworkerId} exists with Workspace access ${workspaceAccess.status} for ${workspace.organizationId}, but API key creation could not be confirmed. Do not register again. If you did not receive a usable key, run \`sokosumi --preprod coworkers api-key ${coworkerId} --json\` to create one. Cause: ${error instanceof Error ? error.message : String(error)}`,
         );
       }
     }
@@ -362,7 +385,13 @@ export async function runCoworkersCommand({
     else {
       const coworkerValue = record(coworker);
       writeText(stdout, [
-        `Registered coworker ${String(coworkerValue.name || coworkerValue.id)} [${coworkerId}] in Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+        workspaceAccess.status === "PENDING"
+          ? `Workspace approval requested for Coworker ${coworkerId}. Access ID: ${workspaceAccess.id}. Keep this Coworker ID. Do not register again.`
+          : `Registered coworker ${String(coworkerValue.name || coworkerValue.id)} [${coworkerId}] in Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+        workspaceAccess.status === "PENDING"
+          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.`
+          : undefined,
+        workspaceAccess.status === "PENDING" ? PENDING_KEY_GUIDANCE : undefined,
         coworkerValue.baseURL
           ? `baseURL: ${String(coworkerValue.baseURL)}`
           : undefined,
@@ -387,7 +416,7 @@ export async function runCoworkersCommand({
     const coworkerId = positionalId || optionString(options, "coworker-id");
     if (!coworkerId)
       throw new Error(
-        "coworker id is required for `coworkers connect`. Ask the organizer for the Coworker ID after they create it under your Vendor.",
+        "coworker id is required for `coworkers connect`. Use the ID returned by `coworkers provision` or `coworkers register`.",
       );
     const vendorId = optionString(options, "vendor-id")?.trim();
     if (!vendorId)
@@ -416,22 +445,32 @@ export async function runCoworkersCommand({
         `Coworker ${coworkerId} belongs to Vendor ${coworker.vendor.id}, but --vendor-id selected ${vendorId}. Check the Coworker ID and Vendor ID with the organizer before retrying.`,
       );
     }
-    const { access } = await grantCoworkerWorkspaceAccess(
-      client,
-      coworkerId,
-      { organizationId: workspace.organizationId },
-      signal,
-    );
-    if (access.status !== "GRANTED") {
+    let access: CoworkerWorkspaceAccess;
+    try {
+      ({ access } = await grantCoworkerWorkspaceAccess(
+        client,
+        coworkerId,
+        { organizationId: workspace.organizationId },
+        signal,
+      ));
+    } catch (error) {
+      rethrowWorkspaceAccessError(error, coworkerId);
+    }
+    if (!["GRANTED", "PENDING"].includes(access.status)) {
       throw new Error(
-        `Coworker ${coworkerId} Workspace access is ${access.status}. Registration is incomplete. Wait for Workspace approval, then retry this command.`,
+        `Coworker ${coworkerId} Workspace access is ${access.status}. Keep this Coworker ID. A Workspace owner or admin must resolve the access state. Do not register again.`,
       );
     }
     if (json) writeJson(stdout, { coworkerId, workspaceAccess: access });
     else
       writeText(stdout, [
-        `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
-        `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+        access.status === "PENDING"
+          ? `Workspace approval requested for Coworker ${coworkerId}. Access ID: ${access.id}. Keep this Coworker ID. Do not register again.`
+          : `Connected coworker ${coworkerId} to Workspace ${workspace.name || workspace.organizationId} [${workspace.organizationId}]`,
+        access.status === "PENDING"
+          ? `Wait for a Workspace owner or admin to approve access. Then retry \`sokosumi --preprod coworkers connect ${coworkerId} --vendor-id ${vendorId} --workspace-id ${workspace.organizationId}\`.`
+          : `Next: sokosumi --preprod workspaces check ${workspace.organizationId}`,
+        access.status === "PENDING" ? PENDING_KEY_GUIDANCE : undefined,
         `Then ask the operator to configure the key on the agent host with \`sokosumi runtime key-import --coworker-id ${coworkerId} --api-key-stdin\`.`,
         "The operator supplies the Coworker key through secure stdin.",
       ]);
