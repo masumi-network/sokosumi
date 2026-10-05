@@ -84,7 +84,6 @@ export default defineConfig({
   },
   test: {
     passWithNoTests: true,
-    setupFiles: ["src/test/setup.ts"],
     /**
      * Leave the machine half its cores. Vitest otherwise takes all but one,
      * and a happy-dom suite this size then starves WindowServer badly enough
@@ -105,6 +104,7 @@ export default defineConfig({
         test: {
           name: "node",
           environment: "node",
+          setupFiles: ["src/test/setup.ts"],
           // `agents/**` too: the studio agent's channel is this app's code and
           // carries its authorization policy, so it belongs in the same run.
           include: ["src/**/*.test.ts", "agents/**/*.test.ts"],
@@ -122,6 +122,7 @@ export default defineConfig({
         test: {
           name: "happy-dom",
           environment: "happy-dom",
+          setupFiles: ["src/test/setup.ts", "src/test/setup.dom.ts"],
           include: ["src/**/*.test.tsx", ...DOM_TEST_TS],
           exclude: [...defaultExclude, "src/**/*.webkit.test.{ts,tsx}"],
         },
