@@ -20,6 +20,7 @@ import {
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
+  readAuthReturnUrl,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -468,6 +469,24 @@ describe("buildAuthPageUrl for sign-in", () => {
     ).toBe(
       "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
+  });
+});
+
+describe("readAuthReturnUrl", () => {
+  const oauthQuery = "client_id=cmo&exp=1772367377&sig=signed-value";
+
+  it("prefers the page's returnUrl", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=%2Fjobs`)),
+    ).toBe("/jobs");
+  });
+
+  // `readAuthPageContext` treats an empty returnUrl as absent too, so the
+  // page's Register link and its sign-in agree on where the person goes.
+  it("resumes the OAuth request when the returnUrl is empty", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=`)),
+    ).toBe(`/signin?${oauthQuery}`);
   });
 });
 
