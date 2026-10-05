@@ -40,8 +40,16 @@ function fixture() {
         return {
           data: { id: "self-user", email: "self@example.com", role: "user" },
         } as T;
-      if (path === "/v1/users/me/workspace-access")
-        return { data: { hasPersonalWorkspace: exists } } as T;
+      if (path === "/v1/users/me/workspaces")
+        return {
+          data: {
+            workspaces: [
+              ...(exists ? [{ id: workspaceId, kind: "personal" }] : []),
+              { id: "org-workspace", kind: "organization" },
+            ],
+            pendingInvitationCount: 0,
+          },
+        } as T;
       if (path === "/v1/vendors/me")
         return { data: [{ id: "vendor-1", role: "admin" }] } as T;
       if (path === "/v1/coworkers/cw-1")
@@ -53,9 +61,10 @@ function fixture() {
     },
     post: async <T>(path: string, body: unknown) => {
       posts.push({ path, body });
-      if (path === "/v1/users/me/personal-workspace") {
+      if (path === "/v1/users/me/workspaces") {
+        assert.deepEqual(body, { kind: "personal" });
         exists = true;
-        return { data: { workspaceId } } as T;
+        return { data: { id: workspaceId, kind: "personal" } } as T;
       }
       if (path === "/v1/coworkers")
         return {
@@ -191,7 +200,7 @@ test("V99/V100 personal registration, Task creation, start, and completion", asy
   assert.deepEqual(
     f.posts.map((p) => p.path),
     [
-      "/v1/users/me/personal-workspace",
+      "/v1/users/me/workspaces",
       "/v1/coworkers",
       "/v1/coworkers/cw-1/workspace-access",
     ],
@@ -207,7 +216,7 @@ test("V99/V100 personal registration, Task creation, start, and completion", asy
   ]);
   assert.equal(f.posts.filter((p) => p.path === "/v1/coworkers").length, 1);
   assert.equal(
-    f.posts.filter((p) => p.path.includes("personal-workspace")).length,
+    f.posts.filter((p) => p.path === "/v1/users/me/workspaces").length,
     1,
   );
   await f.invoke([
@@ -336,8 +345,8 @@ test("personal Workspace create handles only a verified concurrent creation", as
   };
   await ensurePersonalWorkspace(f.coreClient);
   assert.deepEqual(f.reads, [
-    "/v1/users/me/workspace-access",
-    "/v1/users/me/workspace-access",
+    "/v1/users/me/workspaces",
+    "/v1/users/me/workspaces",
   ]);
 });
 test("personal Task creation stops when no personal Workspace exists", async () => {

@@ -150,7 +150,19 @@ export const deletePersonalWorkspaceAction = withSession<
   ActionResultDto<PersonalWorkspaceDeleted, ActionError>
 >(async () => {
   try {
-    const { data } = await coreClient.deleteMyPersonalWorkspace();
+    const { data: list } = await coreClient.getMyWorkspaces();
+    const personal = list.workspaces.find(
+      (workspace) => workspace.kind === "personal",
+    );
+    if (!personal) {
+      return toActionResult(
+        err({
+          code: CommonErrorCode.NOT_FOUND,
+          message: "You have no personal workspace",
+        }),
+      );
+    }
+    const { data } = await coreClient.deleteMyWorkspace(personal.id);
     return toActionResult(ok(data));
   } catch (error) {
     console.error("Failed to delete personal workspace", error);
