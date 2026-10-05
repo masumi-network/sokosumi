@@ -165,6 +165,8 @@ p {
   font: inherit;
   font-size: 1rem;
   font-weight: 600;
+  /* Links styled as buttons (Back) look like the buttons beside them. */
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 150ms,
@@ -250,6 +252,7 @@ p {
   color: var(--foreground);
   font: inherit;
   text-align: left;
+  text-decoration: none;
   cursor: pointer;
   transition:
     background-color 150ms,
@@ -262,7 +265,7 @@ p {
   gap: 4px;
 }
 
-.choice:hover:enabled:not([aria-disabled="true"]) {
+.choice:hover:not(:disabled) {
   border-color: var(--foreground);
   background: var(--surface);
 }
@@ -270,11 +273,6 @@ p {
 .choice:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-.choice[aria-disabled="true"] {
-  cursor: not-allowed;
-  color: var(--muted);
 }
 
 .choice[aria-busy="true"] {
@@ -294,6 +292,52 @@ p {
 .choice-detail {
   color: var(--muted);
   font-size: 0.875rem;
+}
+
+/* The organization step's form. */
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.field label {
+  font-weight: 600;
+}
+
+.field input {
+  min-height: 48px;
+  padding: 0 16px;
+  /* --border is too faint for a control's edge (WCAG 1.4.11 asks 3:1). */
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 1rem;
+}
+
+.field input:focus-visible {
+  outline: 2px solid var(--foreground);
+  outline-offset: 2px;
+}
+
+/* No error colour token yet: weight and a strong border carry the error. */
+.field input[aria-invalid="true"] {
+  border-color: var(--foreground);
+  box-shadow: inset 0 0 0 1px var(--foreground);
+}
+
+.field-error {
+  font-size: 0.875rem;
+  font-weight: 600;
 }
 
 [role="alert"] {

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { OrganizationSetup } from "../components/organization-setup";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import { WorkspaceGate } from "../components/workspace-gate";
@@ -27,6 +28,7 @@ vi.mock("./actions", () => ({
 }));
 
 vi.mock("./workspace-actions", () => ({
+  createOrganizationWorkspace: vi.fn(),
   createPersonalWorkspace: vi.fn(),
 }));
 
@@ -34,8 +36,9 @@ const { default: HomePage } = await import("./page");
 
 function render(
   error?: string | string[],
+  step?: string | string[],
 ): Promise<ReactElement<{ failed?: boolean; error?: string }>> {
-  return HomePage({ searchParams: Promise.resolve({ error }) });
+  return HomePage({ searchParams: Promise.resolve({ error, step }) });
 }
 
 function workspacesAnswer(workspaces: unknown[]) {
@@ -87,6 +90,22 @@ describe("CMO home page", () => {
     const page = await render(["workspace_failed", "workspace_failed"]);
 
     expect(page.props.failed).toBe(true);
+  });
+
+  it("shows the organization step to a person with no workspace", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(workspacesAnswer([]));
+
+    expect((await render(undefined, "organization")).type).toBe(
+      OrganizationSetup,
+    );
+  });
+
+  it("does not show the organization step to a person with a workspace", async () => {
+    getUsersByIdWorkspaces.mockResolvedValue(
+      workspacesAnswer([{ id: "ws_1", kind: "personal", preferred: true }]),
+    );
+
+    expect((await render(undefined, "organization")).type).toBe(SignedIn);
   });
 
   it("lets a person with a workspace into CMO", async () => {
