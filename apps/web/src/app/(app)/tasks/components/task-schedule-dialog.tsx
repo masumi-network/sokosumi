@@ -415,31 +415,6 @@ function TaskScheduleDialogForm({
               </div>
             ) : null}
             <div className="flex flex-wrap items-center gap-2">
-              <AttachmentSubmenu
-                onUploadClick={() => attachmentTriggerRef.current?.click()}
-                onDriveClick={() =>
-                  markdownEditorRef.current?.openDrivePicker()
-                }
-                disabled={isSaving || isUploadingAttachments}
-              >
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  aria-label={tNewTask("uploadFile")}
-                  disabled={isSaving || isUploadingAttachments}
-                >
-                  {isUploadingAttachments ? (
-                    <Loader2
-                      className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <Paperclip className="size-3.5" aria-hidden />
-                  )}
-                  {tNewTask("uploadFile")}
-                </Button>
-              </AttachmentSubmenu>
               <TaskProjectSelect
                 variant="chip"
                 projectOptions={projectOptions}
@@ -487,6 +462,31 @@ function TaskScheduleDialogForm({
                   </HoverCard>
                 </>
               ) : null}
+              <AttachmentSubmenu
+                onUploadClick={() => attachmentTriggerRef.current?.click()}
+                onDriveClick={() =>
+                  markdownEditorRef.current?.openDrivePicker()
+                }
+                disabled={isSaving || isUploadingAttachments}
+              >
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  aria-label={tNewTask("uploadFile")}
+                  disabled={isSaving || isUploadingAttachments}
+                >
+                  {isUploadingAttachments ? (
+                    <Loader2
+                      className="size-3.5 animate-spin motion-reduce:animate-pulse"
+                      aria-hidden
+                    />
+                  ) : (
+                    <Paperclip className="size-3.5" aria-hidden />
+                  )}
+                  {tNewTask("uploadFile")}
+                </Button>
+              </AttachmentSubmenu>
             </div>
           </div>
 
