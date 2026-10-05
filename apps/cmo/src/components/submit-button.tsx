@@ -7,6 +7,8 @@ interface SubmitButtonProps {
   className: string;
   /** Its own action; without one it submits the form's action. */
   formAction?: (formData: FormData) => void | Promise<void>;
+  /** Submit even when the form's other fields are invalid. */
+  formNoValidate?: boolean;
   children: ReactNode;
 }
 
@@ -19,6 +21,7 @@ interface SubmitButtonProps {
 export function SubmitButton({
   className,
   formAction,
+  formNoValidate,
   children,
 }: SubmitButtonProps) {
   const { pending, action } = useFormStatus();
@@ -29,6 +32,7 @@ export function SubmitButton({
       className={className}
       type="submit"
       formAction={formAction}
+      formNoValidate={formNoValidate}
       disabled={pending}
       aria-busy={busy || undefined}
     >

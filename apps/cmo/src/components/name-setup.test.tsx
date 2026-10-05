@@ -32,8 +32,11 @@ it("asks for the first and last name, with Sign out", () => {
   expect(html).toMatch(
     /<button class="button" type="submit"[^>]*><span class="button-label">Continue<\/span><\/button>/,
   );
+  expect(html).not.toMatch(
+    /<button class="button" type="submit" formNoValidate/,
+  );
   expect(html).toMatch(
-    /<button class="button button-secondary" type="submit"[^>]*><span class="button-label">Sign out<\/span><\/button>/,
+    /<button class="button button-secondary" type="submit" formNoValidate=""[^>]*><span class="button-label">Sign out<\/span><\/button>/,
   );
   expect(html).not.toContain('role="alert"');
 });
@@ -120,6 +123,25 @@ it("moves focus to the alert when the save failed as a whole", async () => {
   expect(document.activeElement).toBe(
     container.querySelector('form [role="alert"]'),
   );
+
+  await act(async () => root.unmount());
+  container.remove();
+});
+
+it("signs out from the empty form", async () => {
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  const signOut = vi.fn();
+  await act(async () => {
+    root.render(<NameSetup saveName={vi.fn()} signOut={signOut} />);
+  });
+  const signOutButton = [
+    ...container.querySelectorAll<HTMLButtonElement>('button[type="submit"]'),
+  ].find((button) => button.textContent === "Sign out");
+  await act(async () => signOutButton?.click());
+
+  expect(signOut).toHaveBeenCalledOnce();
 
   await act(async () => root.unmount());
   container.remove();
