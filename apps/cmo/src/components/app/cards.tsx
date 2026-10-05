@@ -1,7 +1,7 @@
 "use client";
 
 import type { CmoOverview } from "@sokosumi/core-client";
-import { useTransition } from "react";
+import { useState, useTransition } from "react";
 
 import { channelLabel } from "../../lib/calendar";
 import { ExpandableText } from "./expandable-text";
@@ -13,8 +13,8 @@ type Update = CmoOverview["updates"][number];
 export interface CardActions {
   approve: () => Promise<void>;
   revert: (updateId: string) => Promise<void>;
-  /** Starts Cuso's first look at the business again. */
-  retryLearning: () => Promise<void>;
+  /** Starts Cuso's first look at the business again; the refusal, if any. */
+  retryLearning: () => Promise<string | null>;
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
   open: (view: "strategy" | "brain" | "results" | "channels") => void;
@@ -55,6 +55,7 @@ export function LearningCard({
   actions: CardActions;
 }) {
   const [pending, startTransition] = useTransition();
+  const [refusal, setRefusal] = useState<string | null>(null);
   const steps = learningSteps(brain);
   const missing = steps.filter(([, found]) => !found).length;
   const running = state === "running";
@@ -104,10 +105,21 @@ export function LearningCard({
             type="button"
             className="button button-small"
             disabled={pending}
-            onClick={() => startTransition(() => actions.retryLearning())}
+            onClick={() =>
+              startTransition(async () => {
+                setRefusal(await actions.retryLearning());
+              })
+            }
           >
             {pending ? "Starting…" : "Try again"}
           </button>
+          {refusal ? (
+            <span className="note" role="alert">
+              {/credits/i.test(refusal)
+                ? "You're out of credits. Top up in Settings, then try again."
+                : refusal}
+            </span>
+          ) : null}
         </div>
       ) : !running && !brain ? (
         <div className="cf">

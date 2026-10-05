@@ -211,11 +211,22 @@ export interface CreateSokoBotInput {
    * built on Soko Bots (CMO's Cuso) create their bot.
    */
   versionId?: string;
+  /**
+   * Pin the bot to one Project (CMO.xyz's Cuso). It lives beside the owner's
+   * personal assistant in the same workspace; null or absent is that
+   * personal assistant.
+   */
+  projectId?: string;
 }
 
 export interface StartSokoBotTurnInput {
   userId: string;
   workspaceId: string;
+  /**
+   * The bot to run when the caller knows it. Without it the turn goes to the
+   * owner's personal assistant in the workspace, never a project bot.
+   */
+  sokoBotId?: string;
   clientTurnId: string;
   message: string;
   source?: "CHAT" | "SCHEDULE" | "ADMIN_RETRY" | "EVENT" | "INGEST";
@@ -1307,6 +1318,7 @@ export class SokoBotControlPlane {
         where: {
           userId: input.userId,
           workspaceId: input.workspaceId,
+          projectId: input.projectId ?? null,
           deletedAt: null,
         },
       });
@@ -1350,6 +1362,7 @@ export class SokoBotControlPlane {
         data: {
           userId: input.userId,
           workspaceId: input.workspaceId,
+          projectId: input.projectId ?? null,
           name,
           // Pin the version a bot was created on rather than leaving it null
           // and relying on the runtime fallback: the console can then show
@@ -1416,7 +1429,7 @@ export class SokoBotControlPlane {
     // columns, which is what makes it affordable to ask every couple of
     // seconds — not a saved round trip, which it is not.
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       select: {
         status: true,
         lastTurnAt: true,
@@ -1438,7 +1451,7 @@ export class SokoBotControlPlane {
 
   async getForUser(userId: string, workspaceId: string) {
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       include: {
         memoryRevisions: { orderBy: { version: "desc" }, take: 1 },
         legacyMessages: {
@@ -1469,7 +1482,7 @@ export class SokoBotControlPlane {
   ) {
     const take = Math.min(Math.max(options.take ?? 50, 1), 100);
     const bot = await prisma.sokoBot.findFirst({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       select: { id: true },
     });
     if (!bot) return { turns: [], count: 0, hasMore: false };
@@ -2055,6 +2068,7 @@ export class SokoBotControlPlane {
       where: {
         userId: input.userId,
         workspaceId: input.workspaceId,
+        ...(input.sokoBotId ? { id: input.sokoBotId } : { projectId: null }),
         archivedAt: null,
       },
     });
@@ -3434,7 +3448,7 @@ export class SokoBotControlPlane {
     const hash = memoryHash(markdown);
     return serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, workspaceId, archivedAt: null },
+        where: { userId, workspaceId, projectId: null, archivedAt: null },
       });
       if (!bot) throw new SokoBotNotFoundError("Soko Bot not found");
       const version = bot.memoryVersion + 1;
@@ -3470,7 +3484,7 @@ export class SokoBotControlPlane {
       throw new SokoBotValidationError("Unknown Soko Bot version");
     }
     const updated = await prisma.sokoBot.updateMany({
-      where: { userId, workspaceId, archivedAt: null },
+      where: { userId, workspaceId, projectId: null, archivedAt: null },
       data: { versionId },
     });
     if (updated.count === 0)
@@ -4464,6 +4478,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: bot.userId,
           workspaceId: scheduleRun.schedule.workspaceId,
+          sokoBotId: bot.id,
           clientTurnId: retryClientTurnId,
           message: occurrencePrompt,
           source: "ADMIN_RETRY",
@@ -4544,6 +4559,7 @@ export class SokoBotControlPlane {
         retry = await this.startTurn({
           userId: bot.userId,
           workspaceId: failed.workspaceId,
+          sokoBotId: bot.id,
           clientTurnId: `admin-retry:${failed.id}:${adminRetryOperationKey(operationId)}`,
           message: failed.userMessage,
           source: "ADMIN_RETRY",
@@ -4611,7 +4627,7 @@ export class SokoBotControlPlane {
   async archive(userId: string, workspaceId: string): Promise<void> {
     const archived = await serializableTransaction(async (tx) => {
       const bot = await tx.sokoBot.findFirst({
-        where: { userId, workspaceId, archivedAt: null },
+        where: { userId, workspaceId, projectId: null, archivedAt: null },
       });
       if (!bot) return null;
       await tx.$queryRaw`

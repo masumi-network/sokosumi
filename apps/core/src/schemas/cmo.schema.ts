@@ -73,8 +73,9 @@ export const cmoOverviewSchema = z
     businessName: z.string(),
     websiteUrl: z.string(),
     goals: z.string(),
-    organizationId: z.string(),
-    organizationSlug: z.string(),
+    /** Set when Cuso works in an organization's workspace, not a personal one. */
+    organizationSlug: z.union([z.string(), z.null()]),
+    projectName: z.string(),
     workspaceId: z.string(),
     sokoBotId: z.string(),
     projectId: z.string(),

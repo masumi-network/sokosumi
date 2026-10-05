@@ -480,6 +480,9 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
+  sokoBots     SokoBot[]
+  cmoWorkspace CmoWorkspace?
+
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
   imageAssets   ProjectImageAsset[]
@@ -2036,13 +2039,19 @@ model SokoBot {
   /// nothing references is deleted outright instead of tombstoned.
   deletedAt            DateTime?
 
-  /// Owner of this Soko Bot. One row per user and workspace (active or archived).
+  /// Owner of this Soko Bot. One personal bot per user and workspace (active
+  /// or archived), plus at most one bot pinned to each Project.
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   /// Workspace this bot lives in; bots never cross workspaces.
   workspaceId String    @db.Uuid
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  /// Set for a bot that works for one Project only (CMO.xyz's Cuso); null for
+  /// the owner's personal assistant in the workspace.
+  projectId String?  @db.Uuid
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   /// Legacy shadow coworker. Empty after PA cutover; column kept (SOK-946).
   coworker Coworker?
@@ -2128,9 +2137,11 @@ model SokoBot {
   pendingDecisions     SokoBotPendingDecision[]
   schedules            SokoBotSchedule[]
 
-  // One LIVE bot per user and workspace. Partial, because a plain unique would
-  // let a tombstone block its owner from ever creating a new bot.
-  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null })
+  // One LIVE personal bot per user and workspace. Partial, because a plain
+  // unique would let a tombstone block its owner from ever creating a new bot,
+  // and project bots (Cuso) live beside it in the same workspace.
+  @@unique([userId, workspaceId], map: "soko_bot_user_workspace_live_key", where: { deletedAt: null, projectId: null })
+  @@unique([projectId], map: "soko_bot_project_live_key", where: { deletedAt: null, projectId: { not: null } })
   @@index([archivedAt])
   @@index([lastPolledAt])
   @@index([userId, workspaceId])
@@ -2148,13 +2159,16 @@ model CmoWorkspace {
   updatedAt DateTime @updatedAt
 
   /// The person who started it. One CMO workspace per person for now.
-  userId         String @unique
-  organizationId String @unique
-  workspaceId    String @unique @db.Uuid
-  sokoBotId      String @unique @db.Uuid
-  sokoBot        SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
-  /// The marketing Project: where social accounts connect and posts live.
-  projectId      String @db.Uuid
+  userId      String  @unique
+  /// The owner's own Sokosumi workspace: the Project, Cuso and his work live
+  /// there, and its owner pays.
+  workspaceId String  @db.Uuid
+  sokoBotId   String  @unique @db.Uuid
+  sokoBot     SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
+  /// "CMO.xyz · <business>": Cuso's only Project. Social accounts connect,
+  /// posts, Tasks and files live here.
+  projectId   String  @unique @db.Uuid
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   businessName String
   websiteUrl   String

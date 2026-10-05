@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { conflict, notFound } from "@/helpers/error";
+import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created, ok } from "@/helpers/response";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -26,6 +26,7 @@ import {
   saveCmoBrandBrain,
   startCmoOnboarding,
 } from "@/services/cmo.service";
+import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
@@ -41,8 +42,8 @@ function mapOverview(overview: CmoOverview) {
     businessName: workspace.businessName,
     websiteUrl: workspace.websiteUrl,
     goals: workspace.goals,
-    organizationId: workspace.organizationId,
     organizationSlug: overview.organizationSlug,
+    projectName: overview.projectName,
     workspaceId: workspace.workspaceId,
     sokoBotId: workspace.sokoBotId,
     projectId: workspace.projectId,
@@ -93,6 +94,9 @@ async function requireOverview(userId: string) {
 
 function rethrow(error: unknown): never {
   if (error instanceof CmoNotFoundError) throw notFound(error.message);
+  // Out of credits: the founder can top up and try again.
+  if (error instanceof SokoBotBillingAccessError)
+    throw forbidden(error.message);
   if (error instanceof CmoConflictError) throw conflict(error.message);
   throw error;
 }

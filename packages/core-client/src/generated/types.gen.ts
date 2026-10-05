@@ -6276,8 +6276,8 @@ export type CmoOverview = {
     businessName: string;
     websiteUrl: string;
     goals: string;
-    organizationId: string;
-    organizationSlug: string;
+    organizationSlug: string | null;
+    projectName: string;
     workspaceId: string;
     sokoBotId: string;
     projectId: string;

@@ -483,6 +483,55 @@ export interface AuthorizedSokoBotRuntime extends SokoBotActionContext {
   askedByKind?: SokoBotPacketAudience;
 }
 
+/** Tools whose work belongs to a Project; a project bot's go to its own. */
+const PROJECT_SCOPED_TOOLS: ReadonlySet<string> = new Set([
+  "list_tasks",
+  "create_task",
+  "hire_agent",
+  "generate_image",
+  "get_image",
+  "list_project_social_accounts",
+  "list_social_posts",
+  "get_social_post",
+  "create_social_post",
+  "update_social_post",
+  "schedule_social_post",
+  "cancel_social_post",
+  "publish_social_post",
+]);
+
+/**
+ * A bot pinned to a Project (CMO.xyz's Cuso) works in that Project only:
+ * its project-scoped tools default to it and refuse any other.
+ */
+export async function pinToBotProject(
+  input: ExecuteSokoBotToolInput,
+  sokoBotId: string,
+): Promise<ExecuteSokoBotToolInput> {
+  if (!PROJECT_SCOPED_TOOLS.has(input.capability)) return input;
+  const bot = await prisma.sokoBot.findUnique({
+    where: { id: sokoBotId },
+    select: { projectId: true },
+  });
+  if (!bot?.projectId) return input;
+  const fields =
+    input.input &&
+    typeof input.input === "object" &&
+    !Array.isArray(input.input)
+      ? (input.input as Record<string, unknown>)
+      : {};
+  if (
+    fields.projectId !== undefined &&
+    fields.projectId !== null &&
+    fields.projectId !== bot.projectId
+  ) {
+    throw new SokoBotRuntimeValidationError(
+      "This bot works in its own Project only; use that Project.",
+    );
+  }
+  return { ...input, input: { ...fields, projectId: bot.projectId } };
+}
+
 export interface ExecuteSokoBotToolInput extends RuntimeAuthorizationInput {
   capability: SokoBotCapability;
   toolCallId: string;
@@ -3809,8 +3858,9 @@ export class SokoBotRuntimeService {
     }, "Memory changed during turn");
   }
 
-  async executeTool(input: ExecuteSokoBotToolInput): Promise<unknown> {
-    const authorized = await this.authorize(input);
+  async executeTool(rawInput: ExecuteSokoBotToolInput): Promise<unknown> {
+    const authorized = await this.authorize(rawInput);
+    let input = await pinToBotProject(rawInput, authorized.turn.sokoBotId);
     assertEvaluationActor({
       ...authorized.turn,
       clientTurnId: authorized.turn.id,

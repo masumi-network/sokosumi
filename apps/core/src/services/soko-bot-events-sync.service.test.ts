@@ -218,6 +218,8 @@ describe("SokoBotEventsSyncService", () => {
       expect.objectContaining({ eventId: "event-1" }),
     ]);
     expect(startTurnMock.mock.calls[0][0].message).toContain("first question");
+    // The bot that delegated hears back, not whichever bot the owner has.
+    expect(startTurnMock.mock.calls[0][0].sokoBotId).toBe("bot_1");
   });
 
   it("does not disclose formerly delegated tasks after privacy or workspace changes", async () => {

@@ -497,6 +497,7 @@ export class SokoBotSchedulesSyncService {
         const started = await sokoBotControlPlane.startTurn({
           userId: schedule.userId,
           workspaceId: schedule.workspaceId,
+          sokoBotId: schedule.sokoBotId,
           clientTurnId: sokoBotScheduleClientTurnId(schedule.id, scheduledFor),
           message,
           source: "SCHEDULE",

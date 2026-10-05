@@ -21530,10 +21530,17 @@ export const CmoOverviewSchema = {
         goals: {
             type: 'string'
         },
-        organizationId: {
-            type: 'string'
-        },
         organizationSlug: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        projectName: {
             type: 'string'
         },
         workspaceId: {
@@ -22025,8 +22032,8 @@ export const CmoOverviewSchema = {
         'businessName',
         'websiteUrl',
         'goals',
-        'organizationId',
         'organizationSlug',
+        'projectName',
         'workspaceId',
         'sokoBotId',
         'projectId',

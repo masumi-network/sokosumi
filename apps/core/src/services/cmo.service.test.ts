@@ -6,6 +6,7 @@ const {
   subscriptionFindFirst,
   turnFindFirst,
   connectionFindMany,
+  workspaceFindUnique,
   postFindFirst,
   cancelSocialPost,
   eventFindFirst,
@@ -17,6 +18,7 @@ const {
   subscriptionFindFirst: vi.fn(),
   turnFindFirst: vi.fn(),
   connectionFindMany: vi.fn(),
+  workspaceFindUnique: vi.fn(),
   postFindFirst: vi.fn(),
   cancelSocialPost: vi.fn(),
   eventFindFirst: vi.fn(),
@@ -28,6 +30,7 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     cmoWorkspace: { findUnique: cmoFindUnique, update: cmoUpdate },
     subscription: { findFirst: subscriptionFindFirst },
+    workspace: { findUnique: workspaceFindUnique },
     sokoBotTurn: { findFirst: turnFindFirst },
     projectSocialConnection: { findMany: connectionFindMany },
     socialPost: { findFirst: postFindFirst },
@@ -102,9 +105,22 @@ beforeEach(() => {
 describe("strategy approval → execution gate", () => {
   const workspace = (approvedAt: Date | null) => ({
     id: "cmo-1",
-    organizationId: "org-1",
+    userId: "user-1",
+    workspaceId: "ws-1",
     strategy,
     strategyApprovedAt: approvedAt,
+  });
+
+  it("asks the owner's own plan when Cuso works in their personal workspace", async () => {
+    cmoFindUnique.mockResolvedValue(workspace(new Date()));
+    workspaceFindUnique.mockResolvedValue({ organizationId: null });
+    subscriptionFindFirst.mockResolvedValue({ plan: "starter" });
+    await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" });
+    expect(subscriptionFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ referenceId: "user-1" }),
+      }),
+    );
   });
 
   it("leaves every non-CMO bot alone", async () => {
@@ -340,6 +356,8 @@ describe("learning state", () => {
     expect(await retryCmoOnboarding("user-1")).toEqual({ turnId: "turn-2" });
     const input = startTurn.mock.calls[0]?.[0];
     expect(input.clientTurnId).toMatch(/^cmo:onboarding:cmo-1:\d+$/);
+    // Cuso runs it, not the owner's personal assistant beside him.
+    expect(input.sokoBotId).toBe("bot-1");
 
     turnFindFirst.mockResolvedValue(turn("RUNNING", 1));
     eventFindFirst.mockResolvedValue({ occurredAt: new Date() });

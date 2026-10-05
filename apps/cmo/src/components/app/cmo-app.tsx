@@ -43,7 +43,10 @@ export interface CmoAppActions {
   sendMessage: (content: string) => Promise<void>;
   approveStrategy: () => Promise<CmoOverview>;
   revertUpdate: (id: string) => Promise<CmoOverview>;
-  retryLearning: () => Promise<CmoOverview>;
+  retryLearning: () => Promise<{
+    overview: CmoOverview;
+    error: string | null;
+  }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   signOut: () => Promise<void>;
 }
@@ -167,7 +170,11 @@ export function CmoApp({
   const cardActions: CardActions = {
     approve: async () => setOverview(await actions.approveStrategy()),
     revert: async (id) => setOverview(await actions.revertUpdate(id)),
-    retryLearning: async () => setOverview(await actions.retryLearning()),
+    retryLearning: async () => {
+      const result = await actions.retryLearning();
+      setOverview(result.overview);
+      return result.error;
+    },
     compose,
     open: (target) => setView(target),
   };

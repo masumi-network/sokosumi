@@ -48,8 +48,8 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     businessName: "Acme",
     websiteUrl: "https://acme.io",
     goals: "More sales",
-    organizationId: "org-1",
-    organizationSlug: "acme",
+    organizationSlug: null,
+    projectName: "CMO.xyz · Acme",
     workspaceId: "ws-1",
     sokoBotId: "bot-1",
     projectId: "project-1",
@@ -94,7 +94,7 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
 const noop = {
   approve: async () => {},
   revert: async () => {},
-  retryLearning: async () => {},
+  retryLearning: async () => null,
   compose: () => {},
   open: () => {},
 };

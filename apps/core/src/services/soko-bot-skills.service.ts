@@ -204,7 +204,7 @@ export async function discoverSkills(
 
 async function requireBot(userId: string, workspaceId: string) {
   const bot = await prisma.sokoBot.findFirst({
-    where: { userId, workspaceId, archivedAt: null },
+    where: { userId, workspaceId, projectId: null, archivedAt: null },
     select: { id: true },
   });
   if (!bot) throw new SokoBotSkillError("Create a Soko Bot first");
@@ -213,7 +213,7 @@ async function requireBot(userId: string, workspaceId: string) {
 
 export async function listInstalledSkills(userId: string, workspaceId: string) {
   return prisma.sokoBotInstalledSkill.findMany({
-    where: { userId, sokoBot: { workspaceId } },
+    where: { userId, sokoBot: { workspaceId, projectId: null } },
     orderBy: { createdAt: "asc" },
     select: {
       id: true,

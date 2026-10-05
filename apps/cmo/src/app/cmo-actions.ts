@@ -65,12 +65,23 @@ export async function pauseEntry(id: string): Promise<CmoOverview> {
   return data.data;
 }
 
-export async function retryLearning(): Promise<CmoOverview> {
+/** Starts learning again; a refusal (such as no credits) comes back as text. */
+export async function retryLearning(): Promise<{
+  overview: CmoOverview;
+  error: string | null;
+}> {
   const core = await requireCore();
-  await retryCmoOnboarding(core);
+  const { error } = await retryCmoOnboarding(core);
   const { data } = await getCmoOverview(core);
   if (!data) throw new Error("Could not load the CMO workspace");
-  return data.data;
+  const message =
+    error && typeof error === "object" && "message" in error
+      ? String((error as { message: unknown }).message)
+      : null;
+  return {
+    overview: data.data,
+    error: error ? (message ?? "Could not start") : null,
+  };
 }
 
 export async function revertUpdate(id: string): Promise<CmoOverview> {
@@ -83,7 +94,9 @@ export async function revertUpdate(id: string): Promise<CmoOverview> {
 type Core = Awaited<ReturnType<typeof requireCore>>;
 
 function chatHeaders(core: Core, overview: CmoOverview) {
-  return { ...core.headers, "X-Organization-Slug": overview.organizationSlug };
+  return overview.organizationSlug
+    ? { ...core.headers, "X-Organization-Slug": overview.organizationSlug }
+    : core.headers;
 }
 
 async function messagesFor(

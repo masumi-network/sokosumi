@@ -536,6 +536,7 @@ import {
 } from "@/lib/soko-bot/chat-chain";
 import {
   isSokoBotDecisionTargetAllowed,
+  pinToBotProject,
   SokoBotRefusedUnsentError,
   SokoBotRuntimeAuthorizationError,
   SokoBotRuntimeConflictError,
@@ -6181,5 +6182,37 @@ describe("archive_task without approval cards", () => {
       where: { id: TASK_ID, workspaceId: "w" },
       select: { id: true },
     });
+  });
+});
+
+describe("project bots", () => {
+  const PROJECT = "01960001-0001-7001-8001-0000000000aa";
+  const call = (input: unknown) => ({
+    ...SCOPE,
+    capability: "create_social_post" as const,
+    toolCallId: "call-1",
+    input,
+  });
+
+  it("puts a project bot's work in its own Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    const pinned = await pinToBotProject(call({ text: "Hi" }), SCOPE.sokoBotId);
+    expect(pinned.input).toEqual({ text: "Hi", projectId: PROJECT });
+  });
+
+  it("refuses another Project", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: PROJECT });
+    await expect(
+      pinToBotProject(
+        call({ projectId: "01960001-0001-7001-8001-0000000000bb" }),
+        SCOPE.sokoBotId,
+      ),
+    ).rejects.toThrow("own Project");
+  });
+
+  it("leaves a personal assistant's choice alone", async () => {
+    botFindUniqueMock.mockResolvedValueOnce({ projectId: null });
+    const input = call({ projectId: "01960001-0001-7001-8001-0000000000bb" });
+    expect(await pinToBotProject(input, SCOPE.sokoBotId)).toBe(input);
   });
 });

@@ -50,6 +50,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       where: {
         userId: auth.userId,
         workspaceId: workspace.workspaceId,
+        projectId: null,
         archivedAt: null,
       },
       select: { id: true },

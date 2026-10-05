@@ -754,6 +754,50 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it("runs a named bot, and otherwise the owner's personal assistant only", async () => {
+    jevEvaluate.mockResolvedValue(jevRoute("CLARIFY"));
+    botFindFirstMock.mockResolvedValue(adminBot());
+    botFindUniqueMock.mockResolvedValue(adminBot());
+    turnFindUniqueMock.mockResolvedValue(null);
+    turnFindFirstMock.mockResolvedValue(null);
+    turnCreateMock.mockResolvedValue({ id: "t", leaseToken: "l" });
+    const runtime = runtimeWithReset(vi.fn());
+    runtime.createSession = vi.fn().mockResolvedValue({
+      sessionId: "s",
+      runtimeVersion: "test",
+      acceptedAt: new Date().toISOString(),
+    });
+    const plane = new SokoBotControlPlane(
+      runtime,
+      {
+        build: vi.fn().mockResolvedValue(builtContext()),
+      } as ContextPacketBuilder,
+      new JevTurnClassifier(),
+    );
+    await plane.startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      clientTurnId: "personal",
+      message: "Hi",
+    });
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      projectId: null,
+    });
+    botFindFirstMock.mockClear();
+    await plane.startTurn({
+      userId: "user_1",
+      workspaceId: "workspace_1",
+      sokoBotId: BOT_ID,
+      clientTurnId: "named",
+      message: "Hi",
+    });
+    expect(botFindFirstMock.mock.calls[0]?.[0]?.where).toMatchObject({
+      id: BOT_ID,
+    });
+  });
+
   it("gives Cuso his marketing tools for an owner's request the classifier read narrowly", async () => {
     // Jev saw no write scope in "announce our product next Tuesday".
     jevEvaluate.mockResolvedValue(jevRoute("MANAGE_WORK"));

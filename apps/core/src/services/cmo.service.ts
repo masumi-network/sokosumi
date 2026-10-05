@@ -52,13 +52,24 @@ const CMO_STRATEGY_ROUTE: PresetRoute = {
   reason: "CMO strategy: plan the month and draft the first week.",
 };
 
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .normalize("NFKD")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 32);
+/** The Project's name in Sokosumi: "CMO.xyz · Acme". */
+export function cmoProjectName(businessName: string): string {
+  return `CMO.xyz · ${businessName}`.slice(0, 120);
+}
+
+/**
+ * Who pays for Cuso and whose plan opens execution: the workspace's
+ * organization when it has one, otherwise the owner.
+ */
+async function cmoPayer(
+  workspace: Pick<CmoWorkspace, "userId" | "workspaceId">,
+): Promise<{ organizationId: string | null; referenceId: string }> {
+  const row = await prisma.workspace.findUnique({
+    where: { id: workspace.workspaceId },
+    select: { organizationId: true },
+  });
+  const organizationId = row?.organizationId ?? null;
+  return { organizationId, referenceId: organizationId ?? workspace.userId };
 }
 
 /** "https://www.acme.io/about" → "acme.io"; falls back to the raw input. */
@@ -94,12 +105,12 @@ export async function getCmoWorkspaceForBot(
 
 /** The org's active plan that lets Cuso execute, or null. */
 export async function activeCmoPlan(
-  organizationId: string,
+  referenceId: string,
 ): Promise<string | null> {
   const plans = getEnv().CMO_SUBSCRIPTION_PLANS;
   const subscription = await prisma.subscription.findFirst({
     where: {
-      referenceId: organizationId,
+      referenceId,
       plan: { in: plans },
       status: { in: ["active", "trialing"] },
     },
@@ -110,13 +121,13 @@ export async function activeCmoPlan(
 
 /** Execution (scheduling, publishing) needs a paid plan on the org. */
 export async function hasActiveCmoSubscription(
-  organizationId: string,
+  referenceId: string,
 ): Promise<boolean> {
-  return (await activeCmoPlan(organizationId)) !== null;
+  return (await activeCmoPlan(referenceId)) !== null;
 }
 
 async function startCmoTurn(
-  workspace: Pick<CmoWorkspace, "userId" | "workspaceId">,
+  workspace: Pick<CmoWorkspace, "userId" | "workspaceId" | "sokoBotId">,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
   const { sokoBotControlPlane } = await import(
@@ -125,6 +136,8 @@ async function startCmoTurn(
   const started = await sokoBotControlPlane.startTurn({
     userId: workspace.userId,
     workspaceId: workspace.workspaceId,
+    // Cuso, never the owner's personal assistant in the same workspace.
+    sokoBotId: workspace.sokoBotId,
     clientTurnId: input.clientTurnId,
     message: input.message,
     // The owner pressed the button, but no chat message carries the turn:
@@ -246,26 +259,22 @@ export async function startCmoOnboarding(input: {
 
   const businessName =
     input.businessName?.trim() || cmoBusinessNameFromUrl(input.websiteUrl);
-  const { auth } = await import("@/lib/auth");
-  const organization = await auth.api.createOrganization({
-    body: {
-      name: businessName,
-      slug: `${slugify(businessName) || "cmo"}-${randomBytes(3).toString("hex")}`,
+  // Cuso works in the owner's own workspace, in one Project of his own, so
+  // everything he does is already organised when they open Sokosumi.
+  const { workspaceRepository } = await import(
+    "@sokosumi/database/repositories"
+  );
+  const { workspace } = await prisma.$transaction((tx) =>
+    workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
       userId: input.userId,
-      keepCurrentActiveOrganization: true,
-    },
-  });
-  if (!organization) throw new CmoConflictError("Organization not created");
-  const workspace = await prisma.workspace.findFirst({
-    where: { organizationId: organization.id },
-    select: { id: true },
-  });
-  if (!workspace) throw new CmoConflictError("Organization has no workspace");
+      tx,
+    }),
+  );
 
   const project = await prisma.project.create({
     data: {
       workspaceId: workspace.id,
-      name: "Marketing",
+      name: cmoProjectName(businessName),
       websiteUrl: input.websiteUrl,
     },
     select: { id: true },
@@ -277,6 +286,7 @@ export async function startCmoOnboarding(input: {
   const bot = await sokoBotControlPlane.create({
     userId: input.userId,
     workspaceId: workspace.id,
+    projectId: project.id,
     name: CUSO_NAME,
     versionId: CMO_SOKO_BOT_VERSION_ID,
   });
@@ -284,7 +294,6 @@ export async function startCmoOnboarding(input: {
   const created = await prisma.cmoWorkspace.create({
     data: {
       userId: input.userId,
-      organizationId: organization.id,
       workspaceId: workspace.id,
       sokoBotId: bot.id,
       projectId: project.id,
@@ -294,6 +303,8 @@ export async function startCmoOnboarding(input: {
     },
   });
 
+  // A turn that cannot start (no credits yet) leaves the workspace ready:
+  // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
     message: onboardingMessage({
@@ -302,7 +313,13 @@ export async function startCmoOnboarding(input: {
       goals: input.goals,
     }),
     route: CMO_ONBOARDING_ROUTE,
+  }).catch((error) => {
+    console.warn("CMO onboarding turn did not start", {
+      cmoWorkspaceId: created.id,
+      error: error instanceof Error ? error.message : "unknown",
+    });
   });
+
   return created;
 }
 
@@ -557,7 +574,9 @@ export async function cmoExecutionRefusal(input: {
   if (!workspace) return null;
   const verdict = cmoMayExecute({
     approved: workspace.strategyApprovedAt !== null,
-    subscribed: await hasActiveCmoSubscription(workspace.organizationId),
+    subscribed: await hasActiveCmoSubscription(
+      (await cmoPayer(workspace)).referenceId,
+    ),
   });
   return verdict.ok ? null : verdict.reason;
 }
@@ -614,7 +633,7 @@ export async function loadCmoMarketingContext(
     },
     strategyApproved: workspace.strategyApprovedAt !== null,
     subscriptionActive: await hasActiveCmoSubscription(
-      workspace.organizationId,
+      (await cmoPayer(workspace)).referenceId,
     ),
     connectedChannels: (await listCmoChannels(workspace.projectId)).map(
       (channel) => ({
@@ -713,6 +732,9 @@ export interface CmoUpNextItem {
 
 export interface CmoOverview {
   workspace: CmoWorkspace;
+  /** The workspace's organization, when it is not the owner's personal one. */
+  organizationSlug: string | null;
+  projectName: string;
   learning: CmoLearningState;
   /** What Cuso does when, for Settings. */
   routines: {
@@ -724,7 +746,6 @@ export interface CmoOverview {
     /** The timezone "when" is in, so the next run reads the same way. */
     timezone: string | null;
   }[];
-  organizationSlug: string;
   roomId: string;
   subscriptionActive: boolean;
   brandBrain: CmoBrandBrain | null;
@@ -787,10 +808,17 @@ export async function getCmoOverview(
 ): Promise<CmoOverview | null> {
   const workspace = await getCmoWorkspaceForUser(userId);
   if (!workspace) return null;
-  const [organization, bot, channels] = await Promise.all([
-    prisma.organization.findUnique({
-      where: { id: workspace.organizationId },
-      select: { slug: true },
+  const payer = await cmoPayer(workspace);
+  const [organization, project, bot, channels] = await Promise.all([
+    payer.organizationId
+      ? prisma.organization.findUnique({
+          where: { id: payer.organizationId },
+          select: { slug: true },
+        })
+      : null,
+    prisma.project.findUnique({
+      where: { id: workspace.projectId },
+      select: { name: true },
     }),
     prisma.sokoBot.findUnique({
       where: { id: workspace.sokoBotId },
@@ -809,7 +837,7 @@ export async function getCmoOverview(
     where: { projectId: workspace.projectId },
     _count: { _all: true },
   });
-  if (!organization || !bot) return null;
+  if (!bot || !project) return null;
   const { findOrOpenOwnerDirectRoom } = await import(
     "@/services/soko-bot-chat.service"
   );
@@ -818,11 +846,11 @@ export async function getCmoOverview(
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const credits = await buildCreditsPayload({
     userId,
-    organizationId: workspace.organizationId,
-    referenceId: workspace.organizationId,
+    organizationId: payer.organizationId,
+    referenceId: payer.referenceId,
     tx: prisma,
   });
-  const cmoPlan = await activeCmoPlan(workspace.organizationId);
+  const cmoPlan = await activeCmoPlan(payer.referenceId);
   const learning = await cmoLearningState(workspace, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
     where: { sokoBotId: workspace.sokoBotId, systemKey: { not: null } },
@@ -848,7 +876,8 @@ export async function getCmoOverview(
     workspace,
     learning,
     routines,
-    organizationSlug: organization.slug,
+    organizationSlug: organization?.slug ?? null,
+    projectName: project.name,
     roomId: room.id,
     subscriptionActive: cmoPlan !== null,
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),

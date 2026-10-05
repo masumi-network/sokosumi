@@ -66,6 +66,7 @@ export async function runSokoBotLabIngest(input: {
     where: {
       userId: input.userId,
       workspaceId: input.workspaceId,
+      projectId: null,
       archivedAt: null,
     },
     select: {
