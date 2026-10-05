@@ -57,15 +57,18 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
   public var text: AttributedString
   public var attachment: MessageAttachment?
 
-  /// Reuses parsed Markdown links, preserving text attributes and occurrence order.
-  public static func split(_ text: AttributedString, includeFileAttachments: Bool = true) -> [Self] {
+  /// Reuses parsed Markdown links, preserving text attributes and occurrence order. Media embedded in the text
+  /// (a Markdown image, an HTML `img`, `audio` or `video`) always splits out. A file link stays a link in the text,
+  /// as web draws one inside a sentence (row 15c), unless `linksAreAttachments` asks for every file link, as a
+  /// quote's preview does to pick its attachment.
+  public static func split(_ text: AttributedString, linksAreAttachments: Bool = false) -> [Self] {
     var result: [Self] = []
     var offset = 0
     for run in text.runs {
       let part = AttributedString(text[run.range])
-      var attachment = run.link.flatMap { MessageAttachment(url: $0, label: String(part.characters), kindHint: run[MessageAttachmentKindAttribute.self]) }
-      if !includeFileAttachments, attachment?.kind == .file {
-        attachment = nil
+      let embedded = run[MessageAttachmentKindAttribute.self]
+      let attachment = run.link.flatMap { url in
+        embedded != nil || linksAreAttachments ? MessageAttachment(url: url, label: String(part.characters), kindHint: embedded) : nil
       }
       if let attachment, let last = result.indices.last, result[last].attachment?.url == attachment.url {
         result[last].text.append(part)
@@ -94,7 +97,8 @@ public struct MessageAttachmentSegment: Identifiable, Equatable, Sendable {
 }
 
 extension MessageMarkdown {
-  /// Attachments in document order, grouped where only whitespace separates them.
+  /// The media embedded in the text, in document order, grouped where only whitespace separates them. File links
+  /// in the text are links, not attachments (row 15c).
   static func attachmentRows(in blocks: [MessageMarkdownBlock]) -> [[MessageAttachment]] {
     var rows: [[MessageAttachment]] = []
     var open = false

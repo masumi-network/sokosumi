@@ -28,10 +28,16 @@ export function parseLastUsedAuthMethod(
 }
 
 /** Better Auth names a password sign-in `email` and a code `email-otp`. */
+export function isEmailAuthMethod(
+  method: LastUsedAuthMethod | null,
+): method is "email" | "email-otp" {
+  return method === "email" || method === "email-otp";
+}
+
 export function toProviderAuthMethod(
   method: LastUsedAuthMethod | null,
 ): ProviderAuthMethod | null {
-  return method === "email" || method === "email-otp" ? null : method;
+  return isEmailAuthMethod(method) ? null : method;
 }
 
 /** How the second step of Log in signs in with an email. */
