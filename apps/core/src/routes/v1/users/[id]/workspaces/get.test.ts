@@ -203,6 +203,16 @@ describe("GET /users/{id}/workspaces", () => {
     expect(memberFindManyMock).toHaveBeenCalledTimes(1);
   });
 
+  it("orders memberships oldest first with the id as tie-break, like a new session", async () => {
+    await createApp().request("/me/workspaces");
+
+    expect(memberFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      }),
+    );
+  });
+
   it("creates the missing workspace row of an organization membership", async () => {
     memberFindManyMock.mockResolvedValue([
       {

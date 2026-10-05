@@ -1,3 +1,4 @@
+import { membershipAgeOrderBy } from "@sokosumi/database";
 import { workspaceRepository } from "@sokosumi/database/repositories";
 import { getOrganizationMetadata } from "@sokosumi/utils";
 
@@ -35,7 +36,7 @@ export async function listUserWorkspaces(
       }),
       prisma.member.findMany({
         where: { userId },
-        orderBy: { createdAt: "asc" },
+        orderBy: [...membershipAgeOrderBy],
         select: {
           organization: {
             select: {
