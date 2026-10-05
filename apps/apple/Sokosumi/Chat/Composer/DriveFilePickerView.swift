@@ -5,6 +5,8 @@ import SwiftUI
 struct DriveFilePickerView: View {
   let load: (String, String) async throws -> [Components.Schemas.DriveItem]
   let select: (ComposeAttachment) -> Void
+  /// Whose Files these are, for the root crumb (web `driveWorkspaceRootLabel`); nil reads as the personal workspace.
+  var workspace: WorkspaceSession.Option?
   @Environment(\.dismiss) private var dismiss
   @StateObject private var picker = DrivePicker()
   @State private var folders: [String] = []
@@ -13,13 +15,17 @@ struct DriveFilePickerView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      HStack {
-        Text("Attach from Files").font(.headline)
+      HStack(alignment: .firstTextBaseline) {
+        VStack(alignment: .leading, spacing: 2) {
+          Text("Select from Files").font(.headline)
+          Text("Choose a file from your personal or organization Files").font(.callout).foregroundStyle(.secondary)
+        }
         Spacer()
         Button("Cancel") { dismiss() }.keyboardShortcut(.cancelAction)
       }
       HStack {
-        Button("Files", systemImage: "externaldrive") { folders = []
+        Button(DrivePicker.rootTitle(for: workspace), systemImage: isOrganization ? "building.2" : "house") {
+          folders = []
           query = ""
         }
         ForEach(crumbs, id: \.path) { crumb in
@@ -31,7 +37,7 @@ struct DriveFilePickerView: View {
         }
       }
       .buttonStyle(.borderless)
-      TextField("Search this folder", text: $query).textFieldStyle(.roundedBorder)
+      TextField("Search files…", text: $query).textFieldStyle(.roundedBorder)
       if let error = picker.errorMessage {
         VStack {
           Text(error)
@@ -41,7 +47,7 @@ struct DriveFilePickerView: View {
         if picker.loading {
           ProgressView("Loading files…").frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-          Text(query.isEmpty ? "No files in this folder" : "No matching files")
+          Text(query.isEmpty ? "No files in this folder" : "No files found")
             .foregroundStyle(.secondary).frame(maxWidth: .infinity, maxHeight: .infinity)
         }
       } else {
@@ -73,6 +79,10 @@ struct DriveFilePickerView: View {
     }
   }
 
+  private var isOrganization: Bool {
+    workspace?.workspace.organizationId != nil
+  }
+
   private var crumbs: [(path: String, name: String)] {
     folders.enumerated().map { index, name in
       (path: folders.prefix(index + 1).joined(separator: "/"), name: name)
@@ -93,16 +103,31 @@ private struct DriveItemRow: View {
 
   var body: some View {
     Button(action: activate) {
-      HStack {
-        Label(name, systemImage: symbol)
-        Spacer()
-        if let size {
-          Text(ByteCountFormatter.string(fromByteCount: size, countStyle: .file))
-            .font(.caption).foregroundStyle(.secondary)
+      // Web's row: the name over "Folder", or over the file's size and upload day ("Oct 5").
+      Label {
+        VStack(alignment: .leading, spacing: 2) {
+          Text(name).lineLimit(1).truncationMode(.middle)
+          detail.font(.caption).foregroundStyle(.secondary)
         }
+      } icon: {
+        Image(systemName: symbol)
       }
       .frame(maxWidth: .infinity, alignment: .leading)
       .contentShape(Rectangle())
+    }
+  }
+
+  @ViewBuilder private var detail: some View {
+    switch item {
+    case .folder:
+      Text("Folder")
+    case let .file(file):
+      HStack(spacing: 8) {
+        if file.value1.size > 0 {
+          Text(Int64(file.value1.size), format: .byteCount(style: .file))
+        }
+        Text(file.value1.uploadedAt, format: .dateTime.month(.abbreviated).day())
+      }
     }
   }
 
@@ -117,13 +142,6 @@ private struct DriveItemRow: View {
     switch item {
     case .folder: "folder"
     case .file: "doc"
-    }
-  }
-
-  private var size: Int64? {
-    switch item {
-    case .folder: nil
-    case let .file(file): Int64(file.value1.size)
     }
   }
 

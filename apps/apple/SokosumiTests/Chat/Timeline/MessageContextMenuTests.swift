@@ -375,6 +375,41 @@
         #expect(actions.isSuperset(of: ["cut:", "copy:", "paste:"]), "\(outline(menu))")
       }
 
+      /// Row 41: Delete message asks with web's words (`room-message-row.tsx` `AlertDialog`: title `Message.delete`,
+      /// description `Message.deleteConfirm`). The real alert the menu raises is drawn as the window's sheet, light beside dark.
+      @Test func deleteAsksWithWebsWords() async throws {
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let fixture = try await Self.fixture()
+          defer { fixture.close() }
+          fixture.window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+          let menu = try #require(try await fixture.rightClick(at: fixture.textCenter, in: fixture.text))
+          let delete = try #require(menu.items.firstIndex { $0.title == "Delete message" })
+          menu.performActionForItem(at: delete)
+          let sheet = try await waitForView(in: fixture.host, timeoutMessage: "Delete raised no confirmation") {
+            fixture.window.attachedSheet?.contentView
+          }
+          defer { fixture.window.attachedSheet.map { fixture.window.endSheet($0) } }
+          for _ in 0 ..< 10 {
+            sheet.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+          }
+          let drawn = try #require(sheet.bitmapImageRepForCachingDisplay(in: sheet.bounds))
+          sheet.cacheDisplay(in: sheet.bounds, to: drawn)
+          let bitmap = try CreateChannelGuidanceTests.overWindowBackground(drawn, appearance: #require(fixture.window.appearance))
+          try columns.append([#require(bitmap.cgImage)])
+          // Vision reads text only on a local run (the CI runner returns nil).
+          guard let lines = try ChatCopyAlignmentTests.recognizedLines(in: bitmap) else { continue }
+          let text = lines.joined(separator: " ")
+          #expect(text.contains("Delete this message") && text.contains("Others will see that it was deleted."), "Vision read \(lines)")
+          #expect(!text.contains("Delete message"), "Web's title is Delete alone: \(lines)")
+          #expect(!text.contains("cannot be undone"), "Vision read \(lines)")
+          #expect(lines.contains("Cancel"), "Vision read \(lines)")
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "copy-delete-confirmation.png")
+      }
+
       /// The room composer is not a message row and keeps its editing menu.
       @Test func theComposerKeepsItsEditingMenu() throws {
         let input = MacComposerTextInput.InputView()

@@ -48,11 +48,8 @@ import UniformTypeIdentifiers
     }
 
     private var composerPlaceholder: String {
-      if parentMessageId != nil {
-        return "Reply to thread"
-      }
-      guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
-      return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
+      SokosumiChat.composerPlaceholder(room: workspaces.rooms.first { $0.id == roomId }, currentUserId: workspaces.currentUserId,
+                                       inThread: parentMessageId != nil)
     }
 
     private var preparedContent: ComposerContent {
@@ -92,9 +89,17 @@ import UniformTypeIdentifiers
         }
         ComposerAttachmentsView(uploads: uploads)
         editor
-        if preparedContent.isTooLong, !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
-          Button("Attach message as Markdown file") { attachOverflow() }
-            .disabled(!canAttachFiles)
+        // Web's `belowEditor` over the limit: the hint, and the conversion where the room takes files.
+        if preparedContent.isTooLong {
+          HStack {
+            Text("Too long to send as text").font(.caption).foregroundStyle(.red)
+            Spacer(minLength: 8)
+            if !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
+              Button("Convert to file", systemImage: "doc.text") { attachOverflow() }
+                .controlSize(.small)
+                .disabled(!canAttachFiles)
+            }
+          }
         }
         if announcesTyping {
           RoomTypingLine(typing: workspaces.typing, room: workspaces.rooms.first { $0.id == roomId })
@@ -112,7 +117,7 @@ import UniformTypeIdentifiers
         }, select: { attachment in
           guard canAttachFiles else { return }
           uploads.add(attachment)
-        })
+        }, workspace: workspaces.selection)
       }
       .padding(.horizontal, 8)
       // The Typing line stands in the bottom padding, as on web from `md` up.

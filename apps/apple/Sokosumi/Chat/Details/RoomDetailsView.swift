@@ -75,16 +75,17 @@ struct RoomDetailsView: View {
             Text("Group", tableName: groupNameTable, comment: "Members inspector section for a group Direct's name.")
           }
         }
+        let guests = RoomRoster.guests(in: room)
         Section {
           let members = RoomRoster.members(in: room)
-          if members.isEmpty {
-            Text("No members.").foregroundStyle(.secondary)
+          // Web's roster says so only when it lists nobody at all, Guests included.
+          if members.isEmpty, guests.isEmpty {
+            Text("No members to show.").foregroundStyle(.secondary)
           }
           ForEach(members) { member in
             managedRow(member)
           }
         }
-        let guests = RoomRoster.guests(in: room)
         if !guests.isEmpty {
           Section("Guests") {
             ForEach(guests) { guest in

@@ -18,7 +18,10 @@ struct ParticipantDetailsView: View {
           .presenceBadge(presence, size: 12)
         VStack(alignment: .leading, spacing: 4) {
           Text(profile.name).font(.headline)
-          Text(kindLabel(profile.recipient)).font(.caption).foregroundStyle(.secondary)
+          // Web names the kind of an AI member only (its labelled bot mark); a person's card has no kind line.
+          if let kind = aiKindLabel(profile.recipient) {
+            Text(kind).font(.caption).foregroundStyle(.secondary)
+          }
           // Web's hover card writes availability out for humans only; AI members
           // are pinned online and the mark already says so.
           if case .human = profile.recipient {
@@ -50,10 +53,11 @@ struct ParticipantDetailsView: View {
     .frame(minWidth: 240, idealWidth: 280, maxWidth: 360, alignment: .leading)
   }
 
-  private func kindLabel(_ recipient: DirectRecipient) -> String {
+  /// Web `coworkerBadge` / `personalAssistantBadge`.
+  private func aiKindLabel(_ recipient: DirectRecipient) -> String? {
     switch recipient {
-    case .human: "Person"
-    case .coworker: "Coworker"
+    case .human: nil
+    case .coworker: "AI coworker"
     case .sokoBot: "Personal assistant"
     }
   }
