@@ -5,6 +5,7 @@ import { OrganizationSetup } from "../components/organization-setup";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import {
+  ORGANIZATION_STEP,
   WORKSPACE_FAILED_ERROR,
   WorkspaceGate,
 } from "../components/workspace-gate";
@@ -15,6 +16,11 @@ import {
   createOrganizationWorkspace,
   createPersonalWorkspace,
 } from "./workspace-actions";
+
+/** A repeated query param arrives as a list; the first one counts. */
+function first(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
 
 interface HomePageProps {
   searchParams: Promise<{
@@ -28,10 +34,8 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
   const params = await searchParams;
-  // A repeated query param arrives as a list; the first one counts.
-  const [error, step] = [params.error, params.step].map((value) =>
-    Array.isArray(value) ? value[0] : value,
-  );
+  const error = first(params.error);
+  const step = first(params.step);
   const signedOut = (signedOutError: string | undefined) => (
     <SignedOut
       error={signedOutError}
@@ -60,7 +64,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   if (data.data.workspaces.length === 0) {
-    if (step === "organization") {
+    if (step === ORGANIZATION_STEP) {
       return (
         <OrganizationSetup
           createOrganizationWorkspace={createOrganizationWorkspace}

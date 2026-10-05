@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useEffect, useRef } from "react";
 
 import type { OrganizationFormState } from "../app/workspace-actions";
 import { Mascot } from "./mascot";
@@ -37,14 +37,30 @@ export function OrganizationSetup({
     INITIAL_STATE,
   );
   const { errors } = state;
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // After a failed submit, move to the first field to fix; its error is read
+  // out with it. The remount below would otherwise drop focus to the page.
+  useEffect(() => {
+    if (state.attempt === 0) return;
+    formRef.current
+      ?.querySelector<HTMLInputElement>('[aria-invalid="true"]')
+      ?.focus();
+  }, [state.attempt]);
 
   return (
     <main className="hero">
       <div className="hero-copy">
         <h1>Set up your organization.</h1>
-        {errors.form ? <p role="alert">{errors.form}</p> : null}
-        {/* A form resets after its action; remounting shows the kept values. */}
-        <form key={state.attempt} className="fields" action={formAction}>
+        {/* A form resets after its action; remounting shows the kept values
+            and reads out a repeated alert again. */}
+        <form
+          key={state.attempt}
+          ref={formRef}
+          className="fields"
+          action={formAction}
+        >
+          {errors.form ? <p role="alert">{errors.form}</p> : null}
           <div className="field">
             <label htmlFor="organization-name">Organization name</label>
             <input

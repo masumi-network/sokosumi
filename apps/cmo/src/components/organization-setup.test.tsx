@@ -83,6 +83,8 @@ it("shows errors by their fields and keeps what was typed", async () => {
     "#organization-website",
   );
   expect(shownWebsite?.value).toBe("acme");
+  // Focus moves to the first field to fix, which reads out its error.
+  expect(document.activeElement).toBe(shownWebsite);
   expect(shownWebsite?.getAttribute("aria-invalid")).toBe("true");
   expect(shownWebsite?.getAttribute("aria-describedby")).toBe(
     "organization-website-hint organization-website-error",
@@ -93,7 +95,8 @@ it("shows errors by their fields and keeps what was typed", async () => {
   expect(
     container.querySelector<HTMLInputElement>("#organization-name")?.value,
   ).toBe("Acme");
-  expect(container.querySelector('[role="alert"]')?.textContent).toBe(
+  // Inside the remounted form, so a repeated failure is read out again.
+  expect(container.querySelector('form [role="alert"]')?.textContent).toBe(
     "That did not work. Try again.",
   );
 

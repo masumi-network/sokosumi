@@ -11,9 +11,10 @@ interface SubmitButtonProps {
 }
 
 /**
- * Submits its form with its own action. Every button in the form stays
- * disabled while any of them runs; only the one that was pressed shows the
- * spinner.
+ * Submits its form, with its own action when it has one. Every button in the
+ * form stays disabled while any of them runs. With its own action, only the
+ * one that was pressed shows the spinner; without, it shows the spinner
+ * whenever the form runs, so give a form like that just this one button.
  */
 export function SubmitButton({
   className,

@@ -9,14 +9,28 @@ import { WORKSPACE_FAILED_ERROR } from "../components/workspace-gate";
 import { asSignedInPerson } from "../lib/core";
 
 /**
+ * As the signed-in person, or home when the session is gone (signed out in
+ * another tab): the home page then shows where they stand.
+ */
+async function asSignedInPersonOrHome() {
+  try {
+    return await asSignedInPerson(await headers());
+  } catch (error) {
+    unstable_rethrow(error);
+    redirect("/");
+  }
+}
+
+/**
  * The workspace gate's "Just me". An existing personal workspace (409) is
  * the goal too, so a double submit just lets the person in.
  */
 export async function createPersonalWorkspace() {
+  const asPerson = await asSignedInPersonOrHome();
   let status: number | null = null;
   try {
     const { response } = await postUsersByIdWorkspaces({
-      ...(await asSignedInPerson(await headers())),
+      ...asPerson,
       path: { id: "me" },
       body: { kind: "personal" },
     });
@@ -26,6 +40,8 @@ export async function createPersonalWorkspace() {
     unstable_rethrow(error);
     console.error("Creating the personal workspace failed", error);
   }
+  // Core refused the token (revoked early): home shows the signed-out page.
+  if (status === 401) redirect("/");
   redirect(
     status === 201 || status === 409
       ? "/"
@@ -54,6 +70,8 @@ export async function createOrganizationWorkspace(
   const websiteUrl = String(formData.get("websiteUrl") ?? "").trim();
   const result = { attempt: previous.attempt + 1, name, websiteUrl };
 
+  // Core's own rules for this body (user-workspace.schema.ts), checked here
+  // so the person sees which field to fix.
   const errors: OrganizationFormState["errors"] = {};
   if (name.length < 2 || name.length > 50) {
     errors.name = "Use 2 to 50 characters.";
@@ -63,15 +81,7 @@ export async function createOrganizationWorkspace(
   }
   if (errors.name || errors.websiteUrl) return { ...result, errors };
 
-  let asPerson: Awaited<ReturnType<typeof asSignedInPerson>>;
-  try {
-    asPerson = await asSignedInPerson(await headers());
-  } catch (error) {
-    unstable_rethrow(error);
-    // Signed out elsewhere: the home page shows where they stand now.
-    redirect("/");
-  }
-
+  const asPerson = await asSignedInPersonOrHome();
   let status: number | null = null;
   try {
     const { response } = await postUsersByIdWorkspaces({
@@ -84,7 +94,8 @@ export async function createOrganizationWorkspace(
     unstable_rethrow(error);
     console.error("Creating the organization workspace failed", error);
   }
-  if (status === 201) redirect("/");
+  // 201: Core made it preferred. 401: the token was revoked early.
+  if (status === 201 || status === 401) redirect("/");
 
   return {
     ...result,

@@ -34,25 +34,39 @@ const { createOrganizationWorkspace, createPersonalWorkspace } = await import(
   "./workspace-actions"
 );
 
-async function settle(action: () => Promise<void>) {
-  await action().catch((error: unknown) => {
+const EMPTY = { attempt: 0, name: "", websiteUrl: "", errors: {} };
+
+/** Runs an action to its end; a redirect ends it the way Next does. */
+async function settle(run: Promise<unknown>): Promise<void> {
+  await run.catch((error: unknown) => {
     if (!String(error).includes("NEXT_REDIRECT")) throw error;
   });
 }
 
-describe("createPersonalWorkspace", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getAccessToken.mockResolvedValue({ accessToken: "token_123" });
+function form(name: string, websiteUrl: string) {
+  const data = new FormData();
+  data.set("name", name);
+  data.set("websiteUrl", websiteUrl);
+  return data;
+}
+
+function coreAnswers(status: number) {
+  postUsersByIdWorkspaces.mockResolvedValue({
+    ...(status < 300 ? { data: { data: { id: "ws_1" } } } : { error: {} }),
+    response: new Response(null, { status }),
   });
+}
 
+beforeEach(() => {
+  vi.clearAllMocks();
+  getAccessToken.mockResolvedValue({ accessToken: "token_123" });
+});
+
+describe("createPersonalWorkspace", () => {
   it("creates the personal workspace as the signed in person, then goes home", async () => {
-    postUsersByIdWorkspaces.mockResolvedValue({
-      data: { data: { id: "ws_1" } },
-      response: new Response(null, { status: 201 }),
-    });
+    coreAnswers(201);
 
-    await settle(createPersonalWorkspace);
+    await settle(createPersonalWorkspace());
 
     expect(postUsersByIdWorkspaces).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -65,25 +79,15 @@ describe("createPersonalWorkspace", () => {
   });
 
   it("goes home when the personal workspace already exists", async () => {
-    postUsersByIdWorkspaces.mockResolvedValue({
-      error: { error: "Conflict" },
-      response: new Response(null, { status: 409 }),
-    });
+    coreAnswers(409);
 
-    await settle(createPersonalWorkspace);
+    await settle(createPersonalWorkspace());
 
     expect(redirectMock).toHaveBeenCalledWith("/");
   });
 
   it.each([
-    [
-      "Core refuses",
-      () =>
-        postUsersByIdWorkspaces.mockResolvedValue({
-          error: { error: "Internal Server Error" },
-          response: new Response(null, { status: 500 }),
-        }),
-    ],
+    ["Core refuses", () => coreAnswers(500)],
     [
       "Core cannot be reached",
       () =>
@@ -91,46 +95,22 @@ describe("createPersonalWorkspace", () => {
           new TypeError("fetch failed"),
         ),
     ],
-    [
-      "the access token cannot be read",
-      () => getAccessToken.mockRejectedValue(new Error("ACCOUNT_NOT_FOUND")),
-    ],
   ])("goes home with an error when %s", async (_label, arrange) => {
     arrange();
 
-    await settle(createPersonalWorkspace);
+    await settle(createPersonalWorkspace());
 
     expect(redirectMock).toHaveBeenCalledWith("/?error=workspace_failed");
   });
 });
 
 describe("createOrganizationWorkspace", () => {
-  const EMPTY = { attempt: 0, name: "", websiteUrl: "", errors: {} };
-
-  function form(name: string, websiteUrl: string) {
-    const data = new FormData();
-    data.set("name", name);
-    data.set("websiteUrl", websiteUrl);
-    return data;
-  }
-
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getAccessToken.mockResolvedValue({ accessToken: "token_123" });
-  });
-
   it("creates the organization as the signed in person, then goes home", async () => {
-    postUsersByIdWorkspaces.mockResolvedValue({
-      data: { data: { id: "ws_1" } },
-      response: new Response(null, { status: 201 }),
-    });
+    coreAnswers(201);
 
-    await createOrganizationWorkspace(
-      EMPTY,
-      form("  Acme  ", " acme.com "),
-    ).catch((error: unknown) => {
-      if (!String(error).includes("NEXT_REDIRECT")) throw error;
-    });
+    await settle(
+      createOrganizationWorkspace(EMPTY, form("  Acme  ", " acme.com ")),
+    );
 
     expect(postUsersByIdWorkspaces).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -170,10 +150,7 @@ describe("createOrganizationWorkspace", () => {
   });
 
   it("says when the organization limit is reached", async () => {
-    postUsersByIdWorkspaces.mockResolvedValue({
-      error: { error: "Forbidden" },
-      response: new Response(null, { status: 403 }),
-    });
+    coreAnswers(403);
 
     const state = await createOrganizationWorkspace(
       EMPTY,
@@ -187,14 +164,7 @@ describe("createOrganizationWorkspace", () => {
   });
 
   it.each([
-    [
-      "Core refuses",
-      () =>
-        postUsersByIdWorkspaces.mockResolvedValue({
-          error: { error: "Unprocessable Entity" },
-          response: new Response(null, { status: 422 }),
-        }),
-    ],
+    ["Core refuses", () => coreAnswers(422)],
     [
       "Core cannot be reached",
       () =>
@@ -212,17 +182,37 @@ describe("createOrganizationWorkspace", () => {
 
     expect(state.errors).toEqual({ form: "That did not work. Try again." });
   });
+});
 
-  it("goes home when the session is gone", async () => {
-    getAccessToken.mockRejectedValue(new Error("ACCOUNT_NOT_FOUND"));
+describe("both workspace actions", () => {
+  const actions = [
+    ["Just me", () => createPersonalWorkspace()],
+    [
+      "the organization step",
+      () => createOrganizationWorkspace(EMPTY, form("Acme", "acme.com")),
+    ],
+  ] as const;
 
-    await createOrganizationWorkspace(EMPTY, form("Acme", "acme.com")).catch(
-      (error: unknown) => {
-        if (!String(error).includes("NEXT_REDIRECT")) throw error;
-      },
-    );
+  it.each(actions)(
+    "%s goes home when the access token cannot be read",
+    async (_label, run) => {
+      getAccessToken.mockRejectedValue(new Error("ACCOUNT_NOT_FOUND"));
 
-    expect(redirectMock).toHaveBeenCalledWith("/");
-    expect(postUsersByIdWorkspaces).not.toHaveBeenCalled();
-  });
+      await settle(run());
+
+      expect(redirectMock).toHaveBeenCalledWith("/");
+      expect(postUsersByIdWorkspaces).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each(actions)(
+    "%s goes home when Core refuses the token",
+    async (_label, run) => {
+      coreAnswers(401);
+
+      await settle(run());
+
+      expect(redirectMock).toHaveBeenCalledWith("/");
+    },
+  );
 });

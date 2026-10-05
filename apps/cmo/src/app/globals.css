@@ -262,7 +262,7 @@ p {
   gap: 4px;
 }
 
-.choice:hover:enabled:not([aria-disabled="true"]) {
+.choice:hover:not(:disabled) {
   border-color: var(--foreground);
   background: var(--surface);
 }
@@ -270,11 +270,6 @@ p {
 .choice:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-.choice[aria-disabled="true"] {
-  cursor: not-allowed;
-  color: var(--muted);
 }
 
 .choice[aria-busy="true"] {
@@ -317,7 +312,8 @@ p {
 .field input {
   min-height: 48px;
   padding: 0 16px;
-  border: 1px solid var(--border);
+  /* --border is too faint for a control's edge (WCAG 1.4.11 asks 3:1). */
+  border: 1px solid var(--muted);
   border-radius: var(--radius);
   background: var(--background);
   color: var(--foreground);

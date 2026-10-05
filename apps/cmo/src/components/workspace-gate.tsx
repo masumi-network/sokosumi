@@ -4,6 +4,9 @@ import { SubmitButton } from "./submit-button";
 /** The home page's `error` after a choice that did not create a workspace. */
 export const WORKSPACE_FAILED_ERROR = "workspace_failed";
 
+/** The home page's `step` that shows the organization form. */
+export const ORGANIZATION_STEP = "organization";
+
 interface WorkspaceGateProps {
   /** The last choice did not create a workspace. */
   failed: boolean;
@@ -33,7 +36,7 @@ export function WorkspaceGate({
               A personal workspace for you alone.
             </span>
           </SubmitButton>
-          <a className="choice" href="/?step=organization">
+          <a className="choice" href={`/?step=${ORGANIZATION_STEP}`}>
             <span className="choice-title">My organization</span>
             <span className="choice-detail">
               A shared workspace for your team.
