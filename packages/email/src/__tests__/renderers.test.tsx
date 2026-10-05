@@ -43,34 +43,6 @@ describe("email renderers", () => {
     expect(rendered.html).toContain("https://example.com/verify");
   });
 
-  it("names the app a person signed up for in the verification email", async () => {
-    const rendered = await renderVerificationEmail({
-      locale: "en",
-      name: "Ada",
-      clientName: "CMO",
-      verificationLink: "https://example.com/verify",
-    });
-
-    expect(rendered.subject).toBe("Confirm your email for CMO");
-    expect(rendered.html).toContain("Confirm your email for CMO");
-    expect(rendered.html).toContain(
-      "You signed up for CMO with a Sokosumi account.",
-    );
-    expect(rendered.html).toContain("Hello Ada");
-    expect(rendered.html).toContain("https://example.com/verify");
-  });
-
-  it("names the app in the reader's language", async () => {
-    const rendered = await renderVerificationEmail({
-      locale: "de",
-      name: "Ada",
-      clientName: "CMO",
-      verificationLink: "https://example.com/verify",
-    });
-
-    expect(rendered.subject).toBe("Bestätige deine E-Mail-Adresse für CMO");
-  });
-
   it("renders reset password emails with localized copy", async () => {
     const rendered = await renderResetPasswordEmail({
       locale: "de",

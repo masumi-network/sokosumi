@@ -1,9 +1,6 @@
 import { apiKey } from "@better-auth/api-key";
 import { i18n } from "@better-auth/i18n";
-import {
-  getOAuthProviderState,
-  oauthProvider,
-} from "@better-auth/oauth-provider";
+import { oauthProvider } from "@better-auth/oauth-provider";
 import { passkey } from "@better-auth/passkey";
 import { prismaAdapter } from "@better-auth/prisma-adapter";
 import { stripe } from "@better-auth/stripe";
@@ -122,41 +119,6 @@ const betterAuthCookiePrefixParams = {
 const betterAuthCookiePrefix = resolveBetterAuthCookiePrefix(
   betterAuthCookiePrefixParams,
 );
-
-interface SignUpOAuthClient {
-  clientId: string;
-  name: string;
-}
-
-/**
- * The app a sign-up came from, when the request carries an OAuth request this
- * provider signed (Web's auth client adds `oauth_query`, and the provider's
- * hook verifies it before the endpoint runs). A disabled or unnamed client
- * gets Sokosumi's own email, and so does a failed lookup: naming the app is
- * not worth losing the email.
- */
-async function getSignUpOAuthClient(): Promise<SignUpOAuthClient | undefined> {
-  try {
-    const query = (await getOAuthProviderState())?.query;
-    const clientId = query
-      ? new URLSearchParams(query).get("client_id")
-      : undefined;
-    if (!clientId) {
-      return undefined;
-    }
-    const client = await prisma.oauthClient.findFirst({
-      where: { clientId, disabled: false },
-      select: { name: true },
-    });
-    return client?.name?.trim() ? { clientId, name: client.name } : undefined;
-  } catch (error) {
-    captureExternalServiceError(error, {
-      label: "verification_email_client",
-      sentry: { tags: { context: "verification_email_client" } },
-    });
-    return undefined;
-  }
-}
 
 async function grantSignupBonusForCreatedUser(userId: string): Promise<void> {
   const { SIGNUP_BONUS_CREDITS, SIGNUP_BONUS_TTL_DAYS } = getEnv();
@@ -585,15 +547,12 @@ export const auth = betterAuth({
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }, request) => {
-      const client = await getSignUpOAuthClient();
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
-        clientName: client?.name,
         verificationLink: anchorVerificationCallbackToWebApp(
           url,
           webAppBaseUrl,
-          client?.clientId,
         ),
       });
 
@@ -618,7 +577,6 @@ export const auth = betterAuth({
         }),
       );
     },
-    sendOnSignUp: true,
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
     autoSignInAfterVerification: true,
   },
