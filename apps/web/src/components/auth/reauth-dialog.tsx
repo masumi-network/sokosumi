@@ -5,10 +5,9 @@ import { Loader2, Mail } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
-
+import { EmailCodeForm } from "@/components/auth/email-code-form";
 import { useAuthCaptcha } from "@/components/auth-captcha";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -50,10 +49,11 @@ interface ReauthDialogProps {
  * that refreshes it, so a new sign-in is the only way to clear the gate. The
  * password path signs in behind the dialog and keeps the viewer on the page.
  * The social path leaves for the provider and returns to the same route. The
- * email path sends a magic link, which is the only credential a viewer who
- * signed up that way owns: Better Auth's magic-link sign-up creates no
- * `account` row, so such a viewer has neither a password nor a provider. All
- * three end with a fresh session; repeating the gated action is the caller's.
+ * email path emails a code that is typed back into the dialog, so it also
+ * keeps the viewer on the page. It is the only credential a viewer who signed
+ * up that way owns: Better Auth's email-code sign-up creates no `account` row,
+ * so such a viewer has neither a password nor a provider. All three end with
+ * a fresh session; repeating the gated action is the caller's.
  */
 export function ReauthDialog({
   accounts,
@@ -62,16 +62,12 @@ export function ReauthDialog({
   open,
 }: ReauthDialogProps) {
   const t = useTranslations("Components.ReauthDialog");
-  const passwordCaptcha = useAuthCaptcha("signin");
-  const magicLinkCaptcha = useAuthCaptcha("magic-link");
+  const authErrorsT = useTranslations("Components.AuthErrors");
   const pathname = usePathname();
   const { data: session, isPending: isLoadingSession } = useSession();
   const [password, setPassword] = useState("");
-  // Better Auth defaults this to true. Signing in again mints a new session,
-  // so without the same choice the dialog would quietly turn a viewer's
-  // "do not keep me signed in" into a persistent cookie.
-  const [rememberMe, setRememberMe] = useState(true);
-  const [magicLinkSent, setMagicLinkSent] = useState(false);
+  // When the code went out; null until one has.
+  const [emailCodeSentAt, setEmailCodeSentAt] = useState<number | null>(null);
   // `fromPassword` keeps the field's invalid marking on the path that owns it.
   // A failed provider or email attempt must not mark an untouched password.
   const [error, setError] = useState<{
@@ -85,25 +81,29 @@ export function ReauthDialog({
   const hasPasswordAccount = accounts.some(
     (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
+  // One check for both email paths. Tokens are single-use and the widget
+  // resets after each, so a visitor Cloudflare wants to see is asked once
+  // rather than once per path.
+  const captcha = useAuthCaptcha(hasPasswordAccount ? "signin" : "email-code");
   // Read from the provider table rather than from the rows: Better Auth is
   // unique on providerId plus accountId, so two Google links are legal and
   // mapping the rows would render the same button twice under one React key.
   const socialProviders = SOCIAL_PROVIDERS.filter((provider) =>
     accounts.some((account) => account.providerId === provider),
   );
-  // Opening a magic link while the address is unproven makes Better Auth
+  // Signing in by email while the address is unproven makes Better Auth
   // delete every linked account and revoke every session
   // (`revokeUnprovenAccountAccess`). Core does not require verification, so
   // an unverified viewer is ordinary and must never be offered this.
-  // A magic-link sign-up is created verified, so the path stays open to the
+  // An email-code sign-up is created verified, so the path stays open to the
   // viewers who own nothing else.
-  const canUseMagicLink = session?.user.emailVerified === true;
+  const canUseEmailCode = session?.user.emailVerified === true;
   // Better Auth reports a 401 or a failed first load as resolved-but-null, so
   // this is a third state, not a slow one. Every offer below needs the address
   // the session carries, and none of them can work without it.
   const hasLostSession = !isLoadingSession && session == null;
   const hasNoMethod =
-    !hasPasswordAccount && socialProviders.length === 0 && !canUseMagicLink;
+    !hasPasswordAccount && socialProviders.length === 0 && !canUseEmailCode;
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (isSubmitting) {
@@ -113,7 +113,7 @@ export function ReauthDialog({
     if (!nextOpen) {
       setPassword("");
       setError(null);
-      setMagicLinkSent(false);
+      setEmailCodeSentAt(null);
     }
 
     onOpenChange(nextOpen);
@@ -125,12 +125,14 @@ export function ReauthDialog({
     setError(null);
 
     try {
-      const result = await passwordCaptcha.runWithCaptcha((fetchOptions) =>
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
         authClient.signIn.email({
           fetchOptions,
           email,
           password,
-          rememberMe,
+          // Persistent session cookie (Max-Age). false → Better Auth omits
+          // Max-Age; iOS then drops the cookie when it kills the PWA.
+          rememberMe: true,
         }),
       );
 
@@ -139,7 +141,7 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: true,
-          message: passwordCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
             describeSignInError(result.error),
           ),
@@ -148,14 +150,7 @@ export function ReauthDialog({
       }
 
       setPassword("");
-      // A link may have been sent before the viewer chose the password
-      // instead. Leaving the notice up would offer a stale link next time.
-      setMagicLinkSent(false);
-      // This path keeps the document, so a client the Ably singleton retired
-      // for the lost session would outlive the session that lost it.
-      discardRetiredAblyRealtimeClientAfterSignIn();
-      onOpenChange(false);
-      onReauthenticated();
+      finishReauthentication();
     } catch {
       setError({ fromPassword: true, message: t("passwordError") });
     } finally {
@@ -173,22 +168,34 @@ export function ReauthDialog({
     message?: string;
   }): string => {
     if (error.code === AuthErrorCode.TERMS_NOT_ACCEPTED) {
-      return t("termsNotAccepted");
+      return authErrorsT("termsNotAccepted");
     }
 
     return error.message ?? t("passwordError");
   };
 
-  const handleMagicLinkSubmit = async () => {
+  /** Both in-place paths end here: the document stays, the session is new. */
+  const finishReauthentication = () => {
+    // A code may have been sent before the viewer chose the password instead.
+    // Leaving its field up would ask for a stale code next time.
+    setEmailCodeSentAt(null);
+    // This path keeps the document, so a client the Ably singleton retired
+    // for the lost session would outlive the session that lost it.
+    discardRetiredAblyRealtimeClientAfterSignIn();
+    onOpenChange(false);
+    onReauthenticated();
+  };
+
+  const handleEmailCodeSend = async () => {
     setIsSubmitting(true);
     setError(null);
 
     try {
-      const result = await magicLinkCaptcha.runWithCaptcha((fetchOptions) =>
-        authClient.signIn.magicLink({
+      const result = await captcha.runWithCaptcha((fetchOptions) =>
+        authClient.emailOtp.sendVerificationOtp({
           fetchOptions,
           email,
-          callbackURL: getAbsoluteAuthRedirectUrl(pathname),
+          type: "sign-in",
         }),
       );
 
@@ -197,20 +204,30 @@ export function ReauthDialog({
       if (result.error) {
         setError({
           fromPassword: false,
-          message: magicLinkCaptcha.getErrorMessage(
+          message: captcha.getErrorMessage(
             result.error,
-            result.error.message ?? t("magicLinkError"),
+            result.error.message ?? t("emailCodeError"),
           ),
         });
         return;
       }
 
-      setMagicLinkSent(true);
+      setEmailCodeSentAt(Date.now());
     } catch {
-      setError({ fromPassword: false, message: t("magicLinkError") });
+      setError({ fromPassword: false, message: t("emailCodeError") });
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleEmailCodeSubmit = async (code: string) => {
+    const result = await authClient.signIn.emailOtp({ email, otp: code });
+    if (result.error) {
+      return result.error;
+    }
+
+    finishReauthentication();
+    return undefined;
   };
 
   const handleSocialSubmit = async (provider: SocialProvider) => {
@@ -269,20 +286,8 @@ export function ReauthDialog({
                     type="password"
                     value={password}
                   />
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={rememberMe}
-                      id="reauth-remember-me"
-                      onCheckedChange={(checked) =>
-                        setRememberMe(checked === true)
-                      }
-                    />
-                    <Label className="font-normal" htmlFor="reauth-remember-me">
-                      {t("rememberMe")}
-                    </Label>
-                  </div>
                 </fieldset>
-                {passwordCaptcha.widget}
+                {captcha.widget}
                 <Button
                   className="w-full"
                   disabled={
@@ -325,29 +330,40 @@ export function ReauthDialog({
               </div>
             ) : null}
 
-            {canUseMagicLink ? (
+            {canUseEmailCode ? (
               <div className="space-y-2">
                 {hasPasswordAccount || socialProviders.length > 0 ? (
                   <p className="text-muted-foreground text-sm">
                     {t("orEmail")}
                   </p>
                 ) : null}
-                {magicLinkSent ? (
-                  <p className="text-sm" role="status">
-                    {t("magicLinkSent", { email })}
-                  </p>
-                ) : null}
-                {magicLinkCaptcha.widget}
-                <Button
-                  className="w-full"
-                  disabled={isSubmitting || email.length === 0}
-                  onClick={handleMagicLinkSubmit}
-                  type="button"
-                  variant="outline"
-                >
-                  <Mail />
-                  {magicLinkSent ? t("resendEmail") : t("continueWithEmail")}
-                </Button>
+                {/* With a password, the widget sits above Confirm. */}
+                {hasPasswordAccount ? null : captcha.widget}
+                {emailCodeSentAt !== null ? (
+                  <EmailCodeForm
+                    email={email}
+                    sentAt={emailCodeSentAt}
+                    submitLabel={t("confirmCode")}
+                    onSubmitCode={handleEmailCodeSubmit}
+                    onResend={() => {
+                      void handleEmailCodeSend();
+                    }}
+                    isResending={isSubmitting}
+                  />
+                ) : (
+                  <Button
+                    className="w-full"
+                    disabled={isSubmitting || email.length === 0}
+                    onClick={() => {
+                      void handleEmailCodeSend();
+                    }}
+                    type="button"
+                    variant="outline"
+                  >
+                    <Mail />
+                    {t("continueWithEmail")}
+                  </Button>
+                )}
               </div>
             ) : null}
 

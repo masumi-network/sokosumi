@@ -29,6 +29,8 @@ interface GetSessionOptions {
 export interface OAuthClientPublic {
   client_id?: string;
   client_name?: string;
+  client_uri?: string;
+  logo_uri?: string;
 }
 
 const CORE_GET_SESSION_PATH = "/auth/get-session";
@@ -376,6 +378,22 @@ export async function getOAuthClientPublicPrelogin(
   }
 }
 
+/** The requested path and query, as `proxy` stamped them on the request. */
+export async function getRequestPath(): Promise<string> {
+  const headersList = await getRequestHeaders();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const searchParams = headersList.get("x-search-params") ?? "";
+  return pathname + searchParams;
+}
+
+/**
+ * `/signin` carrying the page the user was on. Shared with the app-shell gates,
+ * which redirect for a signed-out browser but must not for a Core outage.
+ */
+export async function signInRedirectPath(): Promise<string> {
+  return `/signin?returnUrl=${encodeURIComponent(await getRequestPath())}`;
+}
+
 /**
  * Gets the current user's session or redirects to the login page if no valid session is found.
  * This is useful for protecting routes that require session-based authentication.
@@ -383,17 +401,6 @@ export async function getOAuthClientPublicPrelogin(
  * @returns Promise resolving to the user's session if authenticated
  * @throws {NextError} Redirects to login page with return URL when not authenticated
  */
-/**
- * `/signin` carrying the page the user was on. Shared with the app-shell gates,
- * which redirect for a signed-out browser but must not for a Core outage.
- */
-export async function signInRedirectPath(): Promise<string> {
-  const headersList = await getRequestHeaders();
-  const pathname = headersList.get("x-pathname") ?? "";
-  const searchParams = headersList.get("x-search-params") ?? "";
-  return `/signin?returnUrl=${encodeURIComponent(pathname + searchParams)}`;
-}
-
 export async function getSessionOrRedirect(): Promise<Session> {
   const result = await getSessionResult();
   // Redirect only for an answered read that carried no session. A Core stall

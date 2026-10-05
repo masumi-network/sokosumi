@@ -1,5 +1,4 @@
 import { createHash } from "node:crypto";
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
@@ -142,11 +141,11 @@ export class SokoBotTaskboardSyncService {
     const bots = await prisma.sokoBot.findMany({
       orderBy: { id: "asc" },
       take: 50,
-      where: withBetaBotOwner({
+      where: {
         ...(scan.cursorId ? { id: { gt: scan.cursorId } } : {}),
         archivedAt: null,
         adminPausedAt: null,
-      }),
+      },
       select: {
         id: true,
         name: true,
@@ -460,12 +459,13 @@ export class SokoBotTaskboardSyncService {
       });
     const attention = await findAttentionItems({
       id: bot.id,
+      userId: bot.userId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
       cutoverAt: scan.createdAt,
     });
-    const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
+    const followUps = await followUpsBlock(bot, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
     // Every turn the bot starts counts, assigned work included. Exempting it
     // meant anyone who could put a Task on the bot could drive unlimited

@@ -39,6 +39,13 @@ vi.mock("@sokosumi/database/repositories", async (importOriginal) => ({
   },
 }));
 
+// Calendar reads pass the organization Seat gate (ADR 0048); every caller
+// here is seated.
+vi.mock("@sokosumi/database/helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/database/helpers")>()),
+  hasAssignedOrganizationSeat: async () => true,
+}));
+
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
   authMiddleware: (await import("@/test-fixtures/auth-middleware"))

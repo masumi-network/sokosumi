@@ -13,6 +13,7 @@ import {
   RiskClassification,
   SokosumiJobStatus,
   StripeSubscriptionStatus,
+  TaskEventStatus,
   TaskStatus,
 } from "@sokosumi/core-client";
 import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
@@ -42,6 +43,13 @@ describe("generated Core enum drift guard", () => {
       COMPLETED: "COMPLETED",
       FAILED: "FAILED",
       CANCELED: "CANCELED",
+    });
+  });
+
+  it("TaskEventStatus is TaskStatus plus the event-only CREATED", () => {
+    expect({ ...TaskEventStatus }).toEqual({
+      ...TaskStatus,
+      CREATED: "CREATED",
     });
   });
 

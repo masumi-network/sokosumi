@@ -68,7 +68,6 @@ export async function SchedulesPageContent({
         selectedState={state}
         canCreate={canCreate}
         canCreatePrivate={activeOrganizationId !== null}
-        currentUserId={session?.user.id ?? null}
       />
     </div>
   );

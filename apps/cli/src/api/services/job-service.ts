@@ -12,7 +12,7 @@ import { listResponse, requireId } from "../models/parse-helpers.js";
 
 const JOBS_PATH = "/v1/jobs";
 
-export interface SubmitJobInputData {
+interface SubmitJobInputData {
   eventId?: string;
   inputData?: Record<string, unknown>;
 }

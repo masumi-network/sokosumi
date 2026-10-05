@@ -1,3 +1,6 @@
+/** The account page, where a person without a password can set one. */
+export const ACCOUNT_HREF = "/account";
+
 /**
  * Where the notification settings live.
  *

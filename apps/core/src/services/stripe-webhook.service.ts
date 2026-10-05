@@ -47,7 +47,6 @@ export const stripeWebhookService = {
             extra: {
               eventId: event.id,
               customer: customer.id,
-              email: customer.email,
             },
           });
           throw error;

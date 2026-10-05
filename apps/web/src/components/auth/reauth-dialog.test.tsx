@@ -1,5 +1,11 @@
 import type { Account } from "@sokosumi/utils";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -36,7 +42,8 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 }));
 
 const mockSignInEmail = vi.fn();
-const mockSignInMagicLink = vi.fn();
+const mockSendEmailCode = vi.fn();
+const mockSignInEmailCode = vi.fn();
 const mockSignInSocial = vi.fn();
 
 vi.mock("next/navigation", () => ({
@@ -49,9 +56,12 @@ vi.mock("next-intl", () => ({
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
+    emailOtp: {
+      sendVerificationOtp: (...args: unknown[]) => mockSendEmailCode(...args),
+    },
     signIn: {
       email: (...args: unknown[]) => mockSignInEmail(...args),
-      magicLink: (...args: unknown[]) => mockSignInMagicLink(...args),
+      emailOtp: (...args: unknown[]) => mockSignInEmailCode(...args),
       social: (...args: unknown[]) => mockSignInSocial(...args),
     },
   },
@@ -105,8 +115,13 @@ describe("ReauthDialog", () => {
     mockDiscardRetiredAblyRealtimeClient.mockClear();
     mockSignInEmail.mockReset();
     mockSignInEmail.mockResolvedValue({ data: {}, error: null });
-    mockSignInMagicLink.mockReset();
-    mockSignInMagicLink.mockResolvedValue({ data: {}, error: null });
+    mockSendEmailCode.mockReset();
+    mockSendEmailCode.mockResolvedValue({
+      data: { success: true },
+      error: null,
+    });
+    mockSignInEmailCode.mockReset();
+    mockSignInEmailCode.mockResolvedValue({ data: {}, error: null });
     mockSignInSocial.mockReset();
     mockSignInSocial.mockResolvedValue({ data: {}, error: null });
   });
@@ -150,27 +165,11 @@ describe("ReauthDialog", () => {
     });
   });
 
-  it("carries a cleared Keep me signed in through to the new session", async () => {
+  // SOK-1259: every log-in is persistent, so there is nothing to choose.
+  it("offers no Keep me logged in choice", () => {
     renderDialog([passwordAccount]);
 
-    const user = userEvent.setup();
-    // Better Auth defaults rememberMe to true, so a new session would
-    // otherwise upgrade a deliberately non-persistent cookie.
-    await user.click(screen.getByRole("checkbox", { name: "rememberMe" }));
-    await user.type(
-      screen.getByTestId("reauth-field-currentPassword"),
-      "correct horse",
-    );
-    await user.click(screen.getByRole("button", { name: "confirm" }));
-
-    await waitFor(() => {
-      expect(mockSignInEmail).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
-        email: "owner@example.com",
-        password: "correct horse",
-        rememberMe: false,
-      });
-    });
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("keeps the dialog open and shows why when the password is wrong", async () => {
@@ -199,7 +198,7 @@ describe("ReauthDialog", () => {
   });
 
   it("never marks the password invalid for another path's failure", async () => {
-    mockSignInMagicLink.mockResolvedValue({
+    mockSendEmailCode.mockResolvedValue({
       data: null,
       error: { message: "Mail is down" },
     });
@@ -236,35 +235,147 @@ describe("ReauthDialog", () => {
     });
   });
 
-  it("offers a magic link to a viewer who owns nothing else", async () => {
-    // Better Auth's magic-link sign-up writes no `account` row, so such a
-    // viewer has neither a password nor a provider. Email is all they have.
-    renderDialog([]);
+  it("confirms with an emailed code a viewer who owns nothing else", async () => {
+    // An email-code sign-up writes no `account` row, so such a viewer has
+    // neither a password nor a provider. Email is all they have.
+    const { onOpenChange, onReauthenticated } = renderDialog([]);
 
     expect(
       screen.queryByTestId("reauth-field-currentPassword"),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("orEmail")).not.toBeInTheDocument();
 
-    await userEvent
-      .setup()
-      .click(screen.getByRole("button", { name: "continueWithEmail" }));
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    expect(mockSendEmailCode).toHaveBeenCalledWith({
+      fetchOptions: captchaFetchOptions,
+      email: "owner@example.com",
+      type: "sign-in",
+    });
+    // The sixth digit confirms; Confirm is not needed.
+    await user.type(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+      "042917",
+    );
 
     await waitFor(() => {
-      expect(mockSignInMagicLink).toHaveBeenCalledWith({
-        fetchOptions: captchaFetchOptions,
-        callbackURL: expect.stringContaining("/account"),
-        email: "owner@example.com",
-      });
+      expect(onReauthenticated).toHaveBeenCalledTimes(1);
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "magicLinkSent",
+    expect(mockSignInEmailCode).toHaveBeenCalledExactlyOnceWith({
+      email: "owner@example.com",
+      otp: "042917",
+    });
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+    expect(mockDiscardRetiredAblyRealtimeClient).toHaveBeenCalled();
+  });
+
+  it("checks a typed code once, with Confirm busy meanwhile", async () => {
+    mockSignInEmailCode.mockReturnValue(new Promise(() => {}));
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "042917");
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "confirmCode" }),
+      ).toBeDisabled(),
+    );
+    // Like the sign-in step: nothing changes the code while it is checked.
+    expect(code).toBeDisabled();
+    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+  });
+
+  it("shares the pending code request with simultaneous manual confirmation", async () => {
+    mockSignInEmailCode.mockReturnValue(new Promise(() => {}));
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    const formElement = code.closest("form");
+    if (!formElement) throw new Error("Missing reauth code form");
+    act(() => {
+      fireEvent.change(code, { target: { value: "042917" } });
+      fireEvent.submit(formElement);
+      fireEvent.submit(formElement);
+    });
+    expect(mockSignInEmailCode).toHaveBeenCalledExactlyOnceWith({
+      email: "owner@example.com",
+      otp: "042917",
+    });
+    expect(code).toBeDisabled();
+    fireEvent.submit(formElement);
+    expect(mockSignInEmailCode).toHaveBeenCalledOnce();
+    await act(async () => {});
+  });
+
+  it("announces a refused code, empties the field and sends the same code again", async () => {
+    mockSignInEmailCode.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP" },
+    });
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+
+    // Focus returns to the field once it is enabled again, and the field's
+    // description, which now names the refusal, is what gets read out.
+    await waitFor(() => expect(code).toHaveFocus());
+    expect(code).toBeEnabled();
+    expect(code).toHaveValue("");
+    expect(code).toHaveAccessibleDescription(/invalid$/);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+
+    await user.type(code, "000000");
+    await waitFor(() => expect(mockSignInEmailCode).toHaveBeenCalledTimes(2));
+    expect(mockSignInEmailCode).toHaveBeenLastCalledWith({
+      email: "owner@example.com",
+      otp: "000000",
+    });
+  });
+
+  it("keeps the dialog open on a wrong code and says so beside the field", async () => {
+    mockSignInEmailCode.mockResolvedValue({
+      data: null,
+      error: { code: "INVALID_OTP", message: "Invalid OTP" },
+    });
+    const { onReauthenticated } = renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "000000");
+
+    await waitFor(() => expect(code).toHaveAccessibleDescription(/invalid$/));
+    expect(onReauthenticated).not.toHaveBeenCalled();
+  });
+
+  it("names a terms block on the code path", async () => {
+    mockSignInEmailCode.mockResolvedValue({
+      data: null,
+      error: { code: "TERMS_NOT_ACCEPTED" },
+    });
+    renderDialog([]);
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    await user.type(code, "042917");
+
+    await waitFor(() =>
+      expect(code).toHaveAccessibleDescription(/termsNotAccepted$/),
     );
   });
 
-  it("never offers the link while the address is unproven", async () => {
+  it("never offers the code while the address is unproven", async () => {
     // Better Auth's `revokeUnprovenAccountAccess` deletes every linked account
-    // and revokes every session when an unverified viewer opens a magic link.
+    // and revokes every session when an unverified viewer signs in by email.
     emailVerified = false;
     renderDialog([passwordAccount, googleAccount]);
 
@@ -289,20 +400,30 @@ describe("ReauthDialog", () => {
     expect(screen.getByText("noMethod")).toBeInTheDocument();
   });
 
-  it("keeps a resend after sending, for a link opened elsewhere", async () => {
-    renderDialog([]);
+  it("sends a new code on request once the wait is over", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      renderDialog([]);
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      await user.click(
+        screen.getByRole("button", { name: "continueWithEmail" }),
+      );
+      // The first email is usually still on its way.
+      expect(
+        await screen.findByRole("button", { name: "resendIn" }),
+      ).toBeDisabled();
 
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      await user.click(screen.getByRole("button", { name: "resend" }));
 
-    // Opening the mail on a phone leaves this device stale, so the viewer
-    // needs a second link rather than a dead end.
-    const resend = await screen.findByRole("button", { name: "resendEmail" });
-    await user.click(resend);
-
-    await waitFor(() => {
-      expect(mockSignInMagicLink).toHaveBeenCalledTimes(2);
-    });
+      await waitFor(() => {
+        expect(mockSendEmailCode).toHaveBeenCalledTimes(2);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("names a terms block instead of blaming the password", async () => {
@@ -373,12 +494,14 @@ describe("ReauthDialog", () => {
     ).toHaveLength(1);
   });
 
-  it("drops a sent-link notice once the password succeeds", async () => {
+  it("drops the code field once the password succeeds", async () => {
     renderDialog([passwordAccount]);
 
     const user = userEvent.setup();
     await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-    expect(await screen.findByRole("status")).toBeInTheDocument();
+    expect(
+      await screen.findByRole("textbox", { name: "codeLabel" }),
+    ).toBeInTheDocument();
 
     await user.type(
       screen.getByTestId("reauth-field-currentPassword"),
@@ -386,9 +509,11 @@ describe("ReauthDialog", () => {
     );
     await user.click(screen.getByRole("button", { name: "confirm" }));
 
-    // The link is stale now, so offering to resend it would mislead.
+    // The code is no longer needed, so asking for it would mislead.
     await waitFor(() => {
-      expect(screen.queryByRole("status")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("textbox", { name: "codeLabel" }),
+      ).not.toBeInTheDocument();
     });
   });
 
@@ -423,13 +548,26 @@ describe("ReauthDialog", () => {
       screen.getByRole("button", { name: "continueWithGoogle" }),
     ).not.toBeDisabled();
   });
-  it("renders each email path's challenge", () => {
+  // A visitor Cloudflare wants to see would otherwise get two checkboxes.
+  it("renders one challenge for the password and the email code", () => {
     renderDialog([passwordAccount]);
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^captcha-/)).toHaveLength(1);
     expect(screen.getByTestId("captcha-signin")).toBeInTheDocument();
-    expect(screen.getByTestId("captcha-magic-link")).toBeInTheDocument();
   });
 
-  it.each(["password", "magic-link"])(
+  it("renders the challenge on the email path when there is no password", () => {
+    renderDialog([]);
+    expect(
+      screen.getByRole("button", { name: "continueWithEmail" }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^captcha-/)).toHaveLength(1);
+    expect(screen.getByTestId("captcha-email-code")).toBeInTheDocument();
+  });
+
+  it.each(["password", "email-code"])(
     "does not submit %s when CAPTCHA cannot complete",
     async (method) => {
       captchaBlocked = true;
@@ -449,7 +587,7 @@ describe("ReauthDialog", () => {
         );
       }
       expect(mockSignInEmail).not.toHaveBeenCalled();
-      expect(mockSignInMagicLink).not.toHaveBeenCalled();
+      expect(mockSendEmailCode).not.toHaveBeenCalled();
       expect(onReauthenticated).not.toHaveBeenCalled();
       expect(onOpenChange).not.toHaveBeenCalled();
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
@@ -459,12 +597,12 @@ describe("ReauthDialog", () => {
     },
   );
 
-  it.each(["password", "magic-link"])(
+  it.each(["password", "email-code"])(
     "names a CAPTCHA rejection on the %s path",
     async (method) => {
       const rejection = { data: null, error: { code: "MISSING_RESPONSE" } };
       mockSignInEmail.mockResolvedValue(rejection);
-      mockSignInMagicLink.mockResolvedValue(rejection);
+      mockSendEmailCode.mockResolvedValue(rejection);
       renderDialog([passwordAccount]);
       const user = userEvent.setup();
       if (method === "password") {

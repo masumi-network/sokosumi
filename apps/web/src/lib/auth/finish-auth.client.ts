@@ -54,10 +54,27 @@ function countConversion(
 }
 
 /**
+ * Waits for the session a sign-in or sign-up just started; the first read can
+ * come back empty while the cookie settles. A slow session is reported to
+ * Sentry, and one that never arrives resolves to `null`.
+ */
+export function waitForClientSession(
+  eventType: FinishAuthInPlaceOptions["eventType"],
+) {
+  return waitForAuthSession({
+    context: eventType === "signUp" ? "signup" : "login",
+    getSession: createAuthSessionGetter(() => authClient.getSession()),
+    logWarning: (message) => {
+      Sentry.captureMessage(message, { level: "warning" });
+    },
+  });
+}
+
+/**
  * Completes a sign-in or sign-up that did not hand Better Auth a
- * `callbackURL` (credential sign-in, credential sign-up, passkey): wait for
- * the session cookie to settle, count the conversion only if a session
- * exists, then navigate to the destination.
+ * `callbackURL` (credential sign-in, credential sign-up, passkey, email
+ * code): wait for the session cookie to settle, count the conversion only if
+ * a session exists, then navigate to the destination.
  *
  * When the OAuth provider has already answered, the page is leaving for that
  * answer and this navigates nowhere: a second navigation would deliver the
@@ -72,7 +89,7 @@ function countConversion(
  * session cookie. `replace` keeps `/signin` off the history stack. This
  * lands directly on the app, not the marketing `/auth/callback` page, so no
  * hero swap or interstitial. Same pattern as the workspace-gate leave in
- * identity-onboarding-form.client.tsx. Social and magic-link cannot use this
+ * identity-onboarding-form.client.tsx. Social sign-in cannot use this
  * — the provider round trip lands on `/auth/callback/signin` instead.
  */
 export async function finishAuthInPlace({
@@ -89,13 +106,7 @@ export async function finishAuthInPlace({
   }
 
   await beforeLeaving?.();
-  const session = await waitForAuthSession({
-    context: eventType === "signUp" ? "signup" : "login",
-    getSession: createAuthSessionGetter(() => authClient.getSession()),
-    logWarning: (message) => {
-      Sentry.captureMessage(message, { level: "warning" });
-    },
-  });
+  const session = await waitForClientSession(eventType);
 
   if (session) {
     countConversion(eventType, provider);

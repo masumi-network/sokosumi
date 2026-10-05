@@ -24,7 +24,7 @@ function readTasks(...segments: string[]): string {
 }
 
 describe("task detail layout contract", () => {
-  it("auth view and loading skeleton share the max-w-6xl shell constant", () => {
+  it("auth view and loading skeleton share the max-w-[80rem] shell constant", () => {
     const loading = readTasks("[taskId]/loading.tsx");
     const view = readTasks("components/task-detail-view.tsx");
 
@@ -32,7 +32,7 @@ describe("task detail layout contract", () => {
     expect(view).toContain("TASK_DETAIL_SHELL_CLASS");
     expect(loading).not.toMatch(/className="[^"]*max-w-4xl/);
     expect(view).not.toMatch(/className="[^"]*max-w-4xl/);
-    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-6xl");
+    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-[80rem]");
   });
 
   it("auth and share layouts share the xl two-column grid tokens", () => {
@@ -42,7 +42,7 @@ describe("task detail layout contract", () => {
     expect(view).toContain("TASK_DETAIL_GRID_CLASS");
     expect(share).toContain("TASK_DETAIL_GRID_CLASS");
     expect(TASK_DETAIL_GRID_CLASS).toContain(
-      "xl:grid-cols-[minmax(0,1fr)_minmax(16rem,20rem)]",
+      "xl:grid-cols-[minmax(0,1fr)_clamp(18rem,32%,25rem)]",
     );
   });
 
@@ -72,6 +72,36 @@ describe("task detail layout contract", () => {
     expect(view).toContain(
       '<TaskSectionFallback title={t("properties")} rows={4} />',
     );
+  });
+
+  it("spaces sidebar sections with real boxes so space-y reaches every section", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+    const related = readTasks("components/task-related-tasks.tsx");
+
+    expect(view).not.toContain('className="contents"');
+    expect(view).toContain('<div className="space-y-6">');
+    expect(related).toContain('className="space-y-6"');
+    expect(related).toContain("text-muted-foreground text-xs font-medium");
+    expect(related).not.toContain("<h3");
+  });
+
+  it("sidebar lists Properties first and the tags section below it", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+
+    expect(view.indexOf("<TaskTagSection")).toBeGreaterThan(
+      view.indexOf("<TaskMetadata"),
+    );
+  });
+
+  it("renders linked tasks in the sidebar, after the properties and tags", () => {
+    const view = readTasks("components/task-detail-view.tsx");
+    const asideStart = view.indexOf("<aside");
+    const asideEnd = view.indexOf("</aside>");
+    const linkedIdx = view.indexOf("<TaskRelatedTasks");
+
+    expect(linkedIdx).toBeGreaterThan(asideStart);
+    expect(linkedIdx).toBeLessThan(asideEnd);
+    expect(linkedIdx).toBeGreaterThan(view.indexOf("<TaskMetadataSection"));
   });
 
   it("single-column source order keeps metadata after description and before later sections", () => {

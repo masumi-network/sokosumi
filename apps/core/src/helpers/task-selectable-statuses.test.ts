@@ -34,7 +34,25 @@ function task(
   };
 }
 
+const sokoBotActor: AuthenticationContext = {
+  actor: "sokoBot",
+  sokoBotId: "bot_1",
+  userId: "user_1",
+  workspaceId: "ws_1",
+  organizationId: null,
+};
+
 describe("getSelectableTaskStatuses", () => {
+  it.each([
+    ["user", userActor],
+    ["coworker", coworkerActor],
+    ["soko-bot", sokoBotActor],
+  ])("never offers CREATED to a %s", (_name, actor) => {
+    expect(getSelectableTaskStatuses(task(), actor)).not.toContain(
+      TaskStatus.CREATED,
+    );
+  });
+
   it("offers a person the hand-set statuses in display order, minus the current one", () => {
     expect(getSelectableTaskStatuses(task(), userActor)).toEqual([
       TaskStatus.DRAFT,

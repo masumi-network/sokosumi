@@ -1,7 +1,9 @@
 import Foundation
 
-/// Foreground-only recovery reads for one chat data set. Call `stop` when
-/// its room, workspace, or account changes; old completions cannot re-arm it.
+/// Recovery reads for one chat data set (web `use-chat-refresh-scheduler.ts`, SOK-986). Timer reads wait for the
+/// foreground: one elapsed while no chat window is active is recorded and read once on return. Explicit requests
+/// read at once, foreground or not. The shared read cooldown (`ChatReadCooldownMiddleware`) still holds the reads it covers.
+/// Call `stop` when its room, workspace, or account changes; old completions cannot re-arm it.
 @MainActor
 public final class ChatRefreshScheduler {
   private let sleep: (Duration) async throws -> Void
@@ -11,6 +13,7 @@ public final class ChatRefreshScheduler {
   private var generation = UUID()
   private var inFlight = false
   private var queued = false
+  private var queuedExplicit = false
   private var needed = false
   private var foreground = false
   private var healthy = false
@@ -57,6 +60,7 @@ public final class ChatRefreshScheduler {
     refresh = nil
     inFlight = false
     queued = false
+    queuedExplicit = false
     needed = false
   }
 
@@ -65,7 +69,7 @@ public final class ChatRefreshScheduler {
     foreground = value
     if value, needed {
       needed = false
-      requestRefresh()
+      run(explicit: false)
     }
   }
 
@@ -82,20 +86,28 @@ public final class ChatRefreshScheduler {
     }
   }
 
-  /// ID envelopes, continuity loss, and network recovery use the same gate.
+  /// An explicit request: an id envelope, lost continuity, a collection invalidation, the mount or recovery read. It
+  /// reads while no chat window is active too, since it carries a change the reader must be shown while away.
   public func requestRefresh() {
+    run(explicit: true)
+  }
+
+  private func run(explicit: Bool) {
     guard let refresh else { return }
-    guard foreground else {
+    guard explicit || foreground else {
       needed = true
       return
     }
     guard !inFlight else {
       queued = true
+      queuedExplicit = queuedExplicit || explicit
       return
     }
     timer?.cancel()
     timer = nil
     inFlight = true
+    // This read covers anything that went stale while away.
+    needed = false
     let current = generation
     refreshTask = Task { [weak self] in
       guard self?.generation == current else { return }
@@ -104,8 +116,10 @@ public final class ChatRefreshScheduler {
       refreshTask = nil
       inFlight = false
       if queued {
+        let followUpExplicit = queuedExplicit
         queued = false
-        requestRefresh()
+        queuedExplicit = false
+        run(explicit: followUpExplicit)
       } else {
         schedule()
       }
@@ -124,7 +138,7 @@ public final class ChatRefreshScheduler {
       } catch { return }
       guard !Task.isCancelled, let self, generation == current else { return }
       timer = nil
-      requestRefresh()
+      run(explicit: false)
     }
   }
 }

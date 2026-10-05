@@ -37,5 +37,8 @@ export function hydrateChatRoomMessageFromRealtime(
     groupNameChange: (message.groupNameChange ??
       null) as ChatRoomMessage["groupNameChange"],
     unfurls: message.unfurls as ChatRoomMessage["unfurls"],
+    ...(Array.isArray(message.skills)
+      ? { skills: message.skills as ChatRoomMessage["skills"] }
+      : {}),
   };
 }

@@ -126,7 +126,7 @@ test("admin provisions through CLI without Vendor or Workspace membership", asyn
   }
 });
 
-test("provision rejects non-admin identities without creating or switching accounts", async () => {
+test("provision rejects identities without platform or Vendor admin authority", async () => {
   for (const role of [
     "user",
     "superadmin",
@@ -134,6 +134,11 @@ test("provision rejects non-admin identities without creating or switching accou
     "administrator",
   ]) {
     const deps = dependencies(role);
+    const identityGet = deps.coreClient!.get;
+    deps.coreClient!.get = async <T>(path: string, signal?: AbortSignal) =>
+      path === "/v1/vendors/me"
+        ? ({ data: [] } as T)
+        : identityGet<T>(path, signal);
     let creates = 0;
     deps.coreClient!.post = async () => {
       creates++;
@@ -141,11 +146,14 @@ test("provision rejects non-admin identities without creating or switching accou
     };
     await assert.rejects(runCli(args, deps), (error: unknown) => {
       assert.ok(error instanceof Error);
-      assert.match(error.message, /admin@example.com \[user-admin\]/);
-      assert.ok(error.message.includes(`platform role: ${role}.`));
-      assert.match(error.message, /platform admin/);
-      assert.match(error.message, /Vendor developer-vendor.*organizer/);
-      assert.match(error.message, /auth whoami --json/);
+      assert.match(
+        error.message,
+        /Vendor developer-vendor is not in your memberships/,
+      );
+      assert.match(
+        error.message,
+        /registration requires|Registration requires Vendor role admin/,
+      );
       return true;
     });
     assert.equal(creates, 0);

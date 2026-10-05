@@ -3,8 +3,11 @@ import {
   fetchOrganizationCallerSeat,
   fetchOrganizationWorkspaces,
 } from "../../api/services/organization-workspace-service.js";
+import { fetchPersonalWorkspaceAccess } from "../../api/services/personal-workspace-service.js";
 import {
   type CommandContext,
+  type CommandOptions,
+  optionBoolean,
   writeJson,
   writeText,
 } from "./command-helpers.js";
@@ -12,6 +15,7 @@ import {
 export interface WorkspacesCommandContext extends CommandContext {
   subcommand?: string;
   positionalId?: string;
+  options?: CommandOptions;
 }
 
 function printWorkspaces(
@@ -40,7 +44,24 @@ export async function runWorkspacesCommand({
   signal,
   subcommand,
   positionalId,
+  options,
 }: WorkspacesCommandContext): Promise<void> {
+  if (optionBoolean(options, "personal")) {
+    if (subcommand !== "list" || positionalId !== undefined)
+      throw new Error("Use workspaces list --personal");
+    const hasPersonalWorkspace = await fetchPersonalWorkspaceAccess(
+      client,
+      signal,
+    );
+    if (json) writeJson(stdout, { hasPersonalWorkspace });
+    else
+      writeText(stdout, [
+        hasPersonalWorkspace
+          ? "Your personal Workspace exists."
+          : "No personal Workspace exists. Use coworkers register --personal or connect --personal to create it.",
+      ]);
+    return;
+  }
   if (subcommand === "check") {
     const organizationId = positionalId?.trim();
     if (!organizationId)

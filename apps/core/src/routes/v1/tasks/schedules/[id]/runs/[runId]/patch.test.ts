@@ -234,7 +234,7 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
       expect(runsOf(schedule.id)).toEqual([run]);
     });
 
-    it("lets only the owner change a workspace-visible schedule", async () => {
+    it("lets another member change a Run of a workspace-visible schedule", async () => {
       const { schedule, run } = seedPlanned();
 
       const response = await send(
@@ -244,8 +244,10 @@ describe("PATCH /tasks/schedules/{id}/runs/{runId}", () => {
         createTaskScheduleTestApp(mount, userAuth(MEMBER_ID)),
       );
 
-      expect(response.status).toBe(403);
-      expect(runsOf(schedule.id)).toEqual([run]);
+      expect(response.status).toBe(200);
+      expect(
+        runsOf(schedule.id).find((row) => row.id === run.id),
+      ).toMatchObject({ state: "SKIPPED", actorUserId: MEMBER_ID });
     });
 
     it("refuses an unseated member of a paid organization", async () => {

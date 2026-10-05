@@ -1,7 +1,3 @@
-import {
-  oauthProviderAuthServerMetadata,
-  oauthProviderOpenIdConfigMetadata,
-} from "@better-auth/oauth-provider";
 import { AUTH_CAPTCHA_HEADER } from "@sokosumi/utils";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -10,16 +6,16 @@ import { TIME } from "@/config/constants";
 import { resolveCorsAllowOrigin } from "@/config/cors-allow-origin";
 import { auth } from "@/lib/auth.js";
 import {
-  handleOAuthRefreshTokenRequest,
+  handleOAuthAuthServerMetadata,
+  handleOpenIdConfiguration,
+} from "@/lib/auth-issuer-metadata.js";
+import {
+  handleOAuthTokenRequest,
   isRefreshTokenRotating,
-  OAUTH_REFRESH_TOKEN_PREFIX,
 } from "@/lib/auth-oauth-provider.js";
+import { OAUTH_REFRESH_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes.js";
 import prisma from "@/lib/db/prisma";
-import { withClientSecretPostShim } from "@/routes/auth/oauth2-token-secret-shim.js";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
-
-const oauthAuthServerMetadataHandler = oauthProviderAuthServerMetadata(auth);
-const oauthOpenIdConfigHandler = oauthProviderOpenIdConfigMetadata(auth);
 
 const app = new Hono();
 
@@ -42,18 +38,16 @@ app.post("/set-password", handleSetPassword);
 
 // OAuth issuer metadata (mounted under /auth). Must register before the catch-all.
 app.get("/.well-known/oauth-authorization-server", (c) =>
-  oauthAuthServerMetadataHandler(c.req.raw),
+  handleOAuthAuthServerMetadata(c.req.raw),
 );
 app.get("/.well-known/openid-configuration", (c) =>
-  oauthOpenIdConfigHandler(c.req.raw),
+  handleOpenIdConfiguration(c.req.raw),
 );
 
-// Mount Auth routes. The token-endpoint shim (temporary) rewrites
-// client_secret_post requests into the client_secret_basic form Better Auth
-// requires — see oauth2-token-secret-shim.ts.
-app.on(["POST", "GET"], "*", async (c) => {
-  return handleOAuthRefreshTokenRequest(
-    await withClientSecretPostShim(c.req.raw),
+// Token requests are adjusted before Better Auth reads them.
+app.post("/oauth2/token", (c) =>
+  handleOAuthTokenRequest(
+    c.req.raw,
     auth.handler,
     (body, request) =>
       auth.api.oauth2Token({
@@ -72,7 +66,9 @@ app.on(["POST", "GET"], "*", async (c) => {
             select: { rotatedAt: true, rotationReplayExpiresAt: true },
           }),
       ),
-  );
-});
+  ),
+);
+
+app.on(["POST", "GET"], "*", (c) => auth.handler(c.req.raw));
 
 export default app;

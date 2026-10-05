@@ -379,8 +379,8 @@ function isDeployedEnvironment(value: z.infer<typeof baseEnvSchema>): boolean {
  * Off Vercel there is no `VERCEL_ENV`, and `NODE_ENV` is the only signal
  * there is.
  */
-function isProductionEnvironment(
-  value: z.infer<typeof baseEnvSchema>,
+export function isProductionEnvironment(
+  value: Pick<z.infer<typeof baseEnvSchema>, "VERCEL_ENV" | "NODE_ENV">,
 ): boolean {
   if (value.VERCEL_ENV) {
     return value.VERCEL_ENV === "production";
@@ -514,6 +514,14 @@ export function validateEnv(): EnvConfig {
   return result.data;
 }
 
+/**
+ * True only when NETWORK is set to Preprod in the process environment.
+ * The schema default does not count, so a deploy that omits NETWORK fails closed.
+ */
+export function isExplicitPreprod(env: Pick<EnvConfig, "NETWORK">): boolean {
+  return env.NETWORK === "Preprod" && process.env.NETWORK === "Preprod";
+}
+
 export function getEnv(): EnvConfig {
   if (!envConfig) {
     envConfig = validateEnv();
@@ -556,7 +564,7 @@ export function getBetterAuthPublicBaseUrl(): string {
     !env.VERCEL_URL
   ) {
     console.warn(
-      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (magic-link emails may point at the wrong host)",
+      "Better Auth preview base URL falling back to BETTER_AUTH_URL; VERCEL_BRANCH_URL and VERCEL_URL are unset (email links may point at the wrong host)",
     );
   }
 
@@ -567,4 +575,17 @@ export function getBetterAuthPublicBaseUrl(): string {
     vercelProductionUrl: env.VERCEL_PROJECT_PRODUCTION_URL,
     fallbackUrl: env.BETTER_AUTH_URL,
   });
+}
+
+/**
+ * Canonical Better Auth production URL used by OAuth proxying. This always
+ * points at the production host, never a preview deployment.
+ */
+export function getBetterAuthProductionUrl(): string {
+  const env = getEnv();
+
+  return (env.VERCEL_PROJECT_PRODUCTION_URL || env.BETTER_AUTH_URL).replace(
+    /\/+$/,
+    "",
+  );
 }
