@@ -279,7 +279,8 @@ import SwiftUI
     private func jumpToQuote(_ id: String) {
       Task { @MainActor in
         do {
-          if try await workspaces.openMessage(id, auth: auth) == .unavailable {
+          // A quote in this room marks no Thread parent in the room, as web's same-room quote (row 25c).
+          if try await workspaces.openMessage(id, auth: auth, marksThreadParent: false) == .unavailable {
             jumpError = "This message is no longer available."
           }
         } catch { jumpError = friendlyMessage(for: error) }

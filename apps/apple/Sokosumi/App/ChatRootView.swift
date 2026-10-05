@@ -146,25 +146,8 @@ struct ChatRootView: View {
             .navigationTitle("Threads")
           }
         } else if let selectedRoomId = workspaces.selectedRoomId,
-                  workspaces.rooms.contains(where: { $0.id == selectedRoomId }) {
-          NavigationStack {
-            RoomTimelineView(roomId: selectedRoomId)
-              .navigationDestination(isPresented: Binding(
-                get: { workspaces.thread.parent != nil },
-                set: { presented in
-                  if !presented {
-                    Task { @MainActor in workspaces.thread.close() }
-                  }
-                }
-              )) {
-                ReplyThreadView()
-              }
-          }
-          .task(id: workspaces.streamingThreadToOpen?.id) {
-            if let parent = workspaces.streamingThreadToOpen {
-              workspaces.openThread(parent, auth: auth)
-            }
-          }
+                  let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
+          RoomNavigationStack(room: selectedRoom)
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
