@@ -380,14 +380,6 @@ export function buildSocialCallbackUrls(
   };
 }
 
-export function normalizeAuthReturnUrl(returnUrl: string | undefined): string {
-  const normalized = returnUrl?.trim() || "";
-  const sanitizedReturnUrl =
-    normalized && normalized !== "/" ? normalized : undefined;
-
-  return sanitizeAuthRedirectPath(sanitizedReturnUrl, "/");
-}
-
 function normalizeOAuthQueryValue(key: string, value: string): string {
   // Better Auth signs with standard base64. A `+` that reaches the query
   // unescaped parses as a space under form-style parsing. Restore the

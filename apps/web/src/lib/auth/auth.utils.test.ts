@@ -16,10 +16,10 @@ import {
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
-  normalizeAuthReturnUrl,
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
+  sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -342,21 +342,21 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
   });
 });
 
-describe("normalizeAuthReturnUrl", () => {
+describe("sanitizeAuthRedirectPath", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("returns / when returnUrl is missing", () => {
-    expect(normalizeAuthReturnUrl(undefined)).toBe("/");
+    expect(sanitizeAuthRedirectPath(undefined)).toBe("/");
   });
 
   it("returns / when returnUrl is root", () => {
-    expect(normalizeAuthReturnUrl("/")).toBe("/");
+    expect(sanitizeAuthRedirectPath("/")).toBe("/");
   });
 
   it("returns safe non-root relative returnUrl", () => {
-    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+    expect(sanitizeAuthRedirectPath("/accept-invitation/invite_123")).toBe(
       "/accept-invitation/invite_123",
     );
   });
@@ -366,7 +366,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(sanitizeAuthRedirectPath("https://evil.example/attack")).toBe("/");
   });
 
   it("returns / for unsupported protocols", () => {
@@ -374,7 +374,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
+    expect(sanitizeAuthRedirectPath("javascript:alert('x')")).toBe("/");
   });
 
   it.each([
@@ -385,20 +385,20 @@ describe("normalizeAuthReturnUrl", () => {
     (returnUrl, expected) => {
       vi.stubGlobal("window", undefined);
 
-      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+      expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
     },
   );
 
   it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+    expect(sanitizeAuthRedirectPath("#details")).toBe("/#details");
   });
 
   it("keeps an internal path with its query and fragment", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+    expect(sanitizeAuthRedirectPath("/chat?filter=unread#details")).toBe(
       "/chat?filter=unread#details",
     );
   });
@@ -413,7 +413,7 @@ describe("normalizeAuthReturnUrl", () => {
   ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe("/");
   });
 });
 
