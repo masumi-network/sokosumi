@@ -99,6 +99,7 @@ jobs:
       # swift-build deletes that directory after the build unless
       # COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES (cleanupCompilationCache).
       - name: Restore Xcode compilation cache
+        id: cas-cache
         uses: actions/cache/restore@v6
         with:
           path: ${{ runner.temp }}/CompilationCache
@@ -117,22 +118,19 @@ jobs:
       # its merge ref, so no sibling PR could read it. Saved even when tests
       # fail, since the compile that filled them succeeded.
       - name: Save Swift package checkouts
-        if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'pull_request') && steps.spm-cache.outputs.cache-hit != 'true' }}
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.spm-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/SourcePackages
           key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
 
       - name: Save Xcode compilation cache
-        if: ${{ !cancelled() && (github.event_name == 'push' || github.event_name == 'pull_request') }}
+        # A re-run attempt keeps the run id and restores its own entry exactly.
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
         uses: actions/cache/save@v6
         with:
           path: ${{ runner.temp }}/CompilationCache
           key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
-
-      - name: Report cache sizes
-        if: ${{ !cancelled() }}
-        run: du -sh "$RUNNER_TEMP/SourcePackages" "$RUNNER_TEMP/CompilationCache" || true
 
       - name: Report test failures
         if: failure()
