@@ -5031,11 +5031,10 @@
       "OAuthConsent": {
         "invalidRequest": {
           "title": "Solicitud OAuth no válida",
-          "description": "Faltan parámetros obligatorios: client_id o redirect_uri"
+          "description": "Falta el parámetro obligatorio: client_id"
         },
         "clientNotFound": {
           "title": "Cliente no encontrado",
-          "description": "No se encontró el cliente OAuth.",
           "descriptionWithId": "El cliente OAuth con ID {clientId} no existe."
         },
         "loadError": {
@@ -5050,7 +5049,6 @@
           "authorize": "Autorizar",
           "deny": "Rechazar",
           "authorizeError": "No se pudo autorizar la aplicación",
-          "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
           "workspacePrepareError": "No se pudo preparar tu espacio de trabajo. Inténtalo de nuevo.",
           "authorizeSuccess": "Aplicación autorizada correctamente",
