@@ -13,7 +13,6 @@ import {
   handleOAuthTokenRequest,
   isRefreshTokenRotating,
 } from "@/lib/auth-oauth-provider.js";
-import { OAUTH_REFRESH_TOKEN_PREFIX } from "@/lib/auth-oauth-token-prefixes.js";
 import prisma from "@/lib/db/prisma";
 import { handleSetPassword } from "@/routes/auth/set-password.route.js";
 
@@ -57,14 +56,11 @@ app.post("/oauth2/token", (c) =>
         asResponse: true,
       }),
     (refreshToken) =>
-      isRefreshTokenRotating(
-        refreshToken,
-        OAUTH_REFRESH_TOKEN_PREFIX,
-        (token) =>
-          prisma.oauthRefreshToken.findUnique({
-            where: { token },
-            select: { rotatedAt: true, rotationReplayExpiresAt: true },
-          }),
+      isRefreshTokenRotating(refreshToken, (token) =>
+        prisma.oauthRefreshToken.findUnique({
+          where: { token },
+          select: { rotatedAt: true, rotationReplayExpiresAt: true },
+        }),
       ),
   ),
 );

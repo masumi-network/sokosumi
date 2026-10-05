@@ -17,12 +17,13 @@ import {
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
+import { OAUTH_REFRESH_TOKEN_PREFIX } from "./auth-oauth-token-prefixes";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
 
 const CLIENT_ID = "cmo-client";
 const USER_ID = "user-1";
-const SEED_REFRESH_TOKEN = "seed-refresh-token";
+const SEED_REFRESH_TOKEN = `${OAUTH_REFRESH_TOKEN_PREFIX}seed-refresh-token`;
 const NOW = new Date("2026-09-29T12:00:00.000Z");
 
 // The provider stores SHA-256 base64url digests of refresh tokens.
@@ -63,7 +64,7 @@ function createDb(): MemoryDb {
     oauthRefreshToken: [
       {
         id: "refresh-row-1",
-        token: hashToken(SEED_REFRESH_TOKEN),
+        token: hashToken("seed-refresh-token"),
         clientId: CLIENT_ID,
         userId: USER_ID,
         sessionId: "session-1",
@@ -109,6 +110,7 @@ function createTestAuth(
         loginPage: "https://app.example.com/signin",
         consentPage: "https://app.example.com/oauth/consent",
         ...oauthRefreshTokenOptions,
+        prefix: { refreshToken: OAUTH_REFRESH_TOKEN_PREFIX },
         rateLimit: { token: { max: 2, window: 60 } },
       }),
     ],
@@ -127,7 +129,7 @@ function createTestAuth(
 
   // The same check the route runs against Prisma, on the in-memory rows.
   function isRotating(refreshToken: string) {
-    return isRefreshTokenRotating(refreshToken, "", async (storedToken) => {
+    return isRefreshTokenRotating(refreshToken, async (storedToken) => {
       const row = db.oauthRefreshToken.find(
         (candidate) => candidate.token === storedToken,
       );
@@ -359,8 +361,7 @@ describe("handleOAuthTokenRequest", () => {
 });
 
 describe("isRefreshTokenRotating", () => {
-  const prefix = "soko_refresh_token_";
-  const token = `${prefix}raw-token`;
+  const token = `${OAUTH_REFRESH_TOKEN_PREFIX}raw-token`;
 
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ["Date"] });
@@ -374,9 +375,7 @@ describe("isRefreshTokenRotating", () => {
   it("looks up the stored digest of the token without its prefix", async () => {
     const findRotation = vi.fn().mockResolvedValue(null);
 
-    expect(await isRefreshTokenRotating(token, prefix, findRotation)).toBe(
-      false,
-    );
+    expect(await isRefreshTokenRotating(token, findRotation)).toBe(false);
     expect(findRotation).toHaveBeenCalledExactlyOnceWith(
       hashToken("raw-token"),
     );
@@ -385,9 +384,7 @@ describe("isRefreshTokenRotating", () => {
   it("skips the lookup for a token without Core's prefix", async () => {
     const findRotation = vi.fn();
 
-    expect(
-      await isRefreshTokenRotating("raw-token", prefix, findRotation),
-    ).toBe(false);
+    expect(await isRefreshTokenRotating("raw-token", findRotation)).toBe(false);
     expect(findRotation).not.toHaveBeenCalled();
   });
 
@@ -410,9 +407,9 @@ describe("isRefreshTokenRotating", () => {
     ],
     ["no rotation", { rotatedAt: null, rotationReplayExpiresAt: null }, false],
   ])("reports %s", async (_label, rotation, expected) => {
-    expect(
-      await isRefreshTokenRotating(token, prefix, async () => rotation),
-    ).toBe(expected);
+    expect(await isRefreshTokenRotating(token, async () => rotation)).toBe(
+      expected,
+    );
   });
 });
 
