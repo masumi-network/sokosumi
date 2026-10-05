@@ -54,7 +54,9 @@ describe("client_secret_post shim", () => {
         { status: 400 },
       ),
     );
-    const retry = vi.fn(async () => Response.json({ access_token: "a" }));
+    const retry = vi.fn<Parameters<typeof handleOAuthTokenRequest>[2]>(
+      async () => Response.json({ access_token: "a" }),
+    );
 
     const response = await handleOAuthTokenRequest(
       formRequest({
@@ -69,15 +71,44 @@ describe("client_secret_post shim", () => {
     );
 
     expect(response.status).toBe(200);
-    const [body, request] = retry.mock.calls[0] as unknown as [
-      Record<string, unknown>,
-      Request,
-    ];
+    const [body, request] = retry.mock.calls[0];
     expect(body).not.toHaveProperty("client_secret");
     expect(body).toMatchObject({ client_id: "client-1" });
     expect(request.headers.get("authorization")).toBe(
       `Basic ${Buffer.from("client-1:secret-1").toString("base64")}`,
     );
+  });
+
+  it("moves the secret of a DPoP refresh, which is not retried", async () => {
+    const handler = vi.fn(async (_request: Request) =>
+      Response.json(
+        { error: "invalid_grant", error_description: "invalid refresh token" },
+        { status: 400 },
+      ),
+    );
+    const retry = vi.fn();
+
+    await handleOAuthTokenRequest(
+      formRequest(
+        {
+          grant_type: "refresh_token",
+          refresh_token: "refresh-1",
+          client_id: "client-1",
+          client_secret: "secret-1",
+        },
+        { headers: { dpop: "single-use-proof" } },
+      ),
+      handler,
+      retry,
+      async () => true,
+    );
+
+    const [forwardedRequest] = handler.mock.calls[0];
+    expect(forwardedRequest.headers.get("authorization")).toBe(
+      `Basic ${Buffer.from("client-1:secret-1").toString("base64")}`,
+    );
+    expect(forwardedRequest.headers.get("dpop")).toBe("single-use-proof");
+    expect(retry).not.toHaveBeenCalled();
   });
 
   it("leaves requests with an existing Authorization header untouched", async () => {
