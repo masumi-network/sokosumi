@@ -1,4 +1,8 @@
-import type { Task } from "@sokosumi/core-client";
+import type {
+  Task,
+  TaskEvent,
+  TaskEventsPaginationMetadata,
+} from "@sokosumi/core-client";
 import { TaskVisibility } from "@sokosumi/core-client";
 import {
   removeTaskContextAttachmentLinks,
@@ -75,6 +79,14 @@ type MembersResult = Awaited<
 type ProjectResult = Awaited<
   ReturnType<typeof projectService.getProjectById>
 > | null;
+
+interface TaskActivityFeed {
+  events: TaskEvent[];
+  pagination: Pick<
+    TaskEventsPaginationMetadata,
+    "commentCount" | "latestCommentId"
+  >;
+}
 
 interface TaskDetailViewProps {
   task: Task;
@@ -769,7 +781,12 @@ async function TaskActivitySectionContent({
     hasAssignedSeatPromise,
     mentionableUsersPromise,
     getTranslations("App.Tasks.Detail"),
-    taskService.listTaskActivityFeed(taskId),
+    // Read-only (admin and developer views): the viewer is outside the task's
+    // workspace, so the workspace-scoped events read 404s. Those payloads
+    // already carry every event.
+    forceReadOnly
+      ? taskActivityFeedFromTask(task)
+      : taskService.listTaskActivityFeed(taskId),
   ]);
   const {
     userById: actorsUserById,
@@ -847,6 +864,17 @@ async function TaskActivitySectionContent({
       })}
     />
   );
+}
+
+function taskActivityFeedFromTask(task: Task): TaskActivityFeed {
+  const comments = task.events.filter((event) => event.comment != null);
+  return {
+    events: task.events,
+    pagination: {
+      commentCount: comments.length,
+      latestCommentId: comments.at(-1)?.id ?? null,
+    },
+  };
 }
 
 function buildTaskDetailContext(

@@ -2421,7 +2421,6 @@
           "attention": "Requiere atención",
           "accounts": "Cuentas"
         },
-        "selectedPost": "Publicación seleccionada",
         "empty": {
           "drafts": "Aún no hay borradores."
         },
@@ -2874,7 +2873,6 @@
     },
     "Social": {
       "title": "Programación social",
-      "pickAction": "Elegir un proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "newPost": {
         "label": "Nueva publicación",
@@ -2892,11 +2890,11 @@
       },
       "accountsNeedProject": {
         "title": "Conectar X, YouTube, LinkedIn…",
-        "body": "Las cuentas se conectan por proyecto. Elige un proyecto para conectar o gestionar sus cuentas."
+        "body": "Las cuentas se conectan por proyecto. Elige un proyecto en la barra lateral para conectar o gestionar sus cuentas."
       },
       "draftsNeedProject": {
         "title": "Borradores",
-        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto para ver y terminar sus borradores."
+        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto en la barra lateral para ver y terminar sus borradores."
       },
       "loading": "Cargando Social…"
     },
