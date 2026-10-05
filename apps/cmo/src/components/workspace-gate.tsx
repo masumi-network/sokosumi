@@ -25,7 +25,7 @@ export function WorkspaceGate({
       <div className="hero-copy">
         <h1>Where will you use CMO?</h1>
         {failed ? <p role="alert">That did not work. Try again.</p> : null}
-        {/* One form, so pressing any button disables all of them. */}
+        {/* One form, so pressing either button disables both. */}
         <form className="choices">
           <SubmitButton className="choice" formAction={createPersonalWorkspace}>
             <span className="choice-title">Just me</span>
@@ -33,13 +33,12 @@ export function WorkspaceGate({
               A personal workspace for you alone.
             </span>
           </SubmitButton>
-          {/* Still focusable, so screen readers reach "Coming soon". */}
-          <button className="choice" type="button" aria-disabled="true">
+          <a className="choice" href="/?step=organization">
             <span className="choice-title">My organization</span>
             <span className="choice-detail">
-              A shared workspace for your team. Coming soon.
+              A shared workspace for your team.
             </span>
-          </button>
+          </a>
           <SubmitButton
             className="button button-secondary"
             formAction={signOut}

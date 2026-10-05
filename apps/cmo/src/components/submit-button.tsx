@@ -5,7 +5,8 @@ import { useFormStatus } from "react-dom";
 
 interface SubmitButtonProps {
   className: string;
-  formAction: () => Promise<void>;
+  /** Its own action; without one it submits the form's action. */
+  formAction?: () => Promise<void>;
   children: ReactNode;
 }
 
@@ -20,7 +21,7 @@ export function SubmitButton({
   children,
 }: SubmitButtonProps) {
   const { pending, action } = useFormStatus();
-  const busy = pending && action === formAction;
+  const busy = pending && (formAction === undefined || action === formAction);
 
   return (
     <button

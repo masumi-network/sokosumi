@@ -1,6 +1,7 @@
 import { getUsersByIdWorkspaces } from "@sokosumi/core-client";
 import { headers } from "next/headers";
 
+import { OrganizationSetup } from "../components/organization-setup";
 import { SignedIn } from "../components/signed-in";
 import { SignedOut } from "../components/signed-out";
 import {
@@ -10,19 +11,27 @@ import {
 import { getAuth } from "../lib/auth";
 import { asSignedInPersonInPage } from "../lib/core";
 import { createAccount, signIn, signOut } from "./actions";
-import { createPersonalWorkspace } from "./workspace-actions";
+import {
+  createOrganizationWorkspace,
+  createPersonalWorkspace,
+} from "./workspace-actions";
 
 interface HomePageProps {
-  searchParams: Promise<{ error?: string | string[] }>;
+  searchParams: Promise<{
+    error?: string | string[];
+    step?: string | string[];
+  }>;
 }
 
 /** CMO's only page, so the workspace gate here gates all of CMO (ADR 0051). */
 export default async function HomePage({ searchParams }: HomePageProps) {
   const requestHeaders = await headers();
   const session = await getAuth().api.getSession({ headers: requestHeaders });
-  const { error: errorParam } = await searchParams;
+  const params = await searchParams;
   // A repeated query param arrives as a list; the first one counts.
-  const error = Array.isArray(errorParam) ? errorParam[0] : errorParam;
+  const [error, step] = [params.error, params.step].map((value) =>
+    Array.isArray(value) ? value[0] : value,
+  );
   const signedOut = (signedOutError: string | undefined) => (
     <SignedOut
       error={signedOutError}
@@ -51,6 +60,13 @@ export default async function HomePage({ searchParams }: HomePageProps) {
   }
 
   if (data.data.workspaces.length === 0) {
+    if (step === "organization") {
+      return (
+        <OrganizationSetup
+          createOrganizationWorkspace={createOrganizationWorkspace}
+        />
+      );
+    }
     return (
       <WorkspaceGate
         failed={error === WORKSPACE_FAILED_ERROR}

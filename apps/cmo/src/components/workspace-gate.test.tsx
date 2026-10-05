@@ -37,9 +37,9 @@ it("asks where the person will use CMO, with Just me and Sign out", () => {
   expect(html).not.toContain('role="alert"');
 });
 
-it("shows My organization as coming soon, not yet choosable", () => {
-  expect(render()).toMatch(
-    /<button class="choice" type="button" aria-disabled="true"><span class="choice-title">My organization<\/span><span class="choice-detail">A shared workspace for your team\. Coming soon\.<\/span><\/button>/,
+it("links My organization to the organization step", () => {
+  expect(render()).toContain(
+    '<a class="choice" href="/?step=organization"><span class="choice-title">My organization</span><span class="choice-detail">A shared workspace for your team.</span></a>',
   );
 });
 
