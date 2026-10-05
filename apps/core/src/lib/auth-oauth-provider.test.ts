@@ -9,15 +9,14 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
-  answerCreatePromptWithNewSession,
   handleOAuthRefreshTokenRequest,
   isRefreshTokenRotating,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
 
@@ -630,11 +629,7 @@ describe("answerCreatePromptWithNewSession", () => {
       session: { updateAge: 0 },
       emailAndPassword: { enabled: true },
       hooks: {
-        // Core's after hook, in order.
-        after: createAuthMiddleware(async (ctx) => {
-          await keepNewSessionPersistent(ctx);
-          await answerCreatePromptWithNewSession(ctx);
-        }),
+        after: createAuthMiddleware(afterNewSession),
       },
       plugins: [
         jwt({ disableSettingJwtHeader: true }),

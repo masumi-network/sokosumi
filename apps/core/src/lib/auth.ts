@@ -77,9 +77,9 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
-  answerCreatePromptWithNewSession,
   jwtKeyStoreOptions,
   OAUTH_ACCESS_TOKEN_PREFIX,
   OAUTH_REFRESH_TOKEN_PREFIX,
@@ -88,7 +88,6 @@ import {
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
 import { createAuthOrganizationPlugin } from "./auth-organization";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
@@ -490,8 +489,7 @@ export const auth = betterAuth({
         );
       }
 
-      await keepNewSessionPersistent(ctx);
-      await answerCreatePromptWithNewSession(ctx);
+      await afterNewSession(ctx);
     }),
   },
   emailAndPassword: {
