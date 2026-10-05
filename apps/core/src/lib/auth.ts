@@ -367,7 +367,12 @@ export const auth = betterAuth({
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
       webAppBaseUrl,
-      "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
+      // Branch previews of Web call their own Core preview. Production keeps
+      // them out: they share its `sokosumi.com` cookies, so a trusted preview
+      // could act for anyone signed in to production.
+      ...(env.VERCEL_ENV === "preview"
+        ? ["https://*.preview.sokosumi.com"]
+        : []),
       ...(env.NODE_ENV === "development"
         ? [
             "http://localhost:*",
