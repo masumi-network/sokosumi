@@ -21,7 +21,16 @@ public final class WorkspaceState: ObservableObject {
   public struct MessageJump: Equatable, Sendable {
     public let roomId: String
     public let messageId: String
+    /// The open Thread's parent after a reply jump (row 25c). The Thread covers the room, so the room marks it on
+    /// arrival and lands on it when the Thread closes; any other jump marks its row once it scrolls into view.
+    public let isThreadParent: Bool
     public let requestId = UUID()
+
+    init(roomId: String, messageId: String, isThreadParent: Bool = false) {
+      self.roomId = roomId
+      self.messageId = messageId
+      self.isThreadParent = isThreadParent
+    }
   }
 
   @Published public internal(set) var messageJump: MessageJump?
