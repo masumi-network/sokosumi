@@ -474,9 +474,7 @@ describe("SocialButtons", () => {
     );
 
     await waitFor(() => {
-      expect(mockPasskeySignIn).toHaveBeenCalledWith({
-        autoFill: false,
-      });
+      expect(mockPasskeySignIn).toHaveBeenCalledWith();
     });
 
     await waitFor(() => {
@@ -540,9 +538,7 @@ describe("SocialButtons", () => {
     );
 
     await waitFor(() => {
-      expect(mockPasskeySignIn).toHaveBeenCalledWith({
-        autoFill: false,
-      });
+      expect(mockPasskeySignIn).toHaveBeenCalledWith();
     });
     expect(mockToastError).not.toHaveBeenCalled();
     expect(mockSignInEvent).not.toHaveBeenCalled();
