@@ -2421,7 +2421,6 @@
           "attention": "Needs attention",
           "accounts": "Accounts"
         },
-        "selectedPost": "Selected post",
         "empty": {
           "drafts": "No drafts yet."
         },
@@ -2874,7 +2873,6 @@
     },
     "Social": {
       "title": "Social Scheduling",
-      "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
       "newPost": {
         "label": "New post",
@@ -2892,11 +2890,11 @@
       },
       "accountsNeedProject": {
         "title": "Connect X, YouTube, LinkedIn…",
-        "body": "Accounts are connected per project. Choose a project to connect or manage its accounts."
+        "body": "Accounts are connected per project. Select a project in the sidebar to connect or manage its accounts."
       },
       "draftsNeedProject": {
         "title": "Drafts",
-        "body": "Drafts are kept per project. Choose a project to see and finish its drafts."
+        "body": "Drafts are kept per project. Select a project in the sidebar to see and finish its drafts."
       },
       "loading": "Loading Social…"
     },
