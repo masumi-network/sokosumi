@@ -1,0 +1,92 @@
+[
+  {
+    "width": 1440,
+    "group": "tasks",
+    "cards": 4,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 1440,
+    "group": "social",
+    "cards": 3,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 1440,
+    "group": "studio",
+    "cards": 3,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 1440,
+    "group": "outputs",
+    "cards": 7,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 1440,
+    "textSelection": true
+  },
+  {
+    "width": 1440,
+    "metaClick": true,
+    "middleClick": true
+  },
+  {
+    "width": 1440,
+    "postBody": true,
+    "videoControl": true,
+    "audioControl": true,
+    "download": true,
+    "imageViewer": true
+  },
+  {
+    "width": 390,
+    "group": "tasks",
+    "cards": 4,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 390,
+    "group": "social",
+    "cards": 3,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 390,
+    "group": "studio",
+    "cards": 3,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 390,
+    "group": "outputs",
+    "cards": 7,
+    "pointer": true,
+    "keyboard": true
+  },
+  {
+    "width": 390,
+    "textSelection": true
+  },
+  {
+    "width": 390,
+    "metaClick": true,
+    "middleClick": true
+  },
+  {
+    "width": 390,
+    "postBody": true,
+    "videoControl": true,
+    "audioControl": true,
+    "download": true,
+    "imageViewer": true
+  }
+]

@@ -1,4 +1,8 @@
-import { suggestTaskTags as coreSuggestTaskTags } from "@sokosumi/core-client";
+import {
+  getChatRoomMessageResults as coreGetChatRoomMessageResults,
+  getMySokoBotTurnResults as coreGetMySokoBotTurnResults,
+  suggestTaskTags as coreSuggestTaskTags,
+} from "@sokosumi/core-client";
 import { mapCorePublicSharedResourceResponse } from "@/lib/clients/core.job-share";
 
 /** Pause, resume, and end each have their own Task Schedule route. */
@@ -1187,6 +1191,30 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getChatRoomMessageResults(id: string, messageId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetChatRoomMessageResults({
+          client,
+          path: { id, messageId },
+          cache: "no-store",
+        }),
+      "Failed to fetch message results",
+    );
+  }
+  async function getMySokoBotTurnResults(turnId: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetMySokoBotTurnResults({
+          client,
+          path: { turnId },
+          cache: "no-store",
+        }),
+      "Failed to fetch turn results",
+    );
+  }
   async function getChatRoomMessage(id: string, messageId: string) {
     return executeCoreOperation(
       getClient,
@@ -5887,6 +5915,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     getChatRoomInvitations,
     getChatRoomMessages,
     getChatRoomMessage,
+    getChatRoomMessageResults,
+    getMySokoBotTurnResults,
     getChatRoomThread,
     getChatRoomThreadMessages,
     getChatRoomThreads,
