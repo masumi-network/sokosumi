@@ -29,7 +29,6 @@ vi.mock("next-intl", () => ({
         if (key === "cta.button") {
           return `Chat with ${values?.name ?? ""}`;
         }
-        if (key === "cta.opening") return "Opening chat…";
         if (key === "cta.error") return "Could not open the chat.";
         return key;
       },

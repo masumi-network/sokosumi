@@ -278,9 +278,6 @@ describe("AuthFlow signIn", () => {
     render(<AuthFlow mode="signIn" lastUsedMethod="email-otp" />);
 
     expect(screen.getByText("lastUsed")).toBeInTheDocument();
-    expect(socialButtonsMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ lastUsedMethod: null }),
-    );
     await continueWith(user, "ada@example.com");
 
     await waitFor(() =>

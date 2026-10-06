@@ -28,4 +28,5 @@ Commands and backticked paths are relative to the repository root unless stated 
   - Use only for Web API access in small components
   - Avoid for data fetching or state management
 - **Async Operations**: Use Suspense for async operations
+- **Loading buttons**: Pass `loading` to the `Button` whose request is running; it keeps the label, icon and width and draws the sweeping bar. Confirm dialogs use `AlertDialogAction loading`; buttons `Button` cannot render draw `ButtonLoadingBar`. Two gotchas: a submit button inside `<fieldset disabled>` is natively disabled, so place it outside the fieldset; a loading button inside a Radix `…Trigger asChild` needs `disabled` on the trigger, or the menu still opens.
 - **Data Fetching**: Follow Next.js docs for Data Fetching, Rendering, and Routing

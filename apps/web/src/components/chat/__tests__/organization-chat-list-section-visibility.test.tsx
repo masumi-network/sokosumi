@@ -253,8 +253,8 @@ describe("OrganizationChatList section visibility", () => {
 
     expect(screen.getByText("App.Channels.External.title")).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "App.Channels.loading" }),
-    ).toBeInTheDocument();
+      screen.getByRole("button", { name: "App.Channels.External.accept" }),
+    ).toHaveAttribute("aria-busy", "true");
 
     resolveRooms(emptyListResult([joined]));
 

@@ -195,40 +195,39 @@ p {
   background: var(--surface);
 }
 
-.button[aria-busy="true"] {
+.button[aria-busy="true"],
+.choice[aria-busy="true"] {
   position: relative;
+  overflow: hidden;
   cursor: progress;
 }
 
-/* The label keeps the button's width; the spinner takes its place. */
-.button[aria-busy="true"] .button-label {
-  opacity: 0;
-}
-
-.button-spinner {
+/* The label stays; a bar sweeps along the bottom edge, out past one side and
+   back out past the other. A border, not a background, so forced colours
+   keep it visible. */
+.button-loading-bar {
   position: absolute;
-  inset: 0;
-  width: 20px;
-  height: 20px;
-  margin: auto;
-  border: 2px solid currentColor;
-  border-right-color: transparent;
-  border-radius: 50%;
-  animation: button-spin 700ms linear infinite;
+  bottom: 0;
+  left: 0;
+  width: 40%;
+  height: 0;
+  border-top: 2px solid currentColor;
+  pointer-events: none;
+  animation: button-loading-sweep 1.1s ease-in-out infinite alternate;
 }
 
-/* High contrast would fill the gap, and a closed ring does not look like it turns. */
-@media (forced-colors: active) {
-  .button-spinner {
-    forced-color-adjust: none;
-    border-color: GrayText;
-    border-right-color: transparent;
+@keyframes button-loading-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(250%);
   }
 }
 
-@keyframes button-spin {
-  to {
-    transform: rotate(1turn);
+@keyframes button-loading-pulse {
+  50% {
+    opacity: 0.4;
   }
 }
 
@@ -274,15 +273,6 @@ p {
 .choice:focus-visible {
   outline: 2px solid var(--foreground);
   outline-offset: 2px;
-}
-
-.choice[aria-busy="true"] {
-  position: relative;
-  cursor: progress;
-}
-
-.choice[aria-busy="true"] .button-label {
-  opacity: 0;
 }
 
 .choice-title {
@@ -431,8 +421,10 @@ p {
     transition: none;
   }
 
-  .button-spinner {
-    animation-duration: 0s, 2s;
+  .button-loading-bar {
+    width: 100%;
+    transform: none;
+    animation: button-loading-pulse 1.6s ease-in-out infinite;
   }
 }
 

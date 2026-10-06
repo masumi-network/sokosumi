@@ -97,10 +97,9 @@ function FormInput<T extends FieldValues>({
   t,
   ...controlProps
 }: FormInputProps<T>) {
-  const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
-    formDataItem;
-  const placeholderSource = placeholderKey ?? labelKey;
-  const placeholder = placeholderSource && t(placeholderSource);
+  const { autoComplete, type, labelKey, name, disabled } = formDataItem;
+  // The auth fields' placeholders repeat their labels.
+  const placeholder = labelKey && t(labelKey);
 
   if (type === "checkbox") {
     const id = labelKey?.toString() ?? name.toString();

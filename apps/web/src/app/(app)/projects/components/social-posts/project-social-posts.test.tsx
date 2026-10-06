@@ -124,7 +124,6 @@ const MESSAGES: Record<string, string> = {
   "composer.characters": "{count} / {limit}",
   "composer.media.addFromDrive": "Add from Drive",
   "composer.media.upload": "Upload",
-  "composer.media.uploading": "Uploading…",
   "composer.media.remove": "Remove {name}",
   "composer.media.hint": "Up to 4 images, or one GIF, or one video.",
   "composer.media.unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",

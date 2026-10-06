@@ -168,16 +168,11 @@ export function DesignMdAdHocDialog({
           <Button
             type="button"
             onClick={handleGenerate}
-            disabled={!url.trim() || generation.isRunning}
+            disabled={!url.trim()}
+            loading={generation.isRunning}
           >
-            {generation.isRunning ? (
-              t("generating")
-            ) : (
-              <>
-                <WandSparkles className="size-4" />
-                {t("confirmGenerate")}
-              </>
-            )}
+            <WandSparkles className="size-4" />
+            {t("confirmGenerate")}
           </Button>
         </DialogFooter>
       </DialogContent>

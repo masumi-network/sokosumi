@@ -212,7 +212,13 @@ export function createCmoAuth(config: CmoAuthConfig) {
       ipAddress: { ipAddressHeaders: CLIENT_IP_HEADERS },
     },
     // Better Auth only enables this in production by default; keep tests honest.
-    rateLimit: { enabled: true },
+    rateLimit: {
+      enabled: true,
+      // Every page load renews through this path, signed in or not, and a
+      // refused renewal signs the person out. Browsers cannot reach it
+      // (`api/auth/[...all]`), and Core limits the refresh itself.
+      customRules: { "/get-access-token": false },
+    },
     // Where a failure goes when it carries no errorCallbackURL: a callback
     // whose state is gone (expired, another browser, Back). The signed-out
     // page explains it; Better Auth's bare error page does not.
@@ -474,7 +480,8 @@ function withSetCookies(from: Response, status: number): Response {
   return new Response(null, { status, headers });
 }
 
-// ponytail: 30s replay within one process; cross-instance rotation needs Core coordination.
+// Within one process. Across instances, Core replays a rotated refresh token's
+// answer for 30s, so a second instance renewing the same session gets it too.
 const RENEWAL_REPLAY_MS = 30_000;
 // Inside Core's 30s rotation replay, so the first retry after a lost answer
 // still receives the rotated token instead of revoking the family.
@@ -549,7 +556,8 @@ async function renewSessionOnce(
     origin,
     "content-type": "application/json",
   });
-  // Rate-limit renewals per visitor, not in one bucket for the whole server.
+  // Better Auth reads the visitor from these, e.g. to rate-limit the sign-out
+  // below per visitor, not in one bucket for the whole server.
   for (const name of CLIENT_IP_HEADERS) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);

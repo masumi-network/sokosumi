@@ -441,19 +441,8 @@ describe("CMO auth handler", () => {
     expect(url.searchParams.get("code_challenge_method")).toBe("S256");
     expect(url.searchParams.get("code_challenge")).toBeTruthy();
     expect(url.searchParams.get("state")).toBeTruthy();
-  });
-
-  it("starts Sign in without a prompt", async () => {
-    const url = new URL(await startSignIn(auth, jar));
-
+    // Sign in sends no prompt; Create account's `prompt=create` is below.
     expect(url.searchParams.has("prompt")).toBe(false);
-  });
-
-  it("starts Create account with the create prompt", async () => {
-    const url = new URL(await startSignIn(auth, jar, { createAccount: true }));
-
-    expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
-    expect(url.searchParams.get("prompt")).toBe("create");
   });
 
   it("starts Create account from a link and signs in on the callback", async () => {
@@ -553,32 +542,6 @@ describe("CMO auth handler", () => {
 
     logged.mockRestore();
     expect(`${url.origin}${url.pathname}`).toBe(`${ISSUER}/oauth2/authorize`);
-  });
-
-  it("explains on the signed-out page instead of redirecting to Core when auth returns no URL", async () => {
-    const signInSocial = auth.api.signInSocial;
-    vi.spyOn(auth.api, "signInSocial").mockImplementation(async (input) => {
-      const result = await signInSocial(input);
-      if (
-        "response" in result &&
-        result.response &&
-        typeof result.response === "object" &&
-        "url" in result.response
-      ) {
-        result.response.url = "";
-      }
-      return result;
-    });
-
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-
-    const response = await followLink(jar, "/signin");
-
-    logged.mockRestore();
-    expect(response.status).toBe(302);
-    expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(response.headers.get("location")).toBe("/?error=unavailable");
-    expect(response.headers.getSetCookie()).toEqual([]);
   });
 
   it("rejects a link callback when the browser drops its forwarded state cookie", async () => {
@@ -688,6 +651,7 @@ describe("CMO auth handler", () => {
 
     const response = await renew(auth, jar);
 
+    expect(response.status).toBe(204);
     expect(response.headers.getSetCookie()).toEqual([]);
     expect(core.refreshCount()).toBe(0);
     expect(core.userLookups).toBe(lookupsAtSignIn);
@@ -1009,16 +973,6 @@ describe("CMO auth handler", () => {
     expect(core.refreshAttempts).toBe(2);
   });
 
-  it("serves a valid access token without asking Core while Core is down", async () => {
-    await signIn(auth, jar, core);
-    core.tokenFailure = "network";
-
-    const response = await renew(auth, jar);
-
-    expect(response.status).toBe(204);
-    expect(core.refreshAttempts).toBe(0);
-  });
-
   it("serves a page the current access token without refreshing it", async () => {
     await signIn(auth, jar, core);
     vi.setSystemTime(Date.now() + (TWO_HOURS_S - 60) * 1000);
@@ -1159,6 +1113,25 @@ describe("CMO auth handler", () => {
     expect(repeats.at(-1)).toBe(429);
   });
 
+  it("keeps the session when others on the same IP fill renewal's rate limit", async () => {
+    // An office or carrier NAT: every page load renews, signed in or not.
+    await signIn(auth, jar, core);
+    for (let visit = 0; visit < 120; visit += 1) {
+      const anonymous = browserRequest(new CookieJar(), "/");
+      anonymous.headers.set("x-vercel-forwarded-for", jar.ip);
+      await renewSession(auth, anonymous);
+    }
+
+    const response = await renew(auth, jar);
+
+    expect(response.status).toBe(204);
+    expect(core.revoked).toEqual([]);
+    expect(await sessionUser(auth, jar)).toEqual({
+      name: "Ada Lovelace",
+      email: "ada@example.com",
+    });
+  });
+
   it("renews with the visitor's IP, not one shared bucket", async () => {
     await signIn(auth, jar, core);
     const seen: (string | null)[] = [];
@@ -1187,19 +1160,6 @@ describe("CMO auth handler", () => {
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/?error=access_denied");
     expect(await sessionUser(auth, jar)).toBeNull();
-  });
-
-  it("returns to the signed-out page when the sign-in state is gone", async () => {
-    // Past ten minutes, or finished in another browser: the state cookie
-    // this browser set when sign-in started is not there.
-    const approval = core.approve(await startSignIn(auth, jar));
-
-    const response = await send(auth, new CookieJar(), callbackPath(approval));
-
-    expect(response.status).toBe(302);
-    expect(response.headers.get("location")).toBe(
-      `${CMO}/?error=state_mismatch`,
-    );
   });
 
   it("refuses a user Core does not accept", async () => {

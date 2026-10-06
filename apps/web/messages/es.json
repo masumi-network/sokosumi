@@ -60,6 +60,10 @@
       "socialError": "No hemos podido iniciar ese acceso.",
       "title": "Confirma que eres tú"
     },
+    "Button": {
+      "loading": "{label}, en curso",
+      "loadingUnnamed": "En curso"
+    },
     "ShareButton": {
       "share": "Compartir",
       "linkCopied": "Enlace copiado al portapapeles",
@@ -537,7 +541,6 @@
         "noExecutedJobs": "No hay jobs ejecutados",
         "emptyJobs": "Aún sin jobs. Contrata a este coworker para empezar uno.",
         "loadMore": "Cargar más",
-        "loading": "Cargando...",
         "loadMoreError": "No se pudieron cargar más jobs"
       }
     },
@@ -616,8 +619,7 @@
           "next": "Continuar",
           "skip": "Omitir",
           "finishSetup": "Finalizar configuración",
-          "finish": "Ir al espacio de trabajo",
-          "creating": "Creando…"
+          "finish": "Ir al espacio de trabajo"
         },
         "Details": {
           "title": "Nombra tu organización",
@@ -668,7 +670,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Comas, puntos y coma o saltos de línea.",
           "sendInvites": "Enviar invitaciones",
-          "sending": "Enviando…",
           "inviteSuccess": "Invitaciones enviadas",
           "inviteSummary": "Enviadas {sent}, fallidas {failed}.",
           "linkError": "No se pudo crear el enlace de invitación",
@@ -800,7 +801,6 @@
       "showAll": "Mostrar todas",
       "showOlder": "Mostrar notificaciones anteriores",
       "justNow": "Ahora mismo",
-      "loading": "Cargando...",
       "markAllRead": "Marcar todas como leídas",
       "markAllReadError": "No se pudieron marcar todas las notificaciones como leídas",
       "markReadError": "No se pudo marcar la notificación como leída",
@@ -826,7 +826,6 @@
       "browserPermissionInAppTitle": "Recibe alertas cuando estés en otra pestaña",
       "browserPermissionInAppDescription": "Permite notificaciones del navegador para tareas, facturación, sistema y chat mientras Sokosumi esté abierto pero no enfocado.",
       "browserPermissionEnable": "Activar notificaciones del navegador",
-      "browserPermissionRequesting": "Esperando permiso…",
       "browserPermissionDeniedTitle": "Las notificaciones del navegador están bloqueadas",
       "browserPermissionDeniedDescription": "Las notificaciones de este sitio están bloqueadas en tu navegador. Abre la configuración de notificaciones del navegador para Sokosumi y permítelas.",
       "browserPermissionInstallTitle": "Añade Sokosumi a la pantalla de inicio",
@@ -834,7 +833,6 @@
       "pushQuietTitle": "Las notificaciones push se detuvieron en este navegador",
       "pushQuietDescription": "Este navegador perdió su suscripción push, por eso aquí no llegan las novedades. Puede que tus otros dispositivos sigan recibiéndolas.",
       "pushQuietRestore": "Volver a activar push",
-      "pushQuietRestoring": "Activando push de nuevo…",
       "vendorGrantAcceptSuccess": "Acceso de proveedor aprobado",
       "vendorGrantAcceptError": "No se pudo aprobar el acceso de proveedor",
       "coworkerAccessAcceptSuccess": "Acceso anticipado de coworker aprobado",
@@ -1013,7 +1011,6 @@
     "title": "Has sido invitado",
     "invitedToJoin": "Únete a {organization} en Sokosumi.",
     "join": "Unirse a {organization}",
-    "joining": "Uniéndose…",
     "linkHintOwner": "Cualquiera con este enlace puede unirse como miembro.",
     "signedOutHint": "Inicia sesión o crea una cuenta para aceptar esta invitación.",
     "haveAccount": "¿Ya tienes una cuenta?",
@@ -1049,7 +1046,6 @@
       "goToHome": "Ir al inicio",
       "Actions": {
         "accept": "Unirse a {organization}",
-        "joining": "Uniéndose…",
         "decline": "Rechazar",
         "logout": "Cerrar sesión",
         "ignore": "Ignorar",
@@ -1119,37 +1115,6 @@
       "quoteAuthor": "Florian Haller",
       "quoteRole": "CEO, Serviceplan Group"
     },
-    "Schema": {
-      "Email": {
-        "invalid": "Por favor, introduce una dirección de email válida.",
-        "required": "El email es obligatorio"
-      },
-      "Name": {
-        "min": "El nombre debe tener al menos 2 caracteres.",
-        "max": "El nombre no puede superar los 128 caracteres.",
-        "invalid": "El nombre debe ser una cadena válida.",
-        "required": "El nombre es obligatorio"
-      },
-      "Password": {
-        "invalid": "La contraseña debe ser una cadena válida.",
-        "min": "La contraseña debe tener al menos 8 caracteres",
-        "max": "La contraseña no puede superar los 128 caracteres",
-        "required": "La contraseña es obligatoria"
-      },
-      "CurrentPassword": {
-        "invalid": "La contraseña actual debe ser una cadena válida.",
-        "required": "La contraseña actual es obligatoria"
-      },
-      "InputPassword": {
-        "invalid": "La contraseña debe ser una cadena válida.",
-        "required": "La contraseña es obligatoria"
-      },
-      "ConfirmPassword": {
-        "invalid": "La confirmación de contraseña debe ser una cadena válida.",
-        "match": "Las contraseñas no coinciden",
-        "required": "La confirmación de contraseña es obligatoria"
-      }
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Iniciar sesión / Registrarse",
@@ -1161,7 +1126,6 @@
       "continueWith": "Continuar con {provider}",
       "orDivider": "o",
       "emailCodeError": "No pudimos enviar un código. Inténtalo de nuevo.",
-      "success": "Sesión iniciada correctamente",
       "error": "Error al iniciar sesión",
       "lastUsed": "Usado por última vez",
       "passkeyProvider": "Passkey",
@@ -1290,7 +1254,6 @@
           },
           "linkExpired": "Ese enlace para restablecer la contraseña ha caducado o ya se usó. Solicita uno nuevo.",
           "Errors": {
-            "rateLimited": "Demasiadas solicitudes seguidas. Espera un minuto y vuelve a intentarlo.",
             "generic": "No pudimos enviar el email para restablecer la contraseña. Vuelve a intentarlo."
           }
         }
@@ -1404,7 +1367,6 @@
       },
       "List": {
         "loadMore": "Cargar más",
-        "loading": "Cargando transacciones...",
         "loadMoreError": "No se pudieron cargar más transacciones"
       },
       "Row": {
@@ -1556,7 +1518,6 @@
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
           "searchAgents": "Buscar Agentes",
-          "opening": "Abriendo el chat…",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -2046,7 +2007,6 @@
         "newSchedule": "Nueva programación",
         "empty": "Todavía no hay programaciones. Una programación crea una tarea nueva en cada ejecución.",
         "loadMore": "Cargar más",
-        "loadingMore": "Cargando…",
         "loadMoreError": "No se pudieron cargar más programaciones.",
         "nextRun": "Próxima ejecución {datetime}",
         "noNextRun": "Sin próxima ejecución",
@@ -2220,7 +2180,6 @@
       },
       "list": {
         "loadMore": "Cargar más",
-        "loading": "Cargando proyectos...",
         "filter": {
           "placeholder": "Filtrar proyectos",
           "clear": "Borrar filtro",
@@ -2325,7 +2284,6 @@
           "next": "Continuar",
           "back": "Atrás",
           "create": "Crear proyecto",
-          "creating": "Creando…",
           "openProject": "Abrir proyecto"
         }
       },
@@ -2352,7 +2310,6 @@
         "reconnect": "Volver a conectar",
         "replace": "Reemplazar",
         "disconnect": "Desconectar",
-        "disconnecting": "Desconectando…",
         "unknownHandle": "Cuenta desconocida",
         "status": {
           "active": "Conectada",
@@ -2443,7 +2400,6 @@
           "media": {
             "addFromDrive": "Añadir desde Drive",
             "upload": "Subir",
-            "uploading": "Subiendo…",
             "remove": "Quitar {name}",
             "unsupported": "Usa un tipo de archivo que {provider} acepte.",
             "alreadyAttached": "Ese archivo ya está adjunto.",
@@ -2992,7 +2948,6 @@
       "pricePerMonth": "por mes",
       "includedCredits": "{credits, plural, =0 {Sin Credits} =1 {# Credit incluido} other {# Credits incluidos}}",
       "mostPopularBadge": "Más popular",
-      "upgrading": "Redirigiendo...",
       "canceling": "Programando la cancelación...",
       "currentPlanCta": "Plan actual",
       "upgradePlanCta": "Elegir plan",
@@ -3308,7 +3263,6 @@
           "resolve": "Resolver",
           "reason": "Motivo de auditoría",
           "cancel": "Cancelar",
-          "submitting": "Guardando…",
           "refundConfirmTitle": "¿Reembolsar el pago verificado?",
           "refundConfirmDescription": "Esto crea una transacción compensatoria de créditos y cierra el pago permanentemente como reembolsado.",
           "resolveConfirmTitle": "¿Resolver el pago pendiente?",
@@ -3441,7 +3395,6 @@
         "newGrant": "Nueva factura",
         "backToList": "Volver a la lista",
         "delete": "Eliminar",
-        "deleting": "Eliminando…",
         "deleteSuccess": "Factura eliminada",
         "deleteError": "No se pudo eliminar la factura",
         "deleteConfirmTitle": "¿Eliminar factura?",
@@ -3463,7 +3416,6 @@
           "expiryPlaceholder": "Sin caducidad",
           "expiryInvalid": "La caducidad debe ser un número entero positivo de días",
           "submit": "Crear factura",
-          "submitting": "Creando factura…",
           "createSuccess": "Factura creada",
           "createError": "No se pudo crear la factura",
           "pricePlaceholder": "Selecciona un precio",
@@ -3512,7 +3464,6 @@
           "status": "Estado",
           "invoiceId": "ID de factura",
           "markPaid": "Marcar como pagada",
-          "marking": "Otorgando créditos…",
           "paidSuccess": "Créditos otorgados",
           "paidError": "No se pudo marcar la factura como pagada",
           "openInStripe": "Abrir en Stripe",
@@ -3675,13 +3626,10 @@
             "title": "Controles de plataforma",
             "description": "Gestiona capacidades, prioridad, lista blanca y estado de archivo.",
             "save": "Guardar controles",
-            "saving": "Guardando controles…",
             "archive": "Archivar",
-            "archiving": "Archivando…",
             "archiveConfirmTitle": "¿Archivar coworker?",
             "archiveConfirmDescription": "Esto archiva el coworker y revoca sus claves API. Puedes desarchivarlo después, pero las claves API seguirán revocadas.",
             "unarchive": "Desarchivar",
-            "unarchiving": "Desarchivando…",
             "capabilities": {
               "label": "Capacidades",
               "chat": "Chat",
@@ -3778,7 +3726,6 @@
           "referenceNoteHelper": "Nota opcional almacenada en el bucket de créditos para referencia interna.",
           "referenceNotePlaceholder": "p. ej. Problema de facturación, gesto de cortesía",
           "submit": "Otorgar créditos",
-          "submitting": "Otorgando créditos…",
           "grantSuccess": "Créditos gratuitos otorgados",
           "grantError": "No se pudieron otorgar los créditos gratuitos"
         }
@@ -3900,7 +3847,6 @@
             "unnamedBot": "este asistente",
             "confirmLabel": "Escribe el correo del propietario ({email}) para confirmar",
             "delete": "Eliminar Soko Bot",
-            "deleting": "Eliminando…",
             "deleted": "Soko Bot eliminado.",
             "tombstoned": "Soko Bot eliminado. {tasks} tareas y {messages} mensajes de chat lo mantienen registrado.",
             "error": "No se pudo eliminar este Soko Bot."
@@ -3910,7 +3856,6 @@
             "roomsNav": "Chats",
             "ownerRoom": "Propietario",
             "loadOlder": "Cargar anteriores",
-            "loading": "Cargando…",
             "noMessages": "Aún no hay mensajes.",
             "empty": "Nadie ha chateado con este bot todavía.",
             "deleted": "Mensaje eliminado",
@@ -3938,7 +3883,6 @@
           "reasonHint": "Entre 3 y 500 caracteres. Se guarda de forma inmutable con tu id de operador.",
           "cancel": "Cancelar",
           "confirm": "Confirmar",
-          "working": "Procesando…",
           "done": "{action} registrado.",
           "error": "La acción falló.",
           "more": "Más acciones"
@@ -4103,7 +4047,6 @@
           "actionDescription": "Esta acción de operador queda auditada. Explica por qué es necesaria.",
           "reasonLabel": "Motivo",
           "cancel": "Cancelar",
-          "working": "Procesando…",
           "actionDone": "Acción de programación completada.",
           "actionError": "No se pudo completar la acción de programación.",
           "noRuns": "Aún no hay ejecuciones.",
@@ -4221,13 +4164,11 @@
             "promote": "Promocionar",
             "promoteTitle": "¿Promocionar esta versión?",
             "promoteConfirm": "Esto solo afecta a los bots nuevos. Los bots existentes conservan la versión con la que se crearon.",
-            "promoting": "Promocionando…",
             "promoted": "Versión promocionada para los bots nuevos.",
             "promoteError": "No se pudo promocionar esta versión.",
             "archive": "Archivar",
             "archiveTitle": "¿Archivar esta versión?",
             "archiveConfirm": "Desaparecerá de los selectores de versión. Los bots que la tengan asignada volverán a la versión integrada predeterminada la próxima vez que se ejecuten.",
-            "archiving": "Archivando…",
             "archived": "Versión archivada.",
             "archiveError": "No se pudo archivar esta versión.",
             "archiveDefaultHint": "Promociona otra versión antes de archivar esta versión predeterminada."
@@ -4255,7 +4196,6 @@
             "saveError": "No se pudo guardar esta versión.",
             "created": "Versión creada.",
             "updated": "Versión actualizada.",
-            "saving": "Guardando…",
             "create": "Crear versión",
             "save": "Guardar cambios"
           },
@@ -4328,7 +4268,6 @@
           "noReason": "sin motivo indicado",
           "disable": "Desactivar Soko Bot",
           "enable": "Activar Soko Bot",
-          "working": "Trabajando…",
           "reasonPlaceholder": "Motivo mostrado a los usuarios (opcional)",
           "disabled": "Soko Bot desactivado.",
           "enabled": "Soko Bot activado.",
@@ -4350,7 +4289,6 @@
           "reasonLabel": "Motivo",
           "reasonPlaceholder": "¿Por qué mueve este bot? (obligatorio, queda en el registro de auditoría)",
           "confirm": "Mover este bot",
-          "working": "Moviendo…",
           "done": "Movido a {version}.",
           "error": "No se pudo mover este bot."
         },
@@ -4369,7 +4307,6 @@
           "notifyRequired": "Obligatorio para esta versión: funciona fuera de la UE, así que cada bot movido avisa a su propietario. No inicia ningún turno.",
           "confirm": "Mover {count} bots",
           "nothingToMove": "No hay nada que mover con esta selección.",
-          "working": "Moviendo…",
           "done": "{moved} bots movidos.",
           "result": "Movidos: {moved}. Ya en esta versión: {alreadyOnVersion}. No se pudieron mover: {failed}.",
           "notifiedResult": "Propietarios avisados: {notified}.",
@@ -4447,7 +4384,6 @@
           "namePlaceholder": "p. ej. Partners",
           "nameHelp": "Se muestra en la lista. Empieza desde el identificador; puedes cambiarlo aquí.",
           "submit": "Crear canal",
-          "submitting": "Creando…",
           "success": "Canal emparejado creado",
           "error": "No se pudo crear el canal emparejado",
           "slugTaken": "Este slug de canal ya está en uso."
@@ -4478,20 +4414,17 @@
             "title": "Añadir usuario",
             "description": "Busca un usuario existente de la plataforma. No se envía invitación por correo; la membresía se crea de inmediato.",
             "user": "Usuario",
-            "submit": "Añadir usuario",
-            "submitting": "Añadiendo…"
+            "submit": "Añadir usuario"
           },
           "AddOrganization": {
             "title": "Añadir organización",
             "description": "Añade todos los miembros actuales de una organización a este canal (máx. 200 miembros por solicitud). Las altas posteriores no se sincronizan.",
             "organization": "Organización",
             "helper": "Las organizaciones a las que perteneces aparecen primero en los resultados de búsqueda.",
-            "submit": "Añadir miembros de la organización",
-            "submitting": "Añadiendo…"
+            "submit": "Añadir miembros de la organización"
           },
           "Archive": {
             "button": "Archivar canal",
-            "archiving": "Archivando…",
             "confirmTitle": "¿Archivar {name}?",
             "confirmDescription": "Los participantes pierden el acceso de inmediato. Puedes restaurar este canal desde la pestaña Archivados en este panel.",
             "confirm": "Archivar",
@@ -4502,7 +4435,6 @@
           "archivedBadge": "Archivado: las ediciones de la lista están desactivadas hasta restaurarlo.",
           "Restore": {
             "button": "Restaurar canal",
-            "restoring": "Restaurando…",
             "confirmTitle": "¿Restaurar {name}?",
             "confirmDescription": "Quita el archivo para que el canal vuelva al panel en vivo. Los miembros existentes conservan su membresía y recuperan el acceso en la próxima actualización de sesión.",
             "confirm": "Restaurar",
@@ -4512,7 +4444,6 @@
           },
           "Delete": {
             "button": "Eliminar permanentemente",
-            "deleting": "Eliminando…",
             "confirmTitle": "¿Eliminar permanentemente {name}?",
             "confirmDescription": "Esto no se puede deshacer. El canal, sus membresías y mensajes se eliminan para siempre. Solo se pueden eliminar canales archivados.",
             "confirm": "Eliminar permanentemente",
@@ -5099,7 +5030,6 @@
         "noApplications": "No se ha autorizado ninguna aplicación.",
         "authorized": "Autorizado: {date}",
         "revokeAccess": "Revocar acceso",
-        "revoking": "Revocando...",
         "confirmRevoke": "¿Seguro que quieres revocar el acceso a esta aplicación?",
         "revokeSuccess": "Acceso revocado correctamente",
         "revokeError": "No se pudo revocar el acceso",
@@ -5108,11 +5038,10 @@
       "OAuthConsent": {
         "invalidRequest": {
           "title": "Solicitud OAuth no válida",
-          "description": "Faltan parámetros obligatorios: client_id o redirect_uri"
+          "description": "Falta el parámetro obligatorio: client_id"
         },
         "clientNotFound": {
           "title": "Cliente no encontrado",
-          "description": "No se encontró el cliente OAuth.",
           "descriptionWithId": "El cliente OAuth con ID {clientId} no existe."
         },
         "loadError": {
@@ -5125,11 +5054,8 @@
         "wantsAccess": "quiere acceder a tu cuenta de Sokosumi",
         "actions": {
           "authorize": "Autorizar",
-          "authorizing": "Autorizando...",
           "deny": "Rechazar",
-          "denying": "Rechazando...",
           "authorizeError": "No se pudo autorizar la aplicación",
-          "authorizeErrorRedirectUri": "No se pudo autorizar la aplicación. Por favor, verifica tu Redirect URI.",
           "authorizeErrorGeneric": "Ocurrió un error durante la autorización",
           "workspacePrepareError": "No se pudo preparar tu espacio de trabajo. Inténtalo de nuevo.",
           "authorizeSuccess": "Aplicación autorizada correctamente",
@@ -5275,7 +5201,6 @@
         "noCode": "No se encontró ningún código de autorización en la URL. Por favor, completa primero el flujo de autorización.",
         "actions": {
           "exchange": "Intercambiar por token",
-          "exchanging": "Intercambiando...",
           "copy": "Copiar"
         },
         "success": {
@@ -5352,7 +5277,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi usa este sitio web para generar tu DESIGN.md.",
         "submit": "Guardar perfil de marca",
-        "saving": "Guardando...",
         "saveSuccess": "Perfil de marca guardado",
         "saveError": "No se pudo guardar el perfil de marca",
         "Schema": {
@@ -5466,7 +5390,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {Sin créditos por Seat} =1 {# crédito por Seat} other {# créditos por Seat}}",
           "noActivePlan": "Sin plan activo",
           "seatsUpdatedSuccess": "Seats actualizados correctamente.",
-          "updating": "Redirigiendo...",
           "currentPlanCta": "Plan actual",
           "updateSeatsCta": "Actualizar Seats",
           "choosePlanCta": "Elegir plan",
@@ -5773,7 +5696,6 @@
       "forceRegenerateLabel": "Forzar una generación nueva",
       "forceRegenerateDescription": "Úsalo cuando el sitio web haya cambiado recientemente y el resultado en caché pueda estar desactualizado.",
       "confirmGenerate": "Iniciar generación",
-      "generating": "Generando...",
       "starting": "Iniciando generación...",
       "polling": "Esperando a Masumi...",
       "finalizing": "Guardando DESIGN.md...",
@@ -5786,7 +5708,6 @@
       "uploadTitle": "Subir archivo Markdown",
       "uploadDescription": ".md o .markdown hasta {maxSize}",
       "uploadButton": "Subir",
-      "uploading": "Subiendo...",
       "uploadSuccess": "DESIGN.md subido",
       "uploadError": "No se pudo subir el DESIGN.md",
       "uploadRejected": "Archivo no aceptado",
@@ -5798,7 +5719,6 @@
       "editTab": "Editar",
       "previewTab": "Vista previa",
       "editSave": "Guardar",
-      "editSaving": "Guardando...",
       "editSaveSuccess": "DESIGN.md guardado",
       "editUnavailableTitle": "DESIGN.md no está disponible",
       "editLoadErrorTitle": "No se pudo cargar DESIGN.md",
@@ -5967,7 +5887,6 @@
           "uploadError": "No se pudo procesar la imagen seleccionada."
         },
         "saveChanges": "Guardar visualización",
-        "saving": "Guardando…",
         "cancel": "Cancelar",
         "validation": {
           "nameMinLength": "El nombre debe tener al menos {min} caracteres.",
@@ -6234,12 +6153,10 @@
         "muted": "Silenciado"
       },
       "loadOlder": "Cargar mensajes anteriores",
-      "loadingOlder": "Cargando mensajes anteriores…",
       "jumpToLatest": "Ir a los mensajes más recientes",
       "Boundary": {
         "missingHere": "Aquí faltan mensajes",
         "loadMissing": "Cargar mensajes que faltan",
-        "loadingMissing": "Cargando mensajes que faltan…",
         "loadFailed": "No se pudieron cargar los mensajes.",
         "retry": "Reintentar"
       },
@@ -6365,8 +6282,7 @@
         "addPeopleTitle": "Añadir personas a {name}",
         "addAll": "Añadir a los {count} miembros de {organization}",
         "addSpecific": "Añadir personas concretas",
-        "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal.",
-        "creating": "Creando…"
+        "addSpecificHelp": "Selecciona personas y compañeros de IA para añadir a este canal."
       },
       "RoomRoster": {
         "open": "Miembros",
@@ -6551,7 +6467,6 @@
         "invitedToJoin": "Te han invitado a unirte a #{room} ({organization}).",
         "guestNote": "Unirte como invitado no te hace miembro de la organización anfitriona.",
         "join": "Unirse a #{room}",
-        "joining": "Uniéndose…",
         "joined": "Te uniste a #{room}.",
         "alreadyGuest": "Ya estás en #{room}.",
         "signedOutHint": "Inicia sesión o crea una cuenta para unirte a este canal como invitado.",
@@ -6837,7 +6752,6 @@
         "nameLabel": "Nombre",
         "namePlaceholder": "p. ej. Atlas",
         "submit": "Crear Soko Bot",
-        "submitting": "Creando…",
         "created": "Soko Bot creado.",
         "error": "No se pudo crear el Soko Bot.",
         "avatarLabel": "Imagen",
@@ -6930,7 +6844,6 @@
           "timezone": "Zona horaria",
           "prompt": "Prompt",
           "submit": "Crear programación",
-          "submitting": "Creando…",
           "cancel": "Cancelar",
           "created": "Programación creada.",
           "error": "No se pudo crear la programación."
@@ -6963,7 +6876,6 @@
         "archived": "Soko Bot archivado.",
         "archiveError": "No se pudo archivar el Soko Bot.",
         "delete": "Eliminar",
-        "deleting": "Eliminando…",
         "deleteConfirm": "Eliminar para siempre",
         "deleteCancel": "Cancelar",
         "deleteConfirmTitle": "¿Eliminar tu Soko Bot?",
@@ -7069,9 +6981,7 @@
           "heading": "Necesita tu visto bueno",
           "headingResolved": "Aprobación",
           "accept": "Aprobar",
-          "accepting": "Aprobando…",
           "reject": "Rechazar",
-          "rejecting": "Rechazando…",
           "accepted": "Aprobado. Tu Soko Bot lo llevará a cabo.",
           "rejected": "Rechazado. No se creó nada.",
           "error": "No se pudo resolver la aprobación.",
@@ -7129,7 +7039,6 @@
         "lastActivity": "última actividad {time}",
         "adminView": "Vista de administrador",
         "openChat": "Abrir chat",
-        "openingChat": "Abriendo…",
         "openChatError": "No se pudo abrir el chat con tu Soko Bot.",
         "Stats": {
           "title": "Qué ha hecho",
@@ -7184,7 +7093,6 @@
         "title": "Imagen",
         "description": "Una mascota única de la colección. Dos asistentes nunca comparten la misma.",
         "save": "Usar esta imagen",
-        "saving": "Guardando…",
         "saved": "Imagen actualizada.",
         "saveError": "No se pudo actualizar la imagen.",
         "current": "Imagen actual",
@@ -7384,7 +7292,6 @@
       "importProgress": "{count, plural, one {# fila importada} other {# filas importadas}}. Los lotes completados se conservan si se interrumpe.",
       "create": "Crear tabla",
       "save": "Guardar",
-      "saving": "Guardando…",
       "retry": "Reintentar",
       "openTable": "Abrir tabla",
       "loading": "Cargando…",
@@ -7600,12 +7507,6 @@
         },
         "FullName": {
           "max": "El nombre y el apellido juntos no pueden superar los 128 caracteres, incluido el espacio."
-        },
-        "Organization": {
-          "invalid": "La organización debe ser una cadena válida.",
-          "required": "La organización es obligatoria",
-          "min": "El nombre de la organización debe tener al menos 2 caracteres.",
-          "max": "El nombre de la organización no puede superar los 50 caracteres."
         },
         "Password": {
           "invalid": "La contraseña debe ser una cadena válida.",

@@ -2,7 +2,6 @@
 
 import {
   AlertTriangle,
-  Loader2,
   type LucideIcon,
   Share,
   Smartphone,
@@ -190,15 +189,10 @@ function BrowserNotice({
             // browser drops a `disabled` control out of the tab order under
             // the reader's finger, and this write waits on the browser's own
             // permission prompt, so it is in flight for as long as a person
-            // takes to answer it. Every other control on this card refuses a
-            // press the same way.
-            aria-disabled={action.saving || undefined}
-            aria-busy={action.saving}
+            // takes to answer it. `loading` keeps it focusable and ignores the
+            // press, the way every other control on this card refuses one.
+            loading={action.saving}
             onClick={() => {
-              if (action.saving) {
-                return;
-              }
-
               action.onPress();
             }}
             // Stacked under the words on a phone, it starts where the words
@@ -214,15 +208,8 @@ function BrowserNotice({
             className={cn(
               "ml-7 h-auto min-h-8 self-start py-1.5 whitespace-normal @xl:ml-0 @xl:h-8 @xl:self-auto @xl:py-0",
               !warning && "text-muted-foreground",
-              action.saving && "opacity-50",
             )}
           >
-            {action.saving ? (
-              <Loader2
-                className="size-4 shrink-0 motion-safe:animate-spin motion-reduce:animate-pulse"
-                aria-hidden="true"
-              />
-            ) : null}
             {t(action.labelKey)}
           </Button>
         ) : null}

@@ -23,7 +23,6 @@ const {
   getBetterAuthProductionUrlMock,
   getBetterAuthSubscriptionPlansMock,
   getWebAppBaseUrlMock,
-  ensureInitialLocalFreeSubscriptionPeriodMock,
   grantSignupBonusCreditsMock,
   hasConsumableEnterpriseContractMock,
   handleSubscriptionDeletedEventMock,
@@ -34,11 +33,9 @@ const {
   getOAuthProviderStateMock,
   oAuthProxyPluginMock,
   openAPIPluginMock,
-  organizationPluginMock,
   emailOTPPluginMock,
   markOutOfCreditsTasksAsToppedUpMock,
   getMemberByUserIdAndOrganizationIdMock,
-  getMembersByOrganizationIdMock,
   passkeyPluginMock,
   sendEmailMock,
   prismaAdapterMock,
@@ -54,14 +51,10 @@ const {
   sentrySetExtrasMock,
   setSessionCookieMock,
   stripeCreateUserCustomerMock,
-  stripeCreateOrganizationCustomerMock,
   stripePluginMock,
   webhookCallAccountCreatedMock,
   webhookCallUserWebhookMock,
-  upgradeGuestChatRoomMembershipsToMemberMock,
   deleteStripeCustomerBestEffortMock,
-  listOrganizationExitChatRoomIdsForAblyMock,
-  publishOrganizationExitChatRevocationMock,
   deliverOrganizationCalendarInvalidationsNowMock,
   prepareStripeEmailSyncForUserUpdateMock,
   handleUserUpdateStripeEmailSyncMock,
@@ -69,9 +62,6 @@ const {
   waitUntilCapturedPromises,
   waitUntilMock,
   workspaceUpsertMock,
-  ensurePersonalWorkspaceKeepingPreferredMock,
-  isLastWorkspaceMock,
-  prepareOrganizationForDeletionMock,
 } = vi.hoisted(() => {
   const waitUntilCapturedPromises: Promise<unknown>[] = [];
   const waitUntilMock = vi.fn((promise: Promise<unknown>) => {
@@ -138,7 +128,6 @@ const {
     getBetterAuthProductionUrlMock: vi.fn(),
     getBetterAuthSubscriptionPlansMock: vi.fn(),
     getWebAppBaseUrlMock: vi.fn(),
-    ensureInitialLocalFreeSubscriptionPeriodMock: vi.fn(),
     grantSignupBonusCreditsMock: vi.fn(),
     hasConsumableEnterpriseContractMock: vi.fn(),
     handleSubscriptionDeletedEventMock: vi.fn(),
@@ -149,11 +138,9 @@ const {
     getOAuthProviderStateMock: vi.fn(),
     oAuthProxyPluginMock: vi.fn(),
     openAPIPluginMock: vi.fn(),
-    organizationPluginMock: vi.fn(),
     emailOTPPluginMock: vi.fn(),
     markOutOfCreditsTasksAsToppedUpMock: vi.fn(),
     getMemberByUserIdAndOrganizationIdMock: vi.fn(),
-    getMembersByOrganizationIdMock: vi.fn(),
     passkeyPluginMock: vi.fn(),
     sendEmailMock: vi.fn(),
     prismaAdapterMock: vi.fn(),
@@ -170,14 +157,10 @@ const {
     sentrySetExtrasMock: vi.fn(),
     setSessionCookieMock: vi.fn(),
     stripeCreateUserCustomerMock: vi.fn(),
-    stripeCreateOrganizationCustomerMock: vi.fn(),
     stripePluginMock: vi.fn(),
     webhookCallAccountCreatedMock: vi.fn(),
     webhookCallUserWebhookMock: vi.fn(),
-    upgradeGuestChatRoomMembershipsToMemberMock: vi.fn(),
     deleteStripeCustomerBestEffortMock: vi.fn(),
-    listOrganizationExitChatRoomIdsForAblyMock: vi.fn(),
-    publishOrganizationExitChatRevocationMock: vi.fn(),
     deliverOrganizationCalendarInvalidationsNowMock: vi.fn(),
     prepareStripeEmailSyncForUserUpdateMock: vi.fn(),
     handleUserUpdateStripeEmailSyncMock: vi.fn(),
@@ -185,9 +168,6 @@ const {
     waitUntilCapturedPromises,
     waitUntilMock,
     workspaceUpsertMock: vi.fn(),
-    ensurePersonalWorkspaceKeepingPreferredMock: vi.fn(),
-    isLastWorkspaceMock: vi.fn(),
-    prepareOrganizationForDeletionMock: vi.fn(),
   };
 });
 
@@ -221,13 +201,6 @@ function getDefaultEnv() {
   };
 }
 
-function envRequiringPersonalWorkspace() {
-  return {
-    ...getDefaultEnv(),
-    REQUIRE_PERSONAL_WORKSPACE: true,
-  };
-}
-
 vi.mock("better-auth/cookies", async (importOriginal) => {
   const actual = await importOriginal<typeof import("better-auth/cookies")>();
   return {
@@ -253,7 +226,11 @@ vi.mock("better-auth/plugins", async (importOriginal) => ({
   emailOTP: (...args: unknown[]) => emailOTPPluginMock(...args),
   oAuthProxy: (...args: unknown[]) => oAuthProxyPluginMock(...args),
   openAPI: (...args: unknown[]) => openAPIPluginMock(...args),
-  organization: (...args: unknown[]) => organizationPluginMock(...args),
+}));
+
+// Its hooks are tested in `auth-organization.test.ts`.
+vi.mock("./auth-organization", () => ({
+  createAuthOrganizationPlugin: () => "organization-plugin",
 }));
 
 vi.mock("@better-auth/passkey", () => ({
@@ -305,8 +282,6 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
     await importOriginal<typeof import("@sokosumi/database/helpers")>();
   return {
     ...actual,
-    ensureInitialLocalFreeSubscriptionPeriod: (...args: unknown[]) =>
-      ensureInitialLocalFreeSubscriptionPeriodMock(...args),
     grantSignupBonusCredits: (...args: unknown[]) =>
       grantSignupBonusCreditsMock(...args),
     hasConsumableEnterpriseContract: (...args: unknown[]) =>
@@ -314,27 +289,14 @@ vi.mock("@sokosumi/database/helpers", async (importOriginal) => {
   };
 });
 
-vi.mock("@/helpers/workspace-access", () => ({
-  isLastWorkspace: (...args: unknown[]) => isLastWorkspaceMock(...args),
-}));
-
-vi.mock("@/helpers/organization-deletion", () => ({
-  prepareOrganizationForDeletion: (...args: unknown[]) =>
-    prepareOrganizationForDeletionMock(...args),
-}));
-
 vi.mock("@sokosumi/database/repositories", () => ({
   memberRepository: {
     getMemberByUserIdAndOrganizationId: (...args: unknown[]) =>
       getMemberByUserIdAndOrganizationIdMock(...args),
-    getMembersByOrganizationId: (...args: unknown[]) =>
-      getMembersByOrganizationIdMock(...args),
   },
   workspaceRepository: {
     upsertOrganizationWorkspace: (...args: unknown[]) =>
       workspaceUpsertMock(...args),
-    ensurePersonalWorkspaceKeepingPreferred: (...args: unknown[]) =>
-      ensurePersonalWorkspaceKeepingPreferredMock(...args),
   },
 }));
 
@@ -347,8 +309,6 @@ vi.mock("@/clients/stripe.client", () => ({
   stripeClient: {
     createUserCustomer: (...args: unknown[]) =>
       stripeCreateUserCustomerMock(...args),
-    createOrganizationCustomer: (...args: unknown[]) =>
-      stripeCreateOrganizationCustomerMock(...args),
   },
 }));
 
@@ -401,21 +361,9 @@ vi.mock("@/services/preferred-organization.service", () => ({
     resolveActiveOrganizationIdForSessionMock(...args),
 }));
 
-vi.mock("@/helpers/chat-room-guest-upgrade", () => ({
-  upgradeGuestChatRoomMembershipsToMember: (...args: unknown[]) =>
-    upgradeGuestChatRoomMembershipsToMemberMock(...args),
-}));
-
 vi.mock("@/helpers/stripe-customer-delete", () => ({
   deleteStripeCustomerBestEffort: (...args: unknown[]) =>
     deleteStripeCustomerBestEffortMock(...args),
-}));
-
-vi.mock("@/helpers/chat-room-organization-exit", () => ({
-  listOrganizationExitChatRoomIdsForAbly: (...args: unknown[]) =>
-    listOrganizationExitChatRoomIdsForAblyMock(...args),
-  publishOrganizationExitChatRevocation: (...args: unknown[]) =>
-    publishOrganizationExitChatRevocationMock(...args),
 }));
 
 vi.mock("@/helpers/calendar-invalidation", () => ({
@@ -479,7 +427,6 @@ describe("core auth config", () => {
     oAuthProxyPluginMock.mockReturnValue("oauth-proxy-plugin");
     oauthProviderPluginMock.mockReturnValue("oauth-provider-plugin");
     openAPIPluginMock.mockReturnValue("openapi-plugin");
-    organizationPluginMock.mockReturnValue("organization-plugin");
     passkeyPluginMock.mockReturnValue("passkey-plugin");
     reconcileActiveStripeBackedSubscriptionMock.mockResolvedValue(undefined);
     sendEmailMock.mockResolvedValue({ id: "email_123" });
@@ -499,12 +446,6 @@ describe("core auth config", () => {
     webhookCallUserWebhookMock.mockResolvedValue(undefined);
     stripePluginMock.mockReturnValue("stripe-plugin");
     workspaceUpsertMock.mockResolvedValue({ id: "workspace_123" });
-    ensurePersonalWorkspaceKeepingPreferredMock.mockResolvedValue({
-      created: true,
-      workspace: { id: "personal_ws_123" },
-    });
-    isLastWorkspaceMock.mockResolvedValue(false);
-    prepareOrganizationForDeletionMock.mockResolvedValue(null);
     prismaMock.user.findUnique.mockResolvedValue({ stripeCustomerId: null });
     prismaMock.organization.findUnique.mockResolvedValue({
       stripeCustomerId: null,
@@ -532,9 +473,6 @@ describe("core auth config", () => {
     getBetterAuthSubscriptionPlansMock.mockResolvedValue([]);
     hasConsumableEnterpriseContractMock.mockResolvedValue(false);
     handleSubscriptionDeletedEventMock.mockResolvedValue(undefined);
-    stripeCreateOrganizationCustomerMock.mockResolvedValue({
-      id: "cus_org_123",
-    });
     prepareStripeEmailSyncForUserUpdateMock.mockResolvedValue(undefined);
     handleUserUpdateStripeEmailSyncMock.mockResolvedValue(undefined);
     syncUserEmailWithStripeMock.mockResolvedValue(undefined);
@@ -639,15 +577,6 @@ describe("core auth config", () => {
       "user_789",
       "credential",
     );
-  });
-
-  it("registers the passkey plugin with the Sokosumi relying party configuration", async () => {
-    await import("./auth");
-
-    expect(passkeyPluginMock).toHaveBeenCalledWith({
-      rpID: "example.com",
-      rpName: "Sokosumi",
-    });
   });
 
   it("configures lastLoginMethod with the computed cookie name", async () => {
@@ -977,31 +906,6 @@ describe("core auth config", () => {
     expect(config.session.freshAge).toBe(15 * 60);
   });
 
-  it("registers the Better Auth admin plugin", async () => {
-    await import("./auth");
-
-    expect(betterAuthMock).toHaveBeenCalledTimes(1);
-    expect(betterAuthMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        plugins: expect.arrayContaining([
-          expect.objectContaining({
-            id: "captcha",
-            options: expect.objectContaining({
-              secretKey: "test-turnstile-secret",
-            }),
-          }),
-        ]),
-      }),
-    );
-    expect(adminPluginMock).toHaveBeenCalledWith();
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [{ plugins: unknown[] }]
-    >;
-
-    expect(config.plugins).toEqual(expect.arrayContaining(["admin-plugin"]));
-  });
-
   it("uses basePath /auth and registers core auth plugins", async () => {
     await import("./auth");
 
@@ -1074,10 +978,11 @@ describe("core auth config", () => {
     });
   });
 
-  it("uses explicit Sokosumi app trustedOrigins in production", async () => {
+  it("keeps branch previews out of production trustedOrigins", async () => {
     getEnvMock.mockReturnValue({
       ...getDefaultEnv(),
       NODE_ENV: "production",
+      VERCEL_ENV: "production",
     });
 
     await import("./auth");
@@ -1089,7 +994,6 @@ describe("core auth config", () => {
     expect(config.trustedOrigins).toEqual([
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
-      "https://*.preview.sokosumi.com",
     ]);
   });
 
@@ -1108,7 +1012,6 @@ describe("core auth config", () => {
     expect(config.trustedOrigins).toEqual([
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
-      "https://*.preview.sokosumi.com",
       "http://localhost:*",
       "https://localhost:*",
       "http://*.localhost:*",
@@ -1192,7 +1095,7 @@ describe("core auth config", () => {
     expect(config.rateLimit.storage).toBe("database");
   });
 
-  it("defines user and organization additional fields for auth parity", async () => {
+  it("defines user additional fields for auth parity", async () => {
     await import("./auth");
 
     const [[config]] = betterAuthMock.mock.calls as Array<
@@ -1236,37 +1139,6 @@ describe("core auth config", () => {
       defaultValue: null,
       input: false,
     });
-
-    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          schema: {
-            organization: {
-              additionalFields: Record<string, { input?: boolean }>;
-            };
-          };
-        },
-      ]
-    >;
-
-    expect(organizationConfig.schema.organization.additionalFields).toEqual({
-      stripeCustomerId: {
-        type: "string",
-        required: false,
-        defaultValue: null,
-        input: false,
-      },
-    });
-  });
-
-  it("allows organization create when the user's email is not verified", async () => {
-    await import("./auth");
-
-    const [[organizationConfig]] = organizationPluginMock.mock.calls as Array<
-      [{ allowUserToCreateOrganization: boolean }]
-    >;
-
-    expect(organizationConfig.allowUserToCreateOrganization).toBe(true);
   });
 
   it("signs in with a six-digit email code that lasts ten minutes, allows five tries and survives a resend", async () => {
@@ -1372,30 +1244,6 @@ describe("core auth config", () => {
       currentURL: "https://example.com/auth",
       secret: "proxy-secret",
     });
-  });
-
-  it("enables Better Auth cookie cache for core sessions", async () => {
-    await import("./auth");
-
-    const [[config]] = betterAuthMock.mock.calls as Array<
-      [
-        {
-          session: {
-            cookieCache?: {
-              enabled: boolean;
-              maxAge: number;
-            };
-            storeSessionInDatabase?: boolean;
-          };
-        },
-      ]
-    >;
-
-    expect(config.session.cookieCache).toEqual({
-      enabled: true,
-      maxAge: 60,
-    });
-    expect(config.session.storeSessionInDatabase).toBe(true);
   });
 
   it("revokes every existing session when a password is reset", async () => {
@@ -2430,469 +2278,6 @@ describe("core auth config", () => {
     expect(report).not.toContain("Andreas");
   });
 
-  it("reports organization workspace creation failures to Sentry", async () => {
-    workspaceUpsertMock.mockRejectedValueOnce(new Error("workspace failed"));
-
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                name: string;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: {
-        id: "org_123",
-        name: "Org One",
-      },
-    });
-
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        organizationId: "org_123",
-        organizationName: "Org One",
-      },
-      tags: {
-        context: "workspace_organization_creation",
-      },
-    });
-  });
-
-  it("seeds the local free subscription when an organization is created", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                name: string;
-                slug: string;
-                createdAt: Date;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    const createdAt = new Date("2026-07-01T00:00:00.000Z");
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: {
-        id: "org_123",
-        name: "Org One",
-        slug: "org-one",
-        createdAt,
-      },
-    });
-
-    expect(prismaUserUpdateManyMock).not.toHaveBeenCalled();
-    expect(ensureInitialLocalFreeSubscriptionPeriodMock).toHaveBeenCalledWith(
-      {
-        createdAt,
-        kind: "organization",
-        organizationId: "org_123",
-        stripeCustomerId: null,
-      },
-      expect.anything(),
-    );
-  });
-
-  // The response does not wait for Stripe, but the function must.
-  it("keeps the new organization's Stripe customer creation alive past the response", async () => {
-    let finishStripe!: () => void;
-    stripeCreateOrganizationCustomerMock.mockReturnValueOnce(
-      new Promise<void>((resolve) => {
-        finishStripe = resolve;
-      }),
-    );
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                name: string;
-                slug: string;
-                createdAt: Date;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: {
-        id: "org_123",
-        name: "Org One",
-        slug: "org-one",
-        createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      },
-    });
-
-    // The hook returned while Stripe is still working; the kept promise
-    // settles only once Stripe does.
-    expect(waitUntilMock).toHaveBeenCalledOnce();
-    const [[kept]] = waitUntilMock.mock.calls;
-    let settled = false;
-    void kept.then(() => {
-      settled = true;
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledOnce();
-    expect(settled).toBe(false);
-
-    finishStripe();
-    await kept;
-    expect(settled).toBe(true);
-  });
-
-  it("creates a personal workspace before creating an organization and keeps preferred org", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeCreateOrganization: (input: {
-              organization: { name: string; slug: string };
-              user: { id: string };
-            }) => Promise<{ data: Record<string, unknown> } | void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeCreateOrganization({
-      organization: { name: "Org One", slug: "org-one" },
-      user: { id: "user-1" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      tx: expect.anything(),
-    });
-  });
-
-  it("pins preferred organization after create when overlay is on", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: { id: string; name: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: { id: "org_123", name: "Org One" },
-    });
-
-    expect(prismaUserUpdateManyMock).toHaveBeenCalledWith({
-      where: { id: "user-1", preferredOrganizationId: null },
-      data: { preferredOrganizationId: "org_123" },
-    });
-  });
-
-  it("does not create a personal workspace before organization create when not required", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeCreateOrganization: (input: {
-              organization: { name: string; slug: string };
-              user: { id: string };
-            }) => Promise<unknown>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeCreateOrganization({
-      organization: { name: "Org One", slug: "org-one" },
-      user: { id: "user-1" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).not.toHaveBeenCalled();
-  });
-
-  it("fails organization creation when personal workspace ensure fails", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
-      new Error("personal workspace failed"),
-    );
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeCreateOrganization: (input: {
-              organization: { name: string; slug: string };
-              user: { id: string };
-            }) => Promise<unknown>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.beforeCreateOrganization({
-        organization: { name: "Org One", slug: "org-one" },
-        user: { id: "user-1" },
-      }),
-    ).rejects.toThrow("personal workspace failed");
-  });
-
-  it("does not create a personal workspace before adding a member when not required", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAddMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeAddMember({
-      organization: { id: "org-1" },
-      user: { id: "user-2" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).not.toHaveBeenCalled();
-  });
-
-  it("creates a personal workspace before adding a member", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAddMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeAddMember({
-      organization: { id: "org-1" },
-      user: { id: "user-2" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
-      userId: "user-2",
-      tx: expect.anything(),
-    });
-  });
-
-  it("fails adding a member when personal workspace ensure fails", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
-      new Error("personal workspace failed"),
-    );
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAddMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.beforeAddMember({
-        organization: { id: "org-1" },
-        user: { id: "user-2" },
-      }),
-    ).rejects.toThrow("personal workspace failed");
-  });
-
-  it("reports free subscription seeding failures to Sentry without failing creation", async () => {
-    ensureInitialLocalFreeSubscriptionPeriodMock.mockRejectedValueOnce(
-      new Error("seed failed"),
-    );
-
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                name: string;
-                slug: string;
-                createdAt: Date;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.afterCreateOrganization({
-        user: { id: "user-1" },
-        organization: {
-          id: "org_123",
-          name: "Org One",
-          slug: "org-one",
-          createdAt: new Date("2026-07-01T00:00:00.000Z"),
-        },
-      }),
-    ).resolves.toBeUndefined();
-
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        organizationId: "org_123",
-        organizationName: "Org One",
-      },
-      tags: {
-        context: "organization_free_subscription_seed",
-      },
-    });
-  });
-
-  it("blocks organization deletion when additional members remain", async () => {
-    prepareOrganizationForDeletionMock.mockRejectedValue({
-      status: "BAD_REQUEST",
-      body: {
-        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
-        message: "Remove all other members before deleting this organization.",
-      },
-    });
-
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeDeleteOrganization: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.beforeDeleteOrganization({
-        organization: { id: "org-1" },
-        user: { id: "user-1" },
-      }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: {
-        code: "ORGANIZATION_HAS_ADDITIONAL_MEMBERS",
-        message: "Remove all other members before deleting this organization.",
-      },
-    });
-
-    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
-      "org-1",
-      "user-1",
-      prismaMock,
-    );
-  });
-
-  it("blocks organization deletion when it is the user's last workspace", async () => {
-    prepareOrganizationForDeletionMock.mockRejectedValue({
-      status: "BAD_REQUEST",
-      body: {
-        code: "LAST_WORKSPACE",
-        message: "Cannot delete the user's last workspace.",
-      },
-    });
-
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeDeleteOrganization: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.beforeDeleteOrganization({
-        organization: { id: "org-1" },
-        user: { id: "user-1" },
-      }),
-    ).rejects.toMatchObject({
-      status: "BAD_REQUEST",
-      body: {
-        code: "LAST_WORKSPACE",
-        message: "Cannot delete the user's last workspace.",
-      },
-    });
-
-    expect(prepareOrganizationForDeletionMock).toHaveBeenCalledWith(
-      "org-1",
-      "user-1",
-      prismaMock,
-    );
-  });
-
   it("sets activeOrganizationId from preferred organization on session create", async () => {
     resolveActiveOrganizationIdForSessionMock.mockResolvedValue("org_pref");
 
@@ -3162,280 +2547,6 @@ describe("core auth config", () => {
     expect(
       deliverOrganizationCalendarInvalidationsNowMock,
     ).toHaveBeenCalledWith("org-1", "user-1");
-  });
-
-  it("creates a personal workspace before accepting an organization invitation", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAcceptInvitation: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeAcceptInvitation({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).toHaveBeenCalledWith({
-      userId: "user-1",
-      tx: expect.anything(),
-    });
-  });
-
-  it("does not create a personal workspace on invitation accept when not required", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAcceptInvitation: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.beforeAcceptInvitation({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-    });
-
-    expect(ensurePersonalWorkspaceKeepingPreferredMock).not.toHaveBeenCalled();
-  });
-
-  it("does not accept an invitation when personal workspace ensure fails", async () => {
-    getEnvMock.mockReturnValue(envRequiringPersonalWorkspace());
-    ensurePersonalWorkspaceKeepingPreferredMock.mockRejectedValueOnce(
-      new Error("personal workspace failed"),
-    );
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeAcceptInvitation: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await expect(
-      config.organizationHooks.beforeAcceptInvitation({
-        organization: { id: "org-1" },
-        user: { id: "user-1" },
-      }),
-    ).rejects.toThrow("personal workspace failed");
-  });
-
-  it("upgrades guest chat memberships after accepting an invitation", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterAcceptInvitation: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterAcceptInvitation({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-    });
-
-    expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
-  });
-
-  it("upgrades guest chat memberships after adding a member", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterAddMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterAddMember({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-    });
-
-    expect(upgradeGuestChatRoomMembershipsToMemberMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
-  });
-
-  it("hands Ably room ids through the member object around remove", async () => {
-    listOrganizationExitChatRoomIdsForAblyMock.mockResolvedValue([
-      "room-a",
-      "room-b",
-    ]);
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            beforeRemoveMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-              member: { organizationExitChatRoomIds?: string[] };
-            }) => Promise<void>;
-            afterRemoveMember: (input: {
-              organization: { id: string };
-              user: { id: string };
-              member: { organizationExitChatRoomIds?: string[] };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    const member: { organizationExitChatRoomIds?: string[] } = {};
-    await config.organizationHooks.beforeRemoveMember({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-      member,
-    });
-    expect(member.organizationExitChatRoomIds).toEqual(["room-a", "room-b"]);
-    await config.organizationHooks.afterRemoveMember({
-      organization: { id: "org-1" },
-      user: { id: "user-1" },
-      member,
-    });
-
-    expect(listOrganizationExitChatRoomIdsForAblyMock).toHaveBeenCalledWith(
-      "user-1",
-      "org-1",
-    );
-    expect(publishOrganizationExitChatRevocationMock).toHaveBeenCalledWith(
-      "user-1",
-      { revokedRoomIds: ["room-a", "room-b"], statusMessages: [] },
-    );
-    expect(
-      deliverOrganizationCalendarInvalidationsNowMock,
-    ).toHaveBeenCalledWith("org-1", "user-1");
-  });
-
-  it("creates a Stripe customer when an organization is created", async () => {
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                metadata?: string | null;
-                name: string;
-                slug: string;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: {
-        id: "org-1",
-        metadata: null,
-        name: "Org One",
-        slug: "org-one",
-      },
-    });
-
-    expect(stripeCreateOrganizationCustomerMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        organizationId: "org-1",
-        name: "Org One",
-        slug: "org-one",
-      }),
-    );
-  });
-
-  it("reports Stripe organization customer creation failures to Sentry", async () => {
-    stripeCreateOrganizationCustomerMock.mockRejectedValueOnce(
-      new Error("stripe org failed"),
-    );
-
-    await import("./auth");
-
-    const [[config]] = organizationPluginMock.mock.calls as Array<
-      [
-        {
-          organizationHooks: {
-            afterCreateOrganization: (input: {
-              organization: {
-                id: string;
-                metadata?: string | null;
-                name: string;
-                slug: string;
-              };
-              user: { id: string };
-            }) => Promise<void>;
-          };
-        },
-      ]
-    >;
-
-    await config.organizationHooks.afterCreateOrganization({
-      user: { id: "user-1" },
-      organization: {
-        id: "org-1",
-        metadata: null,
-        name: "Org One",
-        slug: "org-one",
-      },
-    });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-
-    expect(sentryCaptureExceptionMock).toHaveBeenCalledWith(expect.any(Error), {
-      extra: {
-        organizationId: "org-1",
-        organizationName: "Org One",
-        organizationSlug: "org-one",
-      },
-      tags: {
-        context: "stripe_organization_customer_creation",
-      },
-    });
   });
 
   it("prepares the Stripe email sync before a user update", async () => {

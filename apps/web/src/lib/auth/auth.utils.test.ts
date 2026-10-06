@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { discardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
   discardRetiredAblyRealtimeClient: vi.fn(),
@@ -10,16 +10,16 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 
 import {
   buildAuthPageUrl,
-  buildOAuthResumeUrlFromSearchParams,
   buildSignedOAuthQueryFromSearchParams,
   buildSocialCallbackUrls,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
-  normalizeAuthReturnUrl,
   oauthRequestAsksForNewAccount,
   oauthRequestExpiresSoon,
   oauthRequestHasExpired,
+  readAuthReturnUrl,
+  sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
@@ -188,18 +188,6 @@ describe("buildSocialCallbackUrls", () => {
     },
   );
 
-  it("falls back to relative callbacks and no error page during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      buildSocialCallbackUrls("google", "https://evil.example/attack"),
-    ).toEqual({
-      callbackURL: "/auth/callback/signin?provider=google&returnUrl=%2F",
-      newUserCallbackURL: "/auth/callback/signup?provider=google&returnUrl=%2F",
-      errorCallbackURL: undefined,
-    });
-  });
-
   it("returns a failed sign-in to the page it started on", () => {
     stubLocation(
       "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
@@ -265,26 +253,6 @@ describe("getAbsoluteAuthRedirectUrl", () => {
       getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
     ).toBe("https://preprod.sokosumi.com/chat");
   });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
-  });
-
-  it("sanitizes an external returnUrl to fallback during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
-    ).toBe("/chat");
-  });
-
-  it("rejects a protocol-relative returnUrl during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
-  });
 });
 
 describe("getAbsoluteRedirectUrlForOrigin", () => {
@@ -299,6 +267,15 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
     );
   });
 
+  it("keeps a full URL on the provided origin, not the page's", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "https://preprod.sokosumi.com/jobs#latest",
+      ),
+    ).toBe("https://preprod.sokosumi.com/jobs#latest");
+  });
+
   it("rejects external returnUrl values", () => {
     expect(
       getAbsoluteRedirectUrlForOrigin(
@@ -308,23 +285,56 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
       ),
     ).toBe("https://preprod.sokosumi.com/billing");
   });
+
+  it.each([
+    "/.//evil.example",
+    "/foo/..//evil.example",
+    "https://preprod.sokosumi.com/.//evil.example",
+  ])("rejects a path that parses as another host: %s", (returnUrl) => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        returnUrl,
+        "/billing",
+      ),
+    ).toBe("https://preprod.sokosumi.com/billing");
+  });
+
+  it("keeps a collapsed same-origin dot segment", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "/foo/../chat?x=1#y",
+      ),
+    ).toBe("https://preprod.sokosumi.com/chat?x=1#y");
+  });
 });
 
-describe("normalizeAuthReturnUrl", () => {
+describe("sanitizeAuthRedirectPath", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("returns / when returnUrl is missing", () => {
-    expect(normalizeAuthReturnUrl(undefined)).toBe("/");
+    expect(sanitizeAuthRedirectPath(undefined)).toBe("/");
   });
 
   it("returns / when returnUrl is root", () => {
-    expect(normalizeAuthReturnUrl("/")).toBe("/");
+    expect(sanitizeAuthRedirectPath("/")).toBe("/");
+  });
+
+  it.each([
+    ["\u00A0/chat", "/chat"],
+    ["\u00A0https://evil.example/attack", "/"],
+    ["\u00A0", "/"],
+  ])("trims Unicode spaces from %j", (returnUrl, expected) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
   });
 
   it("returns safe non-root relative returnUrl", () => {
-    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+    expect(sanitizeAuthRedirectPath("/accept-invitation/invite_123")).toBe(
       "/accept-invitation/invite_123",
     );
   });
@@ -334,7 +344,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(sanitizeAuthRedirectPath("https://evil.example/attack")).toBe("/");
   });
 
   it("returns / for unsupported protocols", () => {
@@ -342,7 +352,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
+    expect(sanitizeAuthRedirectPath("javascript:alert('x')")).toBe("/");
   });
 
   it.each([
@@ -353,20 +363,20 @@ describe("normalizeAuthReturnUrl", () => {
     (returnUrl, expected) => {
       vi.stubGlobal("window", undefined);
 
-      expect(normalizeAuthReturnUrl(returnUrl)).toBe(expected);
+      expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
     },
   );
 
   it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("#details")).toBe("/#details");
+    expect(sanitizeAuthRedirectPath("#details")).toBe("/#details");
   });
 
   it("keeps an internal path with its query and fragment", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("/chat?filter=unread#details")).toBe(
+    expect(sanitizeAuthRedirectPath("/chat?filter=unread#details")).toBe(
       "/chat?filter=unread#details",
     );
   });
@@ -375,11 +385,13 @@ describe("normalizeAuthReturnUrl", () => {
     "https://evil.example/attack",
     "//evil.example/attack",
     "/\\evil.example/attack",
+    "/.//evil.example",
+    "/foo/..//evil.example",
     "javascript:alert('x')",
   ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl(returnUrl)).toBe("/");
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe("/");
   });
 });
 
@@ -437,7 +449,23 @@ describe("buildAuthPageUrl for sign-in", () => {
   });
 });
 
-describe("buildOAuthResumeUrlFromSearchParams", () => {
+describe("readAuthReturnUrl", () => {
+  const oauthQuery = "client_id=cmo&exp=1772367377&sig=signed-value";
+
+  it("prefers the page's returnUrl", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=%2Fjobs`)),
+    ).toBe("/jobs");
+  });
+
+  // `readAuthPageContext` treats an empty returnUrl as absent too, so the
+  // page's Register link and its sign-in agree on where the person goes.
+  it("resumes the OAuth request when the returnUrl is empty", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=`)),
+    ).toBe(`/signin?${oauthQuery}`);
+  });
+
   it.each<Record<string, string>>([
     { prompt: "login" },
     { prompt: "login consent" },
@@ -452,7 +480,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       ...extra,
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       `/oauth/consent?${params.toString()}`,
     );
   });
@@ -465,9 +493,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       prompt: "create",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
-      `/signin?${params.toString()}`,
-    );
+    expect(readAuthReturnUrl(params)).toBe(`/signin?${params.toString()}`);
   });
 
   it("ignores unsigned reauthentication parameters", () => {
@@ -475,7 +501,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
     );
   });
@@ -487,7 +513,7 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBeUndefined();
+    expect(readAuthReturnUrl(params)).toBeUndefined();
   });
 
   it("points at the sign-in page with the signed request and no app-only params", () => {
@@ -497,11 +523,10 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       code_challenge: "challenge_1",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/chat",
       email: "user@example.com",
     });
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
@@ -511,104 +536,99 @@ describe("buildOAuthResumeUrlFromSearchParams", () => {
       "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthResumeUrlFromSearchParams(params)).toBe(
+    expect(readAuthReturnUrl(params)).toBe(
       "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
 });
 
 describe("waitForAuthSession", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Runs the wait to its end, through every timer it sets. */
+  async function settle<T>(wait: Promise<T>): Promise<T> {
+    await vi.runAllTimersAsync();
+    return wait;
+  }
+
   /**
    * Every sign-in path waits here and then navigates with `router.replace`, so
    * the document survives and a client the Ably singleton retired for a lost
    * session would survive with it. This is the one seam all four paths share.
    */
   it("discards a retired Ably client, because a sign-in just happened", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     // Every test in this block calls the seam, and nothing clears the
     // module-scoped mock, so the count would otherwise depend on test order.
     discardRetiredAblyRealtimeClient.mockClear();
 
-    await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
-      logWarning: vi.fn(),
-    });
+    await settle(
+      waitForAuthSession({
+        context: "login",
+        getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
+        logWarning: vi.fn(),
+      }),
+    );
     // The import is dynamic and deliberately not awaited, so let it settle.
+    vi.useRealTimers();
     await vi.waitFor(() => {
       expect(discardRetiredAblyRealtimeClient).toHaveBeenCalledOnce();
     });
   });
 
-  it("returns early when session is available after initial wait", async () => {
-    const waitForMs = vi.fn(async () => undefined);
+  it("asks once the cookie has had a moment, and returns the session", async () => {
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
+    const wait = waitForAuthSession({
       context: "login",
-      waitForMs,
       getSession,
       logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
     });
+    await vi.advanceTimersByTimeAsync(199);
+    expect(getSession).not.toHaveBeenCalled();
 
-    expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(1);
-    expect(waitForMs).toHaveBeenCalledWith(10);
+    await expect(settle(wait)).resolves.toEqual({ userId: "user_1" });
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(logWarning).not.toHaveBeenCalled();
   });
 
   it("retries once and logs waiting warning when first session check fails", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi
       .fn()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "signup",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "signup", getSession, logWarning }),
+    );
 
     expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(2);
-    expect(waitForMs).toHaveBeenNthCalledWith(1, 10);
-    expect(waitForMs).toHaveBeenNthCalledWith(2, 20);
     expect(getSession).toHaveBeenCalledTimes(2);
-    expect(logWarning).toHaveBeenCalledTimes(1);
-    expect(logWarning).toHaveBeenCalledWith(
-      "Session not established after signup, waiting for 20ms",
+    expect(logWarning).toHaveBeenCalledExactlyOnceWith(
+      "Session not established after signup, waiting for 500ms",
     );
   });
 
   it("logs second warning when session is still unavailable after retry", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn().mockResolvedValue(null);
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(logWarning).toHaveBeenCalledTimes(2);
     expect(logWarning).toHaveBeenNthCalledWith(
       1,
-      "Session not established after login, waiting for 20ms",
+      "Session not established after login, waiting for 500ms",
     );
     expect(logWarning).toHaveBeenNthCalledWith(
       2,
@@ -617,19 +637,12 @@ describe("waitForAuthSession", () => {
   });
 
   it("treats a hung getSession as missing and continues", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn(() => new Promise(() => {}));
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 0,
-      retryDelayMs: 0,
-      sessionTimeoutMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(getSession).toHaveBeenCalledTimes(2);

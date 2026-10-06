@@ -32674,6 +32674,133 @@ export type PutUsersByIdWorkspacesPreferredResponses = {
 
 export type PutUsersByIdWorkspacesPreferredResponse = PutUsersByIdWorkspacesPreferredResponses[keyof PutUsersByIdWorkspacesPreferredResponses];
 
+export type DeleteUsersByIdWorkspacesByWorkspaceIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Id of the user's personal workspace
+         */
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/{workspaceId}';
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Workspace not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - An organization workspace, the last workspace, or dependents prevent delete
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid workspace id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdError = DeleteUsersByIdWorkspacesByWorkspaceIdErrors[keyof DeleteUsersByIdWorkspacesByWorkspaceIdErrors];
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdResponses = {
+    /**
+     * Personal workspace deleted
+     */
+    200: {
+        data: PersonalWorkspaceDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdResponse = DeleteUsersByIdWorkspacesByWorkspaceIdResponses[keyof DeleteUsersByIdWorkspacesByWorkspaceIdResponses];
+
 export type GetUsersByIdPendingOrganizationInvitationsData = {
     body?: never;
     path: {

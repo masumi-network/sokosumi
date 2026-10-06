@@ -173,16 +173,10 @@ export function BrowseChannelsDialog({
                       variant="outline"
                       className="h-7 shrink-0 px-2.5 text-xs"
                       disabled={joiningRoomId !== null}
+                      loading={isJoining}
                       onClick={() => handleJoin(room)}
                     >
-                      {isJoining ? (
-                        <Loader2
-                          className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        t("join")
-                      )}
+                      {t("join")}
                     </Button>
                   </li>
                 );

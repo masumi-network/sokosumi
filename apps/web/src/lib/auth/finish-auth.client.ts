@@ -3,7 +3,7 @@ import * as Sentry from "@sentry/nextjs";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   createAuthSessionGetter,
-  normalizeAuthReturnUrl,
+  sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -111,5 +111,5 @@ export async function finishAuthInPlace({
   if (session) {
     countConversion(eventType, provider);
   }
-  window.location.replace(normalizeAuthReturnUrl(returnUrl));
+  window.location.replace(sanitizeAuthRedirectPath(returnUrl));
 }

@@ -62,7 +62,6 @@ export async function ProjectsPageContent({ searchParams }: ProjectsPageProps) {
             description: t("empty.description"),
           },
           loadMore: t("list.loadMore"),
-          loading: t("list.loading"),
           loadMoreError: t("Detail.errors.loadMore"),
           counts: {
             tasks: t("list.stats.tasks"),

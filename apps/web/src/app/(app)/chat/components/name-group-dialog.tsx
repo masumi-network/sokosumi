@@ -1,7 +1,6 @@
 "use client";
 
 import type { ChatRoom } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -102,10 +101,7 @@ function NameGroupForm({
         />
       </div>
       <DialogFooter>
-        <Button type="submit" variant="primary" disabled={isPending}>
-          {isPending ? (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
+        <Button type="submit" variant="primary" loading={isPending}>
           {t("save")}
         </Button>
       </DialogFooter>

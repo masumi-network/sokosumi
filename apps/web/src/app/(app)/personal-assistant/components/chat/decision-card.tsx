@@ -113,20 +113,22 @@ export function DecisionCard({
               type="button"
               size="sm"
               disabled={isPending || acceptDisabled}
+              loading={inFlight === "ACCEPT"}
               onClick={() => resolve("ACCEPT")}
             >
               <Check aria-hidden className="size-3.5" />
-              {inFlight === "ACCEPT" ? t("accepting") : t("accept")}
+              {t("accept")}
             </Button>
             <Button
               type="button"
               size="sm"
               variant="outline"
               disabled={isPending}
+              loading={inFlight === "REJECT"}
               onClick={() => resolve("REJECT")}
             >
               <X aria-hidden className="size-3.5" />
-              {inFlight === "REJECT" ? t("rejecting") : t("reject")}
+              {t("reject")}
             </Button>
             <span className="text-muted-foreground ml-auto text-xs tabular-nums">
               {t("expires", {
