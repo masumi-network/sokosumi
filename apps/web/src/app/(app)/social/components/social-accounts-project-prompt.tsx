@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  FolderKanban,
-} from "lucide-react";
+import { ChevronDown, FolderKanban } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -17,7 +12,6 @@ import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import { Button } from "@/components/ui/button";
 import {
   Carousel,
-  type CarouselApi,
   CarouselContent,
   CarouselItem,
 } from "@/components/ui/carousel";
@@ -52,7 +46,7 @@ export function SocialAccountsProjectPrompt({
   return (
     <section
       aria-labelledby="social-accounts-heading"
-      className="mx-auto flex w-full max-w-2xl flex-col items-center px-2 py-12 text-center sm:py-20"
+      className="mx-auto flex w-full flex-col items-center px-2 py-12 text-center sm:py-20"
       data-testid="social-no-project"
     >
       {kind === "accounts" ? (
@@ -103,13 +97,12 @@ export function SocialAccountsProjectPrompt({
 function SocialPlatformCarousel() {
   const t = useTranslations("App.Social");
   const accounts = useTranslations("App.Projects.ProjectSocialAccounts");
-  const [api, setApi] = useState<CarouselApi>();
 
   return (
     <Carousel
       aria-label={t("platforms.label")}
-      className="w-full max-w-md"
-      setApi={setApi}
+      className="w-full rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      tabIndex={0}
       opts={{
         align: "start",
         loop: true,
@@ -120,7 +113,7 @@ function SocialPlatformCarousel() {
         {SOCIAL_PROVIDERS.map((provider) => (
           <CarouselItem
             key={provider.id}
-            className="basis-2/5 pl-3 sm:basis-1/3"
+            className="basis-2/5 pl-3 sm:basis-1/3 lg:basis-1/6"
           >
             <div className="bg-card flex min-h-36 flex-col items-center justify-center gap-3 rounded-2xl border px-3 py-5">
               <provider.Icon className="size-8" aria-hidden />
@@ -136,30 +129,6 @@ function SocialPlatformCarousel() {
           </CarouselItem>
         ))}
       </CarouselContent>
-      <div className="mt-4 flex justify-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-9 rounded-full"
-          aria-label={t("platforms.previous")}
-          disabled={!api}
-          onClick={() => api?.scrollPrev()}
-        >
-          <ChevronLeft className="size-4" aria-hidden />
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          size="icon"
-          className="size-9 rounded-full"
-          aria-label={t("platforms.next")}
-          disabled={!api}
-          onClick={() => api?.scrollNext()}
-        >
-          <ChevronRight className="size-4" aria-hidden />
-        </Button>
-      </div>
     </Carousel>
   );
 }

@@ -2916,9 +2916,7 @@
       "loading": "Loading Social…",
       "pickProject": "Choose a project",
       "platforms": {
-        "label": "Social platforms",
-        "previous": "Previous platforms",
-        "next": "Next platforms"
+        "label": "Social platforms"
       }
     },
     "Error": {

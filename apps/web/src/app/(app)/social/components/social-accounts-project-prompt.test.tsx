@@ -77,7 +77,7 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.queryByRole("combobox")).toBeNull();
   });
 
-  it("shows platforms honestly and supports buttons and arrow keys", async () => {
+  it("shows platforms without arrow buttons and supports keyboard scrolling", async () => {
     const user = userEvent.setup();
     setup();
     const carousel = screen.getByRole("region", { name: "Social platforms" });
@@ -87,14 +87,15 @@ describe("SocialAccountsProjectPrompt", () => {
     expect(screen.getByText("TikTok")).toBeVisible();
     expect(screen.getByText("Coming soon")).toBeVisible();
 
-    const next = screen.getByRole("button", { name: "Next platforms" });
-    await user.click(next);
-    expect(mocks.scrollNext).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("button", { name: "Next platforms" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Previous platforms" }),
+    ).toBeNull();
+    await user.click(carousel);
+    expect(carousel).toHaveFocus();
     await user.keyboard("{ArrowRight}");
-    expect(mocks.scrollNext).toHaveBeenCalledTimes(2);
-    await user.click(
-      screen.getByRole("button", { name: "Previous platforms" }),
-    );
+    expect(mocks.scrollNext).toHaveBeenCalledTimes(1);
+    await user.keyboard("{ArrowLeft}");
     expect(mocks.scrollPrev).toHaveBeenCalledTimes(1);
   });
 

@@ -2916,9 +2916,7 @@
       "loading": "Cargando Social…",
       "pickProject": "Elegir un proyecto",
       "platforms": {
-        "label": "Plataformas de redes sociales",
-        "previous": "Plataformas anteriores",
-        "next": "Plataformas siguientes"
+        "label": "Plataformas de redes sociales"
       }
     },
     "Error": {

@@ -2916,9 +2916,7 @@
       "loading": "Social wird geladen…",
       "pickProject": "Projekt auswählen",
       "platforms": {
-        "label": "Social-Media-Plattformen",
-        "previous": "Vorherige Plattformen",
-        "next": "Nächste Plattformen"
+        "label": "Social-Media-Plattformen"
       }
     },
     "Error": {
