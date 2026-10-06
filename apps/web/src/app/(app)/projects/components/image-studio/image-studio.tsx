@@ -13,7 +13,7 @@ import {
 } from "react";
 
 import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
-import { openScopeCreate } from "@/app/components/project-scope/sidebar-project-scope-state";
+import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { Button } from "@/components/ui/button";
 import {
   Popover,
@@ -106,8 +106,8 @@ export function ImageStudio({
   initialState: StudioState;
   labels: StudioLabels;
   /**
-   * Null for the workspace view: every project's images, and a generation
-   * asks which project it goes to before anything is sent.
+   * Null for the curated landing page: generation asks for its destination
+   * project before anything is sent.
    */
   projectId: string | null;
 }) {
@@ -145,6 +145,10 @@ export function ImageStudio({
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
   /** A batch from the workspace view, held while its project is picked. */
   const [awaitingProject, setAwaitingProject] = useState<
+    GenerationRequest[] | null
+  >(null);
+
+  const [creatingProjectFor, setCreatingProjectFor] = useState<
     GenerationRequest[] | null
   >(null);
 
@@ -603,7 +607,7 @@ export function ImageStudio({
           </p>
           <ProjectScopeMenu
             includeWorkspace={false}
-            onCreate={openScopeCreate}
+            onCreate={() => setCreatingProjectFor(awaitingProject)}
             onDone={() => setAwaitingProject(null)}
             onSelect={(picked) => {
               if (picked && awaitingProject) {
@@ -615,6 +619,25 @@ export function ImageStudio({
           />
         </PopoverContent>
       </Popover>
+
+      <InlineCreateProjectModal
+        open={creatingProjectFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setCreatingProjectFor(null);
+        }}
+        onCreated={({ projectId: createdId }) => {
+          if (creatingProjectFor) {
+            setPickedProjectId(createdId);
+            sendTo(createdId, creatingProjectFor);
+            setCreatingProjectFor(null);
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          promptRef.current?.focus();
+        }}
+        creationSource="project_switcher"
+      />
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox

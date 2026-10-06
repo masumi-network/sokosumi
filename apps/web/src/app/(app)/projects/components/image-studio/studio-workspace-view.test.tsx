@@ -1,5 +1,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 
 import { ImageStudio } from "./image-studio";
 import { TEST_CATALOG, TEST_LABELS } from "./studio-fixtures";
@@ -33,10 +35,12 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
     includeWorkspace,
     onSelect,
     onDone,
+    onCreate,
   }: {
     includeWorkspace?: boolean;
     onSelect: (projectId: string | null) => void;
     onDone?: () => void;
+    onCreate: (opener: HTMLElement | null) => void;
   }) => (
     <div data-include-workspace={String(includeWorkspace)}>
       <button
@@ -48,8 +52,40 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
       >
         Picked project
       </button>
+      <button
+        type="button"
+        onClick={() => {
+          onDone?.();
+          onCreate(null);
+        }}
+      >
+        Create project
+      </button>
     </div>
   ),
+}));
+
+vi.mock("@/app/projects/components/inline-create-project-modal", () => ({
+  InlineCreateProjectModal: ({
+    open,
+    onCreated,
+    onOpenChange,
+  }: ComponentProps<typeof InlineCreateProjectModal>) =>
+    open ? (
+      <div>
+        <button
+          type="button"
+          onClick={() =>
+            onCreated({ projectId: "project-created", name: "Created" })
+          }
+        >
+          Finish creating project
+        </button>
+        <button type="button" onClick={() => onOpenChange(false)}>
+          Cancel creation
+        </button>
+      </div>
+    ) : null,
 }));
 
 vi.mock("./use-studio-state", () => ({
@@ -276,6 +312,49 @@ describe("the workspace view", () => {
     expect(
       screen.getByRole("textbox", { name: "promptPlaceholder" }),
     ).toHaveValue("");
+  });
+
+  it("keeps the pending style batch when creating its destination project", () => {
+    mount(null, []);
+    const template = STUDIO_TEMPLATES.find(
+      (item) => item.id === "illustration",
+    )!;
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: TEST_LABELS.templateLabels.illustration,
+      }),
+    );
+    const box = screen.getByRole("textbox", { name: "promptPlaceholder" });
+    fireEvent.keyDown(box, { key: "Enter", metaKey: true });
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "Finish creating project" }),
+    );
+    expect(mocks.enqueue).toHaveBeenCalledTimes(1);
+    const [[requests]] = mocks.enqueue.mock.calls;
+    for (const request of requests) {
+      expect(request).toMatchObject({
+        projectId: "project-created",
+        prompt: template.prompt,
+        settings: { aspectRatio: "16:9" },
+      });
+    }
+    expect(mocks.stateOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ projectId: "project-created" }),
+    );
+    expect(box).toHaveValue("");
+  });
+
+  it("retains the draft and style when project creation is cancelled", () => {
+    mount(null, []);
+    generate("a fox");
+    fireEvent.click(screen.getByRole("button", { name: "Create project" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel creation" }));
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("textbox", { name: "promptPlaceholder" }),
+    ).toHaveValue("a fox");
   });
 
   it("runs a variation in the image's own project without asking", () => {
