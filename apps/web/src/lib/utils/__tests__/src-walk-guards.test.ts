@@ -1170,7 +1170,8 @@ describe("icon touch targets", () => {
  *     so a `hit-area` inside one is clipped to the badge; its remove is
  *     `ChipRemoveButton` on a badge given `overflow-visible py-0 pe-0`.
  *   - a bespoke `<button>` whose only child is a lucide `<X />` carries
- *     `hit-area`, or a bare `size-10` / `h-10` that makes its box the target.
+ *     `hit-area`, or a bare `size-10` / `h-10` that makes its box the target
+ *     and no `md:`-and-up `size-N` / `h-N` below 8 that shrinks it again.
  *
  * Not checked, because a regex over one tag cannot see it:
  *   - classes that arrive through a variable or constant
@@ -1180,7 +1181,10 @@ describe("icon touch targets", () => {
  *     that is spacing, and stays a review call
  */
 const BARE_X_CHILD = /^\s*<X\b[^<>]*\/>\s*$/;
-const DISMISS_TARGET = /(?<![\w:-])(?:hit-area|size-10|h-10)(?![\w.-])/;
+const DISMISS_HIT_AREA = /(?<![\w:-])hit-area(?![\w-])/;
+const DISMISS_BOX = /(?<![\w:[\]-])(?:size|h)-10(?![\w.[-])/;
+const DISMISS_DESKTOP_BOX =
+  /(?<![\w:[\]-])(?:md|lg|xl|2xl):(?:size|h)-(\d+(?:\.\d+)?)(?![\w.[-])/g;
 
 function smallDismissTargets(rel: string, text: string): string[] {
   const hits: string[] = [];
@@ -1195,7 +1199,11 @@ function smallDismissTargets(rel: string, text: string): string[] {
   for (const { tag, index, end } of openingTags(text, /<button(?![\w.-])/g)) {
     const close = text.indexOf("</button>", end);
     if (close === -1 || !BARE_X_CHILD.test(text.slice(end, close))) continue;
-    if (DISMISS_TARGET.test(tag)) continue;
+    if (DISMISS_HIT_AREA.test(tag)) continue;
+    const desktopSmall = [...tag.matchAll(DISMISS_DESKTOP_BOX)].some(
+      ([, n]) => Number(n) < 8,
+    );
+    if (DISMISS_BOX.test(tag) && !desktopSmall) continue;
     hits.push(`${rel}:${lineOf(index)}: <X /> button without hit-area`);
   }
   return hits;
@@ -1215,6 +1223,7 @@ describe("chip remove targets", () => {
       '<Badge className="gap-1">\n  {name}\n  <button type="button" className="hit-area" onClick={remove}>\n    <X className="size-3" />\n  </button>\n</Badge>',
       '<button\n  type="button"\n  className="rounded-sm p-0.5"\n  onClick={() => remove(tag)}\n>\n  <X className="size-3" aria-hidden />\n</button>',
       '<button type="button" className="size-5 md:h-10"><X className="size-3" /></button>',
+      '<button type="button" className="size-10 md:size-5"><X className="size-3" /></button>',
     ];
     for (const fixture of fixtures) {
       expect(smallDismissTargets("f.tsx", fixture), fixture).toHaveLength(1);

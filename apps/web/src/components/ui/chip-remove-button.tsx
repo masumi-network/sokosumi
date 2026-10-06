@@ -29,12 +29,12 @@ export function ChipRemoveButton({
     <button
       type="button"
       className={cn(
-        "press hit-area text-muted-foreground hover:bg-card-background-hover hover:text-foreground focus-visible:ring-ring inline-flex size-10 shrink-0 items-center justify-center rounded-[inherit] outline-none transition-[color,background-color,transform] focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50 md:size-7",
+        "press hit-area text-muted-foreground hover:bg-card-background-hover hover:text-foreground focus-visible:ring-ring inline-flex size-10 shrink-0 items-center justify-center rounded-[inherit] outline-none transition-[color,background-color,transform] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 md:size-7",
         className,
       )}
       {...props}
     >
-      <Icon className="size-3" aria-hidden />
+      <Icon className="size-3" />
     </button>
   );
 }

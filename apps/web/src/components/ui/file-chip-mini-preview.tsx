@@ -220,9 +220,9 @@ function FileChipMiniPreviewShell({
               type="button"
               aria-label={removeLabel}
               onClick={onRemove}
-              className="press text-muted-foreground hover:bg-card-background-hover hover:text-foreground focus-visible:ring-ring inline-flex h-10 w-full items-center justify-center rounded-lg outline-none transition-[color,background-color,transform] focus-visible:ring-2 md:h-8"
+              className="press text-muted-foreground hover:bg-card-background-hover hover:text-foreground focus-visible:ring-ring inline-flex h-10 w-full items-center justify-center rounded-lg outline-none transition-[color,background-color,transform] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-8"
             >
-              <X className="size-3" aria-hidden />
+              <X className="size-3" />
             </button>
           </TooltipTrigger>
           <TooltipContent side="top">{removeLabel}</TooltipContent>
