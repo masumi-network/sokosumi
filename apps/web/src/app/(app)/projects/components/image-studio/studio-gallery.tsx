@@ -142,7 +142,10 @@ export function StudioGallery({
                     click. Always shown where there is no hover to wait for. */}
                     <div
                       className={cn(
-                        "absolute inset-x-0 top-0 flex justify-end gap-1 p-2 pl-10",
+                        // Four `size-10` actions do not fit a two-column tile.
+                        // The figure is `overflow-hidden`, so a single row
+                        // clips the ones that stick out.
+                        "absolute inset-x-0 top-0 flex flex-wrap justify-end gap-1 p-2 pl-10",
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
