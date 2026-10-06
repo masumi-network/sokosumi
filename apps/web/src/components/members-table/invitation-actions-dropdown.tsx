@@ -86,6 +86,7 @@ export default function InvitationActionsDropdown({
           size="icon"
           className={cn("p-2!", className)}
           onClick={() => setOpen(true)}
+          aria-label={t("open")}
         >
           <Ellipsis />
         </Button>

@@ -784,6 +784,22 @@
   }
 
   /*
+   * Wrap once, here, instead of per element. A heading balances its lines so a
+   * title never strands one word; a paragraph avoids a lone last word.
+   * `truncate`, `line-clamp-*` and `text-wrap` utilities still win: they sit in
+   * the later utilities layer.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
    * Apple Dynamic Type (iOS/macOS Safari / PWA): map system body size to root
    * rem. Inter stays the face via next/font class on <html>; re-declare family
    * after the `font` shorthand so it is not replaced by the system text face.

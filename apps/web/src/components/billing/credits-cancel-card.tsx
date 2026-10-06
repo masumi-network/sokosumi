@@ -27,7 +27,7 @@ export default function CancelCard({ className }: CancelCardProps) {
       <CardHeader>
         <div className="absolute top-2 right-2">
           <DialogClose asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" aria-label={t("close")}>
               <X />
             </Button>
           </DialogClose>
