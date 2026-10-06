@@ -8,6 +8,12 @@ const mocks = vi.hoisted(() => ({
   api: {
     scrollNext: vi.fn(),
     scrollPrev: vi.fn(),
+    rootNode: () =>
+      document.querySelector<HTMLElement>("[data-slot=carousel-content]")!,
+    slideNodes: () =>
+      Array.from(
+        document.querySelectorAll<HTMLElement>("[data-slot=carousel-item]"),
+      ),
     canScrollPrev: () => true,
     canScrollNext: () => true,
     on: vi.fn(),
@@ -145,6 +151,38 @@ describe("the empty studio carousel", () => {
     hoverStyle("headshot", 600);
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+  });
+
+  it("keeps the centered preview clear and places neighboring cards behind it", () => {
+    mount();
+    const viewport = mocks.api.rootNode();
+    vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(
+      new DOMRect(0, 0, 900, 400),
+    );
+    const slides = mocks.api.slideNodes();
+    slides.forEach((slide, index) => {
+      vi.spyOn(slide, "getBoundingClientRect").mockReturnValue(
+        new DOMRect(350 + index * 200, 0, 200, 400),
+      );
+    });
+    const paint = mocks.api.on.mock.calls.find(
+      ([event]) => event === "scroll",
+    )![1];
+    act(() => paint());
+    const center = screen.getByRole("button", { name: "poster" });
+    const outer = screen.getByRole("button", { name: "product-announcement" });
+    expect(center.style.transform).toContain("scale(1)");
+    expect(Number(slides[0]!.style.zIndex)).toBeGreaterThan(
+      Number(slides[2]!.style.zIndex),
+    );
+    expect(
+      center.querySelector<HTMLElement>("[data-template-preview]")!.style
+        .filter,
+    ).toBe("blur(0px)");
+    expect(
+      outer.querySelector<HTMLElement>("[data-template-preview]")!.style.filter,
+    ).not.toBe("blur(0px)");
+    expect(center.textContent).toBe("poster");
   });
 
   it("does not rotate with reduced motion and still allows navigation", () => {

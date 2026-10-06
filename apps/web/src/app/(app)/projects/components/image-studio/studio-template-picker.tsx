@@ -25,27 +25,36 @@ function TemplateButton({
   label,
   onApplyTemplate,
   large = false,
+  dimensional = false,
 }: {
   template: StudioTemplate;
   label: string;
   onApplyTemplate: TemplatePickerProps["onApplyTemplate"];
   large?: boolean;
+  dimensional?: boolean;
 }) {
   return (
     <button
       className={cn(
         "bg-background hover:bg-card-background-hover focus-visible:ring-ring-halo flex cursor-pointer gap-2 rounded-xl text-left outline-none focus-visible:ring-[3px]",
         large
-          ? "border-border w-full flex-col overflow-hidden border p-2"
+          ? "border-border flex-col overflow-hidden border p-2 shadow-lg"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
+        large && (dimensional ? "relative left-1/2 w-48 sm:w-64" : "w-full"),
       )}
+      data-template-card={large || undefined}
       onClick={() => onApplyTemplate(template)}
       type="button"
     >
       <span
+        data-template-preview
         className={cn(
           "bg-muted relative shrink-0 overflow-hidden rounded-lg",
-          large ? "aspect-4/3 w-full" : "size-8",
+          large
+            ? dimensional
+              ? "aspect-3/4 w-full"
+              : "aspect-4/3 w-full"
+            : "size-8",
         )}
       >
         <Image
@@ -107,6 +116,43 @@ export function StudioTemplateCarousel({
   >(null);
   const reduceMotion = useReducedMotion();
   const rotationStopped = paused || !!reduceMotion;
+
+  useEffect(() => {
+    if (!api) return;
+    const paintDepth = () => {
+      const viewport = api.rootNode().getBoundingClientRect();
+      const center = viewport.left + viewport.width / 2;
+      for (const slide of api.slideNodes()) {
+        const card = slide.querySelector<HTMLElement>("[data-template-card]");
+        const preview = slide.querySelector<HTMLElement>(
+          "[data-template-preview]",
+        );
+        if (!card || !preview) continue;
+        if (reduceMotion) {
+          card.style.transform = "";
+          preview.style.filter = "";
+          preview.style.opacity = "";
+          slide.style.zIndex = "";
+          continue;
+        }
+        const bounds = slide.getBoundingClientRect();
+        if (!bounds.width) continue;
+        const offset = (bounds.left + bounds.width / 2 - center) / bounds.width;
+        const distance = Math.min(Math.abs(offset), 3);
+        card.style.transform = `translateX(-50%) perspective(1000px) translateZ(${80 - distance * 40}px) rotateY(${-offset * 8}deg) rotateZ(${offset * 3}deg) scale(${1 - distance * 0.1})`;
+        preview.style.filter = `blur(${Math.max(0, distance - 1) * 1.5}px)`;
+        preview.style.opacity = String(1 - distance * 0.15);
+        slide.style.zIndex = String(20 - Math.round(distance * 5));
+      }
+    };
+    paintDepth();
+    api.on("scroll", paintDepth);
+    api.on("reInit", paintDepth);
+    return () => {
+      api.off("scroll", paintDepth);
+      api.off("reInit", paintDepth);
+    };
+  }, [api, reduceMotion]);
 
   useEffect(() => {
     if (!api) return;
@@ -208,7 +254,7 @@ export function StudioTemplateCarousel({
           </Button>
         </div>
         <CarouselContent
-          className="py-1"
+          className={reduceMotion ? "py-1" : "items-center py-10"}
           onMouseLeave={() => setHoverDirection(null)}
           onMouseMove={(event) => {
             const item =
@@ -234,10 +280,16 @@ export function StudioTemplateCarousel({
         >
           {STUDIO_TEMPLATES.map((template) => (
             <CarouselItem
-              className="basis-3/4 sm:basis-1/2 lg:basis-1/3"
+              className={cn(
+                "relative",
+                reduceMotion
+                  ? "basis-3/4 sm:basis-1/2 lg:basis-1/3"
+                  : "basis-1/3 pl-0! sm:basis-1/5",
+              )}
               key={template.id}
             >
               <TemplateButton
+                dimensional={!reduceMotion}
                 label={labels.templateLabels[template.id]}
                 large
                 onApplyTemplate={onApplyTemplate}
