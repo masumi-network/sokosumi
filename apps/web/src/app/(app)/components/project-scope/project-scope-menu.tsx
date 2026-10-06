@@ -43,6 +43,11 @@ interface ProjectScopeMenuProps {
   onCreate: (opener: HTMLElement | null) => void;
   /** Closes whatever holds the menu. Runs after every choice. */
   onDone?: () => void;
+  /**
+   * Offer the workspace view as a choice. Off where a project is required,
+   * such as picking where a new image goes.
+   */
+  includeWorkspace?: boolean;
   className?: string;
 }
 
@@ -56,6 +61,7 @@ export function ProjectScopeMenu({
   onSelect,
   onCreate,
   onDone,
+  includeWorkspace = true,
   className,
 }: ProjectScopeMenuProps) {
   const t = useTranslations("App.ProjectScope");
@@ -192,7 +198,7 @@ export function ProjectScopeMenu({
           className="app-scrollbar min-h-0 overflow-y-auto overscroll-contain scroll-py-1.5"
           role="presentation"
         >
-          {projects.isSearching ? null : (
+          {projects.isSearching || !includeWorkspace ? null : (
             <CommandGroup>
               <CommandItem
                 value={WORKSPACE_VALUE}
