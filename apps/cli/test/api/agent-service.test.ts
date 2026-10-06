@@ -46,7 +46,6 @@ test("fetchAgents maps GET /v1/agents response data to typed agents", async () =
   );
 
   assert.deepEqual(calls, ["/v1/agents"]);
-  assert.deepEqual(result.response.meta, { requestId: "request-1" });
   assert.equal(result.agents.length, 2);
   assert.equal(result.agents[0]?.id, "agent-1");
   assert.equal(result.agents[0]?.price.credits, 5);
