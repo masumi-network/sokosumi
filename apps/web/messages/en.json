@@ -498,7 +498,7 @@
           "exportingDocx": "Exporting Word…",
           "exportMarkdownError": "Failed to export Markdown",
           "exportPdfError": "Failed to export PDF",
-          "exportDocxError": "Failed to export Word Document",
+          "exportDocxError": "Failed to export Word document",
           "exportAsPdf": "Export as PDF",
           "exportAsDocx": "Export as Word document",
           "exportAsMarkdown": "Export as Markdown",
@@ -2040,7 +2040,7 @@
           "weeklyListWithTime": "Weekly ({weekdays}, {time})",
           "monthly": "Monthly",
           "monthlyWithDayTime": "Monthly (day {day}, {time})",
-          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (day {day}, {time})",
           "custom": "Custom cron"
         }
       },
@@ -5333,14 +5333,14 @@
           "authorizationFailed": "Authorization failed",
           "missingCode": "No authorization code found in the URL",
           "missingCodeVerifier": "Please enter the code verifier",
-          "missingCredentials": "Client ID is required. Leave Client Secret empty for public clients.",
+          "missingCredentials": "Client ID is required. Leave Client secret empty for public clients.",
           "invalidIssuer": "The iss value in the URL does not match this site's authorization server. Use the callback URL returned by the authorization response without modifying query parameters.",
           "tokenExchangeFailed": "Failed to exchange authorization code for token"
         },
         "clientIdLabel": "Client ID",
         "clientIdPlaceholder": "Enter your OAuth Client ID",
         "clientSecretLabel": "Client secret",
-        "clientSecretPlaceholder": "Enter your OAuth Client Secret",
+        "clientSecretPlaceholder": "Enter your OAuth Client secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       },
       "ProfileImage": {
@@ -6810,7 +6810,7 @@
       },
       "Unavailable": {
         "title": "Soko Bot is not available yet",
-        "description": "The Personal Assistant is not enabled on this environment. Please check back later."
+        "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
         "title": "Meet your Soko Bot",
