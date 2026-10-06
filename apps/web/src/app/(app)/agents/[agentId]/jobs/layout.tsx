@@ -6,10 +6,7 @@ import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
-import {
-  createUnavailableCoreAgent,
-  getAgentRatingStats,
-} from "@/lib/types/core-dto";
+import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
@@ -64,9 +61,6 @@ async function JobLayoutInner({
   const coreAgent = await getCoreAgentById(agentId);
 
   const agent = coreAgent ?? createUnavailableCoreAgent(agentId);
-  const ratingStats = coreAgent
-    ? getAgentRatingStats(coreAgent)
-    : { total: 0, average: null };
   const disabled = !coreAgent;
 
   const [agentJobsPage, canRate, existingRating] = await Promise.all([
@@ -81,7 +75,6 @@ async function JobLayoutInner({
     <JobsHeaderContext
       value={{
         agent,
-        ratingStats,
         canRate,
         existingRating,
         disabled,
