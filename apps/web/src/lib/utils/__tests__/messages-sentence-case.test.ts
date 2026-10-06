@@ -43,6 +43,11 @@ const PROPER_PHRASES = [
   "My Organization",
 ];
 
+/** Longest first, so "Soko Bots" is not stripped as "Soko Bot" plus a stray "s". */
+const PHRASES_LONGEST_FIRST = [...PROPER_PHRASES].sort(
+  (a, b) => b.length - a.length,
+);
+
 const PROPER_WORDS = new Set([
   "Sokosumi",
   "Google",
@@ -99,7 +104,9 @@ function isExempt(word: string): boolean {
 
 function isTitleCase(value: string): boolean {
   let text = stripPlaceholders(value);
-  for (const phrase of PROPER_PHRASES) text = text.replaceAll(phrase, " ");
+  for (const phrase of PHRASES_LONGEST_FIRST) {
+    text = text.replaceAll(phrase, " ");
+  }
 
   return text.split(SEGMENT_BREAK).some((segment) => {
     const words = segment.split(/\s+/).filter((word) => /\p{L}/u.test(word));
@@ -143,6 +150,7 @@ describe("en.json sentence case", () => {
     expect(isTitleCase("Create new API key")).toBe(false);
     expect(isTitleCase("Continue with Google")).toBe(false);
     expect(isTitleCase("Delete Soko Bot")).toBe(false);
+    expect(isTitleCase("Back to Soko Bots List")).toBe(true);
     expect(isTitleCase("Job ID")).toBe(false);
   });
 

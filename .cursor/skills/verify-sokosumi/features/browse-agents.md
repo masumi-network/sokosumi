@@ -33,7 +33,7 @@ Preconditions:
 
 - `/agents` stacks Coworker gallery above an Agent catalog Suspense tier (`getAllCoreAgents` / categories). Failures in the catalog tier must not blank the coworker gallery.
 - App Hire remains banned (ADR-0024); Core Hire APIs stay for Soko Bot / Coworker.
-- Soft-empty for coworkers omits the entire gallery tier (`CoworkerGallerySection` returns `null`), including the hero search band. Catalog uses **No agents available** / **No Agents found** (or locale equivalents). Keep kind/search chrome mounted when catalog filters match nothing.
+- Soft-empty for coworkers omits the entire gallery tier (`CoworkerGallerySection` returns `null`), including the hero search band. Catalog uses **No agents available** / **No agents found** (or locale equivalents). Keep kind/search chrome mounted when catalog filters match nothing.
 - Catalog URL params are `agentQuery`, `categories` (array), and `kind` — not `category`.
 - Core Agent detail is Cardano-only; x402 catalog entries are external links, not `/agents/[id]`.
 - Cookie **Accept all** sits above catalog cards. Dismiss it (snapshot `@eN`) before clicking **Show details**; fill-by-accessible-name for the coworker search can miss — use the textbox ref.

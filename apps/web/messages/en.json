@@ -143,7 +143,7 @@
         }
       },
       "agentsNotAvailable": "No agents available",
-      "agentsNotFound": "No Agents found",
+      "agentsNotFound": "No agents found",
       "AgentCard": {
         "view": "Show details",
         "detailsUnavailable": "Details unavailable"
@@ -396,7 +396,7 @@
             },
             "Form": {
               "Name": {
-                "placeholder": "Please input Job Name"
+                "placeholder": "Please input job name"
               }
             },
             "edit": "Edit",
@@ -5338,9 +5338,9 @@
           "tokenExchangeFailed": "Failed to exchange authorization code for token"
         },
         "clientIdLabel": "Client ID",
-        "clientIdPlaceholder": "Enter your OAuth Client ID",
+        "clientIdPlaceholder": "Enter your OAuth client ID",
         "clientSecretLabel": "Client secret",
-        "clientSecretPlaceholder": "Enter your OAuth Client secret",
+        "clientSecretPlaceholder": "Enter your OAuth client secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       },
       "ProfileImage": {
