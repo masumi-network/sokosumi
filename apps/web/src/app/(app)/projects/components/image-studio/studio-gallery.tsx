@@ -142,7 +142,10 @@ export function StudioGallery({
                     click. Always shown where there is no hover to wait for. */}
                     <div
                       className={cn(
-                        "absolute inset-x-0 top-0 flex justify-end gap-1 p-2 pl-10",
+                        // Four `size-10` actions do not fit a two-column tile.
+                        // The figure is `overflow-hidden`, so a single row
+                        // clips the ones that stick out.
+                        "absolute inset-x-0 top-0 flex flex-wrap justify-end gap-1 p-2 pl-10",
                         "opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100",
                       )}
                     >
@@ -182,7 +185,7 @@ export function StudioGallery({
                       aria-label={selected ? labels.deselect : labels.select}
                       aria-pressed={selected}
                       className={cn(
-                        "absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
+                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
                         "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
                         selected
                           ? "border-primary bg-primary text-primary-foreground"
@@ -257,7 +260,7 @@ const GRID_CLASS = cn(
 );
 
 const HOVER_ACTION_CLASS = cn(
-  "bg-background text-foreground border-border flex size-7 items-center justify-center rounded-md border",
+  "bg-background text-foreground border-border flex size-10 md:size-8 items-center justify-center rounded-md border",
   "hover:bg-background focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
 );
 

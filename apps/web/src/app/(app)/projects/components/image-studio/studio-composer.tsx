@@ -433,7 +433,7 @@ export function StudioComposer({
                   </span>
                 ))}
                 <Button
-                  className="size-6"
+                  className="hit-area size-6"
                   onClick={onClearReferences}
                   size="icon"
                   variant="ghost"

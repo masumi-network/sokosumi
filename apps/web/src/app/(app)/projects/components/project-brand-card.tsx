@@ -229,7 +229,7 @@ export function ProjectBrandCard({
                   // Negative margin: the 32px button must not make this row
                   // taller than its heading, or the heading sits lower than
                   // every other section heading on the page.
-                  className="-my-2 size-8"
+                  className="hit-area -my-2 size-8"
                   aria-label={t("brandCard.moreActions")}
                 >
                   <MoreHorizontal className="size-4" aria-hidden />

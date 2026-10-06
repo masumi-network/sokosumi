@@ -19,7 +19,7 @@ export function BalanceStripeCustomerRow({
         copiedFeedback
         presentation="inline-code"
         value={stripeCustomerId}
-        buttonClassName="size-7"
+        buttonClassName="hit-area size-7"
         codeClassName="text-muted-foreground text-xs"
         containerClassName="min-w-0 justify-end gap-1"
       />

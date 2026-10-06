@@ -41,7 +41,7 @@ export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
   "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-clip empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
-  "size-9 rounded-full sm:size-8";
+  "size-10 rounded-full md:size-8";
 
 export const ROOM_COMPOSER_MENTION_ANCHOR_ATTR =
   "data-room-composer-mention-anchor";

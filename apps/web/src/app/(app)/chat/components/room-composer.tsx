@@ -336,7 +336,7 @@ function PendingQuotePreview({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-7 shrink-0 rounded-full"
+        className="hit-area size-7 shrink-0 rounded-full"
         title={t("dismiss")}
         aria-label={t("dismiss")}
         onClick={onDismiss}
