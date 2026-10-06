@@ -1005,6 +1005,51 @@
       "failed": "Dieses Diagramm konnte nicht dargestellt werden. Prüfe die Syntax im Quelltext unten.",
       "copied": "Quelltext kopiert.",
       "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
+    },
+    "ChatResults": {
+      "unavailable": "Ergebnis nicht verfügbar oder nicht mehr zugänglich",
+      "loading": "Ergebnisse werden geladen…",
+      "loadError": "Ergebnisse konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "open": "Quelle öffnen",
+      "recorded": "Erfasst am {time}",
+      "assignee": "Zugewiesen an",
+      "project": "Projekt",
+      "destination": "Konto",
+      "scheduled": "Geplant für",
+      "recurrence": "Wiederholung",
+      "bytes": "{size} Bytes",
+      "kind": {
+        "task": "Aufgabe",
+        "task_schedule": "Aufgabenzeitplan",
+        "bot_schedule": "Bot-Nachverfolgung",
+        "social_post": "Social-Media-Beitrag",
+        "studio_job": "Studio-Generierung",
+        "job": "Agent-Ergebnis",
+        "file": "Datei",
+        "decision": "Freigabe"
+      },
+      "status": {
+        "DRAFT": "Entwurf",
+        "READY": "Bereit",
+        "INPUT_REQUIRED": "Wartet auf Eingabe",
+        "RUNNING": "In Bearbeitung",
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELLED": "Abgebrochen",
+        "ACTIVE": "Aktiv",
+        "PAUSED": "Pausiert",
+        "ENDED": "Beendet",
+        "SCHEDULED": "Geplant",
+        "PUBLISHED": "Veröffentlicht",
+        "QUEUED": "In Warteschlange",
+        "PENDING": "Ausstehend",
+        "PROCESSING": "Wird verarbeitet",
+        "ACCEPTED": "Angenommen",
+        "REJECTED": "Abgelehnt",
+        "EXPIRED": "Abgelaufen"
+      },
+      "download": "Herunterladen"
     }
   },
   "Join": {
@@ -6933,7 +6978,8 @@
           "scratch_list": "Notizen werden aufgelistet",
           "read_file": "Datei wird gelesen",
           "generate_image": "Bild wird erstellt",
-          "get_image": "Bild wird geprüft"
+          "get_image": "Bild wird geprüft",
+          "preview_result": "Ergebnisvorschau vorbereiten"
         },
         "composer": {
           "label": "Nachricht",

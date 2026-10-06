@@ -27,6 +27,10 @@ import { waitUntil } from "@vercel/functions";
 import { getEnv } from "@/config/env";
 import { notifyLowBalanceAfterCharge } from "@/helpers/billing-notifications";
 import {
+  chatResultDescriptors,
+  readPreparedResultSnapshots,
+} from "@/helpers/chat-result-metadata";
+import {
   failOpenChatRoomMentions,
   publishChatRoomMentionStatuses,
 } from "@/helpers/chat-room-mention-status";
@@ -1475,6 +1479,12 @@ export class SokoBotControlPlane {
         : undefined),
       include: {
         ...TURN_CHAT_ATTRIBUTION_INCLUDE,
+        toolCalls: {
+          where: { capability: "preview_result", status: "COMPLETED" },
+          select: { result: true },
+          orderBy: { createdAt: "asc" },
+          take: 24,
+        },
         events: { orderBy: { sequence: "asc" } },
         delegations: true,
         pendingDecisions: {
@@ -1492,7 +1502,22 @@ export class SokoBotControlPlane {
     const count = await prisma.sokoBotTurn.count({
       where: { sokoBotId: bot.id },
     });
-    return { turns, count, hasMore };
+    return {
+      turns: turns.map(({ toolCalls, ...turn }) => ({
+        ...turn,
+        ...(turn.status === "COMPLETED" && toolCalls?.length
+          ? {
+              resultPreviews: chatResultDescriptors(
+                readPreparedResultSnapshots(
+                  toolCalls.map((call) => call.result),
+                ),
+              ),
+            }
+          : {}),
+      })),
+      count,
+      hasMore,
+    };
   }
 
   async getTurn(userId: string, turnId: string) {
@@ -1518,6 +1543,23 @@ export class SokoBotControlPlane {
     const { contextSnapshot, ...rest } = turn;
     return {
       ...rest,
+      resultPreviews:
+        turn.status === "COMPLETED"
+          ? chatResultDescriptors(
+              readPreparedResultSnapshots(
+                turn.toolCalls
+                  .filter(
+                    (call) =>
+                      call.capability === "preview_result" &&
+                      call.status === "COMPLETED",
+                  )
+                  .map((call) => call.result),
+              ),
+            )
+          : [],
+      toolCalls: (turn.toolCalls ?? []).map((call) =>
+        call.capability === "preview_result" ? { ...call, result: null } : call,
+      ),
       evaluation: await evaluationEvidence(
         userId,
         turn.sokoBotId,

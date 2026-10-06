@@ -1005,6 +1005,51 @@
       "failed": "This diagram could not be rendered. Check its syntax in the source below.",
       "copied": "Source copied.",
       "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
+    },
+    "ChatResults": {
+      "unavailable": "Result unavailable or no longer accessible",
+      "loading": "Loading results…",
+      "loadError": "Results could not be loaded",
+      "retry": "Retry",
+      "open": "Open source",
+      "recorded": "Recorded {time}",
+      "assignee": "Assigned to",
+      "project": "Project",
+      "destination": "Account",
+      "scheduled": "Scheduled for",
+      "recurrence": "Recurrence",
+      "bytes": "{size} bytes",
+      "kind": {
+        "task": "Task",
+        "task_schedule": "Task schedule",
+        "bot_schedule": "Bot follow-up",
+        "social_post": "Social post",
+        "studio_job": "Studio generation",
+        "job": "Agent result",
+        "file": "File",
+        "decision": "Approval"
+      },
+      "status": {
+        "DRAFT": "Draft",
+        "READY": "Ready",
+        "INPUT_REQUIRED": "Waiting for input",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "ACTIVE": "Active",
+        "PAUSED": "Paused",
+        "ENDED": "Ended",
+        "SCHEDULED": "Scheduled",
+        "PUBLISHED": "Published",
+        "QUEUED": "Queued",
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired"
+      },
+      "download": "Download"
     }
   },
   "Join": {
@@ -6933,7 +6978,8 @@
           "scratch_list": "Listing notes",
           "read_file": "Reading a file",
           "generate_image": "Generating an image",
-          "get_image": "Checking an image"
+          "get_image": "Checking an image",
+          "preview_result": "Preparing a result preview"
         },
         "composer": {
           "label": "Message",

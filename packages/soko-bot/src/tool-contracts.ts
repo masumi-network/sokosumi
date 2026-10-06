@@ -8,8 +8,12 @@ import {
   tableQuerySchema,
 } from "@sokosumi/utils";
 import { z } from "zod";
-
 import type { SokoBotCapability } from "./policy.js";
+import {
+  CHAT_RESULT_PREVIEW_LIMIT,
+  chatResultReferenceSchema,
+  sokoBotPreviewResultInputSchema,
+} from "./result-previews.js";
 
 const emptyInputSchema = z.object({}).strict();
 const scalarInputValueSchema = z.union([
@@ -233,6 +237,10 @@ export const sokoBotScheduleIdInputSchema = z
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
 export const sokoBotPostChatInputSchema = z.object({
+  resultReferences: z
+    .array(chatResultReferenceSchema)
+    .max(CHAT_RESULT_PREVIEW_LIMIT)
+    .optional(),
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
   content: z.string().min(1).max(4_000),
@@ -530,6 +538,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   read_chat: sokoBotReadChatInputSchema,
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   post_chat: sokoBotPostChatInputSchema,
+  preview_result: sokoBotPreviewResultInputSchema,
   list_files: sokoBotListFilesInputSchema,
   read_file: sokoBotReadFileInputSchema,
   generate_image: sokoBotGenerateImageInputSchema,
@@ -608,6 +617,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat. When your owner asks, `ownerUnread` lists every chat of theirs with unread messages, as their sidebar counts them, including rooms you are not in (`youAreMember: false`: you see the name and count, but can only read rooms you belong to).",
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
+  preview_result:
+    "Prepare a result card for your current answer. Give an existing resource reference from an authorized read or successful tool result; Core reads its real state. This does not post a separate message or execute any action. Up to six cards appear when your answer completes. Use post_chat resultReferences to share cards in another authorized chat.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:

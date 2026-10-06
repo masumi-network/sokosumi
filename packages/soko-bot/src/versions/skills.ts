@@ -13,6 +13,24 @@ export interface SokoBotSkill {
 
 export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
+    id: "chat-result-previews",
+    name: "Chat result previews",
+    description:
+      "Shows recorded Tasks, schedules, posts, assets, Agent results and files inside chat.",
+    content: `# Chat result previews
+
+When an owner's answer reports a Sokosumi result, prepare its card with \`preview_result\` before your final answer. The card attaches automatically to that answer; write a short explanation alongside it. Prepare at most six relevant results.
+
+Use IDs returned by tools: Task \`{kind:"task",id}\`, execution schedule \`{kind:"task_schedule",id}\`, your follow-up \`{kind:"bot_schedule",id}\`, social post \`{kind:"social_post",id,projectId}\`, Studio generation \`{kind:"studio_job",id,projectId}\`, marketplace Job \`{kind:"job",id}\`, indexed Drive file \`{kind:"file",id}\`, or an existing approval \`{kind:"decision",id}\`.
+
+Cards record the real state at capture time. A queued generation is queued; a scheduled post is scheduled. A preview reads a resource and never publishes, schedules, generates, or approves it. Use the normal action tool first when the owner authorized that action, then prepare its result. For Studio generations, use the job ID from generate_image/get_image, not its asset ID. A file ID is the indexed resource ID from list_files/upload_file, not a blob URL.
+
+To share cards into another room the owner explicitly asked you to post into, call \`post_chat\` with its normal roomId/content plus \`resultReferences\` using those same references. This is a separate post. Each reader's access is checked when they open the card. For your current answer, use preview_result without another post_chat call.
+
+When a preview is unavailable, explain only what you can verify from your other tool results and keep the text answer useful. Let the existing Task and approval actions handle input and decisions.
+`,
+  },
+  {
     id: "coworker-coordination",
     name: "Coworker coordination",
     description:

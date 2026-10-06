@@ -76,6 +76,8 @@ export const APP_SHELL_MESSAGE_PATHS = [
 
 /** Default authenticated app bag — all App.* except SokoBot/Admin. */
 export const APP_MESSAGE_PATHS = [
+  "App.SokoBot.Chat.decision",
+  "App.SokoBot.Chat.tools",
   "Components",
   "Library",
   "CookieConsent",

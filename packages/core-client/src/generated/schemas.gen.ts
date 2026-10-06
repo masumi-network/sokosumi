@@ -2012,6 +2012,13 @@ export const ChatRoomMessageSchema = {
         content: {
             type: 'string'
         },
+        resultPreviews: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultDescriptor'
+            },
+            maxItems: 6
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -2138,6 +2145,25 @@ export const ChatRoomMessageSchema = {
         'membership',
         'groupNameChange',
         'unfurls'
+    ]
+} as const;
+
+export const ChatResultDescriptorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        capturedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'capturedAt'
     ]
 } as const;
 
@@ -3746,6 +3772,13 @@ export const SokoBotTurnSchema = {
         },
         userMessage: {
             type: 'string'
+        },
+        resultPreviews: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultDescriptor'
+            },
+            maxItems: 6
         },
         finalAnswer: {
             type: [
@@ -10594,6 +10627,13 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 content: {
                     type: 'string'
                 },
+                resultPreviews: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatResultDescriptor'
+                    },
+                    maxItems: 6
+                },
                 createdAt: {
                     type: 'string',
                     format: 'date-time',
@@ -11104,6 +11144,240 @@ export const ChatRoomThreadReadStateSchema = {
     required: [
         'parentMessageId',
         'lastReadAt'
+    ]
+} as const;
+
+export const ChatResultPreviewSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/ChatResultAvailable'
+        },
+        {
+            $ref: '#/components/schemas/ChatResultUnavailable'
+        }
+    ],
+    discriminator: {
+        propertyName: 'state',
+        mapping: {
+            available: '#/components/schemas/ChatResultAvailable',
+            unavailable: '#/components/schemas/ChatResultUnavailable'
+        }
+    }
+} as const;
+
+export const ChatResultAvailableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'available'
+            ]
+        },
+        capturedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task',
+                'task_schedule',
+                'bot_schedule',
+                'social_post',
+                'studio_job',
+                'job',
+                'file',
+                'decision'
+            ]
+        },
+        title: {
+            type: 'string',
+            maxLength: 500
+        },
+        status: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 4000,
+            default: null
+        },
+        sourceHref: {
+            type: 'string',
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        assignee: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        project: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        destination: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100,
+            default: null
+        },
+        recurrence: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            default: null
+        },
+        question: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 4000,
+            default: null
+        },
+        outputs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultOutput'
+            },
+            maxItems: 12,
+            default: []
+        },
+        decision: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotPendingDecision'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'capturedAt',
+        'kind',
+        'title',
+        'status',
+        'sourceHref'
+    ]
+} as const;
+
+export const ChatResultOutputSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 500
+        },
+        contentType: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 255
+        },
+        sizeBytes: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0
+        },
+        openHref: {
+            type: 'string',
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        previewHref: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        downloadHref: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
+            default: null
+        }
+    },
+    required: [
+        'name',
+        'contentType',
+        'sizeBytes',
+        'openHref',
+        'previewHref'
+    ]
+} as const;
+
+export const ChatResultUnavailableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'unavailable'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'state'
     ]
 } as const;
 

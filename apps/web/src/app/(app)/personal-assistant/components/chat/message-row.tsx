@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { ResultPreviews } from "@/components/chat/result-previews";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatDelegation, ChatTurn } from "@/lib/soko-bot/chat-state";
@@ -288,6 +289,14 @@ export function TurnRows({
                 {t("noAnswer")}
               </p>
             )}
+            <ResultPreviews
+              descriptors={turn.resultPreviews ?? []}
+              source={{ turnId: turn.id }}
+              existingDecisionIds={turn.decisions.map(
+                (decision) => decision.id,
+              )}
+              onDecisionResolved={onDecisionResolved}
+            />
             <DelegationChips delegations={turn.delegations} />
             {turn.decisions.map((decision) => (
               <DecisionCard

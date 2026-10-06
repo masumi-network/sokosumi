@@ -83,6 +83,7 @@ import {
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import { ResultPreviews } from "@/components/chat/result-previews";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
@@ -2511,7 +2512,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     onOpenThread != null;
   const hasUnfurlRow =
     !isDeleted &&
-    ((message.unfurls ?? []).length > 0 || (message.skills ?? []).length > 0);
+    ((message.unfurls ?? []).length > 0 ||
+      (message.skills ?? []).length > 0 ||
+      (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
   const contentEndsTheRow =
@@ -2891,6 +2894,10 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                         ? (url) => onRemoveUnfurl(message, url)
                         : undefined
                     }
+                  />
+                  <ResultPreviews
+                    descriptors={message.resultPreviews ?? []}
+                    source={{ roomId: message.roomId, messageId: message.id }}
                   />
                   <SokoBotMessageFooter metadata={message.metadata} />
                 </>
