@@ -2187,6 +2187,10 @@ model CmoWorkspace {
   updates             Json?
   /// The brand's look, read from the site at signup: logo, colours, fonts.
   brandVisual         Json?
+  /// A CMO tier picked without real billing; counts only while
+  /// CMO_MOCK_BILLING is on (local and preview runs).
+  mockPlan            String?
+  mockPlanActivatedAt DateTime?
   /// The owner connected or skipped the Accounts step, so onboarding resumes
   /// on the plan step.
   accountsDoneAt      DateTime?

@@ -86,6 +86,9 @@ export interface CmoAppActions {
   }>;
   pauseEntry: (id: string) => Promise<CmoOverview>;
   connectChannel: ConnectChannel;
+  chooseMockPlan: (
+    plan: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -466,6 +469,11 @@ export function CmoApp({
                   name={name}
                   email={email}
                   signOut={actions.signOut}
+                  chooseMockPlan={async (plan) => {
+                    const result = await actions.chooseMockPlan(plan);
+                    if (result.overview) setOverview(result.overview);
+                    return result.error;
+                  }}
                 />
               )}
             </div>
@@ -553,7 +561,7 @@ function ThreadEntry({
       case "strategy":
         return <StrategyCard overview={overview} actions={actions} />;
       case "subscribe":
-        return <SubscribeCard overview={overview} />;
+        return <SubscribeCard overview={overview} actions={actions} />;
       case "connect":
         return <ConnectCard actions={actions} />;
       case "update":

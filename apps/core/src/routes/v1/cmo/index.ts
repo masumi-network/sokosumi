@@ -13,6 +13,7 @@ import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
 import {
   cmoBrandBrainRequestSchema,
+  cmoMockPlanRequestSchema,
   cmoOnboardingRequestSchema,
   cmoOverviewSchema,
   cmoStrategyRequestSchema,
@@ -25,6 +26,7 @@ import {
   CmoConflictError,
   CmoNotFoundError,
   type CmoOverview,
+  chooseCmoMockPlan,
   completeCmoOnboarding,
   connectCmoChannel,
   finalizeCmoChannel,
@@ -68,6 +70,9 @@ function mapOverview(overview: CmoOverview) {
     onboardedAt: workspace.onboardedAt,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
+    mockBilling: overview.mockBilling,
+    mockPlan: overview.mockPlan,
+    mockPlanActivatedAt: overview.mockPlanActivatedAt,
     brandBrain: overview.brandBrain,
     brandBrainUpdatedAt: workspace.brandBrainUpdatedAt,
     strategy: overview.strategy,
@@ -165,6 +170,36 @@ app.openapi(
     const body = c.req.valid("json");
     await startCmoOnboarding({ userId, ...body }).catch(rethrow);
     return created(c, await requireOverview(userId));
+  },
+);
+
+app.openapi(
+  createRoute({
+    method: "post",
+    path: "/mock-plan",
+    operationId: "chooseCmoMockPlan",
+    tags: ["CMO"],
+    description:
+      "Activates a CMO tier without checkout. Local and preview runs only (CMO_MOCK_BILLING); production answers 409.",
+    request: {
+      body: {
+        content: { "application/json": { schema: cmoMockPlanRequestSchema } },
+        required: true,
+      },
+    },
+    responses: {
+      200: jsonSuccessResponse(cmoOverviewSchema, "Mock plan active"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("No CMO workspace yet"),
+      409: jsonErrorResponse("Mock billing is off on this server"),
+    },
+  }),
+  async (c) => {
+    const { userId } = requireUserAuthContext(c.var.authContext);
+    const { plan } = c.req.valid("json");
+    await chooseCmoMockPlan(userId, plan).catch(rethrow);
+    return ok(c, await requireOverview(userId));
   },
 );
 

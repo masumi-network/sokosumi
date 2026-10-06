@@ -21810,6 +21810,32 @@ export const CmoOverviewSchema = {
                 }
             ]
         },
+        mockBilling: {
+            type: 'boolean',
+            description: 'CMO offers its own mock tiers instead of Sokosumi checkout.'
+        },
+        mockPlan: {
+            anyOf: [
+                {
+                    type: 'string'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
+        mockPlanActivatedAt: {
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ]
+        },
         routines: {
             type: 'array',
             items: {
@@ -22325,6 +22351,9 @@ export const CmoOverviewSchema = {
         'projectLogo',
         'accountsDoneAt',
         'onboardedAt',
+        'mockBilling',
+        'mockPlan',
+        'mockPlanActivatedAt',
         'routines',
         'brandBrain',
         'brandBrainUpdatedAt',
@@ -22716,6 +22745,20 @@ export const CmoOnboardingRequestSchema = {
     required: [
         'websiteUrl',
         'goals'
+    ]
+} as const;
+
+export const CmoMockPlanRequestSchema = {
+    type: 'object',
+    properties: {
+        plan: {
+            type: 'string',
+            pattern: '^[a-z][a-z0-9-]{0,31}$',
+            description: 'A CMO tier id from CMO\'s own plan config.'
+        }
+    },
+    required: [
+        'plan'
     ]
 } as const;
 

@@ -1792,3 +1792,7 @@ body:has(.ob) .site-header {
     animation: none;
   }
 }
+
+.ob-plans-mock {
+  margin-top: 32px;
+}

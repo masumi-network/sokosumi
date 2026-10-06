@@ -3,6 +3,7 @@
 import {
   approveCmoStrategy,
   type CmoOverview,
+  chooseCmoMockPlan,
   completeCmoOnboarding,
   connectCmoChannel,
   finalizeCmoChannel,
@@ -184,6 +185,22 @@ export async function requestStrategy(note?: string): Promise<{
 }
 
 /** The founder is done with onboarding: CMO opens on the chat. */
+/** Activates a CMO tier without checkout (Core's CMO_MOCK_BILLING). */
+export async function chooseMockPlan(
+  plan: string,
+): Promise<{ overview: CmoOverview | null; error: string | null }> {
+  const core = await requireCore();
+  const { data, error } = await chooseCmoMockPlan({ ...core, body: { plan } });
+  if (!data) {
+    return {
+      overview: null,
+      error: errorText(error, "Could not pick that plan"),
+    };
+  }
+  revalidatePath("/");
+  return { overview: data.data, error: null };
+}
+
 /** The founder connected or skipped the Accounts step. */
 export async function finishAccounts(): Promise<CmoOverview> {
   const core = await requireCore();

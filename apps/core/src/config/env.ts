@@ -203,6 +203,13 @@ const baseEnvSchema = z.object({
         .filter(Boolean),
     ),
 
+  // CMO.xyz mock billing for local and preview runs: a CMO tier picked in
+  // CMO counts as subscribed without real checkout. Never set in production.
+  CMO_MOCK_BILLING: z
+    .string()
+    .default("false")
+    .transform((value) => value.trim().toLowerCase() === "true"),
+
   // Temporary overlay (ADR 0010): org-first membership also gets a personal
   // workspace. Default false is ADR 0005 (personal optional).
   REQUIRE_PERSONAL_WORKSPACE: z

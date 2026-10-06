@@ -30,6 +30,9 @@ export interface OnboardingActions {
     error: string | null;
   }>;
   approveStrategy: () => Promise<CmoOverview>;
+  chooseMockPlan: (
+    plan: string,
+  ) => Promise<{ overview: CmoOverview | null; error: string | null }>;
   /** Records that the founder connected or skipped the Accounts step. */
   finishAccounts: () => Promise<CmoOverview>;
   connectChannel: (
@@ -254,6 +257,11 @@ export function OnboardingFlow({
             }
             onStart={actions.completeOnboarding}
             onRefresh={refresh}
+            onChooseMockPlan={async (plan) => {
+              const result = await actions.chooseMockPlan(plan);
+              if (result.overview) setOverview(result.overview);
+              return result.error;
+            }}
           />
         )}
       </main>

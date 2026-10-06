@@ -10,7 +10,9 @@ import {
   entryReadiness,
   SOCIAL_PROVIDERS,
 } from "../../lib/calendar";
+import { mockPlanById } from "../../lib/mock-plans";
 import { ChannelIcon } from "../channel-icon";
+import { MockPlanTable } from "../mock-plans";
 import { formatMonth } from "./cards";
 import { ExpandableText } from "./expandable-text";
 import { CalendarLegend, MonthCalendar } from "./month-calendar";
@@ -338,34 +340,78 @@ export function SettingsPage({
   name,
   email,
   signOut,
+  chooseMockPlan,
 }: PageProps & {
   name: string;
   email: string;
   signOut: () => Promise<void>;
+  /** Mock checkout: activates a CMO tier; the refusal, if any. */
+  chooseMockPlan: (planId: string) => Promise<string | null>;
 }) {
+  const [changingPlan, setChangingPlan] = useState(false);
+  const mockPlan = mockPlanById(overview.mockPlan);
   return (
     <div className="page-body">
-      <section className="panel">
-        <h3>Plan and billing</h3>
-        <div className="li">
-          <span className={overview.subscriptionActive ? "tag ok" : "tag"}>
-            {planLabel(overview.billing.plan)}
-          </span>
-          <span className="grow note">
-            {overview.subscriptionActive
-              ? "Cuso is executing your strategy."
-              : "Cuso drafts until the business has an active plan."}
-          </span>
-          <a
-            className="button button-secondary button-small"
-            href={overview.subscribeUrl}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Manage
-          </a>
-        </div>
-      </section>
+      {overview.mockBilling ? (
+        <section className="panel">
+          <h3>Plan</h3>
+          <div className="li">
+            <span className={mockPlan ? "tag ok" : "tag"}>
+              {mockPlan?.name ?? "No plan"}
+            </span>
+            <span className="grow note">
+              {mockPlan
+                ? `Active since ${formatDay(overview.mockPlanActivatedAt)}. Test plan, nothing is billed.`
+                : "Cuso drafts until you pick a plan."}
+            </span>
+            <button
+              type="button"
+              className="button button-secondary button-small"
+              aria-expanded={changingPlan}
+              onClick={() => setChangingPlan((open) => !open)}
+            >
+              {changingPlan
+                ? "Close"
+                : mockPlan
+                  ? "Change plan"
+                  : "Pick a plan"}
+            </button>
+          </div>
+          {changingPlan ? (
+            <MockPlanTable
+              current={overview.mockPlan}
+              choose={async (planId) => {
+                const refusal = await chooseMockPlan(planId);
+                if (!refusal) setChangingPlan(false);
+                return refusal;
+              }}
+            />
+          ) : null}
+        </section>
+      ) : null}
+      {overview.mockBilling ? null : (
+        <section className="panel">
+          <h3>Plan and billing</h3>
+          <div className="li">
+            <span className={overview.subscriptionActive ? "tag ok" : "tag"}>
+              {planLabel(overview.billing.plan)}
+            </span>
+            <span className="grow note">
+              {overview.subscriptionActive
+                ? "Cuso is executing your strategy."
+                : "Cuso drafts until the business has an active plan."}
+            </span>
+            <a
+              className="button button-secondary button-small"
+              href={overview.subscribeUrl}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Manage
+            </a>
+          </div>
+        </section>
+      )}
       <section className="panel">
         <h3>Credits</h3>
         <div className="li">
@@ -444,6 +490,14 @@ export function SettingsPage({
       </section>
     </div>
   );
+}
+
+function formatDay(at: Date | string | null): string {
+  if (!at) return "today";
+  return new Date(at).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+  });
 }
 
 function formatRoutineRun(at: Date | string, timeZone: string | null): string {

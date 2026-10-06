@@ -17,7 +17,9 @@ export interface CardActions {
   retryLearning: () => Promise<string | null>;
   /** Puts text in the composer and focuses it. */
   compose: (text: string) => void;
-  open: (view: "strategy" | "brain" | "results" | "channels") => void;
+  open: (
+    view: "strategy" | "brain" | "results" | "channels" | "settings",
+  ) => void;
 }
 
 type BrandBrain = NonNullable<CmoOverview["brandBrain"]>;
@@ -304,7 +306,13 @@ export function StrategyCard({
   );
 }
 
-export function SubscribeCard({ overview }: { overview: CmoOverview }) {
+export function SubscribeCard({
+  overview,
+  actions,
+}: {
+  overview: CmoOverview;
+  actions: CardActions;
+}) {
   const subscribed = overview.subscriptionActive;
   return (
     <div className={subscribed ? "card" : "card highlight"}>
@@ -327,6 +335,14 @@ export function SubscribeCard({ overview }: { overview: CmoOverview }) {
       <div className="cf">
         {subscribed ? (
           <span className="tag ok">Subscribed</span>
+        ) : overview.mockBilling ? (
+          <button
+            type="button"
+            className="button button-accent button-small"
+            onClick={() => actions.open("settings")}
+          >
+            Pick a plan and start
+          </button>
         ) : (
           <a
             className="button button-accent button-small"

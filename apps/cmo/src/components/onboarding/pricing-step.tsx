@@ -15,6 +15,9 @@ import {
 import { motion } from "motion/react";
 import { useEffect, useState, useTransition } from "react";
 
+import { mockPlanById } from "../../lib/mock-plans";
+import { MockPlanTable } from "../mock-plans";
+
 const PAID = ["starter", "standard", "pro"] as const;
 const RECOMMENDED = "standard";
 
@@ -36,6 +39,8 @@ interface PricingStepProps {
   onBack?: () => void;
   onStart: () => Promise<void>;
   onRefresh: () => Promise<void>;
+  /** Mock checkout: activates a CMO tier; the refusal, if any. */
+  onChooseMockPlan: (planId: string) => Promise<string | null>;
 }
 
 /**
@@ -48,6 +53,7 @@ export function PricingStep({
   onBack,
   onStart,
   onRefresh,
+  onChooseMockPlan,
 }: PricingStepProps) {
   const [checkingOut, setCheckingOut] = useState(false);
   const [starting, startStarting] = useTransition();
@@ -76,12 +82,28 @@ export function PricingStep({
       <h1 className="ob-title">
         {subscribed ? "You're all set" : "Pick a plan and Cuso starts today"}
       </h1>
-      <p className="ob-lede">
-        Cuso runs on Sokosumi credits. Every plan includes monthly credits; his
-        daily work, weekly review and monthly plan all draw from them.
-      </p>
+      {overview.mockBilling ? (
+        <>
+          <p className="ob-lede">
+            {subscribed
+              ? `${mockPlanById(overview.mockPlan)?.name ?? "Your"} plan is active. Cuso starts posting on your schedule.`
+              : "Every plan includes Cuso's daily posting, a weekly review and a fresh strategy each month."}
+          </p>
+          <div className="ob-plans-mock">
+            <MockPlanTable
+              current={overview.mockPlan}
+              choose={onChooseMockPlan}
+            />
+          </div>
+        </>
+      ) : (
+        <p className="ob-lede">
+          Cuso runs on Sokosumi credits. Every plan includes monthly credits;
+          his daily work, weekly review and monthly plan all draw from them.
+        </p>
+      )}
 
-      {plans ? (
+      {overview.mockBilling ? null : plans ? (
         <div className="ob-plans">
           {PAID.map((name, index) => {
             const plan = plans[name];

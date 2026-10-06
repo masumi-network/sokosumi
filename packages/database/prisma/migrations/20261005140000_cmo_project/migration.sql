@@ -28,6 +28,8 @@ CREATE TABLE "cmo_workspace" (
     "strategyHistory" JSONB,
     "updates" JSONB,
     "brandVisual" JSONB,
+    "mockPlan" TEXT,
+    "mockPlanActivatedAt" TIMESTAMP(3),
     "accountsDoneAt" TIMESTAMP(3),
     "onboardedAt" TIMESTAMP(3),
 

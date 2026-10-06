@@ -1698,3 +1698,204 @@ textarea {
   padding: 0;
   border-top: 0;
 }
+
+/* ── Mock plans (CMO_MOCK_BILLING): onboarding Plan step and Settings ── */
+.mp {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.mp-toggle {
+  display: inline-flex;
+  align-self: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 999px;
+  background: var(--hover);
+}
+
+.mp-toggle button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.mp-toggle button.on {
+  background: var(--background);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+}
+
+.mp-save {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.6875rem;
+}
+
+.mp-grid {
+  display: grid;
+  gap: 12px;
+}
+
+@media (min-width: 760px) {
+  .mp-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+  }
+}
+
+.mp-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--background);
+}
+
+.mp-plan.featured {
+  border-color: var(--foreground);
+  box-shadow: 0 16px 40px rgb(0 0 0 / 0.08);
+}
+
+.mp-plan.active {
+  border-color: var(--ok);
+  box-shadow: none;
+}
+
+.mp-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mp-head h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.mp-badge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+
+.mp-badge.current {
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  color: var(--ok);
+}
+
+.mp-blurb {
+  min-height: 2.6em;
+  color: var(--muted);
+  font-size: 0.875rem;
+  line-height: 1.4;
+}
+
+.mp-price {
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  margin-top: 4px;
+  font-size: 2.25rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.mp-per {
+  color: var(--muted);
+  font-size: 0.875rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.mp-billed {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.mp-choose {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 40px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--background);
+  color: var(--foreground);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms;
+}
+
+.mp-choose:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.mp-choose.primary {
+  border-color: var(--foreground);
+  background: var(--foreground);
+  color: var(--background);
+}
+
+.mp-choose.primary:hover:not(:disabled) {
+  background: var(--foreground);
+  opacity: 0.88;
+}
+
+.mp-choose:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.mp-features {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0 0;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.mp-features li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mp-features svg {
+  flex: none;
+  margin-top: 3px;
+  color: var(--ok);
+}
+
+.mp-note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+  text-align: center;
+}

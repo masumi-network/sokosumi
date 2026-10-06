@@ -21,6 +21,7 @@ import { isValidPersonName } from "../lib/person-name";
 import { createAccount, signIn, signOut } from "./actions";
 import {
   approveStrategy,
+  chooseMockPlan,
   completeOnboarding,
   connectChannel,
   finishAccounts,
@@ -161,6 +162,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
           requestStrategy,
           approveStrategy,
           finishAccounts,
+          chooseMockPlan,
           connectChannel,
           completeOnboarding,
           signOut,
@@ -184,6 +186,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
         retryLearning,
         pauseEntry,
         connectChannel,
+        chooseMockPlan,
         signOut,
       }}
     />

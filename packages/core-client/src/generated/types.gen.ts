@@ -6385,6 +6385,12 @@ export type CmoOverview = {
     projectLogo: string | null;
     accountsDoneAt: Date | null;
     onboardedAt: Date | null;
+    /**
+     * CMO offers its own mock tiers instead of Sokosumi checkout.
+     */
+    mockBilling: boolean;
+    mockPlan: string | null;
+    mockPlanActivatedAt: Date | null;
     routines: Array<CmoRoutine>;
     brandBrain: {
         summary: string;
@@ -6532,6 +6538,13 @@ export type CmoOnboardingRequest = {
     websiteUrl: string;
     goals: string;
     businessName?: string;
+};
+
+export type CmoMockPlanRequest = {
+    /**
+     * A CMO tier id from CMO's own plan config.
+     */
+    plan: string;
 };
 
 export type CmoTurnStarted = {
@@ -45270,6 +45283,94 @@ export type StartCmoOnboardingResponses = {
 };
 
 export type StartCmoOnboardingResponse = StartCmoOnboardingResponses[keyof StartCmoOnboardingResponses];
+
+export type ChooseCmoMockPlanData = {
+    body: CmoMockPlanRequest;
+    path?: never;
+    query?: never;
+    url: '/cmo/mock-plan';
+};
+
+export type ChooseCmoMockPlanErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * No CMO workspace yet
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Mock billing is off on this server
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type ChooseCmoMockPlanError = ChooseCmoMockPlanErrors[keyof ChooseCmoMockPlanErrors];
+
+export type ChooseCmoMockPlanResponses = {
+    /**
+     * Mock plan active
+     */
+    200: {
+        data: CmoOverview;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type ChooseCmoMockPlanResponse = ChooseCmoMockPlanResponses[keyof ChooseCmoMockPlanResponses];
 
 export type FinishCmoAccountsStepData = {
     body?: never;

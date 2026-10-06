@@ -10,14 +10,14 @@ vi.mock("@/middleware/auth", async (importOriginal) => {
   return { ...actual, authMiddleware: stubAuthMiddleware };
 });
 
-const { approveMock, revertMock, overviewMock, connectMock } = vi.hoisted(
-  () => ({
+const { approveMock, revertMock, overviewMock, connectMock, mockPlanMock } =
+  vi.hoisted(() => ({
     approveMock: vi.fn(),
     revertMock: vi.fn(),
     overviewMock: vi.fn(),
     connectMock: vi.fn(),
-  }),
-);
+    mockPlanMock: vi.fn(),
+  }));
 
 vi.mock("@/services/cmo.service", async (importOriginal) => {
   const actual =
@@ -28,6 +28,7 @@ vi.mock("@/services/cmo.service", async (importOriginal) => {
     revertCmoUpdate: revertMock,
     getCmoOverview: overviewMock,
     connectCmoChannel: connectMock,
+    chooseCmoMockPlan: mockPlanMock,
   };
 });
 
@@ -52,6 +53,7 @@ function overview() {
       strategyUpdatedAt: NOW,
       strategyApprovedAt: NOW,
       accountsDoneAt: NOW,
+      mockPlanActivatedAt: null,
       onboardedAt: NOW,
       createdAt: NOW,
     },
@@ -59,6 +61,9 @@ function overview() {
     projectName: "CMO.xyz · Acme",
     roomId: "room-1",
     subscriptionActive: false,
+    mockBilling: false,
+    mockPlan: null,
+    mockPlanActivatedAt: null,
     brandBrain: null,
     strategy: null,
     botStatus: "IDLE",
@@ -136,6 +141,29 @@ describe("CMO routes", () => {
     approveMock.mockRejectedValue(new CmoConflictError("No strategy"));
     const response = await createApp().request("/strategy/approve", {
       method: "POST",
+    });
+    expect(response.status).toBe(409);
+  });
+
+  it("activates a mock plan for the caller", async () => {
+    mockPlanMock.mockResolvedValue(undefined);
+    const response = await createApp().request("/mock-plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ plan: "growth" }),
+    });
+    expect(response.status).toBe(200);
+    expect(mockPlanMock).toHaveBeenCalledWith("user-1", "growth");
+  });
+
+  it("answers 409 for a mock plan when mock billing is off", async () => {
+    mockPlanMock.mockRejectedValue(
+      new CmoConflictError("Mock billing is off on this server"),
+    );
+    const response = await createApp().request("/mock-plan", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ plan: "growth" }),
     });
     expect(response.status).toBe(409);
   });

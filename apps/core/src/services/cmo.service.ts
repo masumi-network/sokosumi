@@ -254,6 +254,37 @@ export async function hasActiveCmoSubscription(
   return (await activeCmoPlan(referenceId)) !== null;
 }
 
+/** The CMO tier picked without billing; ignored unless CMO_MOCK_BILLING is on. */
+export function cmoMockPlan(
+  workspace: Pick<CmoWorkspace, "mockPlan">,
+): string | null {
+  return getEnv().CMO_MOCK_BILLING ? workspace.mockPlan : null;
+}
+
+/** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
+async function isCmoSubscribed(
+  workspace: Pick<CmoWorkspace, "userId" | "workspaceId" | "mockPlan">,
+): Promise<boolean> {
+  if (cmoMockPlan(workspace)) return true;
+  return hasActiveCmoSubscription((await cmoPayer(workspace)).referenceId);
+}
+
+/** Activates a CMO tier without checkout, on local and preview runs only. */
+export async function chooseCmoMockPlan(
+  userId: string,
+  plan: string,
+): Promise<void> {
+  if (!getEnv().CMO_MOCK_BILLING) {
+    throw new CmoConflictError("Mock billing is off on this server");
+  }
+  const workspace = await getCmoWorkspaceForUser(userId);
+  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  await prisma.cmoWorkspace.update({
+    where: { id: workspace.id },
+    data: { mockPlan: plan, mockPlanActivatedAt: new Date() },
+  });
+}
+
 async function startCmoTurn(
   workspace: Pick<CmoWorkspace, "userId" | "workspaceId" | "sokoBotId">,
   input: { clientTurnId: string; message: string; route: PresetRoute },
@@ -982,9 +1013,7 @@ export async function cmoExecutionRefusal(input: {
   if (!workspace) return null;
   const verdict = cmoMayExecute({
     approved: workspace.strategyApprovedAt !== null,
-    subscribed: await hasActiveCmoSubscription(
-      (await cmoPayer(workspace)).referenceId,
-    ),
+    subscribed: await isCmoSubscribed(workspace),
   });
   return verdict.ok ? null : verdict.reason;
 }
@@ -1040,9 +1069,7 @@ export async function loadCmoMarketingContext(
       marketingProjectId: workspace.projectId,
     },
     strategyApproved: workspace.strategyApprovedAt !== null,
-    subscriptionActive: await hasActiveCmoSubscription(
-      (await cmoPayer(workspace)).referenceId,
-    ),
+    subscriptionActive: await isCmoSubscribed(workspace),
     connectedChannels: (await listCmoChannels(workspace.projectId)).map(
       (channel) => ({
         provider: channel.provider,
@@ -1164,6 +1191,10 @@ export interface CmoOverview {
   }[];
   roomId: string;
   subscriptionActive: boolean;
+  /** CMO_MOCK_BILLING: CMO offers its own tiers without checkout. */
+  mockBilling: boolean;
+  mockPlan: string | null;
+  mockPlanActivatedAt: Date | null;
   brandBrain: CmoBrandBrain | null;
   strategy: CmoStrategy | null;
   botStatus: string;
@@ -1266,7 +1297,8 @@ export async function getCmoOverview(
     referenceId: payer.referenceId,
     tx: prisma,
   });
-  const cmoPlan = await activeCmoPlan(payer.referenceId);
+  const mockPlan = cmoMockPlan(workspace);
+  const cmoPlan = mockPlan ?? (await activeCmoPlan(payer.referenceId));
   const learning = await cmoLearningState(workspace, now);
   const work = await cmoWork(workspace, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
@@ -1300,6 +1332,9 @@ export async function getCmoOverview(
     projectName: project.name,
     roomId: room.id,
     subscriptionActive: cmoPlan !== null,
+    mockBilling: getEnv().CMO_MOCK_BILLING,
+    mockPlan,
+    mockPlanActivatedAt: mockPlan ? workspace.mockPlanActivatedAt : null,
     brandBrain: parseCmoBrandBrain(workspace.brandBrain),
     strategy,
     botStatus: bot.status,

@@ -90,6 +90,9 @@ function overview(patch: Partial<CmoOverview> = {}): CmoOverview {
     },
     projectLogo: null,
     accountsDoneAt: null,
+    mockBilling: false,
+    mockPlan: null,
+    mockPlanActivatedAt: null,
     onboardedAt: null,
     routines: [],
     subscriptionActive: false,
@@ -266,12 +269,50 @@ describe("pricing", () => {
         plans={plans}
         onStart={async () => {}}
         onRefresh={async () => {}}
+        onChooseMockPlan={async () => null}
       />,
     );
     expect(html).toContain("€75");
     expect(html).toContain("750 credits every month");
     expect(html).toContain('href="http://web/billing?tab=subscription"');
     expect(html).toContain("Start without a plan for now");
+    expect(html).not.toContain("Choose Growth");
+  });
+
+  it("offers CMO's own mock tiers instead of checkout while mock billing is on", () => {
+    const html = renderToStaticMarkup(
+      <PricingStep
+        overview={overview({ mockBilling: true })}
+        plans={plans}
+        onStart={async () => {}}
+        onRefresh={async () => {}}
+        onChooseMockPlan={async () => null}
+      />,
+    );
+    expect(html).toContain("Choose Growth");
+    expect(html).toContain("Recommended");
+    expect(html).toContain("Yearly");
+    expect(html).not.toContain("http://web/billing");
+    expect(html).toContain("Start without a plan for now");
+  });
+
+  it("marks the active mock tier and lets the founder start", () => {
+    const html = renderToStaticMarkup(
+      <PricingStep
+        overview={overview({
+          mockBilling: true,
+          mockPlan: "growth",
+          subscriptionActive: true,
+        })}
+        plans={plans}
+        onStart={async () => {}}
+        onRefresh={async () => {}}
+        onChooseMockPlan={async () => null}
+      />,
+    );
+    expect(html).toContain("Your plan");
+    expect(html).toContain("Growth plan is active");
+    expect(html).toContain("Start Cuso");
   });
 
   it("lets a subscribed founder start", () => {
@@ -288,6 +329,7 @@ describe("pricing", () => {
         plans={plans}
         onStart={async () => {}}
         onRefresh={async () => {}}
+        onChooseMockPlan={async () => null}
       />,
     );
     expect(html).toContain("Your plan");

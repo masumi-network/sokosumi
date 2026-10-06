@@ -15,6 +15,15 @@ export const cmoOnboardingRequestSchema = z
   })
   .openapi("CmoOnboardingRequest");
 
+export const cmoMockPlanRequestSchema = z
+  .object({
+    plan: z
+      .string()
+      .regex(/^[a-z][a-z0-9-]{0,31}$/)
+      .describe("A CMO tier id from CMO's own plan config."),
+  })
+  .openapi("CmoMockPlanRequest");
+
 export const cmoBrandBrainRequestSchema = z
   .object({ brandBrain: cmoBrandBrainSchema })
   .openapi("CmoBrandBrainRequest");
@@ -122,6 +131,11 @@ export const cmoOverviewSchema = z
     projectLogo: z.union([z.string(), z.null()]),
     accountsDoneAt: z.union([dateTimeSchema, z.null()]),
     onboardedAt: z.union([dateTimeSchema, z.null()]),
+    mockBilling: z
+      .boolean()
+      .describe("CMO offers its own mock tiers instead of Sokosumi checkout."),
+    mockPlan: z.union([z.string(), z.null()]),
+    mockPlanActivatedAt: z.union([dateTimeSchema, z.null()]),
     routines: z.array(cmoRoutineSchema),
     brandBrain: z.union([cmoBrandBrainSchema, z.null()]),
     brandBrainUpdatedAt: z.union([dateTimeSchema, z.null()]),

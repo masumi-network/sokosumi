@@ -38,6 +38,16 @@ vi.mock("@/lib/db/prisma", () => ({
   },
 }));
 
+const mockBilling = vi.hoisted(() => ({ on: false }));
+
+vi.mock("@/config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/config/env")>();
+  return {
+    ...actual,
+    getEnv: () => ({ ...actual.getEnv(), CMO_MOCK_BILLING: mockBilling.on }),
+  };
+});
+
 vi.mock("@/services/social-posts.service", () => ({ cancelSocialPost }));
 
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
@@ -46,6 +56,7 @@ vi.mock("@/services/soko-bot-control-plane.service", () => ({
 
 import {
   approveCmoStrategy,
+  chooseCmoMockPlan,
   cmoBusinessNameFromUrl,
   cmoExecutionRefusal,
   cmoLearningState,
@@ -103,6 +114,7 @@ const revised = { ...strategy, summary: "Twice the LinkedIn posts." };
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockBilling.on = false;
   cmoUpdate.mockImplementation(async (args) => ({ id: "cmo-1", ...args.data }));
   expireTurn.mockResolvedValue(true);
 });
@@ -188,6 +200,51 @@ describe("approveCmoStrategy", () => {
   it("needs a strategy", async () => {
     cmoFindUnique.mockResolvedValue({ id: "cmo-1", strategy: null });
     await expect(approveCmoStrategy("user-1")).rejects.toThrow(/no strategy/i);
+  });
+});
+
+describe("mock billing", () => {
+  const approvedWithMockPlan = {
+    id: "cmo-1",
+    userId: "user-1",
+    workspaceId: "ws-1",
+    strategy,
+    strategyApprovedAt: new Date(),
+    mockPlan: "growth",
+  };
+
+  it("lets a mock plan open execution while CMO_MOCK_BILLING is on", async () => {
+    mockBilling.on = true;
+    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    subscriptionFindFirst.mockResolvedValue(null);
+    expect(
+      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
+    ).toBeNull();
+    expect(subscriptionFindFirst).not.toHaveBeenCalled();
+  });
+
+  it("ignores a stored mock plan when the flag is off (production)", async () => {
+    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    workspaceFindUnique.mockResolvedValue({ organizationId: null });
+    subscriptionFindFirst.mockResolvedValue(null);
+    expect(
+      await cmoExecutionRefusal({ sokoBotId: "bot-1", versionId: "cmo-v1" }),
+    ).toMatch(/subscribe/);
+  });
+
+  it("stores the chosen tier only while the flag is on", async () => {
+    cmoFindUnique.mockResolvedValue(approvedWithMockPlan);
+    await expect(chooseCmoMockPlan("user-1", "scale")).rejects.toThrow(
+      /mock billing is off/i,
+    );
+    expect(cmoUpdate).not.toHaveBeenCalled();
+
+    mockBilling.on = true;
+    await chooseCmoMockPlan("user-1", "scale");
+    expect(cmoUpdate.mock.calls[0]?.[0].data).toMatchObject({
+      mockPlan: "scale",
+      mockPlanActivatedAt: expect.any(Date),
+    });
   });
 });
 
