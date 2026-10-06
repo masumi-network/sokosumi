@@ -43,9 +43,24 @@ const SOURCE = FILES.filter(
 
 const STYLESHEET = "app/globals.css";
 
-/** A line that is only a comment carries no copy and no styles. */
+/**
+ * A full-line comment carries no copy and no styles.
+ * `*` starts a block-comment body and a CSS universal selector. A selector
+ * (`*,`, `*::before`, `*:focus`, `* { ... }`) is not a comment, or
+ * `* { outline: none }` would read as one and slip through.
+ */
 function isComment(line: string): boolean {
-  return /^\s*(\/\/|\/?\*)/.test(line);
+  const trimmed = line.trim();
+  if (
+    trimmed.startsWith("//") ||
+    trimmed.startsWith("/*") ||
+    trimmed.startsWith("*/")
+  ) {
+    return true;
+  }
+  if (!trimmed.startsWith("*")) return false;
+  const first = trimmed.slice(1).trimStart()[0];
+  return first !== undefined && !"{:,>+~.#[".includes(first);
 }
 
 function findLines(files: SrcFile[], pattern: RegExp): string[] {
@@ -85,7 +100,7 @@ describe("typeface", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
     const literalFamilies = (stylesheet?.lines ?? [])
       .map((line, index) => ({ line, index }))
-      .filter(({ line }) => /font-family\s*:/.test(line))
+      .filter(({ line }) => !isComment(line) && /font-family\s*:/.test(line))
       .filter(({ line }) => !/font-family\s*:\s*var\(--font-sans\)/.test(line))
       .map(({ line, index }) => `${STYLESHEET}:${index + 1}: ${line.trim()}`);
 
@@ -143,8 +158,11 @@ describe("accessibility", () => {
    * outline anywhere would leave a keyboard user with no focus mark.
    */
   it("never removes the focus outline", () => {
-    const stylesheet = FILES.filter((file) => file.rel === STYLESHEET);
+    const checked = [
+      ...SOURCE,
+      ...FILES.filter((file) => file.rel.endsWith(".css")),
+    ];
 
-    expect(findLines(stylesheet, /outline\s*:\s*(?:none|0)\b/)).toEqual([]);
+    expect(findLines(checked, /outline\s*:\s*["']?(?:none|0)\b/)).toEqual([]);
   });
 });
