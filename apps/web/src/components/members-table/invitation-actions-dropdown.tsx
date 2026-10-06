@@ -93,7 +93,7 @@ export default function InvitationActionsDropdown({
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={handleResend} disabled={loading}>
           {loading && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
+            <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
           )}
           {t("resend")}
         </DropdownMenuItem>

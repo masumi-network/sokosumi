@@ -498,7 +498,7 @@ function OfferEmbed({
       <img
         src={url}
         alt={title}
-        className="bg-card-background h-full w-full object-contain"
+        className="bg-card-background size-full object-contain"
         loading="lazy"
       />
     );
@@ -510,7 +510,7 @@ function OfferEmbed({
       <iframe
         title={title}
         sandbox="allow-scripts"
-        className="bg-background h-full w-full"
+        className="bg-background size-full"
         loading="lazy"
         {...(text ? { srcDoc: text } : { src: url })}
       />
@@ -528,7 +528,7 @@ function OfferEmbed({
       <iframe
         src={src}
         title={title}
-        className="bg-card-background h-full w-full"
+        className="bg-card-background size-full"
       />
     );
   }

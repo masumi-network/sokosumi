@@ -72,7 +72,7 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
               disabled={disabled}
               className={cn("w-full justify-start text-left font-normal", !internalValue && "text-muted-foreground")}
             >
-              <div className="mr-2 h-4 w-4 rounded border border-border" style={{ backgroundColor: internalValue }} />
+              <div className="mr-2 size-4 rounded border border-border" style={{ backgroundColor: internalValue }} />
               {internalValue || placeholder}
             </Button>
           </PopoverTrigger>
@@ -111,7 +111,7 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
                       onClick={() => handleColorChange(color)}
                       disabled={disabled}
                       className={cn(
-                        "h-8 w-8 rounded border-2 transition-all hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50",
+                        "size-8 rounded border-2 transition-[border-color,box-shadow,opacity,transform] hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50",
                         internalValue === color
                           ? "border-ring ring-2 ring-ring ring-offset-2 ring-offset-background"
                           : "border-border hover:border-ring",
