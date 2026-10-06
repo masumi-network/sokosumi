@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { Organization } from "@sokosumi/core-client";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
@@ -149,10 +149,7 @@ export default function CouponForm({
             />
           </CardContent>
           <CardFooter className="flex items-end justify-between gap-4 pt-6">
-            <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting && (
-                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
+            <Button type="submit" loading={isSubmitting}>
               {organization ? t("couponButtonOrganization") : t("couponButton")}
             </Button>
             <p className="text-muted-foreground text-right text-xs">

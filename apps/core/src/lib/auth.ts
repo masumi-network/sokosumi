@@ -13,16 +13,10 @@ import {
   hasConsumableEnterpriseContract,
 } from "@sokosumi/database/helpers";
 import { memberRepository } from "@sokosumi/database/repositories";
-import {
-  renderEmailCodeEmail,
-  renderResetPasswordEmail,
-  renderVerificationEmail,
-} from "@sokosumi/email";
 import { authTranslations } from "@sokosumi/masumi/auth";
 import {
   betterAuthUserAdditionalFields,
   getEmailLocale,
-  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
   resolveBetterAuthCookieName,
   resolveBetterAuthCookiePrefix,
@@ -38,9 +32,7 @@ import {
   oAuthProxy,
   openAPI,
 } from "better-auth/plugins";
-import Stripe from "stripe";
-import { sendEmail } from "@/clients/email.client";
-import { stripeClient } from "@/clients/stripe.client";
+import { stripeClient, stripe as stripeSdk } from "@/clients/stripe.client";
 import { LIMITS, TIME } from "@/config/constants";
 import {
   getBetterAuthProductionUrl,
@@ -49,6 +41,7 @@ import {
   getWebAppBaseUrl,
   isProductionEnvironment,
 } from "@/config/env";
+import { sendEmailInBackground } from "@/helpers/background-email";
 import { deliverOrganizationCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
 import {
   evaluateUserDeletion,
@@ -61,7 +54,6 @@ import {
 import { deleteStripeCustomerBestEffort } from "@/helpers/stripe-customer-delete";
 import { prepareTasksForUserDeletion } from "@/helpers/user-deletion-tasks";
 import prisma from "@/lib/db/prisma";
-import { captureExternalServiceError } from "@/lib/external-service-errors";
 import { handleStripeAuthWebhookOnEvent } from "@/lib/stripe-auth-webhook-on-event";
 import { resolveActiveOrganizationIdForSession } from "@/services/preferred-organization.service";
 import { reconcileActiveStripeBackedSubscription } from "@/services/stripe-backed-subscription.service";
@@ -77,27 +69,30 @@ import {
   emailCodeSignIn,
   resolveEmailCodeSignUpLoginMethod,
 } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
-  answerCreatePromptWithNewSession,
   jwtKeyStoreOptions,
-  OAUTH_ACCESS_TOKEN_PREFIX,
-  OAUTH_REFRESH_TOKEN_PREFIX,
   oauthRefreshTokenOptions,
   revokeUserOAuthTokens,
 } from "./auth-oauth-provider";
 import { refuseOAuthProxyCompletionOutsidePreview } from "./auth-oauth-proxy";
+import {
+  OAUTH_ACCESS_TOKEN_PREFIX,
+  OAUTH_REFRESH_TOKEN_PREFIX,
+} from "./auth-oauth-token-prefixes";
 import { createAuthOrganizationPlugin } from "./auth-organization";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
 import {
   oauthSignUpOptions,
   recordSignUpConversion,
 } from "./auth-sign-up-conversion";
 import { signUpEmailStatus } from "./auth-sign-up-email-status";
-import { accountOptions, socialProviderOptions } from "./auth-social-providers";
 import {
-  resolveEmailCodeSignInNameBody,
-  resolveSignUpNameBody,
+  accountOptions,
+  isSocialProviderId,
+  socialProviderOptions,
+} from "./auth-social-providers";
+import {
   validateUpdatedUserName,
   validateUserNameLength,
 } from "./auth-user-name";
@@ -108,7 +103,6 @@ const ORGANIZATION_ENTERPRISE_CONTRACT_EXCLUSIVE =
 const EMAIL_CODE_EXPIRES_IN_SECONDS = 10 * 60;
 
 const env = getEnv();
-const stripeInstance = new Stripe(env.STRIPE_SECRET_KEY);
 const webAppBaseUrl = getWebAppBaseUrl();
 const betterAuthBaseUrl = getBetterAuthPublicBaseUrl();
 const betterAuthCookiePrefixParams = {
@@ -241,10 +235,7 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account, _ctx) => {
-          if (
-            account.providerId === "google" ||
-            account.providerId === "microsoft"
-          ) {
+          if (isSocialProviderId(account.providerId)) {
             await prisma.user.updateMany({
               where: { id: account.userId, emailVerified: false },
               data: { emailVerified: true },
@@ -252,19 +243,10 @@ export const auth = betterAuth({
           }
 
           waitUntil(
-            webhookService
-              .callAccountCreated(account.userId, account.providerId)
-              .catch((error) => {
-                Sentry.captureException(error, {
-                  tags: {
-                    context: "account_created_webhook",
-                  },
-                  extra: {
-                    userId: account.userId,
-                    providerId: account.providerId,
-                  },
-                });
-              }),
+            webhookService.callAccountCreated(
+              account.userId,
+              account.providerId,
+            ),
           );
         },
       },
@@ -336,18 +318,7 @@ export const auth = betterAuth({
                 });
               }),
           );
-          waitUntil(
-            webhookService.callUserCreated(user).catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "user_created_webhook",
-                },
-                extra: {
-                  userId: user.id,
-                },
-              });
-            }),
-          );
+          waitUntil(webhookService.callUserWebhook("userCreated", user));
         },
       },
       update: {
@@ -360,19 +331,8 @@ export const auth = betterAuth({
           return { data: guarded };
         },
         after: async (user, _ctx) => {
-          waitUntil(
-            webhookService.callUserUpdated(user).catch((error) => {
-              Sentry.captureException(error, {
-                tags: {
-                  context: "user_updated_webhook",
-                },
-                extra: {
-                  userId: user.id,
-                },
-              });
-            }),
-          );
-          void handleUserUpdateStripeEmailSync(user);
+          waitUntil(webhookService.callUserWebhook("userUpdated", user));
+          waitUntil(handleUserUpdateStripeEmailSync(user));
         },
       },
     },
@@ -407,7 +367,12 @@ export const auth = betterAuth({
       "https://app.sokosumi.com",
       "https://preprod.sokosumi.com",
       webAppBaseUrl,
-      "https://*.preview.sokosumi.com", // Vercel preview deployment suffix
+      // Branch previews of Web call their own Core preview. Production keeps
+      // them out: they share its `sokosumi.com` cookies, so a trusted preview
+      // could act for anyone signed in to production.
+      ...(env.VERCEL_ENV === "preview"
+        ? ["https://*.preview.sokosumi.com"]
+        : []),
       ...(env.NODE_ENV === "development"
         ? [
             "http://localhost:*",
@@ -423,48 +388,11 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       refuseOAuthProxyCompletionOutsidePreview(ctx.path, env.VERCEL_ENV);
 
-      switch (ctx.path) {
-        case "/email-otp/send-verification-otp": {
-          // Codes only sign people in. Password resets and email
-          // verification keep their links.
-          if (ctx.body?.type !== "sign-in") {
-            throw new APIError("BAD_REQUEST", {
-              message: "Email codes only sign in",
-            });
-          }
-          break;
-        }
-        case "/sign-in/email-otp": {
-          // A password sign-up (see `auth-email-code-sign-in`) keeps the
-          // checks `/sign-up/email` made before it was closed.
-          if (ctx.body?.password !== undefined) {
-            if (!ctx.body.termsAccepted) {
-              throw new APIError("BAD_REQUEST", {
-                code: "TERMS_NOT_ACCEPTED",
-              });
-            }
-            return { context: { body: resolveSignUpNameBody(ctx.body) } };
-          }
-          return {
-            context: { body: resolveEmailCodeSignInNameBody(ctx.body) },
-          };
-        }
-        case "/update-user": {
-          await validateUpdatedUserName(ctx);
-          break;
-        }
+      if (ctx.path === "/update-user") {
+        await validateUpdatedUserName(ctx);
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-in")) {
-        const user = ctx.context.newSession?.user;
-        if (user && !user.termsAccepted) {
-          throw new APIError("BAD_REQUEST", {
-            code: "TERMS_NOT_ACCEPTED",
-          });
-        }
-      }
-
       if (ctx.path === "/organization/leave") {
         const organizationId = ctx.body?.organizationId;
         if (typeof organizationId === "string") {
@@ -490,8 +418,7 @@ export const auth = betterAuth({
         );
       }
 
-      await keepNewSessionPersistent(ctx);
-      await answerCreatePromptWithNewSession(ctx);
+      await afterNewSession(ctx);
     }),
   },
   emailAndPassword: {
@@ -517,36 +444,32 @@ export const auth = betterAuth({
       }
     },
     sendResetPassword: async ({ user, url }, request) => {
+      const { renderResetPasswordEmail } = await import("@sokosumi/email");
       const email = await renderResetPasswordEmail({
         locale: getEmailLocale(request),
         name: user.name,
         resetLink: url,
       });
 
-      waitUntil(
-        sendEmail({
+      sendEmailInBackground(
+        {
           to: user.email,
           tag: "reset-password",
           subject: email.subject,
           html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "reset_password_email",
-            sentry: {
-              tags: {
-                context: "reset_password_email",
-              },
-            },
-            extra: {
-              userId: user.id,
-            },
-          });
-        }),
+        },
+        {
+          label: "reset_password_email",
+          extra: {
+            userId: user.id,
+          },
+        },
       );
     },
   },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }, request) => {
+      const { renderVerificationEmail } = await import("@sokosumi/email");
       const email = await renderVerificationEmail({
         locale: getEmailLocale(request),
         name: user.name,
@@ -556,25 +479,19 @@ export const auth = betterAuth({
         ),
       });
 
-      waitUntil(
-        sendEmail({
+      sendEmailInBackground(
+        {
           to: user.email,
           tag: "verification-email",
           subject: email.subject,
           html: email.html,
-        }).catch((error) => {
-          captureExternalServiceError(error, {
-            label: "verification_email",
-            sentry: {
-              tags: {
-                context: "verification_email",
-              },
-            },
-            extra: {
-              userId: user.id,
-            },
-          });
-        }),
+        },
+        {
+          label: "verification_email",
+          extra: {
+            userId: user.id,
+          },
+        },
       );
     },
     expiresIn: TIME.EMAIL_VERIFICATION_EXPIRES,
@@ -646,31 +563,26 @@ export const auth = betterAuth({
           if (env.NODE_ENV === "development") {
             process.stdout.write(`[email code] ${email}: ${otp}\n`);
           }
+          const { renderEmailCodeEmail } = await import("@sokosumi/email");
           const renderedEmail = await renderEmailCodeEmail({
             locale: getEmailLocale(ctx?.request, ctx?.headers),
             code: otp,
             expiresInMinutes: EMAIL_CODE_EXPIRES_IN_SECONDS / 60,
           });
 
-          waitUntil(
-            sendEmail({
+          // Provider errors can echo the address or code. Report only
+          // fixed text, without the original message, stack or cause.
+          sendEmailInBackground(
+            {
               to: email,
               tag: "email-code",
               subject: renderedEmail.subject,
               html: renderedEmail.html,
-            }).catch((error) => {
-              captureExternalServiceError(error, {
-                label: "email_code_email",
-                message: "Email code delivery failed",
-                sentry: {
-                  tags: {
-                    context: "email_code_email",
-                  },
-                },
-                // Provider errors can echo the address or code. Report only
-                // fixed text, without the original message, stack or cause.
-              });
-            }),
+            },
+            {
+              label: "email_code_email",
+              message: "Email code delivery failed",
+            },
           );
         },
       }),
@@ -730,9 +642,7 @@ export const auth = betterAuth({
       scopes: [...OAUTH_PROVIDER_SCOPES],
       // Defaults to identity-only; allow-list keeps sokosumi:api opt-in available
       // for authenticated create-client and for DCR if enabled later.
-      clientRegistrationDefaultScopes: [
-        ...OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
-      ],
+      clientRegistrationDefaultScopes: ["openid"],
       clientRegistrationAllowedScopes: [...OAUTH_PROVIDER_SCOPES],
       grantTypes: ["authorization_code", "refresh_token"],
       // Production keeps exact redirect URI matching (ADR 0045).
@@ -741,7 +651,7 @@ export const auth = betterAuth({
         : {}),
       accessTokenExpiresIn: 7_200, // 2 hours (default: 3_600)
       ...oauthRefreshTokenOptions,
-      idTokenExpiresIn: 72_000, // 20 hours (default: 3_6000)
+      idTokenExpiresIn: 72_000, // 20 hours (default: 3_600)
       codeExpiresIn: 600, // 10 minutes (default: 600)
       prefix: {
         opaqueAccessToken: OAUTH_ACCESS_TOKEN_PREFIX,
@@ -760,7 +670,7 @@ export const auth = betterAuth({
     // Better Auth Stripe plugin webhook (POST /auth/stripe/webhook). Point the
     // Stripe Dashboard here only; billing events are handled from onEvent.
     stripe({
-      stripeClient: stripeInstance,
+      stripeClient: stripeSdk,
       stripeWebhookSecret: env.STRIPE_WEBHOOK_SECRET,
       createCustomerOnSignUp: false,
       subscription: {

@@ -364,7 +364,7 @@ Additional behavior:
 - Methods and headers are configured per route group (`/auth` vs `/v1`)
 - Preflight responses set `Access-Control-Max-Age` to `TIME.CORS_MAX_AGE` (see `src/config/constants.ts`; browsers may cap effective cache duration)
 
-Better Auth’s `trustedOrigins` in Core and the web app should stay identical: `https://app.sokosumi.com`, `https://preprod.sokosumi.com`, and `https://*.preview.sokosumi.com`; development adds `http://localhost:*`, `https://*.localhost`, and related loopback patterns for local browsers and portless. CORS allowlisting is broader (`https://sokosumi.com` and `https://*.sokosumi.com`); do not widen `trustedOrigins` to match — it is a CSRF allowlist for browser auth flows, not general API access control.
+Better Auth’s `trustedOrigins` in Core are `https://app.sokosumi.com` and `https://preprod.sokosumi.com`, plus the web app's own URL. Vercel Preview adds `https://*.preview.sokosumi.com`; production leaves it out because previews share its `sokosumi.com` cookies. Development adds `http://localhost:*`, `https://*.localhost`, and related loopback patterns for local browsers and portless. CORS allowlisting is broader (`https://sokosumi.com` and `https://*.sokosumi.com`); do not widen `trustedOrigins` to match — it is a CSRF allowlist for browser auth flows, not general API access control.
 
 ## Authentication
 

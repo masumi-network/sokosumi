@@ -315,7 +315,6 @@ export {
   buildOAuthClientScopeParam,
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
-  OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES,
   OAUTH_PROVIDER_SCOPES,
 } from "./oauth-scopes.js";
 export {
@@ -351,6 +350,7 @@ export {
   getOrganizationMetadata,
   parseOrganizationMetadata,
 } from "./organization-metadata.js";
+export { createOrganizationSlug } from "./organization-slug.js";
 export {
   compareByDisplayNameThenId,
   formatParticipantNameList,

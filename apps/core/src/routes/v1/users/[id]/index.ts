@@ -24,6 +24,7 @@ import mountDeleteUserOauthConsent from "./oauth-consents/[consentId]/delete.js"
 import mountGetUserOrganizationCredits from "./organizations/[organizationId]/credits/get.js";
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
+import mountPatchUser from "./patch.js";
 import mountGetUserPendingOrganizationInvitations from "./pending-organization-invitations/get.js";
 import mountDeleteUserPersonalWorkspace from "./personal-workspace/delete.js";
 import mountPostUserPersonalWorkspace from "./personal-workspace/post.js";
@@ -42,6 +43,10 @@ import mountRevokeUserVendorGrant from "./vendor-grants/[grantId]/revoke/post.js
 import mountGetUserVendorGrants from "./vendor-grants/get.js";
 import mountPostUserVendorGrants from "./vendor-grants/post.js";
 import mountGetUserWorkspaceAccess from "./workspace-access/get.js";
+import mountDeleteUserWorkspace from "./workspaces/[workspaceId]/delete.js";
+import mountGetUserWorkspaces from "./workspaces/get.js";
+import mountPostUserWorkspaces from "./workspaces/post.js";
+import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -63,6 +68,10 @@ mountPostUserPersonalWorkspace(app);
 mountDeleteUserPersonalWorkspace(app);
 mountDeleteUserOauthConsent(app);
 mountGetUserWorkspaceAccess(app);
+mountGetUserWorkspaces(app);
+mountPostUserWorkspaces(app);
+mountPutUserPreferredWorkspace(app);
+mountDeleteUserWorkspace(app);
 mountGetUserPendingOrganizationInvitations(app);
 mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
@@ -86,5 +95,6 @@ mountPostUserStripeCustomer(app);
 mountGetUserBillingDetails(app);
 mountGetUserSubscription(app);
 mountGetUserById(app);
+mountPatchUser(app);
 
 export default app;

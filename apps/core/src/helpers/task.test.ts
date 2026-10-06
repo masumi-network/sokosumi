@@ -7,6 +7,7 @@ import {
 import { convertCreditsToCents } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
 import type { AuthenticationContext } from "@/middleware/auth";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import type { TaskWithIncludes } from "@/types/task";
 
 import {
@@ -49,6 +50,15 @@ const defaultNestedJobUserOrg = {
 };
 
 describe("validateStatusTransition", () => {
+  it.each(taskStatusSchema.options)(
+    "rejects %s to CREATED, which is only the first event",
+    (from) => {
+      expect(() => validateStatusTransition(from, TaskStatus.CREATED)).toThrow(
+        "CREATED is reserved",
+      );
+    },
+  );
+
   it("rejects same-status transition", () => {
     expect(() => {
       validateStatusTransition(TaskStatus.RUNNING, TaskStatus.RUNNING);

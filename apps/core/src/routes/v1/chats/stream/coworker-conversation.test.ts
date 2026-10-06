@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const fetchMock = vi.fn();
+const { fetchMock } = vi.hoisted(() => ({ fetchMock: vi.fn() }));
+
+vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: fetchMock }));
 
 import { internalServerError } from "@/helpers/error";
 import {
@@ -14,7 +16,12 @@ const DEFAULT_BASE_URL = "https://api.coworker.example.com/v1";
 
 describe("coworker-conversation", () => {
   beforeEach(() => {
-    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        throw new Error("Unsafe coworker fetch is forbidden");
+      }),
+    );
     fetchMock.mockClear();
   });
 
@@ -59,8 +66,10 @@ describe("coworker-conversation", () => {
       "https://api.coworker.example.com/v1/conversations",
       expect.objectContaining({
         method: "POST",
+        maxResponseBytes: 1024 * 1024,
         headers: expect.objectContaining({
           "Content-Type": "application/json",
+          "Accept-Encoding": "identity",
           "X-Sokosumi-User-Id": "user_1",
           "X-Coworker-Slug": "ops-agent",
           "X-Sokosumi-Organization-Id": "org_1",

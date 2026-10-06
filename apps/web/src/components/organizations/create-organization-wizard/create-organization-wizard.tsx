@@ -67,8 +67,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
-  generateOrganizationSlug,
+  createOrganizationWorkspaceAction,
   inviteOrganizationMembersBulk,
 } from "@/lib/actions/organization/action";
 import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
@@ -381,26 +382,16 @@ export function CreateOrganizationWizard({
     orgCreateInFlightRef.current = true;
     setIsCreatingOrg(true);
     try {
-      const slugResult = await generateOrganizationSlug({
+      // Core's workspaces resource (ADR 0051) generates the slug, stores the
+      // website and makes the organization preferred.
+      const created = await createOrganizationWorkspaceAction({
         name: values.name,
-        metadata: { url },
-        logo: "",
-      });
-      if (!slugResult.ok) {
-        toast.error(t("Errors.createFailed"));
-        return null;
-      }
-
-      const metadata = buildOrganizationMetadataWithUrl(null, url);
-      const created = await authClient.organization.create({
-        slug: slugResult.value,
-        name: values.name,
-        ...(metadata && { metadata }),
+        websiteUrl: url,
       });
 
-      if (created.error || !created.data) {
-        const message = created.error?.message ?? t("Errors.createFailed");
-        if (created.error?.status === 401) {
+      if (!created.ok) {
+        const message = created.error.message ?? t("Errors.createFailed");
+        if (created.error.code === CommonErrorCode.UNAUTHENTICATED) {
           toast.error(message, {
             action: {
               label: t("Errors.unauthorizedAction"),
@@ -413,11 +404,12 @@ export function CreateOrganizationWizard({
         return null;
       }
 
-      setOrganizationId(created.data.id);
+      const { organizationId: createdId } = created.value;
+      setOrganizationId(createdId);
       setOrganizationName(values.name);
       setNormalizedUrl(url);
       savedValuesRef.current = { name: values.name, url };
-      return created.data.id;
+      return createdId;
     } catch (error) {
       console.error("Failed to create organization", error);
       toast.error(t("Errors.createFailed"));
@@ -801,13 +793,9 @@ export function CreateOrganizationWizard({
                           variant="outline"
                           size="lg"
                           className="h-11 px-6"
-                          disabled={isUploadingLogo}
+                          loading={isUploadingLogo}
                         >
-                          {isUploadingLogo ? (
-                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                          ) : (
-                            <CloudUpload className="size-4" />
-                          )}
+                          <CloudUpload className="size-4" />
                           {logoUrl ? t("Logo.replace") : t("Logo.upload")}
                         </Button>
                       </FileUploadTrigger>
@@ -1005,15 +993,11 @@ export function CreateOrganizationWizard({
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0"
-                      disabled={!emails.trim() || isSendingInvites || isLeaving}
+                      disabled={!emails.trim() || isLeaving}
+                      loading={isSendingInvites}
                       onClick={() => void handleSendInvites()}
                     >
-                      {isSendingInvites && (
-                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                      )}
-                      {isSendingInvites
-                        ? t("Invite.sending")
-                        : t("Invite.sendInvites")}
+                      {t("Invite.sendInvites")}
                     </Button>
                   </div>
                 </div>
@@ -1061,12 +1045,12 @@ export function CreateOrganizationWizard({
               size="lg"
               className="h-11 px-6"
               disabled={isBusy}
+              loading={isCreatingOrg}
             >
-              {isCreatingOrg && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
-              {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
-              {!isCreatingOrg && <ArrowRight className="size-4" />}
+              {t("Nav.next")}
+              {/* Keep the icon mounted. It is the only svg, so unmounting it
+                  drops `has-[>svg]` and the lg padding jumps while loading. */}
+              <ArrowRight className="size-4" />
             </Button>
           )}
           {step === 1 && (
@@ -1101,10 +1085,8 @@ export function CreateOrganizationWizard({
               className="h-11 w-full px-6"
               onClick={() => handleRequestClose(false)}
               disabled={isBusy}
+              loading={isLeaving}
             >
-              {isLeaving && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
               {t("Nav.finish")}
             </Button>
           )}

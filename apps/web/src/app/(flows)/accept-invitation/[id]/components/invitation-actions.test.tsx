@@ -72,7 +72,6 @@ const messages = {
     InvitationCard: {
       Actions: {
         accept: "Join {organization}",
-        joining: "Joining…",
         decline: "Decline",
         activateRetry: "Try switching again",
         signedOutHint: "Log in or create an account to accept this invite.",

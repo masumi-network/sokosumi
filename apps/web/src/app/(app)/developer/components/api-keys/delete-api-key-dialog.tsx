@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo } from "react";
 import { useForm, useWatch } from "react-hook-form";
@@ -137,11 +136,9 @@ export function DeleteApiKeyDialog({
                 <Button
                   type="submit"
                   variant="destructive"
-                  disabled={isSubmitting || !canDelete}
+                  disabled={!canDelete}
+                  loading={isSubmitting}
                 >
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  )}
                   {t("DeleteDialog.deleteButton")}
                 </Button>
               </AlertDialogFooter>

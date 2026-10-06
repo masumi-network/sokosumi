@@ -7,7 +7,7 @@ public enum WorkspaceSelection: Hashable, Sendable {
   case personal
   case organization(id: String, slug: String)
 
-  /// Nil selects personal (header omitted); set is PUT as the preference.
+  /// Nil for personal.
   public var organizationId: String? {
     switch self {
     case .personal: nil
@@ -24,12 +24,12 @@ public enum WorkspaceSelection: Hashable, Sendable {
   }
 }
 
-/// What launch reads: access gate plus organizations. Notably NOT persisted —
-/// launch must not PUT a default preference (that yanks cross-client state
-/// and turns every flaky upload into a dead window).
+/// What launch reads: the workspaces list as options plus the session user.
+/// Notably NOT persisted — launch must not PUT a default preference (that
+/// yanks cross-client state and turns every flaky upload into a dead window).
 struct InitialWorkspaceState: Sendable {
-  var access: Components.Schemas.WorkspaceAccess
-  var organizations: [Components.Schemas.Organization]
+  /// Personal first, then organizations, as Core lists them.
+  var options: [WorkspaceSession.Option]
   /// Session user: id excludes yourself from Direct names, name/email feed
   /// the sidebar "me" section and Settings.
   var currentUser: Components.Schemas.User
@@ -37,6 +37,6 @@ struct InitialWorkspaceState: Sendable {
     currentUser.id
   }
 
-  /// Server-resolved preference, matched to the accessible workspace list.
-  var defaultSelection: WorkspaceSelection
+  /// The workspace Core marks `preferred`: the one a new session opens.
+  var defaultSelection: WorkspaceSession.Option
 }

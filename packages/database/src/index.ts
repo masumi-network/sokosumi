@@ -21,5 +21,6 @@ export {
   type JobWithSummaryRelations,
   jobInclude,
 } from "./types/job.js";
+export { membershipAgeOrderBy } from "./types/member.js";
 export { MemberRole } from "./types/organization.js";
 export { workspaceRelationInclude } from "./types/workspace.js";

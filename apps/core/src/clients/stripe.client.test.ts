@@ -122,7 +122,6 @@ describe("stripeClient", () => {
       },
       {
         idempotencyKey: "user-user_123",
-        maxNetworkRetries: 0,
       },
     );
   });
@@ -152,7 +151,6 @@ describe("stripeClient", () => {
       },
       {
         idempotencyKey: "organization-org_123",
-        maxNetworkRetries: 0,
         timeout: 2500,
       },
     );

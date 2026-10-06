@@ -6,24 +6,24 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { Controller, useForm } from "react-hook-form";
-import { toast } from "sonner";
 import * as z from "zod";
-import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/email-code-switch";
 import { BaseForm } from "@/auth/components/form/base-form";
 import { FormFields } from "@/auth/components/form/form-fields";
 import { SubmitButton } from "@/auth/components/form/submit-button";
-import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
+import { STEP_LINK_BUTTON_CLASS } from "@/auth/components/step-link";
 import type { EmailCode } from "@/auth/components/use-email-code";
+import { useOAuthRequestRejectedToast } from "@/auth/components/use-oauth-request-rejected-toast";
+import { UsernameHint } from "@/auth/components/username-hint";
 import {
-  EMAIL_CODE_LENGTH,
   EmailCodeField,
   useEmailCodeRefusal,
+  useEmailCodeSchema,
 } from "@/components/auth/email-code-field";
 import { FirstAndLastNameFields } from "@/components/auth/first-and-last-name-fields";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Separator } from "@/components/ui/separator";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { AuthErrorCode } from "@/lib/actions/errors/error-codes/auth";
-import { isRejectedOAuthRequestError } from "@/lib/auth/auth.utils";
 import { rememberAuthEmailHintOnClick } from "@/lib/auth/auth-email-hint";
 import type { FormData } from "@/lib/form";
 import {
@@ -69,7 +69,7 @@ interface SignUpFormProps {
  * and that code, with one Register; a whole code waits for it. A password is
  * a deliberate addition, sent with the code: the code proves the address, so
  * no account starts with an unproven one. When the first code did not go out,
- * the field sends another.
+ * the field says so and sends another.
  */
 export default function SignUpForm({
   email,
@@ -78,9 +78,8 @@ export default function SignUpForm({
   onPendingChange,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
-  const codeT = useTranslations("Components.EmailCodeForm");
   const schemaT = useTranslations("Library.Auth.Schema");
-  const oauthT = useTranslations("Auth.OAuthHandBack");
+  const toastRejectedOAuthRequest = useOAuthRequestRejectedToast();
   const [isLeaving, setIsLeaving] = useState(false);
   const [withPassword, setWithPassword] = useState(false);
   // Step 1 found no account, but one can appear since, e.g. through Google
@@ -92,9 +91,7 @@ export default function SignUpForm({
   const withPasswordRef = useRef(withPassword);
   withPasswordRef.current = withPassword;
 
-  const code = z
-    .string()
-    .length(EMAIL_CODE_LENGTH, { message: codeT("incomplete") });
+  const code = useEmailCodeSchema();
   const passwordSchema = signUpFormSchema(schemaT).safeExtend({ code });
   const codeOnlySchema = signUpFormSchema(schemaT).safeExtend({
     password: z.string(),
@@ -145,10 +142,7 @@ export default function SignUpForm({
     });
     if (error) {
       onPendingChange(false);
-      if (isRejectedOAuthRequestError(error)) {
-        toast.error(oauthT("errorDescription"));
-        return;
-      }
+      if (toastRejectedOAuthRequest(error)) return;
       // Core refused these before spending the code.
       if (error.code === AuthErrorCode.USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL) {
         setAccountExists(true);
@@ -186,18 +180,7 @@ export default function SignUpForm({
       onSubmit={handleSubmit}
       onChange={onFormStart}
     >
-      {/* Password managers pair the new password with this address. */}
-      <input
-        type="email"
-        autoComplete="username"
-        autoCapitalize="none"
-        spellCheck={false}
-        value={email}
-        readOnly
-        tabIndex={-1}
-        aria-hidden="true"
-        className="sr-only"
-      />
+      <UsernameHint email={email} />
       <FirstAndLastNameFields
         control={form.control}
         testIdPrefix="auth-field"
@@ -210,6 +193,14 @@ export default function SignUpForm({
           namespace="Auth.Pages.SignUp.Form"
         />
       ) : null}
+      {/* The updates choice closes the profile; the code and Register below
+          are one motion. */}
+      <FormFields
+        form={form}
+        formData={signUpMarketingFormData}
+        namespace="Auth.Pages.SignUp.Form"
+      />
+      <Separator />
       <Controller
         control={form.control}
         name="code"
@@ -218,8 +209,8 @@ export default function SignUpForm({
             centered
             inputRef={field.ref}
             value={field.value}
-            // No onComplete: the updates checkbox comes after the code,
-            // so only Register sends it.
+            // No onComplete: "Add a password" sits below Register, so only
+            // Register sends the code.
             onChange={(code) => {
               // Typing replaces the reason; checking for a whole code while
               // it is typed would only say it is not yet one.
@@ -228,6 +219,8 @@ export default function SignUpForm({
             }}
             onBlur={field.onBlur}
             error={fieldState.error?.message}
+            // Step 1's send failed, or Log in handed over without one.
+            unsent={emailCode.sentTo !== email}
             sentAt={emailCode.sentAt}
             onResend={() => {
               void emailCode.sendCode(email);
@@ -236,11 +229,6 @@ export default function SignUpForm({
             disabled={isPending}
           />
         )}
-      />
-      <FormFields
-        form={form}
-        formData={signUpMarketingFormData}
-        namespace="Auth.Pages.SignUp.Form"
       />
       {accountExists ? (
         <Alert>
@@ -262,7 +250,6 @@ export default function SignUpForm({
         {emailCode.captcha}
         <SubmitButton
           isSubmitting={isPending}
-          spinnerPosition="start"
           label={t("submit")}
           className="w-full"
         />
@@ -277,7 +264,6 @@ export default function SignUpForm({
           {withPassword ? t("removePassword") : t("addPassword")}
         </button>
       </div>
-      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
     </BaseForm>
   );
 }

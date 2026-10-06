@@ -625,7 +625,9 @@ describe("IdentityOnboardingForm", () => {
       expect(locationReplaceMock).toHaveBeenCalledWith("/");
     });
     expect(createPersonalWorkspaceActionMock).not.toHaveBeenCalled();
-    expect(screen.getByTestId("workspace-gate-identity-submit")).toBeDisabled();
+    expect(
+      screen.getByTestId("workspace-gate-identity-submit"),
+    ).toHaveAttribute("aria-busy", "true");
   });
 
   it("retries organization activation once before leaving the gate", async () => {

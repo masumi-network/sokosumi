@@ -18,6 +18,7 @@ import {
   vi,
 } from "vitest";
 
+import { SignInMethodsRemovedDialog } from "@/auth/components/sign-in-methods-removed-dialog";
 import { type EmailCode, useEmailCode } from "@/auth/components/use-email-code";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -57,10 +58,6 @@ vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 
 vi.mock("sonner", () => ({
   toast: { success: vi.fn(), error: vi.fn() },
-}));
-
-vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
-  AuthErrorCode: { TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED" },
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
@@ -123,20 +120,26 @@ function renderForm(
   return all;
 }
 
-/** Real code hook and finish path, with only external auth/session responses mocked. */
+/**
+ * Real code hook and finish path, with only external auth/session responses
+ * mocked. The dialog sits beside the form, as in `AuthFlow`.
+ */
 function SignInCodeStep() {
   const emailCode = useEmailCode({ eventType: "signIn", returnUrl: "/chat" });
   useMountEffect(() => {
     void emailCode.sendCode(EMAIL);
   });
   return (
-    <SignInForm
-      email={EMAIL}
-      initialMethod="code"
-      emailCode={emailCode}
-      onFormStart={vi.fn()}
-      onPendingChange={vi.fn()}
-    />
+    <>
+      <SignInForm
+        email={EMAIL}
+        initialMethod="code"
+        emailCode={emailCode}
+        onFormStart={vi.fn()}
+        onPendingChange={vi.fn()}
+      />
+      <SignInMethodsRemovedDialog removed={emailCode.removedSignInMethods} />
+    </>
   );
 }
 
@@ -395,6 +398,23 @@ describe("SignInForm", () => {
         expect(mockSignInEmailCode).toHaveBeenCalledOnce();
       },
     );
+
+    it("says to start again, and keeps the code, when the OAuth request has expired", async () => {
+      mockSignInEmailCode.mockResolvedValue({
+        data: null,
+        error: { status: 400, error: "invalid_signature" },
+      });
+      render(<SignInCodeStep />);
+
+      const code = await screen.findByRole("textbox", { name: "codeLabel" });
+      fireEvent.change(code, { target: { value: "042917" } });
+
+      await waitFor(() =>
+        expect(toast.error).toHaveBeenLastCalledWith("errorDescription"),
+      );
+      expect(codeField()).toHaveValue("042917");
+      expect(mockLocationReplace).not.toHaveBeenCalled();
+    });
 
     // Better Auth deletes the password and provider links of an account
     // whose address was unproven when a code signs into it. Core says so.
@@ -789,20 +809,6 @@ describe("SignInForm", () => {
         expect(toast.error).toHaveBeenLastCalledWith("errorDescription"),
       );
       expect(mockLocationReplace).not.toHaveBeenCalled();
-    });
-
-    it("says why when the updated terms are not accepted", async () => {
-      mockSignInEmail.mockResolvedValue({
-        data: null,
-        error: { code: "TERMS_NOT_ACCEPTED", message: "Terms" },
-      });
-      renderForm();
-
-      await submitPassword();
-
-      await waitFor(() =>
-        expect(toast.error).toHaveBeenLastCalledWith("Errors.termsNotAccepted"),
-      );
     });
 
     it("shows translated captcha errors from Core and releases the form", async () => {

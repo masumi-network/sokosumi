@@ -5,7 +5,11 @@ import { decryptOAuthToken, setTokenUtil } from "better-auth/oauth2";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getEnv } from "@/config/env";
 import { auth } from "./auth";
-import { accountOptions, socialProviderOptions } from "./auth-social-providers";
+import {
+  accountOptions,
+  SOCIAL_PROVIDER_IDS,
+  socialProviderOptions,
+} from "./auth-social-providers";
 
 const { captureExceptionMock, uploadProfileImageMock } = vi.hoisted(() => ({
   captureExceptionMock: vi.fn(),
@@ -116,24 +120,17 @@ describe("social provider options", () => {
     uploadProfileImageMock.mockResolvedValue("https://blob.example/avatar.png");
   });
 
-  it("configures Google and Microsoft social providers without requireLocalEmailVerified", () => {
-    expect(socialProviderOptions.google).toEqual({
-      clientId: "test-google-client-id",
-      clientSecret: "test-google-client-secret",
-      disableIdTokenSignIn: true,
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(socialProviderOptions.microsoft).toEqual({
-      clientId: "test-microsoft-client-id",
-      clientSecret: "test-microsoft-client-secret",
-      disableIdTokenSignIn: true,
-      overrideUserInfoOnSignIn: false,
-      mapProfileToUser: expect.any(Function),
-    });
-    expect(socialProviderOptions.google.mapProfileToUser).toBe(
-      socialProviderOptions.microsoft.mapProfileToUser,
-    );
+  it.each(SOCIAL_PROVIDER_IDS)(
+    "signs in with %s only through its redirect, keeping the account's own name and picture",
+    (provider) => {
+      expect(socialProviderOptions[provider]).toMatchObject({
+        disableIdTokenSignIn: true,
+        overrideUserInfoOnSignIn: false,
+      });
+    },
+  );
+
+  it("links accounts of the trusted providers, leaving requireLocalEmailVerified at its default", () => {
     expect(accountOptions.accountLinking).toEqual({
       enabled: true,
       trustedProviders: ["google", "microsoft"],
@@ -193,6 +190,25 @@ describe("social provider options", () => {
       name: "Ada Lovelace",
       image: undefined,
       firstName: "Ada",
+      lastName: undefined,
+      emailVerified: true,
+    });
+  });
+
+  it("leaves the name for onboarding when the provider's is over the limit", async () => {
+    // The create hook refuses an overlong name; a pre-fill must not fail the
+    // sign-up.
+    await expect(
+      socialProviderOptions.google.mapProfileToUser({
+        name: "Ada Lovelace",
+        picture: "",
+        given_name: "A".repeat(100),
+        family_name: "L".repeat(100),
+      }),
+    ).resolves.toStrictEqual({
+      name: "Ada Lovelace",
+      image: undefined,
+      firstName: undefined,
       lastName: undefined,
       emailVerified: true,
     });

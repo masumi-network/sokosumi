@@ -24,13 +24,10 @@ const mockWaitForAuthSession = vi.fn(
 );
 const mockSignInEvent = vi.fn();
 
-let mockSearchParams = new URLSearchParams();
-
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     replace: mockRouterReplace,
   }),
-  useSearchParams: () => mockSearchParams as unknown as URLSearchParams,
 }));
 
 vi.mock("next-intl", () => ({
@@ -94,7 +91,6 @@ vi.mock("@/lib/auth/auth.utils", async () => {
 
   return {
     ...actual,
-    normalizeAuthReturnUrl: (value?: string) => value ?? "/chat",
     waitForAuthSession: (options: MockWaitForAuthSessionOptions) =>
       mockWaitForAuthSession(options),
   };
@@ -183,7 +179,6 @@ describe("SocialButtons", () => {
     vi.mocked(track).mockReset();
     mockIsConditionalMediationAvailable.mockReset();
     mockIsConditionalMediationAvailable.mockResolvedValue(false);
-    mockSearchParams = new URLSearchParams();
     Object.defineProperty(window, "PublicKeyCredential", {
       configurable: true,
       value: {
@@ -301,6 +296,15 @@ describe("SocialButtons", () => {
     },
   );
 
+  it.each(["email", "email-otp"] as const)(
+    "marks no provider when %s was used last",
+    (method) => {
+      render(<SocialButtons showPasskey lastUsedMethod={method} />);
+
+      expect(screen.queryByText("last-used")).not.toBeInTheDocument();
+    },
+  );
+
   it("shows an inline marker on the matching provider button", () => {
     render(<SocialButtons lastUsedMethod="google" />);
 
@@ -318,6 +322,21 @@ describe("SocialButtons", () => {
     expect(badgeContainer).toContainElement(lastUsedLabel);
   });
 
+  it("keeps a loading provider enabled, focusable and ignoring clicks", async () => {
+    mockSocialSignIn.mockReturnValue(createDeferred<object>().promise);
+    render(<SocialButtons lastUsedMethod="google" />);
+    const google = screen.getByRole("button", { name: "continue-with-Google" });
+
+    await clickGoogleButton();
+    await clickGoogleButton();
+
+    // Not natively disabled, so it keeps focus, its contrast and its marker's
+    // contrast (the marker only fades with a disabled button).
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
+  });
+
   it("shows an inline marker on the passkey button", () => {
     render(<SocialButtons showPasskey lastUsedMethod="passkey" />);
 
@@ -332,35 +351,6 @@ describe("SocialButtons", () => {
     expect(button).toHaveClass("border-primary-tertiary", "bg-primary-quinary");
     expect(badgeContainer).toHaveClass("relative");
     expect(badgeContainer).toContainElement(lastUsedLabel);
-  });
-
-  it("returns an OAuth visitor to the sign-in page with the signed request", async () => {
-    mockSearchParams = new URLSearchParams({
-      client_id: "test-client",
-      redirect_uri: "https://consumer.example.com/callback",
-      code_challenge: "test-challenge",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "test-state",
-      response_type: "code",
-      exp: "1772367377",
-      sig: "signed-value",
-    });
-
-    render(<SocialButtons />);
-
-    await clickGoogleButton();
-
-    await waitFor(() => {
-      expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
-    });
-
-    const expectedReturnUrl =
-      "/signin?client_id=test-client&redirect_uri=https%3A%2F%2Fconsumer.example.com%2Fcallback&code_challenge=test-challenge&code_challenge_method=S256&scope=openid&state=test-state&response_type=code&exp=1772367377&sig=signed-value";
-    expect(getSubmittedReturnUrls()).toEqual({
-      callbackReturnUrl: expectedReturnUrl,
-      newUserCallbackReturnUrl: expectedReturnUrl,
-    });
   });
 
   // happy-dom ignores `persisted` in the event init.
@@ -388,16 +378,20 @@ describe("SocialButtons", () => {
 
     await clickGoogleButton();
 
-    expect(google).toBeDisabled();
+    // The provider that is loading stays enabled; its wrapper reports busy.
+    expect(google).toBeEnabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(microsoft).toBeDisabled();
     expect(passkey).toBeDisabled();
-    expect(google.querySelector("svg.animate-spin")).not.toBeNull();
-    expect(microsoft.querySelector("svg")).toBeNull();
-    expect(passkey.querySelector("svg.animate-spin")).toBeNull();
+    const bar = '[data-slot="button-loading-bar"]';
+    expect(google.parentElement?.querySelector(bar)).not.toBeNull();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
+    expect(microsoft.parentElement?.querySelector(bar)).toBeNull();
+    expect(passkey.querySelector(bar)).toBeNull();
 
     // Success means the browser is leaving for the provider: stay busy.
     await act(async () => pending.resolve({}));
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
     expect(mockSocialSignIn).toHaveBeenCalledTimes(1);
   });
 
@@ -424,17 +418,17 @@ describe("SocialButtons", () => {
     const { google, microsoft } = getButtons();
 
     await clickGoogleButton();
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(false));
     });
-    expect(google).toBeDisabled();
+    expect(google.parentElement).toHaveAttribute("aria-busy", "true");
 
     await act(async () => {
       window.dispatchEvent(pageShow(true));
     });
-    expect(google).toBeEnabled();
+    expect(google.parentElement).not.toHaveAttribute("aria-busy");
     expect(microsoft).toBeEnabled();
     expect(google.querySelector("svg")).toBeNull();
   });
@@ -448,7 +442,9 @@ describe("SocialButtons", () => {
 
     await user.click(passkey);
 
-    expect(passkey).toBeDisabled();
+    // The running passkey button keeps focus: aria-disabled, not disabled.
+    expect(passkey).toHaveAttribute("aria-busy", "true");
+    expect(passkey).toHaveAttribute("aria-disabled", "true");
     expect(google).toBeDisabled();
     expect(microsoft).toBeDisabled();
     expect(google.querySelector("svg")).toBeNull();
@@ -507,9 +503,7 @@ describe("SocialButtons", () => {
     );
 
     await waitFor(() => {
-      expect(mockPasskeySignIn).toHaveBeenCalledWith({
-        autoFill: false,
-      });
+      expect(mockPasskeySignIn).toHaveBeenCalledWith();
     });
 
     await waitFor(() => {
@@ -573,9 +567,7 @@ describe("SocialButtons", () => {
     );
 
     await waitFor(() => {
-      expect(mockPasskeySignIn).toHaveBeenCalledWith({
-        autoFill: false,
-      });
+      expect(mockPasskeySignIn).toHaveBeenCalledWith();
     });
     expect(mockToastError).not.toHaveBeenCalled();
     expect(mockSignInEvent).not.toHaveBeenCalled();

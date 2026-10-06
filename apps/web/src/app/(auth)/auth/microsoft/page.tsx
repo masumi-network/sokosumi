@@ -13,7 +13,5 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function MicrosoftSignupPage() {
-  return (
-    <SocialSignupAutoInitiator provider="microsoft" providerName="Microsoft" />
-  );
+  return <SocialSignupAutoInitiator provider="microsoft" />;
 }

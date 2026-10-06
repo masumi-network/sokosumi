@@ -37,6 +37,7 @@ import SwiftUI
   private struct RoomTranscriptContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @Environment(\.jumpMarkClock) private var jumpMarkClock
     /// Eager first layout can report near-top before the bottom anchor
     /// lands. Require a trip away from the top before auto-loading.
     @State private var transcriptWasAwayFromTop = false
@@ -120,7 +121,7 @@ import SwiftUI
             quoteTarget = nil
             jumpCompletion?.resume(returning: false)
             jumpCompletion = nil
-            jumpMark = JumpMark(messageId: target.messageId, landedAt: Date())
+            jumpMark = JumpMark(messageId: target.messageId, landedAt: jumpMarkClock.now)
             parentBehindThread = target.messageId
           } else {
             parentBehindThread = nil
@@ -192,7 +193,7 @@ import SwiftUI
           ContentUnavailableView(
             "No messages yet",
             systemImage: "bubble.left",
-            description: Text("New messages will appear here.")
+            description: Text("Start the channel with a message or mention an AI coworker.")
           )
           .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
@@ -358,12 +359,12 @@ import SwiftUI
         .onScrollPhaseChange { _, phase in
           userIsScrolling = phase == .interacting || phase == .decelerating || phase == .tracking
           if phase.endsJumpMark {
-            jumpMark = jumpMark?.readerScrolled(at: Date())
+            jumpMark = jumpMark?.readerScrolled(at: jumpMarkClock.now)
           }
         }
         .task(id: jumpMark) {
           guard let mark = jumpMark else { return }
-          try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+          try? await jumpMarkClock.sleep(until: mark.endsAt)
           if !Task.isCancelled, jumpMark == mark {
             jumpMark = nil
           }
@@ -448,7 +449,7 @@ import SwiftUI
       if parentBehindThread == target {
         parentBehindThread = nil
       } else {
-        jumpMark = JumpMark(messageId: target, landedAt: Date())
+        jumpMark = JumpMark(messageId: target, landedAt: jumpMarkClock.now)
       }
       quoteTarget = nil
       jumpCompletion?.resume(returning: true)

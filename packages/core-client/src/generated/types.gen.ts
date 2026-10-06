@@ -1742,7 +1742,7 @@ export type TaskEvent = {
     authenticationUrl?: string | null;
     channel: Channel;
     origin: Channel & unknown;
-    status?: TaskStatus | null;
+    status?: TaskEventStatus | null;
 };
 
 /**
@@ -1791,6 +1791,26 @@ export const Channel = {
  * Channel of the task event. Defaults to SOKOSUMI when neither channel nor deprecated origin is set.
  */
 export type Channel = typeof Channel[keyof typeof Channel];
+
+export const TaskEventStatus = {
+    DRAFT: 'DRAFT',
+    QUEUED: 'QUEUED',
+    READY: 'READY',
+    GRANT_PENDING: 'GRANT_PENDING',
+    INPUT_REQUIRED: 'INPUT_REQUIRED',
+    APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
+    AUTHENTICATION_REQUIRED: 'AUTHENTICATION_REQUIRED',
+    OUT_OF_CREDITS: 'OUT_OF_CREDITS',
+    CREDITS_TOPPED_UP: 'CREDITS_TOPPED_UP',
+    RUNNING: 'RUNNING',
+    AWAITING_EXTERNAL: 'AWAITING_EXTERNAL',
+    COMPLETED: 'COMPLETED',
+    FAILED: 'FAILED',
+    CANCELED: 'CANCELED',
+    CREATED: 'CREATED'
+} as const;
+
+export type TaskEventStatus = typeof TaskEventStatus[keyof typeof TaskEventStatus];
 
 export type JobSummary = {
     id: string;
@@ -4677,6 +4697,73 @@ export const WorkspaceGateStatus = {
  */
 export type WorkspaceGateStatus = typeof WorkspaceGateStatus[keyof typeof WorkspaceGateStatus];
 
+export type UserWorkspaces = {
+    /**
+     * Workspaces the person can act in: their personal workspace first, then their organizations. Empty means the person still needs identity onboarding
+     */
+    workspaces: Array<UserWorkspace>;
+    /**
+     * Non-expired pending organization invitations for the person's email
+     */
+    pendingInvitationCount: number;
+};
+
+export type UserWorkspace = {
+    /**
+     * Workspace id
+     */
+    id: string;
+    /**
+     * Whether the person owns the workspace or acts in it as an organization member
+     */
+    kind: 'personal' | 'organization';
+    /**
+     * The person's name for a personal workspace, the organization's name otherwise
+     */
+    name: string;
+    /**
+     * Organization id, or null for a personal workspace
+     */
+    organizationId: string | null;
+    /**
+     * Organization slug, or null for a personal workspace
+     */
+    slug: string | null;
+    /**
+     * Organization logo URL (or IPFS reference), or null for none and for a personal workspace
+     */
+    logo: string | null;
+    /**
+     * Organization website from its metadata, or null for none and for a personal workspace
+     */
+    websiteUrl: string | null;
+    /**
+     * Whether a new session opens this workspace
+     */
+    preferred: boolean;
+};
+
+export type CreateUserWorkspace = {
+    kind: 'personal';
+} | {
+    kind: 'organization';
+    /**
+     * Organization name
+     */
+    name: string;
+    /**
+     * The organization's website. `https://` is added when missing
+     */
+    websiteUrl: string;
+};
+
+export type SetPreferredUserWorkspace = {
+    /**
+     * Id of a workspace the person can act in
+     */
+    workspaceId: string;
+};
+
 export type UserPendingOrganizationInvitations = Array<UserPendingOrganizationInvitation>;
 
 export type UserPendingOrganizationInvitation = {
@@ -4997,6 +5084,11 @@ export type User = {
     emailVerified: boolean;
     image?: string | null;
     role: string;
+};
+
+export type UpdateUserName = {
+    firstName: string;
+    lastName: string;
 };
 
 export type OrganizationDeletionEvaluation = {
@@ -5435,7 +5527,7 @@ export type WorkspaceCalendarItem = {
     /**
      * Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned
      */
-    taskStatus: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+    taskStatus: TaskStatus | null;
     taskAssigneeId: string | null;
     taskAssigneeUserId?: string | null;
     /**
@@ -32033,6 +32125,457 @@ export type GetUsersByIdWorkspaceAccessResponses = {
 
 export type GetUsersByIdWorkspaceAccessResponse = GetUsersByIdWorkspaceAccessResponses[keyof GetUsersByIdWorkspaceAccessResponses];
 
+export type GetUsersByIdWorkspacesData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces';
+};
+
+export type GetUsersByIdWorkspacesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesError = GetUsersByIdWorkspacesErrors[keyof GetUsersByIdWorkspacesErrors];
+
+export type GetUsersByIdWorkspacesResponses = {
+    /**
+     * The user's workspaces
+     */
+    200: {
+        data: UserWorkspaces;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdWorkspacesResponse = GetUsersByIdWorkspacesResponses[keyof GetUsersByIdWorkspacesResponses];
+
+export type PostUsersByIdWorkspacesData = {
+    body?: CreateUserWorkspace;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces';
+};
+
+export type PostUsersByIdWorkspacesErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The organization limit is reached
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - Personal workspace already exists
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PostUsersByIdWorkspacesError = PostUsersByIdWorkspacesErrors[keyof PostUsersByIdWorkspacesErrors];
+
+export type PostUsersByIdWorkspacesResponses = {
+    /**
+     * The created workspace
+     */
+    201: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PostUsersByIdWorkspacesResponse = PostUsersByIdWorkspacesResponses[keyof PostUsersByIdWorkspacesResponses];
+
+export type PutUsersByIdWorkspacesPreferredData = {
+    body?: SetPreferredUserWorkspace;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/preferred';
+};
+
+export type PutUsersByIdWorkspacesPreferredErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden - The user is not a member of the organization
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Workspace not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PutUsersByIdWorkspacesPreferredError = PutUsersByIdWorkspacesPreferredErrors[keyof PutUsersByIdWorkspacesPreferredErrors];
+
+export type PutUsersByIdWorkspacesPreferredResponses = {
+    /**
+     * The preferred workspace
+     */
+    200: {
+        data: UserWorkspace;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PutUsersByIdWorkspacesPreferredResponse = PutUsersByIdWorkspacesPreferredResponses[keyof PutUsersByIdWorkspacesPreferredResponses];
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+        /**
+         * Id of the user's personal workspace
+         */
+        workspaceId: string;
+    };
+    query?: never;
+    url: '/users/{id}/workspaces/{workspaceId}';
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - Workspace not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict - An organization workspace, the last workspace, or dependents prevent delete
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid workspace id
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdError = DeleteUsersByIdWorkspacesByWorkspaceIdErrors[keyof DeleteUsersByIdWorkspacesByWorkspaceIdErrors];
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdResponses = {
+    /**
+     * Personal workspace deleted
+     */
+    200: {
+        data: PersonalWorkspaceDeleted;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type DeleteUsersByIdWorkspacesByWorkspaceIdResponse = DeleteUsersByIdWorkspacesByWorkspaceIdResponses[keyof DeleteUsersByIdWorkspacesByWorkspaceIdResponses];
+
 export type GetUsersByIdPendingOrganizationInvitationsData = {
     body?: never;
     path: {
@@ -34289,6 +34832,114 @@ export type GetUsersByIdResponses = {
 };
 
 export type GetUsersByIdResponse = GetUsersByIdResponses[keyof GetUsersByIdResponses];
+
+export type PatchUsersByIdData = {
+    body?: UpdateUserName;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}';
+};
+
+export type PatchUsersByIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity - Invalid body
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type PatchUsersByIdError = PatchUsersByIdErrors[keyof PatchUsersByIdErrors];
+
+export type PatchUsersByIdResponses = {
+    /**
+     * The updated user
+     */
+    200: {
+        data: User;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type PatchUsersByIdResponse = PatchUsersByIdResponses[keyof PatchUsersByIdResponses];
 
 export type GetOrganizationBySlugData = {
     body?: never;
@@ -38744,7 +39395,7 @@ export type GetProjectsByIdCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */
@@ -48094,6 +48745,21 @@ export type PostCoworkersMeUsageErrors = {
         };
     };
     /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
      * Conflict
      */
     409: {
@@ -49357,7 +50023,7 @@ export type GetTasksData = {
         /**
          * Comma-separated status filters
          */
-        status?: Array<'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED'>;
+        status?: Array<TaskStatus>;
         /**
          * workspace visibility scope. Defaults to 'owned'. Use 'workspace' to include all tasks in the active workspace.
          */
@@ -52586,7 +53252,7 @@ export type GetTasksByIdEventsResponse = GetTasksByIdEventsResponses[keyof GetTa
 
 export type PostTasksByIdEventsData = {
     body?: {
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus;
         comment?: string;
         /**
          * Workspace member ids @-mentioned in this comment. Unknown ids are ignored. Also read from @userId tokens in comment. Does not add participants unless comment is set.
@@ -52694,7 +53360,7 @@ export type PostTasksByIdEventsErrors = {
         retryAfterSeconds?: number;
         data?: TaskEvent;
         attemptedCredits?: number;
-        requestedStatus?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED' | null;
+        requestedStatus?: TaskStatus | null;
         meta: {
             timestamp: Date;
             requestId: string;
@@ -56995,7 +57661,7 @@ export type GetWorkspacesCalendarData = {
         /**
          * Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.
          */
-        status?: 'DRAFT' | 'QUEUED' | 'READY' | 'GRANT_PENDING' | 'INPUT_REQUIRED' | 'APPROVAL_REQUIRED' | 'AUTHENTICATION_REQUIRED' | 'OUT_OF_CREDITS' | 'CREDITS_TOPPED_UP' | 'RUNNING' | 'AWAITING_EXTERNAL' | 'COMPLETED' | 'FAILED' | 'CANCELED';
+        status?: TaskStatus & unknown;
         /**
          * Opaque cursor for the next merged calendar page
          */

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -102,12 +101,10 @@ export function RotateOAuthClientDialog({
             </AlertDialogCancel>
             <Button
               type="button"
-              disabled={isSubmitting || !client}
+              disabled={!client}
+              loading={isSubmitting}
               onClick={() => void handleRotate()}
             >
-              {isSubmitting ? (
-                <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-              ) : null}
               {t("RotateDialog.confirmButton")}
             </Button>
           </AlertDialogFooter>

@@ -29,6 +29,7 @@ const socialButtonsMock = vi.fn();
 const signInFormMock = vi.fn();
 const emailStatusMock = vi.fn();
 const sendEmailCodeMock = vi.fn();
+const signInEmailCodeMock = vi.fn();
 const pushMock = vi.fn();
 
 let mockSearchParams = new URLSearchParams();
@@ -56,6 +57,9 @@ vi.mock("@/lib/auth/auth.client", () => ({
     $fetch: (...args: unknown[]) => emailStatusMock(...args),
     emailOtp: {
       sendVerificationOtp: (...args: unknown[]) => sendEmailCodeMock(...args),
+    },
+    signIn: {
+      emailOtp: (...args: unknown[]) => signInEmailCodeMock(...args),
     },
   },
 }));
@@ -127,6 +131,30 @@ describe("AuthFlow signIn", () => {
       expect.objectContaining({ showPasskey: true, lastUsedMethod: null }),
     );
     expect(screen.queryByTestId("sign-in-form")).not.toBeInTheDocument();
+  });
+
+  it("says so when the code sign-in removed the old sign-in methods", async () => {
+    signInEmailCodeMock.mockResolvedValue({
+      data: {
+        token: "token",
+        user: { id: "user-1" },
+        signInMethodsRemoved: true,
+      },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+    await continueWith(user, "ada@example.com");
+    await waitFor(() => expect(signInFormMock).toHaveBeenCalled());
+
+    const { emailCode } = signInFormMock.mock.lastCall?.[0];
+    act(() => {
+      void emailCode.signInWithCode("ada@example.com", "042917");
+    });
+
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "SignInMethodsRemoved.title",
+    );
   });
 
   it("checks the address and emails a code on Continue when no method is remembered", async () => {
@@ -250,9 +278,6 @@ describe("AuthFlow signIn", () => {
     render(<AuthFlow mode="signIn" lastUsedMethod="email-otp" />);
 
     expect(screen.getByText("lastUsed")).toBeInTheDocument();
-    expect(socialButtonsMock).toHaveBeenLastCalledWith(
-      expect.objectContaining({ lastUsedMethod: null }),
-    );
     await continueWith(user, "ada@example.com");
 
     await waitFor(() =>
@@ -488,6 +513,44 @@ describe("AuthFlow signIn", () => {
     );
   });
 
+  // A provider sign-in leaves the page; it comes back to the request.
+  it("sends the provider buttons back to the OAuth request", () => {
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+
+    render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
+
+    expect(socialButtonsMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        returnUrl: "/signin?client_id=cmo&exp=1772367377&sig=signed-value",
+      }),
+    );
+  });
+
+  // Password stays on the page, then leaves for the same request.
+  it("sends a password sign-in back to the OAuth request", async () => {
+    const user = userEvent.setup();
+    mockSearchParams = new URLSearchParams({
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+    });
+    render(<AuthFlow mode="signIn" lastUsedMethod="email" />);
+
+    await continueWith(user, "ada@example.com");
+
+    await waitFor(() =>
+      expect(signInFormMock).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          returnUrl: "/signin?client_id=cmo&exp=1772367377&sig=signed-value",
+        }),
+      ),
+    );
+  });
+
   it("says to start again when the OAuth request expired before the first step", async () => {
     const user = userEvent.setup();
     emailStatusMock.mockResolvedValue({
@@ -593,9 +656,7 @@ describe("AuthFlow signIn", () => {
     it("hands the typed email to sign-up instead of putting it in the link", async () => {
       const user = userEvent.setup();
       mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
-      render(
-        <AuthFlow mode="signIn" lastUsedMethod={null} returnUrl="/agents" />,
-      );
+      render(<AuthFlow mode="signIn" lastUsedMethod={null} />);
 
       await user.type(emailField(), "ada@exmaple.com");
       // A query email is an invitation's fixed address.
@@ -636,11 +697,14 @@ describe("AuthFlow signIn", () => {
         data: { exists: false, captchaPass: CAPTCHA_PASS },
         error: null,
       });
+      mockSearchParams = new URLSearchParams({
+        returnUrl: "/accept-invitation/inv_1",
+        invitationId: "inv_1",
+      });
       render(
         <AuthFlow
           mode="signIn"
           lastUsedMethod={null}
-          returnUrl="/accept-invitation/inv_1"
           prefilledEmail="invited@example.com"
           invitationId="inv_1"
         />,

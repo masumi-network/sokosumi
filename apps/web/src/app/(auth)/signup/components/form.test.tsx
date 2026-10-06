@@ -106,7 +106,6 @@ vi.mock("sonner", () => ({
 
 vi.mock("@/lib/actions/errors/error-codes/auth", () => ({
   AuthErrorCode: {
-    TERMS_NOT_ACCEPTED: "TERMS_NOT_ACCEPTED",
     USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL:
       "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL",
   },
@@ -217,9 +216,16 @@ describe("SignUpForm with a password", () => {
       screen.queryByLabelText("Fields.Password.label"),
     ).not.toBeInTheDocument();
     expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    const updates = screen.getByRole("checkbox", {
+      name: "Fields.MarketingOptIn.label",
+    });
+    expect(updates).not.toBeChecked();
+    // The choice closes the profile, so the code leads straight to Register.
     expect(
-      screen.getByRole("checkbox", { name: "Fields.MarketingOptIn.label" }),
-    ).not.toBeChecked();
+      updates.compareDocumentPosition(
+        screen.getByRole("textbox", { name: "codeLabel" }),
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
     expect(screen.getByRole("button", { name: "submit" })).toBeEnabled();
   });
 
@@ -243,6 +249,7 @@ describe("SignUpForm with a password", () => {
     // the new password still has to be saved against it.
     expect(screen.queryByTestId("auth-field-email")).not.toBeInTheDocument();
     const username = container.querySelector('input[autocomplete="username"]');
+    expect(username).toBe(screen.getByTestId("auth-field-username"));
     expect(username).toHaveValue("new-user@example.com");
     expect(username).toHaveAttribute("readonly");
     expect(username).toHaveAttribute("aria-hidden", "true");
@@ -337,7 +344,7 @@ describe("SignUpForm with a password", () => {
     expect(mockEmailCodeSignIn).not.toHaveBeenCalled();
   });
 
-  // The updates checkbox comes after the code, so the code never sends.
+  // Only Register sends: the password link sits below it.
   it("waits for Register after the sixth digit follows the names and password", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: { user: { id: "user-1" } },
@@ -703,7 +710,7 @@ describe("SignUpForm with a password", () => {
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
-  it("keeps a left-edge submit spinner after password signup succeeds", async () => {
+  it("keeps the submit button loading after password signup succeeds", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: {
         user: { id: "user-5" },
@@ -720,19 +727,14 @@ describe("SignUpForm with a password", () => {
     });
 
     const submitButton = screen.getByRole("button", { name: "submit" });
-    const spinner = submitButton.querySelector("svg.animate-spin");
 
-    expect(submitButton).toBeDisabled();
-    expect(spinner).not.toBeNull();
-    expect(spinner).toHaveClass(
-      "absolute",
-      "top-1/2",
-      "left-4",
-      "-translate-y-1/2",
-    );
+    expect(submitButton).toHaveAttribute("aria-busy", "true");
+    expect(
+      submitButton.querySelector('[data-slot="button-loading-bar"]'),
+    ).not.toBeNull();
   });
 
-  it("releases the submit spinner after password signup fails", async () => {
+  it("releases the submit button after password signup fails", async () => {
     mockEmailCodeSignIn.mockResolvedValue({
       data: null,
       error: { code: "INVALID_OTP", status: 400 },
@@ -745,10 +747,13 @@ describe("SignUpForm with a password", () => {
     const submitButton = screen.getByRole("button", { name: "submit" });
 
     await waitFor(() => {
-      expect(submitButton).toBeEnabled();
+      expect(submitButton).not.toHaveAttribute("aria-busy");
     });
 
-    expect(submitButton.querySelector("svg.animate-spin")).toBeNull();
+    expect(submitButton).toBeEnabled();
+    expect(
+      submitButton.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeNull();
   });
 });
 
@@ -864,6 +869,21 @@ describe("SignUpForm email code", () => {
     expect(
       screen.getByRole("button", { name: "addPassword" }),
     ).toBeInTheDocument();
+  });
+
+  it("says no code went out until a new one is sent", async () => {
+    // Step 1's send failed, or Log in handed over without sending one.
+    const user = userEvent.setup();
+    render(<SignUpStep codeSent={false} />);
+
+    const code = await screen.findByRole("textbox", { name: "codeLabel" });
+    expect(code).toHaveAccessibleDescription("notSent");
+
+    await user.click(screen.getByRole("button", { name: "resend" }));
+
+    await waitFor(() =>
+      expect(code).toHaveAccessibleDescription("sentNoAddress"),
+    );
   });
 
   it("creates the named account with the emailed code", async () => {

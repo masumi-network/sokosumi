@@ -36,59 +36,83 @@ vi.mock("@/lib/db/prisma", () => ({
 }));
 
 import {
+  pickActiveOrganizationId,
   resolveActiveOrganizationIdForSession,
   setPreferredOrganizationId,
 } from "./preferred-organization.service";
+
+describe("pickActiveOrganizationId", () => {
+  it.each([
+    [
+      "the preferred organization while a member",
+      "org_pref",
+      true,
+      ["org_1", "org_pref"],
+      "org_pref",
+    ],
+    ["personal when nothing is preferred", null, true, ["org_1"], null],
+    ["personal over a stale preference", "org_gone", true, ["org_1"], null],
+    [
+      "the oldest membership without personal",
+      null,
+      false,
+      ["org_1", "org_2"],
+      "org_1",
+    ],
+    [
+      "the oldest membership over a stale preference",
+      "org_gone",
+      false,
+      ["org_2"],
+      "org_2",
+    ],
+    ["null with no workspace at all", null, false, [], null],
+  ] as const)(
+    "picks %s",
+    (_label, preferredOrganizationId, hasPersonalWorkspace, organizationIds, expected) => {
+      expect(
+        pickActiveOrganizationId({
+          preferredOrganizationId,
+          hasPersonalWorkspace,
+          organizationIds,
+        }),
+      ).toBe(expected);
+    },
+  );
+});
 
 describe("resolveActiveOrganizationIdForSession", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
-  it("returns the preferred organization when the user is still a member", async () => {
+  it("reads the user, personal workspace and memberships in one round", async () => {
     getUserByIdMock.mockResolvedValueOnce({
       preferredOrganizationId: "org_pref",
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce({
-      organizationId: "org_pref",
-    });
+    findPersonalWorkspaceMock.mockResolvedValueOnce({ id: "ws_personal" });
+    getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce([
+      "org_1",
+      "org_pref",
+    ]);
 
     await expect(resolveActiveOrganizationIdForSession("user_1")).resolves.toBe(
       "org_pref",
     );
-    expect(findPersonalWorkspaceMock).not.toHaveBeenCalled();
-    expect(getMembersOrganizationIdsByUserIdMock).not.toHaveBeenCalled();
-  });
-
-  it("keeps personal when preferred is null and a personal workspace exists", async () => {
-    getUserByIdMock.mockResolvedValueOnce({
-      preferredOrganizationId: null,
-    });
-    findPersonalWorkspaceMock.mockResolvedValueOnce({ id: "ws_personal" });
-
-    await expect(
-      resolveActiveOrganizationIdForSession("user_1"),
-    ).resolves.toBeNull();
-    expect(getMembersOrganizationIdsByUserIdMock).not.toHaveBeenCalled();
-  });
-
-  it("falls back to a remaining org when preferred is null and personal is missing", async () => {
-    getUserByIdMock.mockResolvedValueOnce({
-      preferredOrganizationId: null,
-    });
-    findPersonalWorkspaceMock.mockResolvedValueOnce(null);
-    getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce(["org_1"]);
-
-    await expect(resolveActiveOrganizationIdForSession("user_1")).resolves.toBe(
-      "org_1",
+    expect(getUserByIdMock).toHaveBeenCalledWith("user_1", expect.anything());
+    expect(findPersonalWorkspaceMock).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: "user_1" }),
+    );
+    expect(getMembersOrganizationIdsByUserIdMock).toHaveBeenCalledWith(
+      "user_1",
+      expect.anything(),
     );
   });
 
-  it("falls back to a remaining org when preferred is stale and personal is missing", async () => {
+  it("falls back to the oldest membership for a stale preference without personal", async () => {
     getUserByIdMock.mockResolvedValueOnce({
       preferredOrganizationId: "org_gone",
     });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
     findPersonalWorkspaceMock.mockResolvedValueOnce(null);
     getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce(["org_2"]);
 
@@ -97,22 +121,10 @@ describe("resolveActiveOrganizationIdForSession", () => {
     );
   });
 
-  it("keeps personal when preferred is stale and a personal workspace exists", async () => {
-    getUserByIdMock.mockResolvedValueOnce({
-      preferredOrganizationId: "org_gone",
-    });
-    getMemberByUserIdAndOrganizationIdMock.mockResolvedValueOnce(null);
+  it("keeps personal for a missing user row with a personal workspace", async () => {
+    getUserByIdMock.mockResolvedValueOnce(null);
     findPersonalWorkspaceMock.mockResolvedValueOnce({ id: "ws_personal" });
-
-    await expect(
-      resolveActiveOrganizationIdForSession("user_1"),
-    ).resolves.toBeNull();
-    expect(getMembersOrganizationIdsByUserIdMock).not.toHaveBeenCalled();
-  });
-  it("returns null when setup is required and no workspace exists", async () => {
-    getUserByIdMock.mockResolvedValueOnce({ preferredOrganizationId: null });
-    findPersonalWorkspaceMock.mockResolvedValueOnce(null);
-    getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce([]);
+    getMembersOrganizationIdsByUserIdMock.mockResolvedValueOnce(["org_1"]);
 
     await expect(
       resolveActiveOrganizationIdForSession("user_1"),

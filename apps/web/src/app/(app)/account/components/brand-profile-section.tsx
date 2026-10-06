@@ -12,7 +12,6 @@ import {
   parseUserMetadata,
   serializeMetadataRecord,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
@@ -235,7 +234,10 @@ export function BrandProfileSection({
     <div className="space-y-6">
       <Card>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <form
+            onSubmit={form.handleSubmit(handleSubmit)}
+            className="space-y-6"
+          >
             <fieldset className="space-y-6" disabled={isBusy}>
               <CardHeader>
                 <CardTitle>{t("title")}</CardTitle>
@@ -296,19 +298,19 @@ export function BrandProfileSection({
                   )}
                 />
               </CardContent>
-              <CardFooter>
-                <Button
-                  type="submit"
-                  disabled={isBusy || !form.formState.isDirty}
-                  className="w-full"
-                >
-                  {form.formState.isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
-                  {form.formState.isSubmitting ? t("saving") : t("submit")}
-                </Button>
-              </CardFooter>
             </fieldset>
+            {/* Outside the fieldset: its `disabled` would also disable the
+                loading submit button, fading it and dropping focus. */}
+            <CardFooter>
+              <Button
+                type="submit"
+                disabled={isBusy || !form.formState.isDirty}
+                loading={form.formState.isSubmitting}
+                className="w-full"
+              >
+                {t("submit")}
+              </Button>
+            </CardFooter>
           </form>
         </Form>
       </Card>

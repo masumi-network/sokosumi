@@ -32,6 +32,7 @@ import {
   unprocessableEntity,
 } from "@/helpers/error";
 import { nextAssigneeWrite } from "@/helpers/task-assignee-alias";
+import { taskCreationEvents } from "@/helpers/task-creation-events";
 import {
   isGrantDeniedOrRevoked,
   parseGrantResumeStatus,
@@ -362,13 +363,12 @@ export async function createTaskForActor(
       pendingVendorGrantId: pendingGrant?.pendingVendorGrantId ?? null,
       runAt: input.runAt ?? null,
       events: {
-        create: {
-          id: input.effectEventId,
+        create: taskCreationEvents({
           status,
-          comment: null,
           channel: input.channel ?? Channel.SOKOSUMI,
-          ...eventActorFields(input.actor),
-        },
+          actorFields: eventActorFields(input.actor),
+          statusEventId: input.effectEventId,
+        }),
       },
     },
   });

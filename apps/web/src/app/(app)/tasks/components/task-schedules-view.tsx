@@ -254,13 +254,13 @@ export function TaskSchedulesView({
               </p>
             ) : null}
             <Button
-              aria-busy={isLoadingMore}
-              disabled={isLoadingMore || isRefreshing}
+              disabled={isRefreshing}
+              loading={isLoadingMore}
               onClick={handleLoadMore}
               size="sm"
               variant="outline"
             >
-              {isLoadingMore ? t("loadingMore") : t("loadMore")}
+              {t("loadMore")}
             </Button>
           </div>
         ) : null}

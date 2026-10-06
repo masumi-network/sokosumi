@@ -13,19 +13,15 @@ import {
 } from "@/services/stripe-backed-subscription.service";
 import { stripeWebhookService } from "@/services/stripe-webhook.service";
 
-export const BILLING_STRIPE_EVENT_TYPES: ReadonlySet<Stripe.Event.Type> =
-  new Set(["invoice.paid", "customer.created"]);
-
-export function isBillingStripeEventType(
-  eventType: Stripe.Event.Type,
-): boolean {
-  return BILLING_STRIPE_EVENT_TYPES.has(eventType);
-}
+const BILLING_STRIPE_EVENT_TYPES: ReadonlySet<Stripe.Event.Type> = new Set([
+  "invoice.paid",
+  "customer.created",
+]);
 
 export async function handleStripeAuthWebhookOnEvent(
   event: Stripe.Event,
 ): Promise<void> {
-  if (isBillingStripeEventType(event.type)) {
+  if (BILLING_STRIPE_EVENT_TYPES.has(event.type)) {
     await stripeWebhookService.handleEvent(event);
     return;
   }

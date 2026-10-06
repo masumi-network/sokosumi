@@ -35,11 +35,11 @@ function renderStep(onContinue = vi.fn()) {
       autoComplete="username webauthn"
       captchaEntry="signin"
       detour={{
-        when: "missing",
         title: "title",
         description: "description",
         label: "Create account",
         href: "/signup",
+        follow: vi.fn(),
       }}
       onFormStart={vi.fn()}
       onContinue={onContinue}

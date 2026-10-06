@@ -67,8 +67,7 @@ struct SettingsView: View {
       saveError = nil
       notificationError = nil
       guard auth.isSignedIn else { return }
-      await workspaces.refreshChatDisplayPreferences(auth: auth)
-      if await !workspaces.refreshNotificationPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
+      if await !workspaces.refreshUserPreferences(auth: auth), !workspaces.notificationPreferences.isLoaded {
         notificationError = "Your notification settings did not load. Reopen Settings to try again."
       }
       await ChatNotificationCenter.shared.refreshAuthorization()

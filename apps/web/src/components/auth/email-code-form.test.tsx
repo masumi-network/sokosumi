@@ -111,7 +111,6 @@ describe("EmailCodeForm", () => {
     ["INVALID_OTP", "invalid"],
     ["OTP_EXPIRED", "expired"],
     ["TOO_MANY_ATTEMPTS", "tooManyAttempts"],
-    ["TERMS_NOT_ACCEPTED", "termsNotAccepted"],
     // Better Auth's own message is English; the page says it in its language.
     ["SOMETHING_ELSE", "generic"],
   ])("explains a %s answer beside the field", async (code, message) => {
@@ -195,24 +194,6 @@ describe("EmailCodeForm", () => {
     expect(onSubmitCode).toHaveBeenLastCalledWith("042917");
   });
 
-  it("shows nothing and unlocks when the page declines to send the code", async () => {
-    const user = userEvent.setup();
-    renderForm({ onSubmitCode: vi.fn().mockResolvedValue(false) });
-
-    await user.type(
-      screen.getByRole("textbox", { name: "codeLabel" }),
-      "042917",
-    );
-    await user.click(screen.getByRole("button", { name: "Log in" }));
-
-    await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Log in" })).toBeEnabled(),
-    );
-    expect(
-      screen.getByRole("textbox", { name: "codeLabel" }),
-    ).not.toHaveAttribute("aria-invalid");
-  });
-
   it("stays locked once the code is accepted, while the page moves on", async () => {
     const user = userEvent.setup();
     renderForm();
@@ -224,7 +205,10 @@ describe("EmailCodeForm", () => {
     await user.click(screen.getByRole("button", { name: "Log in" }));
 
     await waitFor(() =>
-      expect(screen.getByRole("button", { name: "Log in" })).toBeDisabled(),
+      expect(screen.getByRole("button", { name: "Log in" })).toHaveAttribute(
+        "aria-busy",
+        "true",
+      ),
     );
   });
 

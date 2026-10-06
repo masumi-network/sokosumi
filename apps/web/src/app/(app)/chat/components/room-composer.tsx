@@ -16,7 +16,6 @@ import {
   ALargeSmall,
   AtSign,
   FileText,
-  Loader2,
   Paperclip,
   Users,
   X,
@@ -752,19 +751,12 @@ export function RoomComposer({
                   variant="outline"
                   size="sm"
                   className="h-7 gap-1.5 text-xs"
-                  disabled={isUploadingFiles}
+                  loading={isUploadingFiles}
                   onClick={() => {
                     void handleAttachOverflowAsMarkdown();
                   }}
                 >
-                  {isUploadingFiles ? (
-                    <Loader2
-                      className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : (
-                    <FileText className="size-3.5" aria-hidden />
-                  )}
+                  <FileText className="size-3.5" aria-hidden />
                   {t("composerConvertToFile")}
                 </Button>
               ) : null}
@@ -837,16 +829,9 @@ export function RoomComposer({
                     className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                     title={t("Toolbar.attach")}
                     aria-label={t("Toolbar.attach")}
-                    disabled={isUploadingFiles}
+                    loading={isUploadingFiles}
                   >
-                    {isUploadingFiles ? (
-                      <Loader2
-                        className="size-4 animate-spin motion-reduce:animate-pulse"
-                        aria-hidden
-                      />
-                    ) : (
-                      <Paperclip className="size-4" aria-hidden />
-                    )}
+                    <Paperclip className="size-4" aria-hidden />
                   </Button>
                 </AttachmentSubmenu>
               </>

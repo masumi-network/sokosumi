@@ -57,6 +57,11 @@ public enum TimeFormatPreference: String, CaseIterable, Identifiable, Sendable {
     format(date, date: .abbreviated, locale: locale, timeZone: timeZone)
   }
 
+  /// The Edited label's tooltip (web `Edit.editedAt`, "Edited {when}", `when` in its `dateTimeMedium`).
+  public func edited(_ date: Date, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
+    "Edited \(dateTime(date, locale: locale, timeZone: timeZone))"
+  }
+
   private func format(_ value: Date, date: Date.FormatStyle.DateStyle, locale: Locale, timeZone: TimeZone) -> String {
     value.formatted(Date.FormatStyle(date: date, time: .shortened, locale: self.locale(locale), timeZone: timeZone))
   }

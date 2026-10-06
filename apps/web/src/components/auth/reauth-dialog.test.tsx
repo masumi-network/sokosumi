@@ -282,7 +282,7 @@ describe("ReauthDialog", () => {
     await waitFor(() =>
       expect(
         screen.getByRole("button", { name: "confirmCode" }),
-      ).toBeDisabled(),
+      ).toHaveAttribute("aria-busy", "true"),
     );
     // Like the sign-in step: nothing changes the code while it is checked.
     expect(code).toBeDisabled();
@@ -356,23 +356,6 @@ describe("ReauthDialog", () => {
     expect(onReauthenticated).not.toHaveBeenCalled();
   });
 
-  it("names a terms block on the code path", async () => {
-    mockSignInEmailCode.mockResolvedValue({
-      data: null,
-      error: { code: "TERMS_NOT_ACCEPTED" },
-    });
-    renderDialog([]);
-    const user = userEvent.setup();
-    await user.click(screen.getByRole("button", { name: "continueWithEmail" }));
-
-    const code = await screen.findByRole("textbox", { name: "codeLabel" });
-    await user.type(code, "042917");
-
-    await waitFor(() =>
-      expect(code).toHaveAccessibleDescription(/termsNotAccepted$/),
-    );
-  });
-
   it("never offers the code while the address is unproven", async () => {
     // Better Auth's `revokeUnprovenAccountAccess` deletes every linked account
     // and revokes every session when an unverified viewer signs in by email.
@@ -426,28 +409,6 @@ describe("ReauthDialog", () => {
     }
   });
 
-  it("names a terms block instead of blaming the password", async () => {
-    // Core throws this with a code and no message, so the default branch
-    // would tell a viewer their correct password was wrong.
-    mockSignInEmail.mockResolvedValue({
-      data: null,
-      error: { code: "TERMS_NOT_ACCEPTED" },
-    });
-
-    renderDialog([passwordAccount]);
-
-    const user = userEvent.setup();
-    await user.type(
-      screen.getByTestId("reauth-field-currentPassword"),
-      "correct horse",
-    );
-    await user.click(screen.getByRole("button", { name: "confirm" }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "termsNotAccepted",
-    );
-  });
-
   it("says nothing about methods before the session resolves", () => {
     // `emailVerified` is unknown while pending, so the viewer would otherwise
     // be told to verify an address that may already be verified.
@@ -457,15 +418,17 @@ describe("ReauthDialog", () => {
     expect(screen.queryByText("noMethod")).not.toBeInTheDocument();
   });
 
-  it("spins instead of looking broken while the session loads", () => {
-    // Confirm needs the address the session carries, so it is disabled until
-    // then. Without the spinner it reads as a dead button.
+  it("shows loading instead of looking broken while the session loads", () => {
+    // Confirm needs the address the session carries, so it is dead until
+    // then. Without the loading state it reads as a dead button.
     isPending = true;
     renderDialog([passwordAccount]);
 
     const confirm = screen.getByRole("button", { name: "confirm" });
-    expect(confirm).toBeDisabled();
-    expect(confirm.querySelector(".animate-spin")).toBeInTheDocument();
+    expect(confirm).toHaveAttribute("aria-busy", "true");
+    expect(
+      confirm.querySelector('[data-slot="button-loading-bar"]'),
+    ).toBeInTheDocument();
   });
 
   it("says the session is gone rather than offering what cannot work", () => {

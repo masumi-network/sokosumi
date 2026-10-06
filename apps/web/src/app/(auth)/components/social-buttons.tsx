@@ -1,16 +1,9 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2 } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentProps,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ComponentProps, useCallback, useEffect, useState } from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
@@ -18,21 +11,25 @@ import {
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  buildAuthCallbackUrl,
-  buildAuthErrorCallbackUrl,
-  buildOAuthResumeUrlFromSearchParams,
-} from "@/lib/auth/auth.utils";
+import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
-import type { ProviderAuthMethod } from "@/lib/utils/last-used-auth-method";
+import type {
+  LastUsedAuthMethod,
+  ProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
 type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
+  /**
+   * Where a sign-in started here ends: `AuthFlow`'s return URL, which falls
+   * back to resuming the page's OAuth request.
+   */
   returnUrl?: string;
-  lastUsedMethod?: ProviderAuthMethod | null;
+  lastUsedMethod?: LastUsedAuthMethod | null;
   showPasskey?: boolean;
   /** Which intent the provider buttons report to Vercel Analytics. */
   eventType?: "signIn" | "signUp";
@@ -42,19 +39,15 @@ interface SocialButtonsProps {
   onPendingChange?: (pending: boolean) => void;
 }
 
-/** Stands in for the provider's logo while its sign-in starts, at the logo's size. */
-function SocialButtonSpinner({
-  size,
-}: {
-  size: string | number;
-  color: string;
-}) {
+/** Marks the method used last, in the corner of its button. */
+function LastUsedBadge({ label }: { label: string }) {
   return (
-    <Loader2
+    <span
       aria-hidden="true"
-      size={size}
-      className="animate-spin motion-reduce:animate-pulse"
-    />
+      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
+    >
+      {label}
+    </span>
   );
 }
 
@@ -91,18 +84,13 @@ function isPasskeyPromptDismissed(code: string | undefined): boolean {
 
 export default function SocialButtons({
   returnUrl,
-  lastUsedMethod = null,
-  showPasskey = false,
-  eventType = "signIn",
-  disabled = false,
+  lastUsedMethod,
+  showPasskey,
+  eventType,
+  disabled,
   onPendingChange,
-}: SocialButtonsProps = {}) {
+}: SocialButtonsProps) {
   const t = useTranslations("Auth.SocialButtons");
-  const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthResumeUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
-  );
   // The sign-in that is starting. Every button waits while one runs.
   const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
     null,
@@ -130,47 +118,34 @@ export default function SocialButtons({
       finishAuthInPlace({
         eventType: "signIn",
         provider: "passkey",
-        returnUrl: effectiveReturnUrl,
+        returnUrl,
         result,
       }),
-    [effectiveReturnUrl],
+    [returnUrl],
   );
 
-  const handlePasskeySignIn = async (options?: {
-    autoFill?: boolean;
-    showErrors?: boolean;
-  }) => {
-    const { autoFill = false, showErrors = true } = options ?? {};
-
-    if (!autoFill) {
-      track("Sign In", { provider: "passkey", direct_signup_link: false });
-      changePendingMethod("passkey");
-    }
+  const handlePasskeySignIn = async () => {
+    track("Sign In", { provider: "passkey", direct_signup_link: false });
+    changePendingMethod("passkey");
 
     try {
-      const result = await authClient.signIn.passkey({
-        autoFill,
-      });
+      const result = await authClient.signIn.passkey();
 
       if (result.error) {
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
-        if (showErrors && !isPasskeyPromptDismissed(errorCode)) {
+        if (!isPasskeyPromptDismissed(errorCode)) {
           toast.error(t("passkeyError"));
         }
         return;
       }
 
       await finishPasskeySignIn(result.data);
-    } catch (_error) {
-      if (showErrors) {
-        toast.error(t("passkeyError"));
-      }
+    } catch {
+      toast.error(t("passkeyError"));
     } finally {
-      if (!autoFill) {
-        changePendingMethod(null);
-      }
+      changePendingMethod(null);
     }
   };
 
@@ -229,17 +204,7 @@ export default function SocialButtons({
     const result = await authClient.signIn
       .social({
         provider: key,
-        callbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signin",
-          key,
-          effectiveReturnUrl,
-        ),
-        newUserCallbackURL: buildAuthCallbackUrl(
-          "/auth/callback/signup",
-          key,
-          effectiveReturnUrl,
-        ),
-        errorCallbackURL: buildAuthErrorCallbackUrl(),
+        ...buildSocialCallbackUrls(key, returnUrl),
       })
       .catch(() => ({ error: { message: undefined } }));
     if (result.error) {
@@ -253,25 +218,28 @@ export default function SocialButtons({
     <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => {
         const isLastUsed = lastUsedMethod === socialButton.key;
+        const isPending = pendingMethod === socialButton.key;
 
         return (
-          <div className="group/provider relative" key={socialButton.key}>
-            {isLastUsed && (
-              <span
-                aria-hidden="true"
-                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
-              >
-                {t("lastUsed")}
-              </span>
+          <div
+            className={cn(
+              "group/provider relative",
+              // The provider button is third-party, so it cannot take
+              // `loading`: draw the same bar over it and keep its logo.
+              isPending && "text-foreground overflow-hidden rounded-md",
             )}
+            aria-busy={isPending || undefined}
+            key={socialButton.key}
+          >
+            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
-              disabled={isWaiting}
-              {...(pendingMethod === socialButton.key && {
-                icon: SocialButtonSpinner,
-              })}
+              // The pending one stays enabled, so it keeps focus and full
+              // contrast; handleClick already ignores clicks while waiting.
+              disabled={isWaiting && !isPending}
               className={cn(
                 "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
@@ -279,18 +247,18 @@ export default function SocialButtons({
               align="center"
               text={t("continueWith", { provider: socialButton.name })}
             />
+            {isPending && (
+              <ButtonLoadingBar
+                label={t("continueWith", { provider: socialButton.name })}
+              />
+            )}
           </div>
         );
       })}
       {showPasskey && (
         <div className="group/provider relative">
           {lastUsedMethod === "passkey" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
-            >
-              {t("lastUsed")}
-            </span>
+            <LastUsedBadge label={t("lastUsed")} />
           )}
           <Button
             type="button"
@@ -302,15 +270,12 @@ export default function SocialButtons({
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
             disabled={isWaiting}
+            loading={pendingMethod === "passkey"}
             onClick={() => {
               void handlePasskeySignIn();
             }}
           >
-            {pendingMethod === "passkey" ? (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            ) : (
-              <KeyRound className="size-4" />
-            )}
+            <KeyRound className="size-4" />
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
         </div>

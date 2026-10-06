@@ -18,8 +18,8 @@
       "generic": "We could not check the code. Try again.",
       "resend": "Send a new code",
       "resendIn": "Send a new code in {seconds}s",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
-      "rateLimited": "Too many tries in a row. Wait a minute, then try again."
+      "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
+      "notSent": "We could not send a code. Try again."
     },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -58,8 +58,11 @@
       "retryPrompt": "You are logged in again. Try that again now.",
       "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
-      "termsNotAccepted": "Accept the updated terms before logging in again.",
       "title": "Confirm it is you"
+    },
+    "Button": {
+      "loading": "{label}, in progress",
+      "loadingUnnamed": "In progress"
     },
     "ShareButton": {
       "share": "Share",
@@ -554,7 +557,6 @@
         "noExecutedJobs": "No executed jobs",
         "emptyJobs": "No jobs yet. Hire this coworker to start one.",
         "loadMore": "Load more",
-        "loading": "Loading...",
         "loadMoreError": "Failed to load more jobs"
       }
     },
@@ -574,21 +576,17 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Create Organization",
           "edit": "Edit Organization"
         },
         "Form": {
           "Submit": {
-            "create": "Create",
             "edit": "Save"
           },
           "cancel": "Cancel",
           "Success": {
-            "create": "Organization created successfully",
             "edit": "Organization updated successfully"
           },
           "Error": {
-            "create": "Failed to create organization",
             "edit": "Failed to update organization"
           },
           "Errors": {
@@ -637,8 +635,7 @@
           "next": "Continue",
           "skip": "Skip",
           "finishSetup": "Finish setup",
-          "finish": "Go to workspace",
-          "creating": "Creating…"
+          "finish": "Go to workspace"
         },
         "Details": {
           "title": "Name your organization",
@@ -689,7 +686,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
-          "sending": "Sending…",
           "inviteSuccess": "Invites sent",
           "inviteSummary": "Sent {sent}, failed {failed}.",
           "linkError": "Failed to create invite link",
@@ -821,7 +817,6 @@
       "showAll": "Show all",
       "showOlder": "Show older notifications",
       "justNow": "Just now",
-      "loading": "Loading...",
       "markAllRead": "Mark all read",
       "markAllReadError": "Failed to mark all notifications as read",
       "markReadError": "Failed to mark notification as read",
@@ -847,7 +842,6 @@
       "browserPermissionInAppTitle": "Get alerts when you're in another tab",
       "browserPermissionInAppDescription": "Allow browser notifications for tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
-      "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
       "browserPermissionInstallTitle": "Add Sokosumi to your Home Screen",
@@ -855,7 +849,6 @@
       "pushQuietTitle": "Push notifications stopped in this browser",
       "pushQuietDescription": "This browser lost its push subscription, so updates do not arrive here. Your other devices may still get them.",
       "pushQuietRestore": "Turn push back on",
-      "pushQuietRestoring": "Turning push back on…",
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
@@ -1018,7 +1011,6 @@
     "title": "You've been invited",
     "invitedToJoin": "Join {organization} on Sokosumi.",
     "join": "Join {organization}",
-    "joining": "Joining…",
     "linkHintOwner": "Anyone with this link can join as a member.",
     "signedOutHint": "Log in or create an account to accept this invite.",
     "haveAccount": "Already have an account?",
@@ -1054,7 +1046,6 @@
       "goToHome": "Go to Home",
       "Actions": {
         "accept": "Join {organization}",
-        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
@@ -1124,37 +1115,6 @@
       "quoteAuthor": "Florian Haller",
       "quoteRole": "CEO, Serviceplan Group"
     },
-    "Schema": {
-      "Email": {
-        "invalid": "Please enter a valid email address.",
-        "required": "Email is required"
-      },
-      "Name": {
-        "min": "Name must be at least 2 characters.",
-        "max": "Name must be at most 128 characters.",
-        "invalid": "Name must be a valid string.",
-        "required": "Name is required"
-      },
-      "Password": {
-        "invalid": "Password must be a valid string.",
-        "min": "Password must be at least 8 characters",
-        "max": "Password must be at most 128 characters",
-        "required": "Password is required"
-      },
-      "CurrentPassword": {
-        "invalid": "Current password must be a valid string.",
-        "required": "Current password is required"
-      },
-      "InputPassword": {
-        "invalid": "Password must be a valid string.",
-        "required": "Password is required"
-      },
-      "ConfirmPassword": {
-        "invalid": "Confirm password must be a valid string.",
-        "match": "Password doesn't match",
-        "required": "Confirm password is required"
-      }
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Log in / Register",
@@ -1166,7 +1126,6 @@
       "continueWith": "Continue with {provider}",
       "orDivider": "or",
       "emailCodeError": "We could not send a code. Please try again.",
-      "success": "Login successful",
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
@@ -1217,9 +1176,6 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
-          "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to log in"
-          },
           "NoAccount": {
             "title": "No account for this address",
             "description": "Check it for typos, or create one now.",
@@ -1228,8 +1184,7 @@
           "Handover": {
             "codeSent": "You already have an account, so we sent you a code to log in.",
             "password": "You already have an account. Enter your password to log in.",
-            "codeNotSentNotice": "You already have an account.",
-            "codeNotSent": "We could not send a code. Try again."
+            "codeNotSentNotice": "You already have an account."
           }
         }
       },
@@ -1299,7 +1254,6 @@
           },
           "linkExpired": "That reset link expired or was already used. Request a new one.",
           "Errors": {
-            "rateLimited": "Too many requests in a row. Wait a minute, then try again.",
             "generic": "We could not send the reset email. Try again."
           }
         }
@@ -1413,7 +1367,6 @@
       },
       "List": {
         "loadMore": "Load more",
-        "loading": "Loading transactions...",
         "loadMoreError": "Failed to load more transactions"
       },
       "Row": {
@@ -1565,7 +1518,6 @@
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
           "searchAgents": "Search Agents",
-          "opening": "Opening chat…",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
@@ -1708,7 +1660,6 @@
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
-        "owner": "Owner",
         "organization": "Organization",
         "project": "Project",
         "noProject": "No project",
@@ -1763,6 +1714,7 @@
         },
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
+        "actionCreatedTask": "created the task",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "actionTriedChargedCredits": "tried to charge {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {
@@ -2055,7 +2007,6 @@
         "newSchedule": "New schedule",
         "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
         "loadMore": "Load more",
-        "loadingMore": "Loading…",
         "loadMoreError": "Couldn't load more schedules.",
         "nextRun": "Next run {datetime}",
         "noNextRun": "No upcoming run",
@@ -2229,7 +2180,6 @@
       },
       "list": {
         "loadMore": "Load more",
-        "loading": "Loading projects...",
         "filter": {
           "placeholder": "Filter projects",
           "clear": "Clear filter",
@@ -2334,7 +2284,6 @@
           "next": "Continue",
           "back": "Back",
           "create": "Create project",
-          "creating": "Creating…",
           "openProject": "Open project"
         }
       },
@@ -2361,7 +2310,6 @@
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
-        "disconnecting": "Disconnecting…",
         "unknownHandle": "Unknown account",
         "status": {
           "active": "Connected",
@@ -2452,7 +2400,6 @@
           "media": {
             "addFromDrive": "Add from Drive",
             "upload": "Upload",
-            "uploading": "Uploading…",
             "remove": "Remove {name}",
             "unsupported": "Use a file type {provider} accepts.",
             "alreadyAttached": "That file is already attached.",
@@ -3037,7 +2984,6 @@
       "pricePerMonth": "per month",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
-      "upgrading": "Redirecting...",
       "canceling": "Scheduling cancellation...",
       "currentPlanCta": "Current plan",
       "upgradePlanCta": "Choose plan",
@@ -3233,7 +3179,6 @@
         "newGrant": "New invoice",
         "backToList": "Back to list",
         "delete": "Delete",
-        "deleting": "Deleting…",
         "deleteSuccess": "Invoice deleted",
         "deleteError": "Failed to delete invoice",
         "deleteConfirmTitle": "Delete invoice?",
@@ -3260,7 +3205,6 @@
           "expiryPlaceholder": "No expiry",
           "expiryInvalid": "Expiry must be a positive whole number of days",
           "submit": "Create invoice",
-          "submitting": "Creating invoice…",
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
@@ -3305,7 +3249,6 @@
           "status": "Status",
           "invoiceId": "Invoice ID",
           "markPaid": "Mark as paid",
-          "marking": "Granting credits…",
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
           "openInStripe": "Open in Stripe",
@@ -3368,7 +3311,6 @@
           "referenceNoteHelper": "Optional note stored on the credit bucket for internal reference.",
           "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
           "submit": "Grant credits",
-          "submitting": "Granting credits…",
           "grantSuccess": "Free credits granted",
           "grantError": "Failed to grant free credits"
         }
@@ -3500,7 +3442,6 @@
           "resolve": "Resolve",
           "reason": "Audit reason",
           "cancel": "Cancel",
-          "submitting": "Saving…",
           "refundConfirmTitle": "Refund verified payment?",
           "refundConfirmDescription": "This creates a compensating credit transaction and permanently closes the payment as refunded.",
           "resolveConfirmTitle": "Resolve pending payment?",
@@ -3681,13 +3622,10 @@
             "title": "Platform controls",
             "description": "Manage capabilities, priority, whitelist, and archive state.",
             "save": "Save controls",
-            "saving": "Saving controls…",
             "archive": "Archive",
-            "archiving": "Archiving…",
             "archiveConfirmTitle": "Archive coworker?",
             "archiveConfirmDescription": "This archives the coworker and revokes its API keys. You can unarchive later, but API keys stay revoked.",
             "unarchive": "Unarchive",
-            "unarchiving": "Unarchiving…",
             "capabilities": {
               "label": "Capabilities",
               "chat": "Chat",
@@ -3938,7 +3876,6 @@
             "unnamedBot": "this assistant",
             "confirmLabel": "Type the owner's email ({email}) to confirm",
             "delete": "Delete Soko Bot",
-            "deleting": "Deleting…",
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
             "error": "Could not delete this Soko Bot."
@@ -3948,7 +3885,6 @@
             "roomsNav": "Chats",
             "ownerRoom": "Owner",
             "loadOlder": "Load older",
-            "loading": "Loading…",
             "noMessages": "No messages yet.",
             "empty": "Nobody has chatted with this bot yet.",
             "deleted": "Message deleted",
@@ -3976,7 +3912,6 @@
           "reasonHint": "3–500 characters. Stored immutably with your operator id.",
           "cancel": "Cancel",
           "confirm": "Confirm",
-          "working": "Working…",
           "done": "{action} recorded.",
           "error": "Action failed.",
           "more": "More actions"
@@ -4141,7 +4076,6 @@
           "actionDescription": "This operator action is audited. Explain why it is needed.",
           "reasonLabel": "Reason",
           "cancel": "Cancel",
-          "working": "Working…",
           "actionDone": "Schedule action completed.",
           "actionError": "Could not complete schedule action.",
           "noRuns": "No runs yet.",
@@ -4259,13 +4193,11 @@
             "promote": "Promote",
             "promoteTitle": "Promote this version?",
             "promoteConfirm": "This affects new bots only. Existing bots keep the version they were created on.",
-            "promoting": "Promoting…",
             "promoted": "Version promoted for new bots.",
             "promoteError": "Could not promote this version.",
             "archive": "Archive",
             "archiveTitle": "Archive this version?",
             "archiveConfirm": "It will disappear from version pickers. Bots pinned to it fall back to the built-in default when they next run.",
-            "archiving": "Archiving…",
             "archived": "Version archived.",
             "archiveError": "Could not archive this version.",
             "archiveDefaultHint": "Promote another version before archiving this default."
@@ -4293,7 +4225,6 @@
             "saveError": "Could not save this version.",
             "created": "Version created.",
             "updated": "Version updated.",
-            "saving": "Saving…",
             "create": "Create version",
             "save": "Save changes"
           },
@@ -4366,7 +4297,6 @@
           "noReason": "no reason given",
           "disable": "Disable Soko Bot",
           "enable": "Enable Soko Bot",
-          "working": "Working…",
           "reasonPlaceholder": "Reason shown to users (optional)",
           "disabled": "Soko Bot disabled.",
           "enabled": "Soko Bot enabled.",
@@ -4388,7 +4318,6 @@
           "reasonLabel": "Reason",
           "reasonPlaceholder": "Why are you moving this bot? (required, recorded in the audit log)",
           "confirm": "Move this bot",
-          "working": "Moving…",
           "done": "Moved to {version}.",
           "error": "Could not move this bot."
         },
@@ -4407,7 +4336,6 @@
           "notifyRequired": "Required for this version: it runs outside the EU, so every moved bot tells its owner. It does not start a turn.",
           "confirm": "Move {count} bots",
           "nothingToMove": "Nothing to move for this selection.",
-          "working": "Moving…",
           "done": "Moved {moved} bots.",
           "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
           "notifiedResult": "Owners told: {notified}.",
@@ -4485,7 +4413,6 @@
           "namePlaceholder": "e.g. Partners",
           "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
           "submit": "Create channel",
-          "submitting": "Creating…",
           "success": "Matched channel created",
           "error": "Failed to create matched channel",
           "slugTaken": "This channel slug is already taken."
@@ -4516,20 +4443,17 @@
             "title": "Add user",
             "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
             "user": "User",
-            "submit": "Add user",
-            "submitting": "Adding…"
+            "submit": "Add user"
           },
           "AddOrganization": {
             "title": "Add organization",
             "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
             "organization": "Organization",
             "helper": "Organizations you belong to appear first in search results.",
-            "submit": "Add organization members",
-            "submitting": "Adding…"
+            "submit": "Add organization members"
           },
           "Archive": {
             "button": "Archive channel",
-            "archiving": "Archiving…",
             "confirmTitle": "Archive {name}?",
             "confirmDescription": "Participants lose access immediately. You can restore this channel from the Archived tab in this hub.",
             "confirm": "Archive",
@@ -4540,7 +4464,6 @@
           "archivedBadge": "Archived — roster edits are disabled until restored.",
           "Restore": {
             "button": "Restore channel",
-            "restoring": "Restoring…",
             "confirmTitle": "Restore {name}?",
             "confirmDescription": "Clears the archive flag so the channel returns to the live hub. Existing members keep their seats and regain access on their next session refresh.",
             "confirm": "Restore",
@@ -4550,7 +4473,6 @@
           },
           "Delete": {
             "button": "Delete permanently",
-            "deleting": "Deleting…",
             "confirmTitle": "Permanently delete {name}?",
             "confirmDescription": "This cannot be undone. The channel, its memberships, and messages are removed forever. Only archived channels can be deleted.",
             "confirm": "Delete permanently",
@@ -5137,7 +5059,6 @@
         "noApplications": "No applications have been authorized.",
         "authorized": "Authorized: {date}",
         "revokeAccess": "Revoke Access",
-        "revoking": "Revoking...",
         "confirmRevoke": "Are you sure you want to revoke access for this application?",
         "revokeSuccess": "Access revoked successfully",
         "revokeError": "Failed to revoke access",
@@ -5146,11 +5067,10 @@
       "OAuthConsent": {
         "invalidRequest": {
           "title": "Invalid OAuth Request",
-          "description": "Missing required parameters: client_id or redirect_uri"
+          "description": "Missing required parameter: client_id"
         },
         "clientNotFound": {
           "title": "Client Not Found",
-          "description": "The OAuth client could not be found.",
           "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
         },
         "loadError": {
@@ -5164,11 +5084,8 @@
         "wantsAccess": "wants to access your Sokosumi account",
         "actions": {
           "authorize": "Authorize",
-          "authorizing": "Authorizing...",
           "deny": "Deny",
-          "denying": "Denying...",
           "authorizeError": "Failed to authorize application",
-          "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
           "workspacePrepareError": "Could not prepare your workspace. Please try again.",
           "authorizeSuccess": "Application authorized successfully",
@@ -5313,7 +5230,6 @@
         "noCode": "No authorization code found in the URL. Please complete the authorization flow first.",
         "actions": {
           "exchange": "Exchange for Token",
-          "exchanging": "Exchanging...",
           "copy": "Copy"
         },
         "success": {
@@ -5390,7 +5306,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi uses this website to generate your DESIGN.md.",
         "submit": "Save brand profile",
-        "saving": "Saving...",
         "saveSuccess": "Brand profile saved",
         "saveError": "Failed to save brand profile",
         "Schema": {
@@ -5504,7 +5419,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
-          "updating": "Redirecting...",
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
@@ -5775,7 +5689,6 @@
       "forceRegenerateLabel": "Force a fresh generation",
       "forceRegenerateDescription": "Use this when the website changed recently and the cached result may be stale.",
       "confirmGenerate": "Start generation",
-      "generating": "Generating...",
       "starting": "Starting generation...",
       "polling": "Waiting for Masumi to finish...",
       "finalizing": "Saving DESIGN.md...",
@@ -5788,7 +5701,6 @@
       "uploadTitle": "Upload markdown file",
       "uploadDescription": ".md or .markdown up to {maxSize}",
       "uploadButton": "Upload",
-      "uploading": "Uploading...",
       "uploadSuccess": "DESIGN.md uploaded",
       "uploadError": "Failed to upload DESIGN.md",
       "uploadRejected": "File is not accepted",
@@ -5800,7 +5712,6 @@
       "editTab": "Edit",
       "previewTab": "Preview",
       "editSave": "Save",
-      "editSaving": "Saving...",
       "editSaveSuccess": "DESIGN.md saved",
       "editUnavailableTitle": "DESIGN.md is not available",
       "editLoadErrorTitle": "Could not load DESIGN.md",
@@ -5838,7 +5749,6 @@
           "uploadError": "Could not process the selected image."
         },
         "saveChanges": "Save display",
-        "saving": "Saving…",
         "cancel": "Cancel",
         "validation": {
           "nameMinLength": "Name must be at least {min} characters.",
@@ -6236,12 +6146,10 @@
         "muted": "Muted"
       },
       "loadOlder": "Load older messages",
-      "loadingOlder": "Loading older messages…",
       "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
-        "loadingMissing": "Loading missing messages…",
         "loadFailed": "Couldn’t load messages.",
         "retry": "Try again"
       },
@@ -6367,8 +6275,7 @@
         "addPeopleTitle": "Add people to {name}",
         "addAll": "Add all {count} members of {organization}",
         "addSpecific": "Add specific people",
-        "addSpecificHelp": "Select people and AI coworkers to add to this channel.",
-        "creating": "Creating…"
+        "addSpecificHelp": "Select people and AI coworkers to add to this channel."
       },
       "RoomRoster": {
         "open": "Members",
@@ -6510,7 +6417,6 @@
         "invitedToJoin": "You've been invited to join #{room} ({organization}).",
         "guestNote": "Joining as a guest does not make you a member of the host organization.",
         "join": "Join #{room}",
-        "joining": "Joining…",
         "joined": "You joined #{room}.",
         "alreadyGuest": "You're already in #{room}.",
         "signedOutHint": "Log in or create an account to join this channel as a guest.",
@@ -6839,7 +6745,6 @@
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
         "submit": "Create Soko Bot",
-        "submitting": "Creating…",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
         "avatarLabel": "Picture",
@@ -6932,7 +6837,6 @@
           "timezone": "Timezone",
           "prompt": "Prompt",
           "submit": "Create schedule",
-          "submitting": "Creating…",
           "cancel": "Cancel",
           "created": "Schedule created.",
           "error": "Could not create the schedule."
@@ -6965,7 +6869,6 @@
         "archived": "Soko Bot archived.",
         "archiveError": "Could not archive the Soko Bot.",
         "delete": "Delete",
-        "deleting": "Deleting…",
         "deleteConfirm": "Delete forever",
         "deleteCancel": "Cancel",
         "deleteConfirmTitle": "Delete your Soko Bot?",
@@ -7071,9 +6974,7 @@
           "heading": "Needs your okay",
           "headingResolved": "Approval",
           "accept": "Approve",
-          "accepting": "Approving…",
           "reject": "Reject",
-          "rejecting": "Rejecting…",
           "accepted": "Approved. Your Soko Bot will carry it out.",
           "rejected": "Rejected. Nothing was created.",
           "error": "Could not resolve the approval.",
@@ -7131,7 +7032,6 @@
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
-        "openingChat": "Opening…",
         "openChatError": "Could not open the chat with your Soko Bot.",
         "Stats": {
           "title": "What it did",
@@ -7186,7 +7086,6 @@
         "title": "Picture",
         "description": "A unique mascot from the collection. No two assistants share one.",
         "save": "Use this picture",
-        "saving": "Saving…",
         "saved": "Picture updated.",
         "saveError": "Could not update the picture.",
         "current": "Current picture",
@@ -7386,7 +7285,6 @@
       "importProgress": "{count, plural, one {# row imported} other {# rows imported}}. Completed batches are preserved if interrupted.",
       "create": "Create table",
       "save": "Save",
-      "saving": "Saving…",
       "retry": "Retry",
       "openTable": "Open table",
       "loading": "Loading…",
@@ -7602,12 +7500,6 @@
         },
         "FullName": {
           "max": "First and last name together must be at most 128 characters, including the space."
-        },
-        "Organization": {
-          "invalid": "Organization must be a valid string.",
-          "required": "Organization is required",
-          "min": "Organization name must be at least 2 characters.",
-          "max": "Organization name must be at most 50 characters."
         },
         "Password": {
           "invalid": "Password must be a valid string.",

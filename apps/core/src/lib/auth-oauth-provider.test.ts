@@ -9,15 +9,14 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { isProductionEnvironment } from "@/config/env";
 import { emailCodeSignIn } from "./auth-email-code-sign-in";
+import { afterNewSession } from "./auth-new-session";
 import {
   acceptCmoPreviewCallback,
-  answerCreatePromptWithNewSession,
-  handleOAuthRefreshTokenRequest,
+  handleOAuthTokenRequest,
   isRefreshTokenRotating,
   jwtKeyStoreOptions,
   oauthRefreshTokenOptions,
 } from "./auth-oauth-provider";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
 
 type MemoryDb = Record<string, Record<string, unknown>[]>;
 
@@ -116,7 +115,7 @@ function createTestAuth(
     rateLimit: { enabled: rateLimitEnabled, storage: "memory" },
   });
 
-  const retry = vi.fn<Parameters<typeof handleOAuthRefreshTokenRequest>[2]>(
+  const retry = vi.fn<Parameters<typeof handleOAuthTokenRequest>[2]>(
     (body, request) =>
       auth.api.oauth2Token({
         body,
@@ -143,7 +142,7 @@ function createTestAuth(
   }
 
   async function refresh(refreshToken: string) {
-    const response = await handleOAuthRefreshTokenRequest(
+    const response = await handleOAuthTokenRequest(
       new Request("https://auth.example.com/auth/oauth2/token", {
         method: "POST",
         headers: {
@@ -279,23 +278,19 @@ describe("oauthRefreshTokenOptions", () => {
   });
 });
 
-describe("handleOAuthRefreshTokenRequest", () => {
+describe("handleOAuthTokenRequest", () => {
   it.each([
-    {
-      url: "https://auth.example.com/auth/sign-in/email",
-      body: "grant_type=refresh_token",
-    },
     { body: "grant_type=authorization_code" },
     { body: "grant_type=refresh_token&client_assertion=single-use-assertion" },
     { body: "grant_type=refresh_token", headers: { dpop: "single-use-proof" } },
   ])(
     "leaves other grants and single-use proofs untouched (%j)",
-    async ({ url, body, headers }) => {
+    async ({ body, headers }) => {
       const response = new Response("{}", { status: 400 });
       const handler = vi.fn().mockResolvedValue(response);
       const retry = vi.fn();
       const request = new Request(
-        url ?? "https://auth.example.com/auth/oauth2/token",
+        "https://auth.example.com/auth/oauth2/token",
         {
           method: "POST",
           headers: {
@@ -307,7 +302,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
       );
 
       expect(
-        await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+        await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
       ).toBe(response);
       expect(handler).toHaveBeenCalledExactlyOnceWith(request);
       expect(retry).not.toHaveBeenCalled();
@@ -335,7 +330,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, vi.fn()),
+      await handleOAuthTokenRequest(request, handler, retry, vi.fn()),
     ).toBe(response);
     expect(handler).toHaveBeenCalledOnce();
     expect(retry).not.toHaveBeenCalled();
@@ -356,7 +351,7 @@ describe("handleOAuthRefreshTokenRequest", () => {
     });
 
     expect(
-      await handleOAuthRefreshTokenRequest(request, handler, retry, isRotating),
+      await handleOAuthTokenRequest(request, handler, retry, isRotating),
     ).toBe(response);
     expect(isRotating).toHaveBeenCalledExactlyOnceWith("expired-token");
     expect(retry).not.toHaveBeenCalled();
@@ -630,11 +625,7 @@ describe("answerCreatePromptWithNewSession", () => {
       session: { updateAge: 0 },
       emailAndPassword: { enabled: true },
       hooks: {
-        // Core's after hook, in order.
-        after: createAuthMiddleware(async (ctx) => {
-          await keepNewSessionPersistent(ctx);
-          await answerCreatePromptWithNewSession(ctx);
-        }),
+        after: createAuthMiddleware(afterNewSession),
       },
       plugins: [
         jwt({ disableSettingJwtHeader: true }),
@@ -725,7 +716,15 @@ describe("answerCreatePromptWithNewSession", () => {
 
   it.each([
     ["an email code", {}],
-    ["a password", { password: "a-password-long-enough", name: "New Person" }],
+    [
+      "a password",
+      {
+        password: "a-password-long-enough",
+        termsAccepted: true,
+        firstName: "New",
+        lastName: "Person",
+      },
+    ],
   ])(
     "sends a Create account sign-up with %s straight to CMO",
     async (_label, extra) => {

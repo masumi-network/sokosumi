@@ -169,9 +169,10 @@ export function DesignMdGenerateDialog({
           <Button
             type="button"
             onClick={handleGenerate}
-            disabled={!websiteUrl || generation.isRunning}
+            disabled={!websiteUrl}
+            loading={generation.isRunning}
           >
-            {generation.isRunning ? t("generating") : t("confirmGenerate")}
+            {t("confirmGenerate")}
           </Button>
         </DialogFooter>
       </DialogContent>

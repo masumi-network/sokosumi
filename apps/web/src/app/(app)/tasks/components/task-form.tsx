@@ -1468,15 +1468,10 @@ export function TaskForm({
                 type="button"
                 className="min-w-28 items-center justify-between gap-1"
                 disabled={isSaveDisabled}
+                loading={isSubmitting}
                 onClick={() => handleSave()}
               >
                 <div className="flex items-center gap-2">
-                  {isSubmitting ? (
-                    <Loader2
-                      className="h-3.5 w-3.5 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : null}
                   {mode === "create"
                     ? hasRunAt
                       ? (labels.scheduleTask ??

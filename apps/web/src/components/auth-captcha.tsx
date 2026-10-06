@@ -16,7 +16,7 @@ export interface CaptchaFetchOptions {
 }
 
 /** The fields of a Better Auth error answer that `getErrorMessage` reads. */
-export interface AuthErrorAnswer {
+interface AuthErrorAnswer {
   code?: string;
   status?: number;
 }
@@ -43,14 +43,6 @@ export interface AuthCaptcha {
   runWithCaptcha: RunWithCaptcha;
   /** Better Auth's own messages are English, so known answers are translated. */
   getErrorMessage: (error: AuthErrorAnswer, fallback: string) => string;
-}
-
-/**
- * Runs with the single-use pass Core's email status answer carries, so the
- * sign-in code sent next needs no widget of its own.
- */
-export function runWithCaptchaPass(pass: string): RunWithCaptcha {
-  return (action) => action({ headers: { [AUTH_CAPTCHA_HEADER]: pass } });
 }
 
 const ANALYTICS_EVENT = "Security Check";

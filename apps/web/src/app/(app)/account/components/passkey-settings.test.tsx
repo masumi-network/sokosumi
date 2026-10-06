@@ -234,7 +234,10 @@ describe("PasskeySettings", () => {
     await screen.findByRole("button", { name: "edit-MacBook Touch ID" });
     await user.click(screen.getByRole("button", { name: "add" }));
 
-    expect(screen.getByRole("button", { name: "add" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "add" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
     expect(
       screen.getByRole("button", { name: "edit-MacBook Touch ID" }),
     ).toBeDisabled();
@@ -250,8 +253,11 @@ describe("PasskeySettings", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: "add" })).not.toHaveAttribute(
+        "aria-busy",
+      );
     });
+    expect(screen.getByRole("button", { name: "add" })).not.toBeDisabled();
   });
 
   it("deletes a passkey and refreshes the list", async () => {

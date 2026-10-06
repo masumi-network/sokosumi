@@ -268,10 +268,10 @@ export function JobsList({
                 variant="outline"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground w-full text-xs"
-                disabled={isLoadingMore}
+                loading={isLoadingMore}
                 onClick={handleLoadMore}
               >
-                {isLoadingMore ? t("loading") : t("loadMore")}
+                {t("loadMore")}
               </Button>
             </div>
           ) : null}

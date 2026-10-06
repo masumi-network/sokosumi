@@ -22,7 +22,12 @@ import { Label } from "@/components/ui/label";
 import type { FormData } from "@/lib/form";
 
 import { PasswordInput } from "./password-input";
-import type { AuthNamespace } from "./types";
+
+type AuthNamespace =
+  | "Auth.Email.Form"
+  | "Auth.Pages.ForgotPassword.Form"
+  | "Auth.Pages.SignUp.Form"
+  | "Auth.Pages.ResetPassword.Form";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -42,7 +47,6 @@ export function FormFields<T extends FieldValues>({
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
-  const authT = useTranslations("Auth");
 
   return (
     <>
@@ -59,12 +63,7 @@ export function FormFields<T extends FieldValues>({
                 </FormLabel>
               ) : null}
               <FormControl>
-                <FormInput
-                  field={field}
-                  formDataItem={formDataItem}
-                  t={t}
-                  authT={authT}
-                />
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
               {formDataItem.descriptionKey ? (
                 <FormDescription className="text-center">
@@ -90,26 +89,23 @@ interface FormInputProps<T extends FieldValues>
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  authT: IntlTranslation<"Auth">;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
-  authT,
   ...controlProps
 }: FormInputProps<T>) {
-  const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
-    formDataItem;
-  const placeholderSource = placeholderKey ?? labelKey;
-  const placeholder = placeholderSource && t(placeholderSource);
+  const { autoComplete, type, labelKey, name, disabled } = formDataItem;
+  // The auth fields' placeholders repeat their labels.
+  const placeholder = labelKey && t(labelKey);
 
   if (type === "checkbox") {
     const id = labelKey?.toString() ?? name.toString();
 
     return (
-      <div className="flex items-center justify-center gap-2">
+      <div className="flex items-center gap-2">
         <Checkbox
           id={id}
           checked={field.value}
@@ -128,8 +124,6 @@ function FormInput<T extends FieldValues>({
         autoComplete={autoComplete}
         placeholder={placeholder}
         className="text-center"
-        showLabel={authT("PasswordToggle.show")}
-        hideLabel={authT("PasswordToggle.hide")}
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
         disabled={disabled}

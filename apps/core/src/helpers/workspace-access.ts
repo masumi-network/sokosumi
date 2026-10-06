@@ -1,7 +1,6 @@
 import type { Prisma } from "@sokosumi/database";
-import { InvitationStatus } from "@sokosumi/database";
 
-import { normalizeInvitationEmail } from "@/helpers/chat-room-invitation";
+import { pendingOrganizationInvitationsWhere } from "@/helpers/invitation";
 
 export const WORKSPACE_GATE_STATUSES = [
   "ready",
@@ -105,8 +104,6 @@ export async function loadWorkspaceAccess(
     };
   }
 
-  const email = normalizeInvitationEmail(user.email);
-
   const [personalWorkspace, membership, pendingInvite] = await Promise.all([
     tx.workspace.findUnique({
       where: { userId },
@@ -117,11 +114,7 @@ export async function loadWorkspaceAccess(
       select: { id: true },
     }),
     tx.invitation.findFirst({
-      where: {
-        status: InvitationStatus.PENDING,
-        expiresAt: { gt: new Date() },
-        email: { equals: email, mode: "insensitive" },
-      },
+      where: pendingOrganizationInvitationsWhere(user.email),
       select: { id: true },
     }),
   ]);

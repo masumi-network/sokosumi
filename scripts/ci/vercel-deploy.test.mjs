@@ -1220,12 +1220,21 @@ describe("git preview policy", () => {
       assert.doesNotMatch(job, /ref:.*pull_request\.head/);
     }
     const renew = jobBlock(workflow, "renew");
-    assert.match(renew, /workflow_run\.name == 'PR synchronize'/);
+    assert.match(
+      renew,
+      /workflow_run\.path == '\.github\/workflows\/pr-synchronize\.yml'/,
+    );
     assert.match(renew, /preview-lifecycle\.ts renew/);
     assert.doesNotMatch(renew, /vercel-deploy\.mjs/);
     const closed = jobBlock(workflow, "closed");
-    assert.match(closed, /workflow_run\.name == 'PR closed'/);
+    assert.match(
+      closed,
+      /workflow_run\.path == '\.github\/workflows\/pr-closed\.yml'/,
+    );
     assert.doesNotMatch(closed, /issues: write/);
+    // run-name overrides workflow_run.name on both signals.
+    assert.doesNotMatch(renew, /workflow_run\.name ==/);
+    assert.doesNotMatch(closed, /workflow_run\.name ==/);
     const reconcile = jobBlock(workflow, "reconcile");
     assert.match(reconcile, /group:.*matrix\.pr/);
     assert.match(jobBlock(workflow, "comment"), /!\(startsWith/);

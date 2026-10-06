@@ -95,3 +95,36 @@ describe("auth router oauth issuer metadata", () => {
     expect(oauthOpenIdConfigMetadataMock).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("auth router token requests", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    vi.clearAllMocks();
+  });
+
+  async function handled(path: string) {
+    const { default: app } = await import("./index.js");
+    const { auth } = await import("@/lib/auth.js");
+    vi.mocked(auth.handler).mockResolvedValue(new Response("{}"));
+
+    await app.request(`http://localhost${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/x-www-form-urlencoded" },
+      body: "grant_type=authorization_code&client_id=c&client_secret=s",
+    });
+
+    expect(auth.handler).toHaveBeenCalledOnce();
+    const [request] = vi.mocked(auth.handler).mock.calls[0] ?? [];
+    return request;
+  }
+
+  it.each(["/oauth2/token", "/oauth2/revoke"])(
+    "hands %s to Better Auth with its body secret as it came",
+    async (path) => {
+      const request = await handled(path);
+
+      expect(request?.headers.get("authorization")).toBeNull();
+      expect(await request?.text()).toContain("client_secret=s");
+    },
+  );
+});

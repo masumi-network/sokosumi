@@ -8,7 +8,6 @@ import {
   sanitizeProjectIdentifier,
 } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
@@ -92,12 +91,8 @@ export function ProjectForm({
     : identifier && !isIdentifierValid
       ? t("Wizard.name.identifierInvalid")
       : null;
-  const isSubmitDisabled =
-    !name.trim() ||
-    !isWebsiteValid ||
-    !isIdentifierValid ||
-    isIdentifierTaken ||
-    isSubmitting;
+  const isFormInvalid =
+    !name.trim() || !isWebsiteValid || !isIdentifierValid || isIdentifierTaken;
 
   function updateSubmitting(nextIsSubmitting: boolean) {
     setIsSubmitting(nextIsSubmitting);
@@ -106,7 +101,7 @@ export function ProjectForm({
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (isSubmitDisabled) return;
+    if (isFormInvalid || isSubmitting) return;
 
     updateSubmitting(true);
     try {
@@ -325,13 +320,11 @@ export function ProjectForm({
                   {labels.cancel}
                 </Button>
               ) : null}
-              <Button type="submit" disabled={isSubmitDisabled}>
-                {isSubmitting ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : null}
+              <Button
+                type="submit"
+                disabled={isFormInvalid}
+                loading={isSubmitting}
+              >
                 {labels.submit}
               </Button>
             </>

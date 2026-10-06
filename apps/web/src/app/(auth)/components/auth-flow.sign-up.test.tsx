@@ -167,9 +167,8 @@ describe("AuthFlow signUp", () => {
   });
 
   it("opens on the email step beside the providers", () => {
-    render(
-      <AuthFlow mode="signUp" lastUsedMethod="google" returnUrl="/agents" />,
-    );
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<AuthFlow mode="signUp" lastUsedMethod="google" />);
 
     expect(emailField()).toHaveAttribute("type", "email");
     expect(emailField()).toHaveAttribute("autocomplete", "email");
@@ -219,9 +218,8 @@ describe("AuthFlow signUp", () => {
 
   it("carries the confirmed email to the details step", async () => {
     const user = userEvent.setup();
-    render(
-      <AuthFlow mode="signUp" lastUsedMethod={null} returnUrl="/agents" />,
-    );
+    mockSearchParams = new URLSearchParams({ returnUrl: "/agents" });
+    render(<AuthFlow mode="signUp" lastUsedMethod={null} />);
 
     await continueWith(user, "ada@example.com");
 
@@ -541,12 +539,14 @@ describe("AuthFlow signUp", () => {
 
       await waitFor(() => expect(pushMock).toHaveBeenCalledTimes(1));
       expect(emailField()).toBeDisabled();
-      // Continue keeps spinning until the page has gone.
+      // Continue keeps loading until the page has gone.
       const continueButton = screen.getByRole("button", {
         name: "continueWithEmail",
       });
-      expect(continueButton).toBeDisabled();
-      expect(continueButton.querySelector(".animate-spin")).not.toBeNull();
+      expect(continueButton).toHaveAttribute("aria-busy", "true");
+      expect(
+        continueButton.querySelector('[data-slot="button-loading-bar"]'),
+      ).not.toBeNull();
       expect(socialButtonsMock).toHaveBeenLastCalledWith(
         expect.objectContaining({ disabled: true }),
       );

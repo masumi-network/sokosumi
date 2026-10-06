@@ -1208,7 +1208,8 @@ function TableWorkspace({
           {dialog !== "history" && (
             <DialogFooter>
               <Button
-                disabled={pending || (dialog === "enrich" && !!taskId)}
+                disabled={dialog === "enrich" && !!taskId}
+                loading={pending}
                 onClick={() =>
                   void run(
                     async () => {
@@ -1295,11 +1296,7 @@ function TableWorkspace({
                   )
                 }
               >
-                {pending
-                  ? t("saving")
-                  : dialog === "enrich"
-                    ? t("createTask")
-                    : t("save")}
+                {dialog === "enrich" ? t("createTask") : t("save")}
               </Button>
             </DialogFooter>
           )}

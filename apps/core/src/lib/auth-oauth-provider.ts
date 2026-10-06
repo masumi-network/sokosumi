@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { setTimeout } from "node:timers/promises";
 import {
   getOAuthProviderState,
@@ -9,8 +8,7 @@ import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
-export const OAUTH_ACCESS_TOKEN_PREFIX = "soko_access_token_";
-export const OAUTH_REFRESH_TOKEN_PREFIX = "soko_refresh_token_";
+import { hashStoredOAuthToken } from "./auth-oauth-token-prefixes";
 
 export const oauthRefreshTokenOptions = {
   refreshTokenExpiresIn: 7_776_000, // 90 days (default: 2_592_000)
@@ -170,8 +168,7 @@ interface RefreshTokenRotation {
 
 /**
  * Whether the provider rotated this refresh token and its replay window is
- * still open. `findRotation` receives the stored token: Better Auth's default
- * `storeTokens: "hashed"` keeps a SHA-256 base64url digest without the prefix.
+ * still open. `findRotation` receives the token as Better Auth stores it.
  */
 export async function isRefreshTokenRotating(
   refreshToken: string,
@@ -180,9 +177,7 @@ export async function isRefreshTokenRotating(
 ): Promise<boolean> {
   if (!refreshToken.startsWith(prefix)) return false;
   const rotation = await findRotation(
-    createHash("sha256")
-      .update(refreshToken.slice(prefix.length))
-      .digest("base64url"),
+    hashStoredOAuthToken(refreshToken, prefix),
   );
   return (
     !!rotation?.rotatedAt &&
@@ -191,20 +186,21 @@ export async function isRefreshTokenRotating(
   );
 }
 
-export async function handleOAuthRefreshTokenRequest(
+/**
+ * `POST /oauth2/token`. A form request is read once, and a refresh that lost a
+ * rotation race is retried. Anything else goes to `handler` as it came.
+ */
+export async function handleOAuthTokenRequest(
   request: Request,
   handler: (request: Request) => Promise<Response>,
   retry: (body: OAuthRefreshTokenBody, request: Request) => Promise<Response>,
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    request.method !== "POST" ||
-    !new URL(request.url).pathname.endsWith("/oauth2/token") ||
     !request.headers
       .get("content-type")
       ?.toLowerCase()
-      .includes("application/x-www-form-urlencoded") ||
-    request.headers.has("dpop")
+      .includes("application/x-www-form-urlencoded")
   ) {
     return handler(request);
   }
@@ -212,7 +208,8 @@ export async function handleOAuthRefreshTokenRequest(
   const params = new URLSearchParams(await request.clone().text());
   if (
     params.get("grant_type") !== "refresh_token" ||
-    params.has("client_assertion")
+    params.has("client_assertion") ||
+    request.headers.has("dpop")
   ) {
     return handler(request);
   }
@@ -224,8 +221,8 @@ export async function handleOAuthRefreshTokenRequest(
     ...(resources.length > 1 ? { resource: resources } : {}),
   };
   let response = await handler(request.clone());
-  // Better Auth 1.7.6 rejects the losing rotation claim before the winner
-  // stores its replay. Re-enter its endpoint so authentication and the 30s
+  // Better Auth 1.7.7 still rejects the losing rotation claim before the
+  // winner stores its replay. Re-enter its endpoint so authentication and the 30s
   // replay window remain enforced by the provider, across server instances.
   // Internal attempts use the validated API endpoint: the incoming HTTP
   // request has already passed the rate limiter and must only count once.

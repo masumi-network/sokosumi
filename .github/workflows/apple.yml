@@ -68,6 +68,10 @@ jobs:
     # `apps/apple/docs/xcode-cloud-required-check.md`.
     if: needs.changes.outputs.apple == 'true' || github.event_name == 'workflow_dispatch' || github.event_name == 'push'
     runs-on: xcode-27
+    permissions:
+      contents: read
+      # Delete superseded compilation cache entries.
+      actions: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -81,13 +85,69 @@ jobs:
       - name: Show Xcode version
         run: xcodebuild -version && swift --version
 
+      # SwiftPM otherwise clones every dependency (tree-sitter grammars,
+      # ably-cocoa, swift-openapi, ...) from GitHub on each run, ~1m40s of
+      # the test step. Keyed by the workspace's pins, so a version bump
+      # fetches afresh. `-skipPackageUpdates` stops xcodebuild re-fetching
+      # every remote (~40s) when the restored checkouts already match.
+      - name: Restore Swift package checkouts
+        id: spm-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      # Xcode's compilation cache is keyed by the compiler's inputs, not by
+      # file dates, so unlike DerivedData it survives a fresh checkout: an
+      # unchanged module replays instead of compiling. Any earlier entry is
+      # a valid starting point, hence the run-scoped key and prefix restore.
+      # swift-build deletes that directory after the build unless
+      # COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES (cleanupCompilationCache).
+      - name: Restore Xcode compilation cache
+        id: cas-cache
+        uses: actions/cache/restore@v6
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
+          restore-keys: ${{ runner.os }}-xcode-cas-
+
       - name: Test Sokosumi workspace scheme
         working-directory: apps/apple
         # Coverage stays off: ably-cocoa's C target (AblyDeltaCodec) cannot
         # link the profile runtime, so gathering coverage fails the test build
         # (SOK-976). Nothing consumes coverage today. Restore later by
         # excluding AblyDeltaCodec, not by re-enabling coverage here.
-        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- test -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES test -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+
+      # Saved from main only, like the Mint cache: a PR's entry is scoped to
+      # its merge ref, so no sibling PR could read it. Saved even when tests
+      # fail, since the compile that filled them succeeded.
+      - name: Save Swift package checkouts
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.spm-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/SourcePackages
+          key: ${{ runner.os }}-spm-${{ hashFiles('apps/apple/Sokosumi.xcworkspace/xcshareddata/swiftpm/Package.resolved') }}
+
+      - name: Save Xcode compilation cache
+        # A re-run attempt keeps the run id and restores its own entry exactly.
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ runner.temp }}/CompilationCache
+          key: ${{ runner.os }}-xcode-cas-${{ github.run_id }}
+
+      # Each main push saves a ~0.4 GB entry and restores only the newest, so
+      # older ones would pile up in the repo's 10 GB and evict other caches.
+      - name: Delete superseded Xcode compilation caches
+        if: ${{ !cancelled() && github.event_name == 'push' && steps.cas-cache.outputs.cache-hit != 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: >-
+          gh cache list --ref "$GITHUB_REF" --key "$RUNNER_OS-xcode-cas-" --sort created_at
+          --order desc --limit 100 --json id --jq '.[1:][].id'
+          | xargs -r -n1 gh cache delete
 
       - name: Report test failures
         if: failure()

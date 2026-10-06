@@ -6,13 +6,11 @@ import { betterAuth } from "better-auth/minimal";
 import { jwt, oAuthProxy } from "better-auth/plugins";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { answerCreatePromptWithNewSession } from "./auth-oauth-provider";
-import { keepNewSessionPersistent } from "./auth-persistent-session";
+import { afterNewSession } from "./auth-new-session";
 import {
   claimSignUpConversion,
   oauthSignUpOptions,
   recordSignUpConversion,
-  takeSignUpConversionRedirect,
 } from "./auth-sign-up-conversion";
 
 // Owned stateful persistence fixture: tests observe claims and rollback, rather
@@ -170,13 +168,7 @@ function createAuth(origin = CORE, proxy = false) {
         create: { after: (user, ctx) => recordSignUpConversion(user.id, ctx) },
       },
     },
-    // Core's after hook, in order.
-    hooks: {
-      after: createAuthMiddleware(async (ctx) => {
-        await keepNewSessionPersistent(ctx);
-        await answerCreatePromptWithNewSession(ctx);
-      }),
-    },
+    hooks: { after: createAuthMiddleware(afterNewSession) },
     plugins: [
       jwt({ disableSettingJwtHeader: true }),
       oauthProvider({
@@ -359,16 +351,9 @@ describe("installed Better Auth social sign-up flows", () => {
         value: "github",
         expiresAt: new Date(Date.now() + 60_000),
       },
-      {
-        id: "bad-redirect",
-        identifier: "sign-up-conversion-redirect:user-invalid",
-        value: "github",
-        expiresAt: new Date(Date.now() + 60_000),
-      },
     );
     expect(await claimSignUpConversion("user-expired")).toBeNull();
     expect(await claimSignUpConversion("user-invalid")).toBeNull();
-    expect(await takeSignUpConversionRedirect("user-invalid")).toBe(false);
     expect(await claimSignUpConversion("other-user")).toBeNull();
   });
 

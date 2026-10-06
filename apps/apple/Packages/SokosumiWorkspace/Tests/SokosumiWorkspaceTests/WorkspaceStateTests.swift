@@ -136,14 +136,33 @@ private final class ScriptedTransport: ClientTransport {
   }
 }
 
-private func accessBody(gate: String, personal: Bool = true) -> String {
+private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
+private let acmeWorkspaceId = "22222222-2222-7222-8222-222222222222"
+
+/// One `UserWorkspace`: personal for nil, Acme for `org_1`.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  organizationId == nil
+    ? #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+    : #"{"id":"\#(acmeWorkspaceId)","kind":"organization","name":"Acme","organizationId":"org_1","slug":"acme","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+}
+
+/// `GET /users/me/workspaces`: personal and Acme, `preferring` the one a
+/// session opens (nil is personal).
+private func workspacesBody(preferring organizationId: String? = nil) -> String {
   """
-  {"data":{"gate":"\(gate)","hasPersonalWorkspace":\(personal),"hasOrganizationMembership":true,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  {"data":{"workspaces":[\(userWorkspaceJSON(nil, preferred: organizationId == nil)),\(userWorkspaceJSON("org_1", preferred: organizationId == "org_1"))],"pendingInvitationCount":0},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
   """
 }
 
-private let orgsBody = """
-{"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+/// `PUT /users/me/workspaces/preferred` reply.
+private func preferredWorkspaceBody(preferring organizationId: String? = nil) -> String {
+  """
+  {"data":\(userWorkspaceJSON(organizationId, preferred: true)),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  """
+}
+
+private let noWorkspacesBody = """
+{"data":{"workspaces":[],"pendingInvitationCount":0},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
 """
 
 private let userBody = """
@@ -179,8 +198,7 @@ private func lifecycleFixture(general: String, design: String) throws -> (Worksp
   let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
   let lastMember = #"{"error":"Bad Request","message":"You are the last member of this room.","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/chats/rooms/x/members/me","method":"DELETE"}}"#
   let (state, auth, transport, _) = try ephemeralState([
-    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-    (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, workspacesBody(preferring: "org_1")), (200, userBody),
     (200, roomsBody(names: ["general", "design"])),
     (200, transcriptPageBody(messages: [], nextCursor: nil)),
     (200, owner), (200, roomsBody(names: [])),
@@ -238,8 +256,7 @@ struct WorkspaceStateTests {
   func channelMembershipRespectsNavigation(action: String, joining: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (joining ? 200 : 201, roomReadBody(id: target, unread: 0)),
@@ -286,8 +303,7 @@ struct WorkspaceStateTests {
   @Test func channelUpdateReplacesRoomWithoutNavigating() async throws {
     let edited = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general", "design"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: edited, unread: 3, name: "Design renamed"))
@@ -378,8 +394,7 @@ struct WorkspaceStateTests {
     let unavailable = #"{"error":"Internal Server Error","message":"Unavailable","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/users/me/organizations/org_1/member","method":"GET"}}"#
     let owner = envelope(#"{"id":"member-me","userId":"user_1","organizationId":"org_1","role":"owner","seatAssignedAt":null,"createdAt":"2026-01-01T00:00:00.000Z"}"#)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, envelope(#"{"organizationId":"org_1"}"#)),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (500, unavailable), (200, roomsBody(names: ["design"])),
@@ -407,8 +422,7 @@ struct WorkspaceStateTests {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: target, unread: 0)),
@@ -434,8 +448,7 @@ struct WorkspaceStateTests {
   @Test(arguments: ["stay", "leave", "reset"], [true, false]) func participantDirectRespectsNavigation(action: String, fromPicker: Bool) async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, roomReadBody(id: target, unread: 0).replacingOccurrences(of: "\"kind\":\"channel\"", with: "\"kind\":\"direct\"")),
@@ -490,8 +503,7 @@ struct WorkspaceStateTests {
       .replacingOccurrences(of: "\"userMembers\":[]",
                             with: #""userMembers":[{"id":"user_1","name":"Me","email":"me@example.com","image":null,"presence":"online"}]"#)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       // The coworker list and the assistant, in either order.
@@ -523,13 +535,12 @@ struct WorkspaceStateTests {
   @Test func failedWorkspaceSwitchDiscardsPendingDirect() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, roomReadBody(id: target, unread: 0)),
       (500, """
-      {"error":"Internal Server Error","message":"Try again","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"Try again","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """)
     ], visible: false)
     await state.reload(auth: auth)
@@ -572,10 +583,8 @@ struct WorkspaceStateTests {
 
   @Test func reloadReadySelectsPersonalDefaultAndLoadsRooms() async throws {
     let (state, auth, transport, defaults) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
@@ -603,8 +612,7 @@ struct WorkspaceStateTests {
       (200, #"{"data":[\#(order)],"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
     }
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["a", "b", "c"], pinned: true)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       put,
@@ -644,10 +652,8 @@ struct WorkspaceStateTests {
 
   @Test func sidebarRefreshFailureThenRetryPreservesOpenTranscript() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -672,25 +678,21 @@ struct WorkspaceStateTests {
   }
 
   @Test func reloadBlockedGateLoadsNoRooms() async throws {
-    let (state, auth, transport, _) = try ephemeralState([(200, accessBody(gate: "identity-onboarding", personal: false))])
+    let (state, auth, transport, _) = try ephemeralState([(200, noWorkspacesBody)])
     await state.reload(auth: auth)
     #expect(state.phase == .blocked(gate: .identityOnboarding))
     #expect(state.rooms.isEmpty)
-    #expect(transport.operationIDs == ["get/users/{id}/workspace-access"])
+    #expect(transport.operationIDs == ["get/users/{id}/workspaces"])
   }
 
   @Test func switchSuccessCommitsSelectionAndRooms() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, roomsBody(names: ["launch"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
@@ -703,7 +705,7 @@ struct WorkspaceStateTests {
     #expect(state.selectionId == "org_1")
     #expect(state.rooms.map(\.name) == ["launch"])
     #expect(transport.operationIDs.suffix(4) == [
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/workspaces/preferred",
       "get/chats/rooms",
       "get/chats/rooms/{id}/messages",
       "post/chats/rooms/{id}/read"
@@ -714,15 +716,13 @@ struct WorkspaceStateTests {
 
   @Test func switchFailureKeepsOldSelectionAndRooms() async throws {
     let (state, auth, _, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """)
     ])
     await state.reload(auth: auth)
@@ -738,16 +738,12 @@ struct WorkspaceStateTests {
 
   @Test func selectWhileLoadingIgnoresSecondSwitch() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, roomsBody(names: ["launch"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
@@ -769,16 +765,12 @@ struct WorkspaceStateTests {
 
   @Test func resetClearsEverything() async throws {
     let (state, auth, _, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, roomsBody(names: ["launch"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0))
@@ -800,10 +792,8 @@ struct WorkspaceStateTests {
 
   @Test func switchRoomsListFailureRestoresPreviousPreference() async throws {
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440037",
@@ -811,15 +801,11 @@ struct WorkspaceStateTests {
         content: "kept"
       )], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
       """),
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      (200, preferredWorkspaceBody())
     ])
     await state.reload(auth: auth)
     await waitForTranscriptIdle(state)
@@ -834,19 +820,17 @@ struct WorkspaceStateTests {
     #expect(state.transcriptMessages.map(\.content) == ["kept"])
     #expect(state.transcriptError == nil)
     #expect(transport.operationIDs.suffix(3) == [
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/workspaces/preferred",
       "get/chats/rooms",
-      "put/users/{id}/preferred-organization"
+      "put/users/{id}/workspaces/preferred"
     ])
   }
 
   @Test func openRoomReplacesListUnreadWithReadDTO() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440030"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 3)),
@@ -882,10 +866,8 @@ struct WorkspaceStateTests {
     {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"GET"}}
     """)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 3)),
       historyFailure,
       historyFailure
@@ -907,10 +889,8 @@ struct WorkspaceStateTests {
   @Test func savedRoomRestoredOnReload() async throws {
     let savedID = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, _, defaults) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: savedID, unread: 0))
@@ -924,10 +904,8 @@ struct WorkspaceStateTests {
   @Test func staleSavedRoomFallsBackToFirst() async throws {
     let firstID = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, _, defaults) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: firstID, unread: 0))
@@ -941,10 +919,8 @@ struct WorkspaceStateTests {
   @Test func selectRoomPersistsAndOpensTranscript() async throws {
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, _, defaults) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
@@ -968,10 +944,8 @@ struct WorkspaceStateTests {
   @Test func selectRoomNilKeepsOpenTranscript() async throws {
     let selected = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, _, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440041",
@@ -996,10 +970,8 @@ struct WorkspaceStateTests {
     let firstID = "550e8400-e29b-41d4-a716-446655440000"
     let secondID = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: firstID, unread: 0)),
@@ -1048,9 +1020,7 @@ struct WorkspaceStateTests {
 
   @Test(arguments: ["Me", ""]) func outboundSenderUsesEmailForEmptyName(name: String) async throws {
     let (state, auth, _, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody),
-      (200, userBody.replacingOccurrences(of: "\"name\":\"Me\"", with: "\"name\":\"\(name)\"")),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody.replacingOccurrences(of: "\"name\":\"Me\"", with: "\"name\":\"\(name)\"")),
       (200, roomsBody(names: []))
     ])
     await state.reload(auth: auth)
@@ -1065,8 +1035,7 @@ struct WorkspaceStateTests {
     let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: roomID, content: "Reply")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
     var responses: [(Int, String)] = [
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [root], nextCursor: olderRoomFailure ? "older-room" : nil)),
       (200, roomReadBody(id: roomID, unread: 3))
@@ -1122,8 +1091,7 @@ struct WorkspaceStateTests {
     let later = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440036", roomId: roomID, content: "Later")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(rootID)\"")
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 3)),
@@ -1153,10 +1121,8 @@ struct WorkspaceStateTests {
   @Test func failedReadKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440035"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440036",
@@ -1184,8 +1150,7 @@ struct WorkspaceStateTests {
   @Test func hiddenHistoryDefersReadUntilWindowBecomesVisible() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 1))
@@ -1206,8 +1171,7 @@ struct WorkspaceStateTests {
     let page = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "first")], nextCursor: nil)
     let updatedPage = transcriptPageBody(messages: [transcriptMessage(id: messageID, roomId: roomID, content: "updated")], nextCursor: nil)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, unreadRoomsBody(id: roomID, unread: 2)),
       (200, page), (200, roomReadBody(id: roomID, unread: 0)),
       (500, #"{"error":"Internal Server Error","message":"boom","meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1","path":"/messages","method":"GET"}}"#),
@@ -1234,10 +1198,8 @@ struct WorkspaceStateTests {
   @Test func failedOlderPageKeepsResolvedHistory() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440033"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, unreadRoomsBody(id: roomID, unread: 1)),
       (200, transcriptPageBody(messages: [transcriptMessage(
         id: "550e8400-e29b-41d4-a716-446655440034",
@@ -1358,8 +1320,7 @@ struct WorkspaceStateTests {
     let historical = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440500", roomId: roomID, content: "earlier")
     let confirmed = transcriptMessage(id: confirmedID, roomId: roomID, content: "hello")
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: historyIncludesSend ? [historical, confirmed] : [historical], nextCursor: nil)),
       (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello")),
@@ -1391,10 +1352,8 @@ struct WorkspaceStateTests {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440501"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -1424,10 +1383,8 @@ struct WorkspaceStateTests {
     let confirmedID = "550e8400-e29b-41d4-a716-446655440502"
     let roster = roomsBody(names: ["general"]).replacingOccurrences(of: "\"userMembers\":[]", with: #""userMembers":[{"id":"peer","name":"Peer","email":"peer@example.com","presence":"online"}]"#)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roster),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -1464,10 +1421,8 @@ struct WorkspaceStateTests {
   @Test func failedSendRemoveDropsLocalShellOnly() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -1490,10 +1445,8 @@ struct WorkspaceStateTests {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440503"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
@@ -1521,17 +1474,15 @@ struct WorkspaceStateTests {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let confirmedID = "550e8400-e29b-41d4-a716-446655440504"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: roomID, unread: 0)),
       // POST is paused before it consumes a response, so the switch PUT
       // takes the next stub. 500 then 201 is the in-flight order.
       (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """),
       (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "hello"))
     ])
@@ -2397,8 +2348,7 @@ extension WorkspaceStateTests {
   func unfurlRemovalPreservesCurrentMessage(outcome: String) async throws {
     let response = transcriptMessage(id: "message", roomId: "room", content: "Old content")
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: [])),
       (outcome == "failure" ? 403 : 200, outcome == "failure" ? #"{"message":"Denied"}"# : "{\"data\":\(response),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"req\"}}")
     ], visible: false)
@@ -2841,8 +2791,7 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, invitationEnvelope("[\(invitationBody(id: "inv-1", roomId: partners)),\(invitationBody(id: "inv-2", roomId: partners))]")),
@@ -2896,8 +2845,7 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomsBody(names: ["general", "partners"])),
@@ -2932,8 +2880,7 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general", "design"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, invitationEnvelope(invitationBody(id: "inv-1", roomId: partners, status: "accepted"))),
@@ -2964,8 +2911,7 @@ extension WorkspaceStateTests {
   @Test func invitationResponseWaitsForOtherChannelMutations() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440009"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: target, unread: 0)),
@@ -2993,8 +2939,7 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, invitationEnvelope(#"{"status":"valid","room":{"id":"\#(partners)","name":"Partners","organizationId":"org_2","organizationName":"Acme Partners"}}"#)),
@@ -3059,8 +3004,7 @@ extension WorkspaceStateTests {
     let invitation = invitationEnvelope(#"{"id":"inv-1","roomId":"\#(partners)","roomName":"partners","organizationId":"org_1","organizationName":"Acme","email":"guest2@example.com","status":"pending","inviter":{"id":"user_1","name":"Me"},"expiresAt":"\#(timestamp)","createdAt":"\#(timestamp)"}"#)
     let link = invitationEnvelope(#"{"token":"tok","url":"https://app.sokosumi.com/chat/join/tok","roomId":"\#(partners)","createdAt":"\#(timestamp)","expiresAt":null,"revokedAt":null,"maxUses":null,"useCount":0}"#)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, invitationEnvelope("[]")), (200, invitationEnvelope("[]")),
@@ -3102,8 +3046,7 @@ extension WorkspaceStateTests {
                                         sokoBots: externalSokoBots)
     let withoutCoworker = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, invitationEnvelope(withCoworker)),
@@ -3140,8 +3083,7 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let partners = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, externalRoomsBody(general: general, partners: partners)),
@@ -3171,8 +3113,7 @@ extension WorkspaceStateTests {
     let renamed = externalRoomJSON(partners, name: "partners", discoverability: "external", members: externalMembers, sokoBots: externalSokoBots)
       .replacingOccurrences(of: #""groupName":null"#, with: #""groupName":"Launch crew""#)
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody(preferring: "org_1")), (200, userBody),
       (200, externalRoomsBody(general: general, partners: partners)),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, externalRoomsBody(general: general, partners: partners)),
@@ -3248,8 +3189,7 @@ private func envelope(_ data: String) -> String {
 @MainActor
 private func mentionRetryFixture(sourceSenderId: String = "user_1", target: MentionTarget = .coworker, retryResponses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
   let (state, auth, transport, _) = try ephemeralState([
-    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-    (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, workspacesBody()), (200, userBody),
     (200, roomsBody(names: ["general"])),
     (200, transcriptPageBody(messages: [
       mentionSourceJSON(id: "source", senderId: sourceSenderId, target: target),
@@ -3453,10 +3393,8 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let you = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, createdMessageBody(id: "saved", roomId: you, content: "")),
@@ -3487,10 +3425,8 @@ extension WorkspaceStateTests {
     let general = "550e8400-e29b-41d4-a716-446655440000"
     let you = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "You"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (201, createdMessageBody(id: "saved", roomId: you, content: ""))
@@ -3525,8 +3461,7 @@ private let sokoBotTurnId = "550e8400-e29b-41d4-a716-446655440777"
 @MainActor
 private func sokoBotFeedbackFixture(_ responses: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
   let (state, auth, transport, _) = try ephemeralState([
-    (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-    (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+    (200, workspacesBody()), (200, userBody),
     (200, roomsBody(names: []))
   ] + responses, visible: false)
   await state.reload(auth: auth)
@@ -3624,6 +3559,10 @@ private func chatDisplayBody(showRoomUnreadCount: Bool) -> String {
   envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
 }
 
+private func userPreferencesBody(showRoomUnreadCount: Bool, pushOptIn: Bool) -> String {
+  envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":\#(pushOptIn),"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[{"category":"CHAT_MENTION","channel":"IN_APP","enabled":true}]}"#)
+}
+
 private func chatDisplayError(status: String, message: String) -> String {
   #"{"error":"\#(status)","message":"\#(message)","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/users/me/preferences","method":"PATCH"}}"#
 }
@@ -3636,14 +3575,14 @@ extension WorkspaceStateTests {
       (200, chatDisplayBody(showRoomUnreadCount: true))
     ])
     await state.refreshChatDisplayPreferences(auth: auth)
-    #expect(!state.chatDisplay.showsRoomUnreadCount)
+    #expect(!state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
     try await state.setShowsRoomUnreadCount(true, auth: auth)
-    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving && !state.notificationPreferences.isLoaded)
     let bodyIndex = try #require(transport.operationIDs.firstIndex(of: preferencesWriteOperation))
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["showRoomUnreadCount": true])
-    // A later read (room open, Settings) keeps following Core.
+    // A later display-only read (room open) keeps following Core.
     await state.refreshChatDisplayPreferences(auth: auth)
-    #expect(state.chatDisplay.showsRoomUnreadCount)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
     #expect(transport.operationIDs.filter { $0 == preferencesReadOperation }.count == 2)
     #expect(transport.remainingStubs == 0)
     state.reset()
@@ -3673,6 +3612,30 @@ extension WorkspaceStateTests {
     await state.refreshChatDisplayPreferences(auth: auth)
     #expect(state.chatDisplay.showsRoomUnreadCount)
   }
+
+  @Test func userPreferencesRefreshAppliesOneGetOntoBothProjections() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true))
+    ])
+    #expect(!state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
+    #expect(await state.refreshUserPreferences(auth: auth))
+    #expect(state.chatDisplay.showsRoomUnreadCount && state.notificationPreferences.isLoaded)
+    #expect(state.notificationPreferences.pushOptIn)
+    #expect(state.notificationPreferences.reach(for: .mention) == .inApp)
+    #expect(transport.operationIDs.filter { $0 == preferencesReadOperation } == [preferencesReadOperation])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func failedUserPreferencesRefreshKeepsBothLastValues() async throws {
+    let (state, auth, _) = try await sokoBotFeedbackFixture([
+      (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true)),
+      (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
+    ])
+    #expect(await state.refreshUserPreferences(auth: auth))
+    await #expect(!state.refreshUserPreferences(auth: auth))
+    #expect(state.chatDisplay.showsRoomUnreadCount && state.notificationPreferences.isLoaded)
+    #expect(state.notificationPreferences.pushOptIn)
+  }
 }
 
 extension WorkspaceStateTests {
@@ -3684,10 +3647,8 @@ extension WorkspaceStateTests {
     let source = "550e8400-e29b-41d4-a716-446655440001"
     let quoted = "550e8400-e29b-41d4-a716-446655440123"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       // Everyone in the target room also reads the source room, so the quote
       // may cross; "outsider" is in neither.
       (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1"], "random": ["user_1", "peer"]])),
@@ -3722,10 +3683,8 @@ extension WorkspaceStateTests {
     let target = "550e8400-e29b-41d4-a716-446655440000"
     let source = "550e8400-e29b-41d4-a716-446655440001"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general", "random"], members: ["general": ["user_1", "outsider"], "random": ["user_1", "peer"]])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: target, unread: 0))
@@ -3743,10 +3702,8 @@ extension WorkspaceStateTests {
   @Test func plainTextPasteNeverReadsAMessage() async throws {
     let target = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")),
-      (200, orgsBody),
+      (200, workspacesBody()),
       (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: target, unread: 0))
@@ -3887,8 +3844,7 @@ extension WorkspaceStateTests {
     let reply = transcriptMessage(id: "550e8400-e29b-41d4-a716-446655440035", roomId: muteRoomId, content: "Reply")
       .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"\(muteRootId)\"")
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [root], nextCursor: nil)),
       (200, roomReadBody(id: muteRoomId, unread: 3)),
@@ -3965,8 +3921,7 @@ extension WorkspaceStateTests {
   /// A signed-in room with the Threads overview loaded, then `extra` for Mark all.
   private static func openOverview(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
       (200, roomReadBody(id: muteRoomId, unread: 3)),
@@ -4140,17 +4095,14 @@ extension WorkspaceStateTests {
     {"parentMessageId":"\(parent)","firstUnreadReplyId":"\(parent)-reply","parentContent":"Secret parent","unreadReplyCount":1,"roomId":"\(roomId)","lastUnreadAt":"\(timestamp)"}
     """], nextCursor: nil)
     let (state, auth, _, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0)),
       (500, """
-      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+      {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
       """),
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody(preferring: "org_1")),
       (200, roomsBody(names: ["launch"])),
       (200, transcriptPageBody(messages: [], nextCursor: nil)),
       (200, roomReadBody(id: "550e8400-e29b-41d4-a716-446655440000", unread: 0, name: "launch"))
@@ -4201,8 +4153,7 @@ extension WorkspaceStateTests {
   /// A signed-in room whose read answer lists two unread Threads, then `extra`.
   private static func openInsetRows(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
       (200, roomReadBody(id: muteRoomId, unread: 3, split: (channel: 0, threads: 2), threads: [muteRootId, otherRootId]))
@@ -4324,8 +4275,7 @@ extension WorkspaceStateTests {
   /// `general` open and read, `design` beside it; `extra` answers what the test does next.
   private static func openUnreadsFilter(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general", "design"])),
       (200, transcriptPageBody(messages: [transcriptMessage(id: muteRootId, roomId: muteRoomId, content: "Parent")], nextCursor: nil)),
       (200, roomReadBody(id: muteRoomId, unread: 0))
@@ -4433,8 +4383,7 @@ extension WorkspaceStateTests {
   /// A signed-in room showing two thread parents, then `extra`.
   private static func openBars(_ extra: [(Int, String)]) async throws -> (WorkspaceState, AuthState, ScriptedTransport) { // swiftlint:disable:this large_tuple
     let (state, auth, transport, _) = try ephemeralState([
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, roomsBody(names: ["general"])),
       (200, transcriptPageBody(messages: [barParent(id: muteRootId, unread: 2), barParent(id: otherRootId, unread: 1)], nextCursor: nil)),
       (200, roomReadBody(id: muteRoomId, unread: 3))
@@ -4548,8 +4497,7 @@ extension WorkspaceStateTests {
 
   private static func recheckOpening(read: Bool) -> [(Int, String)] {
     [
-      (200, accessBody(gate: "ready")), (200, orgsBody), (200, userBody),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#),
+      (200, workspacesBody()), (200, userBody),
       (200, read ? roomsBody(names: ["general"]) : channelUnreadRoomsBody(id: recheckRoomId, channel: 1, updatedAt: timestamp)),
       (200, transcriptPageBody(messages: [recheckFirst], nextCursor: nil))
     ] + (read ? [(200, roomReadBody(id: recheckRoomId, unread: 0))] : [])

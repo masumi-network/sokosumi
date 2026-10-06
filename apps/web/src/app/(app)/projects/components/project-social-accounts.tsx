@@ -2,13 +2,7 @@
 
 import type { ProjectSocialConnection } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
-import {
-  Loader2,
-  MoreHorizontal,
-  Plus,
-  RefreshCw,
-  TriangleAlert,
-} from "lucide-react";
+import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type ComponentType, useRef, useState } from "react";
@@ -362,23 +356,18 @@ export function ProjectSocialAccounts({
           <p className="text-muted-foreground text-sm">{t("description")}</p>
         </div>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
+          {/* Disabled on the trigger, not the button: a loading button drops
+              native `disabled`, and only the trigger's own flag stops Radix
+              from opening the menu. */}
+          <DropdownMenuTrigger asChild disabled={isBusy}>
             <Button
               type="button"
               variant="outline"
               size="sm"
               className="shrink-0"
-              disabled={isBusy}
-              aria-busy={pendingAction === "connect"}
+              loading={pendingAction === "connect"}
             >
-              {pendingAction === "connect" ? (
-                <Loader2
-                  className="size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : (
-                <Plus className="size-4" aria-hidden />
-              )}
+              <Plus className="size-4" aria-hidden />
               {t("connectAccount")}
             </Button>
           </DropdownMenuTrigger>
@@ -498,24 +487,18 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       disabled={isBusy}
+                      loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
                       }}
                     >
-                      {isRowPending && pendingAction === "reconnect" ? (
-                        <Loader2
-                          className="size-4 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        <RefreshCw className="size-4" aria-hidden />
-                      )}
+                      <RefreshCw className="size-4" aria-hidden />
                       {t("reconnect")}
                     </Button>
                   ) : null}
                   {canDisconnect ? (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild disabled={isBusy}>
                         <Button
                           ref={(node) => {
                             if (node) {
@@ -530,18 +513,12 @@ export function ProjectSocialAccounts({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          disabled={isBusy}
-                          aria-busy={isRowPending}
+                          loading={
+                            isRowPending && pendingAction !== "reconnect"
+                          }
                           aria-label={t("actions", { account: handle })}
                         >
-                          {isRowPending && pendingAction !== "reconnect" ? (
-                            <Loader2
-                              className="size-4 animate-spin motion-reduce:animate-pulse"
-                              aria-hidden
-                            />
-                          ) : (
-                            <MoreHorizontal className="size-4" aria-hidden />
-                          )}
+                          <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -582,7 +559,10 @@ export function ProjectSocialAccounts({
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const trigger = confirmationTriggerRef.current;
-            (trigger?.isConnected && !trigger.disabled
+            // A loading trigger is aria-disabled, not natively disabled.
+            (trigger?.isConnected &&
+            !trigger.disabled &&
+            trigger.getAttribute("aria-disabled") !== "true"
               ? trigger
               : headingRef.current
             )?.focus();
@@ -604,11 +584,15 @@ export function ProjectSocialAccounts({
             <AlertDialogCancel disabled={isBusy}>
               {t("cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction disabled={isBusy} onClick={handleConfirmation}>
+            <AlertDialogAction
+              disabled={isBusy}
+              loading={
+                confirmationIsDisconnect && pendingAction === "disconnect"
+              }
+              onClick={handleConfirmation}
+            >
               {confirmationIsDisconnect
-                ? pendingAction === "disconnect"
-                  ? t("disconnecting")
-                  : t("disconnectDialog.confirm")
+                ? t("disconnectDialog.confirm")
                 : t("replaceDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

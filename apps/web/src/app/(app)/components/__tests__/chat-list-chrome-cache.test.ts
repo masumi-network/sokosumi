@@ -151,7 +151,7 @@ describe("chat list chrome single-source composition contract", () => {
     expect(chatsPage).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );
-    // Composer still exists for sidebar/header; rooms + deferred are separate
+    // Composer still exists for the sidebar; rooms + deferred are separate
     // private-cache entries with the same tags (SOK-779).
     expect(cacheSource).toMatch(
       /function getPrivateCachedMembershipVisibleRooms/,
@@ -162,7 +162,7 @@ describe("chat list chrome single-source composition contract", () => {
     expect(cacheSource).toMatch(/function getPrivateCachedChatListChrome/);
   });
 
-  it("header workspace switcher reads members from getPrivateCachedChatListChrome", async () => {
+  it("header workspace switcher reads Core's workspaces list, not members", async () => {
     const { readFileSync } = await import("node:fs");
     const { dirname, join } = await import("node:path");
     const { fileURLToPath } = await import("node:url");
@@ -175,7 +175,9 @@ describe("chat list chrome single-source composition contract", () => {
       "utf8",
     );
 
-    expect(headerProfile).toMatch(/getPrivateCachedChatListChrome/);
+    // ADR 0051: the switcher lists workspaces from one Core read.
+    expect(headerProfile).toMatch(/userService\s*\.\s*getMyWorkspaces\s*\(/);
+    expect(headerProfile).not.toMatch(/getPrivateCachedChatListChrome/);
     expect(headerProfile).not.toMatch(
       /userService\s*\.\s*getMyMembersWithOrganizations\s*\(/,
     );

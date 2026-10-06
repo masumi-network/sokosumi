@@ -8,34 +8,48 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { forbidden, notFound } from "@/helpers/error";
 import prisma from "@/lib/db/prisma";
 
+export interface ActiveOrganizationFacts {
+  preferredOrganizationId: string | null;
+  hasPersonalWorkspace: boolean;
+  /** The person's organizations, oldest membership first. */
+  organizationIds: readonly string[];
+}
+
+/**
+ * The organization a new session opens, or null for the personal workspace:
+ * the preferred organization while still a member, then the personal
+ * workspace, then the oldest membership.
+ */
+export function pickActiveOrganizationId({
+  preferredOrganizationId,
+  hasPersonalWorkspace,
+  organizationIds,
+}: ActiveOrganizationFacts): string | null {
+  if (
+    preferredOrganizationId &&
+    organizationIds.includes(preferredOrganizationId)
+  ) {
+    return preferredOrganizationId;
+  }
+  if (hasPersonalWorkspace) {
+    return null;
+  }
+  return organizationIds[0] ?? null;
+}
+
 export async function resolveActiveOrganizationIdForSession(
   userId: string,
 ): Promise<string | null> {
-  const user = await userRepository.getUserById(userId, prisma);
-  const preferredOrganizationId = user?.preferredOrganizationId ?? null;
-
-  if (preferredOrganizationId) {
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
-      preferredOrganizationId,
-      prisma,
-    );
-    if (member) {
-      return preferredOrganizationId;
-    }
-  }
-
-  const personalWorkspace = await workspaceRepository.findPersonalWorkspace({
-    userId,
-    tx: prisma,
+  const [user, personalWorkspace, organizationIds] = await Promise.all([
+    userRepository.getUserById(userId, prisma),
+    workspaceRepository.findPersonalWorkspace({ userId, tx: prisma }),
+    memberRepository.getMembersOrganizationIdsByUserId(userId, prisma),
+  ]);
+  return pickActiveOrganizationId({
+    preferredOrganizationId: user?.preferredOrganizationId ?? null,
+    hasPersonalWorkspace: personalWorkspace !== null,
+    organizationIds,
   });
-  if (personalWorkspace) {
-    return null;
-  }
-
-  const organizationIds =
-    await memberRepository.getMembersOrganizationIdsByUserId(userId, prisma);
-  return organizationIds[0] ?? null;
 }
 
 export async function setPreferredOrganizationId(

@@ -38,6 +38,23 @@ it("moves a preview's deployment URL to its branch alias, where sign in lands", 
   expect(renewSession).not.toHaveBeenCalled();
 });
 
+it("keeps a protocol-relative path on the branch alias", async () => {
+  vi.stubEnv("VERCEL_ENV", "preview");
+  cmo.baseURL = BRANCH_ALIAS;
+
+  const response = await proxy(
+    new NextRequest(
+      "https://sokosumi-cmo-abc123.preview.cmo.xyz//evil.example/x",
+    ),
+  );
+
+  expect(response.status).toBe(308);
+  expect(response.headers.get("location")).toBe(
+    `${BRANCH_ALIAS}//evil.example/x`,
+  );
+  expect(renewSession).not.toHaveBeenCalled();
+});
+
 it.each([
   ["a preview on its branch alias", "preview", `${BRANCH_ALIAS}/`],
   // Behind a local proxy, Next.js sees its own host, not CMO's origin.
@@ -85,29 +102,25 @@ it("returns Core outages without rendering the page or losing rotated cookies", 
   expect(response.headers.has("x-middleware-next")).toBe(false);
 });
 
-it.each(["/", "/signup", "/signin"])(
-  "keeps renewal redirects and outages uncached on %s",
-  async (path) => {
-    const cookie =
-      "__Secure-cmo.account_data=rotated; Expires=Wed, 21 Oct 2026 07:28:00 GMT; HttpOnly; Secure; SameSite=Lax; Path=/";
-    for (const status of [204, 503]) {
-      vi.mocked(renewSession).mockResolvedValue(
-        new Response(null, {
-          status,
-          headers: { "set-cookie": cookie },
-        }),
-      );
+// Renewal's caching does not depend on the path, so one page stands for all.
+it("keeps renewal redirects and outages uncached", async () => {
+  const cookie =
+    "__Secure-cmo.account_data=rotated; Expires=Wed, 21 Oct 2026 07:28:00 GMT; HttpOnly; Secure; SameSite=Lax; Path=/";
+  for (const status of [204, 503]) {
+    vi.mocked(renewSession).mockResolvedValue(
+      new Response(null, {
+        status,
+        headers: { "set-cookie": cookie },
+      }),
+    );
 
-      const response = await proxy(
-        new NextRequest(`https://app.cmo.xyz${path}`),
-      );
+    const response = await proxy(new NextRequest("https://app.cmo.xyz/"));
 
-      expect(response.status).toBe(status === 503 ? 503 : 307);
-      expect(response.headers.get("cache-control")).toBe("no-store");
-      expect(response.headers.getSetCookie()).toEqual([cookie]);
-    }
-  },
-);
+    expect(response.status).toBe(status === 503 ? 503 : 307);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(response.headers.getSetCookie()).toEqual([cookie]);
+  }
+});
 
 it.each([
   ["/", "/?error=signed_out"],
