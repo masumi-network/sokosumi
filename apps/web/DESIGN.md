@@ -215,7 +215,7 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 - **Inter Medium (500)** — labels, badges, chips, callouts.
 - **Scale:** pentatonic — base **12px**, ×2 every 5 steps (`r = 2^(1/5) ≈ 1.1487`); Light kicks
   in ~20px+, with **negative tracking** growing at large sizes. Stick to the Tailwind scale
-  (`text-xs/sm/base/lg/xl/2xl/3xl`). No arbitrary `text-[…]` size in any unit: `text-[13px]`
+  (`text-2xs/xs/sm/base/lg/xl/2xl/3xl/4xl`). No arbitrary `text-[…]` size in any unit: `text-[13px]`
   and `text-[0.8125rem]` are the same off-scale 13px, and the guard fails both.
 - **`text-2xs` (11px, `micro`)** is the only step below `text-xs`, defined in `globals.css`. It
   is for dense meta and badges only: counts, chips, avatar initials, kbd hints, table meta.

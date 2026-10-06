@@ -357,23 +357,39 @@ describe("whole pixels", () => {
 // no fixed or off-scale font sizes
 // ---------------------------------------------------------------------------
 
-/** Paths relative to apps/web/src that may keep px font sizes (non-product UI). */
-const FONT_SIZE_ALLOWLIST = new Set(["app/api/export/pdf/route.ts"]);
+/**
+ * Paths relative to apps/web/src that may set a literal font size, each with
+ * the reason it cannot use the scale.
+ */
+const FONT_SIZE_ALLOWLIST = new Map([
+  [
+    "app/api/export/pdf/route.ts",
+    "PDF export chrome rendered by Puppeteer, not product UI",
+  ],
+  [
+    "app/global-error.tsx",
+    "replaces the root layout, so no app CSS loads; its inline 0.875rem is text-sm",
+  ],
+]);
 
 /**
  * Any unit, not just px: `text-[13px]` and `text-[0.8125rem]` are the same
  * off-scale 13px, and the rem spelling let ~130 of them past a px-only check.
- * Sizes come from the scale (`text-2xs` through `text-4xl`). Intentional
- * limit: does not scan template assignments like
- * root.style.fontSize = `${n}px`.
+ * The `length:` hints are caught whatever they hold, a literal or a variable
+ * (`text-[length:var(--x)]`, `text-(length:--x)`): either way the size comes
+ * from somewhere other than the scale. Sizes come from the scale (`text-2xs`
+ * through `text-4xl`). Intentional limit: does not scan template assignments
+ * like root.style.fontSize = `${n}px`.
  */
-const TEXT_ARBITRARY_SIZE = /text-\[(?:length:)?\d*\.?\d+[a-z%]+\]/;
-const FONT_SIZE_PX = /font-size:\s*\d+(?:\.\d+)?px/i;
+const TEXT_ARBITRARY_SIZE =
+  /text-\[(?:length:[^\]]*|\d*\.?\d+[a-z%]+)\]|text-\(length:[^)]*\)/;
+/** A literal size in CSS or an inline style string, in px, rem or em. */
+const FONT_SIZE_DECL = /font-size:\s*\d*\.?\d+(?:px|r?em)\b/i;
 const FONT_SIZE_STYLE_NUM = /fontSize:\s*\d+(?:\.\d+)?\b/;
-const FONT_SIZE_STYLE_PX = /fontSize:\s*["']\d+(?:\.\d+)?px["']/;
+const FONT_SIZE_STYLE_STR = /fontSize:\s*["'`]\d*\.?\d+(?:px|r?em)["'`]/;
 
 describe("no fixed or off-scale font sizes in product UI", () => {
-  it("has no text-[N<unit>], font-size: Npx, or fontSize: N outside allowlist", () => {
+  it("has no text-[N<unit>], text-(length:…), or literal font-size outside allowlist", () => {
     const violations: string[] = [];
 
     for (const file of SRC_FILES) {
@@ -385,9 +401,9 @@ describe("no fixed or off-scale font sizes in product UI", () => {
       file.lines.forEach((line, i) => {
         if (
           TEXT_ARBITRARY_SIZE.test(line) ||
-          FONT_SIZE_PX.test(line) ||
+          FONT_SIZE_DECL.test(line) ||
           FONT_SIZE_STYLE_NUM.test(line) ||
-          FONT_SIZE_STYLE_PX.test(line)
+          FONT_SIZE_STYLE_STR.test(line)
         ) {
           violations.push(`${file.relSrc}:${i + 1}: ${line.trim()}`);
         }
