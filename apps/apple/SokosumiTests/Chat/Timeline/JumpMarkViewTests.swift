@@ -216,7 +216,8 @@
         try await landing.fullStrength()
         try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) > 40 }
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Marked a second in.")
-        // The hold's own fade takes the wash under the pixel threshold shortly before 4.5 s.
+        // 3 s is still the full-strength stretch (to 3.42 s), so the mark has not ended early. Later, the hold's own
+        // fade takes the wash under the pixel threshold shortly before 4.5 s.
         clock.move(to: 3)
         try await Task.sleep(for: .milliseconds(100))
         #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Held until its closing fade: marked 3 s in.")

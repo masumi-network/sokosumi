@@ -47,13 +47,14 @@
         let landing = try await JumpMarkViewTests.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
+        try #require(thread == (landing.clock == nil), "The room's mark runs on the test clock, the Thread's on the wall clock.")
         let washed = { try Self.capture(host, scroll: scroll).washed.count { $0 } }
-        if landing.clock != nil {
+        if !thread {
           try await landing.fullStrength()
         }
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() > 40 }
         // Inside the full-strength stretch (0.45 s to 3.42 s of the hold).
-        if landing.clock == nil {
+        if thread {
           try await landing.fullStrength()
         }
         let held = try Self.capture(host, scroll: scroll)
@@ -86,11 +87,12 @@
         let landing = try await JumpMarkViewTests.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
-        if landing.clock != nil {
+        try #require(thread == (landing.clock == nil), "The room's mark runs on the test clock, the Thread's on the wall clock.")
+        if !thread {
           try await landing.fullStrength()
         }
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try Self.capture(host, scroll: scroll).washed.count { $0 } > 40 }
-        if landing.clock == nil {
+        if thread {
           try await landing.fullStrength()
         }
         let dimmed = try Self.capture(host, scroll: scroll).meanInk()
