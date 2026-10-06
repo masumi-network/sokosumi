@@ -47,7 +47,7 @@ export function SourcesGrid(props: SourcesGridProps) {
             href={link.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="press hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none"
+            className="press hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition-[color,background-color,border-color,transform] outline-none"
           >
             <div className="bg-card-background relative size-4 shrink-0 items-center justify-center overflow-hidden rounded">
               <Favicon

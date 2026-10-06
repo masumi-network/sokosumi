@@ -2,6 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ function AgentActionButtons({
   trailingActions,
   className,
 }: AgentActionButtonsProps) {
+  const t = useTranslations("Components.Agents.ActionButtons");
   const router = useRouter();
   const { isMobile } = useSidebar();
   const isClient = useIsClient();
@@ -66,6 +68,7 @@ function AgentActionButtons({
             variant="secondary"
             className="size-8 md:size-7"
             onClick={onBack}
+            aria-label={t("back")}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -76,6 +79,7 @@ function AgentActionButtons({
             variant="secondary"
             className="size-8 md:size-7"
             onClick={onClose}
+            aria-label={t("close")}
           >
             <X className="size-4" />
           </Button>
