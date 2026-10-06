@@ -6,11 +6,10 @@ import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
-import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
+import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export interface HeaderProps {
   agent: CoreAgentDto;
-  ratingStats: AgentRatingStats;
   canRate: boolean;
   existingRating: {
     rating: number;
@@ -22,7 +21,6 @@ export interface HeaderProps {
 
 export default function Header({
   agent,
-  ratingStats,
   canRate,
   existingRating,
   disabled,
@@ -54,7 +52,6 @@ export default function Header({
             {canRate && (
               <AgentRatingCTA
                 agentId={agent.id}
-                ratingStats={ratingStats}
                 existingRating={existingRating}
                 disabled={disabled}
                 className="size-7"
