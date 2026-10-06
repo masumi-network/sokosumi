@@ -621,8 +621,9 @@ describe("icon buttons", () => {
  * them. `DESIGN.md` → Accessibility: never animate the ring.
  *
  * The check reads one class context at a time: a `className` value, a `cva()`
- * call, or a single string literal (a class constant). A ring and a transition
- * that only meet through `cn(CONSTANT, "transition")` are out of its reach.
+ * call, or a single string literal. Same-file string constants are inlined, so
+ * `cn(CARD_SHELL, FOCUS_RING)` counts. A transition passed into `Button` (whose
+ * ring lives in `button.tsx`) is still a separate context.
  */
 const FOCUS_RING_CLASS = /\b(?:focus|focus-visible|focus-within):ring-/;
 const ANIMATES_SHADOW =
@@ -640,19 +641,39 @@ function balanced(text: string, start: number, open: string, close: string) {
   return text.slice(start);
 }
 
+/** `const CARD_SHELL = "…"` (quote may be on the next line). */
+function constStrings(text: string): Map<string, string> {
+  const consts = new Map<string, string>();
+  for (const match of text.matchAll(
+    /const\s+([A-Z][A-Z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/g,
+  )) {
+    consts.set(match[1], match[2] ?? "");
+  }
+  return consts;
+}
+
+function expandConsts(value: string, consts: Map<string, string>): string {
+  if (consts.size === 0) return value;
+  return value.replace(/\b[A-Z][A-Z0-9_]*\b/g, (id) => consts.get(id) ?? id);
+}
+
 function classContexts(text: string): { at: number; value: string }[] {
   const contexts: { at: number; value: string }[] = [];
+  const consts = constStrings(text);
   for (const match of text.matchAll(/className=([{"])/g)) {
     const start = match.index + "className=".length;
     const value =
       match[1] === "{"
         ? balanced(text, start, "{", "}")
         : text.slice(start, text.indexOf('"', start + 1) + 1);
-    contexts.push({ at: match.index, value });
+    contexts.push({ at: match.index, value: expandConsts(value, consts) });
   }
   for (const match of text.matchAll(/\bcva\(/g)) {
     const start = match.index + "cva".length;
-    contexts.push({ at: match.index, value: balanced(text, start, "(", ")") });
+    contexts.push({
+      at: match.index,
+      value: expandConsts(balanced(text, start, "(", ")"), consts),
+    });
   }
   for (const match of text.matchAll(/"[^"\n]*"|`[^`]*`/g)) {
     contexts.push({ at: match.index, value: match[0] });
