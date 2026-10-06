@@ -118,7 +118,7 @@ jobs:
         # link the profile runtime, so gathering coverage fails the test build
         # (SOK-976). Nothing consumes coverage today. Restore later by
         # excluding AblyDeltaCodec, not by re-enabling coverage here.
-        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -derivedDataPath "$RUNNER_TEMP/DerivedData" -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES build-for-testing -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
+        run: xcodebuild -workspace Sokosumi.xcworkspace -scheme Sokosumi -configuration Debug -destination 'platform=macOS,arch=arm64' -skipPackagePluginValidation -skipPackageUpdates -clonedSourcePackagesDirPath "$RUNNER_TEMP/SourcePackages" DEVELOPMENT_TEAM= CODE_SIGN_IDENTITY=- COMPILATION_CACHE_ENABLE_CACHING=YES COMPILATION_CACHE_CAS_PATH="$RUNNER_TEMP/CompilationCache" COMPILATION_CACHE_KEEP_CAS_DIRECTORY=YES build-for-testing -enableCodeCoverage NO -resultBundlePath "$RUNNER_TEMP/Sokosumi.xcresult"
 
       # Swift Testing runs a whole test target in one app-host process, and
       # `@Suite(.serialized) NativeWindowTests` (shared NSApplication window
@@ -135,7 +135,8 @@ jobs:
         run: |
           first=(RoomHeaderTests ThreadParentMarkTests JumpSpotlightViewTests JumpMarkViewTests ChatCopyAlignmentTests TranscriptContentGrowthTests HistoryGapRowTests SidebarThreadRowsViewTests SidebarRoomAttentionTests ThreadPaginationTests MessageEditComposerChromeTests)
           window=SokosumiTests/NativeWindowTests
-          xctestrun=$(echo "$RUNNER_TEMP"/DerivedData/Build/Products/*.xctestrun)
+          # The default DerivedData path: the compilation cache keys include it.
+          xctestrun=$(echo ~/Library/Developer/Xcode/DerivedData/Sokosumi-*/Build/Products/*.xctestrun)
           shards="$RUNNER_TEMP/shards"
           mkdir -p "$shards"
           run() {
