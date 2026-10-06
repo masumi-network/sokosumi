@@ -186,9 +186,9 @@ The new skill names preview_result and resultReferences exactly. It instructs th
 - [ ] Add an end-to-end service scenario preparing a task card, completing the answer, reading descriptors, and hydrating the authorized snapshot.
 - [x] Run relevant package/Core/Web tests, root pnpm check, and pnpm typecheck. Fix failures and rerun affected checks.
 - [x] Use verify-sokosumi doctor/launch/sign-in for authenticated browser proof when configured. Capture representative desktop/mobile screenshots and decision/unavailable states. If credentials are unavailable, record that exact limitation; do not invent accounts.
-- [ ] Review the full branch against the approved spec with an independent reviewer, fix actionable findings, and verify the amended code. Keep current resource access, neutral realtime data, retries, and decision controls as the main review focus.
-- [ ] Commit with hooks, push only the isolated feature branch, and create a draft PR titled exactly like the primary Conventional Commit subject. Link SOK-1306 and state checks, schema/codegen changes, UI evidence, and any verification limits.
-- [ ] Attach the PR to this chat with the native artifact tool and return its URL. Do not merge.
+- [x] Review the full branch against the approved spec with an independent reviewer, fix actionable findings, and verify the amended code. Keep current resource access, neutral realtime data, retries, and decision controls as the main review focus.
+- [x] Commit with hooks, push only the isolated feature branch, and create a draft PR titled exactly like the primary Conventional Commit subject. Link SOK-1306 and state checks, schema/codegen changes, UI evidence, and any verification limits.
+- [x] Attach the PR to this chat with the native artifact tool and return its URL. Do not merge.
 
 ## Self review
 
@@ -231,3 +231,9 @@ Review rulings (behaviors the reviewer declined to judge):
 - Invalid stored snapshots are skipped, preserving readable message text. Cost: an invalid entry is omitted instead of receiving a separate placeholder.
 
 No Minor findings were deferred. The main branch advanced during implementation; a read-only merge-tree check found no conflicts.
+
+### Delivery
+
+Draft PR: https://github.com/masumi-network/sokosumi/pull/5806 — attached to the Codex chat and automatically linked to SOK-1306 by the GitHub integration (the explicit Linear link command confirmed that it was already linked).
+
+Final local evidence after review fixes: Core 9,222 passed / 155 conditional tests skipped; Web 9,604 passed; bot package 246 passed. Root check and typecheck passed, and the final renderer tests used real document buttons and native audio/video controls (9 passed). Commits ran normal hooks. The feature branch merges cleanly with the updated main according to a read-only merge-tree check. CI results are separate from these local checks; the PR remains a draft for human review and merge.
