@@ -486,6 +486,64 @@ describe("page gutters", () => {
 });
 
 // ---------------------------------------------------------------------------
+// z-index ceiling
+// ---------------------------------------------------------------------------
+
+/**
+ * `z-50` is the overlay layer: dropdowns, popovers, dialogs. A surface above
+ * it outranks every one of them, so each is a decision rather than a habit,
+ * and each is listed here with its reason. `DESIGN.md` → Elevation & Depth
+ * names the same two.
+ *
+ * Reads class utilities (`z-60`, `z-[60]`, `md:z-[60]`), CSS `z-index: N` and
+ * a literal `zIndex: N` in a style object. A computed `zIndex` (stacked
+ * avatars count down from the list length) is out of scope.
+ */
+const OVERLAY_LAYER = 50;
+
+const ABOVE_OVERLAY_ALLOWLIST = new Map([
+  // Full-screen search takeover; it has to cover the `z-50` sticky header.
+  ["app/(app)/components/header/header-mobile-search.client.tsx", 60],
+  // Consent has to stay reachable over any dialog or sheet that is open.
+  ["components/analytics/cookie-banner.tsx", 100],
+]);
+
+const Z_UTILITY = /(?<![\w-])z-(?:(\d+)|\[(\d+)\])(?![\w-])/g;
+const Z_DECLARATION = /\bz-index\s*:\s*(\d+)|\bzIndex\s*:\s*(\d+)\b/g;
+
+describe("z-index ceiling", () => {
+  it("keeps everything at or below the overlay layer outside the allowlist", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+      const allowed = ABOVE_OVERLAY_ALLOWLIST.get(file.relSrc);
+
+      file.lines.forEach((line, index) => {
+        for (const pattern of [Z_UTILITY, Z_DECLARATION]) {
+          for (const match of line.matchAll(pattern)) {
+            const value = Number(match[1] ?? match[2]);
+            if (value <= OVERLAY_LAYER || value === allowed) continue;
+            violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+          }
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("keeps the allowlist free of files that no longer go above it", () => {
+    const stale = [...ABOVE_OVERLAY_ALLOWLIST].filter(([rel, value]) => {
+      const file = SRC_FILES.find((candidate) => candidate.relSrc === rel);
+      return !file?.text.includes(`z-[${value}]`);
+    });
+
+    expect(stale.map(([rel]) => rel)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // shell height class guards
 // ---------------------------------------------------------------------------
 
@@ -650,6 +708,62 @@ describe("historic status badges", () => {
     });
 
     expect(feeds.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DESIGN.md
+// ---------------------------------------------------------------------------
+
+/**
+ * `apps/web/DESIGN.md` is what agents read before they style anything, so a
+ * token it names that `globals.css` no longer defines sends them to a utility
+ * that emits nothing. The doc once listed `--destructive/warning/success/info`
+ * long after the family became `--semantic-*` and `info` was retired.
+ *
+ * Only whole names are checked, so write every token out in full: a shorthand
+ * like that one, `--chart-N-quinary` or `--animate-*` reads as prose and slips
+ * past.
+ */
+const DESIGN_MD = readFileSync(path.join(WEB_ROOT, "DESIGN.md"), "utf8");
+
+const DOC_TOKEN = /--[a-z][a-z0-9-]*[a-z0-9](?![\w*…-])/g;
+const DOC_LINK = /\]\((?!https?:|#)([^)\s]+)\)/g;
+
+describe("DESIGN.md", () => {
+  const stylesheet = readFileSync(
+    path.join(SRC_ROOT, "app/globals.css"),
+    "utf8",
+  );
+  const named = [...new Set(DESIGN_MD.match(DOC_TOKEN) ?? [])];
+
+  it("names only tokens globals.css defines", () => {
+    const undefinedTokens = named.filter(
+      (token) => !new RegExp(`^\\s*${token}\\s*:`, "m").test(stylesheet),
+    );
+
+    expect(undefinedTokens, undefinedTokens.join(", ")).toEqual([]);
+  });
+
+  /** Without this the check above passes vacuously if the scan finds nothing. */
+  it("still finds the tokens it exists to check", () => {
+    expect(named).toContain("--semantic-destructive");
+    expect(named.length).toBeGreaterThan(20);
+  });
+
+  it("links only to files that exist", () => {
+    const broken = [...DESIGN_MD.matchAll(DOC_LINK)]
+      .map((match) => match[1])
+      .filter((target) => {
+        try {
+          statSync(path.resolve(WEB_ROOT, target));
+          return false;
+        } catch {
+          return true;
+        }
+      });
+
+    expect(broken).toEqual([]);
   });
 });
 
