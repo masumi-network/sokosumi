@@ -3559,6 +3559,10 @@ private func chatDisplayBody(showRoomUnreadCount: Bool) -> String {
   envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":false,"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[]}"#)
 }
 
+private func userPreferencesBody(showRoomUnreadCount: Bool, pushOptIn: Bool) -> String {
+  envelope(#"{"marketingOptIn":false,"notificationsOptIn":false,"pushOptIn":\#(pushOptIn),"showRoomUnreadCount":\#(showRoomUnreadCount),"notificationPreferences":[{"category":"CHAT_MENTION","channel":"IN_APP","enabled":true}]}"#)
+}
+
 private func chatDisplayError(status: String, message: String) -> String {
   #"{"error":"\#(status)","message":"\#(message)","meta":{"timestamp":"\#(timestamp)","requestId":"req-1","path":"/users/me/preferences","method":"PATCH"}}"#
 }
@@ -3571,14 +3575,14 @@ extension WorkspaceStateTests {
       (200, chatDisplayBody(showRoomUnreadCount: true))
     ])
     await state.refreshChatDisplayPreferences(auth: auth)
-    #expect(!state.chatDisplay.showsRoomUnreadCount)
+    #expect(!state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
     try await state.setShowsRoomUnreadCount(true, auth: auth)
-    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.chatDisplay.isSaving && !state.notificationPreferences.isLoaded)
     let bodyIndex = try #require(transport.operationIDs.firstIndex(of: preferencesWriteOperation))
     #expect(try JSONSerialization.jsonObject(with: transport.bodies[bodyIndex]) as? [String: Bool] == ["showRoomUnreadCount": true])
-    // A later read (room open, Settings) keeps following Core.
+    // A later display-only read (room open) keeps following Core.
     await state.refreshChatDisplayPreferences(auth: auth)
-    #expect(state.chatDisplay.showsRoomUnreadCount)
+    #expect(state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
     #expect(transport.operationIDs.filter { $0 == preferencesReadOperation }.count == 2)
     #expect(transport.remainingStubs == 0)
     state.reset()
@@ -3607,6 +3611,30 @@ extension WorkspaceStateTests {
     await state.refreshChatDisplayPreferences(auth: auth)
     await state.refreshChatDisplayPreferences(auth: auth)
     #expect(state.chatDisplay.showsRoomUnreadCount)
+  }
+
+  @Test func userPreferencesRefreshAppliesOneGetOntoBothProjections() async throws {
+    let (state, auth, transport) = try await sokoBotFeedbackFixture([
+      (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true))
+    ])
+    #expect(!state.chatDisplay.showsRoomUnreadCount && !state.notificationPreferences.isLoaded)
+    #expect(await state.refreshUserPreferences(auth: auth))
+    #expect(state.chatDisplay.showsRoomUnreadCount && state.notificationPreferences.isLoaded)
+    #expect(state.notificationPreferences.pushOptIn)
+    #expect(state.notificationPreferences.reach(for: .mention) == .inApp)
+    #expect(transport.operationIDs.filter { $0 == preferencesReadOperation } == [preferencesReadOperation])
+    #expect(transport.remainingStubs == 0)
+  }
+
+  @Test func failedUserPreferencesRefreshKeepsBothLastValues() async throws {
+    let (state, auth, _) = try await sokoBotFeedbackFixture([
+      (200, userPreferencesBody(showRoomUnreadCount: true, pushOptIn: true)),
+      (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
+    ])
+    #expect(await state.refreshUserPreferences(auth: auth))
+    await #expect(!state.refreshUserPreferences(auth: auth))
+    #expect(state.chatDisplay.showsRoomUnreadCount && state.notificationPreferences.isLoaded)
+    #expect(state.notificationPreferences.pushOptIn)
   }
 }
 
