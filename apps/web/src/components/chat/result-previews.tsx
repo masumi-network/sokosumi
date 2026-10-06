@@ -275,11 +275,15 @@ export function ResultPreviewCard({
             return (
               <li
                 key={`${output.openHref}-${index}`}
-                className="min-w-0 max-w-full"
+                className={cn(
+                  "min-w-0 max-w-full",
+                  (media.isAudio || media.isVideo) && "w-full",
+                )}
               >
                 {canPreview && output.previewHref ? (
                   media.isAudio || media.isVideo ? (
                     <FileChip
+                      className="max-w-full"
                       url={output.previewHref}
                       fileName={output.name}
                       mediaType={output.contentType}
@@ -312,6 +316,7 @@ export function ResultPreviewCard({
                 {output.downloadHref ? (
                   <a
                     href={output.downloadHref}
+                    aria-label={t("downloadLabel", { name: output.name })}
                     download
                     className="text-muted-foreground focus-visible:ring-ring mt-1 flex w-fit items-center gap-1 rounded-sm text-xs outline-none hover:underline focus-visible:ring-2"
                   >
@@ -332,6 +337,7 @@ export function ResultPreviewCard({
         </span>
         <Link
           href={result.sourceHref}
+          aria-label={t("openLabel", { title: result.title })}
           className="focus-visible:ring-ring text-foreground inline-flex items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2"
         >
           {t("open")}

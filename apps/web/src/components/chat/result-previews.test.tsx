@@ -13,7 +13,15 @@ vi.mock("next-intl", () => ({
   useLocale: () => "en",
   useTimeZone: () => "UTC",
   useTranslations: () =>
-    Object.assign((key: string) => key, { has: () => true }),
+    Object.assign(
+      (key: string, values?: { title?: string; name?: string }) =>
+        key === "openLabel"
+          ? `Open source: ${values?.title}`
+          : key === "downloadLabel"
+            ? `Download ${values?.name}`
+            : key,
+      { has: () => true },
+    ),
   useFormatter: () => ({
     number: (value: number) => String(value),
     dateTime: (date: Date, _name?: string, options?: { timeZone?: string }) =>
@@ -50,6 +58,31 @@ describe("chat result cards", () => {
     expect(html).toContain("Europe/Prague");
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
+  });
+  it("names source and download links by their resource", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "file",
+          title: "Campaign brief",
+          outputs: [
+            {
+              name: "brief.docx",
+              sizeBytes: null,
+              previewHref: null,
+              contentType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              openHref: "/drive/file",
+              downloadHref: "/drive/file?download=true",
+            },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain('aria-label="Open source: Campaign brief"');
+    expect(html).toContain('aria-label="Download brief.docx"');
   });
   it("renders the app's TaskCard with real project, assignee and privacy metadata", () => {
     const html = renderToStaticMarkup(

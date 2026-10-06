@@ -1012,6 +1012,8 @@
       "loadError": "Ergebnisse konnten nicht geladen werden",
       "retry": "Erneut versuchen",
       "open": "Quelle öffnen",
+      "openLabel": "Quelle öffnen: {title}",
+      "downloadLabel": "{name} herunterladen",
       "recorded": "Erfasst am {time}",
       "assignee": "Zugewiesen an",
       "project": "Projekt",
@@ -1047,7 +1049,12 @@
         "PROCESSING": "Wird verarbeitet",
         "ACCEPTED": "Angenommen",
         "REJECTED": "Abgelehnt",
-        "EXPIRED": "Abgelaufen"
+        "EXPIRED": "Abgelaufen",
+        "SUCCEEDED": "Abgeschlossen",
+        "SUBMITTING": "Wird übermittelt",
+        "CANCELED": "Abgebrochen",
+        "SUBMISSION_UNCERTAIN": "Wartet auf Bestätigung",
+        "ORPHANED": "Handlungsbedarf"
       },
       "download": "Herunterladen",
       "selection": {

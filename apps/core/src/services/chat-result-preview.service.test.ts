@@ -314,6 +314,56 @@ describe("authorized chat results", () => {
       },
     ]);
   });
+  it.each([
+    {
+      status: "FAILED",
+      result: null,
+      input: "Research the launch",
+      events: [
+        {
+          status: "FAILED",
+          result: "Provider could not read the uploaded document",
+        },
+      ],
+      expected: "Provider could not read the uploaded document",
+    },
+    {
+      status: "RUNNING",
+      result: null,
+      input: "Research the launch",
+      events: [],
+      expected: "Research the launch",
+    },
+    {
+      status: "processing",
+      result: null,
+      input: "Research the launch",
+      events: [
+        { status: "RUNNING", result: null },
+        { status: "FAILED", result: "An earlier attempt failed" },
+      ],
+      expected: "Research the launch",
+    },
+  ])(
+    "retains the available work or failure summary for $status jobs",
+    async (state) => {
+      job.mockResolvedValue({
+        id: "job",
+        name: null,
+        agentId: "agent",
+        agent: { name: "Researcher" },
+        ...state,
+      });
+      blobs.mockResolvedValue([]);
+      const snapshot = await resolveChatResultReference({
+        reference: { kind: "job", id: "job" },
+        actor,
+        previewId: id,
+      });
+      expect(snapshot.data.summary).toBe(state.expected);
+    },
+  );
+
   it("shows delegated job outputs without exposing object URLs", async () => {
     job.mockResolvedValue({
       id: "job",

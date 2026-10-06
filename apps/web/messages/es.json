@@ -1012,6 +1012,8 @@
       "loadError": "No se pudieron cargar los resultados",
       "retry": "Reintentar",
       "open": "Abrir origen",
+      "openLabel": "Abrir origen: {title}",
+      "downloadLabel": "Descargar {name}",
       "recorded": "Registrado el {time}",
       "assignee": "Asignado a",
       "project": "Proyecto",
@@ -1047,7 +1049,12 @@
         "PROCESSING": "Procesando",
         "ACCEPTED": "Aceptada",
         "REJECTED": "Rechazada",
-        "EXPIRED": "Caducada"
+        "EXPIRED": "Caducada",
+        "SUCCEEDED": "Completado",
+        "SUBMITTING": "Enviando",
+        "CANCELED": "Cancelado",
+        "SUBMISSION_UNCERTAIN": "Esperando confirmación",
+        "ORPHANED": "Requiere atención"
       },
       "download": "Descargar",
       "selection": {

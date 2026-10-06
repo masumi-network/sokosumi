@@ -289,3 +289,10 @@ Verification: 221 focused Core tests and 68 focused Web tests passed, including 
 Room messages suppress the small task link only when an authorized, available task card for that same task is rendered. The existing result hydration query supplies the footer's displayed task IDs; no extra request or private DTO field is added. Approvals and other task links remain, and loading/errors/unavailable results retain their fallback link. Messages without previews keep the existing footer.
 
 Verification: 168 focused Web tests passed, covering matching-task suppression, other tasks and approvals, hydration descriptor filtering, loading/error fallback and room rows. Root typecheck and normal commit checks passed. Independent review returned no actionable findings. No new live messages were submitted.
+
+
+### Full feature review and refreshed gallery
+
+Reviewed PR #5806 from fixed merge base `5d6d6cfaae28ec81dc52f91282d8ea003fb04ed9` against repository standards and the feature spec, with independent reviewers. Fixed repeated-link accessible names and missing marketplace work/failure summaries. Screenshot verification additionally exposed narrow-column media overflow and untranslated Studio states; both were corrected. Re-review found no remaining actionable findings. Detailed scope, rulings and limits are in `docs/superpowers/reviews/2026-10-06-chat-result-previews-review.md`.
+
+Refreshed desktop/light and mobile/dark screenshots cover every preview kind, native social layouts, Studio and job states, files, approvals, project choices and unavailable results. Actual components use sample data; no live bot actions or publishing occurred. 34 focused Core tests and 169 focused Web tests, root typecheck and locale parity passed. Screenshot metadata is saved alongside the gallery. Older images remain as historical execution evidence; the PR uses the new gallery.

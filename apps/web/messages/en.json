@@ -1012,6 +1012,8 @@
       "loadError": "Results could not be loaded",
       "retry": "Retry",
       "open": "Open source",
+      "openLabel": "Open source: {title}",
+      "downloadLabel": "Download {name}",
       "recorded": "Recorded {time}",
       "assignee": "Assigned to",
       "project": "Project",
@@ -1047,7 +1049,12 @@
         "PROCESSING": "Processing",
         "ACCEPTED": "Accepted",
         "REJECTED": "Rejected",
-        "EXPIRED": "Expired"
+        "EXPIRED": "Expired",
+        "SUCCEEDED": "Completed",
+        "SUBMITTING": "Submitting",
+        "CANCELED": "Cancelled",
+        "SUBMISSION_UNCERTAIN": "Awaiting confirmation",
+        "ORPHANED": "Needs attention"
       },
       "download": "Download",
       "selection": {

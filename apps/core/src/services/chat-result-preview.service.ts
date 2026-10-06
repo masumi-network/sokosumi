@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { jobInclude, type Prisma } from "@sokosumi/database";
+import { AgentJobStatus, jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
 import { formatTaskIdentifier } from "@sokosumi/utils";
@@ -448,7 +448,14 @@ export async function resolveChatResultReference(
         ...base,
         title: (job.name ?? job.agent.name).slice(0, 500),
         status: job.status,
-        summary: job.result?.slice(0, 4000) ?? null,
+        summary:
+          (
+            job.result ??
+            (row.events?.[0]?.status === AgentJobStatus.FAILED
+              ? row.events[0].result
+              : null) ??
+            job.input
+          )?.slice(0, 4000) ?? null,
         assignee: job.agent.name,
         agent: { name: job.agent.name, icon: job.agent.icon ?? null },
         sourceHref: href,
