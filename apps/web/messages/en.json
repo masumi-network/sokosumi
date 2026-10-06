@@ -2757,7 +2757,7 @@
       "back": "Back to project",
       "updated": "Updated",
       "emptyTitle": "Create your first image",
-      "emptyBody": "Choose a style to start, or write your own prompt below.",
+      "emptyBody": "Click a template to apply it, or write your own prompt below.",
       "promptPlaceholder": "Describe the image…",
       "generate": "Generate",
       "refine": "Refine",
