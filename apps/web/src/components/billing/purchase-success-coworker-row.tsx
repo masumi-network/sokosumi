@@ -62,7 +62,7 @@ function CoworkerRowInner({
           onNavigate={onNavigate}
           className="group focus-visible:ring-ring flex flex-col items-center gap-2 rounded-lg p-1 outline-none focus-visible:ring-2"
         >
-          <Avatar className="ring-border group-hover:ring-primary size-14 ring-1 transition-[box-shadow,transform] group-hover:scale-105 group-hover:ring-2">
+          <Avatar className="ring-border group-hover:ring-primary size-14 ring-1 transition-[box-shadow,scale] group-hover:scale-105 group-hover:ring-2">
             <AvatarImage src={coworker.image} alt="" className="object-cover" />
             <AvatarFallback className="text-sm font-medium">
               {coworker.name.slice(0, 2).toUpperCase()}

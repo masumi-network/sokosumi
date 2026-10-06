@@ -111,7 +111,7 @@ const ColorPicker = React.forwardRef<HTMLInputElement, ColorPickerProps>(
                       onClick={() => handleColorChange(color)}
                       disabled={disabled}
                       className={cn(
-                        "size-8 rounded border-2 transition-[border-color,box-shadow,opacity,transform] hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50",
+                        "size-8 rounded border-2 transition-[border-color,box-shadow,opacity,scale] hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50",
                         internalValue === color
                           ? "border-ring ring-2 ring-ring ring-offset-2 ring-offset-background"
                           : "border-border hover:border-ring",
