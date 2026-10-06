@@ -1,6 +1,7 @@
 "use client";
 
 import { PanelLeft } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -21,6 +22,7 @@ export default function CustomTrigger({
   when = "always",
   className,
 }: CustomTriggerProps) {
+  const t = useTranslations("App.Sidebar");
   const { open, openMobile, isMobile, toggleSidebar } = useSidebar();
   const isVisible = isMobile ? openMobile : open;
 
@@ -32,6 +34,7 @@ export default function CustomTrigger({
       variant="ghost"
       size="icon"
       onClick={toggleSidebar}
+      aria-label={t("toggle")}
       className={cn(
         "hidden size-8 shrink-0",
         {

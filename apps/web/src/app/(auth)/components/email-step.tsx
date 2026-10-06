@@ -372,7 +372,7 @@ export function EmailStep({
                 variant="primary"
                 loading={isFollowing}
                 className={cn(
-                  "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,box-shadow,transform] motion-reduce:transition-none",
+                  "relative col-start-1 row-start-1 w-full transition-[opacity,color,background-color,border-color,transform] motion-reduce:transition-none",
                   !isDetoured && "opacity-0",
                 )}
               >

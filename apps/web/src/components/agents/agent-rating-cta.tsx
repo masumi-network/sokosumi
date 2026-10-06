@@ -48,6 +48,7 @@ export function AgentRatingCTA({
             size="icon"
             className={className}
             disabled={disabled}
+            aria-label={existingRating ? t("updateRating") : t("submitRating")}
           >
             <Star
               fill={existingRating ? "currentColor" : "none"}

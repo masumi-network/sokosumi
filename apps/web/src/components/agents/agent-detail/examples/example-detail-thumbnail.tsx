@@ -1,5 +1,7 @@
 import type { AgentExampleOutput } from "@sokosumi/core-client";
 import { Download } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -14,6 +16,7 @@ export default function ExampleDetailThumbnail({
   onClick,
   className,
 }: ExampleDetailThumbnailProps) {
+  const t = useTranslations("Components.Agents.AgentDetail.Examples");
   const { name, mimeType } = exampleOutput;
 
   return (
@@ -32,12 +35,13 @@ export default function ExampleDetailThumbnail({
           {mimeType}
         </p>
         <div className="absolute top-2 right-2">
-          <Button variant="outline" size="icon">
+          <Button variant="outline" size="icon" asChild>
             <a
               href={exampleOutput.url}
               download
               target="_blank"
               rel="noopener noreferrer"
+              aria-label={t("download")}
             >
               <Download />
             </a>

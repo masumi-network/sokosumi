@@ -1,5 +1,6 @@
 import { OpenAPIHonoWithAuth } from "../../../lib/hono";
 import mountGetEventsByJobId from "./[id]/events/get.js";
+import mountGetJobOutputContent from "./[id]/files/[fileId]/content/get";
 import mountGetFilesByJobId from "./[id]/files/get.js";
 import mountGetJobById from "./[id]/get.js";
 import mountGetInputRequestByJobId from "./[id]/input-request/get.js";
@@ -22,6 +23,7 @@ mountGetJobById(app);
 mountPatchJobById(app);
 mountPostJobRefundById(app);
 mountGetFilesByJobId(app);
+mountGetJobOutputContent(app);
 mountGetLinksByJobId(app);
 mountGetInputRequestByJobId(app);
 mountPostInputsByJobId(app);

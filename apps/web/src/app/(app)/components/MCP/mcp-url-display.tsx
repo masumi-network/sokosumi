@@ -38,6 +38,7 @@ export function McpUrlDisplay({ url, className }: McpUrlDisplayProps) {
         variant="ghost"
         className="absolute top-1/2 right-2 size-8 -translate-y-1/2"
         onClick={handleCopy}
+        aria-label={t("copyUrl")}
       >
         {copied ? (
           <Check className="check-pop size-4 text-semantic-success" />

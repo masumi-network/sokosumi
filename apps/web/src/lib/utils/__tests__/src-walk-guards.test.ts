@@ -655,6 +655,167 @@ describe("z-index ceiling", () => {
 });
 
 // ---------------------------------------------------------------------------
+// icon buttons have a name
+// ---------------------------------------------------------------------------
+
+/**
+ * lucide-react adds `aria-hidden="true"` to any icon without an accessibility
+ * prop, so a `<Button size="icon">` that holds only an icon has no name at
+ * all: a screen reader announces "button" and nothing else. The sidebar
+ * toggle, both share modals' copy buttons and the member menus shipped that
+ * way.
+ *
+ * A button passes with `aria-label`, `aria-labelledby` or `title` on the
+ * button, `sr-only` text or an `aria-label` inside it (an `asChild` link
+ * carries its own), `aria-hidden` (a disabled skeleton placeholder), or a
+ * props spread, where the caller supplies the name.
+ */
+const ICON_SIZE = /\bsize=(?:"icon"|'icon'|\{\s*"icon"\s*\})/;
+const NAMED_TAG =
+  /\b(?:aria-label|aria-labelledby|title)=|\baria-hidden\b|\{\s*\.\.\./;
+const NAMED_BODY = /\bsr-only\b|\baria-label=/;
+
+/** The opening tag starting at `start`, skipping `>` inside braces and quotes. */
+function openingTag(text: string, start: number): string {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let index = start; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === "{") depth++;
+    else if (char === "}") depth--;
+    else if (depth === 0 && (char === '"' || char === "'")) quote = char;
+    else if (depth === 0 && char === ">") return text.slice(start, index + 1);
+  }
+  return text.slice(start);
+}
+
+describe("icon buttons", () => {
+  it("gives every icon-only button an accessible name", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" || file.relSrc.includes(".test.")) continue;
+
+      for (const match of file.text.matchAll(/<Button\b/g)) {
+        const tag = openingTag(file.text, match.index);
+        if (!ICON_SIZE.test(tag) || NAMED_TAG.test(tag)) continue;
+
+        const bodyStart = match.index + tag.length;
+        const body = tag.endsWith("/>")
+          ? ""
+          : file.text.slice(
+              bodyStart,
+              file.text.indexOf("</Button>", bodyStart),
+            );
+        if (NAMED_BODY.test(body)) continue;
+
+        const line = file.text.slice(0, match.index).split("\n").length;
+        violations.push(`${file.relSrc}:${line}: icon button has no name`);
+      }
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// focus rings appear at once
+// ---------------------------------------------------------------------------
+
+/**
+ * A Tailwind ring is a `box-shadow`, so any transition that covers
+ * `box-shadow` fades the focus ring in instead of showing it. That covers
+ * `transition-all`, `transition-shadow`, a bare `transition`, and an
+ * arbitrary list naming `box-shadow`. Fourteen primitives did it, Button among
+ * them. `DESIGN.md` → Accessibility: never animate the ring.
+ *
+ * The check reads one class context at a time: a `className` value, a `cva()`
+ * call, or a single string literal. Same-file string constants are inlined, so
+ * `cn(CARD_SHELL, FOCUS_RING)` counts. A transition passed into `Button` (whose
+ * ring lives in `button.tsx`) is still a separate context.
+ */
+const FOCUS_RING_CLASS = /\b(?:focus|focus-visible|focus-within):ring-/;
+const ANIMATES_SHADOW =
+  /(?<![\w-])transition(?:-all|-shadow)?(?![\w-])|\btransition-\[[^\]]*box-shadow/;
+
+/** The balanced `open`…`close` span starting at `start`. */
+function balanced(text: string, start: number, open: string, close: string) {
+  let depth = 0;
+  for (let index = start; index < text.length; index++) {
+    if (text[index] === open) depth++;
+    else if (text[index] === close && --depth === 0) {
+      return text.slice(start, index + 1);
+    }
+  }
+  return text.slice(start);
+}
+
+/** `const CARD_SHELL = "…"` (quote may be on the next line). */
+function constStrings(text: string): Map<string, string> {
+  const consts = new Map<string, string>();
+  for (const match of text.matchAll(
+    /const\s+([A-Z][A-Z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/g,
+  )) {
+    consts.set(match[1], match[2] ?? "");
+  }
+  return consts;
+}
+
+function expandConsts(value: string, consts: Map<string, string>): string {
+  if (consts.size === 0) return value;
+  return value.replace(/\b[A-Z][A-Z0-9_]*\b/g, (id) => consts.get(id) ?? id);
+}
+
+function classContexts(text: string): { at: number; value: string }[] {
+  const contexts: { at: number; value: string }[] = [];
+  const consts = constStrings(text);
+  for (const match of text.matchAll(/className=([{"])/g)) {
+    const start = match.index + "className=".length;
+    const value =
+      match[1] === "{"
+        ? balanced(text, start, "{", "}")
+        : text.slice(start, text.indexOf('"', start + 1) + 1);
+    contexts.push({ at: match.index, value: expandConsts(value, consts) });
+  }
+  for (const match of text.matchAll(/\bcva\(/g)) {
+    const start = match.index + "cva".length;
+    contexts.push({
+      at: match.index,
+      value: expandConsts(balanced(text, start, "(", ")"), consts),
+    });
+  }
+  for (const match of text.matchAll(/"[^"\n]*"|`[^`]*`/g)) {
+    contexts.push({ at: match.index, value: match[0] });
+  }
+  return contexts;
+}
+
+describe("focus rings", () => {
+  it("never puts a focus ring under a transition that covers box-shadow", () => {
+    const violations = new Set<string>();
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" && file.ext !== ".ts") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      for (const { at, value } of classContexts(file.text)) {
+        if (!FOCUS_RING_CLASS.test(value) || !ANIMATES_SHADOW.test(value)) {
+          continue;
+        }
+        const line = file.text.slice(0, at).split("\n").length;
+        violations.add(
+          `${file.relSrc}:${line}: ${value.match(ANIMATES_SHADOW)?.[0]}`,
+        );
+      }
+    }
+
+    expect([...violations], [...violations].join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // shell height class guards
 // ---------------------------------------------------------------------------
 

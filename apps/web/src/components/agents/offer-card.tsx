@@ -432,7 +432,7 @@ export function OfferCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-primary hover:shadow-sm press",
+        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,transform] duration-200 hover:border-primary hover:shadow-sm press",
         FOCUS_RING,
       )}
     >
