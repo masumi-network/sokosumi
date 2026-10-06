@@ -408,7 +408,7 @@ prop/state-driven.
 - **Touch targets:** every icon-only control has a tap target of at least `size-10` (40px)
   below `md` and `size-8` (32px) from `md` up. `size="icon"` is already `size-10`; to compact it
   on desktop write `size-10 md:size-8`, never smaller than `md:size-8`. Where the painted box
-  must stay small (dense toolbars, chips, inline dismiss), keep it and add `hit-area`
+  must stay small (dense toolbars, inline dismiss), keep it and add `hit-area`
   (`globals.css`): a transparent `::after` grows the target to 40px / 32px around the control.
   - Give it room: two `hit-area` neighbours need a gap of at least 40px minus the box below
     `md` (a `size-7` pair needs `gap-3`), or their targets overlap. Where the gap is smaller,
@@ -416,9 +416,18 @@ prop/state-driven.
   - A scroll container (`overflow-*-auto`) or `overflow-hidden` ancestor clips the `::after`;
     pad the container (`-m-1.5 p-1.5`) or grow the control.
   - `hit-area` sets `position: relative`; `absolute` and `fixed` on the same element still win.
-  - Guard: `src/lib/utils/__tests__/src-walk-guards.test.ts` checks every `size="icon"` tag. It
-    cannot see classes passed through a variable or bespoke `<button>`s, so hold those to the
-    same rule in review.
+  - **Chips:** a chip's remove (or other end action) is `ChipRemoveButton`
+    (`src/components/ui/chip-remove-button.tsx`), a square end segment the full chip height:
+    40px below `md`, so the chip itself grows to 40px there and no pseudo-element reaches the
+    next row of a wrapping list; 28px plus `hit-area` (32px) from `md` up. The chip drops its
+    end and block padding (`py-0 pe-0`); a `Badge` also needs `overflow-visible`, because it
+    clips. Where the chip is itself a target (a preview tile), put the remove beside or under
+    it as its own full-size control, never on top of it.
+  - Guard: `src/lib/utils/__tests__/src-walk-guards.test.ts` checks every `size="icon"` tag,
+    every bespoke `<button>` whose only child is an `X` (it needs `hit-area` or a 40px box), and
+    that no `Badge` holds a bespoke `<button>`. It cannot see classes passed through a variable,
+    other icon-only `<button>`s, or overlap between rows, so hold those to the same rule in
+    review.
 
 ## Voice & Content
 

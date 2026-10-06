@@ -34,6 +34,7 @@ import {
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -953,18 +954,18 @@ export function DriveAllFilesPanel({
           data-testid="drive-all-files-facets"
         >
           {appliedFacets.map((facet) => (
-            <Badge key={facet.key} variant="secondary" className="gap-1 pr-1">
+            <Badge
+              key={facet.key}
+              variant="secondary"
+              className="gap-1 overflow-visible py-0 pe-0"
+            >
               <span className="truncate" title={facet.label}>
                 {facet.label}
               </span>
-              <button
-                type="button"
+              <ChipRemoveButton
                 aria-label={t("removeTag", { name: facet.label })}
-                className="press hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
                 onClick={facet.remove}
-              >
-                <X className="size-3" aria-hidden />
-              </button>
+              />
             </Badge>
           ))}
           <Button
