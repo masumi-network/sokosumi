@@ -139,7 +139,7 @@ export function ComposerFormatToolbar({
             variant="ghost"
             size="icon"
             className={cn(
-              "text-muted-foreground size-8 shrink-0 rounded-md",
+              "text-muted-foreground size-10 md:size-8 shrink-0 rounded-md",
               isActive && "bg-muted text-foreground",
             )}
             title={t(tool.labelKey)}

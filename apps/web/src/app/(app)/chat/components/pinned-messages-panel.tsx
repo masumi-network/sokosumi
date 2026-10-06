@@ -69,7 +69,7 @@ export function PinnedMessagesHeaderButton({
       aria-label={openLabel}
       aria-expanded={isOpen}
       data-testid="pinned-messages-trigger"
-      className="size-8"
+      className="size-10 md:size-8"
       onClick={onToggle}
     >
       <Pin className="size-4" />
@@ -199,7 +199,7 @@ export function PinnedMessagesPanel({
               type="button"
               variant="ghost"
               size="icon"
-              className="text-muted-foreground relative z-[1] size-8 shrink-0"
+              className="text-muted-foreground relative z-[1] size-10 md:size-8 shrink-0"
               aria-label={labels.unpin}
               onClick={() => {
                 void (async () => {

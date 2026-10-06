@@ -405,9 +405,20 @@ prop/state-driven.
   `<span className="sr-only">`.
 - **Images:** decorative `alt=""` (or `aria-hidden`); meaningful images get a real `alt`; avatars
   use `AvatarFallback` initials.
-- **Touch targets:** there is **no floor yet**: many icon buttons are `size-7/8`, and
-  `size="icon"` is `size-10`. Until one is set, a new icon-only control on a mobile surface uses
-  `size="icon"`.
+- **Touch targets:** every icon-only control has a tap target of at least `size-10` (40px)
+  below `md` and `size-8` (32px) from `md` up. `size="icon"` is already `size-10`; to compact it
+  on desktop write `size-10 md:size-8`, never smaller than `md:size-8`. Where the painted box
+  must stay small (dense toolbars, chips, inline dismiss), keep it and add `hit-area`
+  (`globals.css`): a transparent `::after` grows the target to 40px / 32px around the control.
+  - Give it room: two `hit-area` neighbours need a gap of at least 40px minus the box below
+    `md` (a `size-7` pair needs `gap-3`), or their targets overlap. Where the gap is smaller,
+    grow the boxes instead.
+  - A scroll container (`overflow-*-auto`) or `overflow-hidden` ancestor clips the `::after`;
+    pad the container (`-m-1.5 p-1.5`) or grow the control.
+  - `hit-area` sets `position: relative`; `absolute` and `fixed` on the same element still win.
+  - Guard: `src/lib/utils/__tests__/src-walk-guards.test.ts` checks every `size="icon"` tag. It
+    cannot see classes passed through a variable or bespoke `<button>`s, so hold those to the
+    same rule in review.
 
 ## Voice & Content
 

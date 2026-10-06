@@ -981,6 +981,32 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   }
 }
 
+/* Tap target for an icon control whose painted box stays small (dense toolbars,
+   chips, inline dismiss). A transparent ::after centered on the control grows
+   what a finger can hit to 40px below md and 32px from md up; a control that
+   is already that big keeps its own box. DESIGN.md → Accessibility → Touch
+   targets has the rule and the spacing it needs from its neighbours.
+
+   It sets `position: relative`. `absolute` or `fixed` on the same element
+   still wins: Tailwind emits single-property utilities after this one. A
+   scroll container (`overflow-*-auto`) clips the ::after, so give the
+   container room (`-m-1.5 p-1.5`) or grow the control instead. */
+@utility hit-area {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - --spacing(10)) / 2));
+  }
+
+  @variant md {
+    &::after {
+      inset: min(0px, calc((100% - --spacing(8)) / 2));
+    }
+  }
+}
+
 @keyframes content-in {
   from {
     opacity: 0;

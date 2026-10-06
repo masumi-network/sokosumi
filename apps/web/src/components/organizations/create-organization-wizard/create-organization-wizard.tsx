@@ -845,7 +845,7 @@ export function CreateOrganizationWizard({
                       <button
                         type="button"
                         aria-label={t("Brand.title")}
-                        className="focus-visible:ring-ring ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
+                        className="focus-visible:ring-ring hit-area ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
                       >
                         <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>

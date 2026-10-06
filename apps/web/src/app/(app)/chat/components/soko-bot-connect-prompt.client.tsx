@@ -148,7 +148,7 @@ export function SokoBotConnectCard({
                     if (!offer.connected && busy === null)
                       connect(offer.provider);
                   }}
-                  className="relative size-7 aria-disabled:cursor-default"
+                  className="relative size-10 md:size-8 aria-disabled:cursor-default"
                 >
                   {Logo ? <Logo className="size-4 shrink-0" /> : null}
                   {offer.connected ? (
@@ -170,7 +170,7 @@ export function SokoBotConnectCard({
           variant="ghost"
           aria-label={t("connectDismiss")}
           onClick={onDismiss}
-          className="text-muted-foreground size-7"
+          className="text-muted-foreground size-10 md:size-8"
         >
           <X aria-hidden className="size-3.5" />
         </Button>

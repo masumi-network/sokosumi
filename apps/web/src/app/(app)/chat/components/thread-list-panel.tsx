@@ -281,7 +281,7 @@ export function ThreadListPanel({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-10 md:size-8 rounded-full"
             aria-label={labels.close}
             title={labels.close}
             onClick={onClose}

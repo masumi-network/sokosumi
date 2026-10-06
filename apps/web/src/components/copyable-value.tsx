@@ -105,7 +105,7 @@ export function CopyableValue({
         onClick={handleButtonClick}
         className={cn(
           "text-muted-foreground shrink-0",
-          presentation === "inline-code" && "size-8",
+          presentation === "inline-code" && "hit-area size-8",
           buttonClassName,
         )}
         title={t("copy")}

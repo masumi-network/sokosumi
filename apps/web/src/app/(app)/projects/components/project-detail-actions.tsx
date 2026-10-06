@@ -119,7 +119,7 @@ export function ProjectDetailActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8"
+            className="size-10 md:size-8"
             aria-label={labels.moreActions}
           >
             <MoreHorizontal className="size-4" aria-hidden />

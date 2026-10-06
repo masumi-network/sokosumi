@@ -88,7 +88,7 @@ export function OfferPicker({
               title={labels.previewExample}
               onClick={() => onPreviewOffer(offer)}
               className={cn(
-                "bg-surface-glass text-muted-foreground press hover:text-foreground absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
+                "bg-surface-glass text-muted-foreground press hover:text-foreground hit-area absolute top-3 right-3 z-10 flex size-7 items-center justify-center rounded-full shadow-sm backdrop-blur transition-colors",
                 FOCUS_RING,
               )}
             >

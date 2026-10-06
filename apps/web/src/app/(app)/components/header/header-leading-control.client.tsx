@@ -19,7 +19,7 @@ import { useTasksReturnPath } from "@/app/tasks/components/use-tasks-return-path
 import { SokosumiIcon } from "@/components/masumi-logos";
 
 /**
- * Mobile header leading slot (`md:hidden` size-8):
+ * Mobile header leading slot (`md:hidden` size-10):
  * - Welcome home + chats + bottom-nav tab roots → Sokosumi icon Link to `/`
  * - chat room → back to `/chat`
  * - nested tasks → back to stored list URL (view/filters) when present
@@ -41,7 +41,7 @@ export function HeaderLeadingControl(): React.ReactElement {
       <Link
         href="/"
         aria-label={t("goHome")}
-        className="inline-flex size-8 shrink-0 items-center justify-center"
+        className="inline-flex size-10 shrink-0 items-center justify-center"
       >
         <SokosumiIcon animated={false} className="size-8" />
       </Link>
@@ -53,7 +53,7 @@ export function HeaderLeadingControl(): React.ReactElement {
       <Link
         href={CHAT_CHATS_LIST_PATH}
         aria-label={t("backToChats")}
-        className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+        className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
       >
         <ChevronLeft className="size-5" aria-hidden />
       </Link>
@@ -75,7 +75,7 @@ export function HeaderLeadingControl(): React.ReactElement {
       <Link
         href={href}
         aria-label={t(appBack.labelKey)}
-        className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+        className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
         onClick={isTasksBack ? handleTasksBackClick : undefined}
       >
         <ChevronLeft className="size-5" aria-hidden />
@@ -87,7 +87,7 @@ export function HeaderLeadingControl(): React.ReactElement {
     <Link
       href={CHAT_CHATS_LIST_PATH}
       aria-label={t("backToChats")}
-      className="text-foreground press hover:bg-accent inline-flex size-8 shrink-0 items-center justify-center rounded-md"
+      className="text-foreground press hover:bg-accent inline-flex size-10 shrink-0 items-center justify-center rounded-md"
     >
       <ChevronLeft className="size-5" aria-hidden />
     </Link>
@@ -101,7 +101,7 @@ export function HeaderLeadingBrandFallback(): React.ReactElement {
     <Link
       href="/"
       aria-label={t("goHome")}
-      className="inline-flex size-8 shrink-0 items-center justify-center"
+      className="inline-flex size-10 shrink-0 items-center justify-center"
     >
       <SokosumiIcon animated={false} className="size-8" />
     </Link>

@@ -268,7 +268,7 @@ function DocumentViewerContent({
             asChild
             variant="outline"
             size="icon"
-            className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
+            className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
           >
             <a
               href={stripForcedDownloadParam(url)}
@@ -285,7 +285,7 @@ function DocumentViewerContent({
             asChild
             variant="outline"
             size="icon"
-            className="size-8 sm:h-8 sm:w-auto sm:gap-1.5 sm:px-3"
+            className="size-10 sm:w-auto sm:gap-1.5 sm:px-3 md:h-8"
           >
             <a
               download={fileName}
@@ -302,7 +302,7 @@ function DocumentViewerContent({
               type="button"
               variant="outline"
               size="icon"
-              className="size-8"
+              className="size-10 md:size-8"
               aria-label={t("close")}
               title={t("close")}
             >
