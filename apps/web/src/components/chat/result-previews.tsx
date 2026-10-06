@@ -105,7 +105,8 @@ export function ResultPreviewCard({
   return (
     <article
       className={cn(
-        "w-full max-w-xl min-w-0 space-y-3",
+        "w-full min-w-0 space-y-3",
+        nativeTask ? "max-w-sm" : "max-w-xl",
         !nativeTask && !social && "bg-background rounded-lg border p-4",
       )}
     >
@@ -178,7 +179,10 @@ export function ResultPreviewCard({
           {result.title}
         </h3>
       )}
-      {!social && result.summary && result.summary !== result.title ? (
+      {!nativeTask &&
+      !social &&
+      result.summary &&
+      result.summary !== result.title ? (
         <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
           {result.summary}
         </p>
@@ -188,52 +192,54 @@ export function ResultPreviewCard({
           {result.question}
         </p>
       ) : null}
-      <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-        {(
-          [
-            ["assignee", nativeTask ? null : result.assignee],
-            ["project", nativeTask ? null : result.project],
-            ["destination", result.destination],
-          ] as const
-        ).map(([label, value]) =>
-          value ? (
-            <div key={label} className="contents">
-              <dt className="text-muted-foreground">{t(label)}</dt>
-              <dd className="flex items-center gap-2 wrap-break-word">
-                {label === "project" && result.projectInfo ? (
-                  <ProjectAvatar
-                    name={result.projectInfo.name}
-                    logo={result.projectInfo.logo}
-                    className="size-5 rounded-sm"
-                  />
-                ) : null}
-                {value}
+      {!nativeTask && (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+          {(
+            [
+              ["assignee", nativeTask ? null : result.assignee],
+              ["project", nativeTask ? null : result.project],
+              ["destination", result.destination],
+            ] as const
+          ).map(([label, value]) =>
+            value ? (
+              <div key={label} className="contents">
+                <dt className="text-muted-foreground">{t(label)}</dt>
+                <dd className="flex items-center gap-2 wrap-break-word">
+                  {label === "project" && result.projectInfo ? (
+                    <ProjectAvatar
+                      name={result.projectInfo.name}
+                      logo={result.projectInfo.logo}
+                      className="size-5 rounded-sm"
+                    />
+                  ) : null}
+                  {value}
+                </dd>
+              </div>
+            ) : null,
+          )}
+          {result.scheduledAt ? (
+            <div className="contents">
+              <dt className="text-muted-foreground">{t("scheduled")}</dt>
+              <dd className="wrap-break-word">
+                <time dateTime={new Date(result.scheduledAt).toISOString()}>
+                  {format.dateTime(
+                    new Date(result.scheduledAt),
+                    "dateTime",
+                    result.timezone ? { timeZone: result.timezone } : undefined,
+                  )}
+                </time>
+                {result.timezone ? ` · ${result.timezone}` : ""}
               </dd>
             </div>
-          ) : null,
-        )}
-        {result.scheduledAt ? (
-          <div className="contents">
-            <dt className="text-muted-foreground">{t("scheduled")}</dt>
-            <dd className="wrap-break-word">
-              <time dateTime={new Date(result.scheduledAt).toISOString()}>
-                {format.dateTime(
-                  new Date(result.scheduledAt),
-                  "dateTime",
-                  result.timezone ? { timeZone: result.timezone } : undefined,
-                )}
-              </time>
-              {result.timezone ? ` · ${result.timezone}` : ""}
-            </dd>
-          </div>
-        ) : null}
-        {result.recurrence ? (
-          <div className="contents">
-            <dt className="text-muted-foreground">{t("recurrence")}</dt>
-            <dd className="font-mono wrap-break-word">{result.recurrence}</dd>
-          </div>
-        ) : null}
-      </dl>
+          ) : null}
+          {result.recurrence ? (
+            <div className="contents">
+              <dt className="text-muted-foreground">{t("recurrence")}</dt>
+              <dd className="font-mono wrap-break-word">{result.recurrence}</dd>
+            </div>
+          ) : null}
+        </dl>
+      )}
       {!social && result.outputs?.length ? (
         <ul
           className={

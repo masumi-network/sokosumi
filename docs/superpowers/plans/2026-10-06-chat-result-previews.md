@@ -247,3 +247,9 @@ Core snapshots carry only the bounded display fields needed by these components.
 Focused proof: 186 Core tests and 37 Web tests passed, including the real task card and all three social platform layouts. Root check and typecheck passed. Updated desktop/light and mobile/dark fixtures show loaded profile and project images; browser exceptions: zero, horizontal overflow: false. These are offline fixtures, not authenticated product verification.
 
 Final follow-up suites passed: Core 9,222 / 155 conditional skipped; Web 9,608. The initial concurrent Turbo run hit a worker startup timeout; rerunning the complete suites with two workers each passed. The narrowed Soko Bot translation bag passed all six namespace checks. Normal commit hooks passed.
+
+### Live task preview and card cleanup
+
+Inspected the user's existing authenticated PR-preview chat. Its actual bot reply recorded “Preparing a result preview” and eventually rendered the native ALB-15 task card with bot avatar and source links. This verifies that task tool publication and protected hydration work in that deployed preview; social creation and later scheduled execution were not tested. No new bot message or task was submitted.
+
+The task card was followed by duplicated raw Markdown description and raw cron metadata. A failing regression reproduced those lines. The renderer now uses normal task-card width and leaves that extra metadata to the task source; native status, project, assignee/participant avatars, comments, and links remain. Focused renderer/task-card tests passed (31). Updated offline fixtures include a Markdown description and cron expression to exercise the cleanup.

@@ -50,6 +50,9 @@ describe("chat result cards", () => {
       <ResultPreviewCard
         result={{
           ...task,
+          summary: "hello[attachment.svg](https://files.example/long-path)",
+          recurrence: "20 7 * * *",
+          scheduledAt: new Date("2026-10-07T07:20:00Z"),
           task: {
             id: "task",
             name: "Launch campaign",
@@ -86,6 +89,9 @@ describe("chat result cards", () => {
     expect(html).toContain('aria-label="Hannah"');
     expect(html).toContain('href="/projects/summer"');
     expect(html).toContain("vocabulary.marketing");
+    expect(html).not.toContain("hello[attachment.svg]");
+    expect(html).not.toContain("20 7 * * *");
+    expect(html).toContain("max-w-sm");
   });
   it.each(["linkedin", "x", "instagram"] as const)(
     "uses the existing %s post preview with its account and protected media",
