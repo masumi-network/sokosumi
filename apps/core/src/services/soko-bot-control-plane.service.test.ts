@@ -8,6 +8,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildActionResponse } from "@/lib/soko-bot/action-response";
 import { enqueueSokoBotDelivery } from "@/services/soko-bot-delivery.service";
 import { assessSokoBotIntentOutcome } from "@/services/soko-bot-outcome.service";
+import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
 import { jevRoute } from "@/test/jev-routes";
 
 const intentFindManyMock = vi.hoisted(() => vi.fn().mockResolvedValue([]));
@@ -148,6 +149,10 @@ vi.mock("@/lib/soko-bot/action-response", () => ({
     observations: [],
     unfulfilledActions: [],
   })),
+}));
+
+vi.mock("@/services/turn-action-result-previews.service", () => ({
+  prepareTurnActionResultPreviews: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("./soko-bot-delivery.service", () => ({
@@ -611,6 +616,30 @@ describe("SokoBotControlPlane lifecycle", () => {
     },
   );
 
+  it.each(["FAILED", "CANCELLED"] as const)(
+    "does not prepare automatic cards for a %s turn",
+    async (status) => {
+      turnFindUniqueMock.mockResolvedValueOnce({
+        sokoBotId: BOT_ID,
+        userId: "user_1",
+        eveSessionId: "session_1",
+        startedAt: new Date(),
+        costUsdMicros: 0n,
+        status: "RUNNING",
+        finalAnswer: null,
+        capabilityNames: [],
+        leaseToken: null,
+        cancellationRequestedAt: null,
+        scheduleRun: null,
+      });
+      await new SokoBotControlPlane()["settleTurn"]({
+        turnId: "turn_1",
+        status,
+      });
+      expect(prepareTurnActionResultPreviews).not.toHaveBeenCalled();
+    },
+  );
+
   it("persists the assessed outcome before receipt lines and before delivery is enqueued", async () => {
     turnFindUniqueMock.mockResolvedValueOnce({
       sokoBotId: BOT_ID,
@@ -651,6 +680,16 @@ describe("SokoBotControlPlane lifecycle", () => {
       },
     });
     expect(turnUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(prepareTurnActionResultPreviews).mock.invocationCallOrder[0],
+    );
+    expect(prepareTurnActionResultPreviews).toHaveBeenCalledWith(
+      "turn_1",
+      expect.objectContaining({ userId: "user_1" }),
+      expect.anything(),
+    );
+    expect(
+      vi.mocked(prepareTurnActionResultPreviews).mock.invocationCallOrder[0],
+    ).toBeLessThan(
       vi.mocked(enqueueSokoBotDelivery).mock.invocationCallOrder[0],
     );
   });

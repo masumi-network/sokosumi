@@ -97,6 +97,7 @@ export function publicChatRoomMessageMetadata(
     return null;
   }
   const { [REMOVED_UNFURL_URLS_METADATA_KEY]: _removed, ...rest } = metadata;
+  delete rest.result_preview_snapshots;
   const visibleUnfurls = readUnfurlsFromMetadata(metadata);
   if (visibleUnfurls) {
     rest.unfurls = visibleUnfurls;

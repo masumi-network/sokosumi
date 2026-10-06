@@ -110,7 +110,7 @@ export function HistorySearch({
         <button
           type="button"
           aria-label={labels.clear}
-          className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground transition outline-none press hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-[color,background-color,border-color,transform] outline-none press hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
           onClick={handleClear}
         >
           <X className="size-4" aria-hidden />

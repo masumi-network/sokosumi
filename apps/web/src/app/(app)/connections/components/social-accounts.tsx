@@ -10,6 +10,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { getAbsoluteAuthRedirectUrl } from "@/lib/auth/auth.utils";
 import {
   SOCIAL_PROVIDER_ICONS,
+  SOCIAL_PROVIDER_NAMES,
   SOCIAL_PROVIDERS,
 } from "@/lib/auth/social-providers";
 import { AccountProvider } from "@/lib/auth/types";
@@ -66,6 +67,9 @@ export function SocialAccounts({ accounts }: SocialAccountsProps) {
               variant={account ? "destructive" : "outline"}
               className={loading ? "animate-pulse" : ""}
               size="icon"
+              aria-label={t(account ? "disconnect" : "connect", {
+                provider: SOCIAL_PROVIDER_NAMES[provider],
+              })}
               onClick={() => {
                 if (account) {
                   handleDisconnectAccount(account);
