@@ -121,7 +121,7 @@ the old prefix after DB URLs are clean:
   project needs OIDC enabled). Locally, set `VERCEL_SANDBOX_TOKEN`,
   `VERCEL_SANDBOX_TEAM_ID` and `VERCEL_SANDBOX_PROJECT_ID`, and
   `SOKO_BOT_RUNTIME_PUBLIC_URL` to a URL the sandbox can reach — or run a turn
-  with `scripts/soko-bot-runner-local.mts`, which needs neither.
+  with `apps/core/scripts/soko-bot-runner-local.mts`, which needs neither.
 - The sandbox calls Core on `/v1/soko-bot-runtime/turns/{turnId}/…` with a
   per-turn token its network proxy injects. Core serves the prompt, executes
   Sokosumi tools, proxies and meters every model call under the model policy
