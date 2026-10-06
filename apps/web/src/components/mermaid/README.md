@@ -96,7 +96,4 @@ available, including a manual-copy error if clipboard access is denied. Theme
 changes regenerate SVG using current tokens. All new copy is in en/de/es.
 
 Colocated tests cover Markdown integration, lifecycle/races, source policy and
-resource guards. happy-dom cannot faithfully run DOMPurify's SVG traversal;
-real SVG sanitization is tested in Chromium in
-`evidence/mermaid/browser-checks.mjs`. See `evidence/mermaid/README.md` for commands,
-screenshots, observed results and unverified authenticated surfaces.
+resource guards. happy-dom cannot faithfully run DOMPurify's SVG traversal.
