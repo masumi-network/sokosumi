@@ -1517,7 +1517,7 @@
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar Agentes",
+          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -1536,7 +1536,7 @@
         },
         "searchAgents": {
           "label": "Buscar",
-          "subtitle": "Agentes Especializados"
+          "subtitle": "Agentes especializados"
         }
       },
       "SokoBot": {
@@ -2892,7 +2892,7 @@
           "social": "Programación social"
         },
         "ChatLists": {
-          "title": "Chats Recientes",
+          "title": "Chats recientes",
           "noChats": "Aún no hay chats",
           "untitledChat": "Chat sin título",
           "coworkerAlt": "Colaborador"
