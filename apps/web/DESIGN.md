@@ -209,8 +209,13 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 - **Inter Medium (500)** — labels, badges, chips, callouts.
 - **Scale:** pentatonic — base **12px**, ×2 every 5 steps (`r = 2^(1/5) ≈ 1.1487`); Light kicks
   in ~20px+, with **negative tracking** growing at large sizes. Stick to the Tailwind scale
-  (`text-xs/sm/base/lg/xl/2xl/3xl`) — no off-scale `text-[13px]`-style values.
-- **Case:** **Sentence case** headlines — never all-caps. **Alignment:** left or centered only.
+  (`text-xs/sm/base/lg/xl/2xl/3xl`). No arbitrary `text-[…]` size in any unit: `text-[13px]`
+  and `text-[0.8125rem]` are the same off-scale 13px. Older screens still carry rem values;
+  don't copy them.
+- **Case:** **Sentence case** headlines — never all-caps. `uppercase` is for mono identifiers
+  and key caps only.
+- **Alignment:** prose and headings are left-aligned, or centered in empty states and heroes.
+  Right-align numeric columns, trailing meta and row actions. Never justify.
 - Use `text-balance` on headings, `text-pretty` on body.
 
 ## Layout
@@ -232,12 +237,14 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 ## Elevation & Depth
 
-Borders-first, then soft glow — **never** dramatic drop shadows.
+Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
 - **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
-  brand's "blur & glow." No shadow **token scale** exists — use Tailwind `shadow-*` defaults or
-  the one custom utility (`agent-card-image-shadow`); keep it subtle.
+  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl` and
+  `shadow-2xl` are out (the cookie banner and the task form modal still use one). No shadow
+  **token scale** exists — use Tailwind `shadow-*` defaults or the one custom utility
+  (`agent-card-image-shadow`).
 - **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
   backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
@@ -249,7 +256,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
 
 - **Radius scale (off `--radius: 0.625rem` = 10px):** `sm 6 · md 8 · lg 10 · xl 14`; plus
   Tailwind defaults `2xl 16` (cards/hero) and `full` (search pill, filter chips, avatars).
-  Use `rounded-sm/md/lg/xl` — don't hardcode px radii.
+  Use `rounded-sm/md/lg/xl/2xl/full` — don't hardcode px radii.
 - **Segmented lines:** a thin line anchors content to the grid and acts as **separator** — used
   to define sections and delineate cards. In-app these are **full-bleed**
   (`-mx-4 border-t border-border`) between major blocks and company groups.
@@ -316,7 +323,10 @@ prop/state-driven.
   `transition-colors` runs 310ms. Controls set their own: the UI primitives (Button, Badge,
   tabs) use `duration-150 ease-out` for press and hover feedback; enter animations run about
   200ms.
-- **What animates:** `transform`, `opacity`, `blur` — **never layout** (width/height/top/margin).
+- **What animates:** `transform`, `opacity`, `blur` — **not layout** (width/height/top/margin).
+  Two exceptions are deliberate: the sidebar collapse (width) and disclosures that animate
+  `grid-template-rows` from `0fr` to `1fr`. Name the properties you transition; `transition-all`
+  animates layout by accident.
   Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`
   (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
@@ -337,15 +347,16 @@ prop/state-driven.
   only where a third-party brand glyph is needed; no heroicons/radix-icons.
 - **Sizing:** **`size-4` is canonical** (auto-applied to unsized SVGs in primitives via
   `[&_svg:not([class*='size-'])]:size-4`); badges force `size-3`; other sizes `size-3.5/5/6/8`.
-  Always `size-N`, never `h-N w-N`.
-- Icons clarify, not decorate — if removing one loses no meaning, remove it. Decorative icons get
-  `aria-hidden` (see Accessibility).
+  Any equal width and height, icon or not, is `size-N` (including `size-full`), never `h-N w-N`.
+- Icons clarify, not decorate — if removing one loses no meaning, remove it. lucide hides its
+  icons from assistive tech by itself (see Accessibility).
 
 ## Imagery & Visuals
 
 - **Ink** represents the movement/flow of AI agents — fluid, 2D, shaping figures; layering adds
   depth, soft blur contrasts with sharp edges ("frosted glass"). Used in place of icons/stock for
-  abstract concepts; brand-color gradients add vibrancy.
+  abstract concepts; brand-color gradients add vibrancy in imagery. In the UI, gradients are
+  fades, scrims and masks, plus two brand rings (the hero search and the chat input border).
 - **Blur & glow** are core: soft drop shadows for depth; blur for legibility on busy backgrounds.
 - **Generative art** is on-brand (agents create visuals from words). **Photography** is organic
   and natural — abstract macro, grain, brand-tinted, depth-of-field softness; avoid harsh stock.
@@ -373,24 +384,29 @@ prop/state-driven.
   Reuse the one that matches the surface; never animate the ring, and never fade it with a
   modifier: `--ring-halo` is the soft wide glow, and it carries its own alpha so the class does
   not have to.
-- **Decorative icons:** boolean shorthand `aria-hidden` (bare attribute, the dominant style).
-- **Icon-only / unlabeled controls:** `aria-label` (sourced from i18n); search inputs mirror the
+- **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
+  accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
+- **Icon-only / unlabeled controls:** because the icon is hidden, every icon-only control needs
+  a name: `aria-label` (sourced from i18n); search inputs mirror the
   placeholder into `aria-label`; toggles add `aria-pressed`; otherwise pair with
   `<span className="sr-only">`.
 - **Images:** decorative `alt=""` (or `aria-hidden`); meaningful images get a real `alt`; avatars
   use `AvatarFallback` initials.
-- **Touch targets:** there is **no deliberate 44px convention** — icon buttons are often `size-7/8`
-  and `size="icon"` is `size-10`. For mobile-first surfaces, bump tap targets explicitly.
+- **Touch targets:** there is **no floor yet**: many icon buttons are `size-7/8`, and
+  `size="icon"` is `size-10`. Until one is set, a new icon-only control on a mobile surface uses
+  `size="icon"`.
 
 ## Voice & Content
 
-- **Sentence case** for headings, labels, titles, and CTAs (legacy Title Case in the
-  Organizations/Members area is *not* the standard — don't copy it).
-- **CTAs:** imperative, verb-first ("Submit rating", "Move to workspace", "Start a task");
-  destructive dialogs use bare "Confirm"/"Cancel".
-- **Errors:** `Failed to {verb} {noun}` ("Failed to create job"), with fallback suffix
-  ", please contact our support" for unknown/on-chain errors.
-- **Success:** `{Noun} {verbed} successfully` ("Seat assigned successfully").
+- **Sentence case** for headings, labels, titles, and CTAs. Title Case survives in several
+  namespaces (Account, Jobs, Tasks, Subscriptions, Chat, Organizations); none of it is the
+  standard, so copy none of it.
+- **CTAs:** imperative, verb-first ("Submit rating", "Move to workspace", "Start a task").
+  A destructive confirm names its action ("Delete", "Remove member"), next to "Cancel".
+- **Errors:** say what failed. `Failed to {verb} {noun}` ("Failed to create job") is the house
+  form; "Couldn't…" also appears, but new copy uses "Failed to".
+- **Success:** a short past-tense statement ("Seat assigned", "Invites sent");
+  "successfully" is optional.
 - **i18n:** next-intl, `useTranslations`/`getTranslations` with **deep dot-namespaced keys**
   mirroring the route/component tree. Place
   new strings under the matching namespace. **Shipped locales: `en`, `de`, `es`** (default `en`).
@@ -407,17 +423,18 @@ primary on a neutral background. Brand names are always lowercase.
 **Do**
 - Keep deep-blue primary + neutrals as the base; let chromatic accents (masumi/kodosumi
   charts, status) appear only when they communicate.
-- Use Inter (all weights), sentence case, left/centered alignment, the Tailwind type scale.
+- Use Inter (all weights), sentence case, the alignment rules above, the Tailwind type scale.
 - Separate sections with full-bleed segmented lines; lean on borders + soft glow + blur.
-- Reuse the documented focus rings; `aria-hidden` decorative icons; `aria-label` icon-only controls.
+- Reuse the documented focus rings; give every icon-only control an `aria-label`.
 - Reference semantic tokens; edit values in `globals.css` (no JS config).
 
 **Don't**
-- ALL CAPS headlines, or right-aligned / justified text.
-- Flat color washes or gradients as decoration; multiple accent hues competing in one view (a flat
+- ALL CAPS headlines, right-aligned prose, or justified text.
+- Flat color washes or gradient fills; multiple accent hues competing in one view (a flat
   violet header wash was tried and rejected).
 - Off-brand palettes (e.g. stock shadcn chart colors) — use the ecosystem.
-- Heavy/dramatic drop shadows; off-scale font sizes; animating layout properties.
+- Shadows above `shadow-lg`; arbitrary `text-[…]` sizes; `transition-all`; animating layout
+  outside the two documented exceptions.
 - Chromatic brand colors carrying small text — keep text/icons neutral on tints.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
