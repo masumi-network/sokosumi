@@ -30,7 +30,7 @@ export function RatingDistribution({
             <span className="w-12 text-sm">{t("star", { count: star })}</span>
             <div className="bg-muted relative h-5 flex-1 overflow-hidden rounded">
               <div
-                className="bg-foreground size-full origin-left transition-transform"
+                className="bg-foreground size-full origin-left transition-transform motion-reduce:transition-none"
                 style={{ transform: `scaleX(${percentage / 100})` }}
               />
             </div>
