@@ -12,13 +12,17 @@ enum ChatNotificationNavigationError: LocalizedError {
 }
 
 public extension WorkspaceState {
-  /// Re-read the account's delivery matrix so a change made on web arrives.
-  /// A failed read keeps the last known matrix and reports false.
+  /// One `GET /users/me/preferences` applied onto display and notification
+  /// projections. A failed read keeps both last known values and reports false.
   @discardableResult
-  func refreshNotificationPreferences(auth: AuthState) async -> Bool {
+  func refreshUserPreferences(auth: AuthState) async -> Bool {
     guard let client = resolveClient(auth: auth) else { return false }
     do {
-      try await notificationPreferences.refresh(client: client)
+      try await ChatService().refreshUserPreferences(
+        display: chatDisplay,
+        notifications: notificationPreferences,
+        client: client
+      )
       return true
     } catch {
       if let error = error as? ChatServiceError {
