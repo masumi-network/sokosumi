@@ -152,7 +152,11 @@
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Otros"
+      "othersCategory": "Otros",
+      "ActionButtons": {
+        "back": "Atrás",
+        "close": "Cerrar"
+      }
     },
     "UserAvatar": {
       "account": "Cuenta",
@@ -260,7 +264,8 @@
           "unassignSeatDescription": "Al quitar el Seat de pago de {member}, dejará de recibir créditos de suscripción y pasará a recibir créditos mensuales gratuitos. Los créditos del periodo actual permanecen hasta que expiren."
         },
         "assignSeat": "Asignar Seat",
-        "unassignSeat": "Quitar Seat"
+        "unassignSeat": "Quitar Seat",
+        "open": "Acciones del miembro"
       },
       "InvitationActions": {
         "resend": "Reenviar invitación",
@@ -277,7 +282,8 @@
           }
         },
         "resendSuccess": "Invitación reenviada correctamente",
-        "resendError": "No se pudo reenviar la invitación"
+        "resendError": "No se pudo reenviar la invitación",
+        "open": "Acciones de la invitación"
       }
     },
     "Breadcrumb": {
@@ -1810,7 +1816,8 @@
             "unauthenticatedAction": "Iniciar sesión",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Copiar enlace"
         },
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
         "workspaceSwitchPrompt": {
@@ -2902,7 +2909,8 @@
           "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
           "hint": "Pide a un propietario o admin que te asigne un Seat."
         }
-      }
+      },
+      "toggle": "Mostrar u ocultar la barra lateral"
     },
     "HistorySearchDialog": {
       "title": "Buscar",
@@ -4592,7 +4600,8 @@
       "Cancel": {
         "title": "Pago cancelado",
         "description": "Tu proceso de pago fue cancelado. No se realizó ningún cargo.",
-        "backToCredits": "Volver a Credits"
+        "backToCredits": "Volver a Credits",
+        "close": "Cerrar"
       },
       "Errors": {
         "invalidInput": "Por favor, introduce un importe de Credits o un código de cupón",
@@ -4609,7 +4618,8 @@
       "urlLabel": "URL del servidor MCP",
       "existingKeyNote": "Esta conexión MCP alojada usa OAuth. Tu cliente MCP te pedirá iniciar sesión en Sokosumi al conectarte.",
       "docsLink": "Ver documentación de MCP",
-      "copyError": "No se pudo copiar la URL al portapapeles"
+      "copyError": "No se pudo copiar la URL al portapapeles",
+      "copyUrl": "Copiar URL"
     },
     "Account": {
       "Name": {
@@ -4720,7 +4730,9 @@
           "cancel": "Cancelar",
           "success": "Cuenta desconectada correctamente",
           "error": "No se pudo desconectar {provider}"
-        }
+        },
+        "connect": "Conectar {provider}",
+        "disconnect": "Desconectar {provider}"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",

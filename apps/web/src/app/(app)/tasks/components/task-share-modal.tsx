@@ -223,7 +223,12 @@ export function TaskShareModal({
                 >
                   {link.toString()}
                 </a>
-                <Button variant="ghost" size="icon" onClick={handleCopyLink}>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyLink}
+                  aria-label={t("copyLink")}
+                >
                   <Copy className="size-4" />
                 </Button>
               </div>
