@@ -50,6 +50,7 @@ typography:
     fontSize: 11px
     lineHeight: 16px
 rounded:
+  xs: 2px      # Tailwind default (marks under 10px: tooltip arrow, confetti)
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
   lg: 10px     # --radius (0.625rem)
@@ -249,10 +250,11 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
 - **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
-  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl` and
-  `shadow-2xl` are out (the cookie banner and the task form modal still use one). No shadow
-  **token scale** exists — use Tailwind `shadow-*` defaults or the one custom utility
-  (`agent-card-image-shadow`).
+  brand's "blur & glow"; `shadow-lg` is the ceiling, for floating overlays only. `shadow-xl`,
+  `shadow-2xl` and a hand-written `shadow-[…]` drop shadow are out under any variant; an
+  arbitrary `shadow-[inset_…]` hairline is a border and stays. No shadow **token scale**
+  exists — use Tailwind `shadow-*` defaults or the one custom utility
+  (`agent-card-image-shadow`). Guard: `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
   backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
@@ -263,8 +265,12 @@ Borders-first, then soft glow. Shadows stop at `shadow-lg`.
 ## Shapes
 
 - **Radius scale (off `--radius: 0.625rem` = 10px):** `sm 6 · md 8 · lg 10 · xl 14`; plus
-  Tailwind defaults `2xl 16` (cards/hero) and `full` (search pill, filter chips, avatars).
-  Use `rounded-sm/md/lg/xl/2xl/full` — don't hardcode px radii.
+  Tailwind defaults `xs 2` (marks under 10px: the tooltip arrow, confetti), `2xl 16`
+  (cards/hero) and `full` (search pill, filter chips, avatars). Use
+  `rounded-xs/sm/md/lg/xl/2xl/full` — don't hardcode a radius, in a class (`rounded-[4px]`) or a
+  style object (`borderRadius: "0.5rem"`), in any unit. Keywords and tokens are fine
+  (`rounded-[inherit]`, `var(--radius-lg)`). Guard:
+  `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Segmented lines:** a thin line anchors content to the grid and acts as **separator** — used
   to define sections and delineate cards. In-app these are **full-bleed**
   (`-mx-4 border-t border-border`) between major blocks and company groups.

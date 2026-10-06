@@ -676,6 +676,111 @@ describe("z-index ceiling", () => {
 });
 
 // ---------------------------------------------------------------------------
+// shadow ceiling
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Elevation & Depth: borders first, then a soft glow, and
+ * `shadow-lg` is the ceiling. `shadow-xl` and `shadow-2xl` are out under any
+ * variant (`md:`, `hover:`, `focus-within:`), and so is an arbitrary
+ * `shadow-[…]` drop shadow, which is the same thing spelled by hand.
+ *
+ * An arbitrary `shadow-[inset_…]` passes: with no offset outward it draws a
+ * hairline or a rail inside the box, which is a border, not elevation.
+ * `drop-shadow-*`, `text-shadow-*` and `inset-shadow-*` are other utilities
+ * and pass. Blind spot: a `boxShadow` in a style object or `box-shadow` in
+ * CSS. Nothing in the tree lifts that way today.
+ */
+const SHADOW_ABOVE_CEILING =
+  /(?<![\w-])shadow-(?:xl|2xl|\[(?!inset_)[^\]]*\])(?![\w-])/;
+
+describe("shadow ceiling", () => {
+  it("lifts nothing above shadow-lg", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        const match = line.match(SHADOW_ABOVE_CEILING);
+        if (match) violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// radius scale
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Shapes: radii come from the scale (`rounded-xs` through
+ * `rounded-2xl`, and `rounded-full`), never a hand-written length. A
+ * hardcoded radius does not follow `--radius`, so it drifts the moment the
+ * scale moves; two inline ones sat 0.4px and 2px off the class on the same
+ * element and quietly won.
+ *
+ * Reads arbitrary Tailwind radii in any unit, on any side or corner and with
+ * any number of values (`rounded-[4px]`, `md:rounded-t-[0.5rem]`,
+ * `rounded-[4px_8px]`), and a literal radius in a style object, shorthand or
+ * longhand (`borderRadius: 8`, `borderTopLeftRadius: "0.65rem"`). A keyword or
+ * a token passes: `rounded-[inherit]`, `borderRadius: "var(--radius-lg)"`.
+ * Blind spot: `border-radius` in a stylesheet, where the scrollbar pill and
+ * the search rail still write lengths; CSS has no utility to reach for.
+ */
+const ARBITRARY_RADIUS = /(?<![\w-])rounded(?:-[a-z]{1,2})?-\[\.?\d[^\]]*\]/;
+const STYLE_RADIUS =
+  /\bborder(?:Top|Bottom|Start|End)?(?:Left|Right|Start|End)?Radius\s*:\s*(?:\d[\d.]*|["'`]\s*\.?\d[^"'`]*["'`])/;
+
+describe("radius scale", () => {
+  it("takes every radius from the scale", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".ts" && file.ext !== ".tsx") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        const match = line.match(ARBITRARY_RADIUS) ?? line.match(STYLE_RADIUS);
+        if (match) violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("matches hand-written lengths only", () => {
+    const hits = [
+      '"rounded-[4px]"',
+      '"md:rounded-tl-[0.5rem]"',
+      '"rounded-[4px_8px]"',
+      "{ borderRadius: 6 }",
+      '{ borderRadius: "0.65rem" }',
+      '{ borderTopLeftRadius: "4px" }',
+    ];
+    for (const line of hits) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        true,
+      );
+    }
+
+    const passes = [
+      '"rounded-[inherit] rounded-t-[inherit] rounded-xs rounded-2xl"',
+      '"rounded-[calc(var(--radius)-2px)]"',
+      '{ borderRadius: "var(--radius-lg)" }',
+      '"--border-radius": "var(--radius-lg)"',
+    ];
+    for (const line of passes) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        false,
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // icon buttons have a name
 // ---------------------------------------------------------------------------
 
@@ -789,8 +894,15 @@ function expandConsts(value: string, consts: Map<string, string>): string {
   return value.replace(/\b[A-Z][A-Z0-9_]*\b/g, (id) => consts.get(id) ?? id);
 }
 
-function classContexts(text: string): { at: number; value: string }[] {
-  const contexts: { at: number; value: string }[] = [];
+/** `end` is where the raw source of the context stops, before inlining. */
+interface ClassContext {
+  at: number;
+  end: number;
+  value: string;
+}
+
+function classContexts(text: string): ClassContext[] {
+  const contexts: ClassContext[] = [];
   const consts = constStrings(text);
   for (const match of text.matchAll(/className=([{"])/g)) {
     const start = match.index + "className=".length;
@@ -798,19 +910,125 @@ function classContexts(text: string): { at: number; value: string }[] {
       match[1] === "{"
         ? balanced(text, start, "{", "}")
         : text.slice(start, text.indexOf('"', start + 1) + 1);
-    contexts.push({ at: match.index, value: expandConsts(value, consts) });
+    contexts.push({
+      at: match.index,
+      end: start + value.length,
+      value: expandConsts(value, consts),
+    });
   }
   for (const match of text.matchAll(/\bcva\(/g)) {
     const start = match.index + "cva".length;
+    const value = balanced(text, start, "(", ")");
     contexts.push({
       at: match.index,
-      value: expandConsts(balanced(text, start, "(", ")"), consts),
+      end: start + value.length,
+      value: expandConsts(value, consts),
     });
   }
   for (const match of text.matchAll(/"[^"\n]*"|`[^`]*`/g)) {
-    contexts.push({ at: match.index, value: match[0] });
+    contexts.push({
+      at: match.index,
+      end: match.index + match[0].length,
+      value: match[0],
+    });
   }
   return contexts;
+}
+
+/**
+ * The contexts no wider one contains. A literal inside `cn(…)` or a `cva()`
+ * variant is only part of its element's classes, so a rule that needs two
+ * classes together reads the whole call instead.
+ */
+function outermostContexts(contexts: ClassContext[]): ClassContext[] {
+  return contexts.filter(
+    (inner) =>
+      !contexts.some(
+        (outer) =>
+          outer !== inner &&
+          outer.at <= inner.at &&
+          inner.end <= outer.end &&
+          outer.end - outer.at > inner.end - inner.at,
+      ),
+  );
+}
+
+/**
+ * The other half of `DESIGN.md` → Accessibility → Focus rings: a ring always
+ * has a width. `focus-visible:ring-ring` sets only the colour of a ring that
+ * is 0px wide, so next to `outline-none` the control shows no focus at all.
+ * Six controls shipped that way.
+ *
+ * In one class context (see `classContexts`), every `ring-<colour>` or
+ * `inset-ring-<colour>` whose variant chain holds a focus state (`focus:`,
+ * `focus-visible:`, `focus-within:`, or the `group-`/`peer-` forms, anywhere
+ * in the chain: `md:focus-visible:`, `focus-visible:after:`) needs a width of
+ * the same kind (`ring`, `ring-2`, `ring-[3px]`) that applies whenever the
+ * colour does: one whose variants are all in the colour's chain, so the same
+ * chain, a shorter one (`after:ring-2` covers `focus-visible:after:`), or a
+ * bare one. A zero width (`ring-0`, `ring-[0px]`) is no width.
+ * `ring-offset-*` and `ring-inset` are not colours.
+ *
+ * Blind spot: a width that arrives from somewhere else, such as a colour
+ * override passed to `Button`, whose `ring-2` lives in `button.tsx`. That
+ * reads as missing and has to be written out, which is also what makes the
+ * call site honest about what it draws.
+ */
+const FOCUS_STATE =
+  /^(?:group-|peer-)?focus(?:-visible|-within)?(?:\/[\w-]+)?$/;
+const RING_UTILITY = /^!?(inset-ring|ring)(?:-(.+?))?!?$/;
+const RING_WIDTH = /^(?:\d+|\[\d*\.?\d+(?:px|rem|em)\])$/;
+const ZERO_WIDTH = /^(?:0+|\[0*\.?0+(?:px|rem|em)\])$/;
+
+/** `md:[&:hover]:ring-2` → `["md", "[&:hover]"]` and `ring-2`. */
+function splitVariants(token: string): { variants: string[]; utility: string } {
+  const variants: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let index = 0; index < token.length; index++) {
+    const char = token[index];
+    if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === ":" && depth === 0) {
+      variants.push(token.slice(from, index));
+      from = index + 1;
+    }
+  }
+  return { variants, utility: token.slice(from) };
+}
+
+function widthlessFocusRings(literal: string): string[] {
+  const colours: { token: string; variants: string[]; kind: string }[] = [];
+  const widths: { variants: string[]; kind: string }[] = [];
+  for (const token of literal.split(/[\s"'`(),]+/)) {
+    const { variants, utility } = splitVariants(token);
+    const ring = RING_UTILITY.exec(utility);
+    if (!ring) continue;
+    const [, kind, rest] = ring;
+    if (rest === undefined || RING_WIDTH.test(rest)) {
+      if (rest === undefined || !ZERO_WIDTH.test(rest)) {
+        widths.push({ variants, kind });
+      }
+    } else if (
+      variants.some((variant) => FOCUS_STATE.test(variant)) &&
+      !rest.startsWith("offset") &&
+      rest !== "inset"
+    ) {
+      colours.push({ token, variants, kind });
+    }
+  }
+  return colours
+    .filter(
+      (colour) =>
+        !widths.some(
+          (width) =>
+            width.kind === colour.kind &&
+            width.variants.every((variant) =>
+              colour.variants.includes(variant),
+            ),
+        ),
+    )
+    .map(({ token }) => token);
 }
 
 describe("focus rings", () => {
@@ -833,6 +1051,72 @@ describe("focus rings", () => {
     }
 
     expect([...violations], [...violations].join("\n")).toEqual([]);
+  });
+
+  it("gives every focus ring colour a width", () => {
+    const violations = new Set<string>();
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" && file.ext !== ".ts") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      for (const { at, value } of outermostContexts(classContexts(file.text))) {
+        for (const token of widthlessFocusRings(value)) {
+          const line = file.text.slice(0, at).split("\n").length;
+          violations.add(`${file.relSrc}:${line}: ${token} has no width`);
+        }
+      }
+    }
+
+    expect([...violations], [...violations].join("\n")).toEqual([]);
+  });
+
+  it("matches a colour only where no width of its variant applies", () => {
+    expect(
+      widthlessFocusRings('"outline-none focus-visible:ring-ring"'),
+    ).toEqual(["focus-visible:ring-ring"]);
+    expect(
+      widthlessFocusRings('"focus-within:inset-ring-ring focus:ring-2"'),
+    ).toEqual(["focus-within:inset-ring-ring"]);
+    expect(
+      widthlessFocusRings('"focus:ring-ring-halo focus-visible:ring-[3px]"'),
+    ).toEqual(["focus:ring-ring-halo"]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"',
+      ),
+    ).toEqual([]);
+    expect(
+      widthlessFocusRings('"ring-1 ring-border focus-visible:ring-ring"'),
+    ).toEqual([]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring-halo"',
+      ),
+    ).toEqual([]);
+  });
+
+  it("reads zero widths, variant chains, and group and peer focus", () => {
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:ring-0 focus-visible:ring-ring focus:ring-[0px] focus:ring-ring-halo"',
+      ),
+    ).toEqual(["focus-visible:ring-ring", "focus:ring-ring-halo"]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:after:ring-ring focus-visible:md:ring-ring group-focus-visible:ring-ring peer-focus:inset-ring-ring"',
+      ),
+    ).toEqual([
+      "focus-visible:after:ring-ring",
+      "focus-visible:md:ring-ring",
+      "group-focus-visible:ring-ring",
+      "peer-focus:inset-ring-ring",
+    ]);
+    expect(
+      widthlessFocusRings(
+        '"after:ring-2 focus-visible:after:ring-ring md:ring-1 md:focus-visible:ring-ring group-focus-visible:ring-2 group-focus-visible:ring-ring"',
+      ),
+    ).toEqual([]);
   });
 });
 
