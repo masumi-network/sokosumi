@@ -1005,6 +1005,67 @@
       "failed": "No se pudo mostrar este diagrama. Revisa la sintaxis del código de abajo.",
       "copied": "Código copiado.",
       "copyFailed": "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
+    },
+    "ChatResults": {
+      "unavailable": "Resultado no disponible o sin acceso",
+      "loading": "Cargando resultados…",
+      "loadError": "No se pudieron cargar los resultados",
+      "retry": "Reintentar",
+      "open": "Abrir origen",
+      "openLabel": "Abrir origen: {title}",
+      "downloadLabel": "Descargar {name}",
+      "recorded": "Registrado el {time}",
+      "assignee": "Asignado a",
+      "project": "Proyecto",
+      "destination": "Cuenta",
+      "scheduled": "Programado para",
+      "recurrence": "Repetición",
+      "bytes": "{size} bytes",
+      "kind": {
+        "task": "Tarea",
+        "task_schedule": "Programación de tarea",
+        "bot_schedule": "Seguimiento del bot",
+        "social_post": "Publicación social",
+        "studio_job": "Generación en Studio",
+        "job": "Resultado del agente",
+        "file": "Archivo",
+        "decision": "Aprobación"
+      },
+      "status": {
+        "DRAFT": "Borrador",
+        "READY": "Lista",
+        "INPUT_REQUIRED": "Esperando información",
+        "RUNNING": "En curso",
+        "COMPLETED": "Completada",
+        "FAILED": "Fallida",
+        "CANCELLED": "Cancelada",
+        "ACTIVE": "Activa",
+        "PAUSED": "Pausada",
+        "ENDED": "Finalizada",
+        "SCHEDULED": "Programada",
+        "PUBLISHED": "Publicada",
+        "QUEUED": "En cola",
+        "PENDING": "Pendiente",
+        "PROCESSING": "Procesando",
+        "ACCEPTED": "Aceptada",
+        "REJECTED": "Rechazada",
+        "EXPIRED": "Caducada",
+        "SUCCEEDED": "Completado",
+        "SUBMITTING": "Enviando",
+        "CANCELED": "Cancelado",
+        "SUBMISSION_UNCERTAIN": "Esperando confirmación",
+        "ORPHANED": "Requiere atención"
+      },
+      "download": "Descargar",
+      "selection": {
+        "label": "Elige un proyecto",
+        "search": "Buscar proyectos…",
+        "empty": "No hay proyectos disponibles. Pide al bot que actualice las opciones.",
+        "sending": "Enviando tu elección…",
+        "selected": "Has elegido {name}",
+        "failed": "No se pudo enviar tu elección. Inténtalo de nuevo.",
+        "selectedProject": "Proyecto seleccionado"
+      }
     }
   },
   "Join": {
@@ -6935,7 +6996,8 @@
           "scratch_list": "Listando notas",
           "read_file": "Leyendo un archivo",
           "generate_image": "Generando una imagen",
-          "get_image": "Consultando una imagen"
+          "get_image": "Consultando una imagen",
+          "preview_result": "Preparando una vista previa"
         },
         "composer": {
           "label": "Mensaje",

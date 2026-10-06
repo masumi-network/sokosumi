@@ -17,6 +17,7 @@ export const SOKO_BOT_CAPABILITIES = [
   "archive_task",
   "assign_task",
   "get_task_status",
+  "preview_result",
   "list_tasks",
   "reply_to_task",
   "update_assigned_task",
@@ -130,6 +131,7 @@ export const SOKO_BOT_WEB_TAINTED_BLOCKED_CAPABILITIES = [
 const DIRECT_READ_CAPABILITIES = [
   "refresh_context",
   "get_task_status",
+  "preview_result",
   "list_tasks",
   "get_job_status",
   "read_memory",

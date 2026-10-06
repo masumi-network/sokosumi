@@ -466,6 +466,7 @@ vi.mock("@/routes/v1/chats/rooms/room-unread", () => ({
   getChatRoomUnreadCounts: unreadCountsMock,
 }));
 vi.mock("@/helpers/access-control", () => ({
+  requireTaskReadForWorkspace: taskFindFirstMock,
   requireTaskAssignableCoworker: requireTaskAssignableCoworkerMock,
   buildTaskWriteAccessWhere: (userId: string) => ({
     OR: [{ ownerId: userId }, { visibility: "PUBLIC" }],
@@ -697,6 +698,60 @@ describe("SokoBotRuntimeService authorization", () => {
     });
   });
 
+  it.each(["OWNER", "TEAMMATE", "ASSISTANT"] as const)(
+    "prepares a result only for an owner request (%s)",
+    async (askedByKind) => {
+      turnFindUniqueMock.mockResolvedValue({
+        userMessage: "Show the task",
+        id: SCOPE.turnId,
+        sokoBotId: SCOPE.sokoBotId,
+        userId: SCOPE.userId,
+        workspaceId: SCOPE.workspaceId,
+        capabilityNames: ["preview_result"],
+        contextSnapshot: {
+          id: "01960001-0001-7001-8001-000000000004",
+          packet: {
+            trigger: { askedBy: { kind: askedByKind } },
+            memory: { version: 1 },
+          },
+        },
+        eveSessionId: SCOPE.sessionId,
+        status: "RUNNING",
+        deadlineAt: new Date(Date.now() + 60_000),
+        leaseExpiresAt: new Date(Date.now() + 60_000),
+        sokoBot: { archivedAt: null, status: "RUNNING" },
+      });
+      toolCallFindUniqueMock.mockResolvedValue(null);
+      taskFindFirstMock.mockResolvedValue({
+        id: "task_1",
+        name: "Launch",
+        status: "READY",
+        description: null,
+        schedule: null,
+        events: [],
+      });
+      const result = new SokoBotRuntimeService().executeTool({
+        ...SCOPE,
+        capability: "preview_result",
+        toolCallId: "call_preview_not_a_uuid",
+        input: { reference: { kind: "task", id: "task_1" } },
+      });
+      if (askedByKind === "OWNER") {
+        await expect(result).resolves.toMatchObject({
+          reference: { kind: "task", id: "task_1" },
+          data: {
+            id: expect.stringMatching(/^[0-9a-f-]{36}$/),
+            title: "Launch",
+            status: "READY",
+          },
+        });
+        expect(transactionChatMessageCreateMock).not.toHaveBeenCalled();
+      } else {
+        await expect(result).rejects.toThrow("owner's requests");
+        expect(taskFindFirstMock).not.toHaveBeenCalled();
+      }
+    },
+  );
   it("stops a turn already running when the administrator switch is thrown", async () => {
     // The switch has to reach work that started before it was thrown, not only
     // new turns; authorize runs before every tool call, so it stops there.
