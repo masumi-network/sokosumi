@@ -182,7 +182,7 @@ export function StudioTemplateCarousel({
   }, [api, scrollingStopped, hoverDirection]);
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-5 py-4">
+    <div className="w-full space-y-5 py-4">
       <div className="space-y-2 px-4 text-center">
         <h2 className="text-xl font-medium">{labels.emptyTitle}</h2>
         <p className="text-muted-foreground text-sm text-pretty">
