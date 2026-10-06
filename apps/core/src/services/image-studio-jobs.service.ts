@@ -1462,6 +1462,29 @@ export async function reconcileProjectJobs(projectId: string): Promise<void> {
   }
 }
 
+const WORKSPACE_RECONCILE_PROJECTS = 5;
+
+/**
+ * `reconcileProjectJobs` for every workspace project with work in flight.
+ *
+ * Capped, because the workspace view polls this: a workspace with many busy
+ * projects settles a few per poll rather than making every provider call at
+ * once. The cron sweep catches whatever this leaves.
+ */
+export async function reconcileWorkspaceJobs(
+  workspaceId: string,
+): Promise<void> {
+  const projects = await prisma.projectImageJob.findMany({
+    where: { project: { workspaceId }, ...recoverableSelection() },
+    distinct: ["projectId"],
+    take: WORKSPACE_RECONCILE_PROJECTS,
+    select: { projectId: true },
+  });
+  for (const { projectId } of projects) {
+    await reconcileProjectJobs(projectId);
+  }
+}
+
 /**
  * The cron sweep: jobs nobody is watching.
  *

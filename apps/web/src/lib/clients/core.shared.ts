@@ -42,6 +42,7 @@ import type {
   GetCoworkersData,
   GetEnterpriseContractsData,
   GetHistoryData,
+  GetImageStudioStateData,
   GetJobsData,
   GetNotificationsData,
   GetProjectsByIdCalendarData,
@@ -236,6 +237,7 @@ import {
   getEnterpriseContractsByIdPeriodsPreview as coreGetEnterpriseContractsByIdPeriodsPreview,
   getHistory as coreGetHistory,
   getImageStudioCatalog as coreGetImageStudioCatalog,
+  getImageStudioState as coreGetImageStudioState,
   getInvitationsById as coreGetInvitationsById,
   getJobs as coreGetJobs,
   getJobsById as coreGetJobsById,
@@ -3189,6 +3191,20 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  /** The studio across every project in the session's workspace. */
+  async function getImageStudioState(query?: GetImageStudioStateData["query"]) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetImageStudioState({
+          client,
+          query,
+          cache: "no-store",
+        }),
+      "Failed to fetch the workspace image studio",
+    );
+  }
+
   async function getProjectsByIdImageStudio(
     id: string,
     query?: GetProjectsByIdImageStudioData["query"],
@@ -6072,6 +6088,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdNeedsAttention,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
+    getImageStudioState,
     getProjectsByIdImageStudio,
     postProjectsByIdImageStudioJobs,
     postProjectsByIdImageStudioJobsByJobIdCancel,

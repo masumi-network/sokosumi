@@ -33,6 +33,11 @@ const RETRY_AFTER_BUSY_MS = 4_000;
 export interface QueuedGeneration {
   /** Client-side identity, stable across retries of the same request. */
   id: string;
+  /**
+   * Where it runs. Per request, not per queue: the workspace view sends each
+   * generation to the project it was aimed at.
+   */
+  projectId: string;
   prompt: string;
   modelId: string;
   /** Shown while the request waits, so a batch is legible before it lands. */
@@ -43,6 +48,9 @@ export interface QueuedGeneration {
   /** Fixed per request: a retry must return the first job, never buy a second. */
   idempotencyKey: string;
 }
+
+/** A request as the composer builds it, before it is aimed at a project. */
+export type GenerationRequest = Omit<QueuedGeneration, "projectId">;
 
 /**
  * A failure this hook has its own wording for.
@@ -80,10 +88,8 @@ export interface GenerationQueue {
 const UNREACHABLE: QueueErrorCode = "unreachable";
 
 export function useGenerationQueue({
-  projectId,
   onAccepted,
 }: {
-  projectId: string;
   /** Fires after Core accepts a request, so the page can go look for it. */
   onAccepted: () => void;
 }): GenerationQueue {
@@ -160,7 +166,7 @@ export function useGenerationQueue({
     void (async () => {
       try {
         const result = await startImageGeneration({
-          projectId,
+          projectId: next.projectId,
           modelId: next.modelId,
           prompt: next.prompt,
           settings: next.settings,
@@ -218,7 +224,7 @@ export function useGenerationQueue({
         sendingRef.current = false;
       }
     })();
-  }, [headId, projectId, retryTick]);
+  }, [headId, retryTick]);
 
   const enqueue = useCallback((requests: QueuedGeneration[]) => {
     if (requests.length === 0) return;
