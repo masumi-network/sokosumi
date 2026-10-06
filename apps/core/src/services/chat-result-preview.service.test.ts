@@ -15,6 +15,7 @@ const {
   liveFiles,
   job,
   blobs,
+  projects,
 } = vi.hoisted(() => ({
   workspace: vi.fn(),
   readTask: vi.fn(),
@@ -28,10 +29,12 @@ const {
   liveFiles: vi.fn(),
   job: vi.fn(),
   blobs: vi.fn(),
+  projects: vi.fn(),
 }));
 vi.mock("@/lib/db/prisma", () => ({
   default: {
     workspace: { findFirst: workspace },
+    project: { findMany: projects },
     taskSchedule: { findFirst: taskSchedule },
     sokoBotSchedule: { findFirst: botSchedule },
     sokoBotPendingDecision: { findFirst: decision },
@@ -476,5 +479,51 @@ describe("authorized chat results", () => {
     ]);
     expect(JSON.stringify(cards)).not.toContain("Confidential.pdf");
     expect(JSON.stringify(cards)).not.toContain("private-file");
+  });
+});
+
+describe("project selection previews", () => {
+  it("scopes candidates to the authorized workspace and drops deleted choices on hydration", async () => {
+    workspace.mockResolvedValue({
+      id: "workspace",
+      userId: "owner",
+      organizationId: null,
+    });
+    projects.mockResolvedValue([
+      { id, name: "Books", identifier: "BOOK", logo: null },
+    ]);
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "project_selection", projectIds: [id] },
+      actor,
+    });
+    expect(projects).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: "workspace", id: { in: [id] } },
+      }),
+    );
+    expect(snapshot.data.projectOptions).toEqual([
+      { id, name: "Books", identifier: "BOOK", logo: null },
+    ]);
+    projects.mockResolvedValue([]);
+    const [current] = await hydrateChatResultSnapshots([snapshot], "owner");
+    expect(current).toMatchObject({ state: "available", projectOptions: [] });
+  });
+  it("never exposes choices after workspace membership is revoked", async () => {
+    workspace.mockResolvedValue({
+      id: "workspace",
+      userId: "owner",
+      organizationId: null,
+    });
+    projects.mockResolvedValue([
+      { id, name: "Books", identifier: null, logo: null },
+    ]);
+    const snapshot = await resolveChatResultReference({
+      reference: { kind: "project_selection", projectIds: [id] },
+      actor,
+    });
+    workspace.mockResolvedValue(null);
+    expect(await hydrateChatResultSnapshots([snapshot], "removed")).toEqual([
+      { id: snapshot.data.id, state: "unavailable" },
+    ]);
   });
 });

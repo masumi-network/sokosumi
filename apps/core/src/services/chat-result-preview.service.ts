@@ -157,6 +157,22 @@ export async function resolveChatResultReference(
   }
   let data: ChatResultAvailable;
   switch (ref.kind) {
+    case "project_selection": {
+      const projects = await client.project.findMany({
+        where: { workspaceId: actor.workspaceId, id: { in: ref.projectIds } },
+        select: { id: true, name: true, identifier: true, logo: true },
+        orderBy: { name: "asc" },
+        take: 12,
+      });
+      data = chatResultAvailableSchema.parse({
+        ...base,
+        title: "Choose a project",
+        status: null,
+        sourceHref: "/projects",
+        projectOptions: projects.map((project) => previewProject(project)),
+      });
+      break;
+    }
     case "task": {
       const task = await requireTaskReadForWorkspace(
         workspace,
@@ -532,6 +548,8 @@ export async function hydrateChatResultSnapshots(
             allowedOutputs.has(output.openHref),
           ),
           decision: current.data.decision,
+          // Choices are live: removed projects and old names are never selectable.
+          projectOptions: current.data.projectOptions,
         };
       } catch (error) {
         if (

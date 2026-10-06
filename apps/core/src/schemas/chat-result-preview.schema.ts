@@ -84,6 +84,7 @@ export const chatResultAvailableSchema = z
       "job",
       "file",
       "decision",
+      "project_selection",
     ]),
     title: z.string().max(500),
     // Each resource retains its native state; Core reads it, never the model.
@@ -108,6 +109,7 @@ export const chatResultAvailableSchema = z
       })
       .nullable()
       .default(null),
+    projectOptions: z.array(projectSchema).max(12).default([]),
     projectInfo: z.union([projectSchema, z.null()]).default(null),
     decision: z.union([sokoBotPendingDecisionSchema, z.null()]).default(null),
   })

@@ -1049,7 +1049,15 @@
         "REJECTED": "Abgelehnt",
         "EXPIRED": "Abgelaufen"
       },
-      "download": "Herunterladen"
+      "download": "Herunterladen",
+      "selection": {
+        "label": "Projekt auswählen",
+        "search": "Projekte suchen…",
+        "empty": "Keine Projekte verfügbar. Bitte den Bot, die Auswahl zu aktualisieren.",
+        "sending": "Auswahl wird gesendet…",
+        "selected": "{name} ausgewählt",
+        "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut."
+      }
     }
   },
   "Join": {

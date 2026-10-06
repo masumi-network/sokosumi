@@ -3129,7 +3129,7 @@ export type ChatResultAvailable = {
     id: string;
     state: 'available';
     capturedAt: Date;
-    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision';
+    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection';
     title: string;
     status: string | null;
     summary?: string | null;
@@ -3156,6 +3156,12 @@ export type ChatResultAvailable = {
         name: string;
         icon: string | null;
     } | null;
+    projectOptions?: Array<{
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    }>;
     projectInfo?: {
         id: string;
         name: string;

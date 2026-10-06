@@ -13,6 +13,7 @@ import {
   CalendarClock,
   Download,
   FileText,
+  FolderKanban,
   ImageIcon,
   ListTodo,
   LockKeyhole,
@@ -20,13 +21,16 @@ import {
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
+import { useRef, useState } from "react";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
 import { SocialPostStatusBadge } from "@/app/projects/components/social-posts/social-post-status-badge";
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { TaskCard } from "@/app/tasks/components/task-card";
+import { TaskProjectSelect } from "@/app/tasks/components/task-project-select";
 import { buildTaskStatusLabels } from "@/app/tasks/utils/task-status-labels";
 import { AgentIcon } from "@/components/agents/agent-icon";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
@@ -36,6 +40,7 @@ import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { selectChatProjectAction } from "./select-project-action";
 
 const icons = {
   task: ListTodo,
@@ -46,13 +51,16 @@ const icons = {
   job: UserRound,
   file: FileText,
   decision: MessageSquare,
+  project_selection: FolderKanban,
 };
 
 /** Both chat timelines use the same recorded card and existing decision actions. */
 export function ResultPreviewCard({
   result,
   onDecisionResolved,
+  source,
 }: {
+  source?: ResultPreviewsProps["source"];
   result: ChatResultPreview;
   onDecisionResolved: () => void;
 }) {
@@ -66,6 +74,8 @@ export function ResultPreviewCard({
         {t("unavailable")}
       </div>
     );
+  if (result.kind === "project_selection")
+    return <ChatProjectSelection result={result} source={source} />;
   if (result.decision)
     return (
       <DecisionCard
@@ -419,6 +429,7 @@ function AuthorizedResultPreviews({
           <ResultPreviewCard
             key={result.id}
             result={result}
+            source={source}
             onDecisionResolved={() => {
               void query.refetch();
               onDecisionResolved?.();
@@ -426,5 +437,88 @@ function AuthorizedResultPreviews({
           />
         ))}
     </div>
+  );
+}
+
+function ChatProjectSelection({
+  result,
+  source,
+}: {
+  result: Extract<ChatResultPreview, { state: "available" }>;
+  source?: ResultPreviewsProps["source"];
+}) {
+  const t = useTranslations("Components.ChatResults.selection");
+  const router = useRouter();
+  const [selected, setSelected] = useState<string>();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const sending = useRef(false);
+  const options = result.projectOptions ?? [];
+  async function handleSelect(projectId: string | null) {
+    if (!projectId || !source || sending.current || selected) return;
+    sending.current = true;
+    setBusy(true);
+    setFailed(false);
+    try {
+      const response = await selectChatProjectAction({
+        source,
+        previewId: result.id,
+        projectId,
+      });
+      if (!response.ok) {
+        setFailed(true);
+        return;
+      }
+      setSelected(projectId);
+      if ("turnId" in source) router.refresh();
+    } catch {
+      setFailed(true);
+    } finally {
+      sending.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <section
+      className="bg-background w-full max-w-sm space-y-2 rounded-lg border p-3"
+      aria-label={t("label")}
+    >
+      {selected ? (
+        <p role="status" className="text-sm">
+          {t("selected", {
+            name:
+              options.find((project) => project.id === selected)?.name ?? "",
+          })}
+        </p>
+      ) : options.length && source ? (
+        <fieldset disabled={busy} className="min-w-0">
+          <TaskProjectSelect
+            projectOptions={options}
+            value={undefined}
+            allowNone={false}
+            projectLabel={t("label")}
+            placeholder={t("label")}
+            noneLabel={t("label")}
+            searchPlaceholder={t("search")}
+            emptyResults={t("empty")}
+            onChange={(id) => void handleSelect(id)}
+          />
+        </fieldset>
+      ) : (
+        <p role="status" className="text-muted-foreground text-sm">
+          {t("empty")}
+        </p>
+      )}
+      {busy ? (
+        <p role="status" className="text-muted-foreground text-xs">
+          {t("sending")}
+        </p>
+      ) : null}
+      {failed ? (
+        <p role="alert" className="text-semantic-destructive text-xs">
+          {t("failed")}
+        </p>
+      ) : null}
+    </section>
   );
 }

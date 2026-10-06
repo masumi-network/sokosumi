@@ -30,7 +30,10 @@ export function readPreparedResultSnapshots(
     const parsed = chatResultSnapshotSchema.safeParse(result);
     if (!parsed.success) continue;
     const ref = parsed.data.reference;
-    const key = `${ref.kind}:${ref.id}:${"projectId" in ref ? ref.projectId : ""}`;
+    const key =
+      ref.kind === "project_selection"
+        ? `${ref.kind}:${[...ref.projectIds].sort().join(",")}`
+        : `${ref.kind}:${ref.id}:${"projectId" in ref ? ref.projectId : ""}`;
     if (seen.has(key)) continue;
     seen.add(key);
     snapshots.push(parsed.data);

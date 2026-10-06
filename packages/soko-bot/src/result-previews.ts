@@ -17,6 +17,12 @@ export const chatResultReferenceSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("job"), ...resource }).strict(),
   z.object({ kind: z.literal("file"), ...resource }).strict(),
   z.object({ kind: z.literal("decision"), ...resource }).strict(),
+  z
+    .object({
+      kind: z.literal("project_selection"),
+      projectIds: z.array(id).min(1).max(12),
+    })
+    .strict(),
 ]);
 
 export type ChatResultReference = z.infer<typeof chatResultReferenceSchema>;

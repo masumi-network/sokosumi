@@ -11193,7 +11193,8 @@ export const ChatResultAvailableSchema = {
                 'studio_job',
                 'job',
                 'file',
-                'decision'
+                'decision',
+                'project_selection'
             ]
         },
         title: {
@@ -11384,6 +11385,43 @@ export const ChatResultAvailableSchema = {
                 'name',
                 'icon'
             ]
+        },
+        projectOptions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    name: {
+                        type: 'string',
+                        maxLength: 500
+                    },
+                    identifier: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    logo: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 2000
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'identifier',
+                    'logo'
+                ]
+            },
+            maxItems: 12,
+            default: []
         },
         projectInfo: {
             anyOf: [

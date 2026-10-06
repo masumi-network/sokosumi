@@ -43,6 +43,30 @@ describe("result preview bot support", () => {
       "bot_schedule",
     ]);
   });
+  it("accepts bounded real project choices and rejects model-authored labels", () => {
+    const reference = { kind: "project_selection", projectIds: ["project-1"] };
+    expect(
+      sokoBotPreviewResultInputSchema.safeParse({ reference }).success,
+    ).toBe(true);
+    expect(
+      sokoBotPreviewResultInputSchema.safeParse({
+        reference: { ...reference, projectIds: [] },
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotPreviewResultInputSchema.safeParse({
+        reference: {
+          ...reference,
+          projectIds: Array.from({ length: 13 }, (_, i) => `project-${i}`),
+        },
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotPreviewResultInputSchema.safeParse({
+        reference: { ...reference, options: [{ name: "Invented" }] },
+      }).success,
+    ).toBe(false);
+  });
   it("bounds explicit room attachments and preserves ordinary text posts", () => {
     expect(
       sokoBotPostChatInputSchema.safeParse({ roomId: "room", content: "Done" })

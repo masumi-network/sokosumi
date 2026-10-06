@@ -1049,7 +1049,15 @@
         "REJECTED": "Rechazada",
         "EXPIRED": "Caducada"
       },
-      "download": "Descargar"
+      "download": "Descargar",
+      "selection": {
+        "label": "Elige un proyecto",
+        "search": "Buscar proyectos…",
+        "empty": "No hay proyectos disponibles. Pide al bot que actualice las opciones.",
+        "sending": "Enviando tu elección…",
+        "selected": "Has elegido {name}",
+        "failed": "No se pudo enviar tu elección. Inténtalo de nuevo."
+      }
     }
   },
   "Join": {
