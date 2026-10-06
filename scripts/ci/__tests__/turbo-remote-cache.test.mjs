@@ -152,9 +152,13 @@ describe("GitHub OIDC remote cache wiring", () => {
       jobBlock(test, "cloud-agent-db"),
       /run: pnpm cloud-agent-db:test(\n|$)/,
     );
+    // Pinned to an exact version, and warnings fail as well as errors: the
+    // CLI exits 0 on warnings, so the job gates on the JSON summary.
+    const designMd = jobBlock(test, "design-md");
+    assert.match(designMd, /npx --yes @google\/design\.md@\d+\.\d+\.\d+ lint/);
     assert.match(
-      jobBlock(test, "design-md"),
-      /npx --yes @google\/design\.md@\d+\.\d+\.\d+ lint/,
+      designMd,
+      /jq -e '\.summary\.errors == 0 and \.summary\.warnings == 0'/,
     );
   });
 

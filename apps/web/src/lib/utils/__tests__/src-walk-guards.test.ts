@@ -706,17 +706,17 @@ describe("shadow ceiling", () => {
  * scale moves; two inline ones sat 0.4px and 2px off the class on the same
  * element and quietly won.
  *
- * Reads arbitrary Tailwind radii in any unit and on any side or corner
- * (`rounded-[4px]`, `md:rounded-t-[0.5rem]`) and a literal `borderRadius` in a
- * style object (`borderRadius: 8`, `borderRadius: "0.65rem"`). A keyword or a
- * token passes: `rounded-[inherit]`, `borderRadius: "var(--radius-lg)"`.
+ * Reads arbitrary Tailwind radii in any unit, on any side or corner and with
+ * any number of values (`rounded-[4px]`, `md:rounded-t-[0.5rem]`,
+ * `rounded-[4px_8px]`), and a literal radius in a style object, shorthand or
+ * longhand (`borderRadius: 8`, `borderTopLeftRadius: "0.65rem"`). A keyword or
+ * a token passes: `rounded-[inherit]`, `borderRadius: "var(--radius-lg)"`.
  * Blind spot: `border-radius` in a stylesheet, where the scrollbar pill and
  * the search rail still write lengths; CSS has no utility to reach for.
  */
-const ARBITRARY_RADIUS =
-  /(?<![\w-])rounded(?:-[a-z]{1,2})?-\[\d*\.?\d+[a-z%]*\]/;
+const ARBITRARY_RADIUS = /(?<![\w-])rounded(?:-[a-z]{1,2})?-\[\.?\d[^\]]*\]/;
 const STYLE_RADIUS =
-  /\bborderRadius\s*:\s*(?:\d[\d.]*|["'`]\s*\.?\d[^"'`]*["'`])/;
+  /\bborder(?:Top|Bottom|Start|End)?(?:Left|Right|Start|End)?Radius\s*:\s*(?:\d[\d.]*|["'`]\s*\.?\d[^"'`]*["'`])/;
 
 describe("radius scale", () => {
   it("takes every radius from the scale", () => {
@@ -733,6 +733,34 @@ describe("radius scale", () => {
     }
 
     expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("matches hand-written lengths only", () => {
+    const hits = [
+      '"rounded-[4px]"',
+      '"md:rounded-tl-[0.5rem]"',
+      '"rounded-[4px_8px]"',
+      "{ borderRadius: 6 }",
+      '{ borderRadius: "0.65rem" }',
+      '{ borderTopLeftRadius: "4px" }',
+    ];
+    for (const line of hits) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        true,
+      );
+    }
+
+    const passes = [
+      '"rounded-[inherit] rounded-t-[inherit] rounded-xs rounded-2xl"',
+      '"rounded-[calc(var(--radius)-2px)]"',
+      '{ borderRadius: "var(--radius-lg)" }',
+      '"--border-radius": "var(--radius-lg)"',
+    ];
+    for (const line of passes) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        false,
+      );
+    }
   });
 });
 
@@ -916,50 +944,73 @@ function outermostContexts(contexts: ClassContext[]): ClassContext[] {
  * Six controls shipped that way.
  *
  * In one class context (see `classContexts`), every `ring-<colour>` or
- * `inset-ring-<colour>` behind `focus:`, `focus-visible:` or `focus-within:`
- * needs a width of the same kind (`ring`, `ring-2`, `ring-[3px]`) behind the
- * same variant, or a bare one that applies in every state. `ring-offset-*`
- * and `ring-inset` are not colours.
+ * `inset-ring-<colour>` whose variant chain holds a focus state (`focus:`,
+ * `focus-visible:`, `focus-within:`, or the `group-`/`peer-` forms, anywhere
+ * in the chain: `md:focus-visible:`, `focus-visible:after:`) needs a width of
+ * the same kind (`ring`, `ring-2`, `ring-[3px]`) that applies whenever the
+ * colour does: one whose variants are all in the colour's chain, so the same
+ * chain, a shorter one (`after:ring-2` covers `focus-visible:after:`), or a
+ * bare one. A zero width (`ring-0`, `ring-[0px]`) is no width.
+ * `ring-offset-*` and `ring-inset` are not colours.
  *
  * Blind spot: a width that arrives from somewhere else, such as a colour
  * override passed to `Button`, whose `ring-2` lives in `button.tsx`. That
  * reads as missing and has to be written out, which is also what makes the
  * call site honest about what it draws.
  */
-const FOCUS_VARIANT = /(?:^|:)(?:focus|focus-visible|focus-within):$/;
+const FOCUS_STATE =
+  /^(?:group-|peer-)?focus(?:-visible|-within)?(?:\/[\w-]+)?$/;
 const RING_UTILITY = /^!?(inset-ring|ring)(?:-(.+?))?!?$/;
 const RING_WIDTH = /^(?:\d+|\[\d*\.?\d+(?:px|rem|em)\])$/;
+const ZERO_WIDTH = /^(?:0+|\[0*\.?0+(?:px|rem|em)\])$/;
+
+/** `md:[&:hover]:ring-2` → `["md", "[&:hover]"]` and `ring-2`. */
+function splitVariants(token: string): { variants: string[]; utility: string } {
+  const variants: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let index = 0; index < token.length; index++) {
+    const char = token[index];
+    if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === ":" && depth === 0) {
+      variants.push(token.slice(from, index));
+      from = index + 1;
+    }
+  }
+  return { variants, utility: token.slice(from) };
+}
 
 function widthlessFocusRings(literal: string): string[] {
-  const colours: { token: string; variant: string; kind: string }[] = [];
-  const widths = new Set<string>();
+  const colours: { token: string; variants: string[]; kind: string }[] = [];
+  const widths: { variants: string[]; kind: string }[] = [];
   for (const token of literal.split(/[\s"'`(),]+/)) {
-    let depth = 0;
-    let cut = -1;
-    for (let index = 0; index < token.length; index++) {
-      const char = token[index];
-      if (char === "[") depth++;
-      else if (char === "]") depth--;
-      else if (char === ":" && depth === 0) cut = index;
-    }
-    const variant = token.slice(0, cut + 1);
-    const ring = RING_UTILITY.exec(token.slice(cut + 1));
+    const { variants, utility } = splitVariants(token);
+    const ring = RING_UTILITY.exec(utility);
     if (!ring) continue;
     const [, kind, rest] = ring;
     if (rest === undefined || RING_WIDTH.test(rest)) {
-      widths.add(`${variant}${kind}`);
+      if (rest === undefined || !ZERO_WIDTH.test(rest)) {
+        widths.push({ variants, kind });
+      }
     } else if (
-      FOCUS_VARIANT.test(variant) &&
+      variants.some((variant) => FOCUS_STATE.test(variant)) &&
       !rest.startsWith("offset") &&
       rest !== "inset"
     ) {
-      colours.push({ token, variant, kind });
+      colours.push({ token, variants, kind });
     }
   }
   return colours
     .filter(
-      ({ variant, kind }) =>
-        !widths.has(`${variant}${kind}`) && !widths.has(kind),
+      (colour) =>
+        !widths.some(
+          (width) =>
+            width.kind === colour.kind &&
+            width.variants.every((variant) =>
+              colour.variants.includes(variant),
+            ),
+        ),
     )
     .map(({ token }) => token);
 }
@@ -1025,6 +1076,29 @@ describe("focus rings", () => {
     expect(
       widthlessFocusRings(
         '"focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring-halo"',
+      ),
+    ).toEqual([]);
+  });
+
+  it("reads zero widths, variant chains, and group and peer focus", () => {
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:ring-0 focus-visible:ring-ring focus:ring-[0px] focus:ring-ring-halo"',
+      ),
+    ).toEqual(["focus-visible:ring-ring", "focus:ring-ring-halo"]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:after:ring-ring focus-visible:md:ring-ring group-focus-visible:ring-ring peer-focus:inset-ring-ring"',
+      ),
+    ).toEqual([
+      "focus-visible:after:ring-ring",
+      "focus-visible:md:ring-ring",
+      "group-focus-visible:ring-ring",
+      "peer-focus:inset-ring-ring",
+    ]);
+    expect(
+      widthlessFocusRings(
+        '"after:ring-2 focus-visible:after:ring-ring md:ring-1 md:focus-visible:ring-ring group-focus-visible:ring-2 group-focus-visible:ring-ring"',
       ),
     ).toEqual([]);
   });
