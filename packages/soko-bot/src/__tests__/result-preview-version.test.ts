@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { limitSokoBotWrites, SOKO_BOT_ROUTE_CAPABILITIES } from "../policy.js";
+import { sokoBotPreviewResultInputSchema } from "../result-previews.js";
 import { sokoBotPostChatInputSchema } from "../tool-contracts.js";
 import {
+  applyVersionCapabilities,
   composeSystemPrompt,
   DEFAULT_SOKO_BOT_VERSION_ID,
   getSokoBotVersion,
@@ -13,6 +16,32 @@ describe("result preview bot support", () => {
       "# Chat result previews",
     );
     expect(DEFAULT_SOKO_BOT_VERSION_ID).toBe("v19");
+  });
+  it("keeps preview preparation available across owner routes and narrowed write scopes", () => {
+    const version = getSokoBotVersion("v21");
+    for (const capabilities of Object.values(SOKO_BOT_ROUTE_CAPABILITIES)) {
+      const narrowed = limitSokoBotWrites(capabilities, []);
+      expect(applyVersionCapabilities(version, narrowed)).toContain(
+        "preview_result",
+      );
+      expect(narrowed).not.toContain("create_task");
+      expect(narrowed).not.toContain("schedule_social_post");
+      expect(narrowed).not.toContain("generate_image");
+    }
+  });
+  it("provides valid preview tool calls for task, post, generation and reminder completions", () => {
+    const prompt = composeSystemPrompt(getSokoBotVersion("v21"));
+    const calls = [...prompt.matchAll(/preview_result\((\{[^\n]+?\})\)/g)];
+    const references = calls.map(
+      ([, input]) =>
+        sokoBotPreviewResultInputSchema.parse(JSON.parse(input)).reference,
+    );
+    expect(references.map((reference) => reference.kind)).toEqual([
+      "task",
+      "social_post",
+      "studio_job",
+      "bot_schedule",
+    ]);
   });
   it("bounds explicit room attachments and preserves ordinary text posts", () => {
     expect(
