@@ -900,7 +900,7 @@ function buildTaskDetailContext(
 }
 
 function TaskDetailActionsFallback() {
-  return <div className="bg-muted h-9 w-9 animate-pulse rounded-md" />;
+  return <div className="bg-muted size-9 animate-pulse rounded-md" />;
 }
 
 function TaskSectionFallback({

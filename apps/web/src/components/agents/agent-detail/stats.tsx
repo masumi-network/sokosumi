@@ -79,7 +79,7 @@ function AgentDetailStatsSkeleton() {
     <div className="border-border space-y-4 rounded-lg border px-4 py-4">
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
-          <Skeleton className="h-4 w-4" />
+          <Skeleton className="size-4" />
           <Skeleton className="h-4 w-12" />
         </div>
         <Skeleton className="h-6 w-24" />

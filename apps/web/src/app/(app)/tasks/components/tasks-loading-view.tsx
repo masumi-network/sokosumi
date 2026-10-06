@@ -114,7 +114,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
 
 function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
   return (
-    <div className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+    <div className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {KANBAN_COLUMNS.map((column, index) => {
         const isFirstColumn = index === 0;
 
