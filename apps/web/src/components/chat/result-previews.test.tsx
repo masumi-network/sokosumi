@@ -7,15 +7,13 @@ vi.mock("next-intl", () => ({
   useTranslations: () =>
     Object.assign((key: string) => key, { has: () => true }),
   useFormatter: () => ({
+    number: (value: number) => String(value),
     dateTime: (date: Date, _name?: string, options?: { timeZone?: string }) =>
       `${date.toISOString()} ${options?.timeZone ?? ""}`,
   }),
 }));
 vi.mock("@/app/personal-assistant/components/chat/decision-card", () => ({
   DecisionCard: () => <div>decision controls</div>,
-}));
-vi.mock("@/components/ui/file-chip-mini-preview", () => ({
-  FileChipMiniPreview: () => <div>asset preview</div>,
 }));
 const task: ChatResultAvailable = {
   id: "card",
@@ -74,9 +72,62 @@ describe("chat result cards", () => {
       />,
     );
     expect(html).toContain("Provider rejected request");
-    expect(html.match(/asset preview/g)).toHaveLength(2);
+    expect(html).toContain('src="/api/assets/1"');
+    expect(html).toContain('src="/api/assets/2"');
   });
 
+  it.each([
+    ["report.pdf", "application/pdf", 'aria-label="viewDocument"'],
+    ["report.txt", "text/plain", 'aria-label="viewDocument"'],
+    ["song.mp3", "audio/mpeg", "<audio"],
+    ["clip.mp4", "video/mp4", "<video"],
+  ])(
+    "uses the existing in-chat viewer for %s",
+    (name, contentType, expected) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{
+            ...task,
+            kind: "file",
+            outputs: [
+              {
+                name,
+                contentType,
+                sizeBytes: null,
+                openHref: "/drive/files/file",
+                previewHref: "/api/drive/files/file/content",
+              },
+            ],
+          }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).toContain(expected);
+    },
+  );
+  it("keeps private Office files out of the external viewer", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          kind: "file",
+          outputs: [
+            {
+              name: "report.docx",
+              contentType:
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              sizeBytes: null,
+              openHref: "/drive/files/file",
+              previewHref: "/api/drive/files/file/content",
+            },
+          ],
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain('href="/drive/files/file"');
+    expect(html).not.toContain('aria-label="viewDocument"');
+  });
   it("keeps the chat readable when a newer server returns an unknown card kind", () => {
     const future = JSON.parse(
       JSON.stringify({ ...task, kind: "future-result" }),

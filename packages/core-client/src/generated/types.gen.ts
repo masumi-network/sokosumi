@@ -43169,6 +43169,92 @@ export type GetJobsByIdFilesResponses = {
 
 export type GetJobsByIdFilesResponse = GetJobsByIdFilesResponses[keyof GetJobsByIdFilesResponses];
 
+export type GetJobsByIdFilesByFileIdContentData = {
+    body?: never;
+    path: {
+        id: string;
+        fileId: string;
+    };
+    query?: {
+        download?: 'true' | 'false';
+    };
+    url: '/jobs/{id}/files/{fileId}/content';
+};
+
+export type GetJobsByIdFilesByFileIdContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetJobsByIdFilesByFileIdContentError = GetJobsByIdFilesByFileIdContentErrors[keyof GetJobsByIdFilesByFileIdContentErrors];
+
+export type GetJobsByIdFilesByFileIdContentResponses = {
+    /**
+     * Output bytes
+     */
+    200: Blob | File;
+};
+
+export type GetJobsByIdFilesByFileIdContentResponse = GetJobsByIdFilesByFileIdContentResponses[keyof GetJobsByIdFilesByFileIdContentResponses];
+
 export type GetJobsByIdLinksData = {
     body?: never;
     headers?: {

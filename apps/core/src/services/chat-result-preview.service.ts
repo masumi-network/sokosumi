@@ -88,7 +88,7 @@ export async function resolveChatResultReference(
         contentType: file.mimeType,
         sizeBytes: file.sizeBytes,
         openHref: `/drive/files/${encodeURIComponent(file.id)}?${scope}`,
-        previewHref: file.mimeType?.startsWith("image/") ? href : null,
+        previewHref: href,
         downloadHref: `${href}&download=true`,
       };
     });
@@ -282,7 +282,11 @@ export async function resolveChatResultReference(
       const job = mapJobWithStatus(row);
       const href = `/agents/${encodeURIComponent(job.agentId)}/jobs/${encodeURIComponent(job.id)}`;
       const outputs = await client.blob.findMany({
-        where: { event: { jobId: job.id } },
+        where: {
+          event: { jobId: job.id },
+          status: "READY",
+          fileUrl: { not: null },
+        },
         take: 12,
       });
       data = chatResultAvailableSchema.parse({
@@ -292,13 +296,17 @@ export async function resolveChatResultReference(
         summary: job.result?.slice(0, 4000) ?? null,
         assignee: job.agent.name,
         sourceHref: href,
-        outputs: outputs.map((blob) => ({
-          name: (blob.name ?? "Output").slice(0, 500),
-          contentType: blob.mimeType,
-          sizeBytes: blob.size == null ? null : Number(blob.size),
-          openHref: href,
-          previewHref: null,
-        })),
+        outputs: outputs.map((blob) => {
+          const content = `/api/jobs/${encodeURIComponent(job.id)}/files/${encodeURIComponent(blob.id)}/content`;
+          return {
+            name: (blob.name ?? "Output").slice(0, 500),
+            contentType: blob.mimeType,
+            sizeBytes: blob.size == null ? null : Number(blob.size),
+            openHref: content,
+            previewHref: content,
+            downloadHref: `${content}?download=true`,
+          };
+        }),
       });
       break;
     }

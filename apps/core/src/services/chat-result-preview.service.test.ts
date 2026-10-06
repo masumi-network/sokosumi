@@ -285,8 +285,22 @@ describe("authorized chat results", () => {
       result: "Report ready",
     });
     blobs.mockResolvedValue([
-      { name: "report.pdf", mimeType: "application/pdf", size: null },
-      { name: "chart.png", mimeType: "image/png", size: 42n },
+      {
+        id: "pdf",
+        status: "READY",
+        fileUrl: "https://stored.example/pdf",
+        name: "report.pdf",
+        mimeType: "application/pdf",
+        size: null,
+      },
+      {
+        id: "png",
+        status: "READY",
+        fileUrl: "https://stored.example/png",
+        name: "chart.png",
+        mimeType: "image/png",
+        size: 42n,
+      },
     ]);
     const snapshot = await resolveChatResultReference({
       reference: { kind: "job", id: "job" },
@@ -296,9 +310,26 @@ describe("authorized chat results", () => {
     expect(snapshot.data.outputs[0]).toMatchObject({
       name: "report.pdf",
       sizeBytes: null,
-      openHref: "/agents/agent/jobs/job",
+      openHref: "/api/jobs/job/files/pdf/content",
+      previewHref: "/api/jobs/job/files/pdf/content",
+      downloadHref: "/api/jobs/job/files/pdf/content?download=true",
     });
   });
+  it.each(["application/pdf", "text/plain", "audio/mpeg", "video/mp4"])(
+    "offers authorized content for %s previews",
+    async (mimeType) => {
+      liveFiles.mockResolvedValue([
+        { id: "file", displayName: "Output", mimeType, sizeBytes: null },
+      ]);
+      const snapshot = await resolveChatResultReference({
+        reference: { kind: "file", id: "file" },
+        actor,
+      });
+      expect(snapshot.data.outputs[0].previewHref).toBe(
+        "/api/drive/files/file/content?scope=me",
+      );
+    },
+  );
   it("filters private or deleted files on historical reads", async () => {
     liveFiles.mockResolvedValue([
       {
@@ -314,7 +345,7 @@ describe("authorized chat results", () => {
     });
     expect(snapshot.data.outputs[0]).toMatchObject({
       sizeBytes: null,
-      previewHref: null,
+      previewHref: "/api/drive/files/file/content?scope=me",
       openHref: "/drive/files/file?scope=me",
     });
     liveFiles.mockResolvedValue([]);

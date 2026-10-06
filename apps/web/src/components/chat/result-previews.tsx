@@ -21,8 +21,10 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import { Button } from "@/components/ui/button";
+import { FileChip } from "@/components/ui/file-chip";
 import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useSession } from "@/lib/auth/auth.client";
+import { classifyFilePreview } from "@/lib/utils/file-preview";
 
 const icons = {
   task: ListTodo,
@@ -135,45 +137,61 @@ export function ResultPreviewCard({
       </dl>
       {result.outputs?.length ? (
         <ul className="flex flex-wrap gap-2">
-          {result.outputs.map((output, index) => (
-            <li
-              key={`${output.openHref}-${index}`}
-              className="min-w-0 max-w-full"
-            >
-              {output.previewHref ? (
-                <FileChipMiniPreview
-                  url={output.previewHref}
-                  fileName={output.name}
-                  mediaType={output.contentType}
-                  size={output.sizeBytes}
-                />
-              ) : (
-                <Link
-                  href={output.openHref}
-                  className="focus-visible:ring-ring bg-muted hover:bg-card-background-hover inline-flex max-w-full items-center gap-2 rounded-md border p-2 text-xs outline-none focus-visible:ring-2"
-                >
-                  <FileText aria-hidden className="size-4 shrink-0" />
-                  <span className="wrap-break-word">
-                    {output.name}
-                    {output.contentType ? ` · ${output.contentType}` : ""}
-                    {output.sizeBytes != null
-                      ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
-                      : ""}
-                  </span>
-                </Link>
-              )}
-              {output.downloadHref ? (
-                <a
-                  href={output.downloadHref}
-                  download
-                  className="text-muted-foreground focus-visible:ring-ring mt-1 flex w-fit items-center gap-1 rounded-sm text-xs outline-none hover:underline focus-visible:ring-2"
-                >
-                  <Download aria-hidden className="size-3.5" />
-                  {t("download")}
-                </a>
-              ) : null}
-            </li>
-          ))}
+          {result.outputs.map((output, index) => {
+            const media = classifyFilePreview(
+              output.previewHref ?? output.openHref,
+              output.name,
+              output.contentType,
+            );
+            const canPreview =
+              output.previewHref &&
+              (media.isImage ||
+                media.isAudio ||
+                media.isVideo ||
+                media.documentKind === "pdf" ||
+                media.documentKind === "text");
+            const Preview =
+              media.isAudio || media.isVideo ? FileChip : FileChipMiniPreview;
+            return (
+              <li
+                key={`${output.openHref}-${index}`}
+                className="min-w-0 max-w-full"
+              >
+                {canPreview && output.previewHref ? (
+                  <Preview
+                    url={output.previewHref}
+                    fileName={output.name}
+                    mediaType={output.contentType}
+                    size={output.sizeBytes}
+                  />
+                ) : (
+                  <Link
+                    href={output.openHref}
+                    className="focus-visible:ring-ring bg-muted hover:bg-card-background-hover inline-flex max-w-full items-center gap-2 rounded-md border p-2 text-xs outline-none focus-visible:ring-2"
+                  >
+                    <FileText aria-hidden className="size-4 shrink-0" />
+                    <span className="wrap-break-word">
+                      {output.name}
+                      {output.contentType ? ` · ${output.contentType}` : ""}
+                      {output.sizeBytes != null
+                        ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                        : ""}
+                    </span>
+                  </Link>
+                )}
+                {output.downloadHref ? (
+                  <a
+                    href={output.downloadHref}
+                    download
+                    className="text-muted-foreground focus-visible:ring-ring mt-1 flex w-fit items-center gap-1 rounded-sm text-xs outline-none hover:underline focus-visible:ring-2"
+                  >
+                    <Download aria-hidden className="size-3.5" />
+                    {t("download")}
+                  </a>
+                ) : null}
+              </li>
+            );
+          })}
         </ul>
       ) : null}
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
