@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ### UI & Styling
 
-- **Brand**: Read the root [`DESIGN.md`](../../DESIGN.md) for visual intent (tone, elevation, motion, voice) before styling. Token values live in `apps/web/src/app/globals.css`, which wins on conflict. CMO has its own `apps/cmo/DESIGN.md`.
+- **Brand**: Read [`apps/web/DESIGN.md`](../../apps/web/DESIGN.md) for visual intent (tone, elevation, motion, voice) before styling. Token values live in `apps/web/src/app/globals.css`, which wins on conflict.
 - **Components**: Use Shadcn UI and Radix UI primitives
 - **Styling**: Tailwind CSS with responsive design
 - **Colors**: Use semantic tokens from `globals.css`. Never a raw Tailwind palette color
