@@ -152,7 +152,11 @@
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Others"
+      "othersCategory": "Others",
+      "ActionButtons": {
+        "back": "Back",
+        "close": "Close"
+      }
     },
     "UserAvatar": {
       "account": "Account",
@@ -260,7 +264,8 @@
           "Errors": {
             "unauthorizedAction": "Log in"
           }
-        }
+        },
+        "open": "Member actions"
       },
       "InvitationActions": {
         "resend": "Resend Invitation",
@@ -277,7 +282,8 @@
           }
         },
         "resendSuccess": "Invitation resent successfully",
-        "resendError": "Failed to resend invitation"
+        "resendError": "Failed to resend invitation",
+        "open": "Invitation actions"
       }
     },
     "OrganizationCombobox": {
@@ -1872,7 +1878,8 @@
             "unauthenticatedAction": "Log in",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Copy link"
         },
         "switchedWorkspace": "Switched to {account} account",
         "workspaceSwitchPrompt": {
@@ -2963,7 +2970,8 @@
           "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
           "hint": "Ask an owner or admin to assign you a Seat."
         }
-      }
+      },
+      "toggle": "Toggle sidebar"
     },
     "HistorySearchDialog": {
       "title": "Search",
@@ -4689,7 +4697,8 @@
       "Cancel": {
         "title": "Payment Cancelled",
         "description": "Your payment process was cancelled. You have not been charged.",
-        "backToCredits": "Back to Credits"
+        "backToCredits": "Back to Credits",
+        "close": "Close"
       },
       "Errors": {
         "invalidInput": "Please enter either a credit amount or a coupon code",
@@ -4706,7 +4715,8 @@
       "urlLabel": "MCP Server URL",
       "existingKeyNote": "This hosted MCP connection uses OAuth. Your MCP client will ask you to sign in with Sokosumi when connecting.",
       "docsLink": "View MCP Documentation",
-      "copyError": "Failed to copy URL to clipboard"
+      "copyError": "Failed to copy URL to clipboard",
+      "copyUrl": "Copy URL"
     },
     "Account": {
       "Name": {
@@ -4817,7 +4827,9 @@
           "cancel": "Cancel",
           "success": "Account disconnected successfully",
           "error": "Failed to disconnect {provider}"
-        }
+        },
+        "connect": "Connect {provider}",
+        "disconnect": "Disconnect {provider}"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",

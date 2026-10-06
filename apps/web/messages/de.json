@@ -152,7 +152,11 @@
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Sonstige"
+      "othersCategory": "Sonstige",
+      "ActionButtons": {
+        "back": "Zurück",
+        "close": "Schließen"
+      }
     },
     "UserAvatar": {
       "account": "Konto",
@@ -260,7 +264,8 @@
           "unassignSeatDescription": "Wenn du {member} den bezahlten Seat entziehst, erhält die Person künftig keine Subscription-Credits mehr und stattdessen kostenlose monatliche Credits. Bereits gutgeschriebene Credits aus dem laufenden Zeitraum bleiben bis zum Ablauf bestehen."
         },
         "assignSeat": "Seat zuweisen",
-        "unassignSeat": "Seat entfernen"
+        "unassignSeat": "Seat entfernen",
+        "open": "Aktionen für Mitglied"
       },
       "InvitationActions": {
         "resend": "Einladung erneut senden",
@@ -277,7 +282,8 @@
           }
         },
         "resendSuccess": "Einladung erfolgreich erneut gesendet",
-        "resendError": "Einladung konnte nicht erneut gesendet werden"
+        "resendError": "Einladung konnte nicht erneut gesendet werden",
+        "open": "Aktionen für Einladung"
       }
     },
     "Breadcrumb": {
@@ -1871,7 +1877,8 @@
             "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Link kopieren"
         },
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "workspaceSwitchPrompt": {
@@ -2963,7 +2970,8 @@
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
         }
-      }
+      },
+      "toggle": "Seitenleiste ein- oder ausblenden"
     },
     "HistorySearchDialog": {
       "title": "Suche",
@@ -4653,7 +4661,8 @@
       "Cancel": {
         "title": "Zahlung abgebrochen",
         "description": "Dein Zahlungsvorgang wurde abgebrochen. Es wurden keine Kosten berechnet.",
-        "backToCredits": "Zurück zu Credits"
+        "backToCredits": "Zurück zu Credits",
+        "close": "Schließen"
       },
       "Errors": {
         "invalidInput": "Bitte gib entweder einen Credit-Betrag oder einen Coupon-Code ein",
@@ -4670,7 +4679,8 @@
       "urlLabel": "MCP Server URL",
       "existingKeyNote": "Diese gehostete MCP-Verbindung verwendet OAuth. Dein MCP-Client fordert dich beim Verbinden auf, dich bei Sokosumi anzumelden.",
       "docsLink": "MCP-Dokumentation ansehen",
-      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden"
+      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden",
+      "copyUrl": "URL kopieren"
     },
     "Account": {
       "Name": {
@@ -4781,7 +4791,9 @@
           "cancel": "Abbrechen",
           "success": "Account erfolgreich getrennt",
           "error": "{provider} konnte nicht getrennt werden"
-        }
+        },
+        "connect": "{provider} verbinden",
+        "disconnect": "{provider} trennen"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
