@@ -11,7 +11,6 @@ import {
   optionString,
   parsePositiveInteger,
   readJsonObject,
-  record,
   writeJson,
   writeText,
 } from "./command-helpers.js";
@@ -104,11 +103,10 @@ export async function runAgentsCommand({
       writeJson(stdout, { job });
       return;
     }
-    const value = record(job);
     writeText(stdout, [
-      `Created job ${String(value.id || "unknown")}`,
-      `agent: ${String(value.agentId || agentId)}`,
-      `status: ${String(value.status || "unknown")}`,
+      `Created job ${job.id || "unknown"}`,
+      `agent: ${job.agentId || agentId}`,
+      `status: ${job.status || "unknown"}`,
     ]);
     return;
   }
