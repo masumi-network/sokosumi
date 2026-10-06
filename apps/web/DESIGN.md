@@ -216,7 +216,8 @@ never hardcoded hex, never an opacity modifier on a colour utility.
   and key caps only.
 - **Alignment:** prose and headings are left-aligned, or centered in empty states and heroes.
   Right-align numeric columns, trailing meta and row actions. Never justify.
-- Use `text-balance` on headings, `text-pretty` on body.
+- Headings (`h1`–`h4`) balance and paragraphs wrap pretty from the base layer in `globals.css`;
+  don't repeat `text-balance` / `text-pretty` per element.
 
 ## Layout
 
@@ -288,8 +289,8 @@ prop/state-driven.
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
-  `transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out
-  press disabled:opacity-50`, hover per-variant (`hover:bg-primary-solid-hover` /
+  `transition-[color,background-color,border-color,transform] duration-150 ease-out press
+  disabled:opacity-50`, hover per-variant (`hover:bg-primary-solid-hover` /
   `hover:bg-secondary-hover` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
   Pass `loading` to the button whose request is running: it keeps the label and width and
   draws `ButtonLoadingBar`.
@@ -381,13 +382,18 @@ prop/state-driven.
     constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring-halo
     focus-visible:inset-ring-1 focus-visible:inset-ring-ring`.
 
-  Reuse the one that matches the surface; never animate the ring, and never fade it with a
-  modifier: `--ring-halo` is the soft wide glow, and it carries its own alpha so the class does
-  not have to.
+  Reuse the one that matches the surface. A ring always has a width (`ring-2` or `ring-[3px]`):
+  `ring-ring` alone sets only its colour and, next to `outline-none`, leaves no focus mark at
+  all. Never animate the ring: a ring is a `box-shadow`, so keep `box-shadow` out of the
+  transition (no `transition`, `transition-all` or `transition-shadow` on a focusable
+  element). Never fade it with a modifier: `--ring-halo` is the soft wide glow, and it carries
+  its own alpha so the class does not have to. Guard:
+  `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts`.
 - **Decorative icons:** lucide-react adds `aria-hidden="true"` to any icon that has no
   accessibility prop, so don't pass it by hand. `react-icons` glyphs do need `aria-hidden`.
 - **Icon-only / unlabeled controls:** because the icon is hidden, every icon-only control needs
-  a name: `aria-label` (sourced from i18n); search inputs mirror the
+  a name (the guard checks every `<Button size="icon">`): `aria-label` (sourced from i18n);
+  search inputs mirror the
   placeholder into `aria-label`; toggles add `aria-pressed`; otherwise pair with
   `<span className="sr-only">`.
 - **Images:** decorative `alt=""` (or `aria-hidden`); meaningful images get a real `alt`; avatars

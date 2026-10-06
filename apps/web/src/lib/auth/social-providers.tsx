@@ -11,6 +11,12 @@ export const SOCIAL_PROVIDERS: SocialProvider[] = [
   AccountProvider.MICROSOFT,
 ];
 
+/** Brand names, shown as written in every locale. */
+export const SOCIAL_PROVIDER_NAMES: Record<SocialProvider, string> = {
+  [AccountProvider.GOOGLE]: "Google",
+  [AccountProvider.MICROSOFT]: "Microsoft",
+};
+
 export const SOCIAL_PROVIDER_ICONS: Record<SocialProvider, ReactNode> = {
   [AccountProvider.GOOGLE]: <GoogleIcon />,
   [AccountProvider.MICROSOFT]: <MicrosoftIcon />,

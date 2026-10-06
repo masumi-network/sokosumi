@@ -83,6 +83,11 @@ import {
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import {
+  ProjectSelectionMessage,
+  readProjectSelectionReply,
+} from "@/components/chat/project-selection-message";
+import { ResultPreviews } from "@/components/chat/result-previews";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
@@ -827,6 +832,15 @@ function ChannelMessageBody({
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
+
+  const selectedProject = readProjectSelectionReply(content);
+  if (selectedProject)
+    return (
+      <div data-testid="room-message-body">
+        <ProjectSelectionMessage project={selectedProject} />
+        {trailing}
+      </div>
+    );
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
@@ -2511,7 +2525,9 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     onOpenThread != null;
   const hasUnfurlRow =
     !isDeleted &&
-    ((message.unfurls ?? []).length > 0 || (message.skills ?? []).length > 0);
+    ((message.unfurls ?? []).length > 0 ||
+      (message.skills ?? []).length > 0 ||
+      (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
   const contentEndsTheRow =
@@ -2892,7 +2908,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                         : undefined
                     }
                   />
-                  <SokoBotMessageFooter metadata={message.metadata} />
+                  <ResultPreviews
+                    descriptors={message.resultPreviews ?? []}
+                    source={{ roomId: message.roomId, messageId: message.id }}
+                    renderFooter={(results) => (
+                      <SokoBotMessageFooter
+                        metadata={message.metadata}
+                        previewedTaskIds={results.flatMap((result) =>
+                          result.state === "available" &&
+                          result.kind === "task" &&
+                          result.task
+                            ? [result.task.id]
+                            : [],
+                        )}
+                      />
+                    )}
+                  />
                 </>
               )}
             </>

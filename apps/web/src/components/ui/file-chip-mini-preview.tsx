@@ -41,7 +41,7 @@ interface FileChipMiniPreviewFrameProps extends FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
+  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring focus-visible:ring-2 relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition-[color,background-color,border-color,transform]";
 
 const largeImageTriggerClassName =
   "min-w-0 max-h-80 w-full max-w-full shrink";
@@ -210,7 +210,7 @@ function FileChipMiniPreviewShell({
               type="button"
               aria-label={removeLabel}
               onClick={onRemove}
-              className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
+              className="bg-surface-glass hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition-[color,background-color,border-color,transform]"
             >
               <X className="size-3" />
             </button>
