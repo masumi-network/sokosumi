@@ -16,6 +16,54 @@
     let scroll: NSScrollView
     /// What the test saw, attached if it fails.
     let diagnosis: JumpDiagnosis
+    /// The room's mark runs on this, landed at its start. The Thread's mark keeps `ThreadSession`'s wall clock: nil.
+    var clock: ManualJumpMarkClock?
+
+    /// A second into the hold, inside its full-strength stretch (0.45 s to 3.42 s): the room's clock moves there and
+    /// the list draws a few frames of it; for the Thread this waits a second.
+    @MainActor func fullStrength() async throws {
+      guard let clock else { return try await Task.sleep(for: .seconds(1)) }
+      clock.move(to: 1)
+      for _ in 0 ..< 5 {
+        host.layoutSubtreeIfNeeded()
+        try await Task.sleep(for: .milliseconds(20))
+      }
+    }
+  }
+
+  /// A jump mark clock the test moves by hand; sleeps end once it reaches their deadline. It starts far from the wall
+  /// clock, so any part of the mark that reads the real time instead draws it wrong and fails the test.
+  @MainActor final class ManualJumpMarkClock: JumpMarkClock {
+    static let start = Date(timeIntervalSinceReferenceDate: 0)
+    private var current = start
+    /// Whether anything has asked the time. Only a mark does, landing first, so a list that has read it has marked a
+    /// row at `start`.
+    private(set) var wasRead = false
+
+    var now: Date {
+      wasRead = true
+      return current
+    }
+
+    /// How far the clock has moved.
+    var elapsed: TimeInterval {
+      current.timeIntervalSince(Self.start)
+    }
+
+    /// To `seconds` after the start.
+    func move(to seconds: TimeInterval) {
+      current = Self.start.addingTimeInterval(seconds)
+    }
+
+    func advance(by seconds: TimeInterval) {
+      current.addTimeInterval(seconds)
+    }
+
+    func sleep(until deadline: Date) async throws {
+      while current < deadline {
+        try await Task.sleep(for: .milliseconds(10))
+      }
+    }
   }
 
   extension NativeWindowTests {
@@ -33,6 +81,7 @@
       /// `blocksHover`, a clear layer over everything takes the pointer's hover, so no row draws its hover wash
       /// whatever the pointer does; a test that drags the scroller has to reach it and passes false.
       static func landing(thread: Bool, blocksHover: Bool = true) async throws -> JumpLanding {
+        let clock = thread ? nil : ManualJumpMarkClock()
         let state = try TranscriptScrollingTests.fixtureState(thread: thread, media: false)
         let auth = AuthState()
         if thread {
@@ -53,6 +102,7 @@
             Self.hoverBlocker
           }
         }
+        .environment(\.jumpMarkClock, clock.map { $0 as any JumpMarkClock } ?? SystemJumpMarkClock())
         .environmentObject(state).environmentObject(auth)))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.appearance = NSAppearance(named: .aqua)
@@ -65,9 +115,13 @@
         _ = try await waitForView(in: host, timeoutMessage: "The jump did not land: \(TranscriptScrollingTests.distanceFromBottom(scroll)) pt from the bottom") {
           TranscriptScrollingTests.distanceFromBottom(scroll) > 400 ? scroll : nil
         }
+        if let clock {
+          try await poll(host) { clock.wasRead }
+          #expect(clock.wasRead, "The room marked the row it landed on.")
+        }
         let diagnosis = JumpDiagnosis(state: state, host: host, scroll: scroll)
         diagnosis.snap("landed")
-        return JumpLanding(state: state, host: host, window: window, scroll: scroll, diagnosis: diagnosis)
+        return JumpLanding(state: state, host: host, window: window, scroll: scroll, diagnosis: diagnosis, clock: clock)
       }
 
       /// Rows of the transcript's viewport whose pixel `column` points in differs from the viewport's top row
@@ -157,19 +211,18 @@
       /// Web `landOn`'s timer: the mark is gone 4.5 s after the landing, with nobody touching the list.
       @Test func theRoomMarkEndsWhenItsHoldRunsOut() async throws {
         let landing = try await Self.landing(thread: false)
-        let (host, window, scroll) = (landing.host, landing.window, landing.scroll)
+        let (host, window, scroll, clock) = try (landing.host, landing.window, landing.scroll, #require(landing.clock))
         defer { window.orderOut(nil) }
-        _ = try await waitForView(in: host, timeoutMessage: "The landed row was never marked") {
-          (try? Self.markedRows(in: host, scroll: scroll, column: 6)).map { $0 > 40 } == true ? scroll : nil
-        }
-        let marked = ContinuousClock.now
-        try await Task.sleep(until: marked.advanced(by: .seconds(1)))
-        #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Still marked a second in.")
-        try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
-        let gone = marked.duration(to: ContinuousClock.now)
-        #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
+        try await landing.fullStrength()
+        try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) > 40 }
+        #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Marked a second in.")
         // The hold's own fade takes the wash under the pixel threshold shortly before 4.5 s.
-        #expect(gone > .seconds(3), "Held until its closing fade: gone after \(gone).")
+        clock.move(to: 3)
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) > 40, "Held until its closing fade: marked 3 s in.")
+        clock.move(to: JumpMark.hold + 0.1)
+        try await Self.poll(host, diagnosis: landing.diagnosis) { try Self.markedRows(in: host, scroll: scroll, column: 6) == 0 }
+        #expect(try Self.markedRows(in: host, scroll: scroll, column: 6) == 0, "The hold is over.")
       }
 
       /// The thread's mark ends with its hold too, and takes the jump target with it.
@@ -203,11 +256,8 @@
           #expect(state.thread.jumpTarget?.mark?.stage(at: Date()) == .full)
           full = 0
         } else {
-          _ = try await waitForView(in: host, timeoutMessage: "The landed row was never marked") {
-            (try? Self.markedRows(in: host, scroll: scroll, column: 6)).map { $0 > 40 } == true ? scroll : nil
-          }
           // Past the 450 ms opening, so a paused frame there cannot pass for full strength.
-          try await Task.sleep(for: .milliseconds(500))
+          try await landing.fullStrength()
           var last: CGFloat = -1
           var steady: CGFloat = 0
           try await Self.poll(host, diagnosis: landing.diagnosis) {
@@ -232,6 +282,8 @@
         } else {
           var partial = false
           try await Self.poll(host, diagnosis: landing.diagnosis) {
+            // Through the 320 ms leave fade a frame at a time.
+            landing.clock?.advance(by: 0.02)
             let strength = try Self.washStrength(in: host, scroll: scroll)
             if strength > 0.04, strength < full - 0.01 {
               partial = true
@@ -243,8 +295,8 @@
             #expect(partial, "Fading, not cut: no frame between full strength and gone.")
           }
         }
-        // Well inside the 4.5 s hold: the wheel ended it, not its timer.
-        let gone = wheeled.duration(to: ContinuousClock.now)
+        // Well inside the 4.5 s hold: the wheel ended it, not its timer. The room's clock took the wheel 1 s in.
+        let gone = landing.clock.map { Duration.seconds($0.elapsed - 1) } ?? wheeled.duration(to: ContinuousClock.now)
         #expect(gone < .seconds(2), "Gone \(gone) after the wheel.")
       }
 

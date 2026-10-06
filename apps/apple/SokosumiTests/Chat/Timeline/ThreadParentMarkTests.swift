@@ -65,7 +65,7 @@
       /// opens over its first tenth.
       private static func advanceUntilMarked(_ clock: ManualJumpMarkClock, host: NSView, scroll: NSScrollView) async throws {
         try await JumpMarkViewTests.poll(host) {
-          clock.now.addTimeInterval(0.05)
+          clock.advance(by: 0.05)
           return try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) > 40
         }
       }
@@ -86,12 +86,11 @@
       @Test(arguments: [false, true])
       func closingTheThreadInsideTheHoldShowsTheParentsMark(dark: Bool) async throws {
         let clock = ManualJumpMarkClock()
-        let requested = clock.now
         let room = try await Self.hostedRoom(dark: dark, clock: clock)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
         try await Self.jumpToReply(state, host: host)
-        clock.now = requested.addingTimeInterval(2.5)
+        clock.move(to: 2.5)
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -114,7 +113,7 @@
 
         // A mark started at the close would hold to 2.5 + 4.5 s and still be at full strength here; one started
         // with the jump has ended.
-        clock.now = requested.addingTimeInterval(JumpMark.hold + 0.1)
+        clock.move(to: JumpMark.hold + 0.1)
         try await JumpMarkViewTests.poll(host) { try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0 }
         #expect(try JumpMarkViewTests.markedRows(in: host, scroll: scroll, column: 6) == 0, "On the jump's clock: gone 4.6 s after the jump.")
 
@@ -129,12 +128,11 @@
       /// then barely moves it, because it is already centred there.
       @Test func closingTheThreadAfterTheHoldLeavesTheRoomOnTheParent() async throws {
         let clock = ManualJumpMarkClock()
-        let requested = clock.now
         let room = try await Self.hostedRoom(dark: false, clock: clock)
         let (state, host) = (room.state, room.host)
         defer { room.window.orderOut(nil) }
         try await Self.jumpToReply(state, host: host)
-        clock.now = requested.addingTimeInterval(JumpMark.hold + 0.5)
+        clock.move(to: JumpMark.hold + 0.5)
         state.thread.close()
 
         let scroll = try await loadedTranscriptScrollView(in: host)
@@ -187,18 +185,6 @@
         // viewport may shift the offset by its own height.
         #expect(TranscriptScrollingTests.distanceFromBottom(roomScroll) < 1000,
                 "The room did not move to the old parent \(parent.id): \(TranscriptScrollingTests.distanceFromBottom(roomScroll)) pt from the bottom.")
-      }
-    }
-  }
-
-  /// A jump mark clock the test moves by hand. Sleeps end once it reaches their deadline. It starts far from the
-  /// wall clock, so any part of the mark that reads the real time instead draws it wrong and fails the test.
-  @MainActor final class ManualJumpMarkClock: JumpMarkClock {
-    var now = Date(timeIntervalSinceReferenceDate: 0)
-
-    func sleep(until deadline: Date) async throws {
-      while now < deadline {
-        try await Task.sleep(for: .milliseconds(10))
       }
     }
   }
