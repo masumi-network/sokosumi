@@ -3632,7 +3632,7 @@ extension WorkspaceStateTests {
       (500, chatDisplayError(status: "Internal Server Error", message: "Boom"))
     ])
     #expect(await state.refreshUserPreferences(auth: auth))
-    #expect(!(await state.refreshUserPreferences(auth: auth)))
+    await #expect(!state.refreshUserPreferences(auth: auth))
     #expect(state.chatDisplay.showsRoomUnreadCount && state.notificationPreferences.isLoaded)
     #expect(state.notificationPreferences.pushOptIn)
   }
