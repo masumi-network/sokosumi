@@ -122,6 +122,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  previewCalls.mockResolvedValue([]);
   turnFindUnique.mockResolvedValue(completedTurn());
   mentionUpdateMany.mockResolvedValue({ count: 1 });
   messageUpdate.mockResolvedValue({ id: "response-a" });
@@ -209,17 +210,8 @@ describe("persistSokoBotChatTurn", () => {
         sourceHref: "/tasks/task-a",
       },
     };
-    turnFindUnique.mockResolvedValue(
-      completedTurn({
-        events: [
-          {
-            type: "actions.requested",
-            toolName: "preview_result",
-            summary: null,
-          },
-        ],
-      }),
-    );
+    // Automatic cards have durable receipts without a model preview_result event.
+    turnFindUnique.mockResolvedValue(completedTurn({ events: [] }));
     previewCalls.mockResolvedValue([
       { result: snapshot },
       { result: snapshot },

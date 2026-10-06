@@ -106,7 +106,6 @@ async function loadChatLinkedTurn(
   | (ChatLinkedTurn & {
       mention: { id: string; messageId: string; roomId: string } | null;
       steps: string[];
-      hasResultPreviews: boolean;
       pendingDecisionIds: string[];
       taskIds: string[];
     })
@@ -160,9 +159,6 @@ async function loadChatLinkedTurn(
         }
       : null,
     steps: thoughtSteps(turn),
-    hasResultPreviews: turn.events.some(
-      (event) => event.toolName === "preview_result",
-    ),
     pendingDecisionIds: turn.pendingDecisions.map((decision) => decision.id),
     // Creating and assigning one Task are two delegations, not two Tasks.
     taskIds: [
@@ -423,9 +419,7 @@ export async function persistSokoBotChatTurn(
     // The transition timestamp is the response's unread clock. Losing or
     // repeated finalizers must preserve both that clock and the response.
     if (claimed.count !== 1) return;
-    const snapshots = turn.hasResultPreviews
-      ? await collectTurnResultSnapshots(turn.id, tx)
-      : [];
+    const snapshots = await collectTurnResultSnapshots(turn.id, tx);
     await tx.chatRoomMessage.update({
       where: { id: responseMessageId },
       data: {

@@ -100,6 +100,7 @@ import {
   resolveRunnableSokoBotVersion,
   resolveSokoBotVersion,
 } from "@/services/soko-bot-version.service";
+import { prepareTurnActionResultPreviews } from "@/services/turn-action-result-previews.service";
 import { enqueueSokoBotDelivery } from "./soko-bot-delivery.service";
 
 const TURN_DEADLINE_MS = 15 * 60 * 1_000;
@@ -1745,6 +1746,10 @@ export class SokoBotControlPlane {
         select: {
           sokoBotId: true,
           userId: true,
+          workspaceId: true,
+          versionId: true,
+          requestedByUserId: true,
+          chainDepth: true,
           eveSessionId: true,
           startedAt: true,
           costUsdMicros: true,
@@ -1855,6 +1860,8 @@ export class SokoBotControlPlane {
           data: { responseContract: { ...responseContract, outcomeSummary } },
         });
       }
+      if (settledStatus === "COMPLETED")
+        await prepareTurnActionResultPreviews(input.turnId, turn, tx);
       await enqueueSokoBotDelivery(tx, input.turnId);
 
       await tx.sokoBot.updateMany({

@@ -21,6 +21,14 @@ export function hydrateChatRoomMessageFromRealtime(
     roomId: message.roomId,
     parentMessageId: message.parentMessageId,
     content: message.content,
+    ...(message.resultPreviews
+      ? {
+          resultPreviews: message.resultPreviews.map((descriptor) => ({
+            id: descriptor.id,
+            capturedAt: toDate(descriptor.capturedAt),
+          })),
+        }
+      : {}),
     createdAt: toDate(message.createdAt),
     deletedAt: toNullableDate(message.deletedAt),
     editedAt: toNullableDate(message.editedAt),
