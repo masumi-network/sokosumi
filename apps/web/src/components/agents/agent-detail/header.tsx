@@ -58,7 +58,6 @@ function AgentDetailHeader({
           // display, so the browser rounds it to nothing or to a hairline
           // depending on position. 1px is what it was already trying to be.
           border: "1px solid transparent",
-          borderRadius: "0.5rem",
           backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
           backgroundOrigin: "border-box",
           backgroundClip: "padding-box, border-box",
