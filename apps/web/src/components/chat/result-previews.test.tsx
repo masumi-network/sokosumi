@@ -84,6 +84,42 @@ describe("chat result cards", () => {
     expect(html).toContain('aria-label="Open source: Campaign brief"');
     expect(html).toContain('aria-label="Download brief.docx"');
   });
+  it.each([
+    "task",
+    "task_schedule",
+    "bot_schedule",
+    "social_post",
+    "studio_job",
+    "job",
+    "file",
+  ] as const)(
+    "provides a full-card source link for %s without nesting output controls",
+    (kind) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{
+            ...task,
+            kind,
+            outputs: [
+              {
+                name: "brief.docx",
+                contentType: null,
+                sizeBytes: null,
+                previewHref: null,
+                openHref: "/drive/file",
+                downloadHref: "/drive/file?download=true",
+              },
+            ],
+          }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).toContain('data-testid="result-preview-source"');
+      expect(html).toContain('aria-label="Open source: Launch campaign"');
+      expect(html).toContain("absolute inset-0");
+      expect(html).toContain('aria-label="Download brief.docx"');
+    },
+  );
   it("renders the app's TaskCard with real project, assignee and privacy metadata", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard

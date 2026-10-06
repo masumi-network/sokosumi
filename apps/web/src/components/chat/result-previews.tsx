@@ -23,7 +23,12 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { type ReactNode, useRef, useState } from "react";
+import {
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+  useRef,
+  useState,
+} from "react";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
@@ -65,6 +70,7 @@ export function ResultPreviewCard({
   result: ChatResultPreview;
   onDecisionResolved: () => void;
 }) {
+  const sourceLink = useRef<HTMLAnchorElement>(null);
   const t = useTranslations("Components.ChatResults");
   const format = useFormatter();
   const tTaskStatus = useTranslations("App.Tasks.Filters.statusOptions");
@@ -113,236 +119,283 @@ export function ResultPreviewCard({
       : undefined;
   const Icon = icons[result.kind];
   const statusKey = `status.${result.status}`;
+  function openSource(event: ReactMouseEvent<HTMLElement>) {
+    if (event.defaultPrevented || (event.button !== 0 && event.button !== 1))
+      return;
+    const target = event.target;
+    if (
+      !(target instanceof Element) ||
+      !event.currentTarget.contains(target) ||
+      target.closest(
+        'a,button,input,select,textarea,audio,video,[role="button"],[role="link"],[contenteditable="true"]',
+      )
+    )
+      return;
+    const selection = window.getSelection();
+    if (
+      selection &&
+      !selection.isCollapsed &&
+      event.currentTarget.contains(selection.anchorNode)
+    )
+      return;
+    sourceLink.current?.dispatchEvent(
+      new MouseEvent(event.type, {
+        bubbles: true,
+        cancelable: true,
+        button: event.button,
+        ctrlKey: event.ctrlKey,
+        metaKey: event.metaKey,
+        shiftKey: event.shiftKey,
+        altKey: event.altKey,
+      }),
+    );
+  }
   return (
     <article
+      onClick={openSource}
+      onAuxClick={openSource}
       className={cn(
-        "w-full min-w-0 space-y-3",
+        "relative isolate w-full min-w-0 cursor-pointer rounded-lg",
         nativeTask ? "max-w-sm" : "max-w-xl",
         !nativeTask && !social && "bg-background rounded-lg border p-4",
       )}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          {result.actor ? (
-            <AssigneeAvatar assignee={result.actor} size="lg" />
-          ) : result.agent ? (
-            <AgentIcon agent={result.agent} className="size-8" />
-          ) : (
-            <Icon
-              aria-hidden
-              className="text-muted-foreground size-4 shrink-0"
+      <Link
+        ref={sourceLink}
+        href={result.sourceHref}
+        aria-label={t("openLabel", { title: result.title })}
+        className="focus-visible:ring-ring absolute inset-0 rounded-lg outline-none focus-visible:ring-2"
+        data-testid="result-preview-source"
+      />
+      <div className="relative z-10 space-y-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-center gap-2">
+            {result.actor ? (
+              <AssigneeAvatar assignee={result.actor} size="lg" />
+            ) : result.agent ? (
+              <AgentIcon agent={result.agent} className="size-8" />
+            ) : (
+              <Icon
+                aria-hidden
+                className="text-muted-foreground size-4 shrink-0"
+              />
+            )}
+            <span className="text-muted-foreground text-xs">
+              {t(`kind.${result.kind}`)}
+            </span>
+          </div>
+          {postStatus ? (
+            <SocialPostStatusBadge
+              status={postStatus}
+              label={t(`status.${postStatus}`)}
             />
-          )}
-          <span className="text-muted-foreground text-xs">
-            {t(`kind.${result.kind}`)}
-          </span>
+          ) : jobStatus ? (
+            <JobStatusBadge status={jobStatus} />
+          ) : result.status && !nativeTask ? (
+            <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs">
+              {t.has(statusKey) ? t(statusKey) : result.status}
+            </span>
+          ) : null}
         </div>
-        {postStatus ? (
-          <SocialPostStatusBadge
-            status={postStatus}
-            label={t(`status.${postStatus}`)}
+        {nativeTask ? (
+          <TaskCard
+            task={nativeTask}
+            statusLabels={buildTaskStatusLabels((key) => tTaskStatus(key))}
           />
-        ) : jobStatus ? (
-          <JobStatusBadge status={jobStatus} />
-        ) : result.status && !nativeTask ? (
-          <span className="bg-muted text-muted-foreground shrink-0 rounded-md px-2 py-0.5 text-xs">
-            {t.has(statusKey) ? t(statusKey) : result.status}
-          </span>
+        ) : social ? (
+          <SocialPostPreview
+            provider={social.provider}
+            account={social.account}
+            text={result.summary ?? result.title}
+            timestamp={
+              social.timestamp
+                ? new Date(social.timestamp)
+                : new Date(result.capturedAt)
+            }
+            media={(result.outputs ?? [])
+              .filter(
+                (output) =>
+                  output.previewHref &&
+                  (output.contentType?.startsWith("image/") ||
+                    output.contentType?.startsWith("video/")),
+              )
+              .map((output) => ({
+                pathname: output.openHref,
+                fileUrl: output.previewHref ?? output.openHref,
+                name: output.name,
+                size: output.sizeBytes ?? 0,
+                mimeType: output.contentType ?? "image/png",
+                kind: output.contentType?.startsWith("video/")
+                  ? "video"
+                  : output.contentType === "image/gif"
+                    ? "gif"
+                    : "image",
+              }))}
+          />
+        ) : (
+          <h3 className="text-foreground text-sm font-medium wrap-break-word">
+            {result.title}
+          </h3>
+        )}
+        {!nativeTask &&
+        !social &&
+        result.summary &&
+        result.summary !== result.title ? (
+          <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
+            {result.summary}
+          </p>
         ) : null}
-      </div>
-      {nativeTask ? (
-        <TaskCard
-          task={nativeTask}
-          statusLabels={buildTaskStatusLabels((key) => tTaskStatus(key))}
-        />
-      ) : social ? (
-        <SocialPostPreview
-          provider={social.provider}
-          account={social.account}
-          text={result.summary ?? result.title}
-          timestamp={
-            social.timestamp
-              ? new Date(social.timestamp)
-              : new Date(result.capturedAt)
-          }
-          media={(result.outputs ?? [])
-            .filter(
-              (output) =>
-                output.previewHref &&
-                (output.contentType?.startsWith("image/") ||
-                  output.contentType?.startsWith("video/")),
-            )
-            .map((output) => ({
-              pathname: output.openHref,
-              fileUrl: output.previewHref ?? output.openHref,
-              name: output.name,
-              size: output.sizeBytes ?? 0,
-              mimeType: output.contentType ?? "image/png",
-              kind: output.contentType?.startsWith("video/")
-                ? "video"
-                : output.contentType === "image/gif"
-                  ? "gif"
-                  : "image",
-            }))}
-        />
-      ) : (
-        <h3 className="text-foreground text-sm font-medium wrap-break-word">
-          {result.title}
-        </h3>
-      )}
-      {!nativeTask &&
-      !social &&
-      result.summary &&
-      result.summary !== result.title ? (
-        <p className="text-muted-foreground line-clamp-5 text-sm whitespace-pre-wrap wrap-break-word">
-          {result.summary}
-        </p>
-      ) : null}
-      {result.question ? (
-        <p className="bg-muted text-foreground rounded-md p-2 text-sm whitespace-pre-wrap wrap-break-word">
-          {result.question}
-        </p>
-      ) : null}
-      {!nativeTask && (
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
-          {(
-            [
-              ["assignee", nativeTask ? null : result.assignee],
-              ["project", nativeTask ? null : result.project],
-              ["destination", result.destination],
-            ] as const
-          ).map(([label, value]) =>
-            value ? (
-              <div key={label} className="contents">
-                <dt className="text-muted-foreground">{t(label)}</dt>
-                <dd className="flex items-center gap-2 wrap-break-word">
-                  {label === "project" && result.projectInfo ? (
-                    <ProjectAvatar
-                      name={result.projectInfo.name}
-                      logo={result.projectInfo.logo}
-                      className="size-5 rounded-sm"
-                    />
-                  ) : null}
-                  {value}
+        {result.question ? (
+          <p className="bg-muted text-foreground rounded-md p-2 text-sm whitespace-pre-wrap wrap-break-word">
+            {result.question}
+          </p>
+        ) : null}
+        {!nativeTask && (
+          <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1 text-xs">
+            {(
+              [
+                ["assignee", nativeTask ? null : result.assignee],
+                ["project", nativeTask ? null : result.project],
+                ["destination", result.destination],
+              ] as const
+            ).map(([label, value]) =>
+              value ? (
+                <div key={label} className="contents">
+                  <dt className="text-muted-foreground">{t(label)}</dt>
+                  <dd className="flex items-center gap-2 wrap-break-word">
+                    {label === "project" && result.projectInfo ? (
+                      <ProjectAvatar
+                        name={result.projectInfo.name}
+                        logo={result.projectInfo.logo}
+                        className="size-5 rounded-sm"
+                      />
+                    ) : null}
+                    {value}
+                  </dd>
+                </div>
+              ) : null,
+            )}
+            {result.scheduledAt ? (
+              <div className="contents">
+                <dt className="text-muted-foreground">{t("scheduled")}</dt>
+                <dd className="wrap-break-word">
+                  <time dateTime={new Date(result.scheduledAt).toISOString()}>
+                    {format.dateTime(
+                      new Date(result.scheduledAt),
+                      "dateTime",
+                      result.timezone
+                        ? { timeZone: result.timezone }
+                        : undefined,
+                    )}
+                  </time>
+                  {result.timezone ? ` · ${result.timezone}` : ""}
                 </dd>
               </div>
-            ) : null,
-          )}
-          {result.scheduledAt ? (
-            <div className="contents">
-              <dt className="text-muted-foreground">{t("scheduled")}</dt>
-              <dd className="wrap-break-word">
-                <time dateTime={new Date(result.scheduledAt).toISOString()}>
-                  {format.dateTime(
-                    new Date(result.scheduledAt),
-                    "dateTime",
-                    result.timezone ? { timeZone: result.timezone } : undefined,
+            ) : null}
+            {result.recurrence ? (
+              <div className="contents">
+                <dt className="text-muted-foreground">{t("recurrence")}</dt>
+                <dd className="font-mono wrap-break-word">
+                  {result.recurrence}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+        )}
+        {!social && result.outputs?.length ? (
+          <ul
+            className={
+              result.kind === "studio_job"
+                ? "grid grid-cols-2 gap-3"
+                : "flex flex-wrap gap-2"
+            }
+          >
+            {result.outputs.map((output, index) => {
+              const media = classifyFilePreview(
+                output.previewHref ?? output.openHref,
+                output.name,
+                output.contentType,
+              );
+              const canPreview =
+                output.previewHref &&
+                (media.isImage ||
+                  media.isAudio ||
+                  media.isVideo ||
+                  media.documentKind === "pdf" ||
+                  media.documentKind === "text");
+              return (
+                <li
+                  key={`${output.openHref}-${index}`}
+                  className={cn(
+                    "min-w-0 max-w-full",
+                    (media.isAudio || media.isVideo) && "w-full",
                   )}
-                </time>
-                {result.timezone ? ` · ${result.timezone}` : ""}
-              </dd>
-            </div>
-          ) : null}
-          {result.recurrence ? (
-            <div className="contents">
-              <dt className="text-muted-foreground">{t("recurrence")}</dt>
-              <dd className="font-mono wrap-break-word">{result.recurrence}</dd>
-            </div>
-          ) : null}
-        </dl>
-      )}
-      {!social && result.outputs?.length ? (
-        <ul
-          className={
-            result.kind === "studio_job"
-              ? "grid grid-cols-2 gap-3"
-              : "flex flex-wrap gap-2"
-          }
-        >
-          {result.outputs.map((output, index) => {
-            const media = classifyFilePreview(
-              output.previewHref ?? output.openHref,
-              output.name,
-              output.contentType,
-            );
-            const canPreview =
-              output.previewHref &&
-              (media.isImage ||
-                media.isAudio ||
-                media.isVideo ||
-                media.documentKind === "pdf" ||
-                media.documentKind === "text");
-            return (
-              <li
-                key={`${output.openHref}-${index}`}
-                className={cn(
-                  "min-w-0 max-w-full",
-                  (media.isAudio || media.isVideo) && "w-full",
-                )}
-              >
-                {canPreview && output.previewHref ? (
-                  media.isAudio || media.isVideo ? (
-                    <FileChip
-                      className="max-w-full"
-                      url={output.previewHref}
-                      fileName={output.name}
-                      mediaType={output.contentType}
-                      size={output.sizeBytes}
-                    />
+                >
+                  {canPreview && output.previewHref ? (
+                    media.isAudio || media.isVideo ? (
+                      <FileChip
+                        className="max-w-full"
+                        url={output.previewHref}
+                        fileName={output.name}
+                        mediaType={output.contentType}
+                        size={output.sizeBytes}
+                      />
+                    ) : (
+                      <FileChipMiniPreview
+                        url={output.previewHref}
+                        fileName={output.name}
+                        mediaType={output.contentType}
+                        size={output.sizeBytes}
+                        variant={
+                          result.kind === "studio_job" ? "large" : "thumb"
+                        }
+                      />
+                    )
                   ) : (
-                    <FileChipMiniPreview
-                      url={output.previewHref}
-                      fileName={output.name}
-                      mediaType={output.contentType}
-                      size={output.sizeBytes}
-                      variant={result.kind === "studio_job" ? "large" : "thumb"}
-                    />
-                  )
-                ) : (
-                  <Link
-                    href={output.openHref}
-                    className="focus-visible:ring-ring bg-muted hover:bg-card-background-hover inline-flex max-w-full items-center gap-2 rounded-md border p-2 text-xs outline-none focus-visible:ring-2"
-                  >
-                    <FileText aria-hidden className="size-4 shrink-0" />
-                    <span className="wrap-break-word">
-                      {output.name}
-                      {output.contentType ? ` · ${output.contentType}` : ""}
-                      {output.sizeBytes != null
-                        ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
-                        : ""}
-                    </span>
-                  </Link>
-                )}
-                {output.downloadHref ? (
-                  <a
-                    href={output.downloadHref}
-                    aria-label={t("downloadLabel", { name: output.name })}
-                    download
-                    className="text-muted-foreground focus-visible:ring-ring mt-1 flex w-fit items-center gap-1 rounded-sm text-xs outline-none hover:underline focus-visible:ring-2"
-                  >
-                    <Download aria-hidden className="size-3.5" />
-                    {t("download")}
-                  </a>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : null}
-      <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
-        <span>
-          {t("recorded", {
-            time: format.dateTime(new Date(result.capturedAt), "dateTime"),
-          })}
-        </span>
-        <Link
-          href={result.sourceHref}
-          aria-label={t("openLabel", { title: result.title })}
-          className="focus-visible:ring-ring text-foreground inline-flex items-center gap-1 rounded-sm underline-offset-4 outline-none hover:underline focus-visible:ring-2"
-        >
-          {t("open")}
-          <ArrowUpRight aria-hidden className="size-3.5" />
-        </Link>
+                    <Link
+                      href={output.openHref}
+                      className="focus-visible:ring-ring bg-muted hover:bg-card-background-hover inline-flex max-w-full items-center gap-2 rounded-md border p-2 text-xs outline-none focus-visible:ring-2"
+                    >
+                      <FileText aria-hidden className="size-4 shrink-0" />
+                      <span className="wrap-break-word">
+                        {output.name}
+                        {output.contentType ? ` · ${output.contentType}` : ""}
+                        {output.sizeBytes != null
+                          ? ` · ${t("bytes", { size: format.number(output.sizeBytes) })}`
+                          : ""}
+                      </span>
+                    </Link>
+                  )}
+                  {output.downloadHref ? (
+                    <a
+                      href={output.downloadHref}
+                      aria-label={t("downloadLabel", { name: output.name })}
+                      download
+                      className="text-muted-foreground focus-visible:ring-ring mt-1 flex w-fit items-center gap-1 rounded-sm text-xs outline-none hover:underline focus-visible:ring-2"
+                    >
+                      <Download aria-hidden className="size-3.5" />
+                      {t("download")}
+                    </a>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+        <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 border-t pt-2 text-xs">
+          <span>
+            {t("recorded", {
+              time: format.dateTime(new Date(result.capturedAt), "dateTime"),
+            })}
+          </span>
+          <span
+            aria-hidden
+            className="text-foreground inline-flex items-center gap-1"
+          >
+            {t("open")}
+            <ArrowUpRight aria-hidden className="size-3.5" />
+          </span>
+        </div>
       </div>
     </article>
   );
