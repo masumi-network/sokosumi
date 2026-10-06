@@ -1,7 +1,13 @@
 import type { ChatResultAvailable } from "@sokosumi/core-client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { ResultPreviewCard } from "./result-previews";
+import { ResultPreviewCard, ResultPreviews } from "./result-previews";
+
+const { resultQuery } = vi.hoisted(() => ({ resultQuery: vi.fn() }));
+vi.mock("@tanstack/react-query", () => ({ useQuery: resultQuery }));
+vi.mock("@/lib/auth/auth.client", () => ({
+  useSession: () => ({ data: { user: { id: "owner" }, session: {} } }),
+}));
 
 vi.mock("next-intl", () => ({
   useLocale: () => "en",
@@ -231,4 +237,39 @@ describe("chat result cards", () => {
     expect(html).toContain("unavailable");
     expect(html).not.toContain("Launch campaign");
   });
+});
+
+describe("result footer hydration", () => {
+  it("passes only the displayed descriptors to the footer", () => {
+    resultQuery.mockReturnValue({
+      data: [task, { ...task, id: "other" }],
+      isFetching: false,
+      isError: false,
+    });
+    const footer = vi.fn(() => <span>footer</span>);
+    renderToStaticMarkup(
+      <ResultPreviews
+        descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+        source={{ roomId: "room", messageId: "message" }}
+        renderFooter={footer}
+      />,
+    );
+    expect(footer).toHaveBeenCalledWith([task]);
+  });
+  it.each([{ isFetching: true }, { isError: true }])(
+    "preserves fallback links when no card can be shown",
+    (state) => {
+      resultQuery.mockReturnValue({ ...state, data: [task] });
+      const footer = vi.fn(() => <span>fallback link</span>);
+      const html = renderToStaticMarkup(
+        <ResultPreviews
+          descriptors={[{ id: task.id, capturedAt: task.capturedAt }]}
+          source={{ roomId: "room", messageId: "message" }}
+          renderFooter={footer}
+        />,
+      );
+      expect(footer).toHaveBeenCalledWith([]);
+      expect(html).toContain("fallback link");
+    },
+  );
 });

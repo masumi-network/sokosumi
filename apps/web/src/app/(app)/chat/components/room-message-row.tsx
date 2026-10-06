@@ -2911,8 +2911,19 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                   <ResultPreviews
                     descriptors={message.resultPreviews ?? []}
                     source={{ roomId: message.roomId, messageId: message.id }}
+                    renderFooter={(results) => (
+                      <SokoBotMessageFooter
+                        metadata={message.metadata}
+                        previewedTaskIds={results.flatMap((result) =>
+                          result.state === "available" &&
+                          result.kind === "task" &&
+                          result.task
+                            ? [result.task.id]
+                            : [],
+                        )}
+                      />
+                    )}
                   />
-                  <SokoBotMessageFooter metadata={message.metadata} />
                 </>
               )}
             </>

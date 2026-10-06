@@ -23,7 +23,7 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
-import { useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { DecisionCard } from "@/app/personal-assistant/components/chat/decision-card";
 import { ProjectAvatar } from "@/app/projects/components/project-avatar";
 import { SocialPostPreview } from "@/app/projects/components/social-posts/social-post-preview";
@@ -347,17 +347,21 @@ interface ResultPreviewsProps {
   source: { roomId: string; messageId: string } | { turnId: string };
   onDecisionResolved?: () => void;
   existingDecisionIds?: string[];
+  renderFooter?: (results: ChatResultPreview[]) => ReactNode;
 }
 export function ResultPreviews(props: ResultPreviewsProps) {
   return props.descriptors.length ? (
     <AuthorizedResultPreviews {...props} />
-  ) : null;
+  ) : (
+    (props.renderFooter?.([]) ?? null)
+  );
 }
 function AuthorizedResultPreviews({
   descriptors,
   source,
   onDecisionResolved,
   existingDecisionIds,
+  renderFooter,
 }: ResultPreviewsProps) {
   const t = useTranslations("Components.ChatResults");
   const { data: session } = useSession();
@@ -394,50 +398,63 @@ function AuthorizedResultPreviews({
   });
   if (query.isError)
     return (
-      <div
-        role="status"
-        className="text-muted-foreground flex items-center gap-2 text-xs"
-      >
-        {t("loadError")}
-        <Button size="sm" variant="ghost" onClick={() => void query.refetch()}>
-          {t("retry")}
-        </Button>
-      </div>
+      <>
+        <div
+          role="status"
+          className="text-muted-foreground flex items-center gap-2 text-xs"
+        >
+          {t("loadError")}
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => void query.refetch()}
+          >
+            {t("retry")}
+          </Button>
+        </div>
+        {renderFooter?.([])}
+      </>
     );
   if (!session?.user.id || query.isFetching || !query.data)
     return (
-      <p role="status" className="text-muted-foreground text-xs">
-        {t("loading")}
-      </p>
+      <>
+        <p role="status" className="text-muted-foreground text-xs">
+          {t("loading")}
+        </p>
+        {renderFooter?.([])}
+      </>
     );
   const ids = new Set(descriptors.map((d) => d.id));
+  const results = query.data.filter((result) => ids.has(result.id));
   return (
-    <div
-      className="my-2 flex min-w-0 flex-col gap-2"
-      data-testid="chat-result-previews"
-    >
-      {query.data
-        .filter(
-          (result) =>
-            ids.has(result.id) &&
-            !(
-              result.state === "available" &&
-              result.decision &&
-              existingDecisionIds?.includes(result.decision.id)
-            ),
-        )
-        .map((result) => (
-          <ResultPreviewCard
-            key={result.id}
-            result={result}
-            source={source}
-            onDecisionResolved={() => {
-              void query.refetch();
-              onDecisionResolved?.();
-            }}
-          />
-        ))}
-    </div>
+    <>
+      <div
+        className="my-2 flex min-w-0 flex-col gap-2"
+        data-testid="chat-result-previews"
+      >
+        {results
+          .filter(
+            (result) =>
+              !(
+                result.state === "available" &&
+                result.decision &&
+                existingDecisionIds?.includes(result.decision.id)
+              ),
+          )
+          .map((result) => (
+            <ResultPreviewCard
+              key={result.id}
+              result={result}
+              source={source}
+              onDecisionResolved={() => {
+                void query.refetch();
+                onDecisionResolved?.();
+              }}
+            />
+          ))}
+      </div>
+      {renderFooter?.(results)}
+    </>
   );
 }
 
