@@ -101,7 +101,7 @@ export function TableCell({
   };
   return (
     <div className="group/cell min-w-48">
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-1">
         {column.type === "checkbox" || column.type === "single_select" ? (
           <select
             {...props}
@@ -150,7 +150,9 @@ export function TableCell({
         the text being edited, and nothing may sit on top of an open editor.
         The button stays in the DOM, in the accessibility tree and in the tab
         order, so a keyboard or screen-reader user is unaffected; focusing the
-        cell — which is also what a tap does — reveals it. */}
+        cell — which is also what a tap does — reveals it. Its `hit-area`
+        reaches 4px past the box below md, which the row's `gap-1` absorbs, so
+        a tap on the editor's edge still lands in the editor. */}
         <Button
           size="icon"
           variant="ghost"

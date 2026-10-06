@@ -150,7 +150,9 @@ export function SkillsSection({
             key={skill.id}
             className="flex flex-col gap-1 rounded-lg border px-3 py-2.5 text-sm"
           >
-            <span className="flex items-center justify-between gap-2">
+            {/* `gap-5`: with a long name the link's hit area reaches 14px
+                right and the remove button's 6px left, so they meet at 20px. */}
+            <span className="flex items-center justify-between gap-5">
               <span className="flex min-w-0 items-center gap-1.5">
                 <span className="truncate font-medium">{skill.name}</span>
                 <a

@@ -886,8 +886,8 @@ describe("historic status badges", () => {
  * and wrappers such as `TaskShareButton`). A `size-N` that applies below `md`
  * (bare, `sm:`, `max-md:`, a container query or any non-breakpoint variant)
  * must be at least 10; one behind `md:`, `lg:`, `xl:` or `2xl:` at least 8.
- * `hit-area` exempts the tag, and so does an older `after:`/`before:`
- * `-inset-*` pseudo-element, unless `md:after:hidden` drops it on desktop.
+ * `hit-area` exempts the tag. An older `after:`/`before:` `-inset-N`
+ * pseudo-element counts only for the size it reaches (see `pseudoInsets`).
  *
  * Not checked, because a regex over one tag cannot see it:
  *   - classes that arrive through a variable or constant
@@ -922,6 +922,15 @@ function openingTags(text: string): { tag: string; index: number }[] {
       if (quote) {
         if (char === "\\") i++;
         else if (char === quote) quote = null;
+      } else if (depth > 0 && text.startsWith("//", i)) {
+        // A comment in a prop (`section's`) would otherwise open a string.
+        const end = text.indexOf("\n", i);
+        i = end === -1 ? text.length : end - 1;
+        continue;
+      } else if (depth > 0 && text.startsWith("/*", i)) {
+        const end = text.indexOf("*/", i);
+        i = end === -1 ? text.length : end + 1;
+        continue;
       } else if (char === '"' || char === "'" || char === "`") quote = char;
       else if (char === "{" && depth++ === 0) braceStart = i;
       else if (char === "}" && --depth === 0) {
@@ -936,25 +945,49 @@ function openingTags(text: string): { tag: string; index: number }[] {
   return tags;
 }
 
-function hasHitArea(tag: string): boolean {
-  if (/(?<![\w-])hit-area(?![\w-])/.test(tag)) return true;
-  return (
-    /(?:after|before):-inset-/.test(tag) &&
-    !/md:(?:after|before):hidden/.test(tag)
-  );
+/**
+ * An older `after:`/`before:` `-inset-N` expansion counts for what it adds:
+ * the target is the box plus the inset on both sides, so `size-8` with
+ * `after:-inset-1.5` is 8 + 2 × 1.5 = 11 steps (44px). A `md:` inset
+ * replaces the base one from md up, and `md:after:hidden` drops it there.
+ */
+const PSEUDO_INSET =
+  /(?<![\w:[\]-])((?:[^\s"'`]+:)?)(?:after|before):-inset-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+
+function pseudoInsets(tag: string): { mobile: number; desktop: number } {
+  let mobile = 0;
+  let desktop: number | null = null;
+  for (const [, variant, n] of tag.matchAll(PSEUDO_INSET)) {
+    if (DESKTOP_VARIANT.test(variant)) desktop = Number(n);
+    else mobile = Math.max(mobile, Number(n));
+  }
+  if (desktop === null) {
+    desktop = /md:(?:after|before):hidden/.test(tag) ? 0 : mobile;
+  }
+  return { mobile, desktop };
 }
 
 function smallIconTargets(rel: string, text: string): string[] {
   const hits: string[] = [];
   for (const { tag, index } of openingTags(text)) {
-    if (!SIZE_ICON_PROP.test(tag) || hasHitArea(tag)) continue;
-    const small = [...tag.matchAll(SIZE_TOKEN)].filter(([, variant, n]) => {
-      const floor = DESKTOP_VARIANT.test(variant) ? 8 : 10;
-      return Number(n) < floor;
-    });
-    if (small.length === 0) continue;
+    if (!SIZE_ICON_PROP.test(tag)) continue;
+    if (/(?<![\w-])hit-area(?![\w-])/.test(tag)) continue;
+    const sizes = [...tag.matchAll(SIZE_TOKEN)];
+    const mobileSizes = sizes.filter(([, v]) => !DESKTOP_VARIANT.test(v));
+    const desktopSizes = sizes.filter(([, v]) => DESKTOP_VARIANT.test(v));
+    const inset = pseudoInsets(tag);
+    // A bare size still applies from md up when no `md:` size replaces it.
+    const small = new Set([
+      ...mobileSizes.filter(([, , n]) => Number(n) + 2 * inset.mobile < 10),
+      ...(desktopSizes.length ? desktopSizes : mobileSizes).filter(
+        ([, , n]) => Number(n) + 2 * inset.desktop < 8,
+      ),
+    ]);
+    if (small.size === 0) continue;
     const line = text.slice(0, index).split("\n").length;
-    hits.push(`${rel}:${line}: ${small.map(([token]) => token).join(" ")}`);
+    hits.push(
+      `${rel}:${line}: ${[...small].map(([token]) => token).join(" ")}`,
+    );
   }
   return hits;
 }
@@ -977,6 +1010,10 @@ describe("icon touch targets", () => {
       '<Button\n  size="icon"\n  onClick={() => { go(); }}\n  className={cn("size-6", on && "bg-muted")}\n>',
       '<TaskShareButton size="icon" className="size-7" />',
       '<Button size="icon" className="size-8 after:absolute after:-inset-1.5 md:size-7 md:after:hidden">',
+      '<Button size="icon" className="size-7 after:absolute after:-inset-px">',
+      '<Button size="icon" className="size-7 after:absolute after:-inset-0.5">',
+      '<Button size="icon" className="size-6 after:absolute after:-inset-2 md:after:hidden">',
+      '<Button\n  size="icon"\n  className={cn(\n    // the section\'s `+` column\n    "size-8 after:absolute after:-inset-px",\n  )}\n>',
     ];
     for (const fixture of fixtures) {
       expect(smallIconTargets("f.tsx", fixture), fixture).toHaveLength(1);
@@ -990,6 +1027,7 @@ describe("icon touch targets", () => {
       '<Button size="icon" className="size-11 lg:size-8">',
       '<Button size="icon" className="hit-area size-6">',
       '<Button size="icon" className="relative size-8 after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5">',
+      '<Button size="icon" className="size-6 after:absolute after:-inset-2">',
       '<Button size="sm" className="size-8">',
       '<Button size="icon"><X className="size-4" /></Button>',
     ];
