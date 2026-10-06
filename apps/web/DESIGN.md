@@ -415,9 +415,13 @@ prop/state-driven.
 
 ## Voice & Content
 
-- **Sentence case** for headings, labels, titles, and CTAs. Title Case survives in several
-  namespaces (Account, Jobs, Tasks, Subscriptions, Chat, Organizations); none of it is the
-  standard, so copy none of it.
+- **Sentence case** for headings, labels, titles, and CTAs ("Create task", "Invite member",
+  "Back to credits"). Capitals stay only on proper nouns: product and feature names (Soko Bot,
+  Content Studio, Social Scheduling), legal document titles (Terms of Service, Privacy
+  Policy), other brands, and acronyms (API, OAuth, URL). Two names are quoted as-is: the
+  Files area as a destination ("Copy to Files") and the Ready task status ("Reopen to
+  Ready"). `src/lib/utils/__tests__/messages-sentence-case.test.ts` flags new Title Case in
+  `messages/en.json`; add a new proper noun to its allowlist.
 - **CTAs:** imperative, verb-first ("Submit rating", "Move to workspace", "Start a task").
   A destructive confirm names its action ("Delete", "Remove member"), next to "Cancel".
 - **Errors:** say what failed. `Failed to {verb} {noun}` ("Failed to create job") is the house

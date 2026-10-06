@@ -1,18 +1,18 @@
 # Tasks board
 
-Tasks board lets a signed-in user open `/tasks` and see the Task Manager (Board and Calendar tabs; kanban columns and/or list chrome).
+Tasks board lets a signed-in user open `/tasks` and see the task manager (Board and Calendar tabs; kanban columns and/or list chrome).
 
 ## Sub-features
 
 - `tasks-open` loads `/tasks` while authenticated.
-- `tasks-board-shell` shows **Board** / **Calendar** tabs and kanban column headings (**Backlog**, **Todo**, **In Progress**, **Input Required**, **Done**) or list-mode chrome with the same tabs (empty columns / “No tasks” are valid).
+- `tasks-board-shell` shows **Board** / **Calendar** tabs and kanban column headings (**Backlog**, **Todo**, **In progress**, **Input required**, **Done**) or list-mode chrome with the same tabs (empty columns / “No tasks” are valid).
 - `tasks-gated` is covered by the shared app auth gate (anonymous users bounce to sign-in).
 
 ## How to get to it (user POV)
 
 - Choose **Tasks** in app navigation.
 - Open `/tasks` directly.
-- Use **New Task** from the sidebar when creating a task (create flow is out of scope for this file).
+- Use **New task** from the sidebar when creating a task (create flow is out of scope for this file).
 
 ## Driving it with agent-browser
 
@@ -22,7 +22,7 @@ Preconditions:
 - `verify-sokosumi doctor` ok.
 
 - **Open board.** Run `agent-browser open $WEB_URL/tasks` then `agent-browser wait --load networkidle` and `agent-browser snapshot -i`. URL stays `/tasks` (not `/signin`).
-- **Confirm shell.** Snapshot shows **Board** / **Calendar** tablist and five kanban column headings (**Backlog** / **Todo** / **In Progress** / **Input Required** / **Done**), **or** list-mode chrome with the same tabs (flat rows or “No tasks”). Note which. Prefer setting `tasks_view_mode=board` so column headings are visible.
+- **Confirm shell.** Snapshot shows **Board** / **Calendar** tablist and five kanban column headings (**Backlog** / **Todo** / **In progress** / **Input required** / **Done**), **or** list-mode chrome with the same tabs (flat rows or “No tasks”). Note which. Prefer setting `tasks_view_mode=board` so column headings are visible.
 - **Proof.** `mkdir -p .cursor/verify-sokosumi-artifacts/tasks-board` then screenshot + snapshot.
 
 ## Gotchas

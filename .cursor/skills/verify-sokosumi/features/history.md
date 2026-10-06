@@ -1,6 +1,6 @@
 # History
 
-Credit History lets a signed-in user open `/history` and see their credit ledger (agent jobs, images, tasks, coworkers, Soko Bots, top-ups), including an empty state.
+Credit history lets a signed-in user open `/history` and see their credit ledger (agent jobs, images, tasks, coworkers, Soko Bots, top-ups), including an empty state.
 
 ## Sub-features
 
@@ -10,8 +10,8 @@ Credit History lets a signed-in user open `/history` and see their credit ledger
 
 ## How to get to it (user POV)
 
-- Desktop: open the account menu → **Credit History**.
-- Mobile: You page → **Credit History** (`you-history`).
+- Desktop: open the account menu → **Credit history**.
+- Mobile: You page → **Credit history** (`you-history`).
 - Open `/history` directly.
 - Not a desktop sidebar row.
 
@@ -29,6 +29,6 @@ Preconditions:
 
 ## Gotchas
 
-- Empty Credit History is valid proof for a new fixture user — do not require existing spend. Empty heading is **No transactions yet** (not “No history yet”). Subtitle mentions jobs, images, other spend, and top-ups — not conversations.
+- Empty credit history is valid proof for a new fixture user — do not require existing spend. Empty heading is **No transactions yet** (not “No history yet”). Subtitle mentions jobs, images, other spend, and top-ups — not conversations.
 - Do not open agent job detail (`/agents/.../jobs/...`) and call it history; that is a different route.
-- Nav label is **Credit History**, not “History” or “Jobs”. The page is a credit ledger (`GET /v1/transactions`), not a generic task/job/image activity feed.
+- Nav label is **Credit history**, not “History” or “Jobs”. The page is a credit ledger (`GET /v1/transactions`), not a generic task/job/image activity feed.
