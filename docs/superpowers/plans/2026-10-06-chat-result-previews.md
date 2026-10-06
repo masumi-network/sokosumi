@@ -237,3 +237,13 @@ No Minor findings were deferred. The main branch advanced during implementation;
 Draft PR: https://github.com/masumi-network/sokosumi/pull/5806 — attached to the Codex chat and automatically linked to SOK-1306 by the GitHub integration (the explicit Linear link command confirmed that it was already linked).
 
 Final local evidence after review fixes: Core 9,222 passed / 155 conditional tests skipped; Web 9,604 passed; bot package 246 passed. Root check and typecheck passed, and the final renderer tests used real document buttons and native audio/video controls (9 passed). Commits ran normal hooks. The feature branch merges cleanly with the updated main according to a read-only merge-tree check. CI results are separate from these local checks; the PR remains a draft for human review and merge.
+
+### App component alignment
+
+User review requested the existing app components instead of generic result cards. Task results now render the actual board `TaskCard`, with its native status, priority, privacy, tags, project identity, assignee and participant avatars. Social posts render the actual `SocialPostPreview` and `SocialPostStatusBadge`, preserving LinkedIn, X and Instagram layouts, connected account photos and protected media. Schedules reuse `AssigneeAvatar` and `ProjectAvatar`; marketplace results reuse `AgentIcon` and `JobStatusBadge`. Studio images use the existing large media preview.
+
+Core snapshots carry only the bounded display fields needed by these components. Older snapshots default the new fields to null and keep their readable fallback. Authorization, opaque public descriptors and protected media routes remain unchanged. The generated Core client was regenerated from source.
+
+Focused proof: 186 Core tests and 37 Web tests passed, including the real task card and all three social platform layouts. Root check and typecheck passed. Updated desktop/light and mobile/dark fixtures show loaded profile and project images; browser exceptions: zero, horizontal overflow: false. These are offline fixtures, not authenticated product verification.
+
+Final follow-up suites passed: Core 9,222 / 155 conditional skipped; Web 9,608. The initial concurrent Turbo run hit a worker startup timeout; rerunning the complete suites with two workers each passed. The narrowed Soko Bot translation bag passed all six namespace checks. Normal commit hooks passed.

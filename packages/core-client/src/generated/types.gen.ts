@@ -3142,6 +3142,26 @@ export type ChatResultAvailable = {
     recurrence?: string | null;
     question?: string | null;
     outputs?: Array<ChatResultOutput>;
+    task?: ChatResultTask | null;
+    social?: ChatResultSocial | null;
+    actor?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    } | null;
+    agent?: {
+        name: string;
+        icon: string | null;
+    } | null;
+    projectInfo?: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    } | null;
     decision?: SokoBotPendingDecision | null;
 };
 
@@ -3152,6 +3172,51 @@ export type ChatResultOutput = {
     openHref: string;
     previewHref: string | null;
     downloadHref?: string | null;
+};
+
+export type ChatResultTask = {
+    id: string;
+    name: string;
+    identifier: string | null;
+    status: TaskStatus;
+    priority: TaskPriority;
+    visibility: TaskVisibility;
+    createdAt: Date | null;
+    runAt: Date | null;
+    project: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    } | null;
+    assignee: {
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    } | null;
+    participants: Array<{
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    }>;
+    commentsCount: number;
+    tags: TaskTags;
+};
+
+export type ChatResultSocial = {
+    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+    account: {
+        handle: string | null;
+        displayName: string | null;
+        avatarUrl: string | null;
+    } | null;
+    timestamp: Date | null;
 };
 
 export type ChatResultUnavailable = {

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { jobInclude, type Prisma } from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import { type ChatResultReference } from "@sokosumi/soko-bot";
+import { formatTaskIdentifier } from "@sokosumi/utils";
 import { HTTPException } from "hono/http-exception";
 import {
   requireJobRead,
@@ -11,6 +12,7 @@ import { readPreparedResultSnapshots } from "@/helpers/chat-result-metadata";
 import { notFound, unprocessableEntity } from "@/helpers/error";
 import { requireSocialBetaAccess } from "@/helpers/social-beta-access";
 import { sokoBotWorkspaceAccessWhere } from "@/helpers/soko-bot-workspace-access";
+import { mapTaskTags } from "@/helpers/task-tags";
 import prisma from "@/lib/db/prisma";
 import type { FileActor } from "@/lib/files/actor";
 import { requireProjectAccess } from "@/lib/image-studio/access";
@@ -31,6 +33,66 @@ export interface ChatResultActor {
   userId: string;
   workspaceId: string;
   kind?: FileActor["kind"];
+}
+
+/** Bounded display data for the existing Task/Project avatar components. */
+function previewProject(
+  project:
+    | {
+        id: string;
+        name: string;
+        identifier?: string | null;
+        logo?: string | null;
+      }
+    | null
+    | undefined,
+) {
+  return project
+    ? {
+        id: project.id,
+        name: project.name.slice(0, 500),
+        identifier: project.identifier ?? null,
+        logo: project.logo ?? null,
+      }
+    : null;
+}
+function previewAssignee(source: {
+  assignee?: {
+    id: string;
+    name: string;
+    image: string | null;
+    slug?: string;
+  } | null;
+  assigneeUser?: { id: string; name: string; image: string | null } | null;
+  assigneeSokoBot?: {
+    id: string;
+    name: string | null;
+    avatarImageUrl: string | null;
+    avatarSeed: string | null;
+  } | null;
+}) {
+  if (source.assignee)
+    return {
+      ...source.assignee,
+      name: source.assignee.name.slice(0, 500),
+      kind: "coworker" as const,
+    };
+  if (source.assigneeUser)
+    return {
+      ...source.assigneeUser,
+      name: source.assigneeUser.name.slice(0, 500),
+      kind: "user" as const,
+    };
+  const bot = source.assigneeSokoBot;
+  return bot
+    ? {
+        id: bot.id,
+        name: (bot.name ?? "Soko Bot").slice(0, 500),
+        image: bot.avatarImageUrl,
+        avatarSeed: bot.avatarSeed,
+        kind: "sokoBot" as const,
+      }
+    : null;
 }
 
 /** Membership is checked afresh; a stored workspace id is never an access grant. */
@@ -102,10 +164,29 @@ export async function resolveChatResultReference(
         client,
         actor.userId,
         {
-          assignee: { select: { name: true } },
-          assigneeUser: { select: { name: true } },
-          assigneeSokoBot: { select: { name: true } },
-          project: { select: { name: true } },
+          assignee: {
+            select: { id: true, name: true, image: true, slug: true },
+          },
+          assigneeUser: { select: { id: true, name: true, image: true } },
+          assigneeSokoBot: {
+            select: {
+              id: true,
+              name: true,
+              avatarImageUrl: true,
+              avatarSeed: true,
+            },
+          },
+          project: {
+            select: { id: true, name: true, identifier: true, logo: true },
+          },
+          participants: {
+            take: 6,
+            orderBy: { createdAt: "asc" },
+            include: {
+              user: { select: { id: true, name: true, image: true } },
+            },
+          },
+          _count: { select: { events: { where: { comment: { not: null } } } } },
           schedule: true,
           events: {
             where: { status: "INPUT_REQUIRED" },
@@ -118,6 +199,27 @@ export async function resolveChatResultReference(
       data = chatResultAvailableSchema.parse({
         ...base,
         title: task.name.slice(0, 500),
+        task: {
+          id: task.id,
+          name: task.name.slice(0, 500),
+          identifier: formatTaskIdentifier(
+            task.project?.identifier,
+            task.number,
+          ),
+          status: task.status,
+          priority: task.priority ?? "NONE",
+          visibility: task.visibility ?? "PUBLIC",
+          createdAt: task.createdAt ?? null,
+          runAt: task.runAt ?? null,
+          project: previewProject(task.project),
+          assignee: previewAssignee(task),
+          participants: (task.participants ?? []).map(({ user }) => ({
+            ...user,
+            kind: "user",
+          })),
+          commentsCount: task._count?.events ?? 0,
+          tags: mapTaskTags(task),
+        },
         status: task.status,
         summary: task.description?.slice(0, 4000) ?? null,
         sourceHref: `/tasks/${encodeURIComponent(task.id)}`,
@@ -148,16 +250,29 @@ export async function resolveChatResultReference(
           }),
         },
         include: {
-          project: { select: { name: true } },
-          assignee: { select: { name: true } },
-          assigneeUser: { select: { name: true } },
-          assigneeSokoBot: { select: { name: true } },
+          project: {
+            select: { id: true, name: true, identifier: true, logo: true },
+          },
+          assignee: {
+            select: { id: true, name: true, image: true, slug: true },
+          },
+          assigneeUser: { select: { id: true, name: true, image: true } },
+          assigneeSokoBot: {
+            select: {
+              id: true,
+              name: true,
+              avatarImageUrl: true,
+              avatarSeed: true,
+            },
+          },
         },
       });
       if (!schedule) throw notFound("Result unavailable");
       data = chatResultAvailableSchema.parse({
         ...base,
         title: schedule.name.slice(0, 500),
+        actor: previewAssignee(schedule),
+        projectInfo: previewProject(schedule.project),
         status: schedule.state,
         summary: schedule.description?.slice(0, 4000) ?? null,
         sourceHref: `/schedules/${encodeURIComponent(schedule.id)}`,
@@ -180,11 +295,24 @@ export async function resolveChatResultReference(
           userId: actor.userId,
           workspaceId: actor.workspaceId,
         },
+        include: {
+          sokoBot: {
+            select: {
+              id: true,
+              name: true,
+              avatarImageUrl: true,
+              avatarSeed: true,
+            },
+          },
+        },
       });
       if (!schedule) throw notFound("Result unavailable");
       data = chatResultAvailableSchema.parse({
         ...base,
         title: schedule.name.slice(0, 500),
+        actor: schedule.sokoBot
+          ? previewAssignee({ assigneeSokoBot: schedule.sokoBot })
+          : null,
         status: schedule.enabled ? "ACTIVE" : "PAUSED",
         summary: schedule.prompt.slice(0, 4000),
         sourceHref: "/personal-assistant",
@@ -211,6 +339,17 @@ export async function resolveChatResultReference(
       data = chatResultAvailableSchema.parse({
         ...base,
         title: post.text.slice(0, 160),
+        social: {
+          provider: post.provider,
+          account: post.socialConnection
+            ? {
+                handle: post.socialConnection.externalHandle ?? null,
+                displayName: post.socialConnection.displayName ?? null,
+                avatarUrl: post.socialConnection.avatarUrl ?? null,
+              }
+            : null,
+          timestamp: post.publishedAt ?? post.scheduledAt ?? null,
+        },
         status: post.status,
         summary: post.text.slice(0, 4000),
         sourceHref: `/social?projectId=${encodeURIComponent(ref.projectId)}&postId=${encodeURIComponent(ref.id)}`,
@@ -295,6 +434,7 @@ export async function resolveChatResultReference(
         status: job.status,
         summary: job.result?.slice(0, 4000) ?? null,
         assignee: job.agent.name,
+        agent: { name: job.agent.name, icon: job.agent.icon ?? null },
         sourceHref: href,
         outputs: outputs.map((blob) => {
           const content = `/api/jobs/${encodeURIComponent(job.id)}/files/${encodeURIComponent(blob.id)}/content`;

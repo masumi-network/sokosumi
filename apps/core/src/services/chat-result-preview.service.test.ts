@@ -87,10 +87,25 @@ describe("authorized chat results", () => {
       name: "Launch campaign",
       status: "READY",
       description: "Prepare launch",
-      assignee: { name: "Writer" },
+      number: 12,
+      createdAt: capturedAt,
+      priority: "HIGH",
+      visibility: "PRIVATE",
+      _count: { events: 3 },
+      participants: [],
+      assignee: {
+        id: "writer",
+        name: "Writer",
+        image: "https://example.test/writer.png",
+      },
       assigneeUser: null,
       assigneeSokoBot: null,
-      project: { name: "Summer" },
+      project: {
+        id: "summer",
+        name: "Summer",
+        identifier: "SUM",
+        logo: "https://example.test/project.png",
+      },
       schedule: null,
       events: [],
     });
@@ -108,6 +123,14 @@ describe("authorized chat results", () => {
       assignee: "Writer",
       project: "Summer",
       sourceHref: "/tasks/task-1",
+      task: {
+        identifier: "SUM-12",
+        priority: "HIGH",
+        visibility: "PRIVATE",
+        commentsCount: 3,
+        assignee: { id: "writer", image: "https://example.test/writer.png" },
+        project: { id: "summer", logo: "https://example.test/project.png" },
+      },
     });
     workspace.mockResolvedValue(null);
     expect(await hydrateChatResultSnapshots([snapshot], "other-user")).toEqual([
@@ -184,9 +207,11 @@ describe("authorized chat results", () => {
       status: "PAUSED",
       recurrence: null,
     });
-    expect(botSchedule).toHaveBeenCalledWith({
-      where: { id: "follow-up", userId: "owner", workspaceId: "workspace" },
-    });
+    expect(botSchedule).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: "follow-up", userId: "owner", workspaceId: "workspace" },
+      }),
+    );
     botSchedule.mockResolvedValue(null);
     expect(
       await hydrateChatResultSnapshots([followUp], "someone-else"),
@@ -197,7 +222,11 @@ describe("authorized chat results", () => {
       text: "Our launch",
       status: "SCHEDULED",
       provider: "linkedin",
-      socialConnection: { displayName: "Team" },
+      socialConnection: {
+        displayName: "Team",
+        externalHandle: "team",
+        avatarUrl: "https://example.test/social.png",
+      },
       scheduledAt: capturedAt,
       timezone: "UTC",
       media: [],
@@ -209,7 +238,14 @@ describe("authorized chat results", () => {
     expect(snapshot.data).toMatchObject({
       status: "SCHEDULED",
       summary: "Our launch",
-      destination: "linkedin · Team",
+      destination: "linkedin · team",
+      social: {
+        provider: "linkedin",
+        account: {
+          displayName: "Team",
+          avatarUrl: "https://example.test/social.png",
+        },
+      },
       scheduledAt: capturedAt.toISOString(),
     });
     expect(projectAccess).toHaveBeenCalledWith(

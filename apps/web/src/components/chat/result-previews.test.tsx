@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 import { ResultPreviewCard } from "./result-previews";
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
+  useTimeZone: () => "UTC",
   useTranslations: () =>
     Object.assign((key: string) => key, { has: () => true }),
   useFormatter: () => ({
@@ -11,6 +13,9 @@ vi.mock("next-intl", () => ({
     dateTime: (date: Date, _name?: string, options?: { timeZone?: string }) =>
       `${date.toISOString()} ${options?.timeZone ?? ""}`,
   }),
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: vi.fn() }),
 }));
 vi.mock("@/app/personal-assistant/components/chat/decision-card", () => ({
   DecisionCard: () => <div>decision controls</div>,
@@ -40,6 +45,88 @@ describe("chat result cards", () => {
     expect(html).toContain('href="/tasks/task"');
     expect(html).toContain("recorded");
   });
+  it("renders the app's TaskCard with real project, assignee and privacy metadata", () => {
+    const html = renderToStaticMarkup(
+      <ResultPreviewCard
+        result={{
+          ...task,
+          task: {
+            id: "task",
+            name: "Launch campaign",
+            identifier: "SUM-12",
+            status: "INPUT_REQUIRED",
+            priority: "HIGH",
+            visibility: "PRIVATE",
+            createdAt: new Date("2026-10-06T10:00:00Z"),
+            runAt: null,
+            project: {
+              id: "summer",
+              name: "Summer",
+              identifier: "SUM",
+              logo: null,
+            },
+            assignee: {
+              id: "writer",
+              name: "Hannah",
+              image: "/images/coworkers/hannah.webp",
+              kind: "coworker",
+              avatarSeed: null,
+            },
+            participants: [],
+            commentsCount: 3,
+            tags: { manual: ["marketing"], automatic: [], rejected: [] },
+          },
+        }}
+        onDecisionResolved={() => {}}
+      />,
+    );
+    expect(html).toContain("SUM-12");
+    expect(html).toContain('aria-label="privateBadge"');
+    expect(html).toContain('data-testid="task-actor-face"');
+    expect(html).toContain('aria-label="Hannah"');
+    expect(html).toContain('href="/projects/summer"');
+    expect(html).toContain("vocabulary.marketing");
+  });
+  it.each(["linkedin", "x", "instagram"] as const)(
+    "uses the existing %s post preview with its account and protected media",
+    (provider) => {
+      const html = renderToStaticMarkup(
+        <ResultPreviewCard
+          result={{
+            ...task,
+            kind: "social_post",
+            status: "SCHEDULED",
+            summary: "Our launch",
+            social: {
+              provider,
+              account: {
+                displayName: "Sokosumi",
+                handle: "sokosumi",
+                avatarUrl: "/images/coworkers/elena.webp",
+              },
+              timestamp: new Date("2026-10-07T10:00:00Z"),
+            },
+            outputs: [
+              {
+                name: "launch.png",
+                contentType: "image/png",
+                sizeBytes: 10,
+                openHref: "/drive/files/file",
+                previewHref: "/api/drive/files/file/content",
+              },
+            ],
+          }}
+          onDecisionResolved={() => {}}
+        />,
+      );
+      expect(html).toContain('data-testid="social-post-preview"');
+      expect(html).toContain(`data-provider="${provider}"`);
+      expect(html).toContain('data-testid="social-post-status-SCHEDULED"');
+      expect(html.toLowerCase()).toContain("sokosumi");
+      expect(html).toContain("Our launch");
+      expect(html).toContain('src="/api/drive/files/file/content"');
+    },
+  );
   it("renders an unavailable card without a resource link", () => {
     const html = renderToStaticMarkup(
       <ResultPreviewCard

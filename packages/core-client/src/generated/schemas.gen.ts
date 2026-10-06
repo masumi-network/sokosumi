@@ -11285,6 +11285,146 @@ export const ChatResultAvailableSchema = {
             maxItems: 12,
             default: []
         },
+        task: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatResultTask'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        social: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatResultSocial'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        actor: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        name: {
+                            type: 'string',
+                            maxLength: 500
+                        },
+                        image: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 2000,
+                            default: null
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'user',
+                                'coworker',
+                                'sokoBot'
+                            ]
+                        },
+                        slug: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        avatarSeed: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 200,
+                            default: null
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'kind'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        agent: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                icon: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            default: null,
+            required: [
+                'name',
+                'icon'
+            ]
+        },
+        projectInfo: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        name: {
+                            type: 'string',
+                            maxLength: 500
+                        },
+                        identifier: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        logo: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'identifier',
+                        'logo'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
         decision: {
             anyOf: [
                 {
@@ -11358,6 +11498,272 @@ export const ChatResultOutputSchema = {
         'sizeBytes',
         'openHref',
         'previewHref'
+    ]
+} as const;
+
+export const ChatResultTaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            maxLength: 200
+        },
+        name: {
+            type: 'string',
+            maxLength: 500
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
+        },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
+        createdAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        runAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        project: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                identifier: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'identifier',
+                'logo'
+            ]
+        },
+        assignee: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000,
+                    default: null
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'user',
+                        'coworker',
+                        'sokoBot'
+                    ]
+                },
+                slug: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        participants: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    name: {
+                        type: 'string',
+                        maxLength: 500
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 2000,
+                        default: null
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'user',
+                            'coworker',
+                            'sokoBot'
+                        ]
+                    },
+                    slug: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    avatarSeed: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 200,
+                        default: null
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'kind'
+                ]
+            },
+            maxItems: 6
+        },
+        commentsCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'identifier',
+        'status',
+        'priority',
+        'visibility',
+        'createdAt',
+        'runAt',
+        'project',
+        'assignee',
+        'participants',
+        'commentsCount',
+        'tags'
+    ]
+} as const;
+
+export const ChatResultSocialSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
+            ]
+        },
+        account: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                handle: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 500
+                },
+                displayName: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 500
+                },
+                avatarUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            required: [
+                'handle',
+                'displayName',
+                'avatarUrl'
+            ]
+        },
+        timestamp: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'provider',
+        'account',
+        'timestamp'
     ]
 } as const;
 
