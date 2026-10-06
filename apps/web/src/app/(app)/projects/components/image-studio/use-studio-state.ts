@@ -58,7 +58,7 @@ export type StudioErrorCode =
   | "load_older_failed";
 
 export function useStudioState(options: {
-  /** Null for the workspace view: every project's images at once. */
+  /** Null for the curated landing page, which does not load project images. */
   projectId: string | null;
   initialState: StudioState;
   initialSelectedAssetId: string | null;
@@ -182,6 +182,7 @@ export function useStudioState(options: {
   );
 
   const refresh = useCallback(async () => {
+    if (!projectId) return;
     setIsRefreshing(true);
     try {
       // The selection is pinned into the request so a version older than the
@@ -222,12 +223,13 @@ export function useStudioState(options: {
   // Synchronizing with a server is exactly what an Effect is for. The interval
   // tightens while something is in flight and relaxes when nothing is.
   useEffect(() => {
+    if (!projectId) return;
     const period = hasActive ? ACTIVE_POLL_MS : IDLE_POLL_MS;
     const timer = setInterval(() => {
       void refresh();
     }, period);
     return () => clearInterval(timer);
-  }, [hasActive, refresh]);
+  }, [projectId, hasActive, refresh]);
 
   /**
    * Fetch the next page of older versions and keep what is already shown.
@@ -236,6 +238,7 @@ export function useStudioState(options: {
    * newest page both survive.
    */
   const loadOlder = useCallback(async () => {
+    if (!projectId) return;
     // Through the ref rather than through a dependency: the ref always holds
     // the project on screen, so this cannot page the previous project's
     // history into the current project's gallery.
@@ -303,10 +306,8 @@ export function useStudioState(options: {
   };
 }
 
-function stateUrl(projectId: string | null): string {
-  return projectId
-    ? `/api/projects/${projectId}/image-studio/state`
-    : "/api/image-studio/state";
+function stateUrl(projectId: string): string {
+  return `/api/projects/${projectId}/image-studio/state`;
 }
 
 /**

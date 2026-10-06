@@ -90,6 +90,56 @@ function mockFetch(state: StudioState) {
 }
 
 describe("useStudioState", () => {
+  it("does not poll or refresh workspace images on the landing page", async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const { result } = renderHook(() =>
+      useStudioState({
+        projectId: null,
+        initialState: { assets: [], jobs: [], nextCursor: null },
+        initialSelectedAssetId: null,
+      }),
+    );
+    await act(async () => {
+      await result.current.refresh();
+      await result.current.loadOlder();
+      await vi.advanceTimersByTimeAsync(30_000);
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
+
+  it("loads only the picked project's results after leaving the landing page", async () => {
+    const fetchMock = mockFetch(OTHER_PROJECT);
+    vi.stubGlobal("fetch", fetchMock);
+    const initialState: StudioState = {
+      assets: [],
+      jobs: [],
+      nextCursor: null,
+    };
+    const { result, rerender } = renderHook(
+      ({ projectId }: { projectId: string | null }) =>
+        useStudioState({
+          projectId,
+          initialState,
+          initialSelectedAssetId: null,
+        }),
+      { initialProps: { projectId: null as string | null } },
+    );
+    rerender({ projectId: "project-picked" });
+    await act(async () => result.current.refresh());
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/projects/project-picked/image-studio/state",
+      expect.objectContaining({
+        credentials: "same-origin",
+        cache: "no-store",
+      }),
+    );
+    expect(result.current.state.assets).toEqual(OTHER_PROJECT.assets);
+    vi.unstubAllGlobals();
+  });
+
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
   });

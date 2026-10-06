@@ -7,11 +7,11 @@ import { STUDIO_TEMPLATES } from "./studio-templates";
 import type { StudioAsset } from "./types";
 
 /**
- * The studio with no project picked: every project's images, and nothing is
+ * The studio with no project picked offers curated styles. Nothing is
  * generated until it is clear which project it goes to.
  */
 
-const mocks = vi.hoisted(() => ({ enqueue: vi.fn() }));
+const mocks = vi.hoisted(() => ({ enqueue: vi.fn(), stateOptions: vi.fn() }));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: vi.fn() }),
@@ -53,20 +53,22 @@ vi.mock("@/app/components/project-scope/project-scope-menu", () => ({
 }));
 
 vi.mock("./use-studio-state", () => ({
-  useStudioState: ({
-    initialState,
-  }: {
+  useStudioState: (options: {
+    projectId: string | null;
     initialState: { assets: StudioAsset[] };
-  }) => ({
-    state: { ...initialState, jobs: [] },
-    selectedAsset: null,
-    selectAsset: vi.fn(),
-    activeJobs: [],
-    refresh: vi.fn().mockResolvedValue(undefined),
-    loadOlder: vi.fn(),
-    hasOlder: false,
-    error: null,
-  }),
+  }) => {
+    mocks.stateOptions(options);
+    return {
+      state: { ...options.initialState, jobs: [] },
+      selectedAsset: null,
+      selectAsset: vi.fn(),
+      activeJobs: [],
+      refresh: vi.fn().mockResolvedValue(undefined),
+      loadOlder: vi.fn(),
+      hasOlder: false,
+      error: null,
+    };
+  },
 }));
 
 vi.mock("./use-generation-queue", () => ({
@@ -147,7 +149,7 @@ describe("the workspace view", () => {
       catalog: TEST_CATALOG,
       initialSelectedAssetId: null,
       labels: TEST_LABELS,
-      projectId: null,
+      projectId: "project-launch",
     };
     const view = render(
       <ImageStudio
@@ -223,10 +225,16 @@ describe("the workspace view", () => {
     }
   });
 
-  it("labels every image with the project it lives in", () => {
+  it("keeps project images out of the curated landing page", () => {
     mount(null);
-    expect(screen.getByText("Launch")).toBeInTheDocument();
-    expect(screen.getByText("Brand")).toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "templates" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Launch")).not.toBeInTheDocument();
+    expect(screen.queryByText("Brand")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "select" }),
+    ).not.toBeInTheDocument();
   });
 
   it("does not label images inside one project", () => {
@@ -254,6 +262,9 @@ describe("the workspace view", () => {
     generate("a fox");
     fireEvent.click(screen.getByRole("button", { name: "Picked project" }));
 
+    expect(mocks.stateOptions).toHaveBeenLastCalledWith(
+      expect.objectContaining({ projectId: "project-picked" }),
+    );
     const [[requests]] = mocks.enqueue.mock.calls;
     expect(requests.length).toBeGreaterThan(0);
     for (const request of requests) {
@@ -268,18 +279,17 @@ describe("the workspace view", () => {
   });
 
   it("runs a variation in the image's own project without asking", () => {
-    mount(null);
-    fireEvent.click(screen.getAllByRole("button", { name: "regenerate" })[1]!);
+    mount(LAUNCH.projectId, [LAUNCH]);
+    fireEvent.click(screen.getByRole("button", { name: "regenerate" }));
 
-    // Tiles are oldest first, so the second one is the first asset.
     const [[requests]] = mocks.enqueue.mock.calls;
     expect(requests[0]).toMatchObject({ projectId: LAUNCH.projectId });
     expect(screen.queryByText("pickForGeneration")).not.toBeInTheDocument();
   });
 
   it("aims a batch with references at their project", () => {
-    mount(null);
-    fireEvent.click(screen.getAllByRole("button", { name: "select" })[0]!);
+    mount(BRAND.projectId, [BRAND]);
+    fireEvent.click(screen.getByRole("button", { name: "select" }));
     generate();
 
     const [[requests]] = mocks.enqueue.mock.calls;
@@ -290,7 +300,7 @@ describe("the workspace view", () => {
   });
 
   it("refuses references from two projects instead of guessing", () => {
-    mount(null);
+    mount(LAUNCH.projectId);
     for (const box of screen.getAllByRole("button", { name: "select" })) {
       fireEvent.click(box);
     }

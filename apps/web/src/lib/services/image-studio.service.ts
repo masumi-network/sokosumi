@@ -2,7 +2,6 @@ import "server-only";
 
 import type {
   CreateProjectImageJobRequest,
-  ImageStudioWorkspaceState,
   ProjectImageJob,
   ProjectImageStudioCatalog,
   ProjectImageStudioState,
@@ -32,21 +31,6 @@ export const imageStudioService = {
    */
   async getCatalog(): Promise<ProjectImageStudioCatalog> {
     const result = await coreClient.getImageStudioCatalog();
-    return result.data;
-  },
-
-  /** Every project's images in the workspace, for the no-project view. */
-  async getWorkspaceState(
-    query: StudioStateQuery = {},
-  ): Promise<ImageStudioWorkspaceState> {
-    // Same wire-vs-generated `Date` mismatch as `getState` below.
-    const result = await coreClient.getImageStudioState(
-      query as unknown as {
-        assetId?: string;
-        before?: Date;
-        beforeId?: string;
-      },
-    );
     return result.data;
   },
 

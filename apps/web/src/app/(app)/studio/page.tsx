@@ -37,8 +37,8 @@ export async function generateMetadata(): Promise<Metadata> {
  * between projects without the studio knowing anything about the switcher, and
  * `ProjectScopeGuard` clears a project this workspace can no longer see.
  *
- * With no project it is the workspace view: every project's images, and a
- * generation asks which project it goes to.
+ * With no project it offers curated styles. Generation asks which project
+ * it goes to; existing images are loaded only for a selected project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
   await connection();
@@ -65,7 +65,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // every three seconds.
   const scopeId = project?.id ?? null;
   const [state, catalog] = await Promise.all([
-    loadStudioState(scopeId, query.v),
+    scopeId
+      ? loadStudioState(scopeId, query.v)
+      : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
   ]);
 
@@ -102,14 +104,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
  * round trip and nothing else; before this it took the whole studio down with
  * an error boundary, which is a hard way to learn that a bookmark went stale.
  */
-async function loadStudioState(
-  projectId: string | null,
-  assetId: string | undefined,
-) {
+async function loadStudioState(projectId: string, assetId: string | undefined) {
   const load = (query: { assetId?: string }) =>
-    projectId
-      ? imageStudioService.getState(projectId, query)
-      : imageStudioService.getWorkspaceState(query);
+    imageStudioService.getState(projectId, query);
   if (!assetId) return load({});
 
   try {

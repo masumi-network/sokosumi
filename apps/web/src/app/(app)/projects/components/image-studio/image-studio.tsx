@@ -60,6 +60,12 @@ import {
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
 
+const EMPTY_STUDIO_STATE: StudioState = {
+  assets: [],
+  jobs: [],
+  nextCursor: null,
+};
+
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
 
@@ -160,6 +166,8 @@ export function ImageStudio({
 
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
+      // A saved image selection needs an explicit project scope.
+      if (!projectId) return;
       const next = new URLSearchParams(searchParams.toString());
       if (assetId) next.set("v", assetId);
       else next.delete("v");
@@ -167,13 +175,17 @@ export function ImageStudio({
       // it must not push an entry for every arrow key.
       router.replace(`${pathname}?${next.toString()}`, { scroll: false });
     },
-    [pathname, router, searchParams],
+    [pathname, projectId, router, searchParams],
   );
 
+  // Keep the queue mounted while the landing page starts work in a project.
+  const [pickedProjectId, setPickedProjectId] = useState<string | null>(null);
+  const activeProjectId = projectId ?? pickedProjectId;
+
   const studio = useStudioState({
-    projectId,
-    initialState,
-    initialSelectedAssetId,
+    projectId: activeProjectId,
+    initialState: projectId ? initialState : EMPTY_STUDIO_STATE,
+    initialSelectedAssetId: projectId ? initialSelectedAssetId : null,
     onSelectionChange: syncSelectionToUrl,
   });
 
@@ -322,7 +334,7 @@ export function ImageStudio({
       setActionError(t("referencesAcrossProjects"));
       return;
     }
-    const target = [...referenceProjectIds][0] ?? projectId;
+    const target = [...referenceProjectIds][0] ?? activeProjectId;
     if (target) sendTo(target, requests);
     else setAwaitingProject(requests);
   }
@@ -594,7 +606,10 @@ export function ImageStudio({
             onCreate={openScopeCreate}
             onDone={() => setAwaitingProject(null)}
             onSelect={(picked) => {
-              if (picked && awaitingProject) sendTo(picked, awaitingProject);
+              if (picked && awaitingProject) {
+                setPickedProjectId(picked);
+                sendTo(picked, awaitingProject);
+              }
             }}
             selectedProjectId={null}
           />
