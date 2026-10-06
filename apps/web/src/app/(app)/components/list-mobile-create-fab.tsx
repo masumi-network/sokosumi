@@ -65,7 +65,7 @@ export function ListMobileCreateFab({
                 cx="28"
                 cy="28"
                 r="26"
-                className="stroke-background transition-all duration-300 ease-out"
+                className="stroke-background transition-[stroke-dashoffset] duration-300 ease-out"
                 strokeWidth="2"
                 fill="none"
                 strokeDasharray={`${2 * Math.PI * 26}`}
@@ -81,7 +81,7 @@ export function ListMobileCreateFab({
             onClick={onOpen}
             disabled={isUploading}
             className={cn(
-              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-all duration-300",
+              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-colors duration-300",
               isUploading
                 ? "bg-foreground text-background cursor-not-allowed"
                 : "bg-primary-solid text-primary-solid-foreground",

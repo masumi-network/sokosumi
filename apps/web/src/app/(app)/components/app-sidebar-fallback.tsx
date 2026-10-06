@@ -30,7 +30,7 @@ export function AppSidebarFallback() {
       {/* Mirrors `Sidebar`'s own header so the hairline lands on the same
           line across the shell/sidebar swap. */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>

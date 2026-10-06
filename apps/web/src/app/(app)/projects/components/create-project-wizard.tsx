@@ -173,7 +173,7 @@ export function CreateProjectWizard({
               >
                 <span
                   className={cn(
-                    "bg-primary block h-full w-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
                     index <= (isBrandStep ? SETUP_STEPS : step)
                       ? "scale-x-100"
                       : "scale-x-0",

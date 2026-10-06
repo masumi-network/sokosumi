@@ -399,6 +399,117 @@ describe("no fixed or off-scale font sizes in product UI", () => {
 });
 
 // ---------------------------------------------------------------------------
+// equal width and height use size-N
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Iconography: any equal width and height, icon or not, is
+ * `size-N` (including `size-full`), never `h-N w-N`. About seventy pairs had
+ * piled up, half of them `h-full w-full`.
+ *
+ * The check reads one string literal at a time, so two elements on one line
+ * stay separate. A pair matches when the variant chain, the `!` and the value
+ * agree, in either order: `h-4 w-4`, `w-full h-full`, `md:h-6 md:w-6`,
+ * `[&_svg]:h-5 [&_svg]:w-5`. `h-6 md:w-6` and `h-4 w-5` are different boxes
+ * and pass. The variant split skips colons inside `[…]`, so an arbitrary
+ * variant such as `[&:hover]:` stays one prefix.
+ */
+const STRING_LITERAL = /"[^"\n]*"|'[^'\n]*'|`[^`]*`/g;
+
+/** `md:h-6` → `{ size: "md:size-6", axis: "h" }`; null for anything else. */
+function boxSide(token: string): { size: string; axis: string } | null {
+  let depth = 0;
+  let cut = -1;
+  for (let index = 0; index < token.length; index++) {
+    const char = token[index];
+    if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === ":" && depth === 0) cut = index;
+  }
+  const utility = token.slice(cut + 1);
+  const important = utility.startsWith("!") || utility.endsWith("!");
+  const match = /^!?([hw])-(.+?)!?$/.exec(utility);
+  if (!match) return null;
+  const size = `${token.slice(0, cut + 1)}size-${match[2]}${important ? "!" : ""}`;
+  return { size, axis: match[1] };
+}
+
+function equalBoxPairs(literal: string): string[] {
+  const axes = new Map<string, Set<string>>();
+  for (const token of literal.slice(1, -1).split(/\s+/)) {
+    const side = boxSide(token);
+    if (!side) continue;
+    const seen = axes.get(side.size) ?? new Set<string>();
+    seen.add(side.axis);
+    axes.set(side.size, seen);
+  }
+  return [...axes].filter(([, seen]) => seen.size === 2).map(([size]) => size);
+}
+
+describe("size-N", () => {
+  it("writes every equal width and height as size-N", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        for (const literal of line.match(STRING_LITERAL) ?? []) {
+          for (const size of equalBoxPairs(literal)) {
+            violations.push(`${file.relSrc}:${index + 1}: use ${size}`);
+          }
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("matches either order and any variant, but only equal boxes", () => {
+    expect(equalBoxPairs('"flex h-4 w-4"')).toEqual(["size-4"]);
+    expect(equalBoxPairs('"w-full p-2 h-full"')).toEqual(["size-full"]);
+    expect(equalBoxPairs('"size-24 md:h-32 md:w-32"')).toEqual(["md:size-32"]);
+    expect(equalBoxPairs('"[&_svg]:h-5 [&_svg]:w-5"')).toEqual([
+      "[&_svg]:size-5",
+    ]);
+    expect(equalBoxPairs('"h-6 md:w-6 h-4 w-5 h-full min-w-full"')).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// no transition-all
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Motion: name the properties you transition. `transition-all`
+ * animates whatever changes next, so a width, a padding or a focus ring's
+ * `box-shadow` starts to tween by accident. Pick `transition-colors`,
+ * `-opacity`, `-transform`, or a `transition-[…]` list of what the element
+ * actually changes. A bar that grows animates `scaleX` from `origin-left`,
+ * not `width`.
+ */
+const TRANSITION_ALL =
+  /(?<![\w-])transition-all(?![\w-])|\btransition(?:-property)?\s*:\s*["']?all\b/;
+
+describe("transition-all", () => {
+  it("names the properties every transition animates", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        if (TRANSITION_ALL.test(line)) {
+          violations.push(`${file.relSrc}:${index + 1}: ${line.trim()}`);
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // full-bleed rules + page gutters
 // ---------------------------------------------------------------------------
 

@@ -22,10 +22,7 @@ function AgentDetailExamples({
       <ScrollArea className="h-60 w-full">
         <div className="flex h-full gap-2">
           {exampleOutputs.map((exampleOutput, index) => (
-            <div
-              key={`${exampleOutput.url}-${index}`}
-              className="h-full w-full"
-            >
+            <div key={`${exampleOutput.url}-${index}`} className="size-full">
               <ExampleDetailThumbnail exampleOutput={exampleOutput} />
             </div>
           ))}
@@ -43,7 +40,7 @@ function AgentDetailExamplesSkeleton() {
       <ScrollArea className="h-60 w-full">
         <div className="flex h-full gap-2">
           {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-60 w-60" />
+            <Skeleton key={i} className="size-60" />
           ))}
         </div>
         <ScrollBar orientation="horizontal" />

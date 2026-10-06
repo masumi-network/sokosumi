@@ -88,7 +88,7 @@ interface MarkdownFormatToolsProps {
   onCleanFormat: () => void;
 }
 
-const FORMAT_TOOL_BUTTON_CLASSNAME = "h-7 w-7 cursor-pointer p-0";
+const FORMAT_TOOL_BUTTON_CLASSNAME = "size-7 cursor-pointer p-0";
 const FORMAT_TOOLBAR_FALLBACK_WIDTH_PX = 244;
 
 export function isMarkdownEditorDomEmpty(editor: HTMLElement): boolean {
