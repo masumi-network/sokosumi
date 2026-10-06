@@ -98,10 +98,10 @@ function AgentActionButtons({
 function AgentActionButtonsSkeleton() {
   return (
     <div className="flex w-full items-center justify-between">
-      <Skeleton className="h-8 w-8" />
+      <Skeleton className="size-8" />
       <div className="flex items-center gap-2">
-        <Skeleton className="h-8 w-8" />
-        <Skeleton className="h-8 w-8" />
+        <Skeleton className="size-8" />
+        <Skeleton className="size-8" />
       </div>
     </div>
   );

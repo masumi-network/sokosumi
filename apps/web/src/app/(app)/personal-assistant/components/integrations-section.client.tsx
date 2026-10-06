@@ -191,7 +191,7 @@ function Tile({
       onClick={onAction}
       title={caption ?? name}
       className={cn(
-        "group focus-visible:ring-ring relative flex h-full w-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
+        "group focus-visible:ring-ring relative flex size-full flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-center transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:opacity-60",
         broken
           ? "border-semantic-destructive-tertiary bg-semantic-destructive-quinary hover:bg-semantic-destructive-quaternary"
           : active

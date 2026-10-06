@@ -78,18 +78,18 @@ function DocumentTextBody({
   if (state.status === "loading") {
     return (
       <div
-        className="flex h-full w-full items-center justify-center p-6"
+        className="flex size-full items-center justify-center p-6"
         role="status"
         aria-label={t("loading")}
       >
-        <Skeleton className="h-full w-full max-w-2xl rounded-xl" />
+        <Skeleton className="size-full max-w-2xl rounded-xl" />
       </div>
     );
   }
 
   if (state.status === "error" || state.content === undefined) {
     return (
-      <div className="flex h-full w-full flex-col items-center justify-center gap-3 px-10 text-center">
+      <div className="flex size-full flex-col items-center justify-center gap-3 px-10 text-center">
         <FileText aria-hidden className="text-muted-foreground size-9" />
         <p className="text-muted-foreground text-sm">{t("fetchError")}</p>
       </div>
@@ -186,11 +186,11 @@ function DocumentPdfBody({
   if (state.status === "loading" || !state.embedUrl) {
     return (
       <div
-        className="flex h-full w-full items-center justify-center p-6"
+        className="flex size-full items-center justify-center p-6"
         role="status"
         aria-label={t("loading")}
       >
-        <Skeleton className="h-full w-full max-w-2xl rounded-xl" />
+        <Skeleton className="size-full max-w-2xl rounded-xl" />
       </div>
     );
   }
@@ -199,7 +199,7 @@ function DocumentPdfBody({
     <iframe
       src={pdfEmbedUrl(state.embedUrl)}
       title={fileName}
-      className="bg-card-background h-full w-full"
+      className="bg-card-background size-full"
     />
   );
 }
@@ -222,7 +222,7 @@ function DocumentViewerBody({
       <iframe
         src={officeViewerUrl(url, extensionHint)}
         title={fileName}
-        className="bg-card-background h-full w-full"
+        className="bg-card-background size-full"
       />
     );
   }
