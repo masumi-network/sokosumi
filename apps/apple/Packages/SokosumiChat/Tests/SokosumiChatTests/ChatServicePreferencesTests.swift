@@ -68,4 +68,21 @@ struct ChatServicePreferencesTests {
     }
     #expect(error == (status == 401 ? .unauthorized("Nope") : .unprocessable(statusCode: status, message: "Nope")))
   }
+
+  @MainActor
+  @Test func refreshAppliesOneGetOntoBothProjections() async throws {
+    let transport = TestTransport([(200, preferencesBody())])
+    let display = ChatDisplayPreferences()
+    let notifications = ChatNotificationPreferences()
+    try await ChatService().refreshUserPreferences(
+      display: display,
+      notifications: notifications,
+      client: makeTestClient(transport)
+    )
+    #expect(display.showsRoomUnreadCount && notifications.pushOptIn && notifications.isLoaded)
+    #expect(notifications.cells == [.init(category: .chatMention, channel: .inApp, enabled: true)])
+    let request = try #require(transport.requests.first?.request)
+    #expect(transport.requests.count == 1 && request.method == .get && request.path == "/users/me/preferences")
+    #expect(testOrgSlugHeader(request) == nil)
+  }
 }

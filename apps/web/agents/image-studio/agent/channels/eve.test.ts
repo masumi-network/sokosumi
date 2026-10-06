@@ -271,6 +271,8 @@ describe("an existing conversation", () => {
         attachSession: () => {
           attached += 1;
           return {
+            id: "wrun_mine",
+            getStreamTailIndex: async () => 0,
             getEventStream: async () =>
               new ReadableStream({
                 start(controller) {

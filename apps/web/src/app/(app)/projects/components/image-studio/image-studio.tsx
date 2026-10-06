@@ -12,7 +12,14 @@ import {
   useTransition,
 } from "react";
 
+import { ProjectScopeMenu } from "@/app/components/project-scope/project-scope-menu";
+import { InlineCreateProjectModal } from "@/app/projects/components/inline-create-project-modal";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+} from "@/components/ui/popover";
 import useIsApplePlatform from "@/hooks/use-is-apple-platform";
 import { useMountEffect } from "@/hooks/use-mount-effect";
 import { requestImageJobCancel } from "@/lib/actions/image-studio/action";
@@ -32,6 +39,7 @@ import {
 import { StudioComposer } from "./studio-composer";
 import { StudioGallery } from "./studio-gallery";
 import { StudioLightbox } from "./studio-lightbox";
+import { StudioTemplateCarousel } from "./studio-template-picker";
 import type { StudioTemplate } from "./studio-templates";
 import {
   creditsByAssetId,
@@ -45,11 +53,18 @@ import {
   type StudioTarget,
 } from "./types";
 import {
+  type GenerationRequest,
   type QueuedGeneration,
   type QueueErrorCode,
   useGenerationQueue,
 } from "./use-generation-queue";
 import { type StudioErrorCode, useStudioState } from "./use-studio-state";
+
+const EMPTY_STUDIO_STATE: StudioState = {
+  assets: [],
+  jobs: [],
+  nextCursor: null,
+};
 
 /** Which images the lightbox is showing, and why. */
 type Viewing = { mode: "single" } | { mode: "compare" } | null;
@@ -57,9 +72,9 @@ type Viewing = { mode: "single" } | { mode: "compare" } | null;
 /**
  * The studio.
  *
- * Gallery-first: the results are the page. Above them sits one composer with
- * one obvious action, and everything that qualifies a generation is a summary
- * that opens on demand rather than a row of controls that is always there.
+ * An empty studio offers style briefs in the center. Once generation starts,
+ * results fill the feed and the styles sit above the composer below it. Models
+ * and generation settings remain summaries that open on demand.
  *
  * There is no conversational assistant here, by design. Generating images is a
  * form — a brief, some models, a frame — and the thing worth optimising is how
@@ -90,7 +105,11 @@ export function ImageStudio({
   initialSelectedAssetId: string | null;
   initialState: StudioState;
   labels: StudioLabels;
-  projectId: string;
+  /**
+   * Null for the curated landing page: generation asks for its destination
+   * project before anything is sent.
+   */
+  projectId: string | null;
 }) {
   // Only for the strings that interpolate a count; see `StudioLabels`.
   const t = useTranslations("App.Studio");
@@ -124,6 +143,14 @@ export function ImageStudio({
   const [pending, startTransition] = useTransition();
   const [actionError, setActionError] = useState<string | null>(null);
   const [dismissedJobIds, setDismissedJobIds] = useState<string[]>([]);
+  /** A batch from the workspace view, held while its project is picked. */
+  const [awaitingProject, setAwaitingProject] = useState<
+    GenerationRequest[] | null
+  >(null);
+
+  const [creatingProjectFor, setCreatingProjectFor] = useState<
+    GenerationRequest[] | null
+  >(null);
 
   const [target, setTarget] = useState<StudioTarget>(() => {
     // The curated five, in Core's order. Only the opening selection: every one
@@ -143,6 +170,8 @@ export function ImageStudio({
 
   const syncSelectionToUrl = useCallback(
     (assetId: string | null) => {
+      // A saved image selection needs an explicit project scope.
+      if (!projectId) return;
       const next = new URLSearchParams(searchParams.toString());
       if (assetId) next.set("v", assetId);
       else next.delete("v");
@@ -150,13 +179,17 @@ export function ImageStudio({
       // it must not push an entry for every arrow key.
       router.replace(`${pathname}?${next.toString()}`, { scroll: false });
     },
-    [pathname, router, searchParams],
+    [pathname, projectId, router, searchParams],
   );
 
+  // Keep the queue mounted while the landing page starts work in a project.
+  const [pickedProjectId, setPickedProjectId] = useState<string | null>(null);
+  const activeProjectId = projectId ?? pickedProjectId;
+
   const studio = useStudioState({
-    projectId,
-    initialState,
-    initialSelectedAssetId,
+    projectId: activeProjectId,
+    initialState: projectId ? initialState : EMPTY_STUDIO_STATE,
+    initialSelectedAssetId: projectId ? initialSelectedAssetId : null,
     onSelectionChange: syncSelectionToUrl,
   });
 
@@ -186,7 +219,6 @@ export function ImageStudio({
   });
 
   const queue = useGenerationQueue({
-    projectId,
     onAccepted: useCallback(() => void refresh(), [refresh]),
   });
 
@@ -233,6 +265,9 @@ export function ImageStudio({
     const id = crypto.randomUUID();
     const request: QueuedGeneration = {
       id,
+      // Whatever it repeats already lives in a project, and Core only accepts
+      // references from the project the generation runs in.
+      projectId: source.projectId,
       prompt: source.prompt,
       modelId: modelIdForRepeat(catalog, source.model) ?? "",
       modelLabel: source.model,
@@ -287,10 +322,44 @@ export function ImageStudio({
     promptRef.current?.focus();
   }
 
+  /**
+   * A batch from the composer, aimed at a project.
+   *
+   * References decide it when there are any, since Core takes them only from
+   * the project the generation runs in. Otherwise the open project does, and
+   * in the workspace view the batch waits in `awaitingProject` while the
+   * person picks one.
+   */
+  function handleGenerate(requests: GenerationRequest[]) {
+    const referenceProjectIds = new Set(
+      checkedAssets.map((asset) => asset.projectId),
+    );
+    if (referenceProjectIds.size > 1) {
+      setActionError(t("referencesAcrossProjects"));
+      return;
+    }
+    const target = [...referenceProjectIds][0] ?? activeProjectId;
+    if (target) sendTo(target, requests);
+    else setAwaitingProject(requests);
+  }
+
+  function sendTo(target: string, requests: GenerationRequest[]) {
+    setActionError(null);
+    queue.enqueue(
+      requests.map((request) => ({ ...request, projectId: target })),
+    );
+    setPrompt("");
+  }
+
   function handleCancelJob(jobId: string) {
+    const job = state.jobs.find((candidate) => candidate.id === jobId);
+    if (!job) return;
     startTransition(async () => {
       try {
-        const result = await requestImageJobCancel({ projectId, jobId });
+        const result = await requestImageJobCancel({
+          projectId: job.projectId,
+          jobId,
+        });
         // Only that the provider accepted the request. It may still finish, so
         // nothing here treats the job as over.
         if (result.accepted) {
@@ -388,14 +457,14 @@ export function ImageStudio({
       labels={labels}
       onApplyTemplate={applyTemplate}
       onClearReferences={() => setCheckedIds([])}
-      onGenerate={queue.enqueue}
+      onGenerate={handleGenerate}
       onPromptChange={setPrompt}
       onTargetChange={setTarget}
-      projectId={projectId}
       prompt={prompt}
       promptRef={promptRef}
       referenceAssets={checkedAssets}
       target={target}
+      showTemplates={!showsNothing}
     />
   );
 
@@ -422,7 +491,12 @@ export function ImageStudio({
       ) : null}
 
       <div className="app-scrollbar flex min-h-0 flex-1 flex-col-reverse overflow-x-hidden overflow-y-auto [overflow-anchor:none]">
-        <div className="flex min-h-full w-full min-w-0 shrink-0 flex-col justify-end gap-4 pb-2">
+        <div
+          className={cn(
+            "flex min-h-full w-full min-w-0 shrink-0 flex-col gap-4 pb-2",
+            showsNothing ? "justify-center" : "justify-end",
+          )}
+        >
           <div ref={topRef} />
           {hasOlder ? (
             <p className="text-muted-foreground text-center text-xs">
@@ -431,12 +505,10 @@ export function ImageStudio({
           ) : null}
 
           {showsNothing ? (
-            <div className="border-border bg-card-background motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-2 rounded-md border border-dashed px-5 py-10 text-center duration-300">
-              <p className="font-medium">{labels.emptyTitle}</p>
-              <p className="text-muted-foreground mt-1 text-sm">
-                {labels.emptyBody}
-              </p>
-            </div>
+            <StudioTemplateCarousel
+              labels={labels}
+              onApplyTemplate={applyTemplate}
+            />
           ) : (
             <StudioGallery
               activeJobs={activeJobs}
@@ -459,9 +531,9 @@ export function ImageStudio({
                     : [...current, assetId],
                 )
               }
-              projectId={projectId}
               queued={queue.queued}
               selectedIds={checkedIds}
+              showProject={projectId === null}
             />
           )}
 
@@ -514,7 +586,58 @@ export function ImageStudio({
         </div>
       ) : null}
 
-      {composer}
+      {/* The composer is the anchor, so the question sits over the brief it
+      is about. Dismissing it leaves the brief untouched. */}
+      <Popover
+        onOpenChange={(open) => {
+          if (!open) setAwaitingProject(null);
+        }}
+        open={awaitingProject !== null}
+      >
+        <PopoverAnchor asChild>
+          <div>{composer}</div>
+        </PopoverAnchor>
+        <PopoverContent
+          align="end"
+          className="flex max-h-(--radix-popover-content-available-height) w-80 max-w-[calc(100vw-1rem)] flex-col overflow-hidden p-0 motion-reduce:animate-none"
+          side="top"
+        >
+          <p className="border-border shrink-0 border-b px-3 py-2 text-sm font-medium">
+            {t("pickForGeneration")}
+          </p>
+          <ProjectScopeMenu
+            includeWorkspace={false}
+            onCreate={() => setCreatingProjectFor(awaitingProject)}
+            onDone={() => setAwaitingProject(null)}
+            onSelect={(picked) => {
+              if (picked && awaitingProject) {
+                setPickedProjectId(picked);
+                sendTo(picked, awaitingProject);
+              }
+            }}
+            selectedProjectId={null}
+          />
+        </PopoverContent>
+      </Popover>
+
+      <InlineCreateProjectModal
+        open={creatingProjectFor !== null}
+        onOpenChange={(open) => {
+          if (!open) setCreatingProjectFor(null);
+        }}
+        onCreated={({ projectId: createdId }) => {
+          if (creatingProjectFor) {
+            setPickedProjectId(createdId);
+            sendTo(createdId, creatingProjectFor);
+            setCreatingProjectFor(null);
+          }
+        }}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          promptRef.current?.focus();
+        }}
+        creationSource="project_switcher"
+      />
 
       {lightboxAssets.length > 0 ? (
         <StudioLightbox
@@ -530,7 +653,6 @@ export function ImageStudio({
             setCheckedIds([asset.id]);
             setViewing(null);
           }}
-          projectId={projectId}
           siblings={state.assets}
         />
       ) : null}

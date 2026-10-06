@@ -1,7 +1,8 @@
 import type { ChatRoomGuestInviteLink } from "@sokosumi/database";
 
-import { getWebAppBaseUrl } from "@/config/env";
 import { chatRoomGuestInviteLinkSchema } from "@/schemas/chat-room-guest-invite-link.schema";
+
+import { buildWebAppUrl } from "./web-app-url";
 
 /**
  * Maps a Prisma guest invite-link row to the OpenAPI DTO including the
@@ -10,11 +11,9 @@ import { chatRoomGuestInviteLinkSchema } from "@/schemas/chat-room-guest-invite-
 export function toChatRoomGuestInviteLinkResponse(
   link: ChatRoomGuestInviteLink,
 ) {
-  // WEB_APP_BASE_URL may include a trailing slash; collapse so join path is single.
-  const webBase = getWebAppBaseUrl().replace(/\/+$/, "");
   return chatRoomGuestInviteLinkSchema.parse({
     token: link.token,
-    url: `${webBase}/chat/join/${link.token}`,
+    url: buildWebAppUrl(`/chat/join/${link.token}`),
     roomId: link.roomId,
     createdAt: link.createdAt.toISOString(),
     expiresAt: link.expiresAt?.toISOString() ?? null,

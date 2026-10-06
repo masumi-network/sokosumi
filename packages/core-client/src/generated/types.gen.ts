@@ -4618,6 +4618,63 @@ export type ProjectImageStudioCatalogModel = {
     verifiedAt: string;
 };
 
+export type ImageStudioWorkspaceState = {
+    assets: Array<ProjectImageAsset>;
+    jobs: Array<ProjectImageJob>;
+    nextCursor: {
+        createdAt: Date;
+        id: string;
+    } | null;
+};
+
+export type ProjectImageAsset = {
+    id: string;
+    projectId: string;
+    projectName: string;
+    rootId: string;
+    parentId: string | null;
+    version: number;
+    prompt: string;
+    model: string;
+    width: number;
+    height: number;
+    bytes: number;
+    contentType: string;
+    createdAt: Date;
+    jobId: string;
+    settings: ProjectImageSettings;
+    contentPath: string;
+};
+
+export type ProjectImageSettings = {
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
+    resolution?: '0.5K' | '1K' | '2K';
+    outputFormat?: 'png' | 'jpeg' | 'webp';
+    seed?: number | null;
+};
+
+export type ProjectImageJob = {
+    id: string;
+    projectId: string;
+    status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
+    kind: 'GENERATE' | 'EDIT';
+    model: string;
+    prompt: string;
+    settings: ProjectImageSettings;
+    referenceAssetIds: Array<string>;
+    error: string | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    parentAssetId: string | null;
+    assetId: string | null;
+    createdAt: Date;
+    submittedAt: Date | null;
+    settledAt: Date | null;
+    cancelRequestedAt: Date | null;
+    retryMayDuplicateCharge: boolean;
+    credits: number | null;
+    refunded: boolean;
+};
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -5961,51 +6018,6 @@ export type ProjectImageStudioState = {
         createdAt: Date;
         id: string;
     } | null;
-};
-
-export type ProjectImageAsset = {
-    id: string;
-    rootId: string;
-    parentId: string | null;
-    version: number;
-    prompt: string;
-    model: string;
-    width: number;
-    height: number;
-    bytes: number;
-    contentType: string;
-    createdAt: Date;
-    jobId: string;
-    settings: ProjectImageSettings;
-    contentPath: string;
-};
-
-export type ProjectImageSettings = {
-    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
-    resolution?: '0.5K' | '1K' | '2K';
-    outputFormat?: 'png' | 'jpeg' | 'webp';
-    seed?: number | null;
-};
-
-export type ProjectImageJob = {
-    id: string;
-    status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT';
-    model: string;
-    prompt: string;
-    settings: ProjectImageSettings;
-    referenceAssetIds: Array<string>;
-    error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
-    parentAssetId: string | null;
-    assetId: string | null;
-    createdAt: Date;
-    submittedAt: Date | null;
-    settledAt: Date | null;
-    cancelRequestedAt: Date | null;
-    retryMayDuplicateCharge: boolean;
-    credits: number | null;
-    refunded: boolean;
 };
 
 export type ProjectImageSession = {
@@ -30455,6 +30467,89 @@ export type GetImageStudioCatalogResponses = {
 };
 
 export type GetImageStudioCatalogResponse = GetImageStudioCatalogResponses[keyof GetImageStudioCatalogResponses];
+
+export type GetImageStudioStateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        assetId?: string;
+        before?: Date;
+        beforeId?: string;
+    };
+    url: '/image-studio/state';
+};
+
+export type GetImageStudioStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioStateError = GetImageStudioStateErrors[keyof GetImageStudioStateErrors];
+
+export type GetImageStudioStateResponses = {
+    /**
+     * Workspace image studio state
+     */
+    200: {
+        data: ImageStudioWorkspaceState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
 
 export type GetUsersRegisteredData = {
     body?: never;

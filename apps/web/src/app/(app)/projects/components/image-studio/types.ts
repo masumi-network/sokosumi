@@ -9,7 +9,8 @@ import type { StudioTemplateId } from "./studio-templates";
 
 export type StudioAsset = ProjectImageAsset;
 export type StudioJob = ProjectImageJob;
-export type StudioState = ProjectImageStudioState;
+/** Either state: one project's, or the workspace's (which has no sessions). */
+export type StudioState = Omit<ProjectImageStudioState, "sessions">;
 export type StudioSettings = ProjectImageSettings;
 export type StudioCatalog = ProjectImageStudioCatalog;
 export type StudioModel = StudioCatalog["models"][number];
@@ -133,8 +134,10 @@ export function formatElapsed(ms: number): string {
   return seconds < 100 ? `${seconds.toFixed(1)}s` : `${Math.round(seconds)}s`;
 }
 
-export function assetContentUrl(projectId: string, assetId: string): string {
-  return `/api/projects/${projectId}/image-studio/assets/${assetId}/content`;
+export function assetContentUrl(
+  asset: Pick<StudioAsset, "id" | "projectId">,
+): string {
+  return `/api/projects/${asset.projectId}/image-studio/assets/${asset.id}/content`;
 }
 
 /**

@@ -242,7 +242,7 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
   display, which is most Windows hardware, has no half pixel, so a `1.5px` border rounds to
   1px on one edge of a box and 2px on the opposite one, and a `0.2px` border rounds away to
   nothing. Blur radii, keyframe translations and unitless scale factors are continuous and
-  stay fractional. See [Whole pixels](.cursor/rules/whole-pixels.mdc).
+  stay fractional. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
 ## Components
 
@@ -320,7 +320,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   wireframe/video/text), not fake content; coworker avatars are shown whole.
 - **Release announcements** ("New in Sokosumi" images) share one template, whose colours come
   from `globals.css`. Run `/create-new-in-sokosumi` with a PR or any context to get one;
-  see [the skill](.agents/skills/create-new-in-sokosumi/SKILL.md).
+  see [the skill](../../.agents/skills/create-new-in-sokosumi/SKILL.md).
 
 ## Accessibility
 

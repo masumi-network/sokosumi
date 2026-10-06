@@ -27,9 +27,17 @@ public final class ChatDisplayPreferences: ObservableObject {
   /// write also bumps `refreshGeneration`, because a GET that started while
   /// `isSaving` can answer after the PATCH and would otherwise apply.
   public func refresh(client: Client) async throws {
-    refreshGeneration += 1
-    let request = refreshGeneration
+    let request = beginRefresh()
     let snapshot = try await ChatService().userPreferences(client: client)
+    apply(snapshot, request: request)
+  }
+
+  func beginRefresh() -> Int {
+    refreshGeneration += 1
+    return refreshGeneration
+  }
+
+  func apply(_ snapshot: UserPreferencesSnapshot, request: Int) {
     guard request == refreshGeneration, !isSaving, !Task.isCancelled else { return }
     showsRoomUnreadCount = snapshot.showRoomUnreadCount
   }

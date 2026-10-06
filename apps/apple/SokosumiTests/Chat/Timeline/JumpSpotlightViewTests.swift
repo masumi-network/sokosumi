@@ -47,14 +47,21 @@
         let landing = try await JumpMarkViewTests.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
+        try #require(thread == (landing.clock == nil), "The room's mark runs on the test clock, the Thread's on the wall clock.")
         let washed = { try Self.capture(host, scroll: scroll).washed.count { $0 } }
+        if !thread {
+          try await landing.fullStrength()
+        }
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() > 40 }
         // Inside the full-strength stretch (0.45 s to 3.42 s of the hold).
-        try await Task.sleep(for: .seconds(1))
+        if thread {
+          try await landing.fullStrength()
+        }
         let held = try Self.capture(host, scroll: scroll)
         landing.diagnosis.snap("held")
         let away = held.washed.indices.filter { !held.washed[$0] }
         #expect(away.count > 200, "Rows away from the mark are in view: \(away.count) pixel rows")
+        landing.clock?.move(to: JumpMark.hold + 0.1)
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try washed() == 0 && (!thread || state.thread.jumpTarget == nil) }
         try await Task.sleep(for: .milliseconds(100))
         let after = try Self.capture(host, scroll: scroll)
@@ -80,17 +87,26 @@
         let landing = try await JumpMarkViewTests.landing(thread: thread)
         let (state, host, window, scroll) = (landing.state, landing.host, landing.window, landing.scroll)
         defer { window.orderOut(nil) }
+        try #require(thread == (landing.clock == nil), "The room's mark runs on the test clock, the Thread's on the wall clock.")
+        if !thread {
+          try await landing.fullStrength()
+        }
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) { try Self.capture(host, scroll: scroll).washed.count { $0 } > 40 }
-        try await Task.sleep(for: .seconds(1))
+        if thread {
+          try await landing.fullStrength()
+        }
         let dimmed = try Self.capture(host, scroll: scroll).meanInk()
         landing.diagnosis.snap("held")
         let wheeled = ContinuousClock.now
         try JumpMarkViewTests.wheel(scroll, host: host)
         landing.diagnosis.snap("after wheel")
         try await JumpMarkViewTests.poll(host, diagnosis: landing.diagnosis) {
-          try Self.capture(host, scroll: scroll).washed.allSatisfy { !$0 } && (!thread || state.thread.jumpTarget == nil)
+          // Through the 320 ms leave fade a frame at a time.
+          landing.clock?.advance(by: 0.02)
+          return try Self.capture(host, scroll: scroll).washed.allSatisfy { !$0 } && (!thread || state.thread.jumpTarget == nil)
         }
-        let gone = wheeled.duration(to: ContinuousClock.now)
+        // The room's clock took the wheel 1 s in.
+        let gone = landing.clock.map { Duration.seconds($0.elapsed - 1) } ?? wheeled.duration(to: ContinuousClock.now)
         try await Task.sleep(for: .milliseconds(100))
         let rest = try Self.capture(host, scroll: scroll).meanInk()
         #expect(gone < .seconds(2), "The mark and the spotlight ended \(gone) after the wheel, not with the hold.")

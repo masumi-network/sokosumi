@@ -83,8 +83,8 @@ Computer-use notes (live-proved):
 - **Do not invent users.** Run `verify-sokosumi credentials-status` (or doctor). If `verify_credentials_email=unset`, stop and report missing `VERIFY_SOKOSUMI_*` secrets — do not create `you-*@sokosumi.test` accounts for general UI proof.
 - **Prefer harness auth first:** `verify-sokosumi sign-in` (agent-browser) reads `VERIFY_SOKOSUMI_EMAIL` / `VERIFY_SOKOSUMI_PASSWORD` from the process env. Computer-use should drive post-login UI. Typing a Runtime Secret password in the GUI fails because tool output redacts it as `[REDACTED]`.
 - If you must type the form: use `$VERIFY_SOKOSUMI_EMAIL` (must be an Environment Variable, not Runtime Secret) and only a non-redacted password. Type the email into the one field on step 1 and press Enter. On step 2, click **Use a password instead** when the code field shows, then type the password.
-- **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (Login stays enabled — it only disables while `isSubmitting` or `isLeaving`).
-- Submit with **Enter** (or the **Login** button under the password).
+- **Type** email and password with real keystrokes (or the GUI type tool). Setting `input.value` via JS / paste-without-events often leaves react-hook-form empty so zod blocks submit (**Log in** stays enabled — it only disables while `isSubmitting` or `isLeaving`).
+- Submit with **Enter** (or the **Log in** button under the password).
 - After success, Chrome may show a **“Save password?”** bubble over the app — dismiss **Never** / **No thanks** before clicking app chrome, or clicks miss.
 - When computer-use keeps failing, run `verify-sokosumi sign-in --method cookie` (agent-browser), then continue the map.
 
