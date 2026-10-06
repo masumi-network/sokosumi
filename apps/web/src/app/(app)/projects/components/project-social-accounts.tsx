@@ -5,16 +5,9 @@ import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, useRef, useState } from "react";
-import { SiX } from "react-icons/si";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-import {
-  FacebookIcon,
-  InstagramIcon,
-  LinkedInIcon,
-  TikTokIcon,
-  YouTubeIcon,
-} from "@/components/social-icons";
+import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -59,21 +52,6 @@ interface Feedback {
 }
 
 type OAuthAction = "connect" | "reconnect" | "replace";
-
-const SOCIAL_PROVIDERS = [
-  { id: "x", name: "X", Icon: SiX },
-  // Not offered yet: publishing needs TikTok's app review first.
-  { id: "tiktok", name: "TikTok", Icon: TikTokIcon, comingSoon: true },
-  { id: "instagram", name: "Instagram", Icon: InstagramIcon },
-  { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
-  { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
-] as const satisfies readonly {
-  id: ProjectSocialConnection["provider"];
-  name: string;
-  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-  comingSoon?: boolean;
-}[];
 
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
