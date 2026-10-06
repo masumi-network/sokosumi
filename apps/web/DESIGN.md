@@ -20,9 +20,10 @@ typography:
     letterSpacing: -0.02em
   heading:
     fontFamily: Inter
-    fontWeight: 300
-    fontSize: 20px
+    fontWeight: 600
+    fontSize: 18px
     lineHeight: 28px
+    letterSpacing: -0.025em
   subheading:
     fontFamily: Inter
     fontWeight: 600
@@ -50,7 +51,7 @@ rounded:
   xl: 14px     # --radius + 4px
   2xl: 16px    # Tailwind default (used directly for cards/hero)
   full: 9999px
-spacing:        # Tailwind default 4-pt scale (no custom --spacing token)
+spacing:        # Tailwind default 4-pt scale (no custom spacing token)
   1: 4px
   2: 8px
   3: 12px
@@ -61,13 +62,18 @@ spacing:        # Tailwind default 4-pt scale (no custom --spacing token)
   12: 48px
 components:
   button:
-    backgroundColor: primary-solid
-    textColor: primary-solid-foreground
+    backgroundColor: secondary
+    textColor: secondary-foreground
     rounded: "{rounded.md}"
     height: h-10
     padding: 8px 16px
     typography: text-sm font-medium
   buttonHover:
+    backgroundColor: secondary-hover
+  buttonPrimary:
+    backgroundColor: primary-solid
+    textColor: primary-solid-foreground
+  buttonPrimaryHover:
     backgroundColor: primary-solid-hover
   buttonSm:
     height: h-8
@@ -81,7 +87,7 @@ components:
   badge:
     rounded: "{rounded.md}"
     padding: 2px 8px
-    typography: "{typography.caption}"
+    typography: "{typography.label}"
   card:
     backgroundColor: card
     rounded: "{rounded.xl}"
@@ -97,7 +103,7 @@ components:
   categoryChip:
     rounded: "{rounded.md}"
     padding: 2px 8px
-    typography: "{typography.caption}"
+    typography: "{typography.label}"
   focusRing:
     width: 3px
 ---
@@ -124,7 +130,8 @@ out. Brand names and the first letter of any brand are always **lowercase**; UI 
   **only when they communicate** (masumi/kodosumi charts, status, category), at most one
   accent role per view.
 - **Theming:** dark mode is a `.dark` class that re-defines the same token names; reference one
-  token and theming is automatic. `--radius` and the category palette are identical across modes.
+  token and theming is automatic. `--radius` and the solid category colours (`--chart-1`…`5`) are
+  identical across modes; their `-quinary` resting fills are retuned for dark.
 
 ## Colors
 
@@ -136,15 +143,17 @@ The working status uses a separate magenta hue, and the former `semantic-info` r
 has been consolidated into `status-working`.
 
 The primary family exposes `--primary-solid` (fill under a near-white label),
-`--primary-variant`, opaque ramp steps `--primary-tertiary/-quaternary/-quinary`
-(border / hover fill / resting fill), and `--primary-iris` for gradients. Never invent
-a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no step fits,
-add one in `globals.css`.
+`--primary-variant`, opaque ramp steps `--primary-tertiary`, `--primary-quaternary`, `--primary-quinary`
+(border / hover fill / resting fill). `--primary-iris` is a magenta (the `status-working`
+hue) that is bridged but unused today; reach for it only with a design decision. Never
+invent a tint at the call site (`bg-primary/55`, `color-mix(…, transparent)`); if no step
+fits, add one in `globals.css`. Tokens may mix with `transparent` inside `globals.css`
+(`--overlay`, `--surface-glass`); call sites never do.
 
 ### Neutrals
 
 Black/White plus the neutral ramp (`--background` / `--card-background` through
-`--foreground`) and the step ramp (`--secondary/-tertiary/-quaternary/-quinary/-senary`).
+`--foreground`) and the step ramp (`--secondary`, `--tertiary`, `--quaternary`, `--quinary`, `--senary`).
 Values live in `globals.css`. Elevated surfaces are **lighter** (`--card-background` on
 `--muted`), not heavier. Default border = `--border`; `--input` is a separate, stronger
 control boundary. The base layer applies `border-border` + `outline-ring` to all elements.
@@ -166,12 +175,25 @@ text/icons **neutral** for contrast.
 
 ### Token families (reference)
 
-Beyond the above, `globals.css` exposes: **semantic** (`--destructive/warning/success/
-info`, each with `-tertiary/-quaternary/-quinary/-label/-foreground`; destructive also has
-`-solid` for a fill that carries a near-white label); **overlay / glass** tokens
-(`--overlay`, `--overlay-primary`, `--surface-glass`, `--scrim/-soft/-strong`) for blur/glass
-UI (alpha lives in the token, not at the call site); **sidebar-** set; and
-`card/popover/border/input/ring/ring-halo`. Use semantic tokens
+Beyond the above, `globals.css` exposes:
+
+- **Semantic:** `--semantic-destructive`, `--semantic-warning`, `--semantic-success`, each
+  with `-tertiary/-quaternary/-quinary/-label/-foreground`; `--semantic-destructive-solid` is
+  the fill that carries a near-white label. There is no info role: it was retired into
+  `--status-working`.
+- **Status:** `--status-working`, `--status-external`, `--status-done` (with ramp steps),
+  `--presence-offline`, `--risk-high`.
+- **Overlay / glass:** `--overlay`, `--overlay-primary`, `--surface-glass`, `--surface-sticky`,
+  `--scrim`, `--scrim-soft`, `--scrim-strong` for blur and glass UI (alpha lives in the token, not at the call site).
+- **Media:** `--on-media` (text over images and video, with `--on-media-muted`, `--on-media-tertiary`, `--on-media-quaternary`),
+  `--media-ground`, `--hero-wash`, `--hero-ground`.
+- **Surfaces and states:** `--background-muted`, `--card-background-hover`,
+  `--disabled-foreground`, `--scrollbar-thumb`, `--destructive-halo`, and `*-hover` steps
+  for filled controls.
+- The **sidebar-** set, the **social-** link colours, and
+  `card/popover/border/input/ring/ring-halo`.
+
+Use semantic tokens
 (`bg-primary`, `text-muted-foreground`, `border-input`, `bg-primary-solid`, `ring-ring-halo`) —
 never hardcoded hex, never an opacity modifier on a colour utility.
 
@@ -179,10 +201,12 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 
 **Inter** is the entire system.
 
-- **Inter Light (300)** — headlines & hero (airy, sophisticated). Section headings
-  `text-xl md:text-2xl font-light`; hero `text-2xl md:text-3xl font-light`.
+- **Inter Light (300)** — display only: the hero and a few page-level `h1`s
+  (`text-2xl md:text-3xl font-light`).
+- **Inter Semibold (600) / Medium (500)** — headings. Most `h1`–`h3` are `font-semibold` or
+  `font-medium` with `tracking-tight`; small section headings sit at `text-sm`/`text-lg`.
 - **Inter Regular (400)** — body & UI (the workhorse; base `text-sm`/14px).
-- **Inter Medium (500) / Semibold (600)** — subtle emphasis: labels, subheadings, callouts.
+- **Inter Medium (500)** — labels, badges, chips, callouts.
 - **Scale:** pentatonic — base **12px**, ×2 every 5 steps (`r = 2^(1/5) ≈ 1.1487`); Light kicks
   in ~20px+, with **negative tracking** growing at large sizes. Stick to the Tailwind scale
   (`text-xs/sm/base/lg/xl/2xl/3xl`) — no off-scale `text-[13px]`-style values.
@@ -194,16 +218,17 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 - **CSS-first, no JS config.** Breakpoints are Tailwind defaults (`sm 640 · md 768 · lg 1024 ·
   xl 1280 · 2xl 1536`); **`md` is the primary mobile/desktop split** (sidebar hidden→flex,
   header sticky). `2xl` is effectively unused.
-- **App shell:** sidebar + a sticky header, `<main class="… p-4 …">` (overflow-y-auto). Page
-  wrappers add `px-2` inside main, so content sits ~24px from the main edge.
+- **App shell:** sidebar + a sticky header, `<main data-app-main class="… p-4 …">`
+  (overflow-y-auto). That `p-4` is the only horizontal gutter (see Shapes).
 - **Container:** one custom `.container` — centered, full-width from `sm`, capped at **1400px**.
 - **Spacing:** Tailwind 4-pt scale (no custom token). Common: gaps `gap-2/3/4`, vertical rhythm
   `space-y-4/6`, top-level page sections `space-y-12`; tight inline groups `gap-1/1.5`.
-- **Grid patterns:** coworker tiles `grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5`;
-  offer cards `sm:grid-cols-2 lg:grid-cols-3`; forms/content `sm:grid-cols-2`.
+- **Grid patterns:** marketplace companies are master-detail (a company rail beside a detail
+  column, `md:grid-cols-[13.5rem_1fr]`); offer cards `sm:grid-cols-2 xl:grid-cols-3`;
+  forms/content `sm:grid-cols-2`.
 - **Full-bleed:** visuals/bands may break out. The marketplace hero uses `-mx-4 -mt-4` to escape
-  page padding; the agent-detail route opts out of shell clipping via a `data-agent-fullbleed`
-  marker (`globals.css`).
+  page padding; the agent-detail route opts out of shell clipping through
+  `body[data-agent-fullbleed="true"]`, which `AgentFullbleedEffect` toggles (`globals.css`).
 
 ## Elevation & Depth
 
@@ -212,11 +237,13 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
 - Define regions with **hairline borders/rings** (`ring-1 ring-border`, `border-border`).
 - **Soft glow:** subtle shadows for lift (`shadow-sm` → `shadow-md` on hover), echoing the
   brand's "blur & glow." No shadow **token scale** exists — use Tailwind `shadow-*` defaults or
-  the two custom utilities (`agent-card-image-shadow`, `agent-modal-card`); keep it subtle.
+  the one custom utility (`agent-card-image-shadow`); keep it subtle.
 - **Blur:** `backdrop-blur` for elements over busy backgrounds (dialog overlay = `bg-overlay
   backdrop-blur-lg`); pairs with the overlay / glass tokens (`--overlay`, `--surface-glass`).
 - **Z-index:** no formal ladder. **`z-50` is the standard overlay layer** (dropdowns, popovers,
-  modals); `z-10` for local stacking. Don't invent new high values.
+  modals); `z-10` for local stacking. Two surfaces sit above it on purpose: the mobile search
+  takeover (`z-[60]`, over the `z-50` header) and the cookie banner (`z-[100]`, over every
+  overlay). Nothing else goes above `z-50`; the guard holds that list.
 
 ## Shapes
 
@@ -247,19 +274,22 @@ Borders-first, then soft glow — **never** dramatic drop shadows.
 ## Components
 
 shadcn/ui wrappers over Radix in `apps/web/src/components/ui/`; each carries a `data-slot`.
-Variants via `class-variance-authority` (only Button & Badge); others are prop/state-driven.
+Variants via `class-variance-authority` (Button, Badge, Alert, Sidebar, Toggle); others are
+prop/state-driven.
 
 - **Button** — 8 variants: `primary` (bg-primary-solid), `default` (bg-secondary, *default*),
   `destructive`, `outline`, `secondary` (bg-quinary), `ghost`, `link`, `muted`. 4 sizes:
   `default` (h-10 px-4), `sm` (h-8 px-3), `lg` (h-10 px-6), `icon` (size-10). Default control
   height is `h-10` (scales with root rem; Dynamic Type cap 1.25×). Base:
-  `cursor-pointer transition-all disabled:opacity-50`, hover per-variant
-  (`hover:bg-primary-solid-hover` / `hover:bg-secondary-hover` / `hover:bg-quaternary`),
-  embedded SVG defaults to `size-4`.
+  `transition-[color,background-color,border-color,box-shadow,transform] duration-150 ease-out
+  press disabled:opacity-50`, hover per-variant (`hover:bg-primary-solid-hover` /
+  `hover:bg-secondary-hover` / `hover:bg-quaternary`), embedded SVG defaults to `size-4`.
+  Pass `loading` to the button whose request is running: it keeps the label and width and
+  draws `ButtonLoadingBar`.
 - **Input** — h-10, `rounded-md border-input bg-transparent`, `text-base md:text-sm`
   (via `withEditableTextSize`).
-- **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs rounded-md`,
-  SVG `size-3`.
+- **Badge** — 4 variants (default/secondary/destructive/outline), `px-2 py-0.5 text-xs
+  font-medium rounded-md`, SVG `size-3`. A badge labels a state; it never answers the pointer.
 - **Card** — `bg-card rounded-xl border py-6`, with Header/Title(`font-semibold`)/Description
   (`text-muted-foreground text-sm`)/Content/Footer; `px-6` insets.
 - **Dialog** — centered, `max-w-[calc(100%-2rem)] sm:max-w-lg`, `rounded-lg border p-6`; overlay
@@ -268,27 +298,31 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   Radix `data-[state=…]` + `focus-visible:ring-ring-halo ring-[3px]`; tabs/list `bg-muted h-9
   rounded-lg`; tooltip `bg-primary-solid text-primary-solid-foreground text-xs`.
 - **Marketplace components** (`components/agents/coworker-gallery-section.tsx`): full-bleed
-  **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill); **company group** (header → coworker tiles →
-  "Ready-to-run offers" sub-block, capped 2/5/3 with "Show all"); **coworker tile**
-  (circular avatar + name + role + model/region tags); **offer card** (content-aware preview
-  mock + category chip + output-type chip + coworker); **offer detail dialog** (`max-w-4xl`,
-  ~56vh preview, real PDF/Office embed, multi-output tabs).
+  **hero search** (inverted `bg-foreground` / `text-background` `rounded-full` pill);
+  **company rail + detail** (pick a company on the left, its coworkers and "Ready-to-run
+  offers" on the right, capped with "Show all"); **coworker tile** (circular avatar + name +
+  role + model/region tags); **offer card** (content-aware preview mock + category chip +
+  output-type chip + coworker); **offer detail dialog** (`sm:max-w-5xl lg:max-w-6xl`, two
+  columns at 86dvh on desktop, a 46dvh preview on mobile, real PDF/Office embed, multi-output
+  tabs).
 
 ## Motion
 
-- **Library:** `motion` 13.4.0 (framer-motion successor) is used in `motion-tabs`,
-  `motion-highlight`, `purchase-success-modal`, `confetti-burst`, and
-  `task-created-celebration`. Everything else is **CSS Tailwind transitions** +
+- **Library:** `motion` (framer-motion successor; version in `apps/web/package.json`) drives a
+  few components that need springs or layout animation, such as `motion-tabs`,
+  `motion-highlight` and the celebrations. Everything else is **CSS Tailwind transitions** +
   `tw-animate-css` overlay animations + `@theme` keyframes.
-- **Durations & easing:** `duration-200` is the default (also 300/500); standard easing is
-  **`ease-out` at 0.2–0.25s** for UI transitions. `transition-colors` is the hover workhorse;
-  feedback should stay **≤200ms**.
+- **Durations & easing:** `globals.css` sets `--default-transition-duration: 310ms`, so a bare
+  `transition-colors` runs 310ms. Controls set their own: the UI primitives (Button, Badge,
+  tabs) use `duration-150 ease-out` for press and hover feedback; enter animations run about
+  200ms.
 - **What animates:** `transform`, `opacity`, `blur` — **never layout** (width/height/top/margin).
   Active state nudges with `scale(0.995)`, shared as the `press` utility in `globals.css`
   (buttons, tabs, toggles, rows, cards; off under reduced motion); overlays use `animate-in/out` + `fade` + `zoom-95` +
   slide.
-- **Tokens:** animations are `--animate-*` aliases (accordion 0.2s, roll-up/down 0.2s,
-  rotate-once 0.6s, reasoning-* shimmer/step/cursor). Add new keyframes there.
+- **Tokens:** animations are `--animate-*` aliases in `@theme` (accordion, roll-up/down,
+  rotate-once, reasoning and shimmer text, the button loading sweep, caret blink, the chat
+  input border, and others). Add new keyframes there.
 - **Enter and feedback:** `content-in` / `content-rise` (200ms fade, small rise) for page and list
   arrival, `check-pop` for copy/save confirmation, `scroll-edge-y` for scroll-edge fades. Opacity and
   transform only. Under reduced motion overlays cross-fade in place and `prefers-reduced-transparency`
@@ -299,8 +333,8 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 
 ## Iconography
 
-- **lucide-react** (pin in `apps/web/package.json`) is the icon library (~197 files). `react-icons` appears in
-  exactly one constants file for third-party brand glyphs; no heroicons/radix-icons.
+- **lucide-react** (pin in `apps/web/package.json`) is the icon library. `react-icons` appears
+  only where a third-party brand glyph is needed; no heroicons/radix-icons.
 - **Sizing:** **`size-4` is canonical** (auto-applied to unsized SVGs in primitives via
   `[&_svg:not([class*='size-'])]:size-4`); badges force `size-3`; other sizes `size-3.5/5/6/8`.
   Always `size-N`, never `h-N w-N`.
@@ -324,12 +358,21 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
 
 ## Accessibility
 
-- **Focus rings — two conventions.** shadcn primitives: `outline-none focus-visible:border-ring
-  focus-visible:ring-ring-halo focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive-halo
-  aria-invalid:border-destructive`). Bespoke clickable cards/chips: `outline-none
-  focus-visible:ring-2 focus-visible:ring-ring`. Reuse these verbatim; never animate the
-  ring, and never fade it with a modifier: `--ring-halo` is the soft wide glow, and it
-  carries its own alpha so the class does not have to.
+- **Focus rings — three conventions, by surface.**
+  - **Form primitives** (Input, Select, Checkbox, Switch, Tabs, Textarea, Toggle, Badge):
+    `outline-none focus-visible:border-ring focus-visible:ring-ring-halo
+    focus-visible:ring-[3px]` (+ `aria-invalid:ring-destructive-halo aria-invalid:border-destructive`).
+  - **Buttons:** `focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2
+    focus-visible:ring-offset-background`, one ring for every variant so the destructive
+    button is not the faintest. The Dialog and Sheet close buttons draw the same ring on
+    `focus:`.
+  - **Bespoke clickable cards and chips** (marketplace, offer picker): a local `FOCUS_RING`
+    constant, `outline-none focus-visible:ring-2 focus-visible:ring-ring-halo
+    focus-visible:inset-ring-1 focus-visible:inset-ring-ring`.
+
+  Reuse the one that matches the surface; never animate the ring, and never fade it with a
+  modifier: `--ring-halo` is the soft wide glow, and it carries its own alpha so the class does
+  not have to.
 - **Decorative icons:** boolean shorthand `aria-hidden` (bare attribute, the dominant style).
 - **Icon-only / unlabeled controls:** `aria-label` (sourced from i18n); search inputs mirror the
   placeholder into `aria-label`; toggles add `aria-pressed`; otherwise pair with
@@ -349,7 +392,7 @@ Variants via `class-variance-authority` (only Button & Badge); others are prop/s
   ", please contact our support" for unknown/on-chain errors.
 - **Success:** `{Noun} {verbed} successfully` ("Seat assigned successfully").
 - **i18n:** next-intl, `useTranslations`/`getTranslations` with **deep dot-namespaced keys**
-  mirroring the route/component tree (11 top-level domains). Place
+  mirroring the route/component tree. Place
   new strings under the matching namespace. **Shipped locales: `en`, `de`, `es`** (default `en`).
 
 ## Logo
@@ -379,4 +422,4 @@ primary on a neutral background. Brand names are always lowercase.
 - Opacity modifiers on colour utilities (`bg-primary/55`, `border-border/40`) or
   `color-mix(…, transparent)` tints — use the opaque ramp step (`-tertiary` /
   `-quaternary` / `-quinary`) or a named token (`--ring-halo`, `--overlay`).
-- Inventing new z-index values above `z-50`, or hardcoding hex / px radii.
+- Going above `z-50` outside the two listed surfaces, or hardcoding hex / px radii.
