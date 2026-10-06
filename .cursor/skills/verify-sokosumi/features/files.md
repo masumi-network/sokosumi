@@ -32,7 +32,7 @@ Preconditions:
 ## Gotchas
 
 - Nav label is **Files**; the route is `/drive`.
-- The browse tab label is **Workspace**, not **My Files**. `myDrive` (**My Files**) is used as a workspace-root label (for example copy dialogs), not the tab.
+- The browse tab label is **Workspace**, not **My files**. `myDrive` (**My files**) is used as a workspace-root label (for example copy dialogs), not the tab.
 - Canonical browse URL is `?view=workspace`. `?view=browse` still opens Workspace as a legacy alias.
 - Desktop main nav includes Files after Schedules / Content Studio (and after **Social** when that beta row is on). There is no Calendar sidebar row. Mobile does **not** show Files in the sidebar — use the You page. The **New** browse control is the create-folder action; do not look for a **Create folder** button label. There is no header **Tasks** button; **Sokosumi Projects** is a folder-nav virtual row that opens `?view=tasks`.
 - Recents calls `GET /v1/drive/recents`, which needs a real Blob token. Missing token is Core **503**; placeholder tokens may toast **Failed to load recent files**. Browse list calls `GET /v1/drive/files` and may toast **Failed to load files**. Those are environment gaps, not proof the route is missing.

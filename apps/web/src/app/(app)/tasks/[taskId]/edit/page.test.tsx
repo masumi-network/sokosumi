@@ -35,7 +35,7 @@ describe("EditTaskPage", () => {
 
     const { default: EditTaskPage, metadata } = await import("./page");
 
-    expect(metadata).toEqual({ title: "Edit Task" });
+    expect(metadata).toEqual({ title: "Edit task" });
 
     render(
       await EditTaskPage({

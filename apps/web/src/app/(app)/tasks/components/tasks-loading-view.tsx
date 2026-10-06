@@ -36,8 +36,8 @@ export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
   columns: {
     backlog: "Backlog",
     todo: "Todo",
-    "in-progress": "In Progress",
-    "input-required": "Input Required",
+    "in-progress": "In progress",
+    "input-required": "Input required",
     done: "Done",
   },
   display: {
