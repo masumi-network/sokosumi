@@ -40,7 +40,7 @@ function TemplateButton({
         large
           ? "border-border flex-col overflow-hidden border p-2 shadow-lg"
           : "min-h-11 shrink-0 items-center p-1 pr-3",
-        large && (dimensional ? "relative left-1/2 w-48 sm:w-64" : "w-full"),
+        large && (dimensional ? "relative left-1/2 w-48 sm:w-56" : "w-full"),
       )}
       data-template-card={large || undefined}
       onClick={() => onApplyTemplate(template)}
@@ -63,7 +63,9 @@ function TemplateButton({
           fill
           sizes={
             large
-              ? "(min-width: 1024px) 18rem, (min-width: 640px) 26rem, 75vw"
+              ? dimensional
+                ? "(min-width: 640px) 14rem, 12rem"
+                : "(min-width: 1024px) 18rem, (min-width: 640px) 26rem, 75vw"
               : "2rem"
           }
           src={`/studio/templates/${template.id}.jpg`}
@@ -187,7 +189,7 @@ export function StudioTemplateCarousel({
   }, [api, rotationStopped, hoverDirection]);
 
   return (
-    <div className="mx-auto w-full max-w-4xl space-y-5 py-4">
+    <div className="mx-auto w-full max-w-3xl space-y-5 py-4">
       <div className="space-y-2 px-4 text-center">
         <h2 className="text-xl font-medium">{labels.emptyTitle}</h2>
         <p className="text-muted-foreground text-sm text-pretty">
