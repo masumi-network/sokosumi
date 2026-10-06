@@ -1,9 +1,10 @@
 "use client";
 
 import type { ChatRoomMessageSkill } from "@sokosumi/core-client";
-import { ExternalLink, ScrollText, X } from "lucide-react";
+import { ExternalLink, ScrollText } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   Popover,
   PopoverContent,
@@ -88,7 +89,7 @@ export function ComposerSkillChips({
       data-testid="composer-skills"
     >
       {skills.map((skill) => (
-        <span key={skill.id} className={cn(CHIP_CLASSNAME, "pe-1")}>
+        <span key={skill.id} className={cn(CHIP_CLASSNAME, "h-auto pe-0")}>
           <ScrollText
             className="text-muted-foreground size-3.5 shrink-0"
             aria-hidden
@@ -96,14 +97,11 @@ export function ComposerSkillChips({
           <span className="truncate" title={skill.description ?? undefined}>
             {skill.name}
           </span>
-          <button
-            type="button"
+          <ChipRemoveButton
             onClick={() => onRemove(skill)}
-            className="hover:bg-muted text-muted-foreground focus-visible:ring-ring flex size-5 shrink-0 items-center justify-center rounded outline-none focus-visible:ring-2"
+            className="hover:bg-muted"
             aria-label={t("remove", { name: skill.name })}
-          >
-            <X className="size-3" aria-hidden />
-          </button>
+          />
         </span>
       ))}
     </div>

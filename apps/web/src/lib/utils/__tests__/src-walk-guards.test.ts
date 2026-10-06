@@ -1325,9 +1325,12 @@ const DESKTOP_VARIANT = /(?:^|:)(?:md|lg|xl|2xl):$/;
  * element) is dropped, so a nested `<Button size="icon">` is checked as its
  * own tag and not also as part of the one around it.
  */
-function openingTags(text: string): { tag: string; index: number }[] {
-  const tags: { tag: string; index: number }[] = [];
-  for (const match of text.matchAll(/<[A-Z][\w.]*(?![\w.])/g)) {
+function openingTags(
+  text: string,
+  name: RegExp = /<[A-Z][\w.]*(?![\w.])/g,
+): { tag: string; index: number; end: number }[] {
+  const tags: { tag: string; index: number; end: number }[] = [];
+  for (const match of text.matchAll(name)) {
     let depth = 0;
     let quote: string | null = null;
     let own = match[0];
@@ -1356,7 +1359,7 @@ function openingTags(text: string): { tag: string; index: number }[] {
       } else if (char === ">" && depth === 0 && text[i - 1] !== "=") break;
       if (depth === 0) own += char;
     }
-    tags.push({ tag: `${own}>`, index: match.index });
+    tags.push({ tag: `${own}>`, index: match.index, end: i + 1 });
   }
   return tags;
 }
@@ -1449,6 +1452,94 @@ describe("icon touch targets", () => {
     ];
     for (const fixture of fixtures) {
       expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// chip remove targets
+// ---------------------------------------------------------------------------
+
+/**
+ * DESIGN.md → Accessibility → Touch targets → Chips: a chip's remove is
+ * `ChipRemoveButton`, whose box is the 40px target below `md`, so nothing
+ * reaches into the next row of a wrapping list.
+ *
+ * Checked:
+ *   - a `<Badge>` holds no bespoke `<button>`. `Badge` is `overflow-hidden`,
+ *     so a `hit-area` inside one is clipped to the badge; its remove is
+ *     `ChipRemoveButton` on a badge given `overflow-visible py-0 pe-0`.
+ *   - a bespoke `<button>` whose only child is a lucide `<X />` carries
+ *     `hit-area`, or a bare `size-10` / `h-10` that makes its box the target
+ *     and no `md:`-and-up `size-N` / `h-N` below 8 that shrinks it again.
+ *
+ * Not checked, because a regex over one tag cannot see it:
+ *   - classes that arrive through a variable or constant
+ *   - a dismiss built from another icon, or with a label beside the `X`
+ *   - whether the chip around a `ChipRemoveButton` dropped its padding and
+ *     overflow, or whether a `hit-area` overlaps a target in the next row;
+ *     that is spacing, and stays a review call
+ */
+const BARE_X_CHILD = /^\s*<X\b[^<>]*\/>\s*$/;
+const DISMISS_HIT_AREA = /(?<![\w:-])hit-area(?![\w-])/;
+const DISMISS_BOX = /(?<![\w:[\]-])(?:size|h)-10(?![\w.[-])/;
+const DISMISS_DESKTOP_BOX =
+  /(?<![\w:[\]-])(?:md|lg|xl|2xl):(?:size|h)-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+
+function smallDismissTargets(rel: string, text: string): string[] {
+  const hits: string[] = [];
+  const lineOf = (index: number) => text.slice(0, index).split("\n").length;
+  for (const { tag, index, end } of openingTags(text, /<Badge(?![\w.])/g)) {
+    if (tag.endsWith("/>")) continue;
+    const close = text.indexOf("</Badge>", end);
+    if (close !== -1 && /<button(?![\w.-])/.test(text.slice(end, close))) {
+      hits.push(`${rel}:${lineOf(index)}: <button> inside <Badge>`);
+    }
+  }
+  for (const { tag, index, end } of openingTags(text, /<button(?![\w.-])/g)) {
+    const close = text.indexOf("</button>", end);
+    if (close === -1 || !BARE_X_CHILD.test(text.slice(end, close))) continue;
+    if (DISMISS_HIT_AREA.test(tag)) continue;
+    const desktopSmall = [...tag.matchAll(DISMISS_DESKTOP_BOX)].some(
+      ([, n]) => Number(n) < 8,
+    );
+    if (DISMISS_BOX.test(tag) && !desktopSmall) continue;
+    hits.push(`${rel}:${lineOf(index)}: <X /> button without hit-area`);
+  }
+  return hits;
+}
+
+describe("chip remove targets", () => {
+  it("gives every bespoke X button and badge remove a full target", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.endsWith(".test.tsx"),
+    ).flatMap((file) => smallDismissTargets(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<Badge className="gap-1">\n  {name}\n  <button type="button" className="hit-area" onClick={remove}>\n    <X className="size-3" />\n  </button>\n</Badge>',
+      '<button\n  type="button"\n  className="rounded-sm p-0.5"\n  onClick={() => remove(tag)}\n>\n  <X className="size-3" aria-hidden />\n</button>',
+      '<button type="button" className="size-5 md:h-10"><X className="size-3" /></button>',
+      '<button type="button" className="size-10 md:size-5"><X className="size-3" /></button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallDismissTargets("f.tsx", fixture), fixture).toHaveLength(1);
+    }
+  });
+
+  it("passes the shapes the rule allows", () => {
+    const fixtures = [
+      '<Badge className="gap-1 overflow-visible py-0 pe-0">\n  {name}\n  <ChipRemoveButton aria-label={label} onClick={remove} />\n</Badge>',
+      '<Badge variant="outline">{name}</Badge>',
+      '<button type="button" className="hit-area rounded p-1"><X className="size-4" /></button>',
+      '<button type="button" className="h-10 w-full md:h-8"><X className="size-3" /></button>',
+      '<button type="button" className="p-1"><X className="size-3" /> Clear</button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallDismissTargets("f.tsx", fixture), fixture).toEqual([]);
     }
   });
 });
