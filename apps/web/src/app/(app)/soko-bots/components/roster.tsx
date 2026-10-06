@@ -69,7 +69,7 @@ function PersonAvatar({
       {member.image ? (
         <AvatarImage src={member.image} alt="" referrerPolicy="no-referrer" />
       ) : null}
-      <AvatarFallback className="bg-muted text-muted-foreground text-[0.625rem] font-medium">
+      <AvatarFallback className="bg-muted text-muted-foreground text-2xs font-medium">
         {initials(member.name) || <User aria-hidden className="size-3" />}
       </AvatarFallback>
     </Avatar>

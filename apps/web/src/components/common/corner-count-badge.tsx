@@ -19,7 +19,7 @@ export function CornerCountBadge({
     <span
       aria-hidden
       className={cn(
-        "ring-background absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-[0.625rem] leading-4 font-semibold tabular-nums ring-2",
+        "ring-background absolute -top-0.5 -right-0.5 inline-flex min-w-4.5 items-center justify-center rounded-full px-0.5 text-2xs leading-4 font-semibold tabular-nums ring-2",
         className,
       )}
       {...props}

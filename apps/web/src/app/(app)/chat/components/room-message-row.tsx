@@ -542,7 +542,7 @@ function MessageUnfurlCard({
         data-testid="room-message-unfurl"
       >
         {siteLabel ? (
-          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium">
+          <div className="text-muted-foreground truncate text-2xs font-medium">
             {siteLabel}
           </div>
         ) : null}
@@ -2218,7 +2218,7 @@ function ThreadReplyBar({
                   // apart; any thicker reads as a halo on the tinted bar.
                   className="ring-background size-4 ring-1"
                   // Grey like the read-receipt faces, not the bar's link blue.
-                  fallbackClassName="bg-muted text-muted-foreground text-[0.5rem]"
+                  fallbackClassName="bg-muted text-muted-foreground text-2xs"
                   monogram
                 />
               </span>

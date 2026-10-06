@@ -136,7 +136,7 @@ export function SkillsSection({
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-medium">{skill.name}</span>
-              <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
+              <span className="text-muted-foreground shrink-0 text-2xs">
                 {t("builtIn")}
               </span>
             </span>

@@ -461,7 +461,7 @@ function JobDetailsContent({
                 {actor.imageUrl ? (
                   <AvatarImage src={actor.imageUrl} alt={actor.name} />
                 ) : null}
-                <AvatarFallback className="bg-muted text-[0.625rem]">
+                <AvatarFallback className="bg-muted text-2xs">
                   {getInitials(actor.name)}
                 </AvatarFallback>
               </Avatar>

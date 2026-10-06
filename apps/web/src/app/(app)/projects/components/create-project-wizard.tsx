@@ -182,7 +182,7 @@ export function CreateProjectWizard({
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-2xs font-medium tracking-[0.16em] tabular-nums">
             {t("Wizard.stepLabel", {
               current: String(isBrandStep ? SETUP_STEPS : step + 1).padStart(
                 2,
@@ -209,10 +209,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 0 ? (
               <div className="mx-auto w-full max-w-md text-center">
-                <h2 className="text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.name.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
                   {t("Wizard.name.subtitle")}
                 </p>
                 <div className="mt-10 space-y-4 text-left">
@@ -253,10 +253,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 1 ? (
               <div className="mx-auto flex min-h-0 w-full max-w-xl flex-col">
-                <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-center text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.briefing.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-base leading-[1.6] text-balance">
                   {t("Wizard.briefing.subtitle")}
                 </p>
                 <ProjectBriefingField
@@ -271,10 +271,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 2 ? (
               <div className="mx-auto w-full max-w-xl">
-                <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-center text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.review.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-base leading-[1.6] text-balance">
                   {t("Wizard.review.subtitle")}
                 </p>
 

@@ -98,7 +98,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
             {task.assignee?.image ? (
               <AvatarImage src={task.assignee.image} alt={task.assignee.name} />
             ) : null}
-            <AvatarFallback className="text-[0.625rem]">
+            <AvatarFallback className="text-2xs">
               {getInitials(task.assignee?.name ?? "C")}
             </AvatarFallback>
           </Avatar>
@@ -342,7 +342,7 @@ export async function SharedTaskView({ task }: SharedTaskViewProps) {
                                 alt={actorName}
                               />
                             ) : null}
-                            <AvatarFallback className="bg-muted text-[0.625rem]">
+                            <AvatarFallback className="bg-muted text-2xs">
                               {getInitials(actorName)}
                             </AvatarFallback>
                           </Avatar>

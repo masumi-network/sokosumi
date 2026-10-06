@@ -44,6 +44,11 @@ typography:
     fontWeight: 400
     fontSize: 12px
     lineHeight: 16px
+  micro:
+    fontFamily: Inter
+    fontWeight: 500
+    fontSize: 11px
+    lineHeight: 16px
 rounded:
   sm: 6px      # --radius - 4px
   md: 8px      # --radius - 2px
@@ -210,8 +215,10 @@ never hardcoded hex, never an opacity modifier on a colour utility.
 - **Scale:** pentatonic — base **12px**, ×2 every 5 steps (`r = 2^(1/5) ≈ 1.1487`); Light kicks
   in ~20px+, with **negative tracking** growing at large sizes. Stick to the Tailwind scale
   (`text-xs/sm/base/lg/xl/2xl/3xl`). No arbitrary `text-[…]` size in any unit: `text-[13px]`
-  and `text-[0.8125rem]` are the same off-scale 13px. Older screens still carry rem values;
-  don't copy them.
+  and `text-[0.8125rem]` are the same off-scale 13px, and the guard fails both.
+- **`text-2xs` (11px, `micro`)** is the only step below `text-xs`, defined in `globals.css`. It
+  is for dense meta and badges only: counts, chips, avatar initials, kbd hints, table meta.
+  Never body copy or a label someone has to read to act.
 - **Case:** **Sentence case** headlines — never all-caps. `uppercase` is for mono identifiers
   and key caps only.
 - **Alignment:** prose and headings are left-aligned, or centered in empty states and heroes.

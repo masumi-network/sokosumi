@@ -56,7 +56,7 @@ function YouTabAvatar({ sessionUser }: { sessionUser: SessionUser | null }) {
       {sessionUser.image ? (
         <AvatarImage src={sessionUser.image} alt="" />
       ) : null}
-      <AvatarFallback className="bg-muted text-muted-foreground text-[0.5rem] font-medium">
+      <AvatarFallback className="bg-muted text-muted-foreground text-2xs font-medium">
         {getInitials(displayName)}
       </AvatarFallback>
     </Avatar>

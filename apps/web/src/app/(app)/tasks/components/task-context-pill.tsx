@@ -55,7 +55,7 @@ export function DefaultBrandAvatar({
         {brand.owner.logo ? (
           <AvatarImage src={brand.owner.logo} alt="" />
         ) : null}
-        <AvatarFallback className="text-[0.5rem] font-medium">
+        <AvatarFallback className="text-2xs font-medium">
           {brand.owner.name.slice(0, 1).toUpperCase()}
         </AvatarFallback>
       </Avatar>

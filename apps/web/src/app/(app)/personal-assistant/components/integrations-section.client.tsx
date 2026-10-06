@@ -211,10 +211,10 @@ function Tile({
         </span>
       )}
       <span className="w-full truncate text-xs font-medium">{name}</span>
-      <span className="text-muted-foreground line-clamp-1 w-full text-[0.6875rem] group-hover:hidden group-focus-visible:hidden">
+      <span className="text-muted-foreground line-clamp-1 w-full text-2xs group-hover:hidden group-focus-visible:hidden">
         {caption ?? "\u00a0"}
       </span>
-      <span className="text-primary hidden w-full truncate text-[0.6875rem] group-hover:block group-focus-visible:block">
+      <span className="text-primary hidden w-full truncate text-2xs group-hover:block group-focus-visible:block">
         {actionLabel}
       </span>
     </button>

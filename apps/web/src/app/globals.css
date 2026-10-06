@@ -17,6 +17,12 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
+     rem, so it follows the root size with Dynamic Type like the rest of the
+     scale. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

@@ -44,7 +44,7 @@ function LastUsedBadge({ label }: { label: string }) {
   return (
     <span
       aria-hidden="true"
-      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium group-has-[:disabled]/provider:opacity-50"
+      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium group-has-[:disabled]/provider:opacity-50"
     >
       {label}
     </span>

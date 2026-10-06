@@ -49,7 +49,7 @@ function NewPill({ feature }: { feature: AnnouncedFeature }) {
       <span
         aria-hidden
         className={cn(
-          "bg-primary-quinary text-primary shrink-0 rounded-sm px-1 py-0.5 text-[0.625rem] leading-none font-semibold tracking-wide uppercase",
+          "bg-primary-quinary text-primary shrink-0 rounded-sm px-1 py-0.5 text-2xs leading-none font-semibold tracking-wide uppercase",
           "transition-opacity duration-200 ease-out motion-reduce:transition-none",
           state === "fading" && "opacity-0",
         )}
