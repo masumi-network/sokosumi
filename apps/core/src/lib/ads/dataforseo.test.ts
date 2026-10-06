@@ -8,12 +8,14 @@ const m = vi.hoisted(() => ({
   createSession: vi.fn(),
   executeTool: vi.fn(),
   deleteSession: vi.fn(),
+  getConnectedAccount: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: m.getEnv }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
   deleteComposioToolSession: m.deleteSession,
+  getComposioConnectedAccount: m.getConnectedAccount,
 }));
 vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   ...(await importOriginal<
@@ -43,17 +45,18 @@ describe("fetchMarketKeywords", () => {
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
     m.createSession.mockResolvedValue("sess_1");
   });
 
-  it("runs the tool as the platform user on the platform connection", async () => {
+  it("runs the tool as the owner of the platform connection", async () => {
     m.executeTool.mockResolvedValue(task([]));
     await fetchMarketKeywords(query);
     expect(m.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         toolkitSlug: "dataforseo",
         connectedAccountId: "ca_seo",
-        executorUserId: "sokosumi:platform",
+        executorUserId: "pg-owner",
         toolSlugs: ["DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE"],
         context: "create platform DataForSEO session",
       }),
@@ -228,6 +231,15 @@ describe("fetchMarketKeywords", () => {
     );
     expect(m.createSession).not.toHaveBeenCalled();
   });
+
+  it("raises a configuration error when the platform connection has no owner", async () => {
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: null });
+    await expect(fetchMarketKeywords(query)).rejects.toBeInstanceOf(
+      ComposioConfigError,
+    );
+    expect(m.getConnectedAccount).toHaveBeenCalledWith("ca_seo");
+    expect(m.createSession).not.toHaveBeenCalled();
+  });
 });
 
 const ADVERTISERS = "DATAFORSEO_GET_SERP_GOOGLE_ADS_ADVERTISERS_LIVE_ADVANCED";
@@ -286,6 +298,7 @@ describe("fetchMarketAds", () => {
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
     m.createSession.mockResolvedValue("sess_1");
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
@@ -303,7 +316,7 @@ describe("fetchMarketAds", () => {
       expect.objectContaining({
         toolkitSlug: "dataforseo",
         connectedAccountId: "ca_seo",
-        executorUserId: "sokosumi:platform",
+        executorUserId: "pg-owner",
         toolSlugs: [ADVERTISERS, ADS_SEARCH],
       }),
     );
