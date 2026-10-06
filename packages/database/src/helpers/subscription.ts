@@ -7,7 +7,6 @@ import {
   type Prisma,
 } from "../generated/prisma/client.js";
 import {
-  buildOrganizationMemberSubscriptionReferenceId,
   ORGANIZATION_CREDIT_REFERENCE_PREFIX,
   USER_CREDIT_REFERENCE_PREFIX,
 } from "./credit.js";
@@ -26,21 +25,8 @@ export const MONTHLY_BILLING_INTERVAL = "month";
 /** Pre-create next local-free period this far before current periodEnd (5m cron × 3+ ticks). */
 export const FREE_SUBSCRIPTION_PRECREATE_LOOKAHEAD_MS = 15 * 60 * 1000;
 
-/**
- * Reference suffix segment that marks a member subscription-period credit
- * bucket as a free-tier grant (as opposed to a paid seat or invoice grant).
- *
- * Free-tier buckets share the `member:{userId}:` prefix with paid grants so
- * they are read as the member's subscription credits, but seat-accounting
- * helpers must exclude them so they do not consume paid seat capacity.
- */
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT = "local-free:";
 
-/**
- * Substring used to detect free-tier member subscription-period buckets in
- * `referenceId` filters. Full reference ids look like
- * `member:{userId}:local-free:{organizationId}:{periodEnd}`.
- */
 export const LOCAL_FREE_SUBSCRIPTION_REFERENCE_CONTAINS = ":local-free:";
 
 interface LocalFreeSubscriptionGrant {
@@ -190,17 +176,6 @@ export function buildLocalFreeUserSubscriptionReferenceId(
   periodEnd: Date,
 ): string {
   return `${USER_CREDIT_REFERENCE_PREFIX}${userId}:local-free:${periodEnd.toISOString()}:subscription`;
-}
-
-export function buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-  userId: string,
-  organizationId: string,
-  periodEnd: Date,
-): string {
-  return buildOrganizationMemberSubscriptionReferenceId(
-    userId,
-    `${LOCAL_FREE_SUBSCRIPTION_REFERENCE_SEGMENT}${organizationId}:${periodEnd.toISOString()}`,
-  );
 }
 
 export function buildLocalFreeOrganizationSubscriptionReferenceId(
