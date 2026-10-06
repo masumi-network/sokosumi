@@ -1143,11 +1143,9 @@ export async function buildCmoBeatPacket(
     }`,
     `## Connected channels: ${JSON.stringify(context.connectedChannels)}`,
     "",
-    "## Brand Brain",
-    JSON.stringify(context.brandBrain ?? "not built yet"),
-    "",
-    "## Strategy (calendar: next 14 days)",
-    JSON.stringify(context.strategy ?? "no strategy yet"),
+    // Every turn's context already carries both in full; repeating them here
+    // pushed a full four-week plan past the 20,000-character message limit.
+    "## Brand Brain and strategy: workspace.marketing in your context (the full plan; save_strategy replaces it, so keep every entry).",
     "",
     "## Social posts, last 14 days",
     ...(posts.length

@@ -1899,3 +1899,7 @@ textarea {
   font-size: 0.8125rem;
   text-align: center;
 }
+
+.app .mp-note {
+  max-width: none;
+}

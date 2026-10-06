@@ -8,6 +8,7 @@ const {
   connectionFindMany,
   workspaceFindUnique,
   postFindFirst,
+  postFindMany,
   cancelSocialPost,
   eventFindFirst,
   expireTurn,
@@ -20,6 +21,7 @@ const {
   connectionFindMany: vi.fn(),
   workspaceFindUnique: vi.fn(),
   postFindFirst: vi.fn(),
+  postFindMany: vi.fn(),
   cancelSocialPost: vi.fn(),
   eventFindFirst: vi.fn(),
   expireTurn: vi.fn(),
@@ -33,7 +35,7 @@ vi.mock("@/lib/db/prisma", () => ({
     workspace: { findUnique: workspaceFindUnique },
     sokoBotTurn: { findFirst: turnFindFirst },
     projectSocialConnection: { findMany: connectionFindMany },
-    socialPost: { findFirst: postFindFirst },
+    socialPost: { findFirst: postFindFirst, findMany: postFindMany },
     sokoBotRuntimeEvent: { findFirst: eventFindFirst },
   },
 }));
@@ -560,5 +562,46 @@ describe("CMO return addresses", () => {
     expect(isCmoAppUrl("https://evil.example/cmo.xyz")).toBe(false);
     expect(isCmoAppUrl("http://app.cmo.xyz/connect/callback")).toBe(false);
     expect(isCmoAppUrl("https://cmo.xyz.evil.example/")).toBe(false);
+  });
+});
+
+describe("buildCmoBeatPacket", () => {
+  it("stays well under the message limit with a long plan", async () => {
+    const { buildCmoBeatPacket } = await import("./cmo.service");
+    const long = "x".repeat(2_000);
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      userId: "user-1",
+      workspaceId: "ws-1",
+      projectId: "project-1",
+      businessName: "Acme",
+      websiteUrl: "https://acme.io",
+      goals: "More leads",
+      brandBrain: { summary: long },
+      strategy: {
+        ...strategy,
+        calendar: Array.from({ length: 30 }, (_, index) => ({
+          ...strategy.calendar[0],
+          id: `e${index}`,
+          title: long,
+        })),
+      },
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyApprovedAt: new Date("2026-10-01T09:00:00Z"),
+      mockPlan: null,
+      updates: [],
+    });
+    workspaceFindUnique.mockResolvedValue({ organizationId: null });
+    subscriptionFindFirst.mockResolvedValue(null);
+    connectionFindMany.mockResolvedValue([]);
+    postFindMany.mockResolvedValue([]);
+    const { packet, skip } = await buildCmoBeatPacket(
+      "bot-1",
+      new Date("2026-10-06T07:00:00Z"),
+      "cmo-daily-run",
+    );
+    expect(skip).toBe(false);
+    expect(packet).toContain("workspace.marketing");
+    expect(packet.length).toBeLessThan(5_000);
   });
 });
