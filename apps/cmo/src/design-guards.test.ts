@@ -82,10 +82,19 @@ describe("colours", () => {
     const stylesheet = FILES.find((file) => file.rel === STYLESHEET);
     expect(stylesheet, `${STYLESHEET} is missing`).toBeDefined();
 
-    const rootEnd = stylesheet?.lines.findIndex((line) => line === "}") ?? -1;
-    const outsideRoot = (stylesheet?.lines ?? [])
+    // The `:root {` block itself, wherever it sits; a block above it is
+    // checked like any other rule.
+    const lines = stylesheet?.lines ?? [];
+    const rootStart = lines.findIndex((line) => /^:root\s*\{/.test(line));
+    const rootEnd =
+      rootStart === -1
+        ? -1
+        : lines.findIndex((line, index) => index > rootStart && line === "}");
+    const outsideRoot = lines
       .map((line, index) => ({ line, index }))
-      .filter(({ index }) => index > rootEnd)
+      .filter(
+        ({ index }) => rootStart === -1 || index < rootStart || index > rootEnd,
+      )
       .filter(({ line }) => !isComment(line) && COLOUR_LITERAL.test(line))
       .map(({ line, index }) => `${STYLESHEET}:${index + 1}: ${line.trim()}`);
 
@@ -163,6 +172,8 @@ describe("accessibility", () => {
       ...FILES.filter((file) => file.rel.endsWith(".css")),
     ];
 
-    expect(findLines(checked, /outline\s*:\s*["']?(?:none|0)\b/)).toEqual([]);
+    expect(
+      findLines(checked, /outline\s*:\s*["']?(?:none\b|0(?![\d.]))/),
+    ).toEqual([]);
   });
 });
