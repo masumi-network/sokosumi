@@ -152,6 +152,10 @@ describe("GitHub OIDC remote cache wiring", () => {
       jobBlock(test, "cloud-agent-db"),
       /run: pnpm cloud-agent-db:test(\n|$)/,
     );
+    assert.match(
+      jobBlock(test, "design-md"),
+      /npx --yes @google\/design\.md@\d+\.\d+\.\d+ lint/,
+    );
   });
 
   it("CI config also runs on markdown-only PRs", async () => {
@@ -278,6 +282,7 @@ describe("GitHub OIDC remote cache wiring", () => {
       ["local-env", "local-env"],
       ["ci-config", "ci-config"],
       ["cloud-agent-db", "cloud-agent-db"],
+      ["design-md", "design-md"],
     ]) {
       const header = jobBlock(ci, jobId).split(/\n    steps:\n/)[0];
       assert.match(
