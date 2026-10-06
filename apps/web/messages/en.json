@@ -1056,7 +1056,8 @@
         "empty": "No projects available. Ask the bot to refresh the choices.",
         "sending": "Sending your choice…",
         "selected": "Selected {name}",
-        "failed": "Could not send your choice. Please try again."
+        "failed": "Could not send your choice. Please try again.",
+        "selectedProject": "Selected project"
       }
     }
   },

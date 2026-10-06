@@ -66,7 +66,7 @@ describe("chat project selector", () => {
         projectId: id,
       }),
     );
-    await screen.findByText("selected Books");
+    await screen.findByRole("status", { name: "selected Books" });
     expect(screen.queryByRole("combobox")).toBeNull();
     expect(refresh).toHaveBeenCalledTimes(1);
   });
@@ -80,6 +80,6 @@ describe("chat project selector", () => {
     await choose();
     await waitFor(() => expect(select).toHaveBeenCalledTimes(2));
     expect(select.mock.calls[0][0]).toEqual(select.mock.calls[1][0]);
-    await screen.findByText("selected Books");
+    await screen.findByRole("status", { name: "selected Books" });
   });
 });

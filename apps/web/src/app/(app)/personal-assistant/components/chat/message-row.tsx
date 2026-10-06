@@ -5,6 +5,10 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import {
+  ProjectSelectionMessage,
+  readProjectSelectionReply,
+} from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -46,6 +50,7 @@ function UserRow({
   muted?: boolean;
 }) {
   const timestamp = useTimestamp();
+  const selectedProject = readProjectSelectionReply(content);
   return (
     <div className="group/message flex w-full justify-end gap-3 px-4 py-0.5">
       <div className="flex max-w-[75%] flex-col items-end gap-0.5">
@@ -55,7 +60,11 @@ function UserRow({
             muted && "opacity-70",
           )}
         >
-          {content}
+          {selectedProject ? (
+            <ProjectSelectionMessage project={selectedProject} />
+          ) : (
+            content
+          )}
         </div>
         <time
           dateTime={createdAt}

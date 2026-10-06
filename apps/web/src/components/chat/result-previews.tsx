@@ -40,6 +40,7 @@ import { FileChipMiniPreview } from "@/components/ui/file-chip-mini-preview";
 import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 import { classifyFilePreview } from "@/lib/utils/file-preview";
+import { ProjectSelectionMessage } from "./project-selection-message";
 import { selectChatProjectAction } from "./select-project-action";
 
 const icons = {
@@ -478,18 +479,19 @@ function ChatProjectSelection({
       setBusy(false);
     }
   }
+  const selectedProject = options.find((project) => project.id === selected);
   return (
     <section
       className="bg-background w-full max-w-sm space-y-2 rounded-lg border p-3"
       aria-label={t("label")}
     >
-      {selected ? (
-        <p role="status" className="text-sm">
-          {t("selected", {
-            name:
-              options.find((project) => project.id === selected)?.name ?? "",
-          })}
-        </p>
+      {selectedProject ? (
+        <div
+          role="status"
+          aria-label={t("selected", { name: selectedProject.name })}
+        >
+          <ProjectSelectionMessage project={selectedProject} />
+        </div>
       ) : options.length && source ? (
         <fieldset disabled={busy} className="min-w-0">
           <TaskProjectSelect

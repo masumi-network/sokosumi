@@ -1056,7 +1056,8 @@
         "empty": "Keine Projekte verfügbar. Bitte den Bot, die Auswahl zu aktualisieren.",
         "sending": "Auswahl wird gesendet…",
         "selected": "{name} ausgewählt",
-        "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut."
+        "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut.",
+        "selectedProject": "Ausgewähltes Projekt"
       }
     }
   },

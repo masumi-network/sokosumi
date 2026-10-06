@@ -83,6 +83,10 @@ import {
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import {
+  ProjectSelectionMessage,
+  readProjectSelectionReply,
+} from "@/components/chat/project-selection-message";
 import { ResultPreviews } from "@/components/chat/result-previews";
 import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
@@ -828,6 +832,15 @@ function ChannelMessageBody({
   const skipBodyClamp = hasLargeSoloImageAttachment(content);
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
+
+  const selectedProject = readProjectSelectionReply(content);
+  if (selectedProject)
+    return (
+      <div data-testid="room-message-body">
+        <ProjectSelectionMessage project={selectedProject} />
+        {trailing}
+      </div>
+    );
 
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
