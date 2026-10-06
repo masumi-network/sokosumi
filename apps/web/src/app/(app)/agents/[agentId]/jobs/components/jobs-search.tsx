@@ -95,7 +95,7 @@ export function JobsSearch({
         {searchValue ? (
           <button
             aria-label={t("clear")}
-            className="text-muted-foreground press hover:text-foreground focus-visible:ring-ring absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
+            className="text-muted-foreground press hover:text-foreground focus-visible:ring-ring hit-area absolute top-1/2 right-2 -translate-y-1/2 rounded p-1 transition outline-none"
             onClick={handleClear}
           >
             <X className="size-4" />

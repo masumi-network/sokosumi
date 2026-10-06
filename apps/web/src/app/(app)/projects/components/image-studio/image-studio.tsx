@@ -723,7 +723,7 @@ function FailedJob({
       </div>
       <Button
         aria-label={labels.close}
-        className="size-6"
+        className="hit-area size-6"
         onClick={onDismiss}
         size="icon"
         variant="ghost"
@@ -754,7 +754,7 @@ function Notice({
       {onDismiss ? (
         <Button
           aria-label={closeLabel}
-          className="size-6"
+          className="hit-area size-6"
           onClick={onDismiss}
           size="icon"
           variant="ghost"

@@ -73,7 +73,7 @@ export function UnreadThreadsPanel({
       aria-expanded={isOpen}
       data-testid="unread-threads-trigger"
       data-unread={hasUnread ? "true" : "false"}
-      className="relative size-8"
+      className="relative size-10 md:size-8"
       onClick={onToggle}
     >
       <MessagesSquare className="size-4" />

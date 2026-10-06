@@ -382,7 +382,7 @@ export function RoomSearchPanel({
             size="icon"
             aria-label={labels.open}
             data-testid="room-search-trigger"
-            className="size-8"
+            className="size-10"
             onClick={() => {
               setOpen(true);
               focusField();

@@ -105,7 +105,7 @@ export function BrowseChannelsDialog({
           size="icon"
           className={
             triggerClassName ??
-            "text-muted-foreground press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:hidden"
+            "text-muted-foreground press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5"
           }
           aria-label={t("trigger")}
           title={t("trigger")}

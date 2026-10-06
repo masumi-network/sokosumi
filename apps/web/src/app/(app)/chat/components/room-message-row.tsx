@@ -569,7 +569,7 @@ function MessageUnfurlCard({
           type="button"
           variant="secondary"
           size="icon"
-          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
+          className="border-border hit-area absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
           aria-label={t("remove", { title: unfurl.title })}
           onClick={(event) => {
             event.preventDefault();
@@ -1049,7 +1049,7 @@ function MessageActionControls({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
+                  "group/quick-reaction size-10 rounded-full text-sm md:size-8",
                   reacted && "bg-primary-quinary hover:bg-primary-quaternary",
                 )}
                 title={
@@ -1078,7 +1078,7 @@ function MessageActionControls({
             title={t("Reactions.add")}
             ariaLabel={t("Reactions.add")}
             align="end"
-            triggerClassName="size-9 rounded-full sm:size-7"
+            triggerClassName="size-10 rounded-full md:size-8"
             onPick={(emoji) => {
               onToggleReaction(message, emoji);
               onAfterAction?.();
@@ -1091,7 +1091,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Edit.action")}
           aria-label={t("Edit.action")}
           onClick={() => {
@@ -1107,7 +1107,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Quote.action")}
           aria-label={t("Quote.action")}
           onClick={() => {
@@ -1123,7 +1123,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
           aria-label={
             isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")
@@ -1145,7 +1145,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Copy.action")}
           aria-label={t("Copy.action")}
           onClick={() => {
@@ -1161,7 +1161,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Thread.open")}
           aria-label={t("Thread.open")}
           onClick={() => {
@@ -1177,7 +1177,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-destructive hover:text-destructive size-9 rounded-full sm:size-7"
+          className="text-destructive hover:text-destructive size-10 rounded-full md:size-8"
           title={t("Message.delete")}
           aria-label={t("Message.delete")}
           onClick={() => {
@@ -1195,7 +1195,7 @@ function MessageActionControls({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-full sm:size-7"
+              className="size-10 rounded-full md:size-8"
               title={t("Actions.overflow")}
               aria-label={t("Actions.overflow")}
             >
@@ -1385,7 +1385,7 @@ function MessageActions({
       <SokoBotChainBadge metadata={message.metadata} />
       <SokoBotFeedbackButtons
         metadata={message.metadata}
-        buttonClassName="size-9 rounded-full sm:size-7"
+        buttonClassName="size-10 rounded-full md:size-8"
       />
       <MessageActionControls
         message={message}

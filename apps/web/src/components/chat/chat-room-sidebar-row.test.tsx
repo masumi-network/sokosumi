@@ -1015,7 +1015,7 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
     );
   });
 
-  it("gives the room menu a 44px touch target below md", () => {
+  it("gives the room menu a 44px touch target below md and 32px from md", () => {
     const { container } = render(
       <ChatRoomSidebarRow
         room={makeRoom()}
@@ -1027,12 +1027,13 @@ describe("ChatRoomSidebarRow trailing cluster", () => {
       />,
     );
 
-    // The box stays 32px; the pseudo-element carries it out to 44px.
+    // The box stays 32px; the pseudo-element carries it out to 44px, and
+    // from md the 28px box keeps a 2px ring of it so the target is 32px.
     const menuTokens =
       container.querySelector("button")?.className.split(" ") ?? [];
     expect(menuTokens).toContain("size-8");
     expect(menuTokens).toContain("after:-inset-1.5");
-    expect(menuTokens).toContain("md:after:hidden");
+    expect(menuTokens).toContain("md:after:-inset-0.5");
   });
 
   it("shows no glyph on a pinned row: the Pinned section already says so", () => {

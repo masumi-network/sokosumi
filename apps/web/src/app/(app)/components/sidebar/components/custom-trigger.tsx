@@ -33,7 +33,7 @@ export default function CustomTrigger({
       size="icon"
       onClick={toggleSidebar}
       className={cn(
-        "hidden size-8 shrink-0",
+        "hidden size-10 md:size-8 shrink-0",
         {
           flex: showTrigger,
         },

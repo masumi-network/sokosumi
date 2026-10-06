@@ -104,7 +104,7 @@ export function DesignMdFileRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="relative z-10 -m-1 size-8 shrink-0"
+              className="hit-area z-10 -m-1 size-8 shrink-0"
               aria-label={labels.actionsMenu}
               disabled={isRemoving}
             >

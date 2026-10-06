@@ -64,7 +64,7 @@ function AgentActionButtons({
           <Button
             size="icon"
             variant="secondary"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onBack}
           >
             <ArrowLeft className="size-4" />
@@ -74,7 +74,7 @@ function AgentActionButtons({
           <Button
             size="icon"
             variant="secondary"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onClose}
           >
             <X className="size-4" />
@@ -84,7 +84,7 @@ function AgentActionButtons({
       <div className="flex items-center gap-1.5">
         {trailingActions}
         {showShareButton && url ? (
-          <ShareButton url={url} className="size-8 md:size-7" />
+          <ShareButton url={url} className="size-10 md:size-8" />
         ) : null}
       </div>
     </div>

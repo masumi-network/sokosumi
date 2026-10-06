@@ -157,7 +157,7 @@ export function SkillsSection({
                   href={skill.sourceUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-muted-foreground hover:text-foreground shrink-0"
+                  className="text-muted-foreground hover:text-foreground hit-area shrink-0"
                   aria-label={skill.slug}
                 >
                   <ExternalLink aria-hidden className="size-3" />
@@ -167,7 +167,7 @@ export function SkillsSection({
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="-my-1 -mr-1.5 size-7"
+                className="hit-area -my-1 -mr-1.5 size-7"
                 aria-label={t("remove")}
                 disabled={isPending}
                 onClick={() => remove(skill)}

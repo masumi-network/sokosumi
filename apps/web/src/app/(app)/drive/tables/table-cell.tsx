@@ -154,7 +154,7 @@ export function TableCell({
         <Button
           size="icon"
           variant="ghost"
-          className="text-muted-foreground size-8 shrink-0 opacity-0 transition-opacity group-focus-within/cell:opacity-100 group-hover/cell:opacity-100 focus-visible:opacity-100"
+          className="text-muted-foreground hit-area size-8 shrink-0 opacity-0 transition-opacity group-focus-within/cell:opacity-100 group-hover/cell:opacity-100 focus-visible:opacity-100"
           aria-label={t("cellHistory", { column: column.name })}
           onClick={onHistory}
         >

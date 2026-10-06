@@ -712,6 +712,133 @@ describe("historic status badges", () => {
 });
 
 // ---------------------------------------------------------------------------
+// icon touch targets
+// ---------------------------------------------------------------------------
+
+/**
+ * DESIGN.md → Accessibility → Touch targets: an icon-only control is at least
+ * `size-10` (40px) below `md` and `size-8` (32px) from `md` up, either as its
+ * own box or through the `hit-area` utility. `size="icon"` is `size-10`, so a
+ * `size-N` override is what shrinks one.
+ *
+ * Checked: the opening tag of any component given `size="icon"` (`Button`
+ * and wrappers such as `TaskShareButton`). A `size-N` that applies below `md`
+ * (bare, `sm:`, `max-md:`, a container query or any non-breakpoint variant)
+ * must be at least 10; one behind `md:`, `lg:`, `xl:` or `2xl:` at least 8.
+ * `hit-area` exempts the tag, and so does an older `after:`/`before:`
+ * `-inset-*` pseudo-element, unless `md:after:hidden` drops it on desktop.
+ *
+ * Not checked, because a regex over one tag cannot see it:
+ *   - classes that arrive through a variable or constant
+ *     (`className={TOOL_CLASS}`, `buttonClassName` handed to a child)
+ *   - bespoke `<button>`s, `asChild` children and links, which carry no
+ *     `size="icon"` to say they are icon-only
+ *   - `h-N w-N` or arbitrary `size-[…]` boxes
+ *   - whether a `hit-area` overlaps a neighbouring target; that is spacing,
+ *     and stays a review call
+ */
+const SIZE_ICON_PROP = /\bsize=(?:"icon"|\{["']icon["']\})/;
+const SIZE_TOKEN =
+  /(?<![\w:[\]-])((?:[^\s"'`]+:)?)size-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+const DESKTOP_VARIANT = /(?:^|:)(?:md|lg|xl|2xl):$/;
+
+/**
+ * Every `<Component …>` opening tag, braces and quotes balanced, reduced to
+ * its own attributes: a `{…}` value that holds JSX (a render prop, an `icon`
+ * element) is dropped, so a nested `<Button size="icon">` is checked as its
+ * own tag and not also as part of the one around it.
+ */
+function openingTags(text: string): { tag: string; index: number }[] {
+  const tags: { tag: string; index: number }[] = [];
+  for (const match of text.matchAll(/<[A-Z][\w.]*(?![\w.])/g)) {
+    let depth = 0;
+    let quote: string | null = null;
+    let own = match[0];
+    let braceStart = 0;
+    let i = match.index + match[0].length;
+    for (; i < text.length; i++) {
+      const char = text[i];
+      if (quote) {
+        if (char === "\\") i++;
+        else if (char === quote) quote = null;
+      } else if (char === '"' || char === "'" || char === "`") quote = char;
+      else if (char === "{" && depth++ === 0) braceStart = i;
+      else if (char === "}" && --depth === 0) {
+        const value = text.slice(braceStart, i + 1);
+        own += /<[A-Za-z]/.test(value) ? "{}" : value;
+        continue;
+      } else if (char === ">" && depth === 0 && text[i - 1] !== "=") break;
+      if (depth === 0) own += char;
+    }
+    tags.push({ tag: `${own}>`, index: match.index });
+  }
+  return tags;
+}
+
+function hasHitArea(tag: string): boolean {
+  if (/(?<![\w-])hit-area(?![\w-])/.test(tag)) return true;
+  return (
+    /(?:after|before):-inset-/.test(tag) &&
+    !/md:(?:after|before):hidden/.test(tag)
+  );
+}
+
+function smallIconTargets(rel: string, text: string): string[] {
+  const hits: string[] = [];
+  for (const { tag, index } of openingTags(text)) {
+    if (!SIZE_ICON_PROP.test(tag) || hasHitArea(tag)) continue;
+    const small = [...tag.matchAll(SIZE_TOKEN)].filter(([, variant, n]) => {
+      const floor = DESKTOP_VARIANT.test(variant) ? 8 : 10;
+      return Number(n) < floor;
+    });
+    if (small.length === 0) continue;
+    const line = text.slice(0, index).split("\n").length;
+    hits.push(`${rel}:${line}: ${small.map(([token]) => token).join(" ")}`);
+  }
+  return hits;
+}
+
+describe("icon touch targets", () => {
+  it("gives every size=icon control 40px below md and 32px from md up", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.endsWith(".test.tsx"),
+    ).flatMap((file) => smallIconTargets(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<Button size="icon" className="size-8">',
+      '<Button size="icon" className="size-8 md:size-7">',
+      '<Button size="icon" className="size-9 rounded-full sm:size-7">',
+      '<Button size="icon" className="size-10 md:size-7">',
+      '<Button\n  size="icon"\n  onClick={() => { go(); }}\n  className={cn("size-6", on && "bg-muted")}\n>',
+      '<TaskShareButton size="icon" className="size-7" />',
+      '<Button size="icon" className="size-8 after:absolute after:-inset-1.5 md:size-7 md:after:hidden">',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallIconTargets("f.tsx", fixture), fixture).toHaveLength(1);
+    }
+  });
+
+  it("passes the shapes the rule allows", () => {
+    const fixtures = [
+      '<Button size="icon">',
+      '<Button size="icon" className="size-10 md:size-8">',
+      '<Button size="icon" className="size-11 lg:size-8">',
+      '<Button size="icon" className="hit-area size-6">',
+      '<Button size="icon" className="relative size-8 after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5">',
+      '<Button size="sm" className="size-8">',
+      '<Button size="icon"><X className="size-4" /></Button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // DESIGN.md
 // ---------------------------------------------------------------------------
 

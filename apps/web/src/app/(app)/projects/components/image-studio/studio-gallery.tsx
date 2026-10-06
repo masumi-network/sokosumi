@@ -182,7 +182,7 @@ export function StudioGallery({
                       aria-label={selected ? labels.deselect : labels.select}
                       aria-pressed={selected}
                       className={cn(
-                        "absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
+                        "hit-area absolute top-2 left-2 flex size-6 items-center justify-center rounded-md border shadow-sm transition-colors",
                         "focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
                         selected
                           ? "border-primary bg-primary text-primary-foreground"
@@ -257,7 +257,7 @@ const GRID_CLASS = cn(
 );
 
 const HOVER_ACTION_CLASS = cn(
-  "bg-background text-foreground border-border flex size-7 items-center justify-center rounded-md border",
+  "bg-background text-foreground border-border flex size-10 md:size-8 items-center justify-center rounded-md border",
   "hover:bg-background focus-visible:ring-ring-halo outline-none focus-visible:ring-[3px]",
 );
 
