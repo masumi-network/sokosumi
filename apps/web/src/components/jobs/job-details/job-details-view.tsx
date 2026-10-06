@@ -280,7 +280,7 @@ function JobDetailsTopBarActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={() => setIsMoveOpen(true)}
             title={tActions("moveToWorkspace")}
             aria-label={tActions("moveToWorkspace")}
@@ -296,7 +296,7 @@ function JobDetailsTopBarActions({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8 md:size-7"
+                  className="size-10 md:size-8"
                   title={tActions("moveToWorkspace")}
                   aria-label={tActions("moveToWorkspace")}
                   disabled
@@ -315,7 +315,7 @@ function JobDetailsTopBarActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onEdit}
             title={tName("edit")}
             aria-label={tName("edit")}
@@ -328,7 +328,7 @@ function JobDetailsTopBarActions({
           job={job}
           variant="ghost"
           size="icon"
-          className="size-8 text-foreground md:size-7"
+          className="size-10 md:size-8 text-foreground"
         />
       </div>
       {canMoveStandaloneJob && personalWorkspaceLabel ? (

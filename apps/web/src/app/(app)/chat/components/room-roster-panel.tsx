@@ -329,7 +329,7 @@ function RosterMemberRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 rounded-full lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:data-[state=open]:opacity-100"
+              className="size-10 md:size-8 shrink-0 rounded-full lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:data-[state=open]:opacity-100"
               aria-label={labels.memberActions(participant.name)}
               title={labels.memberActions(participant.name)}
               data-testid="room-roster-member-actions"
@@ -440,7 +440,7 @@ export function RoomRosterPanel({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-8 rounded-full"
+              className="size-10 md:size-8 rounded-full"
               aria-label={labels.add}
               title={labels.add}
               data-testid="room-roster-add"
@@ -453,7 +453,7 @@ export function RoomRosterPanel({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-10 md:size-8 rounded-full"
             aria-label={labels.close}
             title={labels.close}
             onClick={onClose}

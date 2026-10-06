@@ -826,7 +826,7 @@ export function DriveAllFilesPanel({
             <button
               type="button"
               aria-label={t("searchClear")}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
               onClick={() => {
                 debouncedSearch.cancel();
                 setQuery("");
@@ -1039,7 +1039,9 @@ export function DriveAllFilesPanel({
                         // 44px on touch, which is the minimum this codebase
                         // uses elsewhere (`min-h-11`); a 32px target was
                         // comfortable with a mouse and a miss with a thumb.
-                        className="size-11 @2xl:size-8"
+                        // `hit-area` covers a wide container on a narrow
+                        // viewport, where the 32px box applies below md.
+                        className="hit-area size-11 @2xl:size-8"
                         disabled={collectionBusy}
                         aria-label={t("collectionActions", {
                           name: collection.name,

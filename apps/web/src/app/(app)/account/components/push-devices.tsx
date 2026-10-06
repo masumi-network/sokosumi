@@ -78,7 +78,7 @@ export function PushDevices({ userId }: PushDevicesProps) {
             type="button"
             variant="ghost"
             size="sm"
-            className="text-muted-foreground size-8 p-0 @sm:w-auto @sm:px-2.5"
+            className="text-muted-foreground size-10 p-0 md:h-8 @sm:w-auto @sm:px-2.5"
             aria-label={t("refresh")}
             loading={query.isFetching}
             onClick={() => void query.refetch()}

@@ -100,7 +100,7 @@ export function ThreadMuteButton({
       type="button"
       variant="ghost"
       size="icon"
-      className="size-8 rounded-full disabled:opacity-100"
+      className="size-10 md:size-8 rounded-full disabled:opacity-100"
       aria-label={label}
       aria-pressed={muted}
       title={label}
