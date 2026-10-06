@@ -1,18 +1,8 @@
 import type { CoreHttpClient } from "../http-client.js";
 import { type Agent, parseAgent } from "../models/agent.js";
 import { type AgentJob, parseAgentJob } from "../models/agent-job.js";
-import { type ApiResponse, parseApiResponse } from "../models/api-response.js";
+import { parseApiResponse } from "../models/api-response.js";
 import { asRecord, listResponse, requireId } from "../models/parse-helpers.js";
-
-interface FetchAgentsResult {
-  response: ApiResponse<unknown[]>;
-  agents: Agent[];
-}
-
-interface FetchAgentInputSchemaResult {
-  response: ApiResponse<unknown>;
-  schema: Record<string, unknown>;
-}
 
 interface CreateAgentJobOptions {
   inputSchema: unknown;
@@ -24,21 +14,18 @@ interface CreateAgentJobOptions {
 export async function fetchAgents(
   client: CoreHttpClient,
   signal?: AbortSignal,
-): Promise<FetchAgentsResult> {
+): Promise<{ agents: Agent[] }> {
   const response = listResponse(
     parseApiResponse(await client.get<unknown>("/v1/agents", signal)),
   );
-  return {
-    response,
-    agents: response.data.map(parseAgent),
-  };
+  return { agents: response.data.map(parseAgent) };
 }
 
 export async function fetchAgentInputSchema(
   client: CoreHttpClient,
   agentId: string,
   signal?: AbortSignal,
-): Promise<FetchAgentInputSchemaResult> {
+): Promise<{ schema: Record<string, unknown> }> {
   requireId(agentId, "agentId");
   const response = parseApiResponse<unknown>(
     await client.get<unknown>(
@@ -46,10 +33,7 @@ export async function fetchAgentInputSchema(
       signal,
     ),
   );
-  return {
-    response,
-    schema: asRecord(response.data),
-  };
+  return { schema: asRecord(response.data) };
 }
 
 export async function createAgentJob(
@@ -57,7 +41,7 @@ export async function createAgentJob(
   agentId: string,
   { inputSchema, inputData = {}, maxCredits, name }: CreateAgentJobOptions,
   signal?: AbortSignal,
-): Promise<{ response: ApiResponse<unknown>; job: AgentJob }> {
+): Promise<{ job: AgentJob }> {
   requireId(agentId, "agentId");
   if (inputSchema === undefined || inputSchema === null) {
     throw new Error("inputSchema is required");
@@ -78,5 +62,5 @@ export async function createAgentJob(
       signal,
     ),
   );
-  return { response, job: parseAgentJob(response.data) };
+  return { job: parseAgentJob(response.data) };
 }
