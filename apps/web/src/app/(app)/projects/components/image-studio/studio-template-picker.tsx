@@ -102,6 +102,9 @@ export function StudioTemplateCarousel({
   const [api, setApi] = useState<CarouselApi>();
   const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
+  const [hoverDirection, setHoverDirection] = useState<
+    "previous" | "next" | null
+  >(null);
   const reduceMotion = useReducedMotion();
   const rotationStopped = paused || !!reduceMotion;
 
@@ -121,6 +124,21 @@ export function StudioTemplateCarousel({
     }, 5000);
     return () => window.clearInterval(timer);
   }, [api, rotationStopped, hovered]);
+
+  useEffect(() => {
+    if (!api || rotationStopped || !hoverDirection) return;
+    // Give a passing pointer time to select a card before starting navigation.
+    let timer: number;
+    const scroll = () => {
+      if (!document.hidden) {
+        if (hoverDirection === "previous") api.scrollPrev();
+        else api.scrollNext();
+      }
+      timer = window.setTimeout(scroll, 1000);
+    };
+    timer = window.setTimeout(scroll, 300);
+    return () => window.clearTimeout(timer);
+  }, [api, rotationStopped, hoverDirection]);
 
   return (
     <div className="mx-auto w-full max-w-4xl space-y-5 py-4">
@@ -142,7 +160,10 @@ export function StudioTemplateCarousel({
             setPaused(true);
         }}
         onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
+        onMouseLeave={() => {
+          setHovered(false);
+          setHoverDirection(null);
+        }}
         opts={{ loop: true, align: "center", duration: reduceMotion ? 0 : 25 }}
         setApi={setApi}
       >
@@ -186,7 +207,31 @@ export function StudioTemplateCarousel({
             <ChevronRight aria-hidden className="size-4" />
           </Button>
         </div>
-        <CarouselContent className="py-1">
+        <CarouselContent
+          className="py-1"
+          onMouseLeave={() => setHoverDirection(null)}
+          onMouseMove={(event) => {
+            const item =
+              event.target instanceof Element
+                ? event.target.closest("[data-slot=carousel-item]")
+                : null;
+            const viewport = event.currentTarget.parentElement;
+            if (!item || !viewport) {
+              setHoverDirection(null);
+              return;
+            }
+            const bounds = viewport.getBoundingClientRect();
+            const card = item.getBoundingClientRect();
+            const center = bounds.left + bounds.width / 2;
+            setHoverDirection(
+              card.right <= center
+                ? "previous"
+                : card.left >= center
+                  ? "next"
+                  : null,
+            );
+          }}
+        >
           {STUDIO_TEMPLATES.map((template) => (
             <CarouselItem
               className="basis-3/4 sm:basis-1/2 lg:basis-1/3"

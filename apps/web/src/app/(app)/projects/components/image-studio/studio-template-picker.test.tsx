@@ -27,7 +27,10 @@ beforeEach(() => {
   vi.useFakeTimers();
   mocks.reduceMotion = false;
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 function mount() {
   const apply = vi.fn();
@@ -38,6 +41,20 @@ function mount() {
 }
 function advance() {
   act(() => vi.advanceTimersByTime(5000));
+}
+
+function hoverStyle(name: string, left: number, width = 300) {
+  const button = screen.getByRole("button", { name });
+  const item = button.closest("[data-slot=carousel-item]")!;
+  const viewport = item.closest("[data-slot=carousel-content]")!;
+  vi.spyOn(viewport, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(0, 0, 900, 200),
+  );
+  vi.spyOn(item, "getBoundingClientRect").mockReturnValue(
+    new DOMRect(left, 0, width, 200),
+  );
+  fireEvent.mouseEnter(screen.getByRole("region", { name: "templates" }));
+  fireEvent.mouseMove(button);
 }
 
 describe("the empty studio carousel", () => {
@@ -79,6 +96,55 @@ describe("the empty studio carousel", () => {
     );
     advance();
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
+  });
+
+  it("scrolls repeatedly toward the hovered outer card without applying it", () => {
+    const { apply } = mount();
+    hoverStyle("headshot", 600);
+    act(() => vi.advanceTimersByTime(2300));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(3);
+    expect(mocks.api.scrollPrev).not.toHaveBeenCalled();
+    hoverStyle("poster", 0);
+    act(() => vi.advanceTimersByTime(1300));
+    expect(mocks.api.scrollPrev).toHaveBeenCalledTimes(2);
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(3);
+    expect(apply).not.toHaveBeenCalled();
+  });
+
+  it("stops edge scrolling over the center card and when the pointer leaves", () => {
+    mount();
+    hoverStyle("headshot", 600);
+    act(() => vi.advanceTimersByTime(300));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    hoverStyle("poster", 300);
+    act(() => vi.advanceTimersByTime(3000));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    hoverStyle("headshot", 600);
+    fireEvent.mouseLeave(screen.getByRole("region", { name: "templates" }));
+    act(() => vi.advanceTimersByTime(3000));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("cleans up edge scrolling on unmount and respects pause and reduced motion", () => {
+    const { unmount } = mount();
+    hoverStyle("headshot", 600);
+    fireEvent.click(
+      screen.getByRole("button", { name: "pauseTemplateRotation" }),
+    );
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    fireEvent.click(
+      screen.getByRole("button", { name: "startTemplateRotation" }),
+    );
+    unmount();
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+
+    mocks.reduceMotion = true;
+    mount();
+    hoverStyle("headshot", 600);
+    advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
   });
 
   it("does not rotate with reduced motion and still allows navigation", () => {
