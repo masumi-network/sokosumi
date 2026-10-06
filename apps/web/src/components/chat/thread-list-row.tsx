@@ -43,7 +43,7 @@ export function ThreadGroupHeading({
   return (
     <h3
       id={id}
-      className="text-muted-foreground mt-3 mb-1.5 flex items-center gap-2 px-2 text-[0.625rem] font-medium"
+      className="text-muted-foreground mt-3 mb-1.5 flex items-center gap-2 px-2 text-2xs font-medium"
       data-testid="thread-list-group-heading"
     >
       {children}
@@ -52,7 +52,7 @@ export function ThreadGroupHeading({
       {count && count > 0 ? (
         <span
           aria-hidden="true"
-          className="bg-primary-quaternary text-primary-variant rounded-full px-1.5 text-[0.625rem] leading-4 font-semibold tracking-normal tabular-nums"
+          className="bg-primary-quaternary text-primary-variant rounded-full px-1.5 text-2xs leading-4 font-semibold tracking-normal tabular-nums"
         >
           {roomCountLabel(count)}
         </span>

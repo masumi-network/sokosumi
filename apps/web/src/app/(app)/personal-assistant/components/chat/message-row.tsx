@@ -68,7 +68,7 @@ function UserRow({
         </div>
         <time
           dateTime={createdAt}
-          className="text-muted-foreground px-1 text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+          className="text-muted-foreground px-1 text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
         >
           {timestamp(createdAt)}
         </time>
@@ -108,7 +108,7 @@ function MessageFooter({
     <div className="flex items-center gap-2 pt-0.5 pb-2">
       <CopyButton text={text} />
       {durationMs ? (
-        <span className="text-muted-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
+        <span className="text-muted-foreground text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
           {t("answeredIn", {
             seconds: Math.max(1, Math.round(durationMs / 1000)),
           })}
@@ -116,7 +116,7 @@ function MessageFooter({
       ) : null}
       <time
         dateTime={createdAt}
-        className="text-muted-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+        className="text-muted-foreground text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
       >
         {timestamp(createdAt)}
       </time>
@@ -137,7 +137,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground press hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground press hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-2xs font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>

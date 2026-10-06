@@ -113,7 +113,7 @@ function RosterMemberAvatar({
           <AvatarImage src={participant.image ?? undefined} alt="" />
           <AvatarFallback
             className={cn(
-              "text-[0.625rem]",
+              "text-2xs",
               isAi
                 ? "bg-primary-quinary text-primary"
                 : "bg-muted text-muted-foreground",
@@ -505,7 +505,7 @@ export function RoomRosterPanel({
                 {subgroup ? (
                   <>
                     <h4
-                      className="text-muted-foreground flex items-baseline gap-1.5 px-2 pt-3 pb-1 text-[0.6875rem] font-medium"
+                      className="text-muted-foreground flex items-baseline gap-1.5 px-2 pt-3 pb-1 text-2xs font-medium"
                       data-testid="room-roster-subsection-never-read"
                     >
                       {subgroup.heading}

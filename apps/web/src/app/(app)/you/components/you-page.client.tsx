@@ -127,7 +127,7 @@ export function YouPageClient({
                 {presenceLabel}
               </span>
               {planName !== null ? (
-                <span className="bg-muted rounded-full px-2 py-0.5 text-[0.6875rem] font-medium">
+                <span className="bg-muted rounded-full px-2 py-0.5 text-2xs font-medium">
                   <span className="sr-only">{`${t("planLabel")}: `}</span>
                   {planName}
                 </span>

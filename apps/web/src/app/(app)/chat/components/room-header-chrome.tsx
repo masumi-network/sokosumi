@@ -77,7 +77,7 @@ function RoomParticipantStack({
             <AvatarImage src={participant.image ?? undefined} alt="" />
             <AvatarFallback
               className={cn(
-                "text-[0.625rem]",
+                "text-2xs",
                 participant.kind === "coworker" ||
                   participant.kind === "sokoBot"
                   ? "bg-primary-quinary text-primary"
@@ -103,7 +103,7 @@ function RoomParticipantStack({
       ))}
       {remainingCount > 0 ? (
         <span
-          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium shadow-xs ring-1"
+          className="bg-muted text-muted-foreground ring-border relative inline-flex size-6 shrink-0 items-center justify-center rounded-full text-2xs font-medium shadow-xs ring-1"
           style={{ zIndex: 0 }}
           aria-hidden
         >

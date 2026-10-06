@@ -48,7 +48,7 @@ const STRIP_SIZES = {
     featuredInitial: "text-xl",
     otherInitial: "text-xs",
     name: "text-xs",
-    title: "text-[0.625rem]",
+    title: "text-2xs",
     // Half featured width relative to viewport: lets first/last items reach optical center.
     edgePad: "px-[max(0.25rem,calc(50vw-2.75rem))]",
   },

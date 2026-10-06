@@ -119,7 +119,7 @@ const COLOR_UTILITIES_NO_TEXT = COLOR_UTILITIES.split("|")
  * a real opacity modifier, so an unscoped lookahead let `shadow-lg/25`
  * through.
  */
-const FONT_SIZES = "xs|sm|base|lg|xl|[2-9]xl";
+const FONT_SIZES = "2xs|xs|sm|base|lg|xl|[2-9]xl";
 
 /**
  * The tail is a negative lookahead, not `\b`. A word boundary after `]` needs
@@ -354,21 +354,26 @@ describe("whole pixels", () => {
 });
 
 // ---------------------------------------------------------------------------
-// no fixed px font sizes
+// no fixed or off-scale font sizes
 // ---------------------------------------------------------------------------
 
 /** Paths relative to apps/web/src that may keep px font sizes (non-product UI). */
 const FONT_SIZE_ALLOWLIST = new Set(["app/api/export/pdf/route.ts"]);
 
-// Decimal px allowed in the pattern (e.g. text-[10.5px]). Intentional limits:
-// does not scan template assignments like root.style.fontSize = `${n}px`.
-const TEXT_PX_CLASS = /text-\[\d+(?:\.\d+)?px\]/;
+/**
+ * Any unit, not just px: `text-[13px]` and `text-[0.8125rem]` are the same
+ * off-scale 13px, and the rem spelling let ~130 of them past a px-only check.
+ * Sizes come from the scale (`text-2xs` through `text-4xl`). Intentional
+ * limit: does not scan template assignments like
+ * root.style.fontSize = `${n}px`.
+ */
+const TEXT_ARBITRARY_SIZE = /text-\[(?:length:)?\d*\.?\d+[a-z%]+\]/;
 const FONT_SIZE_PX = /font-size:\s*\d+(?:\.\d+)?px/i;
 const FONT_SIZE_STYLE_NUM = /fontSize:\s*\d+(?:\.\d+)?\b/;
 const FONT_SIZE_STYLE_PX = /fontSize:\s*["']\d+(?:\.\d+)?px["']/;
 
-describe("no fixed px font sizes in product UI", () => {
-  it("has no text-[Npx], font-size: Npx, or fontSize: N outside allowlist", () => {
+describe("no fixed or off-scale font sizes in product UI", () => {
+  it("has no text-[N<unit>], font-size: Npx, or fontSize: N outside allowlist", () => {
     const violations: string[] = [];
 
     for (const file of SRC_FILES) {
@@ -379,7 +384,7 @@ describe("no fixed px font sizes in product UI", () => {
 
       file.lines.forEach((line, i) => {
         if (
-          TEXT_PX_CLASS.test(line) ||
+          TEXT_ARBITRARY_SIZE.test(line) ||
           FONT_SIZE_PX.test(line) ||
           FONT_SIZE_STYLE_NUM.test(line) ||
           FONT_SIZE_STYLE_PX.test(line)

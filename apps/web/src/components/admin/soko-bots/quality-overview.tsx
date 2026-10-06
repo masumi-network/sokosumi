@@ -125,7 +125,7 @@ function ScoreChart({
             <text
               x={2}
               y={scoreY(score) + 3}
-              className="fill-muted-foreground text-[0.5625rem]"
+              className="fill-muted-foreground text-2xs"
             >
               {score}
             </text>
@@ -136,7 +136,7 @@ function ScoreChart({
             x={WIDTH - 2}
             y={9}
             textAnchor="end"
-            className="fill-muted-foreground text-[0.5625rem]"
+            className="fill-muted-foreground text-2xs"
           >
             {labels.countAxis}
           </text>
@@ -147,7 +147,7 @@ function ScoreChart({
             x={WIDTH - 2}
             y={thumbsY(count) + 3}
             textAnchor="end"
-            className="fill-muted-foreground text-[0.5625rem]"
+            className="fill-muted-foreground text-2xs"
           >
             {count}
           </text>
@@ -237,7 +237,7 @@ function ScoreChart({
                     ? "end"
                     : "middle"
               }
-              className="fill-muted-foreground text-[0.5625rem]"
+              className="fill-muted-foreground text-2xs"
             >
               {formatDate(day.date)}
             </text>

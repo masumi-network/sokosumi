@@ -137,10 +137,10 @@ export function ProjectBrandSetup({
         )}
       </div>
 
-      <h2 className="mt-8 text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+      <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
         {t("title")}
       </h2>
-      <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+      <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
         {isBusy
           ? t("fetching")
           : brand.status === "failed"

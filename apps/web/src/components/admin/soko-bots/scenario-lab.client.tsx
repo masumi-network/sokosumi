@@ -187,7 +187,7 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
           {calls.map((call, index) => (
             <li
               key={call.id}
-              className="flex items-baseline gap-2 font-mono text-[0.6875rem]"
+              className="flex items-baseline gap-2 font-mono text-2xs"
             >
               <span className="text-muted-foreground w-4 shrink-0 text-right tabular-nums">
                 {index + 1}
@@ -550,7 +550,7 @@ export function ScenarioLab({
                 {Math.round(current.systemPrompt.length / 1024)} KB
               </button>
               {promptOpen ? (
-                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
                   {current.systemPrompt}
                 </pre>
               ) : null}

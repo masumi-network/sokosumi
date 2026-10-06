@@ -249,7 +249,7 @@ export function CreateDirectDialog() {
             >
               <Avatar className="size-5">
                 <AvatarImage src={target.image ?? undefined} alt="" />
-                <AvatarFallback className="text-[0.5625rem]">
+                <AvatarFallback className="text-2xs">
                   {getInitials(target.name)}
                 </AvatarFallback>
               </Avatar>
