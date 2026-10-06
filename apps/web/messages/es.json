@@ -2818,11 +2818,7 @@
         "megapixels": "megapíxel",
         "processedMegapixels": "megapíxel procesado"
       },
-      "creditsCheckedOn": "Precio comprobado el {date}",
-      "previousTemplate": "Estilo anterior",
-      "nextTemplate": "Estilo siguiente",
-      "pauseTemplateRotation": "Pausar carrusel de estilos",
-      "startTemplateRotation": "Iniciar carrusel de estilos"
+      "creditsCheckedOn": "Precio comprobado el {date}"
     },
     "Social": {
       "title": "Programación social",

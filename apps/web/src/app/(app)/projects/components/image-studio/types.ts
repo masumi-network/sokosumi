@@ -221,10 +221,6 @@ export interface StudioLabels {
   // here: they are model input rather than copy, and they stay English in
   // every locale — see `studio-templates.ts`.
   templates: string;
-  previousTemplate: string;
-  nextTemplate: string;
-  pauseTemplateRotation: string;
-  startTemplateRotation: string;
   templateLabels: Record<StudioTemplateId, string>;
 
   // Gallery, selection and comparison.

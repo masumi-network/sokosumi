@@ -64,13 +64,15 @@ function hoverStyle(name: string, left: number, width = 300) {
 }
 
 describe("the empty studio carousel", () => {
-  it("rotates and navigates without applying a prompt; picking a style stays explicit", () => {
+  it("has no navigation buttons or unattended rotation; selecting a style stays explicit", () => {
     const { apply } = mount();
     advance();
+    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("button")).toHaveLength(14);
+    const carousel = screen.getByRole("region", { name: "templates" });
+    fireEvent.keyDown(carousel, { key: "ArrowRight" });
+    fireEvent.keyDown(carousel, { key: "ArrowLeft" });
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getByRole("button", { name: "nextTemplate" }));
-    fireEvent.click(screen.getByRole("button", { name: "previousTemplate" }));
-    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
     expect(mocks.api.scrollPrev).toHaveBeenCalledTimes(1);
     expect(apply).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "poster" }));
@@ -79,28 +81,27 @@ describe("the empty studio carousel", () => {
     );
   });
 
-  it("pauses on hover, stops on focus, and restarts only when requested", () => {
+  it("suspends hover scrolling during keyboard focus and dragging, then resumes", () => {
     mount();
-    const carousel = screen.getByRole("region", { name: "templates" });
-    fireEvent.mouseEnter(carousel);
+    hoverStyle("headshot", 600);
+    const poster = screen.getByRole("button", { name: "poster" });
+    fireEvent.focus(poster);
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-    fireEvent.mouseLeave(carousel);
+    fireEvent.blur(poster);
+    act(() => vi.advanceTimersByTime(300));
+    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
+    const startDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerDown",
+    )![1];
+    const endDrag = mocks.api.on.mock.calls.find(
+      ([event]) => event === "pointerUp",
+    )![1];
+    act(() => startDrag());
     advance();
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-    fireEvent.focus(screen.getByRole("button", { name: "poster" }));
-    fireEvent.blur(screen.getByRole("button", { name: "poster" }));
-    advance();
-    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-    fireEvent.click(
-      screen.getByRole("button", { name: "startTemplateRotation" }),
-    );
-    advance();
-    expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
-    fireEvent.click(
-      screen.getByRole("button", { name: "pauseTemplateRotation" }),
-    );
-    advance();
+    act(() => endDrag());
+    act(() => vi.advanceTimersByTime(300));
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(2);
   });
 
@@ -131,26 +132,16 @@ describe("the empty studio carousel", () => {
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
   });
 
-  it("cleans up edge scrolling on unmount and respects pause and reduced motion", () => {
+  it("cleans up edge scrolling on unmount", () => {
     const { unmount } = mount();
     hoverStyle("headshot", 600);
-    fireEvent.click(
-      screen.getByRole("button", { name: "pauseTemplateRotation" }),
-    );
-    advance();
-    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-    fireEvent.click(
-      screen.getByRole("button", { name: "startTemplateRotation" }),
-    );
     unmount();
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-
-    mocks.reduceMotion = true;
-    mount();
-    hoverStyle("headshot", 600);
-    advance();
-    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
+    expect(mocks.api.off).toHaveBeenCalledWith(
+      "pointerUp",
+      expect.any(Function),
+    );
   });
 
   it("keeps the centered preview clear and places neighboring cards behind it", () => {
@@ -185,26 +176,15 @@ describe("the empty studio carousel", () => {
     expect(center.textContent).toBe("poster");
   });
 
-  it("does not rotate with reduced motion and still allows navigation", () => {
+  it("does not hover-scroll with reduced motion and still allows keyboard navigation", () => {
     mocks.reduceMotion = true;
     mount();
+    hoverStyle("headshot", 600);
     advance();
     expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-    expect(
-      screen.queryByRole("button", { name: "pauseTemplateRotation" }),
-    ).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "nextTemplate" }));
+    fireEvent.keyDown(screen.getByRole("region", { name: "templates" }), {
+      key: "ArrowRight",
+    });
     expect(mocks.api.scrollNext).toHaveBeenCalledTimes(1);
-  });
-
-  it("cleans up rotation when the gallery replaces it", () => {
-    const { unmount } = mount();
-    unmount();
-    advance();
-    expect(mocks.api.scrollNext).not.toHaveBeenCalled();
-    expect(mocks.api.off).toHaveBeenCalledWith(
-      "pointerDown",
-      expect.any(Function),
-    );
   });
 });

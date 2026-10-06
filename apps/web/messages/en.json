@@ -2818,11 +2818,7 @@
         "megapixels": "megapixel",
         "processedMegapixels": "processed megapixel"
       },
-      "creditsCheckedOn": "Price checked {date}",
-      "previousTemplate": "Previous style",
-      "nextTemplate": "Next style",
-      "pauseTemplateRotation": "Pause style carousel",
-      "startTemplateRotation": "Start style carousel"
+      "creditsCheckedOn": "Price checked {date}"
     },
     "Social": {
       "title": "Social Scheduling",

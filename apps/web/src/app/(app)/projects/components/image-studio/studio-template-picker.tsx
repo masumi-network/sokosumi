@@ -1,10 +1,8 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Pause, Play } from "lucide-react";
 import { useReducedMotion } from "motion/react";
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { Button } from "@/components/ui/button";
 import {
   Carousel,
   type CarouselApi,
@@ -105,19 +103,19 @@ export function StudioTemplateStrip({
   );
 }
 
-/** Synchronize rotation with Embla; choosing a brief always stays explicit. */
+/** Navigate with drag, arrow keys, or edge hover; choosing a brief stays explicit. */
 export function StudioTemplateCarousel({
   labels,
   onApplyTemplate,
 }: TemplatePickerProps) {
   const [api, setApi] = useState<CarouselApi>();
-  const [paused, setPaused] = useState(false);
-  const [hovered, setHovered] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [hoverDirection, setHoverDirection] = useState<
     "previous" | "next" | null
   >(null);
   const reduceMotion = useReducedMotion();
-  const rotationStopped = paused || !!reduceMotion;
+  const scrollingStopped = dragging || focused || !!reduceMotion;
 
   useEffect(() => {
     if (!api) return;
@@ -158,23 +156,18 @@ export function StudioTemplateCarousel({
 
   useEffect(() => {
     if (!api) return;
-    const stop = () => setPaused(true);
-    api.on("pointerDown", stop);
+    const startDrag = () => setDragging(true);
+    const endDrag = () => setDragging(false);
+    api.on("pointerDown", startDrag);
+    api.on("pointerUp", endDrag);
     return () => {
-      api.off("pointerDown", stop);
+      api.off("pointerDown", startDrag);
+      api.off("pointerUp", endDrag);
     };
   }, [api]);
 
   useEffect(() => {
-    if (!api || rotationStopped || hovered) return;
-    const timer = window.setInterval(() => {
-      if (!document.hidden) api.scrollNext();
-    }, 5000);
-    return () => window.clearInterval(timer);
-  }, [api, rotationStopped, hovered]);
-
-  useEffect(() => {
-    if (!api || rotationStopped || !hoverDirection) return;
+    if (!api || scrollingStopped || !hoverDirection) return;
     // Give a passing pointer time to select a card before starting navigation.
     let timer: number;
     const scroll = () => {
@@ -186,7 +179,7 @@ export function StudioTemplateCarousel({
     };
     timer = window.setTimeout(scroll, 300);
     return () => window.clearTimeout(timer);
-  }, [api, rotationStopped, hoverDirection]);
+  }, [api, scrollingStopped, hoverDirection]);
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-5 py-4">
@@ -199,62 +192,15 @@ export function StudioTemplateCarousel({
       <Carousel
         aria-label={labels.templates}
         className="flex min-w-0 flex-col"
-        onFocusCapture={(event) => {
-          // Focusing a choice stops rotation until explicitly restarted.
-          if (
-            !(event.target instanceof HTMLElement) ||
-            !event.target.closest("[data-rotation-control]")
-          )
-            setPaused(true);
+        onFocusCapture={() => setFocused(true)}
+        onBlurCapture={(event) => {
+          if (!event.currentTarget.contains(event.relatedTarget))
+            setFocused(false);
         }}
-        onMouseEnter={() => setHovered(true)}
-        onMouseLeave={() => {
-          setHovered(false);
-          setHoverDirection(null);
-        }}
+        onMouseLeave={() => setHoverDirection(null)}
         opts={{ loop: true, align: "center", duration: reduceMotion ? 0 : 25 }}
         setApi={setApi}
       >
-        <div className="order-2 mt-4 flex items-center justify-center gap-2">
-          {!reduceMotion ? (
-            <Button
-              aria-label={
-                paused
-                  ? labels.startTemplateRotation
-                  : labels.pauseTemplateRotation
-              }
-              className="size-11"
-              data-rotation-control
-              onClick={() => setPaused((current) => !current)}
-              size="icon"
-              variant="ghost"
-            >
-              {paused ? (
-                <Play aria-hidden className="size-4" />
-              ) : (
-                <Pause aria-hidden className="size-4" />
-              )}
-            </Button>
-          ) : null}
-          <Button
-            aria-label={labels.previousTemplate}
-            className="size-11"
-            onClick={() => api?.scrollPrev()}
-            size="icon"
-            variant="outline"
-          >
-            <ChevronLeft aria-hidden className="size-4" />
-          </Button>
-          <Button
-            aria-label={labels.nextTemplate}
-            className="size-11"
-            onClick={() => api?.scrollNext()}
-            size="icon"
-            variant="outline"
-          >
-            <ChevronRight aria-hidden className="size-4" />
-          </Button>
-        </div>
         <CarouselContent
           className={reduceMotion ? "py-1" : "items-center py-10"}
           onMouseLeave={() => setHoverDirection(null)}

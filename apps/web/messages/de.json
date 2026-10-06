@@ -2818,11 +2818,7 @@
         "megapixels": "Megapixel",
         "processedMegapixels": "verarbeitetes Megapixel"
       },
-      "creditsCheckedOn": "Preis geprüft am {date}",
-      "previousTemplate": "Vorheriger Stil",
-      "nextTemplate": "Nächster Stil",
-      "pauseTemplateRotation": "Stilkarussell pausieren",
-      "startTemplateRotation": "Stilkarussell starten"
+      "creditsCheckedOn": "Preis geprüft am {date}"
     },
     "Social": {
       "title": "Social-Planung",
