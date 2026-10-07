@@ -2,7 +2,6 @@ import type {
   ListAdMarketAdsResponse,
   ListAdMarketKeywordsResponse,
 } from "@sokosumi/core-client";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense, use } from "react";
@@ -102,8 +101,10 @@ export function AdsMarketKeywords({
 
 /**
  * The ads as they load: the grid, or what to show instead. Core gathers them
- * in the background, so while it does the page asks again every few seconds
- * and the previous ads, if any, stay in view. A failed lookup keeps them too.
+ * in the background, so while it does the page asks again every 20 seconds and
+ * the previous ads, if any, stay in view, with one muted line saying so. A
+ * failed lookup keeps them too. Everything sits in one live region, so
+ * screen readers hear the line and the arrival of the ads.
  */
 export function AdsMarketAds({
   result,
@@ -124,54 +125,36 @@ export function AdsMarketAds({
   }
 
   const { status, ads, fetchedAt } = loaded.data;
-  const grid = ads.length > 0 && (
-    <AdsMarketAdGrid ads={ads} fetchedAt={fetchedAt} />
-  );
+  const gathering = status === "gathering";
+  const notice = {
+    ready: undefined,
+    gathering: t("ads.refreshing"),
+    failed: t("ads.failedNotice"),
+  }[status];
 
-  if (status === "failed") {
-    return (
-      <div className="flex flex-col gap-4">
-        <AdsErrorState
-          failedTitle={t("errors.failed.ads")}
-          kind="failed"
-          unavailableTitle={t("errors.unavailable")}
-        />
-        {grid}
-      </div>
-    );
-  }
-  if (status === "gathering") {
-    return (
-      <>
-        <AdsMarketPoller />
-        {grid ? (
-          <div className="flex flex-col gap-4">
-            <p className="text-muted-foreground text-xs" role="status">
-              {t("ads.refreshing")}
-            </p>
-            {grid}
-          </div>
-        ) : (
-          <EmptyState
-            action={
-              <Loader2
-                aria-hidden
-                className="text-muted-foreground size-4 animate-spin motion-reduce:animate-pulse"
-              />
-            }
-            description={t("ads.gatheringBody")}
-            title={t("ads.gatheringTitle")}
-          />
-        )}
-      </>
-    );
-  }
   return (
-    grid || (
-      <EmptyState
-        description={t("ads.emptyBody")}
-        title={t("ads.emptyTitle")}
-      />
-    )
+    <div aria-busy={gathering} aria-live="polite" data-testid="ads-market-live">
+      {gathering ? <AdsMarketPoller /> : null}
+      {ads.length > 0 ? (
+        <AdsMarketAdGrid ads={ads} fetchedAt={fetchedAt} notice={notice} />
+      ) : (
+        <AdsMarketNoAds status={status} />
+      )}
+    </div>
   );
+}
+
+function AdsMarketNoAds({
+  status,
+}: {
+  status: ListAdMarketAdsResponse["status"];
+}) {
+  const t = useTranslations("App.Ads.market.ads");
+  const copy = {
+    ready: { title: t("emptyTitle"), description: t("emptyBody") },
+    gathering: { title: t("gatheringTitle"), description: t("gatheringBody") },
+    failed: { title: t("failedTitle"), description: t("failedBody") },
+  }[status];
+
+  return <EmptyState {...copy} />;
 }

@@ -3059,7 +3059,10 @@
           "emptyBody": "Anzeigen von Websites, die für deine Keywords ranken, erscheinen hier, sobald sie laufen.",
           "gatheringTitle": "Anzeigen deiner Suchkonkurrenten werden gesammelt",
           "gatheringBody": "Das dauert einige Minuten. Du kannst diese Seite verlassen.",
-          "refreshing": "Wird aktualisiert…"
+          "refreshing": "Wird aktualisiert…",
+          "failedTitle": "Konkurrenzanzeigen konnten nicht gesammelt werden",
+          "failedBody": "Wir versuchen es innerhalb der nächsten Stunde erneut.",
+          "failedNotice": "Aktualisierung fehlgeschlagen, wir versuchen es innerhalb der nächsten Stunde erneut"
         },
         "errors": {
           "unavailable": "Marktdaten sind noch nicht verfügbar",

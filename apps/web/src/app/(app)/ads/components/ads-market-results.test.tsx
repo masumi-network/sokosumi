@@ -1,3 +1,7 @@
+import type {
+  AdMarketAd,
+  ListAdMarketAdsResponse,
+} from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
 import { Suspense } from "react";
@@ -55,8 +59,10 @@ vi.mock("./ads-market-poller", () => ({
   AdsMarketPoller: () => <div data-testid="poller" />,
 }));
 vi.mock("./ads-market-ad-grid", () => ({
-  AdsMarketAdGrid: ({ ads }: { ads: unknown[] }) => (
-    <div data-testid="ads">{ads.length}</div>
+  AdsMarketAdGrid: ({ ads, notice }: { ads: unknown[]; notice?: string }) => (
+    <div data-testid="ads" data-notice={notice}>
+      {ads.length}
+    </div>
   ),
 }));
 
@@ -168,11 +174,22 @@ describe("AdsMarketResults", () => {
 });
 
 describe("AdsMarketAds", () => {
-  const stale = [{ creativeId: "old" }, { creativeId: "older" }];
+  const ad = (creativeId: string): AdMarketAd => ({
+    creativeId,
+    advertiserId: "a1",
+    advertiserName: "Acme Shoes",
+    format: "text",
+    previewImage: null,
+    previewUrl: null,
+    firstShown: null,
+    lastShown: null,
+    verified: false,
+  });
+  const stale = [ad("old"), ad("older")];
 
   function renderAds(
-    status: "ready" | "gathering" | "failed",
-    ads: unknown[] = [],
+    status: ListAdMarketAdsResponse["status"],
+    ads: AdMarketAd[] = [],
   ) {
     const result = Promise.resolve({
       data: { status, ads, fetchedAt: ads.length ? fetchedAt : null },
@@ -181,9 +198,7 @@ describe("AdsMarketAds", () => {
       render(
         <NextIntlClientProvider locale="en" messages={messages}>
           <Suspense>
-            <AdsMarketAds
-              result={result as Parameters<typeof AdsMarketAds>[0]["result"]}
-            />
+            <AdsMarketAds result={result} />
           </Suspense>
         </NextIntlClientProvider>,
       );
@@ -194,6 +209,7 @@ describe("AdsMarketAds", () => {
     await renderAds("ready", stale);
 
     expect(screen.getByTestId("ads")).toHaveTextContent("2");
+    expect(screen.getByTestId("ads")).not.toHaveAttribute("data-notice");
     expect(screen.queryByTestId("poller")).toBeNull();
     expect(screen.queryByText("Refreshing…")).toBeNull();
   });
@@ -211,31 +227,55 @@ describe("AdsMarketAds", () => {
     expect(screen.queryByTestId("ads")).toBeNull();
   });
 
-  it("keeps the previous ads under a refreshing line while gathering", async () => {
+  it("keeps the previous ads and says it is refreshing while gathering", async () => {
     await renderAds("gathering", stale);
 
-    expect(screen.getByText("Refreshing…")).toBeVisible();
     expect(screen.getByTestId("ads")).toHaveTextContent("2");
+    expect(screen.getByTestId("ads")).toHaveAttribute(
+      "data-notice",
+      "Refreshing…",
+    );
     expect(screen.getByTestId("poller")).toBeInTheDocument();
     expect(
       screen.queryByText("Gathering ads from your search competitors"),
     ).toBeNull();
   });
 
-  it("says the lookup failed, and stops polling", async () => {
+  it("says the lookup failed and will be retried, with no button and no polling", async () => {
     await renderAds("failed");
 
-    expect(screen.getByTestId("error")).toHaveTextContent(
-      "failed:Failed to load ads",
-    );
+    expect(screen.getByText("Couldn't gather competitor ads")).toBeVisible();
+    expect(screen.getByText("We'll try again within the hour.")).toBeVisible();
+    expect(screen.queryByRole("button")).toBeNull();
     expect(screen.queryByTestId("ads")).toBeNull();
     expect(screen.queryByTestId("poller")).toBeNull();
   });
 
-  it("shows the previous ads under a failure", async () => {
+  it("keeps the previous ads under a failure, noted on their own line", async () => {
     await renderAds("failed", stale);
 
-    expect(screen.getByTestId("error")).toBeVisible();
     expect(screen.getByTestId("ads")).toHaveTextContent("2");
+    expect(screen.getByTestId("ads")).toHaveAttribute(
+      "data-notice",
+      "Couldn't refresh, we'll try again within the hour",
+    );
+    expect(screen.queryByText("Couldn't gather competitor ads")).toBeNull();
+    expect(screen.queryByTestId("poller")).toBeNull();
+  });
+
+  it("is a polite live region, busy only while gathering", async () => {
+    await renderAds("gathering");
+    const region = screen.getByTestId("ads-market-live");
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toHaveAttribute("aria-busy", "true");
+  });
+
+  it("is not busy once ready", async () => {
+    await renderAds("ready", stale);
+
+    expect(screen.getByTestId("ads-market-live")).toHaveAttribute(
+      "aria-busy",
+      "false",
+    );
   });
 });

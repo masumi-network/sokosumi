@@ -3056,10 +3056,13 @@
           "lastShown": "Visto por última vez {time}",
           "viewAd": "Ver anuncio",
           "emptyTitle": "No se encontraron anuncios de la competencia",
-          "emptyBody": "Los anuncios de los sitios que posicionan para tus palabras clave aparecen aquí cuando se publican.",
+          "emptyBody": "Los anuncios de los sitios que salen en las búsquedas de tus palabras clave se mostrarán aquí cuando se publiquen.",
           "gatheringTitle": "Recopilando anuncios de tus competidores de búsqueda",
           "gatheringBody": "Esto tarda unos minutos. Puedes salir de esta página.",
-          "refreshing": "Actualizando…"
+          "refreshing": "Actualizando…",
+          "failedTitle": "No se pudieron recopilar los anuncios de la competencia",
+          "failedBody": "Lo intentaremos de nuevo en el plazo de una hora.",
+          "failedNotice": "No se pudo actualizar, lo intentaremos de nuevo en el plazo de una hora"
         },
         "errors": {
           "unavailable": "Los datos de mercado aún no están disponibles",

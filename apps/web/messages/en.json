@@ -3059,7 +3059,10 @@
           "emptyBody": "Ads from sites ranking for your keywords appear here once they run.",
           "gatheringTitle": "Gathering ads from your search competitors",
           "gatheringBody": "This takes a few minutes. You can leave this page.",
-          "refreshing": "Refreshing…"
+          "refreshing": "Refreshing…",
+          "failedTitle": "Couldn't gather competitor ads",
+          "failedBody": "We'll try again within the hour.",
+          "failedNotice": "Couldn't refresh, we'll try again within the hour"
         },
         "errors": {
           "unavailable": "Market data isn't available yet",
