@@ -7,6 +7,10 @@ const coreClientMock = {
   deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
   getProjectsByIdAdsAccounts: vi.fn(),
   getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  getProjectsByIdAdsMarket: vi.fn(),
+  getProjectsByIdAdsMarketAds: vi.fn(),
+  getProjectsByIdAdsMarketKeywords: vi.fn(),
+  putProjectsByIdAdsMarket: vi.fn(),
   patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   postProjectsByIdAdsAccounts: vi.fn(),
   postProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
@@ -205,5 +209,56 @@ describe("adsService", () => {
       { id: "project-1", accountId: "account-1" },
       { name: "Spring sale", dailyBudget: 25 },
     );
+  });
+
+  it("reads the market profile, which is null until one is saved", async () => {
+    coreClientMock.getProjectsByIdAdsMarket.mockResolvedValue({
+      data: { profile: null },
+    });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.getMarketProfile("project-1")).resolves.toEqual({
+      profile: null,
+    });
+    expect(coreClientMock.getProjectsByIdAdsMarket).toHaveBeenCalledWith(
+      "project-1",
+    );
+  });
+
+  it("saves the market profile", async () => {
+    const profile = {
+      keywords: ["running shoes"],
+      countryCode: "DE" as const,
+      languageCode: "de" as const,
+    };
+    const saved = { profile: { ...profile, updatedAt: new Date() } };
+    coreClientMock.putProjectsByIdAdsMarket.mockResolvedValue({ data: saved });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.saveMarketProfile("project-1", profile),
+    ).resolves.toEqual(saved);
+    expect(coreClientMock.putProjectsByIdAdsMarket).toHaveBeenCalledWith(
+      "project-1",
+      profile,
+    );
+  });
+
+  it("lists market keywords and ads", async () => {
+    const keywords = { keywords: [], fetchedAt: new Date() };
+    const ads = { ads: [], fetchedAt: new Date() };
+    coreClientMock.getProjectsByIdAdsMarketKeywords.mockResolvedValue({
+      data: keywords,
+    });
+    coreClientMock.getProjectsByIdAdsMarketAds.mockResolvedValue({ data: ads });
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(adsService.listMarketKeywords("project-1")).resolves.toBe(
+      keywords,
+    );
+    await expect(adsService.listMarketAds("project-1")).resolves.toBe(ads);
   });
 });

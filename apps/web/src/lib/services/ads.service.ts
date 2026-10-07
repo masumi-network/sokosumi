@@ -5,10 +5,15 @@ import type {
   CreateAdCampaignRequest,
   CreateAdCampaignResponse,
   FinalizeProjectAdConnectionResponse,
+  GetAdMarketProfileResponse,
   InitiateProjectSocialConnectionResponse,
   ListAdCampaignsResponse,
+  ListAdMarketAdsResponse,
+  ListAdMarketKeywordsResponse,
   ProjectAdAccount,
   ProjectAdProvider,
+  PutAdMarketProfileRequest,
+  PutAdMarketProfileResponse,
   UpdateAdCampaignRequest,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
@@ -113,6 +118,38 @@ export const adsService = (() => {
     return result.data;
   }
 
+  async function getMarketProfile(
+    projectId: string,
+  ): Promise<GetAdMarketProfileResponse> {
+    const result = await coreClient.getProjectsByIdAdsMarket(projectId);
+    return result.data;
+  }
+
+  async function saveMarketProfile(
+    projectId: string,
+    profile: PutAdMarketProfileRequest,
+  ): Promise<PutAdMarketProfileResponse> {
+    const result = await coreClient.putProjectsByIdAdsMarket(
+      projectId,
+      profile,
+    );
+    return result.data;
+  }
+
+  async function listMarketKeywords(
+    projectId: string,
+  ): Promise<ListAdMarketKeywordsResponse> {
+    const result = await coreClient.getProjectsByIdAdsMarketKeywords(projectId);
+    return result.data;
+  }
+
+  async function listMarketAds(
+    projectId: string,
+  ): Promise<ListAdMarketAdsResponse> {
+    const result = await coreClient.getProjectsByIdAdsMarketAds(projectId);
+    return result.data;
+  }
+
   return {
     listAccounts,
     initiateConnection,
@@ -123,5 +160,9 @@ export const adsService = (() => {
     listCampaigns,
     updateCampaign,
     createCampaign,
+    getMarketProfile,
+    saveMarketProfile,
+    listMarketKeywords,
+    listMarketAds,
   };
 })();

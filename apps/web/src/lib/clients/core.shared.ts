@@ -117,6 +117,7 @@ import type {
   PostWorkspacesDesignMdAdhocData,
   PutJobsByIdShareError,
   PutOrganizationsByIdDesignMdData,
+  PutProjectsByIdAdsMarketData,
   PutProjectsByIdDesignMdData,
   PutTasksByIdShareError,
   PutUsersByIdDesignMdData,
@@ -275,6 +276,9 @@ import {
   getProjectsById as coreGetProjectsById,
   getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdAdsAccountsByAccountIdCampaigns as coreGetProjectsByIdAdsAccountsByAccountIdCampaigns,
+  getProjectsByIdAdsMarket as coreGetProjectsByIdAdsMarket,
+  getProjectsByIdAdsMarketAds as coreGetProjectsByIdAdsMarketAds,
+  getProjectsByIdAdsMarketKeywords as coreGetProjectsByIdAdsMarketKeywords,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -467,6 +471,7 @@ import {
   putOrganizationsByIdDesignMd as corePutOrganizationsByIdDesignMd,
   putOrganizationsByIdMembersByMemberIdSeat as corePutOrganizationsByIdMembersByMemberIdSeat,
   putOrganizationsByIdSubscriptionSeats as corePutOrganizationsByIdSubscriptionSeats,
+  putProjectsByIdAdsMarket as corePutProjectsByIdAdsMarket,
   putProjectsByIdDesignMd as corePutProjectsByIdDesignMd,
   putTasksByIdShare as corePutTasksByIdShare,
   putTasksByIdWorkspace as corePutTasksByIdWorkspace,
@@ -3553,6 +3558,56 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsMarket(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarket({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad market",
+    );
+  }
+
+  async function putProjectsByIdAdsMarket(
+    id: string,
+    body: PutProjectsByIdAdsMarketData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) => corePutProjectsByIdAdsMarket({ client, path: { id }, body }),
+      "Failed to save Project ad market",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketKeywords(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketKeywords({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market keywords",
+    );
+  }
+
+  async function getProjectsByIdAdsMarketAds(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsMarketAds({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch market ads",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -6221,6 +6276,10 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdNeedsAttention,
     getProjectsByIdAdsAccounts,
     getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    getProjectsByIdAdsMarket,
+    putProjectsByIdAdsMarket,
+    getProjectsByIdAdsMarketKeywords,
+    getProjectsByIdAdsMarketAds,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getProjectsByIdImageStudio,

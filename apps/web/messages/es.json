@@ -2878,6 +2878,12 @@
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
       "tabsLabel": "Secciones de anuncios",
       "loading": "Cargando anuncios…",
+      "updated": "Actualizado {time}",
+      "loadError": {
+        "unavailableDescription": "Todavía no está configurado para Sokosumi.",
+        "failedDescription": "Inténtalo de nuevo en un momento.",
+        "retry": "Reintentar"
+      },
       "tabs": {
         "campaigns": "Campañas",
         "market": "Mercado",
@@ -2889,7 +2895,6 @@
         "emptyAction": "Ir a cuentas",
         "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
         "noCampaignsBody": "Crea una con «Nueva campaña». Empieza en pausa.",
-        "loading": "Cargando campañas…",
         "account": "Cuenta publicitaria",
         "rangeLabel": "Período",
         "range": {
@@ -2984,19 +2989,83 @@
             "action": "Ir a cuentas"
           },
           "unavailable": {
-            "title": "{provider} aún no está disponible",
-            "description": "Todavía no está configurado para Sokosumi."
+            "title": "{provider} aún no está disponible"
           },
           "failed": {
-            "title": "No se pudieron cargar las campañas",
-            "description": "Inténtalo de nuevo en un momento.",
-            "retry": "Reintentar"
+            "title": "No se pudieron cargar las campañas"
           }
         }
       },
       "market": {
-        "emptyTitle": "Configura tu mercado para ver palabras clave y anuncios en tendencia",
-        "emptyBody": "Añade tus palabras clave y tu país para ver qué está en tendencia y qué anuncios publica tu mercado."
+        "setupTitle": "Configura tu mercado",
+        "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publica tu mercado.",
+        "edit": "Editar mercado",
+        "editBody": "Las palabras clave y los anuncios en tendencia siguen estas palabras clave, este país y este idioma.",
+        "form": {
+          "keywords": "Palabras clave",
+          "keywordsHint": "Pulsa Intro o coma para añadir una. Hasta {max}.",
+          "keywordsPlaceholder": "Por ejemplo, zapatillas de correr",
+          "keywordsFull": "Límite de palabras clave alcanzado",
+          "removeKeyword": "Quitar {keyword}",
+          "country": "País",
+          "countryPlaceholder": "Elige un país",
+          "language": "Idioma",
+          "languagePlaceholder": "Elige un idioma",
+          "submit": "Guardar mercado",
+          "saving": "Guardando…",
+          "cancel": "Cancelar",
+          "success": "Mercado guardado correctamente",
+          "errors": {
+            "keywordsRequired": "Añade al menos una palabra clave.",
+            "keywordsTooMany": "Usa hasta {max} palabras clave.",
+            "countryRequired": "Elige un país.",
+            "languageRequired": "Elige un idioma.",
+            "failed": "No se pudo guardar el mercado"
+          }
+        },
+        "keywords": {
+          "title": "Palabras clave en tendencia",
+          "columns": {
+            "keyword": "Palabra clave",
+            "searches": "Búsquedas al mes",
+            "trend": "12 meses",
+            "competition": "Competencia",
+            "bidRange": "Puja de primera página"
+          },
+          "competition": {
+            "LOW": "Baja",
+            "MEDIUM": "Media",
+            "HIGH": "Alta"
+          },
+          "trendLabel": "Búsquedas al mes durante 12 meses, de {from} a {to}",
+          "searchesPerMonth": "{count} búsquedas al mes",
+          "emptyTitle": "No se encontraron palabras clave en tendencia para este mercado",
+          "emptyBody": "Prueba con otras palabras clave u otro país."
+        },
+        "ads": {
+          "title": "Anuncios en tu mercado",
+          "previewAlt": "Anuncio de {advertiser}",
+          "textAd": "Anuncio de texto",
+          "noPreview": "Sin vista previa",
+          "format": {
+            "text": "Texto",
+            "image": "Imagen",
+            "video": "Vídeo",
+            "other": "Otro"
+          },
+          "lastShown": "Visto por última vez {time}",
+          "viewAd": "Ver anuncio",
+          "emptyTitle": "Aún no se encontraron anuncios de estos anunciantes",
+          "emptyBody": "Los anuncios de los mayores anunciantes de tu mercado aparecen aquí cuando se publican."
+        },
+        "errors": {
+          "unavailable": "Los datos de mercado aún no están disponibles",
+          "failed": {
+            "profile": "No se pudo cargar tu mercado",
+            "keywords": "No se pudieron cargar las palabras clave",
+            "ads": "No se pudieron cargar los anuncios"
+          }
+        }
       },
       "accounts": {
         "emptyTitle": "Aún no hay cuentas publicitarias conectadas",
