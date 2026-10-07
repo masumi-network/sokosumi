@@ -143,7 +143,10 @@ function createAuth(seedUsers: Row[] = []) {
   }
 
   /** The signed query Web's sign-up page receives and sends back. */
-  async function authorize(clientId: string): Promise<string> {
+  async function authorize(
+    clientId: string,
+    signUpContext?: string,
+  ): Promise<string> {
     const query = new URLSearchParams({
       client_id: clientId,
       redirect_uri: CLIENT,
@@ -155,6 +158,7 @@ function createAuth(seedUsers: Row[] = []) {
         .digest("base64url"),
       code_challenge_method: "S256",
       prompt: "create",
+      ...(signUpContext ? { signup_context: signUpContext } : {}),
     });
     const response = await auth.handler(
       new Request(`${CORE}/auth/oauth2/authorize?${query}`, {
@@ -187,10 +191,14 @@ function createAuth(seedUsers: Row[] = []) {
 }
 
 /** The one recorded sign-up context, for the one user the test created. */
-function expectRecorded(origin: string, clientId: string | null) {
+function expectRecorded(
+  origin: string,
+  clientId: string | null,
+  entries: Record<string, unknown> = {},
+) {
   expect(fixture.state.db.user).toHaveLength(1);
   expect(fixture.state.contexts).toEqual([
-    { userId: fixture.state.db.user[0].id, origin, entries: {}, clientId },
+    { userId: fixture.state.db.user[0].id, origin, entries, clientId },
   ]);
 }
 
@@ -254,12 +262,76 @@ describe("recording the sign-up origin", () => {
         updatedAt: new Date(),
       },
     ]);
-    const oauthQuery = await auth.authorize("cmo");
+    const oauthQuery = await auth.authorize(
+      "cmo",
+      JSON.stringify({ url: "nmkr.io" }),
+    );
 
     const response = await auth.signInWithCode({ oauthQuery });
 
     expect(response.status).toBe(200);
     expect(fixture.state.contexts).toEqual([]);
+  });
+
+  it("records the entries a client sent in signup_context", async () => {
+    const auth = createAuth();
+    const oauthQuery = await auth.authorize(
+      "cmo",
+      JSON.stringify({
+        url: "nmkr.io",
+        seats: 3,
+        seats_text: "3",
+        trial: true,
+      }),
+    );
+
+    const response = await auth.signInWithCode({ oauthQuery });
+
+    expect(response.status).toBe(200);
+    expectRecorded("cmo", "cmo", {
+      url: "nmkr.io",
+      seats: 3,
+      seats_text: "3",
+      trial: true,
+    });
+  });
+
+  it("records the entries for a password sign-up through a client", async () => {
+    const auth = createAuth();
+    const oauthQuery = await auth.authorize(
+      "cmo",
+      JSON.stringify({ url: "nmkr.io" }),
+    );
+
+    await auth.signInWithCode({
+      oauthQuery,
+      password: "correct horse battery",
+    });
+
+    expectRecorded("cmo", "cmo", { url: "nmkr.io" });
+  });
+
+  it("drops invalid entries and lets the sign-up succeed", async () => {
+    const auth = createAuth();
+    const oauthQuery = await auth.authorize(
+      "cmo",
+      JSON.stringify({ Bad: "key", url: "x".repeat(2049), ok: "kept" }),
+    );
+
+    const response = await auth.signInWithCode({ oauthQuery });
+
+    expect(response.status).toBe(200);
+    expectRecorded("cmo", "cmo", { ok: "kept" });
+  });
+
+  it("records no entries for a signup_context that is not JSON", async () => {
+    const auth = createAuth();
+    const oauthQuery = await auth.authorize("cmo", "{url:");
+
+    const response = await auth.signInWithCode({ oauthQuery });
+
+    expect(response.status).toBe(200);
+    expectRecorded("cmo", "cmo");
   });
 
   it("logs a failed write and lets the sign-up succeed", async () => {
