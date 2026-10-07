@@ -14,18 +14,24 @@ import {
   parseToolRows,
   requireToolRows,
 } from "@/lib/ads/composio-tools";
-import { tryUseLogger } from "@/lib/evlog";
 
 const DATAFORSEO_API = "https://api.dataforseo.com/v3";
 const KEYWORDS_FOR_KEYWORDS =
   "/keywords_data/google_ads/keywords_for_keywords/live";
-const ORGANIC_SERP = "/serp/google/organic/live/advanced";
-const ADS_SEARCH = "/serp/google/ads_search/live/advanced";
+const SERP_TASK_KINDS = {
+  organic: "/serp/google/organic",
+  ads_search: "/serp/google/ads_search",
+} as const;
+export type SerpTaskKind = keyof typeof SERP_TASK_KINDS;
 const DATAFORSEO_OK = 20000;
+/** A queued task was accepted. */
+const TASK_CREATED = 20100;
 /** "No Search Results": a task without items, not an error. */
 const NO_RESULTS = 40102;
-/** Live endpoints answer in up to ~15s; keyword ideas often take longer. */
-const LIVE_TIMEOUT_MS = 60_000;
+/** A queued task was handed to a worker, or waits in the queue. */
+const TASK_PENDING = [40601, 40602];
+/** Keyword ideas answer live, often in more than the default timeout. */
+const KEYWORDS_TIMEOUT_MS = 60_000;
 const MAX_KEYWORDS = 50;
 const TREND_MONTHS = 12;
 /** Organic results read per keyword; DataForSEO bills per 10. */
@@ -115,6 +121,7 @@ const envelopeSchema = z.object({
 });
 
 const taskSchema = z.object({
+  id: z.string().nullish(),
   status_code: z.number(),
   status_message: z.string().nullish(),
   result: z.array(z.unknown()).nullish(),
@@ -175,14 +182,19 @@ const proxyResponseSchema = z.object({
 });
 
 /**
- * POSTs one task to a DataForSEO live endpoint (they take one task per
- * request) through the Composio proxy on the platform DataForSEO connection.
- * Without the connection configured, raises a {@link ComposioConfigError}.
+ * Calls a DataForSEO endpoint through the Composio proxy on the platform
+ * DataForSEO connection. A POST sends `tasks` (live endpoints take one task,
+ * `task_post` many). Without the connection configured, raises a
+ * {@link ComposioConfigError}.
  */
-async function postDataForSeo(
+async function callDataForSeo(
   path: string,
-  task: Record<string, unknown>,
   context: string,
+  request: {
+    method: "GET" | "POST";
+    tasks?: Record<string, unknown>[];
+    timeoutMs?: number;
+  },
 ): Promise<Record<string, unknown>> {
   const connectedAccountId = getEnv().COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID;
   if (!connectedAccountId) {
@@ -194,18 +206,18 @@ async function postDataForSeo(
     method: "POST",
     jsonBody: {
       endpoint: `${DATAFORSEO_API}${path}`,
-      method: "POST",
+      method: request.method,
       connected_account_id: connectedAccountId,
-      body: [task],
+      ...(request.tasks && { body: request.tasks }),
     },
-    timeoutMs: LIVE_TIMEOUT_MS,
+    ...(request.timeoutMs && { timeoutMs: request.timeoutMs }),
   });
   const body = await projectComposioResponse<unknown>(response, context);
   return parseToolRow(body, proxyResponseSchema, context).data;
 }
 
-/** The tasks of a response, after checking the envelope and every task status. */
-function checkedTasks(
+/** The tasks of a response, after checking the envelope. */
+function envelopeTasks(
   payload: Record<string, unknown>,
   context: string,
 ): z.infer<typeof taskSchema>[] {
@@ -219,6 +231,15 @@ function checkedTasks(
     context,
   );
   if (tasks.length === 0) throw invalidToolResponse(context);
+  return tasks;
+}
+
+/** The tasks of a response, after checking the envelope and every task status. */
+function checkedTasks(
+  payload: Record<string, unknown>,
+  context: string,
+): z.infer<typeof taskSchema>[] {
+  const tasks = envelopeTasks(payload, context);
   for (const task of tasks) {
     if (task.status_code !== DATAFORSEO_OK && task.status_code !== NO_RESULTS) {
       throw refused(task.status_code, task.status_message);
@@ -250,16 +271,18 @@ export async function fetchMarketKeywords(
   query: MarketQuery,
 ): Promise<MarketKeyword[]> {
   const context = "fetch DataForSEO keywords";
-  const payload = await postDataForSeo(
-    KEYWORDS_FOR_KEYWORDS,
-    {
-      keywords: query.keywords,
-      location_code: query.locationCode,
-      language_code: query.languageCode,
-      sort_by: "search_volume",
-    },
-    context,
-  );
+  const payload = await callDataForSeo(KEYWORDS_FOR_KEYWORDS, context, {
+    method: "POST",
+    tasks: [
+      {
+        keywords: query.keywords,
+        location_code: query.locationCode,
+        language_code: query.languageCode,
+        sort_by: "search_volume",
+      },
+    ],
+    timeoutMs: KEYWORDS_TIMEOUT_MS,
+  });
   const [task] = checkedTasks(payload, context);
   return parseToolRows(task.result ?? [], keywordSuggestionSchema, context)
     .map(toMarketKeyword)
@@ -277,6 +300,13 @@ const organicItemSchema = z.object({
   rank_group: z.number(),
 });
 
+/** A domain's best organic position for one keyword. */
+export const organicRankSchema = z.object({
+  domain: z.string(),
+  rank: z.number(),
+});
+type OrganicRank = z.infer<typeof organicRankSchema>;
+
 function isPlatform(domain: string): boolean {
   return domain
     .split(".")
@@ -285,27 +315,35 @@ function isPlatform(domain: string): boolean {
 }
 
 /**
- * The domains ranking organically for the keywords, platforms aside: the most
- * keywords first, then the best position. `www.` is dropped so a domain
- * counts once.
+ * The domains of a keyword's organic results with their best position,
+ * platforms aside. `www.` is dropped so a domain counts once.
  */
-function rankCompetitorDomains(serps: unknown[][], context: string): string[] {
-  const competitors = new Map<string, { keywords: number; best: number }>();
-  for (const items of serps) {
-    const ranks = new Map<string, number>();
-    for (const item of items) {
-      if (parseToolRow(item, itemTypeSchema, context).type !== "organic") {
-        continue;
-      }
-      const row = parseToolRow(item, organicItemSchema, context);
-      const domain = row.domain.toLowerCase().replace(/^www\./, "");
-      if (isPlatform(domain)) continue;
-      ranks.set(
-        domain,
-        Math.min(ranks.get(domain) ?? row.rank_group, row.rank_group),
-      );
+export function organicRanks(items: unknown[]): OrganicRank[] {
+  const context = "read DataForSEO organic results";
+  const ranks = new Map<string, number>();
+  for (const item of items) {
+    if (parseToolRow(item, itemTypeSchema, context).type !== "organic") {
+      continue;
     }
-    for (const [domain, rank] of ranks) {
+    const row = parseToolRow(item, organicItemSchema, context);
+    const domain = row.domain.toLowerCase().replace(/^www\./, "");
+    if (isPlatform(domain)) continue;
+    ranks.set(
+      domain,
+      Math.min(ranks.get(domain) ?? row.rank_group, row.rank_group),
+    );
+  }
+  return [...ranks].map(([domain, rank]) => ({ domain, rank }));
+}
+
+/**
+ * The search competitors of the keywords, one result list per keyword: the
+ * domains ranking for the most keywords first, then the best position.
+ */
+export function rankCompetitorDomains(serps: OrganicRank[][]): string[] {
+  const competitors = new Map<string, { keywords: number; best: number }>();
+  for (const ranks of serps) {
+    for (const { domain, rank } of ranks) {
       const seen = competitors.get(domain);
       competitors.set(domain, {
         keywords: (seen?.keywords ?? 0) + 1,
@@ -380,87 +418,117 @@ function utcDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
-/**
- * The values of the calls that succeed. Live calls are slow at times, so a
- * failed one only adds nothing (counted in the request log as `logKey`),
- * unless every call fails: then the first failure is raised.
- */
-async function successfulValues<T>(
-  logKey: string,
-  calls: Promise<T>[],
-): Promise<T[]> {
-  const settled = await Promise.allSettled(calls);
-  const failed = settled.filter((call) => call.status === "rejected");
-  if (failed[0] && failed.length === settled.length) throw failed[0].reason;
-  if (failed.length > 0) {
-    tryUseLogger()?.set({ dataforseo: { [logKey]: failed.length } });
-  }
-  return settled.flatMap((call) =>
-    call.status === "fulfilled" ? [call.value] : [],
-  );
-}
-
 const lastShown = (ad: MarketAd) => ad.lastShown ?? "";
 const byLastShown = (a: MarketAd, b: MarketAd) =>
   lastShown(b).localeCompare(lastShown(a));
 
-/**
- * Recent Google ads of the market's search competitors. DataForSEO's SERPs
- * carry no paid results, so competitors are the 10 domains ranking
- * organically for the keywords (platforms like Reddit aside); each one's 4 most recently shown ads of the
- * last 30 days in the location come from the Ads Transparency Center. Newest
- * last-shown first. A keyword or competitor whose call fails adds nothing,
- * unless every one fails. Runs on the platform
- * DataForSEO connection; without it configured, raises a
- * {@link ComposioConfigError}.
- */
-export async function fetchMarketAds(query: MarketQuery): Promise<MarketAd[]> {
-  const context = "fetch DataForSEO ads";
-  const now = Date.now();
-  const serps = await successfulValues(
-    "failedSerps",
-    query.keywords.map(async (keyword) => {
-      const payload = await postDataForSeo(
-        ORGANIC_SERP,
-        {
-          keyword: encodeKeyword(keyword),
-          location_code: query.locationCode,
-          language_code: query.languageCode,
-          depth: SERP_DEPTH,
-        },
-        context,
-      );
-      return taskItems(checkedTasks(payload, context), context);
-    }),
-  );
-  const perCompetitor = await successfulValues(
-    "failedAdSearches",
-    rankCompetitorDomains(serps, context).map(async (domain) => {
-      const payload = await postDataForSeo(
-        ADS_SEARCH,
-        {
-          target: domain,
-          location_code: query.locationCode,
-          date_from: utcDate(now - ADS_WINDOW_DAYS * 24 * 60 * 60 * 1000),
-          date_to: utcDate(now),
-          depth: ADS_DEPTH,
-        },
-        context,
-      );
-      return parseToolRows(
-        taskItems(checkedTasks(payload, context), context),
-        adSearchItemSchema,
-        context,
-      )
-        .map(toMarketAd)
-        .sort(byLastShown)
-        .slice(0, ADS_PER_COMPETITOR);
-    }),
-  );
+/** A competitor's 4 most recently shown ads. */
+export function competitorAds(items: unknown[]): MarketAd[] {
+  return parseToolRows(items, adSearchItemSchema, "read DataForSEO ads")
+    .map(toMarketAd)
+    .sort(byLastShown)
+    .slice(0, ADS_PER_COMPETITOR);
+}
+
+/** The ads of every competitor, a creative once, last shown first. */
+export function mergeMarketAds(perCompetitor: MarketAd[][]): MarketAd[] {
   const ads = new Map<string, MarketAd>();
   for (const ad of perCompetitor.flat()) {
     const seen = ads.get(ad.creativeId);
     if (!seen || lastShown(ad) > lastShown(seen)) ads.set(ad.creativeId, ad);
   }
   return [...ads.values()].sort(byLastShown);
+}
+
+/**
+ * Queues the tasks on a `task_post` endpoint in one request and returns the
+ * ids of those DataForSEO accepted. A refused task adds nothing, unless every
+ * one is refused: then the first refusal is raised.
+ */
+async function postTasks(
+  kind: SerpTaskKind,
+  tasks: Record<string, unknown>[],
+  context: string,
+): Promise<string[]> {
+  const payload = await callDataForSeo(
+    `${SERP_TASK_KINDS[kind]}/task_post`,
+    context,
+    { method: "POST", tasks },
+  );
+  const posted = envelopeTasks(payload, context);
+  const ids = posted.flatMap((task) =>
+    task.status_code === TASK_CREATED && task.id ? [task.id] : [],
+  );
+  const [first] = posted;
+  if (ids.length === 0 && first) {
+    throw refused(first.status_code, first.status_message);
+  }
+  return ids;
+}
+
+/**
+ * Queues one organic SERP task per keyword, all in one request, and returns
+ * their ids. Queued tasks are ready in minutes and cost a third of live ones.
+ */
+export function postSerpTasks(query: MarketQuery): Promise<string[]> {
+  return postTasks(
+    "organic",
+    query.keywords.map((keyword) => ({
+      keyword: encodeKeyword(keyword),
+      location_code: query.locationCode,
+      language_code: query.languageCode,
+      depth: SERP_DEPTH,
+    })),
+    "queue DataForSEO SERPs",
+  );
+}
+
+/**
+ * Queues one Ads Transparency task per domain for the last 30 days in the
+ * location, all in one request, and returns their ids.
+ */
+export function postAdsSearchTasks(
+  domains: string[],
+  locationCode: number,
+  now: Date,
+): Promise<string[]> {
+  return postTasks(
+    "ads_search",
+    domains.map((target) => ({
+      target,
+      location_code: locationCode,
+      date_from: utcDate(now.getTime() - ADS_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+      date_to: utcDate(now.getTime()),
+      depth: ADS_DEPTH,
+    })),
+    "queue DataForSEO ad searches",
+  );
+}
+
+export type TaskResult =
+  | { state: "pending" }
+  | { state: "done"; items: unknown[] }
+  | { state: "failed" };
+
+/**
+ * One queued task's outcome. A task that failed is a result, not an error;
+ * only an envelope or proxy failure raises.
+ */
+export async function getTaskResult(
+  kind: SerpTaskKind,
+  id: string,
+): Promise<TaskResult> {
+  const context = "fetch DataForSEO task";
+  const payload = await callDataForSeo(
+    `${SERP_TASK_KINDS[kind]}/task_get/advanced/${id}`,
+    context,
+    { method: "GET" },
+  );
+  const [task] = envelopeTasks(payload, context);
+  if (!task) throw invalidToolResponse(context);
+  if (TASK_PENDING.includes(task.status_code)) return { state: "pending" };
+  if (task.status_code === DATAFORSEO_OK || task.status_code === NO_RESULTS) {
+    return { state: "done", items: taskItems([task], context) };
+  }
+  return { state: "failed" };
 }
