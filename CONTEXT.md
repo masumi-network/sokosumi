@@ -261,7 +261,7 @@ The product a person created their Sokosumi account through: Sokosumi itself or 
 _Avoid_: Source (that is the UTM source), referrer, entry product
 
 **Sign-up context**:
-The named values the sign-up origin handed over when the account was created, each a text, number or yes/no, such as CMO's `url` of `nmkr.io`. Kept on the account unchanged; only the origin and admins read it.
+The named values the sign-up origin handed over when the account was created, each a text, number or yes/no, such as CMO's `url` of `nmkr.io`. Kept on the account unchanged; only the person and admins read it.
 _Avoid_: Sign-up metadata, sign-up intent, sign-up data, sign-up parameters
 
 **Impersonation**:
