@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { marketAdSchema, marketKeywordSchema } from "@/lib/ads/dataforseo";
 import {
+  AD_MARKET_ADS_STATUSES,
   AD_MARKET_LANGUAGES,
   AD_MARKET_LOCATIONS,
   type AdMarketCountryCode,
@@ -83,7 +84,7 @@ export const adMarketAdSchema = marketAdSchema.openapi("AdMarketAd", {
 
 export const listAdMarketAdsResponseSchema = z
   .object({
-    status: z.enum(["ready", "gathering", "failed"]).openapi({
+    status: z.enum(AD_MARKET_ADS_STATUSES).openapi({
       description:
         "ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.",
     }),

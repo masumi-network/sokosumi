@@ -9,7 +9,7 @@ CREATE TABLE "project_ad_market_ads_job" (
     "pendingTaskIds" TEXT[],
     "collected" JSONB NOT NULL,
     "startedAt" TIMESTAMP(3) NOT NULL,
-    "checkedAt" TIMESTAMP(3) NOT NULL,
+    "nextCheckAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "project_ad_market_ads_job_pkey" PRIMARY KEY ("projectId")
 );

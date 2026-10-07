@@ -14,6 +14,7 @@ import {
   parseToolRows,
   requireToolRows,
 } from "@/lib/ads/composio-tools";
+import { tryUseLogger } from "@/lib/evlog";
 
 const DATAFORSEO_API = "https://api.dataforseo.com/v3";
 const KEYWORDS_FOR_KEYWORDS =
@@ -127,6 +128,8 @@ const taskSchema = z.object({
   result: z.array(z.unknown()).nullish(),
 });
 
+type Task = z.infer<typeof taskSchema>;
+
 const keywordSuggestionSchema = z.object({
   keyword: z.string().min(1),
   search_volume: z.number().nullish(),
@@ -220,7 +223,7 @@ async function callDataForSeo(
 function envelopeTasks(
   payload: Record<string, unknown>,
   context: string,
-): z.infer<typeof taskSchema>[] {
+): [Task, ...Task[]] {
   const envelope = parseToolRow(payload, envelopeSchema, context);
   if (envelope.status_code != null && envelope.status_code !== DATAFORSEO_OK) {
     throw refused(envelope.status_code, envelope.status_message);
@@ -230,15 +233,16 @@ function envelopeTasks(
     taskSchema,
     context,
   );
-  if (tasks.length === 0) throw invalidToolResponse(context);
-  return tasks;
+  const [first, ...rest] = tasks;
+  if (!first) throw invalidToolResponse(context);
+  return [first, ...rest];
 }
 
 /** The tasks of a response, after checking the envelope and every task status. */
 function checkedTasks(
   payload: Record<string, unknown>,
   context: string,
-): z.infer<typeof taskSchema>[] {
+): [Task, ...Task[]] {
   const tasks = envelopeTasks(payload, context);
   for (const task of tasks) {
     if (task.status_code !== DATAFORSEO_OK && task.status_code !== NO_RESULTS) {
@@ -251,10 +255,7 @@ function checkedTasks(
 const resultSchema = z.object({ items: z.array(z.unknown()).nullish() });
 
 /** The items of every result of the tasks. */
-function taskItems(
-  tasks: z.infer<typeof taskSchema>[],
-  context: string,
-): unknown[] {
+function taskItems(tasks: Task[], context: string): unknown[] {
   return tasks.flatMap((task) =>
     parseToolRows(task.result ?? [], resultSchema, context).flatMap(
       (result) => result.items ?? [],
@@ -418,9 +419,13 @@ function utcDate(time: number): string {
   return new Date(time).toISOString().slice(0, 10);
 }
 
-const lastShown = (ad: MarketAd) => ad.lastShown ?? "";
-const byLastShown = (a: MarketAd, b: MarketAd) =>
-  lastShown(b).localeCompare(lastShown(a));
+function lastShown(ad: MarketAd): string {
+  return ad.lastShown ?? "";
+}
+
+function byLastShown(a: MarketAd, b: MarketAd): number {
+  return lastShown(b).localeCompare(lastShown(a));
+}
 
 /** A competitor's 4 most recently shown ads. */
 export function competitorAds(items: unknown[]): MarketAd[] {
@@ -442,8 +447,8 @@ export function mergeMarketAds(perCompetitor: MarketAd[][]): MarketAd[] {
 
 /**
  * Queues the tasks on a `task_post` endpoint in one request and returns the
- * ids of those DataForSEO accepted. A refused task adds nothing, unless every
- * one is refused: then the first refusal is raised.
+ * ids of those DataForSEO accepted. None is no error: if DataForSEO refused
+ * every task, retrying will not help, so the refusal is only logged.
  */
 async function postTasks(
   kind: SerpTaskKind,
@@ -459,16 +464,24 @@ async function postTasks(
   const ids = posted.flatMap((task) =>
     task.status_code === TASK_CREATED && task.id ? [task.id] : [],
   );
-  const [first] = posted;
-  if (ids.length === 0 && first) {
-    throw refused(first.status_code, first.status_message);
+  if (ids.length === 0) {
+    const [first] = posted;
+    tryUseLogger()?.set({
+      dataforseo: {
+        refusedTasks: {
+          kind,
+          status: first.status_code,
+          message: first.status_message,
+        },
+      },
+    });
   }
   return ids;
 }
 
 /**
  * Queues one organic SERP task per keyword, all in one request, and returns
- * their ids. Queued tasks are ready in minutes and cost a third of live ones.
+ * the ids DataForSEO accepted. Queued tasks are ready in minutes and cost a third of live ones.
  */
 export function postSerpTasks(query: MarketQuery): Promise<string[]> {
   return postTasks(
@@ -505,7 +518,7 @@ export function postAdsSearchTasks(
   );
 }
 
-export type TaskResult =
+type TaskResult =
   | { state: "pending" }
   | { state: "done"; items: unknown[] }
   | { state: "failed" };
@@ -525,7 +538,6 @@ export async function getTaskResult(
     { method: "GET" },
   );
   const [task] = envelopeTasks(payload, context);
-  if (!task) throw invalidToolResponse(context);
   if (TASK_PENDING.includes(task.status_code)) return { state: "pending" };
   if (task.status_code === DATAFORSEO_OK || task.status_code === NO_RESULTS) {
     return { state: "done", items: taskItems([task], context) };

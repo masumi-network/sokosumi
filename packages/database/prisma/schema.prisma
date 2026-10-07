@@ -714,13 +714,14 @@ model ProjectAdMarketAdsJob {
   stage          ProjectAdMarketAdsJobStage
   /// DataForSEO task ids of the current stage not yet collected.
   pendingTaskIds String[]
-  /// What the finished tasks gave: `{domain, rank}[]` per keyword in SERP,
-  /// `MarketAd[]` in ADS.
+  /// What the finished tasks gave, one entry per finished task: `{domain, rank}[][]`
+  /// in SERP, `MarketAd[][]` in ADS.
   collected      Json
   /// Start of the current stage.
   startedAt      DateTime
-  /// Last DataForSEO check; throttles polling.
-  checkedAt      DateTime
+  /// No check before this time. A request claims the job by moving it ahead
+  /// (a lease longer than a check) and writes only while the value is its own.
+  nextCheckAt    DateTime
 
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 

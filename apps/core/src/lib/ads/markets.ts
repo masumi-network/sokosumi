@@ -46,3 +46,7 @@ export function isAdMarketLanguage(
 ): languageCode is AdMarketLanguageCode {
   return (AD_MARKET_LANGUAGES as readonly string[]).includes(languageCode);
 }
+
+/** How far the Project's market ads are: ready, still being gathered, or the lookup failed. */
+export const AD_MARKET_ADS_STATUSES = ["ready", "gathering", "failed"] as const;
+export type AdMarketAdsStatus = (typeof AD_MARKET_ADS_STATUSES)[number];

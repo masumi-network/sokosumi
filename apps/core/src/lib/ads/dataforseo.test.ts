@@ -316,14 +316,11 @@ describe("queued tasks", () => {
       expect(await postSerpTasks(query)).toEqual(["t1"]);
     });
 
-    it("raises the first refusal when every task is refused", async () => {
+    it("returns no ids, not an error, when every task is refused", async () => {
       mockDataForSeo({
         tasks: [{ id: "t1", status_code: 40501, status_message: "Invalid." }],
       });
-      await expect(postSerpTasks(query)).rejects.toMatchObject({
-        name: "ComposioToolError",
-        providerStatus: 40501,
-      });
+      expect(await postSerpTasks(query)).toEqual([]);
     });
 
     it("raises a tool error for a failed envelope", async () => {
@@ -367,6 +364,19 @@ describe("queued tasks", () => {
           { target: "trail.co" },
         ],
       });
+    });
+  });
+
+  describe("postAdsSearchTasks refusals", () => {
+    it("returns no ids when every task is refused, and raises on a failed envelope", async () => {
+      mockDataForSeo({
+        tasks: [{ status_code: 40501, status_message: "Invalid." }],
+      });
+      expect(await postAdsSearchTasks(["acme.com"], 2840, NOW)).toEqual([]);
+      mockDataForSeo({ status_code: 40101, tasks: [] });
+      await expect(
+        postAdsSearchTasks(["acme.com"], 2840, NOW),
+      ).rejects.toMatchObject({ providerStatus: 40101 });
     });
   });
 
