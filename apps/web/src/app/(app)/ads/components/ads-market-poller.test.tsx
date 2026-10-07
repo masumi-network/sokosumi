@@ -1,4 +1,4 @@
-import { render } from "@testing-library/react";
+import { act, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { AdsMarketPoller } from "./ads-market-poller";
@@ -16,18 +16,21 @@ describe("AdsMarketPoller", () => {
   });
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
   });
+
+  const advance = (ms: number) => act(() => vi.advanceTimersByTime(ms));
 
   it("refreshes the route every 20 seconds", () => {
     render(<AdsMarketPoller />);
 
-    vi.advanceTimersByTime(19_999);
+    advance(19_999);
     expect(refreshMock).not.toHaveBeenCalled();
 
-    vi.advanceTimersByTime(1);
+    advance(1);
     expect(refreshMock).toHaveBeenCalledTimes(1);
 
-    vi.advanceTimersByTime(40_000);
+    advance(40_000);
     expect(refreshMock).toHaveBeenCalledTimes(3);
   });
 
@@ -35,8 +38,41 @@ describe("AdsMarketPoller", () => {
     const { unmount } = render(<AdsMarketPoller />);
 
     unmount();
-    vi.advanceTimersByTime(60_000);
+    advance(60_000);
 
     expect(refreshMock).not.toHaveBeenCalled();
+  });
+
+  it("waits for a refresh in flight before asking again", async () => {
+    let finish = () => {};
+    refreshMock.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        finish = resolve;
+      }),
+    );
+    render(<AdsMarketPoller />);
+
+    advance(20_000);
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    advance(60_000);
+    expect(refreshMock).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish());
+    advance(20_000);
+    expect(refreshMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips ticks while the tab is hidden", () => {
+    const visibility = vi.spyOn(document, "visibilityState", "get");
+    visibility.mockReturnValue("hidden");
+    render(<AdsMarketPoller />);
+
+    advance(60_000);
+    expect(refreshMock).not.toHaveBeenCalled();
+
+    visibility.mockReturnValue("visible");
+    advance(20_000);
+    expect(refreshMock).toHaveBeenCalledTimes(1);
   });
 });
