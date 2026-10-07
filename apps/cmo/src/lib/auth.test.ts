@@ -30,7 +30,8 @@ const CMO = "https://app.cmo.xyz";
 const CORE = "https://core.test";
 const ISSUER = `${CORE}/auth`;
 const CLIENT_ID = "cmo-client";
-const CLIENT_SECRET = "cmo-secret";
+// Characters that form-url-encoding and `encodeURIComponent` treat differently.
+const CLIENT_SECRET = "cmo secret!(1)";
 const CALLBACK = `${CMO}/api/auth/callback/sokosumi`;
 const TWO_HOURS_S = 7_200;
 /** How long CMO waits before asking an unreachable Core again. */
@@ -89,14 +90,13 @@ async function createFakeCore(): Promise<FakeCore> {
   }
 
   // Core registers CMO as `client_secret_basic` and refuses a body secret.
+  // It form-url-decodes each half of the Basic credential (RFC 6749 2.3.1).
   function hasClientCredentials(request: Request, form: URLSearchParams) {
     const basic = request.headers.get("authorization");
-    return (
-      !form.has("client_secret") &&
-      basic?.startsWith("Basic ") === true &&
-      atob(basic.slice(6)) ===
-        `${encodeURIComponent(CLIENT_ID)}:${encodeURIComponent(CLIENT_SECRET)}`
-    );
+    if (form.has("client_secret") || !basic?.startsWith("Basic ")) return false;
+    const [id, secret] = atob(basic.slice(6)).split(":");
+    const decode = (value = "") => new URLSearchParams(`v=${value}`).get("v");
+    return decode(id) === CLIENT_ID && decode(secret) === CLIENT_SECRET;
   }
 
   async function issueTokens(nonce?: string) {

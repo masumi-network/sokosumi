@@ -324,8 +324,8 @@ export function createCmoAuth(config: CmoAuthConfig) {
             discoveryUrl,
             clientId: config.clientId,
             clientSecret: config.clientSecret,
-            // Core registers CMO as `client_secret_basic` and refuses a
-            // body secret, Better Auth's default.
+            // Better Auth defaults to `client_secret_post`; Core registers
+            // CMO as `client_secret_basic` and refuses a body secret.
             tokenEndpointAuth: { method: "client_secret_basic" },
             scopes: [...OAUTH_PROVIDER_SCOPES],
             pkce: true,
