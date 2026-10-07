@@ -34,10 +34,10 @@ const TEXT_AD: AdMarketAd = {
   lastShown: null,
 };
 
-function renderAds(ads: AdMarketAd[] = [IMAGE_AD, TEXT_AD]) {
+function renderAds(ads: AdMarketAd[] = [IMAGE_AD, TEXT_AD], notice?: string) {
   render(
     <NextIntlClientProvider locale="en" messages={messages}>
-      <AdsMarketAdGrid ads={ads} fetchedAt={hoursAgo(1)} />
+      <AdsMarketAdGrid ads={ads} fetchedAt={hoursAgo(1)} notice={notice} />
     </NextIntlClientProvider>,
   );
 }
@@ -47,6 +47,20 @@ describe("AdsMarketAdGrid", () => {
     renderAds();
 
     expect(screen.getByText("Updated 1 hour ago")).toBeVisible();
+  });
+
+  it("puts a notice on the same line as when it was fetched", () => {
+    renderAds([IMAGE_AD], "Refreshing…");
+
+    expect(screen.getByText("Updated 1 hour ago · Refreshing…")).toBeVisible();
+  });
+
+  it("never says an ad was last shown in the future", () => {
+    renderAds([{ ...IMAGE_AD, lastShown: new Date(Date.now() + 25_000) }]);
+
+    expect(screen.getByRole("listitem")).toHaveTextContent(
+      "Image · Last shown now",
+    );
   });
 
   it("shows an image ad with its advertiser, format and last shown", () => {
