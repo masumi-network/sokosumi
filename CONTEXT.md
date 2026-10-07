@@ -91,7 +91,7 @@ The product at cmo.xyz: an AI agent that runs a business's marketing end to end 
 _Avoid_: Sokosumi marketing module, second Web app, CMO account
 
 **Cuso**:
-CMO's AI marketer and mascot: a Soko Bot on the CMO profile that works in the Workspace the person chose in identity onboarding (or already preferred), never in a Workspace made only for him.
+CMO's mascot, and for now the name of every person's CMO agent: a Soko Bot on the CMO profile that works in the person's preferred Workspace. The brand guide wants each person to name their own agent, so Cuso as the agent's name is temporary.
 _Avoid_: CMO bot, marketing assistant, the CMO (that is the product)
 
 **Hiring Cuso**:
