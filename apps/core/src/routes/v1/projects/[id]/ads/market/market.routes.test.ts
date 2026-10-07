@@ -85,6 +85,7 @@ const keywordsResult = {
 };
 
 const adsResult = {
+  status: "ready",
   ads: [
     {
       creativeId: "CR1",
@@ -299,6 +300,7 @@ describe("Project ads market routes", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({
         data: {
+          status: "ready",
           fetchedAt: "2026-10-01T11:00:00.000Z",
           ads: [
             {
@@ -329,6 +331,18 @@ describe("Project ads market routes", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toMatchObject({ data: { ads: [] } });
     });
+
+    it.each(["gathering", "failed"])(
+      "returns status %s with a null fetchedAt before the first snapshot",
+      async (status) => {
+        m.listAds.mockResolvedValue({ status, ads: [], fetchedAt: null });
+        const response = await createApp().request(url);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toMatchObject({
+          data: { status, ads: [], fetchedAt: null },
+        });
+      },
+    );
 
     it("is 404 without a market profile or for a foreign Project", async () => {
       m.listAds.mockRejectedValue(notFound("Market profile not set"));

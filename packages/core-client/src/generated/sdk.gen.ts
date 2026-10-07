@@ -3258,7 +3258,7 @@ export const getProjectsByIdAdsMarketKeywords = <ThrowOnError extends boolean = 
 });
 
 /**
- * Recent Google ads, with preview images, of the biggest advertisers for the Project's market profile keywords: at most 40 ads of the last 30 days, last shown first. Cached for 24h per profile. 404 until a market profile is saved. Requires an interactive user session in the Project's Workspace.
+ * Recent Google ads, with preview images, of the search competitors for the Project's market profile keywords (domains ranking organically for them): at most 40 ads of the last 30 days, last shown first. DataForSEO needs a few minutes for them, so a call may answer status gathering: poll every ~20s until ready. Ready ads are cached for 24h per profile; while gathering or failed, ads are the previous snapshot's, if any, and a failed lookup is not retried for an hour. 404 until a market profile is saved. Requires an interactive user session in the Project's Workspace.
  */
 export const getProjectsByIdAdsMarketAds = <ThrowOnError extends boolean = false>(options: Options<GetProjectsByIdAdsMarketAdsData, ThrowOnError>): RequestResult<GetProjectsByIdAdsMarketAdsResponses, GetProjectsByIdAdsMarketAdsErrors, ThrowOnError> => (options.client ?? client).get<GetProjectsByIdAdsMarketAdsResponses, GetProjectsByIdAdsMarketAdsErrors, ThrowOnError>({
     responseTransformer: getProjectsByIdAdsMarketAdsResponseTransformer,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  getProjectsByIdAdsMarketAdsResponseTransformer,
   getProjectsByIdAdsMarketResponseTransformer,
   postProjectsByIdAdsConnectionsFinalizeResponseTransformer,
 } from "./generated/transformers.gen.js";
@@ -60,5 +61,27 @@ describe("generated response transformers keep nullable objects null-safe", () =
     });
 
     expect(result.data.profile?.updatedAt).toBeInstanceOf(Date);
+  });
+
+  it("ad market ads: fetchedAt null (no snapshot yet)", async () => {
+    const result = await getProjectsByIdAdsMarketAdsResponseTransformer({
+      data: { status: "gathering", ads: [], fetchedAt: null },
+      meta,
+    });
+
+    expect(result.data.fetchedAt).toBeNull();
+  });
+
+  it("ad market ads: fetchedAt present has its date revived", async () => {
+    const result = await getProjectsByIdAdsMarketAdsResponseTransformer({
+      data: {
+        status: "ready",
+        ads: [],
+        fetchedAt: "2026-10-01T11:00:00.000Z",
+      },
+      meta,
+    });
+
+    expect(result.data.fetchedAt).toBeInstanceOf(Date);
   });
 });

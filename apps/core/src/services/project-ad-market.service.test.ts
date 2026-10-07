@@ -9,28 +9,38 @@ const m = vi.hoisted(() => {
     requireScopedProject: vi.fn(),
     requireLockedOpenProject: vi.fn(),
     fetchMarketKeywords: vi.fn(),
-    fetchMarketAds: vi.fn(),
+    postSerpTasks: vi.fn(),
+    postAdsSearchTasks: vi.fn(),
+    getTaskResult: vi.fn(),
     profileFindUnique: vi.fn(),
     profileUpsert: vi.fn(),
     snapshotFindUnique: vi.fn(),
     snapshotUpsert: vi.fn(),
     snapshotDeleteMany: vi.fn(),
+    jobFindUnique: vi.fn(),
+    jobCreateMany: vi.fn(),
+    jobUpdateMany: vi.fn(),
+    jobDeleteMany: vi.fn(),
   };
-  return {
-    ...fns,
-    tx: {
-      $transaction: (ops: Promise<unknown>[]) => Promise.all(ops),
-      projectAdMarketProfile: {
-        findUnique: fns.profileFindUnique,
-        upsert: fns.profileUpsert,
-      },
-      projectAdMarketSnapshot: {
-        findUnique: fns.snapshotFindUnique,
-        upsert: fns.snapshotUpsert,
-        deleteMany: fns.snapshotDeleteMany,
-      },
+  const tx: Record<string, unknown> = {
+    $transaction: (run: (client: unknown) => unknown) => run(tx),
+    projectAdMarketProfile: {
+      findUnique: fns.profileFindUnique,
+      upsert: fns.profileUpsert,
+    },
+    projectAdMarketSnapshot: {
+      findUnique: fns.snapshotFindUnique,
+      upsert: fns.snapshotUpsert,
+      deleteMany: fns.snapshotDeleteMany,
+    },
+    projectAdMarketAdsJob: {
+      findUnique: fns.jobFindUnique,
+      createMany: fns.jobCreateMany,
+      updateMany: fns.jobUpdateMany,
+      deleteMany: fns.jobDeleteMany,
     },
   };
+  return { ...fns, tx };
 });
 
 vi.mock("@/services/project-social-connections.service", () => ({
@@ -40,7 +50,9 @@ vi.mock("@/services/project-social-connections.service", () => ({
 vi.mock("@/lib/ads/dataforseo", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/ads/dataforseo")>()),
   fetchMarketKeywords: m.fetchMarketKeywords,
-  fetchMarketAds: m.fetchMarketAds,
+  postSerpTasks: m.postSerpTasks,
+  postAdsSearchTasks: m.postAdsSearchTasks,
+  getTaskResult: m.getTaskResult,
 }));
 vi.mock("@/lib/db/transaction", () => ({
   serializableTransaction: (run: (client: typeof m.tx) => unknown) => run(m.tx),
@@ -97,7 +109,7 @@ const marketAd: MarketAd = {
 function requestKey(input: {
   keywords: string[];
   locationCode: number;
-  languageCode?: string;
+  languageCode: string;
 }) {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
@@ -116,7 +128,12 @@ describe("project ad market service", () => {
     m.requireLockedOpenProject.mockResolvedValue(undefined);
     m.profileFindUnique.mockResolvedValue(storedProfile);
     m.fetchMarketKeywords.mockResolvedValue([keyword]);
-    m.fetchMarketAds.mockResolvedValue([marketAd]);
+    m.jobFindUnique.mockResolvedValue(null);
+    m.jobCreateMany.mockResolvedValue({ count: 1 });
+    m.jobUpdateMany.mockResolvedValue({ count: 1 });
+    m.jobDeleteMany.mockResolvedValue({ count: 1 });
+    m.postSerpTasks.mockResolvedValue(["s1", "s2"]);
+    m.postAdsSearchTasks.mockResolvedValue(["a1", "a2"]);
     m.snapshotDeleteMany.mockResolvedValue({ count: 0 });
     m.snapshotUpsert.mockImplementation(
       async (args: { create: { fetchedAt: Date } }) => ({
@@ -339,65 +356,639 @@ describe("project ad market service", () => {
   });
 
   describe("ads", () => {
-    // Ads do not depend on the language.
-    const ADS_KEY = requestKey({
-      keywords: ["running shoes", "trail"],
-      locationCode: 2276,
+    const SECOND = 1000;
+    const MINUTE = 60 * SECOND;
+    const ago = (ms: number) => new Date(NOW.getTime() - ms);
+    const later = (ms: number) => new Date(NOW.getTime() + ms);
+    /** What a check or start claims: the lease, 90s ahead. */
+    const LEASE = later(90 * SECOND);
+    /** The lease holder's guard on every write after the claim. */
+    const LEASED = {
+      projectId: PROJECT_ID,
+      requestKey: KEY,
+      nextCheckAt: LEASE,
+    };
+    /** After a check the job is due again in 20s. */
+    const RELEASED = { nextCheckAt: later(20 * SECOND) };
+    const job = (overrides: Record<string, unknown> = {}) => ({
+      projectId: PROJECT_ID,
+      requestKey: KEY,
+      stage: "SERP",
+      pendingTaskIds: ["s1", "s2"],
+      collected: [],
+      startedAt: ago(2 * MINUTE),
+      nextCheckAt: ago(SECOND),
+      ...overrides,
     });
+    const organicItem = (domain: string, rank: number) => ({
+      type: "organic",
+      domain,
+      rank_group: rank,
+    });
+    const adItem = (creativeId: string, lastShown: string) => ({
+      creative_id: creativeId,
+      advertiser_id: "AR1",
+      title: "Acme Shoes",
+      format: "text",
+      last_shown: lastShown,
+    });
+    const done = (...items: unknown[]) => ({ state: "done", items });
+    const pending = { state: "pending" };
+    const failed = { state: "failed" };
+    /** Answers getTaskResult by task id. */
+    function mockTasks(byId: Record<string, unknown>) {
+      m.getTaskResult.mockImplementation(async (_kind: string, id: string) => {
+        return byId[id];
+      });
+    }
+    /** The data of the writes made under the lease (not the claim). */
+    const leasedWrites = () =>
+      m.jobUpdateMany.mock.calls
+        .filter(
+          ([args]) => args.where.nextCheckAt?.getTime() === LEASE.getTime(),
+        )
+        .map(([args]) => args.data);
+    const staleSnapshot = {
+      payload: [marketAd],
+      fetchedAt: ago(25 * HOUR),
+    };
 
     it("is 404 without a profile and never calls DataForSEO", async () => {
       m.profileFindUnique.mockResolvedValue(null);
       await expect(listProjectAdMarketAds(scope)).rejects.toMatchObject({
         status: 404,
       });
-      expect(m.fetchMarketAds).not.toHaveBeenCalled();
+      expect(m.postSerpTasks).not.toHaveBeenCalled();
+      expect(m.jobFindUnique).not.toHaveBeenCalled();
     });
 
-    it("fetches on a cache miss and stores the ads under the ads key", async () => {
-      m.snapshotFindUnique.mockResolvedValue(null);
-      expect(await listProjectAdMarketAds(scope)).toEqual({
-        ads: [marketAd],
-        fetchedAt: NOW,
-      });
-      expect(m.fetchMarketAds).toHaveBeenCalledWith(
-        expect.objectContaining({
-          keywords: ["Running Shoes", "trail"],
-          locationCode: 2276,
-        }),
-      );
-      expect(m.snapshotUpsert).toHaveBeenCalledWith(
-        expect.objectContaining({
-          create: expect.objectContaining({
-            kind: "ads",
-            requestKey: ADS_KEY,
-            payload: [marketAd],
-            fetchedAt: NOW,
-          }),
-        }),
-      );
-    });
-
-    it("serves a fresh snapshot without calling DataForSEO", async () => {
-      const fetchedAt = new Date(NOW.getTime() - HOUR);
+    it("serves a fresh snapshot as ready without touching the job or DataForSEO", async () => {
+      const fetchedAt = ago(HOUR);
       m.snapshotFindUnique.mockResolvedValue({
         payload: [marketAd],
         fetchedAt,
       });
       expect(await listProjectAdMarketAds(scope)).toEqual({
+        status: "ready",
         ads: [marketAd],
         fetchedAt,
       });
-      expect(m.fetchMarketAds).not.toHaveBeenCalled();
+      expect(m.snapshotFindUnique).toHaveBeenCalledWith({
+        where: {
+          projectId_kind_requestKey: {
+            projectId: PROJECT_ID,
+            kind: "ads",
+            requestKey: KEY,
+          },
+        },
+      });
+      expect(m.jobFindUnique).not.toHaveBeenCalled();
+      expect(m.postSerpTasks).not.toHaveBeenCalled();
     });
 
-    it("caches an empty list", async () => {
-      m.snapshotFindUnique.mockResolvedValue(null);
-      m.fetchMarketAds.mockResolvedValue([]);
-      await listProjectAdMarketAds(scope);
-      expect(m.snapshotUpsert.mock.calls[0]?.[0].create.payload).toEqual([]);
+    describe("starting a job", () => {
+      it("claims the row with a lease, queues the SERP tasks, then releases", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        expect(await listProjectAdMarketAds(scope)).toEqual({
+          status: "gathering",
+          ads: [],
+          fetchedAt: null,
+        });
+        expect(m.jobCreateMany).toHaveBeenCalledWith({
+          data: {
+            projectId: PROJECT_ID,
+            requestKey: KEY,
+            stage: "SERP",
+            pendingTaskIds: [],
+            collected: [],
+            startedAt: NOW,
+            nextCheckAt: LEASE,
+          },
+          skipDuplicates: true,
+        });
+        expect(m.postSerpTasks).toHaveBeenCalledWith(
+          expect.objectContaining({
+            keywords: ["Running Shoes", "trail"],
+            locationCode: 2276,
+            languageCode: "de",
+          }),
+        );
+        expect(m.jobUpdateMany).toHaveBeenCalledWith({
+          where: LEASED,
+          data: { pendingTaskIds: ["s1", "s2"], ...RELEASED },
+        });
+        expect(m.jobCreateMany.mock.invocationCallOrder[0]).toBeLessThan(
+          m.postSerpTasks.mock.invocationCallOrder[0] ?? 0,
+        );
+      });
+
+      it("returns the stale snapshot's ads while the new job gathers", async () => {
+        m.snapshotFindUnique.mockResolvedValue(staleSnapshot);
+        expect(await listProjectAdMarketAds(scope)).toEqual({
+          status: "gathering",
+          ads: [marketAd],
+          fetchedAt: staleSnapshot.fetchedAt,
+        });
+        expect(m.postSerpTasks).toHaveBeenCalledTimes(1);
+      });
+
+      it("does not post when another request created the job first", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        m.jobCreateMany.mockResolvedValue({ count: 0 });
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.postSerpTasks).not.toHaveBeenCalled();
+      });
+
+      it("releases the claim, so the next poll starts again, when queueing fails", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        m.postSerpTasks.mockRejectedValue(new Error("boom"));
+        await expect(listProjectAdMarketAds(scope)).rejects.toThrow("boom");
+        expect(m.jobDeleteMany).toHaveBeenCalledWith({ where: LEASED });
+      });
+
+      it("fails the job, without reposting later, when DataForSEO refuses every SERP task", async () => {
+        m.snapshotFindUnique.mockResolvedValue(staleSnapshot);
+        m.postSerpTasks.mockResolvedValue([]);
+        expect(await listProjectAdMarketAds(scope)).toEqual({
+          status: "failed",
+          ads: [marketAd],
+          fetchedAt: staleSnapshot.fetchedAt,
+        });
+        expect(m.jobUpdateMany).toHaveBeenCalledWith({
+          where: LEASED,
+          data: {
+            stage: "FAILED",
+            pendingTaskIds: [],
+            collected: [],
+            startedAt: NOW,
+            ...RELEASED,
+          },
+        });
+        expect(m.jobDeleteMany).not.toHaveBeenCalled();
+        // The next poll finds the failed job and posts nothing.
+        m.jobFindUnique.mockResolvedValue(
+          job({ stage: "FAILED", pendingTaskIds: [], startedAt: NOW }),
+        );
+        expect((await listProjectAdMarketAds(scope)).status).toBe("failed");
+        expect(m.postSerpTasks).toHaveBeenCalledTimes(1);
+      });
+
+      it("discards a job of another profile and starts a new one", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        const old = job({ requestKey: "other", stage: "ADS" });
+        m.jobFindUnique.mockResolvedValue(old);
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.jobUpdateMany).toHaveBeenCalledWith({
+          where: { projectId: PROJECT_ID, nextCheckAt: old.nextCheckAt },
+          data: expect.objectContaining({
+            requestKey: KEY,
+            stage: "SERP",
+            pendingTaskIds: [],
+            collected: [],
+            startedAt: NOW,
+            nextCheckAt: LEASE,
+          }),
+        });
+        expect(m.jobCreateMany).not.toHaveBeenCalled();
+        expect(m.getTaskResult).not.toHaveBeenCalled();
+        expect(m.postSerpTasks).toHaveBeenCalledTimes(1);
+      });
+
+      it("does not post when another request replaced the job first", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        m.jobFindUnique.mockResolvedValue(job({ requestKey: "other" }));
+        m.jobUpdateMany.mockResolvedValue({ count: 0 });
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.postSerpTasks).not.toHaveBeenCalled();
+      });
     });
 
-    it("keeps the snapshot when only the language changes", async () => {
+    describe("failed job", () => {
+      it("is reported as failed, with the stale ads, for an hour without reposting", async () => {
+        m.snapshotFindUnique.mockResolvedValue(staleSnapshot);
+        m.jobFindUnique.mockResolvedValue(
+          job({
+            stage: "FAILED",
+            pendingTaskIds: [],
+            startedAt: ago(59 * MINUTE),
+          }),
+        );
+        expect(await listProjectAdMarketAds(scope)).toEqual({
+          status: "failed",
+          ads: [marketAd],
+          fetchedAt: staleSnapshot.fetchedAt,
+        });
+        expect(m.postSerpTasks).not.toHaveBeenCalled();
+        expect(m.getTaskResult).not.toHaveBeenCalled();
+        expect(m.jobUpdateMany).not.toHaveBeenCalled();
+      });
+
+      it("starts a new job after an hour", async () => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+        m.jobFindUnique.mockResolvedValue(
+          job({
+            stage: "FAILED",
+            pendingTaskIds: [],
+            startedAt: ago(61 * MINUTE),
+          }),
+        );
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.postSerpTasks).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe("checking a job", () => {
+      beforeEach(() => {
+        m.snapshotFindUnique.mockResolvedValue(null);
+      });
+
+      it("does not check before nextCheckAt: neither DataForSEO nor a claim", async () => {
+        m.jobFindUnique.mockResolvedValue(job({ nextCheckAt: later(SECOND) }));
+        expect(await listProjectAdMarketAds(scope)).toEqual({
+          status: "gathering",
+          ads: [],
+          fetchedAt: null,
+        });
+        expect(m.jobUpdateMany).not.toHaveBeenCalled();
+        expect(m.getTaskResult).not.toHaveBeenCalled();
+      });
+
+      it("leaves a job another request is checking or still starting alone, even if it has nothing pending", async () => {
+        // Held under a 90s lease: a SERP job whose tasks are still being posted.
+        m.jobFindUnique.mockResolvedValue(
+          job({ pendingTaskIds: [], nextCheckAt: later(80 * SECOND) }),
+        );
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.jobUpdateMany).not.toHaveBeenCalled();
+        expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+        expect(m.postSerpTasks).not.toHaveBeenCalled();
+      });
+
+      it("claims a lease on the nextCheckAt it saw", async () => {
+        const seen = job();
+        m.jobFindUnique.mockResolvedValue(seen);
+        mockTasks({ s1: pending, s2: pending });
+        await listProjectAdMarketAds(scope);
+        expect(m.jobUpdateMany).toHaveBeenNthCalledWith(1, {
+          where: {
+            projectId: PROJECT_ID,
+            requestKey: KEY,
+            nextCheckAt: seen.nextCheckAt,
+          },
+          data: { nextCheckAt: LEASE },
+        });
+      });
+
+      it("leaves the check to the request that won the claim", async () => {
+        m.jobFindUnique.mockResolvedValue(job());
+        m.jobUpdateMany.mockResolvedValue({ count: 0 });
+        expect((await listProjectAdMarketAds(scope)).status).toBe("gathering");
+        expect(m.getTaskResult).not.toHaveBeenCalled();
+        expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+        expect(m.postSerpTasks).not.toHaveBeenCalled();
+      });
+
+      describe("SERP stage", () => {
+        it("keeps what finished, as ranks per keyword, waits for the rest and releases the lease", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({
+            s1: done(organicItem("www.acme.com", 2), { type: "local_pack" }),
+            s2: pending,
+          });
+          expect((await listProjectAdMarketAds(scope)).status).toBe(
+            "gathering",
+          );
+          expect(m.getTaskResult).toHaveBeenCalledWith("organic", "s1");
+          expect(leasedWrites()).toEqual([
+            {
+              pendingTaskIds: ["s2"],
+              collected: [[{ domain: "acme.com", rank: 2 }]],
+              ...RELEASED,
+            },
+          ]);
+          expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+        });
+
+        it("keeps the ranks of earlier checks", async () => {
+          const earlier = [[{ domain: "acme.com", rank: 2 }]];
+          m.jobFindUnique.mockResolvedValue(
+            job({ pendingTaskIds: ["s2"], collected: earlier }),
+          );
+          mockTasks({ s2: pending });
+          await listProjectAdMarketAds(scope);
+          expect(leasedWrites()).toEqual([
+            { pendingTaskIds: ["s2"], collected: earlier, ...RELEASED },
+          ]);
+        });
+
+        it("queues one ads task per competitor, strongest first, and moves to the ADS stage", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({
+            s1: done(organicItem("solo.com", 1), organicItem("both.com", 5)),
+            s2: done(
+              organicItem("both.com", 2),
+              organicItem("www.reddit.com", 1),
+            ),
+          });
+          expect((await listProjectAdMarketAds(scope)).status).toBe(
+            "gathering",
+          );
+          expect(m.postAdsSearchTasks).toHaveBeenCalledWith(
+            ["both.com", "solo.com"],
+            2276,
+            NOW,
+          );
+          expect(leasedWrites()).toEqual([
+            {
+              stage: "ADS",
+              pendingTaskIds: ["a1", "a2"],
+              collected: [],
+              startedAt: NOW,
+              ...RELEASED,
+            },
+          ]);
+        });
+
+        it("drops a failed task and goes on with the others", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(organicItem("acme.com", 1)), s2: failed });
+          await listProjectAdMarketAds(scope);
+          expect(m.postAdsSearchTasks).toHaveBeenCalledWith(
+            ["acme.com"],
+            2276,
+            NOW,
+          );
+        });
+
+        it("drops tasks still queued after 30 minutes and goes on with what finished", async () => {
+          m.jobFindUnique.mockResolvedValue(
+            job({
+              startedAt: ago(31 * MINUTE),
+              pendingTaskIds: ["s2"],
+              collected: [[{ domain: "acme.com", rank: 1 }]],
+            }),
+          );
+          mockTasks({ s2: pending });
+          await listProjectAdMarketAds(scope);
+          expect(m.postAdsSearchTasks).toHaveBeenCalledWith(
+            ["acme.com"],
+            2276,
+            NOW,
+          );
+        });
+
+        it("keeps waiting for queued tasks before 30 minutes", async () => {
+          m.jobFindUnique.mockResolvedValue(
+            job({ startedAt: ago(29 * MINUTE), pendingTaskIds: ["s2"] }),
+          );
+          mockTasks({ s2: pending });
+          await listProjectAdMarketAds(scope);
+          expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+          expect(leasedWrites()).toEqual([
+            { pendingTaskIds: ["s2"], collected: [], ...RELEASED },
+          ]);
+        });
+
+        it("writes an empty snapshot and deletes the job when nobody ranks", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(), s2: done(organicItem("reddit.com", 1)) });
+          expect(await listProjectAdMarketAds(scope)).toEqual({
+            status: "ready",
+            ads: [],
+            fetchedAt: NOW,
+          });
+          expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+          expect(m.snapshotUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+              create: expect.objectContaining({ kind: "ads", payload: [] }),
+            }),
+          );
+          expect(m.jobDeleteMany).toHaveBeenCalledWith({ where: LEASED });
+        });
+
+        it("fails the job when every SERP task failed, without queueing ads", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: failed, s2: failed });
+          expect((await listProjectAdMarketAds(scope)).status).toBe("failed");
+          expect(leasedWrites()).toEqual([
+            {
+              stage: "FAILED",
+              pendingTaskIds: [],
+              collected: [],
+              startedAt: NOW,
+              ...RELEASED,
+            },
+          ]);
+          expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+          expect(m.snapshotUpsert).not.toHaveBeenCalled();
+        });
+
+        it("fails the job when DataForSEO refuses every ads task", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(organicItem("acme.com", 1)), s2: done() });
+          m.postAdsSearchTasks.mockResolvedValue([]);
+          expect((await listProjectAdMarketAds(scope)).status).toBe("failed");
+          expect(leasedWrites()).toEqual([
+            expect.objectContaining({ stage: "FAILED" }),
+          ]);
+        });
+
+        it("keeps the job, still leased, when queueing the ads fails in transport: it retries after the lease", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(organicItem("acme.com", 1)), s2: done() });
+          m.postAdsSearchTasks.mockRejectedValue(new Error("boom"));
+          await expect(listProjectAdMarketAds(scope)).rejects.toThrow("boom");
+          expect(leasedWrites()).toEqual([]);
+          expect(m.jobDeleteMany).not.toHaveBeenCalled();
+        });
+
+        it("restarts, through the claim path, a job whose stored ranks no longer parse", async () => {
+          m.jobFindUnique.mockResolvedValue(job({ collected: [{ nope: 1 }] }));
+          expect((await listProjectAdMarketAds(scope)).status).toBe(
+            "gathering",
+          );
+          expect(m.getTaskResult).not.toHaveBeenCalled();
+          expect(m.jobUpdateMany).toHaveBeenNthCalledWith(2, {
+            where: { projectId: PROJECT_ID, nextCheckAt: LEASE },
+            data: expect.objectContaining({
+              stage: "SERP",
+              nextCheckAt: LEASE,
+            }),
+          });
+          expect(m.postSerpTasks).toHaveBeenCalledTimes(1);
+        });
+      });
+
+      describe("ADS stage", () => {
+        const adsJob = (overrides: Record<string, unknown> = {}) =>
+          job({ stage: "ADS", pendingTaskIds: ["a1", "a2"], ...overrides });
+
+        it("keeps a competitor's 4 newest ads and waits for the rest", async () => {
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({
+            a1: done(
+              ...[1, 2, 3, 4, 5].map((day) =>
+                adItem(`D${day}`, `2026-09-0${day} 00:00:00 +00:00`),
+              ),
+            ),
+            a2: pending,
+          });
+          expect((await listProjectAdMarketAds(scope)).status).toBe(
+            "gathering",
+          );
+          expect(m.getTaskResult).toHaveBeenCalledWith("ads_search", "a1");
+          const [data] = leasedWrites();
+          expect(data.pendingTaskIds).toEqual(["a2"]);
+          expect(
+            data.collected[0].map((ad: MarketAd) => ad.creativeId),
+          ).toEqual(["D5", "D4", "D3", "D2"]);
+          expect(m.snapshotUpsert).not.toHaveBeenCalled();
+        });
+
+        it("writes the merged ads as the snapshot, drops other keys and deletes the job", async () => {
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({
+            a1: done(adItem("CR1", "2026-09-10 00:00:00 +00:00")),
+            a2: done(
+              adItem("CR1", "2026-09-20 00:00:00 +00:00"),
+              adItem("CR2", "2026-09-15 00:00:00 +00:00"),
+            ),
+          });
+          const result = await listProjectAdMarketAds(scope);
+          expect(result.status).toBe("ready");
+          expect(result.fetchedAt).toEqual(NOW);
+          expect(result.ads.map((ad) => [ad.creativeId, ad.lastShown])).toEqual(
+            [
+              ["CR1", "2026-09-20T00:00:00.000Z"],
+              ["CR2", "2026-09-15T00:00:00.000Z"],
+            ],
+          );
+          expect(m.snapshotUpsert).toHaveBeenCalledWith(
+            expect.objectContaining({
+              create: expect.objectContaining({
+                projectId: PROJECT_ID,
+                kind: "ads",
+                requestKey: KEY,
+                payload: result.ads,
+                fetchedAt: NOW,
+              }),
+              update: { payload: result.ads, fetchedAt: NOW },
+            }),
+          );
+          expect(m.snapshotDeleteMany).toHaveBeenCalledWith({
+            where: {
+              projectId: PROJECT_ID,
+              kind: "ads",
+              NOT: { requestKey: KEY },
+            },
+          });
+          expect(m.jobDeleteMany).toHaveBeenCalledWith({ where: LEASED });
+        });
+
+        it("writes nothing when the lease is gone, so a newer job and its snapshot survive", async () => {
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({
+            a1: done(adItem("CR1", "2026-09-10 00:00:00 +00:00")),
+            a2: done(),
+          });
+          // A profile change replaced the job while this check ran.
+          m.jobDeleteMany.mockResolvedValue({ count: 0 });
+          const result = await listProjectAdMarketAds(scope);
+          expect(result.status).toBe("gathering");
+          expect(m.snapshotUpsert).not.toHaveBeenCalled();
+          expect(m.snapshotDeleteMany).not.toHaveBeenCalled();
+        });
+
+        it("adds the ads of earlier checks", async () => {
+          m.jobFindUnique.mockResolvedValue(
+            adsJob({ pendingTaskIds: ["a2"], collected: [[marketAd]] }),
+          );
+          mockTasks({ a2: done(adItem("CR2", "2026-09-15 00:00:00 +00:00")) });
+          const { ads } = await listProjectAdMarketAds(scope);
+          expect(ads.map((ad) => ad.creativeId)).toEqual(["CR1", "CR2"]);
+        });
+
+        it("is ready with no ads when competitors have none, not failed", async () => {
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({ a1: done(), a2: done() });
+          expect(await listProjectAdMarketAds(scope)).toEqual({
+            status: "ready",
+            ads: [],
+            fetchedAt: NOW,
+          });
+        });
+
+        it("fails the job, without reposting, when every ads task failed", async () => {
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({ a1: failed, a2: failed });
+          expect((await listProjectAdMarketAds(scope)).status).toBe("failed");
+          expect(leasedWrites()).toEqual([
+            expect.objectContaining({ stage: "FAILED" }),
+          ]);
+          expect(m.postAdsSearchTasks).not.toHaveBeenCalled();
+          expect(m.postSerpTasks).not.toHaveBeenCalled();
+          expect(m.snapshotUpsert).not.toHaveBeenCalled();
+        });
+
+        it("drops ads tasks still queued after 30 minutes", async () => {
+          m.jobFindUnique.mockResolvedValue(
+            adsJob({
+              startedAt: ago(31 * MINUTE),
+              pendingTaskIds: ["a2"],
+              collected: [[marketAd]],
+            }),
+          );
+          mockTasks({ a2: pending });
+          const result = await listProjectAdMarketAds(scope);
+          expect(result).toMatchObject({ status: "ready", ads: [marketAd] });
+        });
+
+        it("returns the stale ads while it waits", async () => {
+          m.snapshotFindUnique.mockResolvedValue(staleSnapshot);
+          m.jobFindUnique.mockResolvedValue(adsJob());
+          mockTasks({ a1: pending, a2: pending });
+          expect(await listProjectAdMarketAds(scope)).toEqual({
+            status: "gathering",
+            ads: [marketAd],
+            fetchedAt: staleSnapshot.fetchedAt,
+          });
+        });
+      });
+
+      describe("a request that lost its lease", () => {
+        it.each([
+          ["a pending stage", { s1: pending, s2: pending }],
+          ["a failed stage", { s1: failed, s2: failed }],
+        ])(
+          "writes nothing more after %s, and does not report failure",
+          async (_n, tasks) => {
+            m.jobFindUnique.mockResolvedValue(job());
+            mockTasks(tasks);
+            // The claim wins, every write after it finds another owner.
+            m.jobUpdateMany
+              .mockResolvedValueOnce({ count: 1 })
+              .mockResolvedValue({ count: 0 });
+            expect((await listProjectAdMarketAds(scope)).status).toBe(
+              "gathering",
+            );
+          },
+        );
+
+        it("does not post the ads tasks twice for a second poll during the check", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(organicItem("acme.com", 1)), s2: done() });
+          await listProjectAdMarketAds(scope);
+          expect(m.postAdsSearchTasks).toHaveBeenCalledTimes(1);
+          // The second poll sees the lease and acts on nothing.
+          m.jobFindUnique.mockResolvedValue(job({ nextCheckAt: LEASE }));
+          await listProjectAdMarketAds(scope);
+          expect(m.postAdsSearchTasks).toHaveBeenCalledTimes(1);
+          expect(m.getTaskResult).toHaveBeenCalledTimes(2);
+        });
+      });
+    });
+
+    it("keys the snapshot on the profile: a language change finds a different one", async () => {
       m.snapshotFindUnique.mockResolvedValue(null);
       await listProjectAdMarketAds(scope);
       m.profileFindUnique.mockResolvedValue({
@@ -408,7 +999,8 @@ describe("project ad market service", () => {
       const keys = m.snapshotFindUnique.mock.calls.map(
         ([args]) => args.where.projectId_kind_requestKey.requestKey,
       );
-      expect(keys).toEqual([ADS_KEY, ADS_KEY]);
+      expect(keys[0]).toBe(KEY);
+      expect(keys[1]).not.toBe(KEY);
     });
   });
 });

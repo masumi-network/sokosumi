@@ -2727,7 +2727,9 @@ const adMarketAdSchemaResponseTransformer = (data: any) => {
 
 const listAdMarketAdsResponseSchemaResponseTransformer = (data: any) => {
     data.ads = data.ads.map((item: any) => adMarketAdSchemaResponseTransformer(item));
-    data.fetchedAt = new Date(data.fetchedAt);
+    if (data.fetchedAt) {
+        data.fetchedAt = new Date(data.fetchedAt);
+    }
     return data;
 };
 

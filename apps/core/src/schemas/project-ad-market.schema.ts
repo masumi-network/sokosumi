@@ -3,6 +3,7 @@ import { z } from "@hono/zod-openapi";
 import { dateTimeSchema } from "@/helpers/datetime";
 import { marketAdSchema, marketKeywordSchema } from "@/lib/ads/dataforseo";
 import {
+  AD_MARKET_ADS_STATUSES,
   AD_MARKET_LANGUAGES,
   AD_MARKET_LOCATIONS,
   type AdMarketCountryCode,
@@ -78,17 +79,23 @@ export const listAdMarketKeywordsResponseSchema = z
 
 export const adMarketAdSchema = marketAdSchema.openapi("AdMarketAd", {
   description:
-    "A recent Google ad of a market advertiser. previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.",
+    "A recent Google ad of a search competitor (a domain ranking organically for the profile keywords). previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.",
 });
 
 export const listAdMarketAdsResponseSchema = z
   .object({
+    status: z.enum(AD_MARKET_ADS_STATUSES).openapi({
+      description:
+        "ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.",
+    }),
     ads: z.array(adMarketAdSchema).openapi({
       description:
-        "At most 40 ads of the last 30 days from the biggest advertisers for the profile keywords, last shown first",
+        "At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first",
     }),
-    fetchedAt: dateTimeSchema.openapi({
-      description: "When DataForSEO was last asked; results are cached for 24h",
+    // Union-with-null, not `.nullable()`: see `finalizeProjectAdConnectionResponseSchema`.
+    fetchedAt: z.union([dateTimeSchema, z.null()]).openapi({
+      description:
+        "When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet",
     }),
   })
   .openapi("ListAdMarketAdsResponse");

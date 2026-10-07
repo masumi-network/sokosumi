@@ -6,7 +6,7 @@ import { AdsUpdated } from "./ads-updated";
 
 interface AdsMarketAdGridProps {
   ads: AdMarketAd[];
-  fetchedAt: Date;
+  fetchedAt: Date | null;
 }
 
 /**
@@ -30,7 +30,7 @@ export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-ads">
-      <AdsUpdated at={fetchedAt} />
+      {fetchedAt && <AdsUpdated at={fetchedAt} />}
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {ads.map((ad) => (
           <li
