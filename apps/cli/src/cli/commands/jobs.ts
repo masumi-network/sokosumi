@@ -74,7 +74,7 @@ function printJob(
     const latestEvent = events[0];
     lines.push(
       `events: ${events.length}`,
-      `latest event: ${truncate(latestEvent.result || latestEvent.message || latestEvent.status || latestEvent.type || latestEvent.id, 160)}`,
+      `latest event: ${truncate(latestEvent.result || latestEvent.status || latestEvent.id, 160)}`,
     );
   }
   const files = details.files ?? [];
