@@ -366,7 +366,7 @@ importers:
         version: 18.0.6
       evlog:
         specifier: 2.30.1
-        version: 2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+        version: 2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       hono:
         specifier: 4.13.13
         version: 4.13.13
@@ -415,7 +415,7 @@ importers:
     devDependencies:
       '@evlog/cli':
         specifier: 0.9.0
-        version: 0.9.0(evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))
+        version: 0.9.0(evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))
       '@types/node':
         specifier: 24.19.1
         version: 24.19.1
@@ -573,8 +573,8 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       eve:
-        specifier: 0.71.2
-        version: 0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5))
+        specifier: 0.72.1
+        version: 0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5))
       fake-indexeddb:
         specifier: 6.2.5
         version: 6.2.5
@@ -6681,13 +6681,13 @@ packages:
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
 
-  eve@0.71.2:
-    resolution: {integrity: sha512-1JYtSScSYevikoDVowtZdMS83LGzdw3hmgf6kriZyclpRsmmW3+Yb9byFtJ4P4lZ2JLfSSLgUMoBuTSqmFCsUg==}
+  eve@0.72.1:
+    resolution: {integrity: sha512-D72hUlYoJVwsmS7JMcHLDmMgYozHujNy5VvWiEpXmhia8TnzT0do7hcM1A4SXjVhoZRiVRgKo8LZGBx8LH4gTw==}
     engines: {node: '>=24'}
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.0.0
-      ai: ^7.0.105
+      ai: ^7.0.128
       braintrust: ^3.0.0
       chat: ^4.41.0
       dd-trace: ^6.13.0
@@ -10783,12 +10783,12 @@ snapshots:
   '@esbuild/win32-x64@0.28.2':
     optional: true
 
-  '@evlog/cli@0.9.0(evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))':
+  '@evlog/cli@0.9.0(evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)))':
     dependencies:
       '@clack/prompts': 1.8.1
       '@evlog/telemetry': 0.3.4
       citty: 0.2.2
-      evlog: 2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
+      evlog: 2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0))
       oxc-parser: 0.152.0
 
   '@evlog/telemetry@0.3.4':
@@ -15742,7 +15742,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
 
-  eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)):
+  eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)):
     dependencies:
       ai: 7.0.130(zod@4.6.5)
       nitro: 3.0.260903-beta
@@ -15763,10 +15763,10 @@ snapshots:
 
   eventsource-parser@3.1.1: {}
 
-  evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
+  evlog@2.30.1(ai@7.0.130(zod@4.6.5))(eve@0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5)))(hono@4.13.13)(next@16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0))(react@19.3.0)(vite@8.3.3(@types/node@24.19.1)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.2)(tsx@4.23.15)(yaml@2.9.0)):
     optionalDependencies:
       ai: 7.0.130(zod@4.6.5)
-      eve: 0.71.2(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5))
+      eve: 0.72.1(@opentelemetry/api@1.9.1)(ai@7.0.130(zod@4.6.5))
       hono: 4.13.13
       next: 16.4.0(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@types/node@24.19.1)(babel-plugin-macros@3.1.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       react: 19.3.0
