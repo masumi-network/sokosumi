@@ -43,7 +43,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 - `ProjectAdAccount`: `id`, `projectId`, `connectionId`, `provider`, `externalAccountId` (Google customer id / Meta `act_…`), `loginCustomerId?`, `name`, `currency`, `timeZone?`, timestamps. `@@unique([projectId, provider, externalAccountId])`.
 - `ProjectAdMarketProfile`: `projectId` (unique), `keywords String[]` (1–10), `locationCode Int`, `languageCode String`, `updatedAt`.
 - `ProjectAdMarketSnapshot`: `id`, `projectId`, `kind` (`keywords` | `ads`), `requestKey` (hash of profile), `payload Json`, `fetchedAt`. Cache DataForSEO for 24h (it costs per call). `@@unique([projectId, kind, requestKey])`.
-- `ProjectAdMarketAdsJob`: `projectId` (id), `requestKey`, `stage` (`SERP` | `ADS` | `FAILED`), `pendingTaskIds String[]`, `collected Json`, `startedAt`, `checkedAt`. One row per Project; deleted when the ads snapshot is written. `collected` has one entry per finished task: its `{domain, rank}[]` (SERP) or its `MarketAd[]` (ADS, at most 4).
+- `ProjectAdMarketAdsJob`: `projectId` (id), `requestKey`, `stage` (`SERP` | `ADS` | `FAILED`), `pendingTaskIds String[]`, `collected Json`, `startedAt`, `nextCheckAt`. One row per Project; deleted when the ads snapshot is written. `collected` has one entry per finished task: its `{domain, rank}[]` (SERP) or its `MarketAd[]` (ADS, at most 4). `nextCheckAt` is both the poll throttle and the lease (see below).
 - OAuth intents reuse `ProjectSocialConnectionIntent` (`provider` = `google_ads` / `meta_ads`, `socialConnectionId` null) and the existing `/composio/callback` popup flow. No new callback route.
 
 ## Core API (`/v1/projects/{id}/ads/...`, beta + Project access like social connections)
@@ -68,13 +68,15 @@ The ads endpoint drives a job; there is no cron. Each call moves it one step:
 
 1. A snapshot under 24h old for the current profile key: `ready`.
 2. Otherwise the stale snapshot's ads (or `[]`, `fetchedAt: null`) come back with every `gathering` or `failed`.
-3. No job, a job for another profile, or a `FAILED` job older than 1h: claim the row, post the SERP tasks, `gathering`. The claim is an insert (`skipDuplicates`) or an update on the seen `checkedAt`, so two requests never both post.
-4. A job checked under 20s ago: `gathering`, DataForSEO is not called.
-5. Otherwise claim the check (update on the seen `checkedAt`), then `task_get` each pending id. Done tasks move to `collected`; failed ones are dropped; tasks still pending after 30 min of the stage are dropped. When none is pending:
-   - SERP: rank the competitors; none → empty snapshot, job deleted. Else post one ads task per competitor and move to `ADS`.
-   - ADS: dedupe and sort, write the snapshot (other keys dropped), delete the job: `ready`.
-   - Every task of the stage failed: `FAILED`.
-6. A `FAILED` job under 1h old: `failed`, nothing is reposted. That caps what a broken lookup costs.
+3. No job, a job for another profile, or a `FAILED` job older than 1h: claim the row (insert with `skipDuplicates`, or update on the `nextCheckAt` seen), post the SERP tasks, write their ids, `gathering`. DataForSEO refusing every task: `FAILED`. A transport error deletes the claimed row and is raised.
+4. A job whose `nextCheckAt` is in the future: `gathering`, DataForSEO is not called. `nextCheckAt` is 20s after the last check.
+5. Otherwise claim the check: update on the `nextCheckAt` seen, moving it 90s ahead (a lease longer than any check, so a slow check is not repeated, and a job still posting its tasks is not mistaken for a failed one). Then `task_get` each pending id. Done tasks move to `collected`; failed ones are dropped; tasks still pending after 30 min of the stage are dropped. When none is pending:
+   - SERP: rank the competitors; none → empty snapshot, job deleted. Else post one ads task per competitor and move to `ADS`. All refused → `FAILED`. A transport error leaves the lease held, so the stage is retried when it expires.
+   - ADS: dedupe and sort, write the snapshot (other keys dropped) and delete the job in one transaction: `ready`.
+   - No task of the stage gave a result: `FAILED`.
+   A check ends by moving `nextCheckAt` 20s ahead.
+6. Every write after the claim matches `{projectId, requestKey, nextCheckAt: <our lease>}`. If it matches nothing, a profile change or an expired lease gave the job to someone else: the request writes nothing more (a snapshot is only written together with its successful job delete) and answers `gathering`.
+7. A `FAILED` job under 1h old: `failed`, nothing is reposted. That caps what a broken lookup costs.
 
 Errors map through the existing Composio error classes (`ComposioConfigError` → 503 "not configured", `ComposioApiError`/`ComposioToolError` → 502 with a safe message).
 
