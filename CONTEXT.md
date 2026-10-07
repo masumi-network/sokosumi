@@ -256,9 +256,13 @@ _Avoid_: Trusted client
 Where a person came from before creating their Sokosumi account: the campaign, referrer and page that brought them. Recorded once per account and read only by people, never to change product behavior.
 _Avoid_: Sign-up metadata, UTM data (except for the utm_* values themselves), referral source
 
-**Sign-up intent**:
-What a person asked for when they set out to create an account, such as the website CMO should work on, carried through sign-up back to the product they started in and acted on once. It is not kept on the account.
-_Avoid_: Sign-up metadata, return state, deep link
+**Sign-up origin**:
+The product a person created their Sokosumi account through: Sokosumi itself or a first-party client such as CMO. Every account has exactly one, and Sokosumi decides it, never the link the person followed.
+_Avoid_: Source (that is the UTM source), referrer, entry product
+
+**Sign-up context**:
+The named values the sign-up origin handed over when the account was created, each a text, number or yes/no, such as CMO's `url` of `nmkr.io`. Kept on the account unchanged; only the origin and admins read it.
+_Avoid_: Sign-up metadata, sign-up intent, sign-up data, sign-up parameters
 
 **Impersonation**:
 A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).
