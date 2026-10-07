@@ -2020,6 +2020,13 @@ export const ChatRoomMessageSchema = {
         content: {
             type: 'string'
         },
+        resultPreviews: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultDescriptor'
+            },
+            maxItems: 6
+        },
         createdAt: {
             type: 'string',
             format: 'date-time',
@@ -2146,6 +2153,25 @@ export const ChatRoomMessageSchema = {
         'membership',
         'groupNameChange',
         'unfurls'
+    ]
+} as const;
+
+export const ChatResultDescriptorSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        capturedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'id',
+        'capturedAt'
     ]
 } as const;
 
@@ -3754,6 +3780,13 @@ export const SokoBotTurnSchema = {
         },
         userMessage: {
             type: 'string'
+        },
+        resultPreviews: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultDescriptor'
+            },
+            maxItems: 6
         },
         finalAnswer: {
             type: [
@@ -10602,6 +10635,13 @@ export const ChatRoomPinnedMessageListItemSchema = {
                 content: {
                     type: 'string'
                 },
+                resultPreviews: {
+                    type: 'array',
+                    items: {
+                        $ref: '#/components/schemas/ChatResultDescriptor'
+                    },
+                    maxItems: 6
+                },
                 createdAt: {
                     type: 'string',
                     format: 'date-time',
@@ -11112,6 +11152,684 @@ export const ChatRoomThreadReadStateSchema = {
     required: [
         'parentMessageId',
         'lastReadAt'
+    ]
+} as const;
+
+export const ChatResultPreviewSchema = {
+    oneOf: [
+        {
+            $ref: '#/components/schemas/ChatResultAvailable'
+        },
+        {
+            $ref: '#/components/schemas/ChatResultUnavailable'
+        }
+    ],
+    discriminator: {
+        propertyName: 'state',
+        mapping: {
+            available: '#/components/schemas/ChatResultAvailable',
+            unavailable: '#/components/schemas/ChatResultUnavailable'
+        }
+    }
+} as const;
+
+export const ChatResultAvailableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'available'
+            ]
+        },
+        capturedAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'task',
+                'task_schedule',
+                'bot_schedule',
+                'social_post',
+                'studio_job',
+                'job',
+                'file',
+                'decision',
+                'project_selection'
+            ]
+        },
+        title: {
+            type: 'string',
+            maxLength: 500
+        },
+        status: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100
+        },
+        summary: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 4000,
+            default: null
+        },
+        sourceHref: {
+            type: 'string',
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        assignee: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        project: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        destination: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 500,
+            default: null
+        },
+        scheduledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            default: null,
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        timezone: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 100,
+            default: null
+        },
+        recurrence: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200,
+            default: null
+        },
+        question: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 4000,
+            default: null
+        },
+        outputs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ChatResultOutput'
+            },
+            maxItems: 12,
+            default: []
+        },
+        task: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatResultTask'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        social: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/ChatResultSocial'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        actor: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        name: {
+                            type: 'string',
+                            maxLength: 500
+                        },
+                        image: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 2000,
+                            default: null
+                        },
+                        kind: {
+                            type: 'string',
+                            enum: [
+                                'user',
+                                'coworker',
+                                'sokoBot'
+                            ]
+                        },
+                        slug: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        avatarSeed: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 200,
+                            default: null
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'kind'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        agent: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                icon: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            default: null,
+            required: [
+                'name',
+                'icon'
+            ]
+        },
+        projectOptions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    name: {
+                        type: 'string',
+                        maxLength: 500
+                    },
+                    identifier: {
+                        type: [
+                            'string',
+                            'null'
+                        ]
+                    },
+                    logo: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 2000
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'identifier',
+                    'logo'
+                ]
+            },
+            maxItems: 12,
+            default: []
+        },
+        projectInfo: {
+            anyOf: [
+                {
+                    type: 'object',
+                    properties: {
+                        id: {
+                            type: 'string',
+                            maxLength: 200
+                        },
+                        name: {
+                            type: 'string',
+                            maxLength: 500
+                        },
+                        identifier: {
+                            type: [
+                                'string',
+                                'null'
+                            ]
+                        },
+                        logo: {
+                            type: [
+                                'string',
+                                'null'
+                            ],
+                            maxLength: 2000
+                        }
+                    },
+                    required: [
+                        'id',
+                        'name',
+                        'identifier',
+                        'logo'
+                    ]
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        },
+        decision: {
+            anyOf: [
+                {
+                    $ref: '#/components/schemas/SokoBotPendingDecision'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            default: null
+        }
+    },
+    required: [
+        'id',
+        'state',
+        'capturedAt',
+        'kind',
+        'title',
+        'status',
+        'sourceHref'
+    ]
+} as const;
+
+export const ChatResultOutputSchema = {
+    type: 'object',
+    properties: {
+        name: {
+            type: 'string',
+            maxLength: 500
+        },
+        contentType: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 255
+        },
+        sizeBytes: {
+            type: [
+                'number',
+                'null'
+            ],
+            minimum: 0
+        },
+        openHref: {
+            type: 'string',
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        previewHref: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$'
+        },
+        downloadHref: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 2000,
+            pattern: '^\\/(?![\\/\\\\])[^\\\\\\r\\n]*$',
+            default: null
+        }
+    },
+    required: [
+        'name',
+        'contentType',
+        'sizeBytes',
+        'openHref',
+        'previewHref'
+    ]
+} as const;
+
+export const ChatResultTaskSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            maxLength: 200
+        },
+        name: {
+            type: 'string',
+            maxLength: 500
+        },
+        identifier: {
+            type: [
+                'string',
+                'null'
+            ],
+            maxLength: 200
+        },
+        status: {
+            $ref: '#/components/schemas/TaskStatus'
+        },
+        priority: {
+            $ref: '#/components/schemas/TaskPriority'
+        },
+        visibility: {
+            $ref: '#/components/schemas/TaskVisibility'
+        },
+        createdAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        runAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        project: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                identifier: {
+                    type: [
+                        'string',
+                        'null'
+                    ]
+                },
+                logo: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'identifier',
+                'logo'
+            ]
+        },
+        assignee: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                id: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                name: {
+                    type: 'string',
+                    maxLength: 500
+                },
+                image: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000,
+                    default: null
+                },
+                kind: {
+                    type: 'string',
+                    enum: [
+                        'user',
+                        'coworker',
+                        'sokoBot'
+                    ]
+                },
+                slug: {
+                    type: 'string',
+                    maxLength: 200
+                },
+                avatarSeed: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 200,
+                    default: null
+                }
+            },
+            required: [
+                'id',
+                'name',
+                'kind'
+            ]
+        },
+        participants: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    name: {
+                        type: 'string',
+                        maxLength: 500
+                    },
+                    image: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 2000,
+                        default: null
+                    },
+                    kind: {
+                        type: 'string',
+                        enum: [
+                            'user',
+                            'coworker',
+                            'sokoBot'
+                        ]
+                    },
+                    slug: {
+                        type: 'string',
+                        maxLength: 200
+                    },
+                    avatarSeed: {
+                        type: [
+                            'string',
+                            'null'
+                        ],
+                        maxLength: 200,
+                        default: null
+                    }
+                },
+                required: [
+                    'id',
+                    'name',
+                    'kind'
+                ]
+            },
+            maxItems: 6
+        },
+        commentsCount: {
+            type: 'integer',
+            minimum: 0
+        },
+        tags: {
+            $ref: '#/components/schemas/TaskTags'
+        }
+    },
+    required: [
+        'id',
+        'name',
+        'identifier',
+        'status',
+        'priority',
+        'visibility',
+        'createdAt',
+        'runAt',
+        'project',
+        'assignee',
+        'participants',
+        'commentsCount',
+        'tags'
+    ]
+} as const;
+
+export const ChatResultSocialSchema = {
+    type: 'object',
+    properties: {
+        provider: {
+            type: 'string',
+            enum: [
+                'x',
+                'linkedin',
+                'facebook',
+                'instagram',
+                'tiktok',
+                'youtube'
+            ]
+        },
+        account: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                handle: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 500
+                },
+                displayName: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 500
+                },
+                avatarUrl: {
+                    type: [
+                        'string',
+                        'null'
+                    ],
+                    maxLength: 2000
+                }
+            },
+            required: [
+                'handle',
+                'displayName',
+                'avatarUrl'
+            ]
+        },
+        timestamp: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        }
+    },
+    required: [
+        'provider',
+        'account',
+        'timestamp'
+    ]
+} as const;
+
+export const ChatResultUnavailableSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        state: {
+            type: 'string',
+            enum: [
+                'unavailable'
+            ]
+        }
+    },
+    required: [
+        'id',
+        'state'
     ]
 } as const;
 
@@ -15279,6 +15997,338 @@ export const ProjectImageStudioCatalogModelSchema = {
     ]
 } as const;
 
+export const ImageStudioWorkspaceStateSchema = {
+    type: 'object',
+    properties: {
+        assets: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageAsset'
+            }
+        },
+        jobs: {
+            type: 'array',
+            items: {
+                $ref: '#/components/schemas/ProjectImageJob'
+            }
+        },
+        nextCursor: {
+            type: [
+                'object',
+                'null'
+            ],
+            properties: {
+                createdAt: {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                id: {
+                    type: 'string',
+                    format: 'uuid'
+                }
+            },
+            required: [
+                'createdAt',
+                'id'
+            ]
+        }
+    },
+    required: [
+        'assets',
+        'jobs',
+        'nextCursor'
+    ]
+} as const;
+
+export const ProjectImageAssetSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectName: {
+            type: 'string'
+        },
+        rootId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        parentId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        version: {
+            type: 'integer',
+            minimum: 1
+        },
+        prompt: {
+            type: 'string'
+        },
+        model: {
+            type: 'string'
+        },
+        width: {
+            type: 'integer',
+            minimum: 0
+        },
+        height: {
+            type: 'integer',
+            minimum: 0
+        },
+        bytes: {
+            type: 'integer',
+            minimum: 0
+        },
+        contentType: {
+            type: 'string'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        jobId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        contentPath: {
+            type: 'string'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'projectName',
+        'rootId',
+        'parentId',
+        'version',
+        'prompt',
+        'model',
+        'width',
+        'height',
+        'bytes',
+        'contentType',
+        'createdAt',
+        'jobId',
+        'settings',
+        'contentPath'
+    ]
+} as const;
+
+export const ProjectImageSettingsSchema = {
+    type: 'object',
+    properties: {
+        aspectRatio: {
+            type: 'string',
+            enum: [
+                '1:1',
+                '4:3',
+                '3:4',
+                '16:9',
+                '9:16',
+                '3:2',
+                '2:3',
+                '4:5',
+                '5:4'
+            ],
+            default: '1:1'
+        },
+        resolution: {
+            type: 'string',
+            enum: [
+                '0.5K',
+                '1K',
+                '2K'
+            ],
+            default: '1K'
+        },
+        outputFormat: {
+            type: 'string',
+            enum: [
+                'png',
+                'jpeg',
+                'webp'
+            ],
+            default: 'png'
+        },
+        seed: {
+            type: [
+                'integer',
+                'null'
+            ],
+            minimum: 0,
+            maximum: 2147483647,
+            default: null
+        }
+    }
+} as const;
+
+export const ProjectImageJobSchema = {
+    type: 'object',
+    properties: {
+        id: {
+            type: 'string',
+            format: 'uuid'
+        },
+        projectId: {
+            type: 'string',
+            format: 'uuid'
+        },
+        status: {
+            type: 'string',
+            enum: [
+                'PENDING',
+                'SUBMITTING',
+                'QUEUED',
+                'RUNNING',
+                'SUCCEEDED',
+                'FAILED',
+                'CANCELED',
+                'SUBMISSION_UNCERTAIN',
+                'ORPHANED'
+            ]
+        },
+        kind: {
+            type: 'string',
+            enum: [
+                'GENERATE',
+                'EDIT'
+            ]
+        },
+        model: {
+            type: 'string'
+        },
+        prompt: {
+            type: 'string'
+        },
+        settings: {
+            $ref: '#/components/schemas/ProjectImageSettings'
+        },
+        referenceAssetIds: {
+            type: 'array',
+            items: {
+                type: 'string',
+                format: 'uuid'
+            }
+        },
+        error: {
+            type: [
+                'string',
+                'null'
+            ]
+        },
+        failureReason: {
+            type: [
+                'string',
+                'null'
+            ],
+            enum: [
+                'provider_rejected',
+                'provider_error',
+                'provider_lost_request',
+                'provider_unreachable',
+                'submission_uncertain',
+                'reference_not_sendable',
+                'request_not_supported',
+                'cancelled',
+                'abandoned_before_send',
+                'access_revoked',
+                'storage_unavailable',
+                'unknown',
+                null
+            ]
+        },
+        parentAssetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        assetId: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'uuid'
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        submittedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        settledAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        cancelRequestedAt: {
+            type: [
+                'string',
+                'null'
+            ],
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z'
+        },
+        retryMayDuplicateCharge: {
+            type: 'boolean'
+        },
+        credits: {
+            type: [
+                'number',
+                'null'
+            ]
+        },
+        refunded: {
+            type: 'boolean'
+        }
+    },
+    required: [
+        'id',
+        'projectId',
+        'status',
+        'kind',
+        'model',
+        'prompt',
+        'settings',
+        'referenceAssetIds',
+        'error',
+        'failureReason',
+        'parentAssetId',
+        'assetId',
+        'createdAt',
+        'submittedAt',
+        'settledAt',
+        'cancelRequestedAt',
+        'retryMayDuplicateCharge',
+        'credits',
+        'refunded'
+    ]
+} as const;
+
 export const CreditsResponseExtraSchema = {
     type: 'object',
     properties: {
@@ -16460,6 +17510,48 @@ export const SignUpConversionRequestSchema = {
             $ref: '#/components/schemas/UtmAttributionRequest'
         }
     }
+} as const;
+
+export const SignUpContextSchema = {
+    type: 'object',
+    properties: {
+        origin: {
+            type: 'string',
+            description: 'The product the account was created through: `sokosumi`, a first-party client\'s sign-up origin such as `cmo`, or `unknown` for a client without one.',
+            example: 'cmo'
+        },
+        context: {
+            type: 'object',
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        type: 'number'
+                    },
+                    {
+                        type: 'boolean'
+                    }
+                ]
+            },
+            description: 'The values the sign-up origin handed over, as untrusted text, numbers or booleans.',
+            example: {
+                url: 'nmkr.io'
+            }
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the sign-up was recorded'
+        }
+    },
+    required: [
+        'origin',
+        'context',
+        'createdAt'
+    ]
 } as const;
 
 export const CoworkerWorkspaceAccessSchema = {
@@ -19594,280 +20686,6 @@ export const ProjectImageStudioStateSchema = {
         'jobs',
         'sessions',
         'nextCursor'
-    ]
-} as const;
-
-export const ProjectImageAssetSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        rootId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        parentId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        version: {
-            type: 'integer',
-            minimum: 1
-        },
-        prompt: {
-            type: 'string'
-        },
-        model: {
-            type: 'string'
-        },
-        width: {
-            type: 'integer',
-            minimum: 0
-        },
-        height: {
-            type: 'integer',
-            minimum: 0
-        },
-        bytes: {
-            type: 'integer',
-            minimum: 0
-        },
-        contentType: {
-            type: 'string'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        jobId: {
-            type: 'string',
-            format: 'uuid'
-        },
-        settings: {
-            $ref: '#/components/schemas/ProjectImageSettings'
-        },
-        contentPath: {
-            type: 'string'
-        }
-    },
-    required: [
-        'id',
-        'rootId',
-        'parentId',
-        'version',
-        'prompt',
-        'model',
-        'width',
-        'height',
-        'bytes',
-        'contentType',
-        'createdAt',
-        'jobId',
-        'settings',
-        'contentPath'
-    ]
-} as const;
-
-export const ProjectImageSettingsSchema = {
-    type: 'object',
-    properties: {
-        aspectRatio: {
-            type: 'string',
-            enum: [
-                '1:1',
-                '4:3',
-                '3:4',
-                '16:9',
-                '9:16',
-                '3:2',
-                '2:3',
-                '4:5',
-                '5:4'
-            ],
-            default: '1:1'
-        },
-        resolution: {
-            type: 'string',
-            enum: [
-                '0.5K',
-                '1K',
-                '2K'
-            ],
-            default: '1K'
-        },
-        outputFormat: {
-            type: 'string',
-            enum: [
-                'png',
-                'jpeg',
-                'webp'
-            ],
-            default: 'png'
-        },
-        seed: {
-            type: [
-                'integer',
-                'null'
-            ],
-            minimum: 0,
-            maximum: 2147483647,
-            default: null
-        }
-    }
-} as const;
-
-export const ProjectImageJobSchema = {
-    type: 'object',
-    properties: {
-        id: {
-            type: 'string',
-            format: 'uuid'
-        },
-        status: {
-            type: 'string',
-            enum: [
-                'PENDING',
-                'SUBMITTING',
-                'QUEUED',
-                'RUNNING',
-                'SUCCEEDED',
-                'FAILED',
-                'CANCELED',
-                'SUBMISSION_UNCERTAIN',
-                'ORPHANED'
-            ]
-        },
-        kind: {
-            type: 'string',
-            enum: [
-                'GENERATE',
-                'EDIT'
-            ]
-        },
-        model: {
-            type: 'string'
-        },
-        prompt: {
-            type: 'string'
-        },
-        settings: {
-            $ref: '#/components/schemas/ProjectImageSettings'
-        },
-        referenceAssetIds: {
-            type: 'array',
-            items: {
-                type: 'string',
-                format: 'uuid'
-            }
-        },
-        error: {
-            type: [
-                'string',
-                'null'
-            ]
-        },
-        failureReason: {
-            type: [
-                'string',
-                'null'
-            ],
-            enum: [
-                'provider_rejected',
-                'provider_error',
-                'provider_lost_request',
-                'provider_unreachable',
-                'submission_uncertain',
-                'reference_not_sendable',
-                'request_not_supported',
-                'cancelled',
-                'abandoned_before_send',
-                'access_revoked',
-                'storage_unavailable',
-                'unknown',
-                null
-            ]
-        },
-        parentAssetId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        assetId: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'uuid'
-        },
-        createdAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        submittedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        settledAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        cancelRequestedAt: {
-            type: [
-                'string',
-                'null'
-            ],
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z'
-        },
-        retryMayDuplicateCharge: {
-            type: 'boolean'
-        },
-        credits: {
-            type: [
-                'number',
-                'null'
-            ]
-        },
-        refunded: {
-            type: 'boolean'
-        }
-    },
-    required: [
-        'id',
-        'status',
-        'kind',
-        'model',
-        'prompt',
-        'settings',
-        'referenceAssetIds',
-        'error',
-        'failureReason',
-        'parentAssetId',
-        'assetId',
-        'createdAt',
-        'submittedAt',
-        'settledAt',
-        'cancelRequestedAt',
-        'retryMayDuplicateCharge',
-        'credits',
-        'refunded'
     ]
 } as const;
 

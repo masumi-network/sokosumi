@@ -452,7 +452,7 @@ export function SokoBotConsole({
                                     {schedule.name}
                                   </span>
                                   {schedule.systemKey ? (
-                                    <span className="text-muted-foreground shrink-0 text-[0.6875rem]">
+                                    <span className="text-muted-foreground shrink-0 text-2xs">
                                       {t("Schedules.builtIn")}
                                     </span>
                                   ) : null}

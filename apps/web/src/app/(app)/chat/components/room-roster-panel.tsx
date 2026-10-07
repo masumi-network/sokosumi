@@ -113,7 +113,7 @@ function RosterMemberAvatar({
           <AvatarImage src={participant.image ?? undefined} alt="" />
           <AvatarFallback
             className={cn(
-              "text-[0.625rem]",
+              "text-2xs",
               isAi
                 ? "bg-primary-quinary text-primary"
                 : "bg-muted text-muted-foreground",
@@ -329,7 +329,7 @@ function RosterMemberRow({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-7 shrink-0 rounded-full lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:data-[state=open]:opacity-100"
+              className="size-10 md:size-8 shrink-0 rounded-full lg:opacity-0 lg:group-hover:opacity-100 lg:group-focus-within:opacity-100 lg:data-[state=open]:opacity-100"
               aria-label={labels.memberActions(participant.name)}
               title={labels.memberActions(participant.name)}
               data-testid="room-roster-member-actions"
@@ -440,7 +440,7 @@ export function RoomRosterPanel({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-8 rounded-full"
+              className="size-10 md:size-8 rounded-full"
               aria-label={labels.add}
               title={labels.add}
               data-testid="room-roster-add"
@@ -453,7 +453,7 @@ export function RoomRosterPanel({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-10 md:size-8 rounded-full"
             aria-label={labels.close}
             title={labels.close}
             onClick={onClose}
@@ -505,7 +505,7 @@ export function RoomRosterPanel({
                 {subgroup ? (
                   <>
                     <h4
-                      className="text-muted-foreground flex items-baseline gap-1.5 px-2 pt-3 pb-1 text-[0.6875rem] font-medium"
+                      className="text-muted-foreground flex items-baseline gap-1.5 px-2 pt-3 pb-1 text-2xs font-medium"
                       data-testid="room-roster-subsection-never-read"
                     >
                       {subgroup.heading}

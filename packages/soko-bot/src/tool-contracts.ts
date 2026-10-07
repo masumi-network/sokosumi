@@ -15,6 +15,11 @@ import {
   cmoSaveStrategyInputSchema,
 } from "./cmo.js";
 import type { SokoBotCapability } from "./policy.js";
+import {
+  CHAT_RESULT_PREVIEW_LIMIT,
+  chatResultReferenceSchema,
+  sokoBotPreviewResultInputSchema,
+} from "./result-previews.js";
 
 const emptyInputSchema = z.object({}).strict();
 const scalarInputValueSchema = z.union([
@@ -238,6 +243,10 @@ export const sokoBotScheduleIdInputSchema = z
   .refine(hasScheduleRef, { message: "scheduleId or scheduleName required" });
 
 export const sokoBotPostChatInputSchema = z.object({
+  resultReferences: z
+    .array(chatResultReferenceSchema)
+    .max(CHAT_RESULT_PREVIEW_LIMIT)
+    .optional(),
   /** Room id from `list_chats`. */
   roomId: z.string().min(1),
   content: z.string().min(1).max(4_000),
@@ -538,6 +547,7 @@ export const SOKO_BOT_TOOL_INPUT_SCHEMAS = {
   read_chat: sokoBotReadChatInputSchema,
   open_direct_chat: sokoBotOpenDirectChatInputSchema,
   post_chat: sokoBotPostChatInputSchema,
+  preview_result: sokoBotPreviewResultInputSchema,
   list_files: sokoBotListFilesInputSchema,
   read_file: sokoBotReadFileInputSchema,
   generate_image: sokoBotGenerateImageInputSchema,
@@ -622,6 +632,8 @@ export const SOKO_BOT_TOOL_DESCRIPTIONS = {
     "Chat rooms you are a member of: id, name, kind, and when it last had a message. Use this to find the room you need before read_chat. When your owner asks, `ownerUnread` lists every chat of theirs with unread messages, as their sidebar counts them, including rooms you are not in (`youAreMember: false`: you see the name and count, but can only read rooms you belong to).",
   read_chat:
     "Read recent messages in one chat room you are a member of, newest first, with who sent each one; `fromYou` marks your own messages. Use it to catch up on a conversation you were added to or mentioned in earlier, or to check what was already said before you answer. You can only read rooms you belong to.",
+  preview_result:
+    "Prepare the native result card before confirming a successful create, assignment, update, scheduling, generation, or delivery, and when the owner asks to see an existing item. Call after the final change to that item, using its real reference from context, an authorized read, or a successful tool result. A text link alone is not a result card. When asking the owner which project to use, prepare a project_selection reference with up to 12 real projectIds from context or refresh_context so they can click their choice. Core reads the actual state; this does not post another message or execute an action. Up to six distinct cards attach to your current answer. Say a card is attached only after this call succeeds; on failure, give verified text and the source link. Use post_chat resultReferences for another authorized chat.",
   post_chat:
     "Post a message into a chat room you are a member of. Use it to answer people in a room you were added to, or to share something you found. It appears as you, immediately, so say only what you can back up.",
   open_direct_chat:

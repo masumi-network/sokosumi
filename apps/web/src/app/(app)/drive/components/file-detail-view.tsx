@@ -1,7 +1,7 @@
 "use client";
 
 import type { FileResource } from "@sokosumi/core-client";
-import { Check, Loader2, RotateCcw, X } from "lucide-react";
+import { Check, Loader2, RotateCcw } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
@@ -16,6 +16,7 @@ import { DriveFilePreview } from "@/app/drive/components/drive-file-preview";
 import { DriveFileSnippet } from "@/app/drive/components/drive-file-snippet";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import { FileTypeIcon } from "@/components/ui/file-icon";
 import { useSession } from "@/lib/auth/auth.client";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
@@ -353,16 +354,17 @@ export function FileDetailView({
               </span>
             ) : (
               resource.tags.map((tag) => (
-                <Badge key={tag.id} variant="outline" className="gap-1">
+                <Badge
+                  key={tag.id}
+                  variant="outline"
+                  className="gap-1 overflow-visible py-0 pe-0"
+                >
                   {tag.displayName}
-                  <button
-                    type="button"
+                  <ChipRemoveButton
                     disabled={busy}
                     aria-label={t("removeTag", { name: tag.displayName })}
                     onClick={() => void removeTag(tag.labelId)}
-                  >
-                    <X className="size-3" />
-                  </button>
+                  />
                 </Badge>
               ))
             )}
@@ -383,18 +385,16 @@ export function FileDetailView({
                 <Badge
                   key={entry.id}
                   variant="outline"
-                  className="text-muted-foreground gap-1 border-dashed"
+                  className="text-muted-foreground gap-1 overflow-visible border-dashed py-0 pe-0"
                 >
                   {entry.displayName}
-                  <button
-                    type="button"
+                  <ChipRemoveButton
+                    icon={RotateCcw}
                     disabled={busy}
                     aria-label={t("allowAgain", { name: entry.displayName })}
                     data-testid="file-detail-allow-again"
                     onClick={() => void allowAgain(entry.labelId)}
-                  >
-                    <RotateCcw className="size-3" />
-                  </button>
+                  />
                 </Badge>
               ))}
             </div>

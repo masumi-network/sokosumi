@@ -32,7 +32,7 @@ export function MentionCountPill({ count }: { count: number }) {
   return (
     <span
       data-slot="mention-pill"
-      className="bg-primary-quaternary text-primary-variant inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full px-[0.1875rem] text-[0.625rem] leading-4 font-semibold tabular-nums"
+      className="bg-primary-quaternary text-primary-variant inline-flex min-w-4.5 shrink-0 items-center justify-center gap-px rounded-full px-[0.1875rem] text-2xs leading-4 font-semibold tabular-nums"
     >
       <AtSign
         data-slot="mention-glyph"
@@ -64,7 +64,7 @@ export function RowCountMark({
     return null;
   }
   return (
-    <span className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums">
+    <span className="text-muted-foreground text-2xs leading-4 font-semibold tabular-nums">
       {roomCountLabel(count)}
     </span>
   );

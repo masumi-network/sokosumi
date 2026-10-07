@@ -43,7 +43,6 @@ export function StudioLightbox({
   onRegenerate,
   onSelect,
   onUseAsReference,
-  projectId,
   siblings,
 }: {
   assets: StudioAsset[];
@@ -58,7 +57,6 @@ export function StudioLightbox({
   /** Step to another image while showing one; arrows and swipes live in the viewer. */
   onSelect: (assetId: string) => void;
   onUseAsReference: (asset: StudioAsset) => void;
-  projectId: string;
   /** Every image the viewer can step through, in gallery order. */
   siblings: StudioAsset[];
 }) {
@@ -73,7 +71,7 @@ export function StudioLightbox({
   if (assets.length === 0) return null;
 
   if (single) {
-    const url = assetContentUrl(projectId, single.id);
+    const url = assetContentUrl(single);
     const ext = single.settings?.outputFormat ?? "png";
     return (
       <ImageViewer
@@ -107,14 +105,12 @@ export function StudioLightbox({
           </>
         }
         images={siblings.map((asset) => ({
-          src: assetContentUrl(projectId, asset.id),
+          src: assetContentUrl(asset),
           alt: asset.prompt,
           downloadFilename: `v${asset.version}.${asset.settings?.outputFormat ?? ext}`,
         }))}
         onActiveSrcChange={(src) => {
-          const next = siblings.find(
-            (asset) => assetContentUrl(projectId, asset.id) === src,
-          );
+          const next = siblings.find((asset) => assetContentUrl(asset) === src);
           if (next) onSelect(next.id);
           else if (src === null) onClose();
         }}
@@ -164,7 +160,7 @@ export function StudioLightbox({
               className="border-border flex min-w-0 flex-col border-r last:border-r-0"
               key={asset.id}
             >
-              <ImagePane asset={asset} labels={labels} projectId={projectId} />
+              <ImagePane asset={asset} labels={labels} />
               <div className="border-border min-w-0 border-t p-3">
                 <Metadata
                   asset={asset}
@@ -187,20 +183,13 @@ export function StudioLightbox({
 function ImagePane({
   asset,
   labels,
-  projectId,
 }: {
   asset: StudioAsset;
   labels: StudioLabels;
-  projectId: string;
 }) {
   return (
     <figure className="bg-muted relative flex min-h-0 flex-1 items-center justify-center p-3">
-      <StudioImage
-        asset={asset}
-        fit="contain"
-        labels={labels}
-        projectId={projectId}
-      />
+      <StudioImage asset={asset} fit="contain" labels={labels} />
       <figcaption className="bg-card-background text-foreground border-border absolute top-5 left-5 rounded-md border px-2 py-0.5 text-xs">
         {labels.version} {asset.version}
       </figcaption>

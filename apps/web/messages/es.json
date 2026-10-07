@@ -152,7 +152,11 @@
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Otros"
+      "othersCategory": "Otros",
+      "ActionButtons": {
+        "back": "Atrás",
+        "close": "Cerrar"
+      }
     },
     "UserAvatar": {
       "account": "Cuenta",
@@ -260,7 +264,8 @@
           "unassignSeatDescription": "Al quitar el Seat de pago de {member}, dejará de recibir créditos de suscripción y pasará a recibir créditos mensuales gratuitos. Los créditos del periodo actual permanecen hasta que expiren."
         },
         "assignSeat": "Asignar Seat",
-        "unassignSeat": "Quitar Seat"
+        "unassignSeat": "Quitar Seat",
+        "open": "Acciones del miembro"
       },
       "InvitationActions": {
         "resend": "Reenviar invitación",
@@ -277,7 +282,8 @@
           }
         },
         "resendSuccess": "Invitación reenviada correctamente",
-        "resendError": "No se pudo reenviar la invitación"
+        "resendError": "No se pudo reenviar la invitación",
+        "open": "Acciones de la invitación"
       }
     },
     "Breadcrumb": {
@@ -1005,6 +1011,67 @@
       "failed": "No se pudo mostrar este diagrama. Revisa la sintaxis del código de abajo.",
       "copied": "Código copiado.",
       "copyFailed": "No se pudo copiar. Selecciona el código del diagrama de abajo y cópialo manualmente."
+    },
+    "ChatResults": {
+      "unavailable": "Resultado no disponible o sin acceso",
+      "loading": "Cargando resultados…",
+      "loadError": "No se pudieron cargar los resultados",
+      "retry": "Reintentar",
+      "open": "Abrir origen",
+      "openLabel": "Abrir origen: {title}",
+      "downloadLabel": "Descargar {name}",
+      "recorded": "Registrado el {time}",
+      "assignee": "Asignado a",
+      "project": "Proyecto",
+      "destination": "Cuenta",
+      "scheduled": "Programado para",
+      "recurrence": "Repetición",
+      "bytes": "{size} bytes",
+      "kind": {
+        "task": "Tarea",
+        "task_schedule": "Programación de tarea",
+        "bot_schedule": "Seguimiento del bot",
+        "social_post": "Publicación social",
+        "studio_job": "Generación en Studio",
+        "job": "Resultado del agente",
+        "file": "Archivo",
+        "decision": "Aprobación"
+      },
+      "status": {
+        "DRAFT": "Borrador",
+        "READY": "Lista",
+        "INPUT_REQUIRED": "Esperando información",
+        "RUNNING": "En curso",
+        "COMPLETED": "Completada",
+        "FAILED": "Fallida",
+        "CANCELLED": "Cancelada",
+        "ACTIVE": "Activa",
+        "PAUSED": "Pausada",
+        "ENDED": "Finalizada",
+        "SCHEDULED": "Programada",
+        "PUBLISHED": "Publicada",
+        "QUEUED": "En cola",
+        "PENDING": "Pendiente",
+        "PROCESSING": "Procesando",
+        "ACCEPTED": "Aceptada",
+        "REJECTED": "Rechazada",
+        "EXPIRED": "Caducada",
+        "SUCCEEDED": "Completado",
+        "SUBMITTING": "Enviando",
+        "CANCELED": "Cancelado",
+        "SUBMISSION_UNCERTAIN": "Esperando confirmación",
+        "ORPHANED": "Requiere atención"
+      },
+      "download": "Descargar",
+      "selection": {
+        "label": "Elige un proyecto",
+        "search": "Buscar proyectos…",
+        "empty": "No hay proyectos disponibles. Pide al bot que actualice las opciones.",
+        "sending": "Enviando tu elección…",
+        "selected": "Has elegido {name}",
+        "failed": "No se pudo enviar tu elección. Inténtalo de nuevo.",
+        "selectedProject": "Proyecto seleccionado"
+      }
     }
   },
   "Join": {
@@ -1517,7 +1584,7 @@
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chatear con {name}",
-          "searchAgents": "Buscar Agentes",
+          "searchAgents": "Buscar agentes",
           "error": "No se pudo abrir el chat. Inténtalo de nuevo."
         },
         "stats": {
@@ -1536,7 +1603,7 @@
         },
         "searchAgents": {
           "label": "Buscar",
-          "subtitle": "Agentes Especializados"
+          "subtitle": "Agentes especializados"
         }
       },
       "SokoBot": {
@@ -1810,7 +1877,8 @@
             "unauthenticatedAction": "Iniciar sesión",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Copiar enlace"
         },
         "switchedWorkspace": "Cambiado a la cuenta de {account}",
         "workspaceSwitchPrompt": {
@@ -2688,8 +2756,8 @@
     "Studio": {
       "back": "Volver al proyecto",
       "updated": "Actualizado",
-      "emptyTitle": "Aún no hay imágenes",
-      "emptyBody": "Escribe un prompt abajo y elige los modelos con los que probarlo. Recibirás versiones para comparar y refinar.",
+      "emptyTitle": "Crea tu primera imagen",
+      "emptyBody": "Elige un estilo para empezar o escribe tu propio prompt abajo.",
       "promptPlaceholder": "Describe la imagen…",
       "generate": "Generar",
       "refine": "Refinar",
@@ -2771,6 +2839,8 @@
       "pickBody": "Content Studio trabaja dentro de un proyecto: sus imágenes y su marca le pertenecen. Elige un proyecto para abrir su galería.",
       "pickAction": "Elegir proyecto",
       "pickUnavailable": "Ese proyecto ya no está en este espacio de trabajo. Elige otro.",
+      "pickForGeneration": "¿A qué proyecto van estas imágenes?",
+      "referencesAcrossProjects": "Las referencias tienen que venir de un solo proyecto. Deselecciona las imágenes de otros proyectos y vuelve a generar.",
       "scopeLabel": "Proyecto",
       "title": "Content Studio",
       "selectAllModels": "Seleccionar todos",
@@ -2836,14 +2906,18 @@
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conectar X, YouTube, LinkedIn…",
-        "body": "Las cuentas se conectan por proyecto. Elige un proyecto en la barra lateral para conectar o gestionar sus cuentas."
+        "title": "Conecta tus cuentas de redes sociales",
+        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
       },
       "draftsNeedProject": {
         "title": "Borradores",
-        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto en la barra lateral para ver y terminar sus borradores."
+        "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…"
+      "loading": "Cargando Social…",
+      "pickProject": "Elegir un proyecto",
+      "platforms": {
+        "label": "Plataformas de redes sociales"
+      }
     },
     "Error": {
       "title": "Algo salió mal",
@@ -2890,7 +2964,7 @@
           "social": "Programación social"
         },
         "ChatLists": {
-          "title": "Chats Recientes",
+          "title": "Chats recientes",
           "noChats": "Aún no hay chats",
           "untitledChat": "Chat sin título",
           "coworkerAlt": "Colaborador"
@@ -2900,7 +2974,8 @@
           "description": "Puedes seguir usando el chat. Las Tasks, proyectos, archivos y el resto del producto de la organización necesitan un Seat asignado.",
           "hint": "Pide a un propietario o admin que te asigne un Seat."
         }
-      }
+      },
+      "toggle": "Mostrar u ocultar la barra lateral"
     },
     "HistorySearchDialog": {
       "title": "Buscar",
@@ -3306,6 +3381,17 @@
           "cancel": "Cancelar",
           "start": "Iniciar suplantación",
           "startError": "No se pudo iniciar la suplantación."
+        },
+        "UserDetail": {
+          "backToList": "Volver a usuarios",
+          "SignUp": {
+            "title": "Registro",
+            "origin": "Origen",
+            "recorded": "Guardado el",
+            "context": "Contexto",
+            "noContext": "No se transmitieron valores de contexto.",
+            "notRecorded": "No hay datos de registro"
+          }
         }
       },
       "Organizations": {
@@ -4597,7 +4683,8 @@
       "Cancel": {
         "title": "Pago cancelado",
         "description": "Tu proceso de pago fue cancelado. No se realizó ningún cargo.",
-        "backToCredits": "Volver a Credits"
+        "backToCredits": "Volver a Credits",
+        "close": "Cerrar"
       },
       "Errors": {
         "invalidInput": "Por favor, introduce un importe de Credits o un código de cupón",
@@ -4614,7 +4701,8 @@
       "urlLabel": "URL del servidor MCP",
       "existingKeyNote": "Esta conexión MCP alojada usa OAuth. Tu cliente MCP te pedirá iniciar sesión en Sokosumi al conectarte.",
       "docsLink": "Ver documentación de MCP",
-      "copyError": "No se pudo copiar la URL al portapapeles"
+      "copyError": "No se pudo copiar la URL al portapapeles",
+      "copyUrl": "Copiar URL"
     },
     "Account": {
       "Name": {
@@ -4725,7 +4813,9 @@
           "cancel": "Cancelar",
           "success": "Cuenta desconectada correctamente",
           "error": "No se pudo desconectar {provider}"
-        }
+        },
+        "connect": "Conectar {provider}",
+        "disconnect": "Desconectar {provider}"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "No se pudieron cargar los detalles de la cuenta",
@@ -6940,7 +7030,8 @@
           "scratch_list": "Listando notas",
           "read_file": "Leyendo un archivo",
           "generate_image": "Generando una imagen",
-          "get_image": "Consultando una imagen"
+          "get_image": "Consultando una imagen",
+          "preview_result": "Preparando una vista previa"
         },
         "composer": {
           "label": "Mensaje",

@@ -159,7 +159,7 @@ export function HistoryTypeColumn({
       {/* `truncate`: the column is 120px wide and the chip label is now a
           source name, not one of main's three short words. Without it a long
           label ran under the title and broke the row's left alignment. */}
-      <span className="text-muted-foreground w-full truncate rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium hidden sm:block">
+      <span className="text-muted-foreground w-full truncate rounded-full px-1.5 py-0.5 text-2xs font-medium hidden sm:block">
         {labels.kind[item.kind]}
       </span>
     </div>

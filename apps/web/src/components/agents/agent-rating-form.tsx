@@ -114,7 +114,7 @@ export function AgentRatingForm({
           onClick={handleSubmit}
           disabled={rating === 0}
           loading={isSubmitting}
-          className="ml-auto size-7 rounded-full"
+          className="hit-area ml-auto size-7 rounded-full"
           size="icon"
           aria-label={t("submitButton")}
         >

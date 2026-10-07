@@ -261,6 +261,26 @@ export const signUpConversionResponseSchema = z
   })
   .openapi("SignUpConversionResponse");
 
+export const signUpContextSchema = z
+  .object({
+    origin: z.string().openapi({
+      description:
+        "The product the account was created through: `sokosumi`, a first-party client's sign-up origin such as `cmo`, or `unknown` for a client without one.",
+      example: "cmo",
+    }),
+    context: z
+      .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
+      .openapi({
+        description:
+          "The values the sign-up origin handed over, as untrusted text, numbers or booleans.",
+        example: { url: "nmkr.io" },
+      }),
+    createdAt: dateTimeSchema.openapi({
+      description: "When the sign-up was recorded",
+    }),
+  })
+  .openapi("SignUpContext");
+
 export const signUpConversionRequestSchema = z
   .object({
     utmAttribution: utmAttributionRequestSchema.optional(),

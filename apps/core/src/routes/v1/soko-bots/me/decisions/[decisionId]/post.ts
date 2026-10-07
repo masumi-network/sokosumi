@@ -3,10 +3,8 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { type OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireUserAuthContext } from "@/middleware/auth";
-import {
-  resolveSokoBotDecisionRequestSchema,
-  sokoBotPendingDecisionSchema,
-} from "@/schemas/soko-bot.schema";
+import { resolveSokoBotDecisionRequestSchema } from "@/schemas/soko-bot.schema";
+import { sokoBotPendingDecisionSchema } from "@/schemas/soko-bot-pending-decision.schema";
 import { sokoBotRuntimeService } from "@/services/soko-bot-runtime.service";
 import { decisionParams, mapControlPlaneError } from "../../../helpers.js";
 

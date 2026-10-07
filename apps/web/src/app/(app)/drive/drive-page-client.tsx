@@ -2053,7 +2053,7 @@ function DrivePageWorkspace({
                                 type="button"
                                 variant="ghost"
                                 size="icon"
-                                className="size-8"
+                                className="size-10 md:size-8"
                                 aria-label={t("moreActions")}
                                 data-testid="drive-item-more-actions"
                               >

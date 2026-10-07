@@ -74,13 +74,11 @@ export async function ChatLanding({
         className="flex w-full shrink-0 flex-col items-center gap-3 px-4 pb-4"
         data-testid="landing-activity-stats"
       >
-        <p className="text-muted-foreground text-[0.8125rem]">
-          {t("stats.recent")}
-        </p>
+        <p className="text-muted-foreground text-sm">{t("stats.recent")}</p>
         <div className="flex flex-wrap items-center justify-center gap-3">
           {stats.map((stat) => (
             <span
-              className="bg-card text-muted-foreground inline-flex items-center rounded-full border px-3 py-1.5 text-[0.8125rem] tabular-nums"
+              className="bg-card text-muted-foreground inline-flex items-center rounded-full border px-3 py-1.5 text-sm tabular-nums"
               key={stat.label}
             >
               {stat.label}

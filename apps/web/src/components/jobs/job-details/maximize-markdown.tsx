@@ -34,7 +34,7 @@ export default function MaximizeMarkdown({
           className={cn("text-muted-foreground", className)}
           title={t("maximize")}
         >
-          <Maximize2 className="h-4 w-4" />
+          <Maximize2 className="size-4" />
         </Button>
       </DialogTrigger>
       <DialogContent className="app-scrollbar flex max-h-[90dvh] max-w-[96vw] flex-col overflow-y-auto sm:max-w-[90vw]">

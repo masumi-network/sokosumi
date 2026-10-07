@@ -34,6 +34,7 @@ import {
 import { DriveListSkeleton } from "@/app/drive/components/drive-list-skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -826,7 +827,7 @@ export function DriveAllFilesPanel({
             <button
               type="button"
               aria-label={t("searchClear")}
-              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
+              className="text-muted-foreground hover:text-foreground focus-visible:ring-ring hit-area absolute right-2 top-1/2 -translate-y-1/2 rounded-sm p-1 focus-visible:outline-none focus-visible:ring-2"
               onClick={() => {
                 debouncedSearch.cancel();
                 setQuery("");
@@ -953,18 +954,18 @@ export function DriveAllFilesPanel({
           data-testid="drive-all-files-facets"
         >
           {appliedFacets.map((facet) => (
-            <Badge key={facet.key} variant="secondary" className="gap-1 pr-1">
+            <Badge
+              key={facet.key}
+              variant="secondary"
+              className="gap-1 overflow-visible py-0 pe-0"
+            >
               <span className="truncate" title={facet.label}>
                 {facet.label}
               </span>
-              <button
-                type="button"
+              <ChipRemoveButton
                 aria-label={t("removeTag", { name: facet.label })}
-                className="press hover:bg-card-background-hover focus-visible:ring-ring rounded-sm p-0.5 focus-visible:outline-none focus-visible:ring-2"
                 onClick={facet.remove}
-              >
-                <X className="size-3" aria-hidden />
-              </button>
+              />
             </Badge>
           ))}
           <Button
@@ -1039,7 +1040,9 @@ export function DriveAllFilesPanel({
                         // 44px on touch, which is the minimum this codebase
                         // uses elsewhere (`min-h-11`); a 32px target was
                         // comfortable with a mouse and a miss with a thumb.
-                        className="size-11 @2xl:size-8"
+                        // `hit-area` covers a wide container on a narrow
+                        // viewport, where the 32px box applies below md.
+                        className="hit-area size-11 @2xl:size-8"
                         disabled={collectionBusy}
                         aria-label={t("collectionActions", {
                           name: collection.name,

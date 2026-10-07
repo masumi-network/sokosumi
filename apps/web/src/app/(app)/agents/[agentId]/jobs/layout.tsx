@@ -6,10 +6,7 @@ import DefaultLoading from "@/components/default-loading";
 import { getCoreAgentById } from "@/lib/agents/core-loaders";
 import { getSession } from "@/lib/auth/auth.server";
 import { agentService } from "@/lib/services/agent.service";
-import {
-  createUnavailableCoreAgent,
-  getAgentRatingStats,
-} from "@/lib/types/core-dto";
+import { createUnavailableCoreAgent } from "@/lib/types/core-dto";
 
 import { getCachedMyJobs } from "./_lib/get-cached-my-jobs";
 import { JobsHeaderContext } from "./components/jobs-header-context";
@@ -64,9 +61,6 @@ async function JobLayoutInner({
   const coreAgent = await getCoreAgentById(agentId);
 
   const agent = coreAgent ?? createUnavailableCoreAgent(agentId);
-  const ratingStats = coreAgent
-    ? getAgentRatingStats(coreAgent)
-    : { total: 0, average: null };
   const disabled = !coreAgent;
 
   const [agentJobsPage, canRate, existingRating] = await Promise.all([
@@ -81,7 +75,6 @@ async function JobLayoutInner({
     <JobsHeaderContext
       value={{
         agent,
-        ratingStats,
         canRate,
         existingRating,
         disabled,
@@ -117,13 +110,11 @@ async function JobLayoutInner({
             </div>
 
             <div className="h-full min-h-0 min-w-0 flex-1 @4xl/jobs-panes:hidden">
-              <div className="mx-auto h-full min-h-0 w-full px-4">
-                {children}
-              </div>
+              <div className="mx-auto size-full min-h-0 px-4">{children}</div>
             </div>
 
             <div className="hidden h-full min-h-0 min-w-0 flex-1 @4xl/jobs-panes:block">
-              <div className="mx-auto h-full min-h-0 w-full px-4">{right}</div>
+              <div className="mx-auto size-full min-h-0 px-4">{right}</div>
             </div>
           </div>
         </div>
@@ -137,7 +128,7 @@ function JobLayoutSkeleton() {
   return (
     <div className="flex flex-col lg:h-[calc(100dvh-6rem)]">
       <div className="mt-6 flex flex-1">
-        <DefaultLoading className="h-full min-h-[300px] w-full flex-1 p-8" />
+        <DefaultLoading className="size-full min-h-[300px] flex-1 p-8" />
       </div>
     </div>
   );

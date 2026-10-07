@@ -11,6 +11,7 @@ import { createAgentClient } from "@sokosumi/masumi";
 import { inputSchemaSchema } from "@sokosumi/masumi/schemas";
 import {
   sokoBotAgentIdInputSchema as agentIdInputSchema,
+  type ChatResultReference,
   composeSystemPrompt,
   sokoBotCreateScheduleInputSchema as createScheduleInputSchema,
   exceedsUnattendedHireBudget,
@@ -43,6 +44,7 @@ import {
   sokoBotManageReminderInputSchema,
   sokoBotOpenDirectChatInputSchema,
   sokoBotPostChatInputSchema,
+  sokoBotPreviewResultInputSchema,
   sokoBotReadChatInputSchema,
   sokoBotReadEmailInputSchema,
   sokoBotReadFileInputSchema,
@@ -79,6 +81,7 @@ import { DAY_MS } from "@/config/constants";
 import { getEnv } from "@/config/env";
 import { buildTaskWriteAccessWhere } from "@/helpers/access-control";
 import { getAgentApiBaseUrl, toMasumiAgent } from "@/helpers/agent";
+import { RESULT_SNAPSHOTS_KEY } from "@/helpers/chat-result-metadata";
 import {
   batchTableRows,
   createDataTable,
@@ -152,6 +155,7 @@ import {
 } from "@/lib/soko-bot/evaluation-dispatch";
 import {
   persistedToolResult,
+  sanitizePersistedValue,
   truncateUtf8,
 } from "@/lib/soko-bot/persisted-value";
 import { readSokoBotSource } from "@/lib/soko-bot/source-query";
@@ -164,9 +168,14 @@ import {
   resolveMentionedCoworkerIds,
   resolveMentionedSokoBotIds,
 } from "@/routes/v1/chats/rooms/helpers";
+import { chatResultSnapshotSchema } from "@/schemas/chat-result-preview.schema";
 import { dataTableSchema } from "@/schemas/data-table.schema";
 import { projectSocialConnectionSchema } from "@/schemas/project-social-connection.schema";
 import { socialPostSchema } from "@/schemas/social-post.schema";
+import {
+  hydrateChatResultSnapshots,
+  resolveChatResultReference,
+} from "@/services/chat-result-preview.service";
 import {
   CmoNotFoundError,
   cmoExecutionRefusal,
@@ -1455,11 +1464,31 @@ export class SokoBotRuntimeService {
       roomId: string;
       content: string;
       toolCallId: string;
+      resultReferences?: ChatResultReference[];
       openedDirect?: { name: string; created: boolean; withUserName: string };
       publicationId?: string;
     },
     transaction?: Prisma.TransactionClient,
   ) {
+    if (input.resultReferences?.length && authorized.askedByKind !== "OWNER") {
+      throw new SokoBotRuntimeAuthorizationError(
+        "Result previews are prepared for the owner's requests",
+      );
+    }
+    const snapshots: Awaited<ReturnType<typeof resolveChatResultReference>>[] =
+      [];
+    for (const reference of input.resultReferences ?? []) {
+      snapshots.push(
+        await resolveChatResultReference({
+          reference,
+          actor: {
+            userId: authorized.turn.userId,
+            workspaceId: authorized.turn.workspaceId,
+            kind: "soko_bot",
+          },
+        }),
+      );
+    }
     const persist = async (tx: Prisma.TransactionClient) => {
       await this.requireMutationAuthority(
         tx,
@@ -1578,6 +1607,9 @@ export class SokoBotRuntimeService {
             // Lets the reader see, on hover, that this is part of an assistant
             // exchange and how close it is to the point where it stops.
             metadata: {
+              ...(snapshots.length
+                ? { [RESULT_SNAPSHOTS_KEY]: sanitizePersistedValue(snapshots) }
+                : {}),
               soko_bot_chain: {
                 depth: chainDepth,
                 max_depth: MAX_CHAT_CHAIN_DEPTH,
@@ -3947,6 +3979,20 @@ export class SokoBotRuntimeService {
       }
       if (existing.status === "COMPLETED") {
         let replayResult = existing.result;
+        if (input.capability === "preview_result") {
+          if (authorized.askedByKind !== "OWNER")
+            throw new SokoBotRuntimeAuthorizationError(
+              "Result previews are prepared for the owner's requests",
+            );
+          const snapshot = chatResultSnapshotSchema.parse(existing.result);
+          const [preview] = await hydrateChatResultSnapshots(
+            [snapshot],
+            authorized.turn.userId,
+          );
+          if (!preview || preview.state !== "available")
+            throw new SokoBotRuntimeAuthorizationError("Result unavailable");
+          return { ...snapshot, data: preview };
+        }
         if (
           [
             "create_social_post",
@@ -4981,6 +5027,25 @@ export class SokoBotRuntimeService {
         return this.openDirectChat(authorized, {
           ...parsed,
           toolCallId: input.toolCallId,
+        });
+      }
+      case "preview_result": {
+        const { reference } = sokoBotPreviewResultInputSchema.parse(
+          input.input,
+        );
+        // A colleague's prompt cannot turn the owner's private data into a result.
+        if (authorized.askedByKind !== "OWNER") {
+          throw new SokoBotRuntimeAuthorizationError(
+            "Result previews are prepared for the owner's requests",
+          );
+        }
+        return resolveChatResultReference({
+          reference,
+          actor: {
+            userId: authorized.turn.userId,
+            workspaceId: authorized.turn.workspaceId,
+            kind: "soko_bot",
+          },
         });
       }
       case "post_chat": {

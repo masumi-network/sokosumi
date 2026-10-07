@@ -12,8 +12,10 @@ const {
   roomUpdate,
   publish,
   messageUpsert,
+  previewCalls,
 } = vi.hoisted(() => ({
   messageUpsert: vi.fn(),
+  previewCalls: vi.fn(),
   turnFindUnique: vi.fn(),
   mentionUpdateMany: vi.fn(),
   messageUpdate: vi.fn(),
@@ -45,6 +47,7 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     $transaction: vi.fn(async (callback: (tx: unknown) => Promise<unknown>) =>
       callback({
+        sokoBotToolCall: { findMany: previewCalls },
         sokoBotTurn: { findUnique: turnFindUnique },
         chatRoomMention: { updateMany: mentionUpdateMany },
         chatRoomMessage: {
@@ -122,6 +125,7 @@ function completedTurn(overrides: Record<string, unknown> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  previewCalls.mockResolvedValue([]);
   turnFindUnique.mockResolvedValue(completedTurn());
   mentionUpdateMany.mockResolvedValue({ count: 1 });
   messageUpdate.mockResolvedValue({ id: "response-a" });
@@ -195,6 +199,57 @@ describe("persistSokoBotChatTurn", () => {
     );
   });
 
+  it("attaches prepared snapshots only to the successful answer, without a second post", async () => {
+    const snapshot = {
+      workspaceId: "workspace",
+      reference: { kind: "task", id: "task-a" },
+      data: {
+        id: "00000000-0000-4000-8000-000000000001",
+        state: "available",
+        capturedAt: "2026-10-06T10:00:00Z",
+        kind: "task",
+        title: "Launch",
+        status: "READY",
+        sourceHref: "/tasks/task-a",
+      },
+    };
+    // Automatic cards have durable receipts without a model preview_result event.
+    turnFindUnique.mockResolvedValue(completedTurn({ events: [] }));
+    previewCalls.mockResolvedValue([
+      { result: snapshot },
+      { result: snapshot },
+    ]);
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(
+      messageUpdate.mock.calls[0][0].data.metadata.result_preview_snapshots,
+    ).toMatchObject([snapshot]);
+    expect(messageCreate).not.toHaveBeenCalled();
+    expect(previewCalls).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          turnId: "turn-a",
+          capability: "preview_result",
+          status: "COMPLETED",
+        },
+      }),
+    );
+    vi.clearAllMocks();
+    turnFindUnique.mockResolvedValue(
+      completedTurn({
+        status: "CANCELLED",
+        finalAnswer: null,
+        events: [
+          {
+            type: "actions.requested",
+            toolName: "preview_result",
+            summary: null,
+          },
+        ],
+      }),
+    );
+    await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));
+    expect(previewCalls).not.toHaveBeenCalled();
+  });
   it("gives an answer with no summary and no tools a Thought too", async () => {
     turnFindUnique.mockResolvedValue(completedTurn({ events: [] }));
     await prisma.$transaction((tx) => persistSokoBotChatTurn("turn-a", tx));

@@ -489,6 +489,7 @@ export type ChatRoomMessage = {
     roomId: string;
     parentMessageId: string | null;
     content: string;
+    resultPreviews?: Array<ChatResultDescriptor>;
     createdAt: Date;
     deletedAt: Date | null;
     editedAt: Date | null;
@@ -523,6 +524,11 @@ export type ChatRoomMessage = {
      * Skills the sender attached. The skill content is delivered to the coworkers and Soko Bots the message reaches, never to readers.
      */
     skills?: Array<ChatRoomMessageSkill>;
+};
+
+export type ChatResultDescriptor = {
+    id: string;
+    capturedAt: Date;
 };
 
 export type ChatRoomMessageSender = {
@@ -909,6 +915,7 @@ export type SokoBotTurn = {
     qualityModel?: string | null;
     judgedAt?: Date | null;
     userMessage: string;
+    resultPreviews?: Array<ChatResultDescriptor>;
     finalAnswer: string | null;
     classification: {
         [key: string]: unknown;
@@ -2939,6 +2946,7 @@ export type ChatRoomPinnedMessageListItem = {
         roomId: string;
         parentMessageId: string | null;
         content: string;
+        resultPreviews?: Array<ChatResultDescriptor>;
         createdAt: Date;
         deletedAt: Date | null;
         editedAt: Date | null;
@@ -3110,6 +3118,117 @@ export type ChatRoomThreadsMarkAll = {
 export type ChatRoomThreadReadState = {
     parentMessageId: string;
     lastReadAt: Date;
+};
+
+export type ChatResultPreview = ({
+    state: 'available';
+} & ChatResultAvailable) | ({
+    state: 'unavailable';
+} & ChatResultUnavailable);
+
+export type ChatResultAvailable = {
+    id: string;
+    state: 'available';
+    capturedAt: Date;
+    kind: 'task' | 'task_schedule' | 'bot_schedule' | 'social_post' | 'studio_job' | 'job' | 'file' | 'decision' | 'project_selection';
+    title: string;
+    status: string | null;
+    summary?: string | null;
+    sourceHref: string;
+    assignee?: string | null;
+    project?: string | null;
+    destination?: string | null;
+    scheduledAt?: Date | null;
+    timezone?: string | null;
+    recurrence?: string | null;
+    question?: string | null;
+    outputs?: Array<ChatResultOutput>;
+    task?: ChatResultTask | null;
+    social?: ChatResultSocial | null;
+    actor?: {
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    } | null;
+    agent?: {
+        name: string;
+        icon: string | null;
+    } | null;
+    projectOptions?: Array<{
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    }>;
+    projectInfo?: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    } | null;
+    decision?: SokoBotPendingDecision | null;
+};
+
+export type ChatResultOutput = {
+    name: string;
+    contentType: string | null;
+    sizeBytes: number | null;
+    openHref: string;
+    previewHref: string | null;
+    downloadHref?: string | null;
+};
+
+export type ChatResultTask = {
+    id: string;
+    name: string;
+    identifier: string | null;
+    status: TaskStatus;
+    priority: TaskPriority;
+    visibility: TaskVisibility;
+    createdAt: Date | null;
+    runAt: Date | null;
+    project: {
+        id: string;
+        name: string;
+        identifier: string | null;
+        logo: string | null;
+    } | null;
+    assignee: {
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    } | null;
+    participants: Array<{
+        id: string;
+        name: string;
+        image?: string | null;
+        kind: 'user' | 'coworker' | 'sokoBot';
+        slug?: string;
+        avatarSeed?: string | null;
+    }>;
+    commentsCount: number;
+    tags: TaskTags;
+};
+
+export type ChatResultSocial = {
+    provider: 'x' | 'linkedin' | 'facebook' | 'instagram' | 'tiktok' | 'youtube';
+    account: {
+        handle: string | null;
+        displayName: string | null;
+        avatarUrl: string | null;
+    } | null;
+    timestamp: Date | null;
+};
+
+export type ChatResultUnavailable = {
+    id: string;
+    state: 'unavailable';
 };
 
 export type CreateChatRoomMessageRequest = {
@@ -4500,6 +4619,63 @@ export type ProjectImageStudioCatalogModel = {
     verifiedAt: string;
 };
 
+export type ImageStudioWorkspaceState = {
+    assets: Array<ProjectImageAsset>;
+    jobs: Array<ProjectImageJob>;
+    nextCursor: {
+        createdAt: Date;
+        id: string;
+    } | null;
+};
+
+export type ProjectImageAsset = {
+    id: string;
+    projectId: string;
+    projectName: string;
+    rootId: string;
+    parentId: string | null;
+    version: number;
+    prompt: string;
+    model: string;
+    width: number;
+    height: number;
+    bytes: number;
+    contentType: string;
+    createdAt: Date;
+    jobId: string;
+    settings: ProjectImageSettings;
+    contentPath: string;
+};
+
+export type ProjectImageSettings = {
+    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
+    resolution?: '0.5K' | '1K' | '2K';
+    outputFormat?: 'png' | 'jpeg' | 'webp';
+    seed?: number | null;
+};
+
+export type ProjectImageJob = {
+    id: string;
+    projectId: string;
+    status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
+    kind: 'GENERATE' | 'EDIT';
+    model: string;
+    prompt: string;
+    settings: ProjectImageSettings;
+    referenceAssetIds: Array<string>;
+    error: string | null;
+    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
+    parentAssetId: string | null;
+    assetId: string | null;
+    createdAt: Date;
+    submittedAt: Date | null;
+    settledAt: Date | null;
+    cancelRequestedAt: Date | null;
+    retryMayDuplicateCharge: boolean;
+    credits: number | null;
+    refunded: boolean;
+};
+
 /**
  * `extra.credits`: non-subscription totals (sums over `extra.buckets`). `extra.buckets`: per-bucket lines.
  */
@@ -4966,6 +5142,23 @@ export type SignUpConversionResponse = {
 
 export type SignUpConversionRequest = {
     utmAttribution?: UtmAttributionRequest;
+};
+
+export type SignUpContext = {
+    /**
+     * The product the account was created through: `sokosumi`, a first-party client's sign-up origin such as `cmo`, or `unknown` for a client without one.
+     */
+    origin: string;
+    /**
+     * The values the sign-up origin handed over, as untrusted text, numbers or booleans.
+     */
+    context: {
+        [key: string]: string | number | boolean;
+    };
+    /**
+     * When the sign-up was recorded
+     */
+    createdAt: Date;
 };
 
 export type CoworkerWorkspaceAccess = {
@@ -5843,51 +6036,6 @@ export type ProjectImageStudioState = {
         createdAt: Date;
         id: string;
     } | null;
-};
-
-export type ProjectImageAsset = {
-    id: string;
-    rootId: string;
-    parentId: string | null;
-    version: number;
-    prompt: string;
-    model: string;
-    width: number;
-    height: number;
-    bytes: number;
-    contentType: string;
-    createdAt: Date;
-    jobId: string;
-    settings: ProjectImageSettings;
-    contentPath: string;
-};
-
-export type ProjectImageSettings = {
-    aspectRatio?: '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '4:5' | '5:4';
-    resolution?: '0.5K' | '1K' | '2K';
-    outputFormat?: 'png' | 'jpeg' | 'webp';
-    seed?: number | null;
-};
-
-export type ProjectImageJob = {
-    id: string;
-    status: 'PENDING' | 'SUBMITTING' | 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED' | 'SUBMISSION_UNCERTAIN' | 'ORPHANED';
-    kind: 'GENERATE' | 'EDIT';
-    model: string;
-    prompt: string;
-    settings: ProjectImageSettings;
-    referenceAssetIds: Array<string>;
-    error: string | null;
-    failureReason: 'provider_rejected' | 'provider_error' | 'provider_lost_request' | 'provider_unreachable' | 'submission_uncertain' | 'reference_not_sendable' | 'request_not_supported' | 'cancelled' | 'abandoned_before_send' | 'access_revoked' | 'storage_unavailable' | 'unknown' | null;
-    parentAssetId: string | null;
-    assetId: string | null;
-    createdAt: Date;
-    submittedAt: Date | null;
-    settledAt: Date | null;
-    cancelRequestedAt: Date | null;
-    retryMayDuplicateCharge: boolean;
-    credits: number | null;
-    refunded: boolean;
 };
 
 export type ProjectImageSession = {
@@ -22571,6 +22719,103 @@ export type PatchChatsRoomsByIdMessagesByMessageIdResponses = {
 
 export type PatchChatsRoomsByIdMessagesByMessageIdResponse = PatchChatsRoomsByIdMessagesByMessageIdResponses[keyof PatchChatsRoomsByIdMessagesByMessageIdResponses];
 
+export type GetChatRoomMessageResultsData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        messageId: string;
+    };
+    query?: never;
+    url: '/chats/rooms/{id}/messages/{messageId}/results';
+};
+
+export type GetChatRoomMessageResultsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Read budget exceeded
+     */
+    429: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsError = GetChatRoomMessageResultsErrors[keyof GetChatRoomMessageResultsErrors];
+
+export type GetChatRoomMessageResultsResponses = {
+    /**
+     * Authorized recorded message results
+     */
+    200: {
+        data: Array<ChatResultPreview>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetChatRoomMessageResultsResponse = GetChatRoomMessageResultsResponses[keyof GetChatRoomMessageResultsResponses];
+
 export type DeleteChatsRoomsByIdMessagesByMessageIdReactionsByEmojiData = {
     body?: never;
     headers?: {
@@ -30465,6 +30710,89 @@ export type GetImageStudioCatalogResponses = {
 
 export type GetImageStudioCatalogResponse = GetImageStudioCatalogResponses[keyof GetImageStudioCatalogResponses];
 
+export type GetImageStudioStateData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path?: never;
+    query?: {
+        assetId?: string;
+        before?: Date;
+        beforeId?: string;
+    };
+    url: '/image-studio/state';
+};
+
+export type GetImageStudioStateErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetImageStudioStateError = GetImageStudioStateErrors[keyof GetImageStudioStateErrors];
+
+export type GetImageStudioStateResponses = {
+    /**
+     * Workspace image studio state
+     */
+    200: {
+        data: ImageStudioWorkspaceState;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetImageStudioStateResponse = GetImageStudioStateResponses[keyof GetImageStudioStateResponses];
+
 export type GetUsersRegisteredData = {
     body?: never;
     path?: never;
@@ -33694,6 +34022,84 @@ export type PostUsersByIdSignUpConversionResponses = {
 };
 
 export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
+
+export type GetUsersByIdSignUpData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up';
+};
+
+export type GetUsersByIdSignUpErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User or sign-up not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpError = GetUsersByIdSignUpErrors[keyof GetUsersByIdSignUpErrors];
+
+export type GetUsersByIdSignUpResponses = {
+    /**
+     * The user's sign-up
+     */
+    200: {
+        data: SignUpContext;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpResponse = GetUsersByIdSignUpResponses[keyof GetUsersByIdSignUpResponses];
 
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;
@@ -43249,6 +43655,92 @@ export type GetJobsByIdFilesResponses = {
 
 export type GetJobsByIdFilesResponse = GetJobsByIdFilesResponses[keyof GetJobsByIdFilesResponses];
 
+export type GetJobsByIdFilesByFileIdContentData = {
+    body?: never;
+    path: {
+        id: string;
+        fileId: string;
+    };
+    query?: {
+        download?: 'true' | 'false';
+    };
+    url: '/jobs/{id}/files/{fileId}/content';
+};
+
+export type GetJobsByIdFilesByFileIdContentErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Storage unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetJobsByIdFilesByFileIdContentError = GetJobsByIdFilesByFileIdContentErrors[keyof GetJobsByIdFilesByFileIdContentErrors];
+
+export type GetJobsByIdFilesByFileIdContentResponses = {
+    /**
+     * Output bytes
+     */
+    200: Blob | File;
+};
+
+export type GetJobsByIdFilesByFileIdContentResponse = GetJobsByIdFilesByFileIdContentResponses[keyof GetJobsByIdFilesByFileIdContentResponses];
+
 export type GetJobsByIdLinksData = {
     body?: never;
     headers?: {
@@ -47478,6 +47970,66 @@ export type GetMySokoBotTurnResponses = {
 };
 
 export type GetMySokoBotTurnResponse = GetMySokoBotTurnResponses[keyof GetMySokoBotTurnResponses];
+
+export type GetMySokoBotTurnResultsData = {
+    body?: never;
+    path: {
+        turnId: string;
+    };
+    query?: never;
+    url: '/soko-bots/me/turns/{turnId}/results';
+};
+
+export type GetMySokoBotTurnResultsErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetMySokoBotTurnResultsError = GetMySokoBotTurnResultsErrors[keyof GetMySokoBotTurnResultsErrors];
+
+export type GetMySokoBotTurnResultsResponses = {
+    /**
+     * Authorized recorded turn results
+     */
+    200: {
+        data: Array<ChatResultPreview>;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetMySokoBotTurnResultsResponse = GetMySokoBotTurnResultsResponses[keyof GetMySokoBotTurnResultsResponses];
 
 export type CancelMySokoBotTurnData = {
     body?: never;

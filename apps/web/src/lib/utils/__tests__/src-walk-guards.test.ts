@@ -119,7 +119,7 @@ const COLOR_UTILITIES_NO_TEXT = COLOR_UTILITIES.split("|")
  * a real opacity modifier, so an unscoped lookahead let `shadow-lg/25`
  * through.
  */
-const FONT_SIZES = "xs|sm|base|lg|xl|[2-9]xl";
+const FONT_SIZES = "2xs|xs|sm|base|lg|xl|[2-9]xl";
 
 /**
  * The tail is a negative lookahead, not `\b`. A word boundary after `]` needs
@@ -354,21 +354,42 @@ describe("whole pixels", () => {
 });
 
 // ---------------------------------------------------------------------------
-// no fixed px font sizes
+// no fixed or off-scale font sizes
 // ---------------------------------------------------------------------------
 
-/** Paths relative to apps/web/src that may keep px font sizes (non-product UI). */
-const FONT_SIZE_ALLOWLIST = new Set(["app/api/export/pdf/route.ts"]);
+/**
+ * Paths relative to apps/web/src that may set a literal font size, each with
+ * the reason it cannot use the scale.
+ */
+const FONT_SIZE_ALLOWLIST = new Map([
+  [
+    "app/api/export/pdf/route.ts",
+    "PDF export chrome rendered by Puppeteer, not product UI",
+  ],
+  [
+    "app/global-error.tsx",
+    "replaces the root layout, so no app CSS loads; its inline 0.875rem is text-sm",
+  ],
+]);
 
-// Decimal px allowed in the pattern (e.g. text-[10.5px]). Intentional limits:
-// does not scan template assignments like root.style.fontSize = `${n}px`.
-const TEXT_PX_CLASS = /text-\[\d+(?:\.\d+)?px\]/;
-const FONT_SIZE_PX = /font-size:\s*\d+(?:\.\d+)?px/i;
+/**
+ * Any unit, not just px: `text-[13px]` and `text-[0.8125rem]` are the same
+ * off-scale 13px, and the rem spelling let ~130 of them past a px-only check.
+ * The `length:` hints are caught whatever they hold, a literal or a variable
+ * (`text-[length:var(--x)]`, `text-(length:--x)`): either way the size comes
+ * from somewhere other than the scale. Sizes come from the scale (`text-2xs`
+ * through `text-4xl`). Intentional limit: does not scan template assignments
+ * like root.style.fontSize = `${n}px`.
+ */
+const TEXT_ARBITRARY_SIZE =
+  /text-\[(?:length:[^\]]*|\d*\.?\d+[a-z%]+)\]|text-\(length:[^)]*\)/;
+/** A literal size in CSS or an inline style string, in px, rem or em. */
+const FONT_SIZE_DECL = /font-size:\s*\d*\.?\d+(?:px|r?em)\b/i;
 const FONT_SIZE_STYLE_NUM = /fontSize:\s*\d+(?:\.\d+)?\b/;
-const FONT_SIZE_STYLE_PX = /fontSize:\s*["']\d+(?:\.\d+)?px["']/;
+const FONT_SIZE_STYLE_STR = /fontSize:\s*["'`]\d*\.?\d+(?:px|r?em)["'`]/;
 
-describe("no fixed px font sizes in product UI", () => {
-  it("has no text-[Npx], font-size: Npx, or fontSize: N outside allowlist", () => {
+describe("no fixed or off-scale font sizes in product UI", () => {
+  it("has no text-[N<unit>], text-(length:…), or literal font-size outside allowlist", () => {
     const violations: string[] = [];
 
     for (const file of SRC_FILES) {
@@ -379,12 +400,123 @@ describe("no fixed px font sizes in product UI", () => {
 
       file.lines.forEach((line, i) => {
         if (
-          TEXT_PX_CLASS.test(line) ||
-          FONT_SIZE_PX.test(line) ||
+          TEXT_ARBITRARY_SIZE.test(line) ||
+          FONT_SIZE_DECL.test(line) ||
           FONT_SIZE_STYLE_NUM.test(line) ||
-          FONT_SIZE_STYLE_PX.test(line)
+          FONT_SIZE_STYLE_STR.test(line)
         ) {
           violations.push(`${file.relSrc}:${i + 1}: ${line.trim()}`);
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// equal width and height use size-N
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Iconography: any equal width and height, icon or not, is
+ * `size-N` (including `size-full`), never `h-N w-N`. About seventy pairs had
+ * piled up, half of them `h-full w-full`.
+ *
+ * The check reads one string literal at a time, so two elements on one line
+ * stay separate. A pair matches when the variant chain, the `!` and the value
+ * agree, in either order: `h-4 w-4`, `w-full h-full`, `md:h-6 md:w-6`,
+ * `[&_svg]:h-5 [&_svg]:w-5`. `h-6 md:w-6` and `h-4 w-5` are different boxes
+ * and pass. The variant split skips colons inside `[…]`, so an arbitrary
+ * variant such as `[&:hover]:` stays one prefix.
+ */
+const STRING_LITERAL = /"[^"\n]*"|'[^'\n]*'|`[^`]*`/g;
+
+/** `md:h-6` → `{ size: "md:size-6", axis: "h" }`; null for anything else. */
+function boxSide(token: string): { size: string; axis: string } | null {
+  let depth = 0;
+  let cut = -1;
+  for (let index = 0; index < token.length; index++) {
+    const char = token[index];
+    if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === ":" && depth === 0) cut = index;
+  }
+  const utility = token.slice(cut + 1);
+  const important = utility.startsWith("!") || utility.endsWith("!");
+  const match = /^!?([hw])-(.+?)!?$/.exec(utility);
+  if (!match) return null;
+  const size = `${token.slice(0, cut + 1)}size-${match[2]}${important ? "!" : ""}`;
+  return { size, axis: match[1] };
+}
+
+function equalBoxPairs(literal: string): string[] {
+  const axes = new Map<string, Set<string>>();
+  for (const token of literal.slice(1, -1).split(/\s+/)) {
+    const side = boxSide(token);
+    if (!side) continue;
+    const seen = axes.get(side.size) ?? new Set<string>();
+    seen.add(side.axis);
+    axes.set(side.size, seen);
+  }
+  return [...axes].filter(([, seen]) => seen.size === 2).map(([size]) => size);
+}
+
+describe("size-N", () => {
+  it("writes every equal width and height as size-N", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        for (const literal of line.match(STRING_LITERAL) ?? []) {
+          for (const size of equalBoxPairs(literal)) {
+            violations.push(`${file.relSrc}:${index + 1}: use ${size}`);
+          }
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("matches either order and any variant, but only equal boxes", () => {
+    expect(equalBoxPairs('"flex h-4 w-4"')).toEqual(["size-4"]);
+    expect(equalBoxPairs('"w-full p-2 h-full"')).toEqual(["size-full"]);
+    expect(equalBoxPairs('"size-24 md:h-32 md:w-32"')).toEqual(["md:size-32"]);
+    expect(equalBoxPairs('"[&_svg]:h-5 [&_svg]:w-5"')).toEqual([
+      "[&_svg]:size-5",
+    ]);
+    expect(equalBoxPairs('"h-6 md:w-6 h-4 w-5 h-full min-w-full"')).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// no transition-all
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Motion: name the properties you transition. `transition-all`
+ * animates whatever changes next, so a width, a padding or a focus ring's
+ * `box-shadow` starts to tween by accident. Pick `transition-colors`,
+ * `-opacity`, `-transform`, or a `transition-[…]` list of what the element
+ * actually changes. A bar that grows animates `scaleX` from `origin-left`,
+ * not `width`.
+ */
+const TRANSITION_ALL =
+  /(?<![\w-])transition-all(?![\w-])|\btransition(?:-property)?\s*:\s*["']?all\b/;
+
+describe("transition-all", () => {
+  it("names the properties every transition animates", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        if (TRANSITION_ALL.test(line)) {
+          violations.push(`${file.relSrc}:${index + 1}: ${line.trim()}`);
         }
       });
     }
@@ -482,6 +614,509 @@ describe("page gutters", () => {
     }
 
     expect(violations).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// z-index ceiling
+// ---------------------------------------------------------------------------
+
+/**
+ * `z-50` is the overlay layer: dropdowns, popovers, dialogs. A surface above
+ * it outranks every one of them, so each is a decision rather than a habit,
+ * and each is listed here with its reason. `DESIGN.md` → Elevation & Depth
+ * names the same two.
+ *
+ * Reads class utilities (`z-60`, `z-[60]`, `md:z-[60]`), CSS `z-index: N` and
+ * a literal `zIndex: N` in a style object. A computed `zIndex` (stacked
+ * avatars count down from the list length) is out of scope.
+ */
+const OVERLAY_LAYER = 50;
+
+const ABOVE_OVERLAY_ALLOWLIST = new Map([
+  // Full-screen search takeover; it has to cover the `z-50` sticky header.
+  ["app/(app)/components/header/header-mobile-search.client.tsx", 60],
+  // Consent has to stay reachable over any dialog or sheet that is open.
+  ["components/analytics/cookie-banner.tsx", 100],
+]);
+
+const Z_UTILITY = /(?<![\w-])z-(?:(\d+)|\[(\d+)\])(?![\w-])/g;
+const Z_DECLARATION = /\bz-index\s*:\s*(\d+)|\bzIndex\s*:\s*(\d+)\b/g;
+
+describe("z-index ceiling", () => {
+  it("keeps everything at or below the overlay layer outside the allowlist", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+      const allowed = ABOVE_OVERLAY_ALLOWLIST.get(file.relSrc);
+
+      file.lines.forEach((line, index) => {
+        for (const pattern of [Z_UTILITY, Z_DECLARATION]) {
+          for (const match of line.matchAll(pattern)) {
+            const value = Number(match[1] ?? match[2]);
+            if (value <= OVERLAY_LAYER || value === allowed) continue;
+            violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+          }
+        }
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("keeps the allowlist free of files that no longer go above it", () => {
+    const stale = [...ABOVE_OVERLAY_ALLOWLIST].filter(([rel, value]) => {
+      const file = SRC_FILES.find((candidate) => candidate.relSrc === rel);
+      return !file?.text.includes(`z-[${value}]`);
+    });
+
+    expect(stale.map(([rel]) => rel)).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// shadow ceiling
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Elevation & Depth: borders first, then a soft glow, and
+ * `shadow-lg` is the ceiling. `shadow-xl` and `shadow-2xl` are out under any
+ * variant (`md:`, `hover:`, `focus-within:`), and so is an arbitrary
+ * `shadow-[…]` drop shadow, which is the same thing spelled by hand.
+ *
+ * An arbitrary `shadow-[inset_…]` passes: with no offset outward it draws a
+ * hairline or a rail inside the box, which is a border, not elevation.
+ * `drop-shadow-*`, `text-shadow-*` and `inset-shadow-*` are other utilities
+ * and pass. Blind spot: a `boxShadow` in a style object or `box-shadow` in
+ * CSS. Nothing in the tree lifts that way today.
+ */
+const SHADOW_ABOVE_CEILING =
+  /(?<![\w-])shadow-(?:xl|2xl|\[(?!inset_)[^\]]*\])(?![\w-])/;
+
+describe("shadow ceiling", () => {
+  it("lifts nothing above shadow-lg", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        const match = line.match(SHADOW_ABOVE_CEILING);
+        if (match) violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// radius scale
+// ---------------------------------------------------------------------------
+
+/**
+ * `DESIGN.md` → Shapes: radii come from the scale (`rounded-xs` through
+ * `rounded-2xl`, and `rounded-full`), never a hand-written length. A
+ * hardcoded radius does not follow `--radius`, so it drifts the moment the
+ * scale moves; two inline ones sat 0.4px and 2px off the class on the same
+ * element and quietly won.
+ *
+ * Reads arbitrary Tailwind radii in any unit, on any side or corner and with
+ * any number of values (`rounded-[4px]`, `md:rounded-t-[0.5rem]`,
+ * `rounded-[4px_8px]`), and a literal radius in a style object, shorthand or
+ * longhand (`borderRadius: 8`, `borderTopLeftRadius: "0.65rem"`). A keyword or
+ * a token passes: `rounded-[inherit]`, `borderRadius: "var(--radius-lg)"`.
+ * Blind spot: `border-radius` in a stylesheet, where the scrollbar pill and
+ * the search rail still write lengths; CSS has no utility to reach for.
+ */
+const ARBITRARY_RADIUS = /(?<![\w-])rounded(?:-[a-z]{1,2})?-\[\.?\d[^\]]*\]/;
+const STYLE_RADIUS =
+  /\bborder(?:Top|Bottom|Start|End)?(?:Left|Right|Start|End)?Radius\s*:\s*(?:\d[\d.]*|["'`]\s*\.?\d[^"'`]*["'`])/;
+
+describe("radius scale", () => {
+  it("takes every radius from the scale", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".ts" && file.ext !== ".tsx") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      file.lines.forEach((line, index) => {
+        const match = line.match(ARBITRARY_RADIUS) ?? line.match(STYLE_RADIUS);
+        if (match) violations.push(`${file.relSrc}:${index + 1}: ${match[0]}`);
+      });
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+
+  it("matches hand-written lengths only", () => {
+    const hits = [
+      '"rounded-[4px]"',
+      '"md:rounded-tl-[0.5rem]"',
+      '"rounded-[4px_8px]"',
+      "{ borderRadius: 6 }",
+      '{ borderRadius: "0.65rem" }',
+      '{ borderTopLeftRadius: "4px" }',
+    ];
+    for (const line of hits) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        true,
+      );
+    }
+
+    const passes = [
+      '"rounded-[inherit] rounded-t-[inherit] rounded-xs rounded-2xl"',
+      '"rounded-[calc(var(--radius)-2px)]"',
+      '{ borderRadius: "var(--radius-lg)" }',
+      '"--border-radius": "var(--radius-lg)"',
+    ];
+    for (const line of passes) {
+      expect(ARBITRARY_RADIUS.test(line) || STYLE_RADIUS.test(line), line).toBe(
+        false,
+      );
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// icon buttons have a name
+// ---------------------------------------------------------------------------
+
+/**
+ * lucide-react adds `aria-hidden="true"` to any icon without an accessibility
+ * prop, so a `<Button size="icon">` that holds only an icon has no name at
+ * all: a screen reader announces "button" and nothing else. The sidebar
+ * toggle, both share modals' copy buttons and the member menus shipped that
+ * way.
+ *
+ * A button passes with `aria-label`, `aria-labelledby` or `title` on the
+ * button, `sr-only` text or an `aria-label` inside it (an `asChild` link
+ * carries its own), `aria-hidden` (a disabled skeleton placeholder), or a
+ * props spread, where the caller supplies the name.
+ */
+const ICON_SIZE = /\bsize=(?:"icon"|'icon'|\{\s*"icon"\s*\})/;
+const NAMED_TAG =
+  /\b(?:aria-label|aria-labelledby|title)=|\baria-hidden\b|\{\s*\.\.\./;
+const NAMED_BODY = /\bsr-only\b|\baria-label=/;
+
+/** The opening tag starting at `start`, skipping `>` inside braces and quotes. */
+function openingTag(text: string, start: number): string {
+  let depth = 0;
+  let quote: string | null = null;
+  for (let index = start; index < text.length; index++) {
+    const char = text[index];
+    if (quote) {
+      if (char === quote) quote = null;
+    } else if (char === "{") depth++;
+    else if (char === "}") depth--;
+    else if (depth === 0 && (char === '"' || char === "'")) quote = char;
+    else if (depth === 0 && char === ">") return text.slice(start, index + 1);
+  }
+  return text.slice(start);
+}
+
+describe("icon buttons", () => {
+  it("gives every icon-only button an accessible name", () => {
+    const violations: string[] = [];
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" || file.relSrc.includes(".test.")) continue;
+
+      for (const match of file.text.matchAll(/<Button\b/g)) {
+        const tag = openingTag(file.text, match.index);
+        if (!ICON_SIZE.test(tag) || NAMED_TAG.test(tag)) continue;
+
+        const bodyStart = match.index + tag.length;
+        const body = tag.endsWith("/>")
+          ? ""
+          : file.text.slice(
+              bodyStart,
+              file.text.indexOf("</Button>", bodyStart),
+            );
+        if (NAMED_BODY.test(body)) continue;
+
+        const line = file.text.slice(0, match.index).split("\n").length;
+        violations.push(`${file.relSrc}:${line}: icon button has no name`);
+      }
+    }
+
+    expect(violations, violations.join("\n")).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// focus rings appear at once
+// ---------------------------------------------------------------------------
+
+/**
+ * A Tailwind ring is a `box-shadow`, so any transition that covers
+ * `box-shadow` fades the focus ring in instead of showing it. That covers
+ * `transition-all`, `transition-shadow`, a bare `transition`, and an
+ * arbitrary list naming `box-shadow`. Fourteen primitives did it, Button among
+ * them. `DESIGN.md` → Accessibility: never animate the ring.
+ *
+ * The check reads one class context at a time: a `className` value, a `cva()`
+ * call, or a single string literal. Same-file string constants are inlined, so
+ * `cn(CARD_SHELL, FOCUS_RING)` counts. A transition passed into `Button` (whose
+ * ring lives in `button.tsx`) is still a separate context.
+ */
+const FOCUS_RING_CLASS = /\b(?:focus|focus-visible|focus-within):ring-/;
+const ANIMATES_SHADOW =
+  /(?<![\w-])transition(?:-all|-shadow)?(?![\w-])|\btransition-\[[^\]]*box-shadow/;
+
+/** The balanced `open`…`close` span starting at `start`. */
+function balanced(text: string, start: number, open: string, close: string) {
+  let depth = 0;
+  for (let index = start; index < text.length; index++) {
+    if (text[index] === open) depth++;
+    else if (text[index] === close && --depth === 0) {
+      return text.slice(start, index + 1);
+    }
+  }
+  return text.slice(start);
+}
+
+/** `const CARD_SHELL = "…"` (quote may be on the next line). */
+function constStrings(text: string): Map<string, string> {
+  const consts = new Map<string, string>();
+  for (const match of text.matchAll(
+    /const\s+([A-Z][A-Z0-9_]*)\s*=\s*("(?:[^"\\]|\\.)*"|`(?:[^`\\]|\\.)*`)/g,
+  )) {
+    consts.set(match[1], match[2] ?? "");
+  }
+  return consts;
+}
+
+function expandConsts(value: string, consts: Map<string, string>): string {
+  if (consts.size === 0) return value;
+  return value.replace(/\b[A-Z][A-Z0-9_]*\b/g, (id) => consts.get(id) ?? id);
+}
+
+/** `end` is where the raw source of the context stops, before inlining. */
+interface ClassContext {
+  at: number;
+  end: number;
+  value: string;
+}
+
+function classContexts(text: string): ClassContext[] {
+  const contexts: ClassContext[] = [];
+  const consts = constStrings(text);
+  for (const match of text.matchAll(/className=([{"])/g)) {
+    const start = match.index + "className=".length;
+    const value =
+      match[1] === "{"
+        ? balanced(text, start, "{", "}")
+        : text.slice(start, text.indexOf('"', start + 1) + 1);
+    contexts.push({
+      at: match.index,
+      end: start + value.length,
+      value: expandConsts(value, consts),
+    });
+  }
+  for (const match of text.matchAll(/\bcva\(/g)) {
+    const start = match.index + "cva".length;
+    const value = balanced(text, start, "(", ")");
+    contexts.push({
+      at: match.index,
+      end: start + value.length,
+      value: expandConsts(value, consts),
+    });
+  }
+  for (const match of text.matchAll(/"[^"\n]*"|`[^`]*`/g)) {
+    contexts.push({
+      at: match.index,
+      end: match.index + match[0].length,
+      value: match[0],
+    });
+  }
+  return contexts;
+}
+
+/**
+ * The contexts no wider one contains. A literal inside `cn(…)` or a `cva()`
+ * variant is only part of its element's classes, so a rule that needs two
+ * classes together reads the whole call instead.
+ */
+function outermostContexts(contexts: ClassContext[]): ClassContext[] {
+  return contexts.filter(
+    (inner) =>
+      !contexts.some(
+        (outer) =>
+          outer !== inner &&
+          outer.at <= inner.at &&
+          inner.end <= outer.end &&
+          outer.end - outer.at > inner.end - inner.at,
+      ),
+  );
+}
+
+/**
+ * The other half of `DESIGN.md` → Accessibility → Focus rings: a ring always
+ * has a width. `focus-visible:ring-ring` sets only the colour of a ring that
+ * is 0px wide, so next to `outline-none` the control shows no focus at all.
+ * Six controls shipped that way.
+ *
+ * In one class context (see `classContexts`), every `ring-<colour>` or
+ * `inset-ring-<colour>` whose variant chain holds a focus state (`focus:`,
+ * `focus-visible:`, `focus-within:`, or the `group-`/`peer-` forms, anywhere
+ * in the chain: `md:focus-visible:`, `focus-visible:after:`) needs a width of
+ * the same kind (`ring`, `ring-2`, `ring-[3px]`) that applies whenever the
+ * colour does: one whose variants are all in the colour's chain, so the same
+ * chain, a shorter one (`after:ring-2` covers `focus-visible:after:`), or a
+ * bare one. A zero width (`ring-0`, `ring-[0px]`) is no width.
+ * `ring-offset-*` and `ring-inset` are not colours.
+ *
+ * Blind spot: a width that arrives from somewhere else, such as a colour
+ * override passed to `Button`, whose `ring-2` lives in `button.tsx`. That
+ * reads as missing and has to be written out, which is also what makes the
+ * call site honest about what it draws.
+ */
+const FOCUS_STATE =
+  /^(?:group-|peer-)?focus(?:-visible|-within)?(?:\/[\w-]+)?$/;
+const RING_UTILITY = /^!?(inset-ring|ring)(?:-(.+?))?!?$/;
+const RING_WIDTH = /^(?:\d+|\[\d*\.?\d+(?:px|rem|em)\])$/;
+const ZERO_WIDTH = /^(?:0+|\[0*\.?0+(?:px|rem|em)\])$/;
+
+/** `md:[&:hover]:ring-2` → `["md", "[&:hover]"]` and `ring-2`. */
+function splitVariants(token: string): { variants: string[]; utility: string } {
+  const variants: string[] = [];
+  let depth = 0;
+  let from = 0;
+  for (let index = 0; index < token.length; index++) {
+    const char = token[index];
+    if (char === "[") depth++;
+    else if (char === "]") depth--;
+    else if (char === ":" && depth === 0) {
+      variants.push(token.slice(from, index));
+      from = index + 1;
+    }
+  }
+  return { variants, utility: token.slice(from) };
+}
+
+function widthlessFocusRings(literal: string): string[] {
+  const colours: { token: string; variants: string[]; kind: string }[] = [];
+  const widths: { variants: string[]; kind: string }[] = [];
+  for (const token of literal.split(/[\s"'`(),]+/)) {
+    const { variants, utility } = splitVariants(token);
+    const ring = RING_UTILITY.exec(utility);
+    if (!ring) continue;
+    const [, kind, rest] = ring;
+    if (rest === undefined || RING_WIDTH.test(rest)) {
+      if (rest === undefined || !ZERO_WIDTH.test(rest)) {
+        widths.push({ variants, kind });
+      }
+    } else if (
+      variants.some((variant) => FOCUS_STATE.test(variant)) &&
+      !rest.startsWith("offset") &&
+      rest !== "inset"
+    ) {
+      colours.push({ token, variants, kind });
+    }
+  }
+  return colours
+    .filter(
+      (colour) =>
+        !widths.some(
+          (width) =>
+            width.kind === colour.kind &&
+            width.variants.every((variant) =>
+              colour.variants.includes(variant),
+            ),
+        ),
+    )
+    .map(({ token }) => token);
+}
+
+describe("focus rings", () => {
+  it("never puts a focus ring under a transition that covers box-shadow", () => {
+    const violations = new Set<string>();
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" && file.ext !== ".ts") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      for (const { at, value } of classContexts(file.text)) {
+        if (!FOCUS_RING_CLASS.test(value) || !ANIMATES_SHADOW.test(value)) {
+          continue;
+        }
+        const line = file.text.slice(0, at).split("\n").length;
+        violations.add(
+          `${file.relSrc}:${line}: ${value.match(ANIMATES_SHADOW)?.[0]}`,
+        );
+      }
+    }
+
+    expect([...violations], [...violations].join("\n")).toEqual([]);
+  });
+
+  it("gives every focus ring colour a width", () => {
+    const violations = new Set<string>();
+
+    for (const file of SRC_FILES) {
+      if (file.ext !== ".tsx" && file.ext !== ".ts") continue;
+      if (file.relSrc === SELF_SRC || file.relSrc.includes(".test.")) continue;
+
+      for (const { at, value } of outermostContexts(classContexts(file.text))) {
+        for (const token of widthlessFocusRings(value)) {
+          const line = file.text.slice(0, at).split("\n").length;
+          violations.add(`${file.relSrc}:${line}: ${token} has no width`);
+        }
+      }
+    }
+
+    expect([...violations], [...violations].join("\n")).toEqual([]);
+  });
+
+  it("matches a colour only where no width of its variant applies", () => {
+    expect(
+      widthlessFocusRings('"outline-none focus-visible:ring-ring"'),
+    ).toEqual(["focus-visible:ring-ring"]);
+    expect(
+      widthlessFocusRings('"focus-within:inset-ring-ring focus:ring-2"'),
+    ).toEqual(["focus-within:inset-ring-ring"]);
+    expect(
+      widthlessFocusRings('"focus:ring-ring-halo focus-visible:ring-[3px]"'),
+    ).toEqual(["focus:ring-ring-halo"]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"',
+      ),
+    ).toEqual([]);
+    expect(
+      widthlessFocusRings('"ring-1 ring-border focus-visible:ring-ring"'),
+    ).toEqual([]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-[3px] focus-visible:ring-ring-halo"',
+      ),
+    ).toEqual([]);
+  });
+
+  it("reads zero widths, variant chains, and group and peer focus", () => {
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:ring-0 focus-visible:ring-ring focus:ring-[0px] focus:ring-ring-halo"',
+      ),
+    ).toEqual(["focus-visible:ring-ring", "focus:ring-ring-halo"]);
+    expect(
+      widthlessFocusRings(
+        '"focus-visible:after:ring-ring focus-visible:md:ring-ring group-focus-visible:ring-ring peer-focus:inset-ring-ring"',
+      ),
+    ).toEqual([
+      "focus-visible:after:ring-ring",
+      "focus-visible:md:ring-ring",
+      "group-focus-visible:ring-ring",
+      "peer-focus:inset-ring-ring",
+    ]);
+    expect(
+      widthlessFocusRings(
+        '"after:ring-2 focus-visible:after:ring-ring md:ring-1 md:focus-visible:ring-ring group-focus-visible:ring-2 group-focus-visible:ring-ring"',
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -650,6 +1285,318 @@ describe("historic status badges", () => {
     });
 
     expect(feeds.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// icon touch targets
+// ---------------------------------------------------------------------------
+
+/**
+ * DESIGN.md → Accessibility → Touch targets: an icon-only control is at least
+ * `size-10` (40px) below `md` and `size-8` (32px) from `md` up, either as its
+ * own box or through the `hit-area` utility. `size="icon"` is `size-10`, so a
+ * `size-N` override is what shrinks one.
+ *
+ * Checked: the opening tag of any component given `size="icon"` (`Button`
+ * and wrappers such as `TaskShareButton`). A `size-N` that applies below `md`
+ * (bare, `sm:`, `max-md:`, a container query or any non-breakpoint variant)
+ * must be at least 10; one behind `md:`, `lg:`, `xl:` or `2xl:` at least 8.
+ * `hit-area` exempts the tag. An older `after:`/`before:` `-inset-N`
+ * pseudo-element counts only for the size it reaches (see `pseudoInsets`).
+ *
+ * Not checked, because a regex over one tag cannot see it:
+ *   - classes that arrive through a variable or constant
+ *     (`className={TOOL_CLASS}`, `buttonClassName` handed to a child)
+ *   - bespoke `<button>`s, `asChild` children and links, which carry no
+ *     `size="icon"` to say they are icon-only
+ *   - `h-N w-N` or arbitrary `size-[…]` boxes
+ *   - whether a `hit-area` overlaps a neighbouring target; that is spacing,
+ *     and stays a review call
+ */
+const SIZE_ICON_PROP = /\bsize=(?:"icon"|\{["']icon["']\})/;
+const SIZE_TOKEN =
+  /(?<![\w:[\]-])((?:[^\s"'`]+:)?)size-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+const DESKTOP_VARIANT = /(?:^|:)(?:md|lg|xl|2xl):$/;
+
+/**
+ * Every `<Component …>` opening tag, braces and quotes balanced, reduced to
+ * its own attributes: a `{…}` value that holds JSX (a render prop, an `icon`
+ * element) is dropped, so a nested `<Button size="icon">` is checked as its
+ * own tag and not also as part of the one around it.
+ */
+function openingTags(
+  text: string,
+  name: RegExp = /<[A-Z][\w.]*(?![\w.])/g,
+): { tag: string; index: number; end: number }[] {
+  const tags: { tag: string; index: number; end: number }[] = [];
+  for (const match of text.matchAll(name)) {
+    let depth = 0;
+    let quote: string | null = null;
+    let own = match[0];
+    let braceStart = 0;
+    let i = match.index + match[0].length;
+    for (; i < text.length; i++) {
+      const char = text[i];
+      if (quote) {
+        if (char === "\\") i++;
+        else if (char === quote) quote = null;
+      } else if (depth > 0 && text.startsWith("//", i)) {
+        // A comment in a prop (`section's`) would otherwise open a string.
+        const end = text.indexOf("\n", i);
+        i = end === -1 ? text.length : end - 1;
+        continue;
+      } else if (depth > 0 && text.startsWith("/*", i)) {
+        const end = text.indexOf("*/", i);
+        i = end === -1 ? text.length : end + 1;
+        continue;
+      } else if (char === '"' || char === "'" || char === "`") quote = char;
+      else if (char === "{" && depth++ === 0) braceStart = i;
+      else if (char === "}" && --depth === 0) {
+        const value = text.slice(braceStart, i + 1);
+        own += /<[A-Za-z]/.test(value) ? "{}" : value;
+        continue;
+      } else if (char === ">" && depth === 0 && text[i - 1] !== "=") break;
+      if (depth === 0) own += char;
+    }
+    tags.push({ tag: `${own}>`, index: match.index, end: i + 1 });
+  }
+  return tags;
+}
+
+/**
+ * An older `after:`/`before:` `-inset-N` expansion counts for what it adds:
+ * the target is the box plus the inset on both sides, so `size-8` with
+ * `after:-inset-1.5` is 8 + 2 × 1.5 = 11 steps (44px). A `md:` inset
+ * replaces the base one from md up, and `md:after:hidden` drops it there.
+ */
+const PSEUDO_INSET =
+  /(?<![\w:[\]-])((?:[^\s"'`]+:)?)(?:after|before):-inset-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+
+function pseudoInsets(tag: string): { mobile: number; desktop: number } {
+  let mobile = 0;
+  let desktop: number | null = null;
+  for (const [, variant, n] of tag.matchAll(PSEUDO_INSET)) {
+    if (DESKTOP_VARIANT.test(variant)) desktop = Number(n);
+    else mobile = Math.max(mobile, Number(n));
+  }
+  if (desktop === null) {
+    desktop = /md:(?:after|before):hidden/.test(tag) ? 0 : mobile;
+  }
+  return { mobile, desktop };
+}
+
+function smallIconTargets(rel: string, text: string): string[] {
+  const hits: string[] = [];
+  for (const { tag, index } of openingTags(text)) {
+    if (!SIZE_ICON_PROP.test(tag)) continue;
+    if (/(?<![\w-])hit-area(?![\w-])/.test(tag)) continue;
+    const sizes = [...tag.matchAll(SIZE_TOKEN)];
+    const mobileSizes = sizes.filter(([, v]) => !DESKTOP_VARIANT.test(v));
+    const desktopSizes = sizes.filter(([, v]) => DESKTOP_VARIANT.test(v));
+    const inset = pseudoInsets(tag);
+    // A bare size still applies from md up when no `md:` size replaces it.
+    const small = new Set([
+      ...mobileSizes.filter(([, , n]) => Number(n) + 2 * inset.mobile < 10),
+      ...(desktopSizes.length ? desktopSizes : mobileSizes).filter(
+        ([, , n]) => Number(n) + 2 * inset.desktop < 8,
+      ),
+    ]);
+    if (small.size === 0) continue;
+    const line = text.slice(0, index).split("\n").length;
+    hits.push(
+      `${rel}:${line}: ${[...small].map(([token]) => token).join(" ")}`,
+    );
+  }
+  return hits;
+}
+
+describe("icon touch targets", () => {
+  it("gives every size=icon control 40px below md and 32px from md up", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.endsWith(".test.tsx"),
+    ).flatMap((file) => smallIconTargets(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<Button size="icon" className="size-8">',
+      '<Button size="icon" className="size-8 md:size-7">',
+      '<Button size="icon" className="size-9 rounded-full sm:size-7">',
+      '<Button size="icon" className="size-10 md:size-7">',
+      '<Button\n  size="icon"\n  onClick={() => { go(); }}\n  className={cn("size-6", on && "bg-muted")}\n>',
+      '<TaskShareButton size="icon" className="size-7" />',
+      '<Button size="icon" className="size-8 after:absolute after:-inset-1.5 md:size-7 md:after:hidden">',
+      '<Button size="icon" className="size-7 after:absolute after:-inset-px">',
+      '<Button size="icon" className="size-7 after:absolute after:-inset-0.5">',
+      '<Button size="icon" className="size-6 after:absolute after:-inset-2 md:after:hidden">',
+      '<Button\n  size="icon"\n  className={cn(\n    // the section\'s `+` column\n    "size-8 after:absolute after:-inset-px",\n  )}\n>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallIconTargets("f.tsx", fixture), fixture).toHaveLength(1);
+    }
+  });
+
+  it("passes the shapes the rule allows", () => {
+    const fixtures = [
+      '<Button size="icon">',
+      '<Button size="icon" className="size-10 md:size-8">',
+      '<Button size="icon" className="size-11 lg:size-8">',
+      '<Button size="icon" className="hit-area size-6">',
+      '<Button size="icon" className="relative size-8 after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5">',
+      '<Button size="icon" className="size-6 after:absolute after:-inset-2">',
+      '<Button size="sm" className="size-8">',
+      '<Button size="icon"><X className="size-4" /></Button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallIconTargets("f.tsx", fixture), fixture).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// chip remove targets
+// ---------------------------------------------------------------------------
+
+/**
+ * DESIGN.md → Accessibility → Touch targets → Chips: a chip's remove is
+ * `ChipRemoveButton`, whose box is the 40px target below `md`, so nothing
+ * reaches into the next row of a wrapping list.
+ *
+ * Checked:
+ *   - a `<Badge>` holds no bespoke `<button>`. `Badge` is `overflow-hidden`,
+ *     so a `hit-area` inside one is clipped to the badge; its remove is
+ *     `ChipRemoveButton` on a badge given `overflow-visible py-0 pe-0`.
+ *   - a bespoke `<button>` whose only child is a lucide `<X />` carries
+ *     `hit-area`, or a bare `size-10` / `h-10` that makes its box the target
+ *     and no `md:`-and-up `size-N` / `h-N` below 8 that shrinks it again.
+ *
+ * Not checked, because a regex over one tag cannot see it:
+ *   - classes that arrive through a variable or constant
+ *   - a dismiss built from another icon, or with a label beside the `X`
+ *   - whether the chip around a `ChipRemoveButton` dropped its padding and
+ *     overflow, or whether a `hit-area` overlaps a target in the next row;
+ *     that is spacing, and stays a review call
+ */
+const BARE_X_CHILD = /^\s*<X\b[^<>]*\/>\s*$/;
+const DISMISS_HIT_AREA = /(?<![\w:-])hit-area(?![\w-])/;
+const DISMISS_BOX = /(?<![\w:[\]-])(?:size|h)-10(?![\w.[-])/;
+const DISMISS_DESKTOP_BOX =
+  /(?<![\w:[\]-])(?:md|lg|xl|2xl):(?:size|h)-(\d+(?:\.\d+)?)(?![\w.[-])/g;
+
+function smallDismissTargets(rel: string, text: string): string[] {
+  const hits: string[] = [];
+  const lineOf = (index: number) => text.slice(0, index).split("\n").length;
+  for (const { tag, index, end } of openingTags(text, /<Badge(?![\w.])/g)) {
+    if (tag.endsWith("/>")) continue;
+    const close = text.indexOf("</Badge>", end);
+    if (close !== -1 && /<button(?![\w.-])/.test(text.slice(end, close))) {
+      hits.push(`${rel}:${lineOf(index)}: <button> inside <Badge>`);
+    }
+  }
+  for (const { tag, index, end } of openingTags(text, /<button(?![\w.-])/g)) {
+    const close = text.indexOf("</button>", end);
+    if (close === -1 || !BARE_X_CHILD.test(text.slice(end, close))) continue;
+    if (DISMISS_HIT_AREA.test(tag)) continue;
+    const desktopSmall = [...tag.matchAll(DISMISS_DESKTOP_BOX)].some(
+      ([, n]) => Number(n) < 8,
+    );
+    if (DISMISS_BOX.test(tag) && !desktopSmall) continue;
+    hits.push(`${rel}:${lineOf(index)}: <X /> button without hit-area`);
+  }
+  return hits;
+}
+
+describe("chip remove targets", () => {
+  it("gives every bespoke X button and badge remove a full target", () => {
+    const hits = SRC_FILES.filter(
+      (file) => file.ext === ".tsx" && !file.relSrc.endsWith(".test.tsx"),
+    ).flatMap((file) => smallDismissTargets(file.relSrc, file.text));
+
+    expect(hits, hits.join("\n")).toEqual([]);
+  });
+
+  it("catches the shapes it exists to catch", () => {
+    const fixtures = [
+      '<Badge className="gap-1">\n  {name}\n  <button type="button" className="hit-area" onClick={remove}>\n    <X className="size-3" />\n  </button>\n</Badge>',
+      '<button\n  type="button"\n  className="rounded-sm p-0.5"\n  onClick={() => remove(tag)}\n>\n  <X className="size-3" aria-hidden />\n</button>',
+      '<button type="button" className="size-5 md:h-10"><X className="size-3" /></button>',
+      '<button type="button" className="size-10 md:size-5"><X className="size-3" /></button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallDismissTargets("f.tsx", fixture), fixture).toHaveLength(1);
+    }
+  });
+
+  it("passes the shapes the rule allows", () => {
+    const fixtures = [
+      '<Badge className="gap-1 overflow-visible py-0 pe-0">\n  {name}\n  <ChipRemoveButton aria-label={label} onClick={remove} />\n</Badge>',
+      '<Badge variant="outline">{name}</Badge>',
+      '<button type="button" className="hit-area rounded p-1"><X className="size-4" /></button>',
+      '<button type="button" className="h-10 w-full md:h-8"><X className="size-3" /></button>',
+      '<button type="button" className="p-1"><X className="size-3" /> Clear</button>',
+    ];
+    for (const fixture of fixtures) {
+      expect(smallDismissTargets("f.tsx", fixture), fixture).toEqual([]);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DESIGN.md
+// ---------------------------------------------------------------------------
+
+/**
+ * `apps/web/DESIGN.md` is what agents read before they style anything, so a
+ * token it names that `globals.css` no longer defines sends them to a utility
+ * that emits nothing. The doc once listed `--destructive/warning/success/info`
+ * long after the family became `--semantic-*` and `info` was retired.
+ *
+ * Only whole names are checked, so write every token out in full: a shorthand
+ * like that one, `--chart-N-quinary` or `--animate-*` reads as prose and slips
+ * past.
+ */
+const DESIGN_MD = readFileSync(path.join(WEB_ROOT, "DESIGN.md"), "utf8");
+
+const DOC_TOKEN = /--[a-z][a-z0-9-]*[a-z0-9](?![\w*…-])/g;
+const DOC_LINK = /\]\((?!https?:|#)([^)\s]+)\)/g;
+
+describe("DESIGN.md", () => {
+  const stylesheet = readFileSync(
+    path.join(SRC_ROOT, "app/globals.css"),
+    "utf8",
+  );
+  const named = [...new Set(DESIGN_MD.match(DOC_TOKEN) ?? [])];
+
+  it("names only tokens globals.css defines", () => {
+    const undefinedTokens = named.filter(
+      (token) => !new RegExp(`^\\s*${token}\\s*:`, "m").test(stylesheet),
+    );
+
+    expect(undefinedTokens, undefinedTokens.join(", ")).toEqual([]);
+  });
+
+  /** Without this the check above passes vacuously if the scan finds nothing. */
+  it("still finds the tokens it exists to check", () => {
+    expect(named).toContain("--semantic-destructive");
+    expect(named.length).toBeGreaterThan(20);
+  });
+
+  it("links only to files that exist", () => {
+    const broken = [...DESIGN_MD.matchAll(DOC_LINK)]
+      .map((match) => match[1])
+      .filter((target) => {
+        try {
+          statSync(path.resolve(WEB_ROOT, target));
+          return false;
+        } catch {
+          return true;
+        }
+      });
+
+    expect(broken).toEqual([]);
   });
 });
 

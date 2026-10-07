@@ -52,9 +52,12 @@
         #expect(Self.distanceFromBottom(scroll) > 400)
       }
 
+      /// The jump's mark runs on a test clock that stays at its landing, so a slow runner cannot let the hold end the
+      /// Thread's jump before the check.
       @Test(arguments: [false, true])
       func messageLinkWaitsForPreparedTranscript(thread: Bool) async throws {
-        let state = try Self.fixtureState(thread: thread, media: false)
+        let clock = ManualJumpMarkClock()
+        let state = try Self.fixtureState(thread: thread, media: false, clock: clock)
         let auth = AuthState()
         if thread {
           state.thread.requestJump(to: "fixture-2")
@@ -68,7 +71,7 @@
           } else {
             RoomTimelineView(roomId: "fixture")
           }
-        }.background(.background).environmentObject(state).environmentObject(auth))
+        }.background(.background).environment(\.jumpMarkClock, clock).environmentObject(state).environmentObject(auth))
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 900, height: 700), styleMask: [.titled], backing: .buffered, defer: false)
         window.contentView = host
         window.orderFront(nil)
@@ -78,6 +81,7 @@
           host.layoutSubtreeIfNeeded()
           try await Task.sleep(for: .milliseconds(20))
         }
+        #expect(clock.wasRead, "The jump landed on the test clock.")
         if thread {
           #expect(state.thread.jumpTarget?.messageId == "fixture-2")
         } else {
@@ -139,8 +143,12 @@
       }
 
       /// A hundred tall text messages in room `fixture`; with `thread`, the first opens a thread holding the rest.
-      static func fixtureState(thread: Bool, media: Bool) throws -> WorkspaceState {
-        let state = WorkspaceState(clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) })
+      /// `clock`, when given, is the Thread's clock; the view under test needs it as its `jumpMarkClock` too.
+      static func fixtureState(thread: Bool, media: Bool, clock: ManualJumpMarkClock? = nil) throws -> WorkspaceState {
+        let state = WorkspaceState(
+          clientProvider: { _ in Client.connecting(to: URL(string: "https://example.com")!) },
+          threadNow: clock.map { clock in { MainActor.assumeIsolated { clock.now } } } ?? Date.init
+        )
         state.timeline.reset(roomId: "fixture")
         state.timeline.failInitialLoad(message: "", generation: state.timeline.generation)
         state.timeline.messages = fixtureMessages(media: media)

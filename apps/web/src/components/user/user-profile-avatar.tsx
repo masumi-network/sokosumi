@@ -44,7 +44,7 @@ export function UserProfileAvatar({
             }}
           />
         ) : null}
-        <AvatarFallback className="bg-muted text-[0.625rem] font-medium">
+        <AvatarFallback className="bg-muted text-2xs font-medium">
           {userName.slice(0, 1).toUpperCase() || (
             <User className="size-3" aria-hidden />
           )}

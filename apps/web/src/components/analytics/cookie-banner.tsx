@@ -109,7 +109,7 @@ export function CookieBanner() {
       className="fixed right-0 bottom-0 z-[100] flex justify-center p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] transition-[left] duration-200 sm:p-5"
       style={{ left: chromeLeftPx }}
     >
-      <div className="app-scrollbar bg-background max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border p-5 shadow-2xl">
+      <div className="app-scrollbar bg-background max-h-[calc(100dvh-1.5rem)] w-full max-w-2xl overflow-y-auto rounded-lg border p-5 shadow-lg">
         <p className="text-sm font-medium">{t("title")}</p>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
           {t("body")}{" "}

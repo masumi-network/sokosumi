@@ -141,7 +141,7 @@ function SidebarAccountChipDesktop({
           />
           {/* Fallback defaults to `rounded-full`; without this its fill stays
               a circle inside the square clip. */}
-          <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-[0.6875rem] font-medium">
+          <AvatarFallback className="bg-muted text-muted-foreground rounded-md text-2xs font-medium">
             {getInitials(displayName)}
           </AvatarFallback>
         </Avatar>

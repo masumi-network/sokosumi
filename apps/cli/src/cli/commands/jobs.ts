@@ -1,3 +1,6 @@
+import type { AgentJob } from "../../api/models/agent-job.js";
+import type { JobEvent } from "../../api/models/job-event.js";
+import type { JobFile, JobLink } from "../../api/models/job-output.js";
 import {
   fetchJob,
   fetchJobEvents,
@@ -16,7 +19,6 @@ import {
   optionString,
   parsePositiveInteger,
   readJsonObject,
-  record,
   truncate,
   writeJson,
   writeText,
@@ -28,19 +30,26 @@ export interface JobsCommandContext extends CommandContext {
   options?: CommandOptions;
 }
 
+interface JobDetails {
+  events?: JobEvent[];
+  files?: JobFile[];
+  links?: JobLink[];
+  inputRequest?: unknown;
+  detailsErrors?: { resource: string; message: string }[];
+}
+
 function printJobList(
   stdout: CommandContext["stdout"],
-  jobs: readonly unknown[],
+  jobs: readonly AgentJob[],
 ): void {
   if (!jobs.length) return writeText(stdout, ["No jobs found."]);
   const lines = ["Jobs"];
-  for (const raw of jobs) {
-    const job = record(raw);
+  for (const job of jobs) {
     lines.push(
-      `${String(job.name || job.id || "Unnamed Job")} [${String(job.id || "unknown")}]`,
+      `${job.name || job.id || "Unnamed Job"} [${job.id || "unknown"}]`,
     );
     lines.push(
-      `  status: ${String(job.status || "unknown")} | agent: ${String(job.agentId || "-")}`,
+      `  status: ${job.status || "unknown"} | agent: ${job.agentId || "-"}`,
     );
     if (job.result) lines.push(`  result: ${truncate(job.result, 160)}`);
   }
@@ -49,49 +58,42 @@ function printJobList(
 
 function printJob(
   stdout: CommandContext["stdout"],
-  job: unknown,
-  details: Record<string, unknown>,
+  job: AgentJob,
+  details: JobDetails,
 ): void {
-  const value = record(job);
   const lines: (string | undefined)[] = [
-    `Job ${String(value.id || "unknown")}`,
-    `status: ${String(value.status || "unknown")}`,
-    `agent: ${String(value.agentId || "-")}`,
-    value.name ? `name: ${String(value.name)}` : undefined,
-    value.result ? `result: ${String(value.result)}` : undefined,
+    `Job ${job.id || "unknown"}`,
+    `status: ${job.status || "unknown"}`,
+    `agent: ${job.agentId || "-"}`,
+    job.name ? `name: ${job.name}` : undefined,
+    job.result ? `result: ${job.result}` : undefined,
   ];
   if (details.inputRequest) lines.push("input request: pending");
-  const events = Array.isArray(details.events) ? details.events : [];
+  const events = details.events ?? [];
   if (events.length) {
-    const latestEvent = record(events[0]);
+    const latestEvent = events[0];
     lines.push(
       `events: ${events.length}`,
-      `latest event: ${truncate(latestEvent.result || latestEvent.message || latestEvent.status || latestEvent.type || latestEvent.id, 160)}`,
+      `latest event: ${truncate(latestEvent.result || latestEvent.status || latestEvent.id, 160)}`,
     );
   }
-  const files = Array.isArray(details.files) ? details.files : [];
+  const files = details.files ?? [];
   if (files.length) {
     lines.push(`files: ${files.length}`);
-    for (const raw of files.slice(0, 3)) {
-      const file = record(raw);
-      lines.push(
-        `  ${String(file.name || file.id || "file")}: ${String(file.url || "-")}`,
-      );
+    for (const file of files.slice(0, 3)) {
+      lines.push(`  ${file.name || file.id || "file"}: ${file.url || "-"}`);
     }
   }
-  const links = Array.isArray(details.links) ? details.links : [];
+  const links = details.links ?? [];
   if (links.length) {
     lines.push(`links: ${links.length}`);
-    for (const raw of links.slice(0, 3)) {
-      const link = record(raw);
-      lines.push(
-        `  ${String(link.title || link.id || "link")}: ${String(link.url || "-")}`,
-      );
+    for (const link of links.slice(0, 3)) {
+      lines.push(`  ${link.title || link.id || "link"}: ${link.url || "-"}`);
     }
   }
-  if (Array.isArray(details.detailsErrors) && details.detailsErrors.length)
+  if (details.detailsErrors?.length)
     lines.push(
-      `detail errors: ${details.detailsErrors.map((item) => String(record(item).resource)).join(", ")}`,
+      `detail errors: ${details.detailsErrors.map((item) => item.resource).join(", ")}`,
     );
   writeText(stdout, lines);
 }
@@ -100,15 +102,15 @@ async function collectJobDetails(
   client: CommandContext["client"],
   id: string,
   signal?: AbortSignal,
-): Promise<Record<string, unknown>> {
+): Promise<JobDetails> {
   const results = await Promise.allSettled([
     fetchJobEvents(client, id, signal),
     fetchJobFiles(client, id, signal),
     fetchJobLinks(client, id, signal),
     fetchJobInputRequest(client, id, signal),
   ]);
-  const details: Record<string, unknown> = {};
-  const errors: Record<string, string>[] = [];
+  const details: JobDetails = {};
+  const errors: { resource: string; message: string }[] = [];
   const [events, files, links, inputRequest] = results;
   if (events.status === "fulfilled") details.events = events.value.events;
   else errors.push({ resource: "events", message: "fetch failed" });
@@ -139,10 +141,7 @@ export async function runJobsCommand({
     const filtered = applyListFilters(jobs, {
       search: option(options, "search"),
       limit,
-      fields: (item) => {
-        const value = record(item);
-        return [value.id, value.name, value.status, value.agentId];
-      },
+      fields: (item) => [item.id, item.name, item.status, item.agentId],
     });
     if (json) writeJson(stdout, { jobs: filtered });
     else printJobList(stdout, filtered);

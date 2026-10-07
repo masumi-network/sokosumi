@@ -67,6 +67,12 @@ export {
   SOKO_BOT_SYSTEM_SCHEDULES,
   upcomingFollowUps,
 } from "./proactive.js";
+export {
+  CHAT_RESULT_PREVIEW_LIMIT,
+  type ChatResultReference,
+  chatResultReferenceSchema,
+  sokoBotPreviewResultInputSchema,
+} from "./result-previews.js";
 export type {
   IndexedRuntimeEvent,
   RuntimeCancelInput,

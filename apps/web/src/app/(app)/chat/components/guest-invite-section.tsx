@@ -293,7 +293,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                     type="button"
                     variant="ghost"
                     size="icon"
-                    className="size-8 shrink-0"
+                    className="size-10 md:size-8 shrink-0"
                     aria-label={t("revokeAria", { email: invitation.email })}
                     title={t("revoke")}
                     loading={revokingId === invitation.id}
@@ -408,7 +408,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8"
+                      className="size-10 md:size-8"
                       aria-label={t("copyLinkAria")}
                       title={t("copyLink")}
                       onClick={() => void handleCopyLink(link.url)}
@@ -419,7 +419,7 @@ export function GuestInviteSection({ roomId }: GuestInviteSectionProps) {
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="size-8"
+                      className="size-10 md:size-8"
                       aria-label={t("revokeLinkAria")}
                       title={t("revokeLink")}
                       loading={revokingToken === link.token}

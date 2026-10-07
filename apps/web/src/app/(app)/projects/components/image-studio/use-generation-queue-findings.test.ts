@@ -14,6 +14,7 @@ vi.mock("@/lib/actions/image-studio/action", () => ({ startImageGeneration }));
 function request(id: string): QueuedGeneration {
   return {
     id,
+    projectId: "project-1",
     prompt: `prompt ${id}`,
     modelId: "model-a",
     modelLabel: "Model A",
@@ -43,8 +44,7 @@ describe("the queue dispatcher", () => {
     );
 
     const { rerender, result } = renderHook(
-      ({ cb }: { cb: () => void }) =>
-        useGenerationQueue({ projectId: "p", onAccepted: cb }),
+      ({ cb }: { cb: () => void }) => useGenerationQueue({ onAccepted: cb }),
       { initialProps: { cb: () => {} } },
     );
 
@@ -75,7 +75,7 @@ describe("the queue dispatcher", () => {
     );
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "p", onAccepted: () => {} }),
+      useGenerationQueue({ onAccepted: () => {} }),
     );
 
     act(() => result.current.enqueue([request("1")]));
@@ -105,9 +105,7 @@ describe("the queue dispatcher", () => {
     );
     const onAccepted = vi.fn();
 
-    const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "p", onAccepted }),
-    );
+    const { result } = renderHook(() => useGenerationQueue({ onAccepted }));
     act(() => result.current.enqueue([request("1")]));
     await waitFor(() => expect(startImageGeneration).toHaveBeenCalledTimes(1));
 

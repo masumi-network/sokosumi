@@ -1,4 +1,8 @@
-import { getUsersById, getUsersByIdWorkspaces } from "@sokosumi/core-client";
+import {
+  getUsersById,
+  getUsersByIdSignUp,
+  getUsersByIdWorkspaces,
+} from "@sokosumi/core-client";
 import { headers } from "next/headers";
 
 import { CmoApp } from "../components/app/cmo-app";
@@ -51,6 +55,33 @@ function first(value: string | string[] | undefined): string | undefined {
 /** Core refused the token: revoked before it expired (a password change, a ban). */
 function isRefused(response: Response | undefined): boolean {
   return response?.status === 401 || response?.status === 403;
+}
+
+/** The sign-up origin Core records for an account created through CMO. */
+const CMO_SIGN_UP_ORIGIN = "cmo";
+
+/**
+ * The website a CMO sign-up link carried (`/signup?url=`), to start the
+ * organization step with. Only a nicety: without it the person types it.
+ */
+async function signUpWebsite(
+  asPerson: Awaited<ReturnType<typeof asSignedInPersonInPage>>,
+): Promise<string | undefined> {
+  const { data, response } = await getUsersByIdSignUp({
+    ...asPerson,
+    path: { id: "me" },
+  });
+  if (!data) {
+    // Accounts from before sign-up recording have none.
+    if (response?.status !== 404) {
+      console.error(`Core did not read the sign-up (${response?.status})`);
+    }
+    return undefined;
+  }
+  const { origin, context } = data.data;
+  return origin === CMO_SIGN_UP_ORIGIN && typeof context.url === "string"
+    ? context.url
+    : undefined;
 }
 
 interface HomePageProps {
@@ -124,6 +155,7 @@ export default async function HomePage({ searchParams }: HomePageProps) {
       return (
         <OrganizationSetup
           createOrganizationWorkspace={createOrganizationWorkspace}
+          websiteUrl={await signUpWebsite(asPerson)}
         />
       );
     }

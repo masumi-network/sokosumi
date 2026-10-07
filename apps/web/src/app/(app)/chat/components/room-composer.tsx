@@ -127,7 +127,7 @@ function RoomMentionSuggestion({
       ) : (
         <Avatar className="size-6">
           <AvatarImage src={mention.data?.image ?? undefined} alt="" />
-          <AvatarFallback className="text-[0.625rem]">
+          <AvatarFallback className="text-2xs">
             {getInitials(mention.value)}
           </AvatarFallback>
         </Avatar>
@@ -336,7 +336,7 @@ function PendingQuotePreview({
         type="button"
         variant="ghost"
         size="icon"
-        className="size-7 shrink-0 rounded-full"
+        className="hit-area size-7 shrink-0 rounded-full"
         title={t("dismiss")}
         aria-label={t("dismiss")}
         onClick={onDismiss}

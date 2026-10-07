@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, Plus, Search, X } from "lucide-react";
+import { Loader2, Plus, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ import {
 import { notifyOrganizationChatRoomsChanged } from "@/components/chat/organization-chat-events";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
+import { ChipRemoveButton } from "@/components/ui/chip-remove-button";
 import {
   Dialog,
   DialogContent,
@@ -245,11 +246,11 @@ export function CreateDirectDialog() {
           {selectedTargets.map((target) => (
             <span
               key={target.key}
-              className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full py-0.5 pr-0.5 pl-1.5 text-sm"
+              className="bg-muted text-foreground inline-flex max-w-56 items-center gap-1.5 rounded-full ps-1.5 text-sm"
             >
               <Avatar className="size-5">
                 <AvatarImage src={target.image ?? undefined} alt="" />
-                <AvatarFallback className="text-[0.5625rem]">
+                <AvatarFallback className="text-2xs">
                   {getInitials(target.name)}
                 </AvatarFallback>
               </Avatar>
@@ -266,9 +267,8 @@ export function CreateDirectDialog() {
                   />
                 ) : null}
               </span>
-              <button
-                type="button"
-                className="press hover:bg-surface-glass flex size-5 items-center justify-center rounded-full"
+              <ChipRemoveButton
+                className="hover:bg-surface-glass"
                 onClick={(event) => {
                   event.stopPropagation();
                   removeTarget(target.key);
@@ -276,9 +276,7 @@ export function CreateDirectDialog() {
                 aria-label={t("Draft.removeRecipient", {
                   name: target.name,
                 })}
-              >
-                <X className="size-3" aria-hidden />
-              </button>
+              />
             </span>
           ))}
           <Input

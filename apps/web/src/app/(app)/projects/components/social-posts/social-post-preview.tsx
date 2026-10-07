@@ -127,7 +127,7 @@ function XPreview({
           />
         </div>
         {text ? (
-          <p className="mt-0.5 text-[0.9375rem] leading-5 whitespace-pre-wrap break-words">
+          <p className="mt-0.5 leading-5 whitespace-pre-wrap break-words">
             <PreviewRichText text={text} linkClassName="text-social-x-link" />
           </p>
         ) : null}

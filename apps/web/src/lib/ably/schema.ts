@@ -74,6 +74,12 @@ const chatRoomMessageFullEventMessageSchema = z
     roomId: z.string().min(1),
     parentMessageId: z.string().nullable(),
     content: z.string(),
+    resultPreviews: z
+      .array(
+        z.object({ id: z.string().uuid(), capturedAt: z.string().datetime() }),
+      )
+      .max(6)
+      .optional(),
     createdAt: z.string(),
     deletedAt: z.string().nullable(),
     editedAt: z.string().nullable(),

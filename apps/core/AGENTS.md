@@ -50,6 +50,8 @@ The live tree is `apps/core/src/`.
 | `services/` | Longer-lived / legacy service modules |
 | `middleware/` | Auth, org, workspace, coworker context |
 
+**OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`.
+
 Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 
 ## Core-Specific Conventions
@@ -465,5 +467,5 @@ The evlog block above is the generic convention. This app narrows it:
 - Do **not** add `log.audit` unless a ticket asks for an audit trail (see `build-audit-logs`).
 - Skills: `apps/core/.agents/skills/review-logging-patterns`, `build-audit-logs`, `analyze-logs`. `analyze-logs` reads `.evlog/logs/`; this app drains to stdout and Sentry Logs, not the filesystem.
 - Do not run `evlog agents` at the repo root. Re-run from `apps/core` with `--no-skills`.
-- CLI is a Core devDependency (`@evlog/cli` 0.8.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
+- CLI is a Core devDependency (`@evlog/cli` 0.9.0). From Core: `pnpm exec evlog map --json --no-write`, `pnpm exec evlog doctor`. Do not add a CI map gate until the CLI credits Hono `app.use(evlog())`.
 

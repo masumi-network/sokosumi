@@ -43,7 +43,7 @@ public final class WorkspaceState: ObservableObject {
 
   @Published public internal(set) var threadOverviewRequest: ThreadOverviewRequest?
   var messageNavigationRequest = UUID()
-  public let thread = ThreadSession()
+  public let thread: ThreadSession
   public let threadOverview = RoomThreadOverview()
   public let crossRoomThreads = CrossRoomThreads()
   @Published public internal(set) var threadAttentionRevision = 0
@@ -257,14 +257,16 @@ public final class WorkspaceState: ObservableObject {
   let realtimeClientInstanceId: String
 
   /// Creates a workspace coordinator. The host app must inject its authenticated
-  /// client provider; the default resolves no client.
+  /// client provider; the default resolves no client. `threadNow` is the open Thread's clock.
   public init(
     clientProvider: @escaping (AuthState) -> Client? = { _ in nil },
     savedRoom: SavedRoomSelection = SavedRoomSelection(),
     instanceStore: RealtimeClientInstanceIdStore = UserDefaultsRealtimeInstanceIdStore(),
     unreadsFilter: UnreadsFilterPreference = .transient,
-    openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck()
+    openRoomUnreadRecheck: OpenRoomUnreadRecheck = OpenRoomUnreadRecheck(),
+    threadNow: @escaping () -> Date = Date.init
   ) {
+    thread = ThreadSession(now: threadNow)
     self.clientProvider = clientProvider
     self.openRoomUnreadRecheck = openRoomUnreadRecheck
     sidebar = ConversationSidebar(savedRoom: savedRoom, unreadsFilter: unreadsFilter)
