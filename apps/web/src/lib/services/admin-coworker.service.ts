@@ -3,11 +3,6 @@ import "server-only";
 import type { Coworker } from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type { AdminCoworkerCapability } from "@/lib/constants/coworker-display";
-import {
-  coworkerDisplayService,
-  type UpdateCoworkerDisplayInput,
-  type UpdateCoworkerDisplayResult,
-} from "@/lib/services/coworker-display.service";
 
 export interface AdminCoworkerControlsPatchBody {
   capabilities?: AdminCoworkerCapability[];
@@ -61,12 +56,6 @@ export const adminCoworkerService = (() => {
     }
   }
 
-  async function updateDisplay(
-    input: UpdateCoworkerDisplayInput,
-  ): Promise<UpdateCoworkerDisplayResult> {
-    return coworkerDisplayService.updateDisplay(input);
-  }
-
   async function updateControls(
     id: string,
     patchBody: AdminCoworkerControlsPatchBody,
@@ -110,7 +99,6 @@ export const adminCoworkerService = (() => {
   return {
     listCoworkers,
     getCoworkerById,
-    updateDisplay,
     updateControls,
     updateWhitelist,
     archiveCoworker,

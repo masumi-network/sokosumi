@@ -2906,14 +2906,18 @@
         "chooseProjectBody": "A post is published from the accounts connected to one project."
       },
       "accountsNeedProject": {
-        "title": "Connect X, YouTube, LinkedIn…",
-        "body": "Accounts are connected per project. Select a project in the sidebar to connect or manage its accounts."
+        "title": "Connect your social accounts",
+        "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
       },
       "draftsNeedProject": {
         "title": "Drafts",
-        "body": "Drafts are kept per project. Select a project in the sidebar to see and finish its drafts."
+        "body": "Choose a project to see and finish its drafts."
       },
-      "loading": "Loading Social…"
+      "loading": "Loading Social…",
+      "pickProject": "Choose a project",
+      "platforms": {
+        "label": "Social platforms"
+      }
     },
     "Error": {
       "title": "Something went wrong",

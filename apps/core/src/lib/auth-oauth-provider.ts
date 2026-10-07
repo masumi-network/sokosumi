@@ -8,7 +8,6 @@ import { getOAuthState } from "better-auth/api";
 import { symmetricDecrypt } from "better-auth/crypto";
 import type { Jwk, JwtOptions } from "better-auth/plugins/jwt";
 
-import { moveClientSecretToBasicAuth } from "./auth-oauth-client-secret-shim";
 import { hashStoredOAuthToken } from "./auth-oauth-token-prefixes";
 
 export const oauthRefreshTokenOptions = {
@@ -188,28 +187,25 @@ export async function isRefreshTokenRotating(
 }
 
 /**
- * `POST /oauth2/token`. A form request is read once: a body secret moves into
- * the header Better Auth accepts (`auth-oauth-client-secret-shim`), and a
- * refresh that lost a rotation race is retried. Anything else goes to
- * `handler` as it came.
+ * `POST /oauth2/token`. A form request is read once, and a refresh that lost a
+ * rotation race is retried. Anything else goes to `handler` as it came.
  */
 export async function handleOAuthTokenRequest(
-  incoming: Request,
+  request: Request,
   handler: (request: Request) => Promise<Response>,
   retry: (body: OAuthRefreshTokenBody, request: Request) => Promise<Response>,
   isRotating: (refreshToken: string) => Promise<boolean>,
 ): Promise<Response> {
   if (
-    !incoming.headers
+    !request.headers
       .get("content-type")
       ?.toLowerCase()
       .includes("application/x-www-form-urlencoded")
   ) {
-    return handler(incoming);
+    return handler(request);
   }
 
-  const params = new URLSearchParams(await incoming.clone().text());
-  const request = moveClientSecretToBasicAuth(incoming, params);
+  const params = new URLSearchParams(await request.clone().text());
   if (
     params.get("grant_type") !== "refresh_token" ||
     params.has("client_assertion") ||

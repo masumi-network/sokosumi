@@ -39,10 +39,6 @@ test("new Core models tolerate unexpected values with sibling defaults", () => {
   assert.equal(parseTask(null).jobs.length, 0);
   assert.deepEqual(parseJobEvent(null), {
     id: null,
-    jobId: null,
-    type: null,
-    message: null,
-    data: null,
     createdAt: null,
     status: null,
     result: null,
@@ -64,13 +60,13 @@ test("preserves Core job event status and result", () => {
       result: "Please provide the missing value.",
       files: [],
       links: [],
+      jobId: "job-123",
+      type: "update",
+      message: "ignored leftover",
+      data: { extra: true },
     }),
     {
       id: "event-123",
-      jobId: null,
-      type: null,
-      message: null,
-      data: null,
       createdAt: "2026-01-01T00:00:00.000Z",
       status: "AWAITING_INPUT",
       result: "Please provide the missing value.",

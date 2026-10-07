@@ -118,18 +118,13 @@ describe("auth router token requests", () => {
     return request;
   }
 
-  it("moves a token request's body secret into the Basic header", async () => {
-    const request = await handled("/oauth2/token");
+  it.each(["/oauth2/token", "/oauth2/revoke"])(
+    "hands %s to Better Auth with its body secret as it came",
+    async (path) => {
+      const request = await handled(path);
 
-    expect(request?.headers.get("authorization")).toBe(
-      `Basic ${Buffer.from("c:s").toString("base64")}`,
-    );
-  });
-
-  it("hands every other request to Better Auth as it came", async () => {
-    const request = await handled("/oauth2/revoke");
-
-    expect(request?.headers.get("authorization")).toBeNull();
-    expect(await request?.text()).toContain("client_secret=s");
-  });
+      expect(request?.headers.get("authorization")).toBeNull();
+      expect(await request?.text()).toContain("client_secret=s");
+    },
+  );
 });
