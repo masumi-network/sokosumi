@@ -1653,7 +1653,8 @@ model OauthClient {
   referenceId                      String?
   metadata                         Json?
   /// The sign-up origin recorded for accounts created through this client
-  /// (ADR 0052). Null records `unknown`.
+  /// (ADR 0052). Null records `unknown`. Core reads it with Prisma; Better
+  /// Auth's adapter only touches its declared fields, so no additionalFields.
   signUpOrigin                     String?
 
   // Relations
