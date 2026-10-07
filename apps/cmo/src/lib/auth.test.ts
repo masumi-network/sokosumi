@@ -88,17 +88,14 @@ async function createFakeCore(): Promise<FakeCore> {
     return Response.json(body, { status });
   }
 
+  // Core registers CMO as `client_secret_basic` and refuses a body secret.
   function hasClientCredentials(request: Request, form: URLSearchParams) {
     const basic = request.headers.get("authorization");
-    if (basic?.startsWith("Basic ")) {
-      return (
-        atob(basic.slice(6)) ===
-        `${encodeURIComponent(CLIENT_ID)}:${encodeURIComponent(CLIENT_SECRET)}`
-      );
-    }
     return (
-      form.get("client_id") === CLIENT_ID &&
-      form.get("client_secret") === CLIENT_SECRET
+      !form.has("client_secret") &&
+      basic?.startsWith("Basic ") === true &&
+      atob(basic.slice(6)) ===
+        `${encodeURIComponent(CLIENT_ID)}:${encodeURIComponent(CLIENT_SECRET)}`
     );
   }
 
