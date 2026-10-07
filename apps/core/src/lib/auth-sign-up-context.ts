@@ -4,6 +4,8 @@ import { getOAuthProviderState } from "@better-auth/oauth-provider";
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
 
+import { parseSignUpContextEntries } from "./auth-sign-up-context-entries";
+
 /*
  * Every account records its sign-up origin and sign-up context once, when
  * Core creates the user (ADR 0052). The origin comes from the `signUpOrigin`
@@ -37,12 +39,15 @@ async function originOf(clientId: string): Promise<string> {
 }
 
 async function writeSignUpContext(userId: string): Promise<void> {
-  const clientId = (await readOAuthSignUpRequest())?.get("client_id") ?? null;
+  const request = await readOAuthSignUpRequest();
+  const clientId = request?.get("client_id") ?? null;
   await prisma.signUpContext.create({
     data: {
       userId,
       origin: clientId ? await originOf(clientId) : SOKOSUMI_ORIGIN,
-      entries: {},
+      entries: parseSignUpContextEntries(
+        request?.get("signup_context") ?? null,
+      ),
       clientId,
     },
   });
