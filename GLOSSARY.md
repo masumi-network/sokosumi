@@ -30,6 +30,10 @@ _Avoid_: Job, run (unless a UI label), treating a Task as an Agent hire
 A vendor AI actor for Tasks and chat. Discovered on `/agents`. Not an Agent; not hired.
 _Avoid_: Agent (when meaning this), Soko Bot
 
+**Vendor grant**:
+A workspace's decision about whether one vendor's Coworkers may act across that workspace on behalf of its members: pending, granted, denied, or revoked. Denied and revoked stand until a person reopens access. Distinct from Coworker workspace access, which is per Coworker.
+_Avoid_: Permission, workspace access (when meaning this)
+
 ### Soko Bot
 
 **Soko Bot**:
