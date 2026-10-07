@@ -12,6 +12,8 @@ interface OrganizationSetupProps {
     previous: OrganizationFormState,
     formData: FormData,
   ) => Promise<OrganizationFormState>;
+  /** The website the sign-up link carried; the person confirms or edits it. */
+  websiteUrl?: string;
 }
 
 const INITIAL_STATE: OrganizationFormState = {
@@ -27,11 +29,12 @@ const INITIAL_STATE: OrganizationFormState = {
  */
 export function OrganizationSetup({
   createOrganizationWorkspace,
+  websiteUrl = "",
 }: OrganizationSetupProps) {
-  const [state, formAction] = useActionState(
-    createOrganizationWorkspace,
-    INITIAL_STATE,
-  );
+  const [state, formAction] = useActionState(createOrganizationWorkspace, {
+    ...INITIAL_STATE,
+    websiteUrl,
+  });
   const { errors } = state;
   const formRef = useFocusFirstInvalid(state.attempt);
 
