@@ -8,6 +8,12 @@ import type {
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
+interface StudioStateQuery {
+  assetId?: string;
+  before?: string;
+  beforeId?: string;
+}
+
 /**
  * Web's view of the image studio.
  *
@@ -30,7 +36,7 @@ export const imageStudioService = {
 
   async getState(
     projectId: string,
-    query: { assetId?: string; before?: string; beforeId?: string } = {},
+    query: StudioStateQuery = {},
   ): Promise<ProjectImageStudioState> {
     // The generated client types `before` as the transformed `Date`; on the
     // wire it is the ISO string the caller already holds.

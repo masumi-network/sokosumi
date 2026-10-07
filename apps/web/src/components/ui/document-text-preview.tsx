@@ -27,7 +27,7 @@ export function DocumentTextPreview({
   showLetterhead?: boolean;
 }) {
   return (
-    <div className="app-scrollbar bg-card-background h-full w-full overflow-y-auto p-4 md:p-6">
+    <div className="app-scrollbar bg-card-background size-full overflow-y-auto p-4 md:p-6">
       <article className="bg-background border-border mx-auto max-w-2xl overflow-hidden rounded-xl border shadow-md">
         {showLetterhead ? (
           <div className="border-border flex items-center gap-2.5 border-b px-7 py-3.5 md:px-10">
@@ -45,8 +45,8 @@ export function DocumentTextPreview({
             className={cn(
               "prose-h2:text-xl prose-h2:mb-3 prose-h2:tracking-tight",
               "prose-h3:text-foreground prose-h3:mt-7 prose-h3:mb-2 prose-h3:text-base",
-              "prose-p:text-foreground prose-p:text-[0.9375rem] prose-p:leading-7",
-              "prose-li:text-foreground prose-li:my-1.5 prose-li:text-[0.9375rem] prose-li:leading-7",
+              "prose-p:text-foreground prose-p:text-base prose-p:leading-7",
+              "prose-li:text-foreground prose-li:my-1.5 prose-li:text-base prose-li:leading-7",
               "prose-ul:my-3 prose-ol:my-3 prose-strong:text-foreground",
             )}
           >

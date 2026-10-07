@@ -19,6 +19,7 @@ vi.mock("@/lib/actions/image-studio/action", () => ({
 function request(id: string): QueuedGeneration {
   return {
     id,
+    projectId: "project-1",
     prompt: `prompt ${id}`,
     modelId: "model-a",
     modelLabel: "Model A",
@@ -57,9 +58,7 @@ afterEach(() => {
 describe("useGenerationQueue", () => {
   it("sends a batch one at a time until the queue is empty", async () => {
     const onAccepted = vi.fn();
-    const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted }),
-    );
+    const { result } = renderHook(() => useGenerationQueue({ onAccepted }));
 
     act(() => {
       result.current.enqueue([request("1"), request("2"), request("3")]);
@@ -72,7 +71,7 @@ describe("useGenerationQueue", () => {
 
   it("gives each request its own idempotency key", async () => {
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -94,7 +93,7 @@ describe("useGenerationQueue", () => {
     startImageGeneration.mockResolvedValueOnce(busy);
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -123,7 +122,7 @@ describe("useGenerationQueue", () => {
     });
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -143,7 +142,7 @@ describe("useGenerationQueue", () => {
     startImageGeneration.mockRejectedValue(new Error("network"));
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -165,7 +164,7 @@ describe("useGenerationQueue", () => {
     startImageGeneration.mockResolvedValue(busy);
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -185,7 +184,7 @@ describe("not enough credits", () => {
     startImageGeneration.mockResolvedValue(brokeK);
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {
@@ -209,7 +208,7 @@ describe("not enough credits", () => {
     startImageGeneration.mockResolvedValue(brokeK);
 
     const { result } = renderHook(() =>
-      useGenerationQueue({ projectId: "project-1", onAccepted: vi.fn() }),
+      useGenerationQueue({ onAccepted: vi.fn() }),
     );
 
     act(() => {

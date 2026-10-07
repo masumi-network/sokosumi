@@ -17,6 +17,12 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
+     rem, so it follows the root size with Dynamic Type like the rest of the
+     scale. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -778,6 +784,22 @@
   }
 
   /*
+   * Wrap once, here, instead of per element. A heading balances its lines so a
+   * title never strands one word; a paragraph avoids a lone last word.
+   * `truncate`, `line-clamp-*` and `text-wrap` utilities still win: they sit in
+   * the later utilities layer.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+
+  /*
    * Apple Dynamic Type (iOS/macOS Safari / PWA): map system body size to root
    * rem. Inter stays the face via next/font class on <html>; re-declare family
    * after the `font` shorthand so it is not replaced by the system text face.
@@ -955,6 +977,32 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   @media (prefers-reduced-motion: no-preference) {
     &:active:not(:disabled, [aria-disabled="true"]) {
       transform: scale(0.995);
+    }
+  }
+}
+
+/* Tap target for an icon control whose painted box stays small (dense toolbars,
+   chips, inline dismiss). A transparent ::after centered on the control grows
+   what a finger can hit to 40px below md and 32px from md up; a control that
+   is already that big keeps its own box. DESIGN.md → Accessibility → Touch
+   targets has the rule and the spacing it needs from its neighbours.
+
+   It sets `position: relative`. `absolute` or `fixed` on the same element
+   still wins: Tailwind emits single-property utilities after this one. A
+   scroll container (`overflow-*-auto`) clips the ::after, so give the
+   container room (`-m-1.5 p-1.5`) or grow the control instead. */
+@utility hit-area {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - --spacing(10)) / 2));
+  }
+
+  @variant md {
+    &::after {
+      inset: min(0px, calc((100% - --spacing(8)) / 2));
     }
   }
 }

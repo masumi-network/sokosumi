@@ -105,7 +105,7 @@ export function DirectRoomAvatarStack({
 
   if (participants.length === 0) {
     return (
-      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-[0.625rem] font-medium">
+      <span className="bg-muted text-muted-foreground flex size-5 shrink-0 items-center justify-center rounded-full text-2xs font-medium">
         <MessageCircle className="size-3" aria-hidden />
       </span>
     );
@@ -144,7 +144,7 @@ export function DirectRoomAvatarStack({
               )}
             >
               <AvatarImage alt="" src={participant.image ?? undefined} />
-              <AvatarFallback className="text-[0.5rem] font-medium">
+              <AvatarFallback className="text-2xs font-medium">
                 {getInitials(participant.name)}
               </AvatarFallback>
             </Avatar>

@@ -2,6 +2,16 @@ import { describe, expect, it } from "vitest";
 import { canUseNextImageSrc } from "@/config/next-image";
 
 describe("canUseNextImageSrc", () => {
+  it("keeps session-protected content out of the image optimizer", () => {
+    expect(
+      canUseNextImageSrc("/api/drive/files/private/content?scope=me"),
+    ).toBe(false);
+    expect(
+      canUseNextImageSrc(
+        "/api/projects/project/image-studio/assets/asset/content",
+      ),
+    ).toBe(false);
+  });
   it("allows configured Vercel Blob store hosts", () => {
     expect(
       canUseNextImageSrc(

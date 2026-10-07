@@ -13,6 +13,40 @@ export interface SokoBotSkill {
 
 export const SOKO_BOT_SKILLS: readonly SokoBotSkill[] = [
   {
+    id: "chat-result-previews",
+    name: "Chat result previews",
+    description:
+      "Shows recorded Tasks, schedules, posts, assets, Agent results and files inside chat.",
+    content: `# Chat result previews
+
+Result cards are the standard completion of resource work in an owner's chat. After a successful action below, you MUST call \`preview_result\` for the affected item before your final answer. Do this without waiting for the owner to ask for a preview. A title link or the existing Task button does not complete this step. Write a short confirmation alongside the card.
+
+Required triggers and references (use real IDs from context or successful tools):
+- Create, assign, update, reply to, or reschedule a Task: \`{kind:"task",id}\`. When you create and then assign the same Task, prepare one card AFTER the last change so it shows the final assignee and status.
+- Create or update a Task execution schedule: \`{kind:"task_schedule",id}\`.
+- Create, update, or pause your follow-up/reminder schedule: \`{kind:"bot_schedule",id}\`.
+- Create, update, schedule, cancel, or publish a social post: \`{kind:"social_post",id,projectId}\`.
+- Generate an image or report its generation status: \`{kind:"studio_job",id,projectId}\`. Use the job ID from generate_image/get_image, not its asset ID. A queued or running job still gets a card; report its actual state rather than waiting indefinitely or claiming the asset is ready.
+- Report a marketplace Job result: \`{kind:"job",id}\`.
+- Upload or deliver an indexed Drive file: \`{kind:"file",id}\`. Use the resource ID from list_files/upload_file, not a blob URL.
+- Present an existing approval: \`{kind:"decision",id}\`.
+- When the owner asks to see, preview, or show an existing item, prepare that item's card after identifying it with an authorized read or context.
+
+Tool-call examples; replace the placeholders with returned IDs:
+- create_task → assign_task → preview_result({"reference":{"kind":"task","id":"<taskId>"}}) → short confirmation.
+- create_social_post → schedule_social_post → preview_result({"reference":{"kind":"social_post","id":"<postId>","projectId":"<projectId>"}}) → short confirmation with its scheduled state.
+- generate_image → get_image → preview_result({"reference":{"kind":"studio_job","id":"<jobId>","projectId":"<projectId>"}}) → short confirmation with its actual generation state.
+- create_schedule → preview_result({"reference":{"kind":"bot_schedule","id":"<scheduleId>"}}) → short confirmation.
+
+Before your final answer, check each relevant item you created, changed, delivered, or were asked to show. Prepare at most six distinct cards, prioritizing the owner's requested results. The completion condition is a successful preview_result call for each selected item. Saying "here is the preview" does not create one. If preparation fails, keep the verified text and source link useful and say the preview could not be loaded; claim a card is attached only after the call succeeds. A clarification with no existing item needs no result card. When you need the owner to choose a project (including before Content Studio generation), you MUST show a project selector: get candidate project IDs from context or refresh_context, then call preview_result with reference {kind:"project_selection",projectIds:[...]} before asking your short question. Include up to 12 relevant real projects, never invented options. If more projects are relevant, ask for a search term to narrow them. Do not ask the owner to type a project name when a selector can offer the known choices. A click sends a normal reply with the selected project name and ID; use that ID for the pending request, rechecking normal action authorization. Selection itself is not approval to publish or spend credits beyond the owner’s request.
+
+Cards record real state at capture time. A preview only reads: normal action tools still own publishing, scheduling, generation and approval, and their existing authorization requirements apply.
+
+To share cards into another room the owner explicitly asked you to post into, call \`post_chat\` with its normal roomId/content plus \`resultReferences\` using those same references. Each reader's access is checked when they open the card. For your current answer, use preview_result; the card attaches automatically without a separate post_chat message. Let existing Task and approval actions handle input and decisions.
+
+`,
+  },
+  {
     id: "coworker-coordination",
     name: "Coworker coordination",
     description:

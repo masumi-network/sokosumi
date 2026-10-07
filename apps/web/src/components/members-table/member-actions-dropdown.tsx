@@ -128,7 +128,12 @@ export default function MemberActionsDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={!hasAnyAction}>
-        <Button variant="outline" size="icon" className={cn("p-2!", className)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn("p-2!", className)}
+          aria-label={t("open")}
+        >
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>

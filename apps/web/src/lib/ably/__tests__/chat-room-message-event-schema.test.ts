@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { applyFullChatRoomMessageEvent } from "@/app/chat/utils/merge-room-messages";
+import { hydrateChatRoomMessageFromRealtime } from "../hydrate-chat-room-message";
 
 import {
   chatRoomMessageEventDataSchema,
@@ -29,6 +31,47 @@ const baseMessage = {
 const fullEventTypes = ["create", "update", "delete"] as const;
 
 describe("chatRoomMessageEventDataSchema", () => {
+  it("replaces a live placeholder with its completed result cards", () => {
+    const resultPreviews = [
+      {
+        id: "550e8400-e29b-41d4-a716-446655440010",
+        capturedAt: "2026-10-06T09:22:00.000Z",
+        privateSnapshot: "must not cross the descriptor boundary",
+      },
+    ];
+    const parsed = chatRoomMessageEventDataSchema.parse({
+      eventType: "update",
+      message: { ...baseMessage, content: "Created a task", resultPreviews },
+    });
+    if (!("message" in parsed)) throw new Error("Expected full update");
+    const message = hydrateChatRoomMessageFromRealtime(parsed.message);
+    const placeholder = hydrateChatRoomMessageFromRealtime(baseMessage);
+    const merged = applyFullChatRoomMessageEvent([placeholder], {
+      eventType: "update",
+      message,
+    });
+    expect(merged).toHaveLength(1);
+    expect(merged[0].content).toBe("Created a task");
+    expect(merged[0].resultPreviews).toEqual([
+      {
+        id: resultPreviews[0].id,
+        capturedAt: new Date(resultPreviews[0].capturedAt),
+      },
+    ]);
+  });
+
+  it("rejects malformed result descriptors", () => {
+    expect(
+      chatRoomMessageEventDataSchema.safeParse({
+        eventType: "update",
+        message: {
+          ...baseMessage,
+          resultPreviews: [{ id: "invalid", capturedAt: "today" }],
+        },
+      }).success,
+    ).toBe(false);
+  });
+
   it.each([...fullEventTypes])(
     "accepts eventType %s with a full message DTO",
     (eventType) => {

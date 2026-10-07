@@ -31,11 +31,8 @@ test("fetchAgents maps GET /v1/agents response data to typed agents", async () =
           {
             id: "agent-1",
             name: "Researcher",
-            status: "ONLINE",
-            isNew: true,
-            isShown: true,
-            price: { credits: 5, includedFee: 1 },
-            tags: [{ name: "research" }],
+            credits: 5,
+            categories: [{ name: "research" }],
           },
           null,
         ],
@@ -48,7 +45,8 @@ test("fetchAgents maps GET /v1/agents response data to typed agents", async () =
   assert.deepEqual(calls, ["/v1/agents"]);
   assert.equal(result.agents.length, 2);
   assert.equal(result.agents[0]?.id, "agent-1");
-  assert.equal(result.agents[0]?.price.credits, 5);
+  assert.equal(result.agents[0]?.credits, 5);
+  assert.deepEqual(result.agents[0]?.tags, ["research"]);
   assert.equal(result.agents[1]?.id, null);
 });
 

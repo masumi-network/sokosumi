@@ -152,7 +152,11 @@
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Sonstige"
+      "othersCategory": "Sonstige",
+      "ActionButtons": {
+        "back": "Zurück",
+        "close": "Schließen"
+      }
     },
     "UserAvatar": {
       "account": "Konto",
@@ -260,7 +264,8 @@
           "unassignSeatDescription": "Wenn du {member} den bezahlten Seat entziehst, erhält die Person künftig keine Subscription-Credits mehr und stattdessen kostenlose monatliche Credits. Bereits gutgeschriebene Credits aus dem laufenden Zeitraum bleiben bis zum Ablauf bestehen."
         },
         "assignSeat": "Seat zuweisen",
-        "unassignSeat": "Seat entfernen"
+        "unassignSeat": "Seat entfernen",
+        "open": "Aktionen für Mitglied"
       },
       "InvitationActions": {
         "resend": "Einladung erneut senden",
@@ -277,7 +282,8 @@
           }
         },
         "resendSuccess": "Einladung erfolgreich erneut gesendet",
-        "resendError": "Einladung konnte nicht erneut gesendet werden"
+        "resendError": "Einladung konnte nicht erneut gesendet werden",
+        "open": "Aktionen für Einladung"
       }
     },
     "Breadcrumb": {
@@ -1005,6 +1011,67 @@
       "failed": "Dieses Diagramm konnte nicht dargestellt werden. Prüfe die Syntax im Quelltext unten.",
       "copied": "Quelltext kopiert.",
       "copyFailed": "Kopieren fehlgeschlagen. Wähle den Diagramm-Quelltext unten aus und kopiere ihn manuell."
+    },
+    "ChatResults": {
+      "unavailable": "Ergebnis nicht verfügbar oder nicht mehr zugänglich",
+      "loading": "Ergebnisse werden geladen…",
+      "loadError": "Ergebnisse konnten nicht geladen werden",
+      "retry": "Erneut versuchen",
+      "open": "Quelle öffnen",
+      "openLabel": "Quelle öffnen: {title}",
+      "downloadLabel": "{name} herunterladen",
+      "recorded": "Erfasst am {time}",
+      "assignee": "Zugewiesen an",
+      "project": "Projekt",
+      "destination": "Konto",
+      "scheduled": "Geplant für",
+      "recurrence": "Wiederholung",
+      "bytes": "{size} Bytes",
+      "kind": {
+        "task": "Aufgabe",
+        "task_schedule": "Aufgabenzeitplan",
+        "bot_schedule": "Bot-Nachverfolgung",
+        "social_post": "Social-Media-Beitrag",
+        "studio_job": "Studio-Generierung",
+        "job": "Agent-Ergebnis",
+        "file": "Datei",
+        "decision": "Freigabe"
+      },
+      "status": {
+        "DRAFT": "Entwurf",
+        "READY": "Bereit",
+        "INPUT_REQUIRED": "Wartet auf Eingabe",
+        "RUNNING": "In Bearbeitung",
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELLED": "Abgebrochen",
+        "ACTIVE": "Aktiv",
+        "PAUSED": "Pausiert",
+        "ENDED": "Beendet",
+        "SCHEDULED": "Geplant",
+        "PUBLISHED": "Veröffentlicht",
+        "QUEUED": "In Warteschlange",
+        "PENDING": "Ausstehend",
+        "PROCESSING": "Wird verarbeitet",
+        "ACCEPTED": "Angenommen",
+        "REJECTED": "Abgelehnt",
+        "EXPIRED": "Abgelaufen",
+        "SUCCEEDED": "Abgeschlossen",
+        "SUBMITTING": "Wird übermittelt",
+        "CANCELED": "Abgebrochen",
+        "SUBMISSION_UNCERTAIN": "Wartet auf Bestätigung",
+        "ORPHANED": "Handlungsbedarf"
+      },
+      "download": "Herunterladen",
+      "selection": {
+        "label": "Projekt auswählen",
+        "search": "Projekte suchen…",
+        "empty": "Keine Projekte verfügbar. Bitte den Bot, die Auswahl zu aktualisieren.",
+        "sending": "Auswahl wird gesendet…",
+        "selected": "{name} ausgewählt",
+        "failed": "Deine Auswahl konnte nicht gesendet werden. Bitte versuche es erneut.",
+        "selectedProject": "Ausgewähltes Projekt"
+      }
     }
   },
   "Join": {
@@ -1810,7 +1877,8 @@
             "unauthenticatedAction": "Anmelden",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Link kopieren"
         },
         "switchedWorkspace": "Zu {account}-Account gewechselt",
         "workspaceSwitchPrompt": {
@@ -2688,8 +2756,8 @@
     "Studio": {
       "back": "Zurück zum Projekt",
       "updated": "Aktualisiert",
-      "emptyTitle": "Noch keine Bilder",
-      "emptyBody": "Schreibe unten einen Prompt und wähle die Modelle, auf denen er laufen soll. Du bekommst Versionen zurück, die du vergleichen und verfeinern kannst.",
+      "emptyTitle": "Erstelle dein erstes Bild",
+      "emptyBody": "Wähle einen Stil als Ausgangspunkt oder schreibe unten deinen eigenen Prompt.",
       "promptPlaceholder": "Beschreibe das Bild…",
       "generate": "Erzeugen",
       "refine": "Verfeinern",
@@ -2771,6 +2839,8 @@
       "pickBody": "Content Studio arbeitet innerhalb eines Projekts: seine Bilder und seine Marke gehören dazu. Wähle ein Projekt, um seine Galerie zu öffnen.",
       "pickAction": "Projekt auswählen",
       "pickUnavailable": "Dieses Projekt ist nicht mehr in diesem Workspace. Wähle ein anderes aus.",
+      "pickForGeneration": "In welches Projekt sollen diese Bilder?",
+      "referencesAcrossProjects": "Referenzen müssen aus einem Projekt stammen. Heb die Auswahl der Bilder aus anderen Projekten auf und generiere erneut.",
       "scopeLabel": "Projekt",
       "title": "Content Studio",
       "selectAllModels": "Alle auswählen",
@@ -2900,7 +2970,8 @@
           "description": "Chat bleibt nutzbar. Aufgaben, Projekte, Dateien und der restliche Organisations-Bereich brauchen einen zugewiesenen Seat.",
           "hint": "Bitte einen Eigentümer oder Admin, dir einen Seat zuzuweisen."
         }
-      }
+      },
+      "toggle": "Seitenleiste ein- oder ausblenden"
     },
     "HistorySearchDialog": {
       "title": "Suche",
@@ -4590,7 +4661,8 @@
       "Cancel": {
         "title": "Zahlung abgebrochen",
         "description": "Dein Zahlungsvorgang wurde abgebrochen. Es wurden keine Kosten berechnet.",
-        "backToCredits": "Zurück zu Credits"
+        "backToCredits": "Zurück zu Credits",
+        "close": "Schließen"
       },
       "Errors": {
         "invalidInput": "Bitte gib entweder einen Credit-Betrag oder einen Coupon-Code ein",
@@ -4607,7 +4679,8 @@
       "urlLabel": "MCP Server URL",
       "existingKeyNote": "Diese gehostete MCP-Verbindung verwendet OAuth. Dein MCP-Client fordert dich beim Verbinden auf, dich bei Sokosumi anzumelden.",
       "docsLink": "MCP-Dokumentation ansehen",
-      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden"
+      "copyError": "URL konnte nicht in die Zwischenablage kopiert werden",
+      "copyUrl": "URL kopieren"
     },
     "Account": {
       "Name": {
@@ -4718,7 +4791,9 @@
           "cancel": "Abbrechen",
           "success": "Account erfolgreich getrennt",
           "error": "{provider} konnte nicht getrennt werden"
-        }
+        },
+        "connect": "{provider} verbinden",
+        "disconnect": "{provider} trennen"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Kontodetails konnten nicht geladen werden",
@@ -6933,7 +7008,8 @@
           "scratch_list": "Notizen werden aufgelistet",
           "read_file": "Datei wird gelesen",
           "generate_image": "Bild wird erstellt",
-          "get_image": "Bild wird geprüft"
+          "get_image": "Bild wird geprüft",
+          "preview_result": "Ergebnisvorschau vorbereiten"
         },
         "composer": {
           "label": "Nachricht",

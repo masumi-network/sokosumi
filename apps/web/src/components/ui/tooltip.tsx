@@ -60,7 +60,7 @@ function TooltipContent({
         {!hideArrow && (
           <TooltipPrimitive.Arrow
             className={cn(
-              "bg-primary-solid fill-primary-solid z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-[2px]",
+              "bg-primary-solid fill-primary-solid z-50 size-2.5 translate-y-[calc(-50%_-_2px)] rotate-45 rounded-xs",
               arrowClassName,
             )}
           />

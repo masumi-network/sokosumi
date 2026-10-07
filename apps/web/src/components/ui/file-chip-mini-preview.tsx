@@ -41,7 +41,7 @@ interface FileChipMiniPreviewFrameProps extends FileChipMiniPreviewProps {
 }
 
 const previewTriggerClassName =
-  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition";
+  "group bg-card-background hover:bg-card-background-hover focus-visible:ring-ring focus-visible:ring-2 relative block shrink-0 cursor-pointer overflow-hidden rounded-xl border outline-none transition-[color,background-color,border-color,transform]";
 
 const largeImageTriggerClassName =
   "min-w-0 max-h-80 w-full max-w-full shrink";
@@ -201,8 +201,18 @@ function FileChipMiniPreviewShell({
   );
 
   return (
-    <div className={cn("not-prose relative inline-flex", className)}>
+    <div
+      className={cn(
+        "not-prose relative inline-flex",
+        onRemove && "flex-col gap-1",
+        className,
+      )}
+    >
       {wrapTrigger ? wrapTrigger(trigger) : trigger}
+      {/* Remove sits under the tile, not on it: the tile is the preview's
+          own target, and a corner X big enough to tap would cover a quarter
+          of it. A full-width strip is 40px tall below md and 32px from md up
+          (DESIGN.md → Accessibility → Touch targets). */}
       {onRemove ? (
         <Tooltip>
           <TooltipTrigger asChild>
@@ -210,7 +220,7 @@ function FileChipMiniPreviewShell({
               type="button"
               aria-label={removeLabel}
               onClick={onRemove}
-              className="bg-surface-glass hover:bg-accent focus-visible:ring-ring absolute top-1 right-1 inline-flex size-5 items-center justify-center rounded-full border shadow-sm outline-none transition"
+              className="press text-muted-foreground hover:bg-card-background-hover hover:text-foreground focus-visible:ring-ring inline-flex h-10 w-full items-center justify-center rounded-lg outline-none transition-[color,background-color,transform] focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background md:h-8"
             >
               <X className="size-3" />
             </button>

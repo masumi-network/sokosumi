@@ -113,7 +113,7 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5";
 
 /**
  * A room the All unreads filter lists with nothing unread: read during the

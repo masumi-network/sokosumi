@@ -153,9 +153,9 @@ function RefundErrorButton({
       disabled={isLoading}
     >
       {isLoading ? (
-        <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-pulse" />
+        <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-pulse" />
       ) : (
-        <RefreshCw className="h-3.5 w-3.5" />
+        <RefreshCw className="size-3.5" />
       )}
       <span>{t("error")}</span>
     </button>
@@ -368,7 +368,7 @@ export default function RequestRefundButton({
                           className="text-primary flex items-center gap-1 hover:underline"
                         >
                           {t("learnMore")}
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="size-3" />
                         </a>
                       </span>
                     </AlertDialogDescription>

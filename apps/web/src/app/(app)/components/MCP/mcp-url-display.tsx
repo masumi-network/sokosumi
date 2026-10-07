@@ -36,13 +36,14 @@ export function McpUrlDisplay({ url, className }: McpUrlDisplayProps) {
       <Button
         size="icon"
         variant="ghost"
-        className="absolute top-1/2 right-2 h-8 w-8 -translate-y-1/2"
+        className="absolute top-1/2 right-2 size-10 md:size-8 -translate-y-1/2"
         onClick={handleCopy}
+        aria-label={t("copyUrl")}
       >
         {copied ? (
           <Check className="check-pop size-4 text-semantic-success" />
         ) : (
-          <Copy className="h-4 w-4" />
+          <Copy className="size-4" />
         )}
       </Button>
     </div>

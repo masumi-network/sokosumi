@@ -97,8 +97,6 @@ app.use(
       "X-Organization-Slug",
       "X-Context-User-Id",
       "X-Context-Organization-Id",
-      "X-Delegation-User-Id",
-      "X-Delegation-Organization-Id",
       CALENDAR_CLIENT_VERSION_HEADER,
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],

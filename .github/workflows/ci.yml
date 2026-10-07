@@ -45,6 +45,7 @@ jobs:
       cli: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cli }}
       local-env: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.local-env }}
       cloud-agent-db: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.cloud-agent-db }}
+      design-md: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.design-md }}
       # Markdown-only PRs still run the doc-script check.
       ci-config: ${{ github.event_name == 'workflow_dispatch' || steps.filter.outputs.ci-config }}
     steps:
@@ -381,6 +382,37 @@ jobs:
 
       - name: Run Tests
         run: pnpm cloud-agent-db:test
+
+  # Advisory. The DESIGN.md spec is alpha, so the CLI is pinned: a new
+  # release can add rules, and adopting them is a deliberate bump here.
+  # The CLI exits 0 on warnings, so the summary decides. Warnings fail too:
+  # both files lint clean, and a warning is a real defect such as a
+  # component pair below WCAG AA contrast.
+  design-md:
+    name: Lint DESIGN.md
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.design-md != 'false' }}
+    runs-on: ubuntu-latest
+    steps:
+      - *checkout
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+
+      - name: Lint each DESIGN.md
+        run: |
+          status=0
+          for file in apps/web/DESIGN.md apps/cmo/DESIGN.md; do
+            npx --yes @google/design.md@0.4.0 lint "$file" > lint.json || true
+            cat lint.json
+            if ! jq -e '.summary.errors == 0 and .summary.warnings == 0' lint.json > /dev/null; then
+              echo "::error file=$file::DESIGN.md lint reported errors or warnings"
+              status=1
+            fi
+          done
+          exit "$status"
 
   build:
     name: Build

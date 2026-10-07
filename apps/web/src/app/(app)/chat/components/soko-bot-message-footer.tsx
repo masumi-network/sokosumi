@@ -173,12 +173,20 @@ export function hasSokoBotMessageFooter(metadata: unknown): boolean {
  * Under a Soko Bot reply: approvals it is waiting on (resolved on the
  * assistant console) and the Tasks it created in this turn.
  */
-export function SokoBotMessageFooter({ metadata }: { metadata: unknown }) {
+export function SokoBotMessageFooter({
+  metadata,
+  previewedTaskIds = [],
+}: {
+  metadata: unknown;
+  previewedTaskIds?: string[];
+}) {
   const t = useTranslations("App.Chat.SokoBot");
   const info = readSokoBotMetadata(metadata);
   if (!info) return null;
   const pending = info.pending_decision_ids?.length ?? 0;
-  const tasks = info.task_ids ?? [];
+  const tasks = (info.task_ids ?? []).filter(
+    (id) => !previewedTaskIds.includes(id),
+  );
   if (pending === 0 && tasks.length === 0) return null;
 
   const chip =

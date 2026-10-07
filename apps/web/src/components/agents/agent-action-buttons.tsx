@@ -2,6 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ function AgentActionButtons({
   trailingActions,
   className,
 }: AgentActionButtonsProps) {
+  const t = useTranslations("Components.Agents.ActionButtons");
   const router = useRouter();
   const { isMobile } = useSidebar();
   const isClient = useIsClient();
@@ -64,8 +66,9 @@ function AgentActionButtons({
           <Button
             size="icon"
             variant="secondary"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onBack}
+            aria-label={t("back")}
           >
             <ArrowLeft className="size-4" />
           </Button>
@@ -74,8 +77,9 @@ function AgentActionButtons({
           <Button
             size="icon"
             variant="secondary"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onClose}
+            aria-label={t("close")}
           >
             <X className="size-4" />
           </Button>
@@ -84,7 +88,7 @@ function AgentActionButtons({
       <div className="flex items-center gap-1.5">
         {trailingActions}
         {showShareButton && url ? (
-          <ShareButton url={url} className="size-8 md:size-7" />
+          <ShareButton url={url} className="size-10 md:size-8" />
         ) : null}
       </div>
     </div>
@@ -94,10 +98,10 @@ function AgentActionButtons({
 function AgentActionButtonsSkeleton() {
   return (
     <div className="flex w-full items-center justify-between">
-      <Skeleton className="h-8 w-8" />
+      <Skeleton className="size-8" />
       <div className="flex items-center gap-2">
-        <Skeleton className="h-8 w-8" />
-        <Skeleton className="h-8 w-8" />
+        <Skeleton className="size-8" />
+        <Skeleton className="size-8" />
       </div>
     </div>
   );

@@ -35,12 +35,12 @@ export function PasswordInput({
         type="button"
         onClick={handleToggleVisibility}
         aria-label={isVisible ? t("hide") : t("show")}
-        className="text-muted-foreground press hover:text-foreground absolute inset-y-0 right-0 flex items-center pr-3"
+        className="text-muted-foreground press hover:text-foreground absolute inset-y-0 right-0 flex items-center px-3"
       >
         {isVisible ? (
-          <EyeOff className="h-4 w-4" aria-hidden />
+          <EyeOff className="size-4" aria-hidden />
         ) : (
-          <Eye className="h-4 w-4" aria-hidden />
+          <Eye className="size-4" aria-hidden />
         )}
       </button>
     </div>

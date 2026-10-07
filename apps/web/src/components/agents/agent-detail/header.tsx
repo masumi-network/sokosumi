@@ -58,7 +58,6 @@ function AgentDetailHeader({
           // display, so the browser rounds it to nothing or to a hairline
           // depending on position. 1px is what it was already trying to be.
           border: "1px solid transparent",
-          borderRadius: "0.5rem",
           backgroundImage: `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`,
           backgroundOrigin: "border-box",
           backgroundClip: "padding-box, border-box",
@@ -88,7 +87,7 @@ function AgentDetailHeader({
       </div>
       <div className="flex flex-col gap-6 md:flex-row">
         <div
-          className="border-border bg-card-background flex h-24 w-24 shrink-0 items-center justify-center rounded-lg border md:h-32 md:w-32"
+          className="border-border bg-card-background flex size-24 shrink-0 items-center justify-center rounded-lg border md:size-32"
           style={iconBorderStyle}
         >
           <div style={{ color: categoryColor }}>
@@ -113,7 +112,7 @@ function AgentDetailHeader({
               <AgentVerifiedBadge />
             </div>
             <div className="flex items-center gap-3">
-              <div className="relative h-8 w-8">
+              <div className="relative size-8">
                 <Image
                   src="/images/agent/agent-detail-author.jpg"
                   alt="author"
@@ -138,7 +137,7 @@ function AgentDetailHeaderSkeleton() {
     <div className="flex flex-col gap-6">
       <AgentActionButtonsSkeleton />
       <div className="flex flex-col gap-6 md:flex-row">
-        <Skeleton className="h-24 w-24 rounded-lg md:h-32 md:w-32" />
+        <Skeleton className="size-24 rounded-lg md:size-32" />
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-start gap-4 md:items-center">
@@ -146,7 +145,7 @@ function AgentDetailHeaderSkeleton() {
               <Skeleton className="h-8 w-16" />
             </div>
             <div className="flex items-center gap-2">
-              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="size-8 rounded-full" />
               <Skeleton className="h-4 w-24" />
             </div>
           </div>

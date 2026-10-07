@@ -1386,7 +1386,7 @@ export function TaskForm({
 
         {showTaskStep ? (
           <div className="flex shrink-0 flex-col items-stretch justify-between gap-3 border-t px-6 py-3 sm:flex-row sm:items-center md:px-8">
-            <div className="app-scrollbar flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto">
+            <div className="app-scrollbar -m-1.5 flex min-w-0 flex-wrap items-center gap-2 overflow-x-auto p-1.5">
               <AttachmentSubmenu
                 onUploadClick={() => attachmentTriggerRef.current?.click()}
                 onDriveClick={() =>
@@ -1406,7 +1406,7 @@ export function TaskForm({
                     isSubmittingAny ||
                     isUploadingAttachments
                   }
-                  className="focus-visible:ring-ring text-muted-foreground press hover:bg-accent hover:text-accent-foreground inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
+                  className="focus-visible:ring-ring text-muted-foreground press hover:bg-accent hover:text-accent-foreground hit-area inline-flex size-7 items-center justify-center rounded-full outline-none transition-colors focus-visible:ring-2 disabled:pointer-events-none disabled:opacity-50"
                 >
                   {isUploadingAttachments ? (
                     <Loader2

@@ -560,7 +560,7 @@ export function TaskDetailActions({
           label={labels.share}
           variant="ghost"
           size="icon"
-          className="size-7"
+          className="size-10 md:size-8"
         />
       ) : null}
       {hasOverflowMenuActions ? (
@@ -573,7 +573,7 @@ export function TaskDetailActions({
               type="button"
               variant="outline"
               size="icon"
-              className="size-8 shrink-0"
+              className="size-10 md:size-8 shrink-0"
               aria-label={actionsMenuLabel}
               disabled={actionsDisabled}
             >

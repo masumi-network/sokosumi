@@ -5,6 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ### UI & Styling
 
+- **Brand**: Read [`apps/web/DESIGN.md`](../../apps/web/DESIGN.md) for visual intent (tone, elevation, motion, voice) before styling. Token values live in `apps/web/src/app/globals.css`, which wins on conflict.
 - **Components**: Use Shadcn UI and Radix UI primitives
 - **Styling**: Tailwind CSS with responsive design
 - **Colors**: Use semantic tokens from `globals.css`. Never a raw Tailwind palette color
@@ -17,7 +18,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 - **Sizing**: Use `size-4` instead of `h-4 w-4`
 - **Themes**: Ensure compatibility with both dark and light modes
 - **Dynamic Type (iOS/macOS)**: Root rem may track Apple Dynamic Type (`-apple-system-body`); Inter stays the face; scale capped at **1.25×** (max 20px root). See `.cursor/rules/dynamic-type.mdc` and `apps/web/src/lib/utils/dynamic-type.ts`.
-- **Font sizes**: Never use fixed `px` type in product UI (`text-[10px]`, `font-size: 12px`, `fontSize: 14`). Use Tailwind `text-*` or `rem`/`em` so type scales with root.
+- **Font sizes**: Never set a literal font size in product UI: no arbitrary `text-[…]` in any unit (`text-[10px]`; `text-[0.8125rem]` is the same off-scale 13px), no `text-[length:…]` or `text-(length:…)`, and no literal `font-size`/`fontSize` in px, rem or em (`font-size: 12px`, `fontSize: "0.875rem"`, `fontSize: 14`). Use a scale step: `text-2xs` (11px, dense meta and badges only) through `text-4xl`. They are rem, so type scales with root. `apps/web/src/lib/utils/__tests__/src-walk-guards.test.ts` fails each spelling and lists the few exceptions with their reason.
 - **Whole pixels**: Never a fractional `px` on a layout or border length (`p-[1.5px]`, `padding: 1.5px`, `border: "0.2px solid …"`). A 1x display has no half pixel, so the browser rounds a `1.5px` border to 1px on one edge and 2px on the other. Blur radii, keyframe translations and unitless scale factors stay continuous. See [Whole pixels](../../.cursor/rules/whole-pixels.mdc).
 
 ### Key Conventions

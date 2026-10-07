@@ -32,7 +32,9 @@ describe("organization-chat-list create actions", () => {
     );
     // Same `md` floor as the list (`md:hidden` chats page, MOBILE_BREAKPOINT).
     // `sm:before:hidden` dropped the 44px target from 640–767, still mobile.
-    expect(source).toContain("md:before:hidden");
-    expect(source).not.toContain("sm:before:hidden");
+    // From md the 28px box keeps a 2px ring of it, so the target is 32px.
+    expect(source).toContain("md:before:-inset-0.5");
+    expect(source).not.toContain("sm:before:");
+    expect(source).not.toContain("md:before:hidden");
   });
 });

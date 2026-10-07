@@ -639,7 +639,7 @@ function TableWorkspace({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-muted-foreground size-7 shrink-0"
+                          className="text-muted-foreground hit-area size-7 shrink-0"
                           aria-label={t("columnMenu", { column: column.name })}
                         >
                           <MoreHorizontal className="size-4" />

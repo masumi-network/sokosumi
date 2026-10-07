@@ -18,7 +18,7 @@ One run turns one change into one announcement image. The frame (layout, the "Ne
    - `h1`: two short sentences, one per line, joined by `<br />` ("Mention them.<br />They're in.").
    - `.lede`: one sentence on what changed for the user, at most 30 words.
    - `ul`: exactly four points, each an outcome the user gets, at most 38 characters, no trailing period.
-   - Sentence case throughout, in the voice of `DESIGN.md` → Voice & Content. Address the reader as "you"; UI labels keep their own capitals (Save, Jump to latest).
+   - Sentence case throughout, in the voice of `apps/web/DESIGN.md` → Voice & Content. Address the reader as "you"; UI labels keep their own capitals (Save, Jump to latest).
 3. **Build the mocks.** One `figure.mock` per visible change worth showing, one to three, in order of importance. One mock spans the whole right side; with three, each panel is narrow, so each shows one small element. A change with no on-screen difference, such as a keyboard shortcut, belongs in the points. Each mock holds a `figcaption` (at most 28 characters) and a `.panel`. Read the components involved and mirror their structure and button variants. Compose panels from the mock kit in `template.html` (`message`, `card`, `row`, `field`, `composer`, `actions`, `btn primary|secondary|tinted`, `status`, `pill`, …) with the real strings from step 1, and format sample numbers and dates the way those messages do. Icons are lucide names: `<i data-icon="arrow-down"></i>`. Give one mock more room with `style="flex: 0 0 304px"`. Done when every visible string is real UI copy or plausible sample data.
 
    ```html
