@@ -169,7 +169,7 @@ test("jobs get text surfaces the newest Core event result", async () => {
   assert.doesNotMatch(output.join(""), /latest event: Oldest feedback\./);
 });
 
-test("jobs get text falls back from result to status to id", async () => {
+test("jobs get text falls back to event status when result is missing", async () => {
   const output: string[] = [];
   const client: CoreHttpClient = {
     get: async <T>(path: string) => {
