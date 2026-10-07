@@ -813,6 +813,26 @@ model UTMAttribution {
   @@map("utmAttribution")
 }
 
+/// The account's sign-up origin and the sign-up context that origin handed
+/// over (ADR 0052). Written once, when Core creates the user; never changed.
+model SignUpContext {
+  id        String   @id @default(uuid(7))
+  createdAt DateTime @default(now())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// `sokosumi`, `unknown`, or the OAuth client's `signUpOrigin`.
+  origin   String
+  /// Key to string, number or boolean.
+  entries  Json    @default("{}")
+  /// The OAuth request's `client_id`, null outside one. Internal and never
+  /// returned by the API: it lets an operator correct `unknown` origins.
+  clientId String?
+
+  @@map("sign_up_context")
+}
+
 model Notice {
   id           String     @id @default(uuid(7))
   kind         NoticeKind @default(ANNOUNCEMENT)
@@ -1632,6 +1652,10 @@ model OauthClient {
   dpopBoundAccessTokens            Boolean  @default(false)
   referenceId                      String?
   metadata                         Json?
+  /// The sign-up origin recorded for accounts created through this client
+  /// (ADR 0052). Null records `unknown`. Core reads it with Prisma; Better
+  /// Auth's adapter only touches its declared fields, so no additionalFields.
+  signUpOrigin                     String?
 
   // Relations
   accessTokens    OauthAccessToken[]

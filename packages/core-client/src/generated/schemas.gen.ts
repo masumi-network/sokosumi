@@ -17504,6 +17504,48 @@ export const SignUpConversionRequestSchema = {
     }
 } as const;
 
+export const SignUpContextSchema = {
+    type: 'object',
+    properties: {
+        origin: {
+            type: 'string',
+            description: 'The product the account was created through: `sokosumi`, a first-party client\'s sign-up origin such as `cmo`, or `unknown` for a client without one.',
+            example: 'cmo'
+        },
+        context: {
+            type: 'object',
+            additionalProperties: {
+                anyOf: [
+                    {
+                        type: 'string'
+                    },
+                    {
+                        type: 'number'
+                    },
+                    {
+                        type: 'boolean'
+                    }
+                ]
+            },
+            description: 'The values the sign-up origin handed over, as untrusted text, numbers or booleans.',
+            example: {
+                url: 'nmkr.io'
+            }
+        },
+        createdAt: {
+            type: 'string',
+            format: 'date-time',
+            example: '2021-01-01T00:00:00.000Z',
+            description: 'When the sign-up was recorded'
+        }
+    },
+    required: [
+        'origin',
+        'context',
+        'createdAt'
+    ]
+} as const;
+
 export const CoworkerWorkspaceAccessSchema = {
     type: 'object',
     properties: {

@@ -3381,6 +3381,17 @@
           "cancel": "Abbrechen",
           "start": "Impersonierung starten",
           "startError": "Impersonierung konnte nicht gestartet werden."
+        },
+        "UserDetail": {
+          "backToList": "Zurück zu Benutzern",
+          "SignUp": {
+            "title": "Registrierung",
+            "origin": "Herkunft",
+            "recorded": "Erfasst am",
+            "context": "Kontext",
+            "noContext": "Es wurden keine Kontextwerte übergeben.",
+            "notRecorded": "Keine Registrierung erfasst"
+          }
         }
       },
       "Organizations": {
