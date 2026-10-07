@@ -26,7 +26,6 @@ function printAgentList(
   agents: readonly {
     id: string | null;
     name: string | null;
-    status: string | null;
   }[],
 ): void {
   if (agents.length === 0) {
@@ -35,10 +34,7 @@ function printAgentList(
   }
   stdout.write(
     `${agents
-      .map(
-        (agent) =>
-          `${agent.name || "Unnamed"} [${agent.id || "unknown"}] | ${agent.status || "unknown"}`,
-      )
+      .map((agent) => `${agent.name || "Unnamed"} [${agent.id || "unknown"}]`)
       .join("\n")}\n`,
   );
 }
@@ -62,7 +58,7 @@ export async function runAgentsCommand({
         agent.id,
         agent.name,
         agent.description,
-        ...agent.tags.map((tag) => tag.name),
+        ...agent.tags,
       ],
     });
     if (json) {

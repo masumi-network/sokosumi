@@ -14,11 +14,8 @@ function createAgent(overrides: Partial<Agent> = {}): Agent {
     updatedAt: null,
     name: "Researcher",
     description: "Finds facts",
-    status: "ONLINE",
-    isNew: false,
-    isShown: true,
-    price: { credits: 1, includedFee: 0 },
-    tags: [{ name: "research" }],
+    credits: 1,
+    tags: ["research"],
     ...overrides,
   };
 }
@@ -33,7 +30,7 @@ test("filters agents by searchable fields and applies a limit", async () => {
           createAgent({
             id: "agent-2",
             name: "Writer",
-            tags: [{ name: "copy" }],
+            tags: ["copy"],
           }),
         ],
       }) as T,
@@ -72,6 +69,38 @@ test("agents list emits a stable JSON collection", async () => {
   assert.deepEqual(JSON.parse(output.join("")), {
     agents: [createAgent()],
   });
+});
+
+test("agents list text omits phantom status for Core list DTOs", async () => {
+  const output: string[] = [];
+  const client: CoreHttpClient = {
+    get: async <T>() =>
+      ({
+        data: [
+          {
+            id: "agent-1",
+            createdAt: "2026-01-01T00:00:00.000Z",
+            updatedAt: "2026-01-01T00:01:00.000Z",
+            name: "Researcher",
+            description: "Finds facts",
+            credits: 12,
+            categories: [{ name: "research" }],
+          },
+        ],
+      }) as T,
+    post: async <T>() => ({ data: null }) as T,
+    put: async () => {
+      throw new Error("Unexpected PUT");
+    },
+    patch: async <T>() => ({ data: null }) as T,
+  };
+  await runAgentsCommand({
+    client,
+    stdout: { write: (value) => output.push(value) },
+  });
+  const printed = output.join("");
+  assert.equal(printed, "Researcher [agent-1]\n");
+  assert.doesNotMatch(printed, /unknown/);
 });
 
 test("agents hire fetches the input schema and posts a job", async () => {
