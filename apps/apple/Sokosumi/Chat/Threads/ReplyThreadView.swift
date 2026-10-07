@@ -42,6 +42,7 @@ import SwiftUI
   private struct ReplyThreadContent: View {
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @Environment(\.jumpMarkClock) private var jumpMarkClock
     let messages: [Components.Schemas.ChatRoomMessage]
     let preparedTranscript: PreparedTranscript?
     let preparationScope: [String]
@@ -189,7 +190,7 @@ import SwiftUI
           }
           .task(id: workspaces.thread.jumpTarget?.mark) {
             guard let mark = workspaces.thread.jumpTarget?.mark else { return }
-            try? await Task.sleep(for: .seconds(max(0, mark.endsAt.timeIntervalSinceNow)))
+            try? await jumpMarkClock.sleep(until: mark.endsAt)
             guard !Task.isCancelled else { return }
             workspaces.thread.endJumpIfMarkEnded()
           }
