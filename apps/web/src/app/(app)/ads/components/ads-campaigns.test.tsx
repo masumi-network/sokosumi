@@ -73,6 +73,9 @@ describe("AdsCampaigns", () => {
     await renderCampaigns([]);
 
     expect(screen.getByText("No campaigns in this account yet")).toBeVisible();
+    expect(
+      screen.getByText("Create one with New campaign. It starts paused."),
+    ).toBeVisible();
   });
 
   it("draws every column", async () => {

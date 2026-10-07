@@ -91,6 +91,7 @@ import type {
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
+  PostProjectsByIdAdsAccountsByAccountIdCampaignsData,
   PostProjectsByIdAdsAccountsData,
   PostProjectsByIdAdsConnectionsFinalizeData,
   PostProjectsByIdAdsConnectionsInitiateData,
@@ -417,6 +418,7 @@ import {
   postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
   postProjectsByIdAdsAccounts as corePostProjectsByIdAdsAccounts,
+  postProjectsByIdAdsAccountsByAccountIdCampaigns as corePostProjectsByIdAdsAccountsByAccountIdCampaigns,
   postProjectsByIdAdsConnectionsFinalize as corePostProjectsByIdAdsConnectionsFinalize,
   postProjectsByIdAdsConnectionsInitiate as corePostProjectsByIdAdsConnectionsInitiate,
   postProjectsByIdClose as corePostProjectsByIdClose,
@@ -3535,6 +3537,22 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function postProjectsByIdAdsAccountsByAccountIdCampaigns(
+    path: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["path"],
+    body: PostProjectsByIdAdsAccountsByAccountIdCampaignsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccountsByAccountIdCampaigns({
+          client,
+          path,
+          body,
+        }),
+      "Failed to create ad campaign",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -6231,6 +6249,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
     postProjectsByIdAdsAccounts,
+    postProjectsByIdAdsAccountsByAccountIdCampaigns,
     postProjectsByIdAdsConnectionsFinalize,
     postProjectsByIdAdsConnectionsInitiate,
     postProjectsByIdSocialConnectionsFinalize,

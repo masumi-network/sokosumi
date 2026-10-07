@@ -5,12 +5,14 @@ import { NextIntlClientProvider } from "next-intl";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/actions/ads/action", () => ({ createAdCampaign: vi.fn() }));
+
 import messages from "../../../../../messages/en.json";
 import { AdsCampaignsToolbar } from "./ads-campaigns-toolbar";
 
 const ACCOUNTS = [
-  { id: "a1", name: "Main" },
-  { id: "a2", name: "Second" },
+  { id: "a1", name: "Main", currency: "USD", provider: "google_ads" },
+  { id: "a2", name: "Second", currency: "EUR", provider: "meta_ads" },
 ] as ProjectAdAccount[];
 
 function renderToolbar(
@@ -22,8 +24,9 @@ function renderToolbar(
     <NextIntlClientProvider locale="en" messages={messages}>
       <NuqsTestingAdapter onUrlUpdate={onUrlUpdate}>
         <AdsCampaignsToolbar
-          accountId={accounts[0].id}
+          account={accounts[0]}
           accounts={accounts}
+          projectId="project-1"
           range={range}
         />
       </NuqsTestingAdapter>
@@ -64,5 +67,11 @@ describe("AdsCampaignsToolbar", () => {
     await user.click(screen.getByRole("radio", { name: "30 days" }));
 
     expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+
+  it("offers New campaign while an account is selected", () => {
+    renderToolbar(ACCOUNTS);
+
+    expect(screen.getByRole("button", { name: "New campaign" })).toBeVisible();
   });
 });

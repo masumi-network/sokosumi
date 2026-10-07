@@ -15,6 +15,7 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import { AD_CAMPAIGN_OBJECTIVES } from "@/lib/ads/campaign";
 import {
   CoreApiRequestError,
   toCoreApiActionError,
@@ -144,5 +145,25 @@ export const updateAdCampaign = adsAction(
       ...(dailyBudget !== undefined ? { dailyBudget } : {}),
     });
     revalidatePath("/ads");
+  },
+);
+
+/** Creates a campaign. Core always creates it paused. */
+export const createAdCampaign = adsAction(
+  z.object({
+    projectId: trimmedId,
+    accountId: trimmedId,
+    name: z.string().trim().min(1).max(255),
+    dailyBudget: z.number().positive(),
+    objective: z.enum(AD_CAMPAIGN_OBJECTIVES).optional(),
+  }),
+  async ({ projectId, accountId, name, dailyBudget, objective }) => {
+    const campaign = await adsService.createCampaign(projectId, accountId, {
+      name,
+      dailyBudget,
+      ...(objective ? { objective } : {}),
+    });
+    revalidatePath("/ads");
+    return campaign;
   },
 );

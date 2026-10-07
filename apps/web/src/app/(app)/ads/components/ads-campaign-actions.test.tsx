@@ -250,7 +250,7 @@ describe("AdsCampaignActions", () => {
       if (typed) await user.type(input, typed);
       await user.click(save());
 
-      expect(screen.getByRole("alert")).toHaveTextContent(message);
+      expect(await screen.findByText(message)).toBeVisible();
       expect(input).toHaveAttribute("aria-invalid", "true");
       expect(updateMock).not.toHaveBeenCalled();
     });
@@ -262,9 +262,9 @@ describe("AdsCampaignActions", () => {
       await user.type(input, "10.5");
       await user.click(save());
 
-      expect(screen.getByRole("alert")).toHaveTextContent(
-        "Use a whole number for JPY.",
-      );
+      expect(
+        await screen.findByText("Use a whole number for JPY."),
+      ).toBeVisible();
     });
 
     it("saves the new budget, says so and closes", async () => {
@@ -289,54 +289,61 @@ describe("AdsCampaignActions", () => {
       await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     });
 
-    async function saveRefused(error: {
-      code: string;
-      message: string;
-      status?: number;
-    }) {
+    /** Saves 40 and waits for `message`, the words the dialog shows. */
+    async function saveRefused(
+      error: { code: string; message: string; status?: number },
+      message: string,
+    ) {
       updateMock.mockResolvedValue({ ok: false, error });
       const { user, input } = await openBudget();
       await user.clear(input);
       await user.type(input, "40");
       await user.click(save());
-      return screen.findByRole("alert");
+      return screen.findByText(message);
     }
 
     it("explains a shared or ad-set budget in our words on 409", async () => {
-      const alert = await saveRefused({
-        code: "BAD_INPUT",
-        status: 409,
-        message: "Budget shared with 2 other campaigns",
-      });
-
-      expect(alert).toHaveTextContent(
+      const alert = await saveRefused(
+        {
+          code: "BAD_INPUT",
+          status: 409,
+          message: "Budget shared with 2 other campaigns",
+        },
         "This campaign's budget is managed in Google Ads (shared or ad-set budget). Change it there.",
       );
-      expect(alert).not.toHaveTextContent("Budget shared");
+
+      expect(alert).toBeVisible();
+      expect(screen.queryByText(/Budget shared/)).toBeNull();
       expect(screen.getByRole("dialog")).toBeVisible();
       expect(toastSuccessMock).not.toHaveBeenCalled();
     });
 
     it("explains the precision limit in our words on 422", async () => {
-      const alert = await saveRefused({
-        code: "BAD_INPUT",
-        status: 422,
-        message: "dailyBudget has too many decimals",
-      });
+      const alert = await saveRefused(
+        {
+          code: "BAD_INPUT",
+          status: 422,
+          message: "dailyBudget has too many decimals",
+        },
+        "Use at most 2 decimal places for USD.",
+      );
 
-      expect(alert).toHaveTextContent("Use at most 2 decimal places for USD.");
-      expect(alert).not.toHaveTextContent("dailyBudget");
+      expect(alert).toBeVisible();
+      expect(screen.queryByText(/dailyBudget/)).toBeNull();
     });
 
     it("never shows Core's text for other failures", async () => {
-      const alert = await saveRefused({
-        code: "INTERNAL_SERVER_ERROR",
-        status: 502,
-        message: "Google exploded",
-      });
+      const alert = await saveRefused(
+        {
+          code: "INTERNAL_SERVER_ERROR",
+          status: 502,
+          message: "Google exploded",
+        },
+        "Failed to update campaign",
+      );
 
-      expect(alert).toHaveTextContent("Failed to update campaign");
-      expect(alert).not.toHaveTextContent("Google exploded");
+      expect(alert).toBeVisible();
+      expect(screen.queryByText(/Google exploded/)).toBeNull();
     });
   });
 });

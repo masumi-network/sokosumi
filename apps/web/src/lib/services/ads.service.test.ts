@@ -9,6 +9,7 @@ const coreClientMock = {
   getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
   patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   postProjectsByIdAdsAccounts: vi.fn(),
+  postProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
   postProjectsByIdAdsConnectionsFinalize: vi.fn(),
   postProjectsByIdAdsConnectionsInitiate: vi.fn(),
 };
@@ -182,6 +183,27 @@ describe("adsService", () => {
     ).toHaveBeenCalledWith(
       { id: "project-1", accountId: "account-1", campaignId: "42" },
       { status: "PAUSED" },
+    );
+  });
+
+  it("creates a campaign and returns its id", async () => {
+    coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: { id: "42" } },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.createCampaign("project-1", "account-1", {
+        name: "Spring sale",
+        dailyBudget: 25,
+      }),
+    ).resolves.toEqual({ id: "42" });
+    expect(
+      coreClientMock.postProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { name: "Spring sale", dailyBudget: 25 },
     );
   });
 });
