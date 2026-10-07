@@ -19,6 +19,7 @@ import { z } from "zod";
 import { isLocalDevHostname } from "@/config/cors-allow-origin";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import type { ProjectSocialProvider } from "@/config/social-providers";
+import { isPrismaUniqueViolation } from "@/helpers/prisma";
 import { buildCreditsPayload } from "@/helpers/subscription";
 import { getUserWorkspace } from "@/helpers/user-workspaces";
 import {
@@ -695,28 +696,47 @@ export async function startCmoOnboarding(input: {
     select: { id: true },
   });
 
-  const { sokoBotControlPlane } = await import(
-    "@/services/soko-bot-control-plane.service"
-  );
-  const bot = await sokoBotControlPlane.create({
-    userId: input.userId,
-    workspaceId: workspace.id,
-    projectId: project.id,
-    name: CUSO_NAME,
-    versionId: CMO_SOKO_BOT_VERSION_ID,
-  });
-
-  const created = await prisma.cmoHire.create({
-    data: {
+  let created: CmoHire;
+  try {
+    const { sokoBotControlPlane } = await import(
+      "@/services/soko-bot-control-plane.service"
+    );
+    const bot = await sokoBotControlPlane.create({
       userId: input.userId,
       workspaceId: workspace.id,
-      sokoBotId: bot.id,
       projectId: project.id,
-      businessName,
-      websiteUrl: input.websiteUrl,
-      goals: input.goals,
-    },
-  });
+      name: CUSO_NAME,
+      versionId: CMO_SOKO_BOT_VERSION_ID,
+    });
+    created = await prisma.cmoHire.create({
+      data: {
+        userId: input.userId,
+        workspaceId: workspace.id,
+        sokoBotId: bot.id,
+        projectId: project.id,
+        businessName,
+        websiteUrl: input.websiteUrl,
+        goals: input.goals,
+      },
+    });
+  } catch (error) {
+    // No stray Project or Cuso: deleting the Project cascades to his bot.
+    await prisma.project
+      .delete({ where: { id: project.id } })
+      .catch((cleanupError) => {
+        console.warn("CMO hire cleanup failed", {
+          projectId: project.id,
+          error:
+            cleanupError instanceof Error ? cleanupError.message : "unknown",
+        });
+      });
+    // A second submit lost the race: the first hire stands.
+    if (isPrismaUniqueViolation(error)) {
+      const winner = await getCmoHireForUser(input.userId);
+      if (winner) return winner;
+    }
+    throw error;
+  }
 
   // The brand's look (logo, colours, fonts, DESIGN.md) is read alongside
   // Cuso's research; it never holds up onboarding.

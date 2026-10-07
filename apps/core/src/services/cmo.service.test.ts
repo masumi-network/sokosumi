@@ -15,6 +15,7 @@ const {
   startTurn,
   createBot,
   projectCreate,
+  projectDelete,
   cmoCreate,
   getUserWorkspace,
 } = vi.hoisted(() => ({
@@ -32,6 +33,7 @@ const {
   startTurn: vi.fn(),
   createBot: vi.fn(),
   projectCreate: vi.fn(),
+  projectDelete: vi.fn(),
   cmoCreate: vi.fn(),
   getUserWorkspace: vi.fn(),
 }));
@@ -43,7 +45,7 @@ vi.mock("@/lib/db/prisma", () => ({
       update: cmoUpdate,
       create: cmoCreate,
     },
-    project: { create: projectCreate },
+    project: { create: projectCreate, delete: projectDelete },
     subscription: { findFirst: subscriptionFindFirst },
     workspace: { findUnique: workspaceFindUnique },
     sokoBotTurn: { findFirst: turnFindFirst },
@@ -580,6 +582,7 @@ describe("startCmoOnboarding", () => {
   beforeEach(() => {
     cmoFindUnique.mockResolvedValue(null);
     projectCreate.mockResolvedValue({ id: "project-1" });
+    projectDelete.mockResolvedValue({ id: "project-1" });
     createBot.mockResolvedValue({ id: "bot-1" });
     cmoCreate.mockImplementation(async ({ data }) => ({
       id: "cmo-1",
@@ -643,6 +646,39 @@ describe("startCmoOnboarding", () => {
     );
     expect(projectCreate).not.toHaveBeenCalled();
     expect(createBot).not.toHaveBeenCalled();
+  });
+
+  it("removes the Project, and with it Cuso, when hiring fails partway", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Ana Example",
+    });
+    createBot.mockRejectedValue(new Error("bot failed"));
+
+    await expect(startCmoOnboarding(input)).rejects.toThrow("bot failed");
+    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(cmoCreate).not.toHaveBeenCalled();
+  });
+
+  it("keeps the hire a second submit lost the race to, and cleans up", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Ana Example",
+    });
+    cmoCreate.mockRejectedValue(
+      Object.assign(new Error("unique"), { code: "P2002" }),
+    );
+    cmoFindUnique
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ id: "cmo-0", workspaceId: "ws-1" });
+
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      id: "cmo-0",
+    });
+    expect(projectDelete).toHaveBeenCalledWith({ where: { id: "project-1" } });
+    expect(startTurn).not.toHaveBeenCalled();
   });
 
   it("returns the person's existing Cuso without hiring again", async () => {
