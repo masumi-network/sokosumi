@@ -10,7 +10,7 @@ interface AdsMarketAdGridProps {
 }
 
 /**
- * Recent ads of the market's biggest advertisers: one calm card each, in a
+ * Recent ads of the project's search competitors: one calm card each, in a
  * grid of 1, 2 or 3 columns. Only the preview is client code, to fall back
  * when its image fails to load.
  */
@@ -30,7 +30,7 @@ export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-ads">
-      {fetchedAt && <AdsUpdated at={fetchedAt} />}
+      <AdsUpdated at={fetchedAt} />
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {ads.map((ad) => (
           <li
