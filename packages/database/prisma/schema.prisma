@@ -484,6 +484,7 @@ model Project {
   adAccounts        ProjectAdAccount[]
   adMarketProfile   ProjectAdMarketProfile?
   adMarketSnapshots ProjectAdMarketSnapshot[]
+  adMarketAdsJob    ProjectAdMarketAdsJob?
 
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
@@ -692,6 +693,38 @@ model ProjectAdMarketSnapshot {
 
   @@unique([projectId, kind, requestKey])
   @@map("project_ad_market_snapshot")
+}
+
+enum ProjectAdMarketAdsJobStage {
+  /// Organic SERP tasks, to find the search competitors.
+  SERP
+  /// Ads Transparency tasks, one per competitor domain.
+  ADS
+  /// Every task of a stage failed; kept for an hour so polling does not repost.
+  FAILED
+}
+
+/// The queued DataForSEO tasks that build a Project's market ads. One row per
+/// Project, advanced by the polling client and deleted once the ads snapshot is
+/// written.
+model ProjectAdMarketAdsJob {
+  projectId      String                     @id @db.Uuid
+  /// Hash of the market profile the job was started for.
+  requestKey     String
+  stage          ProjectAdMarketAdsJobStage
+  /// DataForSEO task ids of the current stage not yet collected.
+  pendingTaskIds String[]
+  /// What the finished tasks gave: `{domain, rank}[]` per keyword in SERP,
+  /// `MarketAd[]` in ADS.
+  collected      Json
+  /// Start of the current stage.
+  startedAt      DateTime
+  /// Last DataForSEO check; throttles polling.
+  checkedAt      DateTime
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_ad_market_ads_job")
 }
 
 enum SocialPostStatus {
