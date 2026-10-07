@@ -84,7 +84,7 @@ Hybrid mapping: native Linear statuses for needs-triage (Triage) and wontfix (Ca
 
 ### Domain docs
 
-Single-context: live `CONTEXT.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](./domain.md).
+Single-context: live `GLOSSARY.md` + `docs/adr/` at the repo root. See [`docs/agents/domain.md`](./domain.md).
 
 **Cloud agent database:** [`docs/agents/cloud-agent-database.md`](../../docs/agents/cloud-agent-database.md) — ephemeral Neon branch per agent run via `DATABASE_URL`, provision/teardown, 72h idle TTL.
 

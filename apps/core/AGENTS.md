@@ -50,6 +50,8 @@ The live tree is `apps/core/src/`.
 | `services/` | Longer-lived / legacy service modules |
 | `middleware/` | Auth, org, workspace, coworker context |
 
+**OAuth provider / first-party sign-up** (CMO, `prompt=create`, signed authorize query, user-create hooks): ADRs 0045, 0046, 0052 and the header of `lib/auth-sign-up-conversion.ts`.
+
 Email rendering lives in `@sokosumi/email`, not under Core `lib/email` or `locales/`.
 
 ## Core-Specific Conventions
