@@ -2998,7 +2998,7 @@
       },
       "market": {
         "setupTitle": "Richte deinen Markt ein",
-        "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen dein Markt schaltet.",
+        "setupBody": "Füge die Keywords hinzu, nach denen deine Kundschaft sucht, und wo. Dann siehst du, was im Trend liegt und welche Anzeigen deine Suchkonkurrenten schalten.",
         "edit": "Markt bearbeiten",
         "editBody": "Trend-Keywords und Anzeigen richten sich nach diesen Keywords, diesem Land und dieser Sprache.",
         "form": {
@@ -3043,7 +3043,7 @@
           "emptyBody": "Probiere andere Keywords oder ein anderes Land."
         },
         "ads": {
-          "title": "Anzeigen in deinem Markt",
+          "title": "Anzeigen deiner Suchkonkurrenten",
           "previewAlt": "Anzeige von {advertiser}",
           "textAd": "Textanzeige",
           "noPreview": "Keine Vorschau",
@@ -3055,8 +3055,11 @@
           },
           "lastShown": "Zuletzt gezeigt {time}",
           "viewAd": "Anzeige ansehen",
-          "emptyTitle": "Für diese Werbetreibenden wurden noch keine Anzeigen gefunden",
-          "emptyBody": "Anzeigen der größten Werbetreibenden deines Markts erscheinen hier, sobald sie laufen."
+          "emptyTitle": "Keine Konkurrenzanzeigen gefunden",
+          "emptyBody": "Anzeigen von Websites, die für deine Keywords ranken, erscheinen hier, sobald sie laufen.",
+          "gatheringTitle": "Anzeigen deiner Suchkonkurrenten werden gesammelt",
+          "gatheringBody": "Das dauert einige Minuten. Du kannst diese Seite verlassen.",
+          "refreshing": "Wird aktualisiert…"
         },
         "errors": {
           "unavailable": "Marktdaten sind noch nicht verfügbar",

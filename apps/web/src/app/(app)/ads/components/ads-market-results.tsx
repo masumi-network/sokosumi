@@ -2,6 +2,7 @@ import type {
   ListAdMarketAdsResponse,
   ListAdMarketKeywordsResponse,
 } from "@sokosumi/core-client";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense, use } from "react";
@@ -13,6 +14,7 @@ import { AdsErrorState } from "./ads-error-state";
 import { type AdsLoad, settleAdsLoad } from "./ads-load-error";
 import { AdsMarketAdGrid } from "./ads-market-ad-grid";
 import { AdsMarketKeywordList } from "./ads-market-keyword-list";
+import { AdsMarketPoller } from "./ads-market-poller";
 import { AdsCardsSkeleton } from "./ads-skeleton";
 
 interface AdsMarketResultsProps {
@@ -98,7 +100,11 @@ export function AdsMarketKeywords({
   return <AdsMarketKeywordList {...result.data} />;
 }
 
-/** The ads as they load: the grid, or what to show instead. */
+/**
+ * The ads as they load: the grid, or what to show instead. Core gathers them
+ * in the background, so while it does the page asks again every few seconds
+ * and the previous ads, if any, stay in view. A failed lookup keeps them too.
+ */
 export function AdsMarketAds({
   result,
 }: {
@@ -116,15 +122,56 @@ export function AdsMarketAds({
       />
     );
   }
-  if (loaded.data.ads.length === 0) {
+
+  const { status, ads, fetchedAt } = loaded.data;
+  const grid = ads.length > 0 && (
+    <AdsMarketAdGrid ads={ads} fetchedAt={fetchedAt} />
+  );
+
+  if (status === "failed") {
     return (
+      <div className="flex flex-col gap-4">
+        <AdsErrorState
+          failedTitle={t("errors.failed.ads")}
+          kind="failed"
+          unavailableTitle={t("errors.unavailable")}
+        />
+        {grid}
+      </div>
+    );
+  }
+  if (status === "gathering") {
+    return (
+      <>
+        <AdsMarketPoller />
+        {grid ? (
+          <div className="flex flex-col gap-4">
+            <p className="text-muted-foreground text-xs" role="status">
+              {t("ads.refreshing")}
+            </p>
+            {grid}
+          </div>
+        ) : (
+          <EmptyState
+            action={
+              <Loader2
+                aria-hidden
+                className="text-muted-foreground size-4 animate-spin motion-reduce:animate-pulse"
+              />
+            }
+            description={t("ads.gatheringBody")}
+            title={t("ads.gatheringTitle")}
+          />
+        )}
+      </>
+    );
+  }
+  return (
+    grid || (
       <EmptyState
         description={t("ads.emptyBody")}
         title={t("ads.emptyTitle")}
       />
-    );
-  }
-  return (
-    <AdsMarketAdGrid ads={loaded.data.ads} fetchedAt={loaded.data.fetchedAt} />
+    )
   );
 }

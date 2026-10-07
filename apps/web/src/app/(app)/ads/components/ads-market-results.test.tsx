@@ -1,5 +1,6 @@
 import { act, render, screen } from "@testing-library/react";
 import { createTranslator, NextIntlClientProvider } from "next-intl";
+import { Suspense } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import messages from "../../../../../messages/en.json";
@@ -50,6 +51,9 @@ vi.mock("./ads-market-keyword-list", () => ({
     <div data-testid="keywords">{keywords.length}</div>
   ),
 }));
+vi.mock("./ads-market-poller", () => ({
+  AdsMarketPoller: () => <div data-testid="poller" />,
+}));
 vi.mock("./ads-market-ad-grid", () => ({
   AdsMarketAdGrid: ({ ads }: { ads: unknown[] }) => (
     <div data-testid="ads">{ads.length}</div>
@@ -57,7 +61,7 @@ vi.mock("./ads-market-ad-grid", () => ({
 }));
 
 import { CoreApiRequestError } from "@/lib/clients/core.client";
-import { AdsMarketResults } from "./ads-market-results";
+import { AdsMarketAds, AdsMarketResults } from "./ads-market-results";
 
 const NOT_CONFIGURED = new CoreApiRequestError("x", {
   status: 503,
@@ -86,6 +90,7 @@ describe("AdsMarketResults", () => {
       fetchedAt,
     });
     listMarketAdsMock.mockResolvedValue({
+      status: "ready",
       ads: [{ creativeId: "c" }],
       fetchedAt,
     });
@@ -100,7 +105,7 @@ describe("AdsMarketResults", () => {
       screen.getByRole("heading", { name: "Trending keywords" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Ads in your market" }),
+      screen.getByRole("heading", { name: "Ads from your search competitors" }),
     ).toBeVisible();
     expect(screen.getByTestId("keywords")).toHaveTextContent("1");
     expect(screen.getByTestId("ads")).toHaveTextContent("1");
@@ -141,21 +146,96 @@ describe("AdsMarketResults", () => {
 
   it("says empty keywords and ads calmly", async () => {
     listMarketKeywordsMock.mockResolvedValue({ keywords: [], fetchedAt });
-    listMarketAdsMock.mockResolvedValue({ ads: [], fetchedAt });
+    listMarketAdsMock.mockResolvedValue({
+      status: "ready",
+      ads: [],
+      fetchedAt,
+    });
 
     await renderResults();
 
     expect(
       screen.getByText("No trending keywords found for this market"),
     ).toBeVisible();
-    expect(
-      screen.getByText("No ads found for these advertisers yet"),
-    ).toBeVisible();
+    expect(screen.getByText("No competitor ads found")).toBeVisible();
   });
 
   it("lets a failure that is not Core's reach the route's error boundary", async () => {
     listMarketKeywordsMock.mockRejectedValue(new Error("session lost"));
 
     await expect(renderResults()).rejects.toThrow("session lost");
+  });
+});
+
+describe("AdsMarketAds", () => {
+  const stale = [{ creativeId: "old" }, { creativeId: "older" }];
+
+  function renderAds(
+    status: "ready" | "gathering" | "failed",
+    ads: unknown[] = [],
+  ) {
+    const result = Promise.resolve({
+      data: { status, ads, fetchedAt: ads.length ? fetchedAt : null },
+    });
+    return act(async () => {
+      render(
+        <NextIntlClientProvider locale="en" messages={messages}>
+          <Suspense>
+            <AdsMarketAds
+              result={result as Parameters<typeof AdsMarketAds>[0]["result"]}
+            />
+          </Suspense>
+        </NextIntlClientProvider>,
+      );
+    });
+  }
+
+  it("shows the ads when ready, without polling", async () => {
+    await renderAds("ready", stale);
+
+    expect(screen.getByTestId("ads")).toHaveTextContent("2");
+    expect(screen.queryByTestId("poller")).toBeNull();
+    expect(screen.queryByText("Refreshing…")).toBeNull();
+  });
+
+  it("says it is gathering, and polls, when there are no ads yet", async () => {
+    await renderAds("gathering");
+
+    expect(
+      screen.getByText("Gathering ads from your search competitors"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("This takes a few minutes. You can leave this page."),
+    ).toBeVisible();
+    expect(screen.getByTestId("poller")).toBeInTheDocument();
+    expect(screen.queryByTestId("ads")).toBeNull();
+  });
+
+  it("keeps the previous ads under a refreshing line while gathering", async () => {
+    await renderAds("gathering", stale);
+
+    expect(screen.getByText("Refreshing…")).toBeVisible();
+    expect(screen.getByTestId("ads")).toHaveTextContent("2");
+    expect(screen.getByTestId("poller")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Gathering ads from your search competitors"),
+    ).toBeNull();
+  });
+
+  it("says the lookup failed, and stops polling", async () => {
+    await renderAds("failed");
+
+    expect(screen.getByTestId("error")).toHaveTextContent(
+      "failed:Failed to load ads",
+    );
+    expect(screen.queryByTestId("ads")).toBeNull();
+    expect(screen.queryByTestId("poller")).toBeNull();
+  });
+
+  it("shows the previous ads under a failure", async () => {
+    await renderAds("failed", stale);
+
+    expect(screen.getByTestId("error")).toBeVisible();
+    expect(screen.getByTestId("ads")).toHaveTextContent("2");
   });
 });

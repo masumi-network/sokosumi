@@ -2998,7 +2998,7 @@
       },
       "market": {
         "setupTitle": "Configura tu mercado",
-        "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publica tu mercado.",
+        "setupBody": "Añade las palabras clave que busca tu público y dónde. Así verás qué está en tendencia y qué anuncios publican tus competidores de búsqueda.",
         "edit": "Editar mercado",
         "editBody": "Las palabras clave y los anuncios en tendencia siguen estas palabras clave, este país y este idioma.",
         "form": {
@@ -3043,7 +3043,7 @@
           "emptyBody": "Prueba con otras palabras clave u otro país."
         },
         "ads": {
-          "title": "Anuncios en tu mercado",
+          "title": "Anuncios de tus competidores de búsqueda",
           "previewAlt": "Anuncio de {advertiser}",
           "textAd": "Anuncio de texto",
           "noPreview": "Sin vista previa",
@@ -3055,8 +3055,11 @@
           },
           "lastShown": "Visto por última vez {time}",
           "viewAd": "Ver anuncio",
-          "emptyTitle": "Aún no se encontraron anuncios de estos anunciantes",
-          "emptyBody": "Los anuncios de los mayores anunciantes de tu mercado aparecen aquí cuando se publican."
+          "emptyTitle": "No se encontraron anuncios de la competencia",
+          "emptyBody": "Los anuncios de los sitios que posicionan para tus palabras clave aparecen aquí cuando se publican.",
+          "gatheringTitle": "Recopilando anuncios de tus competidores de búsqueda",
+          "gatheringBody": "Esto tarda unos minutos. Puedes salir de esta página.",
+          "refreshing": "Actualizando…"
         },
         "errors": {
           "unavailable": "Los datos de mercado aún no están disponibles",
