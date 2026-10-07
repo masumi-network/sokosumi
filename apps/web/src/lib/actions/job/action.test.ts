@@ -50,6 +50,7 @@ vi.mock("@/middleware/auth-middleware", () => ({
 const patchJobMock = vi.fn();
 const provideJobInputCoreMock = vi.fn();
 const requestJobRefundMock = vi.fn();
+const moveJobToWorkspaceCoreMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 
 class MockCoreApiRequestError extends Error {
@@ -68,16 +69,11 @@ vi.mock("@/lib/clients/core.client", () => ({
     patchJob: (...args: unknown[]) => patchJobMock(...args),
     provideJobInput: (...args: unknown[]) => provideJobInputCoreMock(...args),
     requestJobRefund: (...args: unknown[]) => requestJobRefundMock(...args),
+    moveJobToWorkspace: (...args: unknown[]) =>
+      moveJobToWorkspaceCoreMock(...args),
   },
   toCoreApiActionError: (...args: unknown[]) =>
     toCoreApiActionErrorMock(...args),
-}));
-
-vi.mock("@/lib/services/job.service", () => ({
-  jobService: {
-    moveJobToWorkspace: vi.fn(),
-    provideJobInput: vi.fn(),
-  },
 }));
 
 describe("updateJobName", () => {
