@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { notFound } from "@/helpers/error";
 import type { MarketAd, MarketKeyword } from "@/lib/ads/dataforseo";
 
@@ -748,6 +749,21 @@ describe("project ad market service", () => {
           m.postAdsSearchTasks.mockRejectedValue(new Error("boom"));
           await expect(listProjectAdMarketAds(scope)).rejects.toThrow("boom");
           expect(m.jobUpdate).not.toHaveBeenCalled();
+        });
+        it("fails the job when DataForSEO refuses every ads task, so polling does not retry", async () => {
+          m.jobFindUnique.mockResolvedValue(job());
+          mockTasks({ s1: done(organicItem("acme.com", 1)), s2: done() });
+          m.postAdsSearchTasks.mockRejectedValue(
+            new ComposioToolError({
+              message: "DataForSEO refused the request",
+              providerStatus: 40501,
+            }),
+          );
+          expect((await listProjectAdMarketAds(scope)).status).toBe("failed");
+          expect(m.jobUpdate).toHaveBeenCalledWith({
+            where: { projectId: PROJECT_ID },
+            data: expect.objectContaining({ stage: "FAILED" }),
+          });
         });
       });
 

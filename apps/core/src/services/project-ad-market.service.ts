@@ -8,6 +8,7 @@ import {
   type ProjectAdMarketProfile,
 } from "@sokosumi/database";
 
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { internalServerError, notFound } from "@/helpers/error";
 import {
   competitorAds,
@@ -386,11 +387,18 @@ async function checkAdsJob(
     if (competitors.length === 0) {
       return finishAdsJob(projectId, requestKey, []);
     }
-    const pendingTaskIds = await postAdsSearchTasks(
-      competitors,
-      profile.locationCode,
-      now,
-    );
+    let pendingTaskIds: string[];
+    try {
+      pendingTaskIds = await postAdsSearchTasks(
+        competitors,
+        profile.locationCode,
+        now,
+      );
+    } catch (error) {
+      // DataForSEO refused every task: retrying each poll would not help.
+      if (error instanceof ComposioToolError) return failJob(projectId, now);
+      throw error;
+    }
     await store({
       stage: ProjectAdMarketAdsJobStage.ADS,
       pendingTaskIds,
