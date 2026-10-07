@@ -124,7 +124,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
-    optimizePackageImports: ["lucide-react", "radix-ui"],
+    optimizePackageImports: ["lucide-react", "radix-ui", "@lobehub/icons"],
     turbopackGc: true,
     turbopackLazyDynamicImports: true,
     agentUpgrade: "security",
