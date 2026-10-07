@@ -3381,6 +3381,17 @@
           "cancel": "Cancelar",
           "start": "Iniciar suplantación",
           "startError": "No se pudo iniciar la suplantación."
+        },
+        "UserDetail": {
+          "backToList": "Volver a usuarios",
+          "SignUp": {
+            "title": "Registro",
+            "origin": "Origen",
+            "recorded": "Guardado el",
+            "context": "Contexto",
+            "noContext": "No se transmitieron valores de contexto.",
+            "notRecorded": "No hay datos de registro"
+          }
         }
       },
       "Organizations": {

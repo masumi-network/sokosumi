@@ -3,6 +3,7 @@ import {
   getCoworkers as coreGetCoworkers,
   getCoworkersById as coreGetCoworkersById,
   getProjectsByIdClose as coreGetProjectsByIdClose,
+  getUsersByIdSignUp as coreGetUsersByIdSignUp,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
@@ -21,6 +22,7 @@ vi.mock("@sokosumi/core-client", async (importOriginal) => {
     getCoworkers: vi.fn(),
     getCoworkersById: vi.fn(),
     getProjectsByIdClose: vi.fn(),
+    getUsersByIdSignUp: vi.fn(),
     postProjectsByIdClose: vi.fn(),
     postProjectsByIdCloseCancelOwed: vi.fn(),
     postProjectsByIdCloseRetry: vi.fn(),
@@ -219,5 +221,72 @@ describe("createCoreClient impersonation", () => {
       email: "a@example.com",
     });
     expect(result.response).toBe(response);
+  });
+});
+
+describe("createCoreClient user sign-up", () => {
+  it("returns null when Core has no sign-up recorded for the user", async () => {
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue({
+      data: undefined,
+      error: {
+        error: "Not Found",
+        message: "No sign-up recorded",
+        meta: {
+          timestamp: new Date(),
+          requestId: "req_1",
+          path: "/",
+          method: "GET",
+        },
+      },
+      response: new Response(null, { status: 404 }),
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_old")).resolves.toBeNull();
+    expect(coreGetUsersByIdSignUp).toHaveBeenCalledWith({
+      client: {},
+      path: { id: "user_old" },
+      cache: "no-store",
+    });
+  });
+
+  it("returns the recorded sign-up", async () => {
+    const signUp = {
+      origin: "cmo",
+      context: { campaign: "https://example.com/launch", seats: 3 },
+      createdAt: new Date("2026-10-07T12:00:00.000Z"),
+    };
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue({
+      data: { data: signUp, meta: { timestamp: new Date(), requestId: "r" } },
+      response: { ok: true, status: 200 } as Response,
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_new")).resolves.toEqual(signUp);
+  });
+
+  it("rethrows errors other than a missing record", async () => {
+    vi.mocked(coreGetUsersByIdSignUp).mockResolvedValue({
+      data: undefined,
+      error: {
+        error: "Forbidden",
+        message: "Forbidden",
+        meta: {
+          timestamp: new Date(),
+          requestId: "req_2",
+          path: "/",
+          method: "GET",
+        },
+      },
+      response: new Response(null, { status: 403 }),
+    });
+
+    const core = createCoreClient(async () => ({}) as Client);
+
+    await expect(core.getUserSignUp("user_x")).rejects.toMatchObject({
+      status: 403,
+    });
   });
 });

@@ -297,6 +297,7 @@ import {
   getTransactions as coreGetTransactions,
   getTransactionsDaily as coreGetTransactionsDaily,
   getUserBadgeCampaigns as coreGetUserBadgeCampaigns,
+  getUsersById as coreGetUsersById,
   getUsersByIdBillingDetails as coreGetUsersByIdBillingDetails,
   getUsersByIdCoworkerAccess as coreGetUsersByIdCoworkerAccess,
   getUsersByIdCredits as coreGetUsersByIdCredits,
@@ -307,6 +308,7 @@ import {
   getUsersByIdOrganizationsByOrganizationIdCredits as coreGetUsersByIdOrganizationsByOrganizationIdCredits,
   getUsersByIdOrganizationsByOrganizationIdMember as coreGetUsersByIdOrganizationsByOrganizationIdMember,
   getUsersByIdPendingOrganizationInvitations as coreGetUsersByIdPendingOrganizationInvitations,
+  getUsersByIdSignUp as coreGetUsersByIdSignUp,
   getUsersByIdStripeCustomer as coreGetUsersByIdStripeCustomer,
   getUsersByIdSubscription as coreGetUsersByIdSubscription,
   getUsersByIdVendorGrants as coreGetUsersByIdVendorGrants,
@@ -1813,6 +1815,53 @@ export function createCoreClient(getClient: GetCoreClient) {
         }),
       "Failed to list users",
     );
+  }
+
+  /**
+   * Fetches a user by id (admins may read any user), returning null when no
+   * user matches (Core responds 404).
+   */
+  async function getUserById(userId: string) {
+    try {
+      const result = await executeCoreOperation(
+        getClient,
+        (client) =>
+          coreGetUsersById({ client, path: { id: userId }, cache: "no-store" }),
+        "Failed to fetch user",
+      );
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * Fetches how the user signed up (sign-up origin and context), returning
+   * null when Core has no record for the user (Core responds 404: accounts
+   * created before sign-ups were recorded).
+   */
+  async function getUserSignUp(userId: string) {
+    try {
+      const result = await executeCoreOperation(
+        getClient,
+        (client) =>
+          coreGetUsersByIdSignUp({
+            client,
+            path: { id: userId },
+            cache: "no-store",
+          }),
+        "Failed to fetch user sign-up",
+      );
+      return result.data;
+    } catch (error) {
+      if (error instanceof CoreApiRequestError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   async function startAdminImpersonation(body: {
@@ -5976,6 +6025,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     deleteCoworkerImage,
     searchAdminUsers,
     listAdminUsers,
+    getUserById,
+    getUserSignUp,
     startAdminImpersonation,
     stopAdminImpersonation,
     listAdminAgents,

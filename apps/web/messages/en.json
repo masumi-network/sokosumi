@@ -3560,6 +3560,17 @@
           "cancel": "Cancel",
           "start": "Start impersonating",
           "startError": "Failed to start impersonation."
+        },
+        "UserDetail": {
+          "backToList": "Back to users",
+          "SignUp": {
+            "title": "Sign-up",
+            "origin": "Origin",
+            "recorded": "Recorded",
+            "context": "Context",
+            "noContext": "No context values were handed over.",
+            "notRecorded": "No sign-up recorded"
+          }
         }
       },
       "Organizations": {
