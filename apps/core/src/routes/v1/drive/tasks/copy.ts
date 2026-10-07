@@ -30,43 +30,48 @@ import {
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
+import {
+  type OpenAPIHonoWithAuth,
+  withCoworkerContextHeaderParameters,
+} from "@/lib/hono";
 import {
   copyTaskFileToDriveRequestSchema,
   copyTaskFileToDriveResponseSchema,
 } from "@/schemas/drive-tasks.schema";
 
-const route = createRoute({
-  method: "post",
-  path: "/copy",
-  description: [
-    "Copy a READY TASK_OUTPUT TaskFile to Drive root using the source file name.",
-    "Source file unchanged. Requires read access to the task and write access to the destination Drive.",
-  ].join("\n"),
-  tags: ["Drive"],
-  request: {
-    body: {
-      required: true,
-      content: {
-        "application/json": {
-          schema: copyTaskFileToDriveRequestSchema,
+const route = withCoworkerContextHeaderParameters(
+  createRoute({
+    method: "post",
+    path: "/copy",
+    description: [
+      "Copy a READY TASK_OUTPUT TaskFile to Drive root using the source file name.",
+      "Source file unchanged. Requires read access to the task and write access to the destination Drive.",
+    ].join("\n"),
+    tags: ["Drive"],
+    request: {
+      body: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: copyTaskFileToDriveRequestSchema,
+          },
         },
       },
     },
-  },
-  responses: {
-    201: jsonSuccessResponse(
-      copyTaskFileToDriveResponseSchema,
-      "TaskFile copied to Drive",
-    ),
-    400: jsonErrorResponse("Bad Request"),
-    401: jsonErrorResponse("Unauthorized"),
-    403: jsonErrorResponse("Forbidden"),
-    404: jsonErrorResponse("Not Found"),
-    409: jsonErrorResponse("Conflict - file with that name already exists"),
-    503: jsonErrorResponse("Service Unavailable"),
-  },
-});
+    responses: {
+      201: jsonSuccessResponse(
+        copyTaskFileToDriveResponseSchema,
+        "TaskFile copied to Drive",
+      ),
+      400: jsonErrorResponse("Bad Request"),
+      401: jsonErrorResponse("Unauthorized"),
+      403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not Found"),
+      409: jsonErrorResponse("Conflict - file with that name already exists"),
+      503: jsonErrorResponse("Service Unavailable"),
+    },
+  }),
+);
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
