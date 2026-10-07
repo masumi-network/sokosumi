@@ -135,7 +135,7 @@ describe("YouPageClient", () => {
   });
 
   it("links Social next to Content Studio for people in the Social beta", () => {
-    renderYouPage({ socialMenuEnabled: true });
+    renderYouPage({ socialBetaEnabled: true });
 
     const social = screen.getByTestId("you-social");
     expect(social).toHaveAttribute("href", "/social");
@@ -149,6 +149,27 @@ describe("YouPageClient", () => {
     renderYouPage();
 
     expect(screen.queryByTestId("you-social")).not.toBeInTheDocument();
+  });
+
+  it("links Ads after Social for people in the Social beta", () => {
+    renderYouPage({ socialBetaEnabled: true });
+
+    const ads = screen.getByTestId("you-ads");
+    expect(ads).toHaveAttribute("href", "/ads");
+    expect(
+      screen.getByTestId("you-social").compareDocumentPosition(ads) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      ads.compareDocumentPosition(screen.getByTestId("you-files")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("leaves Ads out for everyone else", () => {
+    renderYouPage();
+
+    expect(screen.queryByTestId("you-ads")).not.toBeInTheDocument();
   });
 
   it("groups Schedules, Studio and Files in the destinations section", () => {

@@ -118,6 +118,15 @@ describe("switchScopeHref", () => {
     ).toBe("p1");
   });
 
+  it("scopes Ads to a project and asks for one without it, like Social", () => {
+    expect(scopedHref("/ads", "p1")).toBe("/ads?projectId=p1");
+    expect(switchScopeHref("/ads", "p2")).toBe("/ads?projectId=p2");
+    expect(switchScopeHref("/ads", null)).toBe("/ads");
+    expect(readProjectScope("/ads", new URLSearchParams("projectId=p1"))).toBe(
+      "p1",
+    );
+  });
+
   it("opens the project from an unscoped page", () => {
     expect(switchScopeHref("/agents", "p 1")).toBe("/projects/p%201");
     expect(switchScopeHref("/agents", null)).toBe("/agents");

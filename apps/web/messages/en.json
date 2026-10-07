@@ -333,6 +333,7 @@
       "design-md": "Design",
       "memory": "Memory",
       "social": "Social Scheduling",
+      "ads": "Ads",
       "evaluations": "Model evaluations"
     },
     "Jobs": {
@@ -2869,6 +2870,38 @@
       },
       "creditsCheckedOn": "Price checked {date}"
     },
+    "Ads": {
+      "title": "Ads",
+      "pickTitle": "Pick a project",
+      "pickBody": "Ads belong to one project: its ad accounts and campaigns are managed there. Choose a project to open its ads.",
+      "pickAction": "Choose a project",
+      "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "tabsLabel": "Ads sections",
+      "loading": "Loading ads…",
+      "tabs": {
+        "campaigns": "Campaigns",
+        "market": "Market",
+        "accounts": "Accounts"
+      },
+      "campaigns": {
+        "emptyTitle": "Connect an ad account to see campaigns",
+        "emptyBody": "Campaigns from Google Ads and Meta Ads appear here once an account is connected.",
+        "emptyAction": "Go to accounts"
+      },
+      "market": {
+        "emptyTitle": "Set up your market to see trending keywords and ads",
+        "emptyBody": "Add your keywords and country to see what is trending and which ads your market is running."
+      },
+      "accounts": {
+        "emptyTitle": "No ad accounts connected yet",
+        "emptyBody": "Connect Google Ads or Meta Ads to manage this project's campaigns."
+      },
+      "error": {
+        "title": "Failed to load ads",
+        "description": "Try again in a moment.",
+        "retry": "Try again"
+      }
+    },
     "Social": {
       "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
@@ -2938,7 +2971,8 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social Scheduling"
+          "social": "Social Scheduling",
+          "ads": "Ads"
         },
         "ChatLists": {
           "title": "Recent Chats",

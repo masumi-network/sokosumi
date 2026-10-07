@@ -28,7 +28,7 @@ export async function YouPageContent() {
     { showVendors: showDeveloperVendors },
     creditsResult,
     { members },
-    socialMenuEnabled,
+    socialBetaEnabled,
   ] = await Promise.all([
     getTranslations("App.Header.Plan"),
     getDeveloperVendorAdminAccess(),
@@ -64,7 +64,7 @@ export async function YouPageContent() {
         activeOrganizationId,
         showDeveloperVendors,
       }}
-      socialMenuEnabled={socialMenuEnabled}
+      socialBetaEnabled={socialBetaEnabled}
     />
   );
 }

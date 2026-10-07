@@ -231,7 +231,7 @@ describe("AuthenticatedAppFrame workspace gate", () => {
       render(await AuthenticatedAppFrame({ children: <div>app</div> }));
 
       expect(privateCachedAppSidebarMock.mock.calls[0]?.[0]).toMatchObject({
-        socialMenuEnabled: enabled,
+        socialBetaEnabled: enabled,
       });
     },
   );
