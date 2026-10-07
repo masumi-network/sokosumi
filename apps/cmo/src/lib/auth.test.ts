@@ -482,6 +482,19 @@ describe("CMO auth handler", () => {
     );
   });
 
+  it("forwards keys named like Object.prototype members", async () => {
+    const response = await followLink(
+      jar,
+      "/signup",
+      "?constructor=partner&url=nmkr.io",
+    );
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("signup_context")).toBe(
+      JSON.stringify({ constructor: "partner", url: "nmkr.io" }),
+    );
+  });
+
   it("forwards no sign-up context from a sign-in link", async () => {
     const response = await followLink(jar, "/signin", "?url=nmkr.io");
 

@@ -490,7 +490,8 @@ export async function sokosumiSignInRedirect(
     const signUpContext: Record<string, string> = {};
     if (options.createAccount) {
       for (const [key, value] of new URL(request.url).searchParams) {
-        signUpContext[key] ??= value;
+        // Own keys only: `constructor` is inherited from Object.prototype.
+        if (!Object.hasOwn(signUpContext, key)) signUpContext[key] = value;
       }
     }
     const { url, setCookies } = await startSokosumiSignIn(
