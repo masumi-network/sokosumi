@@ -299,6 +299,53 @@ describe("finishCmoAccountsStep", () => {
 });
 
 describe("weekly change and revert", () => {
+  it("keeps calendar entries outside the 31 days a turn can see", async () => {
+    const far = {
+      id: "d",
+      date: "2026-12-01",
+      channel: "linkedin",
+      title: "December",
+      format: "post",
+      status: "idea" as const,
+    };
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy: { ...strategy, calendar: [...strategy.calendar, far] },
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyHistory: null,
+    });
+    await saveCmoStrategy(
+      { sokoBotId: "bot-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+      { turnId: "turn-1", now: new Date("2026-10-07T12:00:00Z") },
+    );
+    const saved = cmoUpdate.mock.calls[0]?.[0].data.strategy;
+    // Oct 2 and Dec 1 were outside the window. Oct 8 was inside it and omitted.
+    expect(saved.calendar.map((entry: { id: string }) => entry.id)).toEqual([
+      "b",
+      "a",
+      "d",
+    ]);
+  });
+
+  it("lets an owner save replace the calendar, including hidden days", async () => {
+    cmoFindUnique.mockResolvedValue({
+      id: "cmo-1",
+      strategy,
+      strategyUpdatedAt: new Date("2026-10-01T09:00:00Z"),
+      strategyHistory: null,
+    });
+    await saveCmoStrategy(
+      { userId: "user-1" },
+      { ...strategy, calendar: [strategy.calendar[0]!] },
+    );
+    expect(
+      cmoUpdate.mock.calls[0]?.[0].data.strategy.calendar.map(
+        (entry: { id: string }) => entry.id,
+      ),
+    ).toEqual(["a"]);
+  });
+
   it("keeps the replaced strategy with the turn that replaced it", async () => {
     cmoFindUnique.mockResolvedValue({
       id: "cmo-1",

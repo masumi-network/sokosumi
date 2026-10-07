@@ -822,6 +822,51 @@ export async function saveCmoBrandBrain(
 }
 
 const STRATEGY_HISTORY_LIMIT = 8;
+/** Matches the calendar slice in the turn packet. A full plan with drafts does not fit. */
+const CMO_VISIBLE_CALENDAR_DAYS = 31;
+const CMO_CALENDAR_LIMIT = 120;
+
+function calendarBounds(now: Date, days: number): { from: string; to: string } {
+  const from = now.toISOString().slice(0, 10);
+  const to = new Date(now.getTime() + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+  return { from, to };
+}
+
+/**
+ * A bot turn only sees the next 31 days. Put back entries outside that window
+ * so save_strategy cannot delete them. An incoming entry with the same id, or
+ * the same day and channel, still wins. Owner saves pass no turn id and replace
+ * the calendar outright.
+ */
+function withHiddenCalendar(
+  previous: CmoStrategy["calendar"],
+  incoming: CmoStrategy["calendar"],
+  now: Date,
+): CmoStrategy["calendar"] {
+  const { from, to } = calendarBounds(now, CMO_VISIBLE_CALENDAR_DAYS);
+  const seen = new Set(incoming.map((entry) => entry.id));
+  const covered = new Set(
+    incoming.map((entry) => `${entry.date}\0${entry.channel}`),
+  );
+  const hidden = previous.filter(
+    (entry) =>
+      !seen.has(entry.id) &&
+      (entry.date < from || entry.date > to) &&
+      !covered.has(`${entry.date}\0${entry.channel}`),
+  );
+  const room = CMO_CALENDAR_LIMIT - incoming.length;
+  if (room <= 0 || hidden.length === 0) return incoming;
+  const kept = hidden
+    .sort((left, right) => left.date.localeCompare(right.date))
+    .slice(-room);
+  return [...incoming, ...kept].sort((left, right) =>
+    left.date === right.date
+      ? left.id.localeCompare(right.id)
+      : left.date.localeCompare(right.date),
+  );
+}
 
 const strategyHistorySchema = z.array(
   z.object({
@@ -845,11 +890,22 @@ function parseHistory(value: unknown): StrategyHistory {
 export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
   strategy: CmoStrategy,
-  options: { turnId?: string } = {},
+  options: { turnId?: string; now?: Date } = {},
 ): Promise<CmoHire> {
   const parsed = cmoStrategySchema.parse(strategy);
   const current = await prisma.cmoHire.findUnique({ where });
   if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
+  const previous = options.turnId ? parseCmoStrategy(current.strategy) : null;
+  const stored = previous
+    ? {
+        ...parsed,
+        calendar: withHiddenCalendar(
+          previous.calendar,
+          parsed.calendar,
+          options.now ?? new Date(),
+        ),
+      }
+    : parsed;
   const history = current.strategy
     ? [
         {
@@ -863,7 +919,7 @@ export async function saveCmoStrategy(
   return prisma.cmoHire.update({
     where: { id: current.id },
     data: {
-      strategy: parsed as Prisma.InputJsonValue,
+      strategy: stored as Prisma.InputJsonValue,
       strategyUpdatedAt: new Date(),
       strategyHistory: history as Prisma.InputJsonValue,
     },
@@ -1048,10 +1104,7 @@ function calendarWindow(
   now: Date,
   days: number,
 ): CmoStrategy["calendar"] {
-  const from = now.toISOString().slice(0, 10);
-  const to = new Date(now.getTime() + days * 86_400_000)
-    .toISOString()
-    .slice(0, 10);
+  const { from, to } = calendarBounds(now, days);
   return strategy.calendar.filter(
     (entry) => entry.date >= from && entry.date <= to,
   );
@@ -1059,8 +1112,8 @@ function calendarWindow(
 
 /**
  * What Cuso sees about the business on every turn: the Brand Brain, the
- * strategy with the next two weeks of the calendar, and whether it may
- * execute. Null for any bot that is not a CMO bot.
+ * strategy, and the next 31 days of the calendar. Entries outside that
+ * window stay in the saved plan. Null for any bot that is not a CMO bot.
  */
 export async function loadCmoMarketingContext(
   sokoBotId: string,
@@ -1092,8 +1145,8 @@ export async function loadCmoMarketingContext(
     strategy: strategy
       ? {
           ...strategy,
-          // The whole four-week plan, so a revision keeps every entry.
-          calendar: calendarWindow(strategy, now, 31),
+          // Next 31 days. saveCmoStrategy puts entries outside this window back.
+          calendar: calendarWindow(strategy, now, CMO_VISIBLE_CALENDAR_DAYS),
           calendarTotal: strategy.calendar.length,
         }
       : null,
@@ -1153,7 +1206,7 @@ export async function buildCmoBeatPacket(
     "",
     // Every turn's context already carries both in full; repeating them here
     // pushed a full four-week plan past the 20,000-character message limit.
-    "## Brand Brain and strategy: workspace.marketing in your context (the full plan; save_strategy replaces it, so keep every entry).",
+    "## Brand Brain and strategy: workspace.marketing in your context. Its calendar is the next 31 days; entries outside that window stay when you save_strategy.",
     "",
     "## Social posts, last 14 days",
     ...(posts.length
