@@ -4368,8 +4368,9 @@ export class SokoBotRuntimeService {
   }
 
   /**
-   * CMO bots schedule and publish only with an active CMO subscription and
-   * as far as the channel's autonomy allows. No-op for every other bot.
+   * CMO bots schedule and publish only once the owner approved the strategy
+   * and the workspace has an active CMO plan (`cmoMayExecute`). No-op for
+   * every other bot.
    */
   private async requireCmoExecution(authorized: AuthorizedSokoBotRuntime) {
     const refusal = await cmoExecutionRefusal({

@@ -206,7 +206,6 @@ export async function requestStrategy(note?: string): Promise<{
   };
 }
 
-/** The founder is done with onboarding: CMO opens on the chat. */
 /** Activates a CMO tier without checkout (Core's CMO_MOCK_BILLING). */
 export async function chooseMockPlan(
   plan: string,
@@ -231,6 +230,7 @@ export async function finishAccounts(): Promise<CmoOverview> {
   return data.data;
 }
 
+/** The founder is done with onboarding: CMO opens on the chat. */
 export async function completeOnboarding(): Promise<void> {
   const core = await requireCore();
   const { error } = await completeCmoOnboarding(core);
