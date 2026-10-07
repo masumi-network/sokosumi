@@ -257,7 +257,7 @@ Where a person came from before creating their Sokosumi account: the campaign, r
 _Avoid_: Sign-up metadata, UTM data (except for the utm_* values themselves), referral source
 
 **Sign-up intent**:
-What a person asked for when they set out to create an account, such as a plan, carried through sign-up back to the product they started in and acted on once. It is not kept on the account.
+What a person asked for when they set out to create an account, such as the website CMO should work on, carried through sign-up back to the product they started in and acted on once. It is not kept on the account.
 _Avoid_: Sign-up metadata, return state, deep link
 
 **Impersonation**:
