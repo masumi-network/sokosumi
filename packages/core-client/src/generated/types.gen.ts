@@ -45799,7 +45799,7 @@ export type GetCmoOverviewErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -45819,7 +45819,7 @@ export type GetCmoOverviewError = GetCmoOverviewErrors[keyof GetCmoOverviewError
 
 export type GetCmoOverviewResponses = {
     /**
-     * The caller's CMO workspace
+     * The caller's CMO hire
      */
     200: {
         data: CmoOverview;
@@ -45907,7 +45907,7 @@ export type StartCmoOnboardingError = StartCmoOnboardingErrors[keyof StartCmoOnb
 
 export type StartCmoOnboardingResponses = {
     /**
-     * CMO workspace created; Cuso is learning the business
+     * Cuso hired; he is learning the business
      */
     201: {
         data: CmoOverview;
@@ -45960,7 +45960,7 @@ export type ChooseCmoMockPlanErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46048,7 +46048,7 @@ export type FinishCmoAccountsStepErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46136,7 +46136,7 @@ export type CompleteCmoOnboardingErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46224,7 +46224,7 @@ export type RetryCmoOnboardingErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46312,7 +46312,7 @@ export type UpdateCmoBrandBrainErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46385,7 +46385,7 @@ export type RequestCmoStrategyErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46473,7 +46473,7 @@ export type ApproveCmoStrategyErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;
@@ -46729,7 +46729,7 @@ export type ConnectCmoChannelErrors = {
         };
     };
     /**
-     * No CMO workspace yet
+     * Cuso is not hired yet
      */
     404: {
         error: string;

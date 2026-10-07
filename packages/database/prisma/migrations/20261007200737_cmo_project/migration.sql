@@ -9,7 +9,7 @@ CREATE UNIQUE INDEX "soko_bot_user_workspace_live_key" ON "soko_bot"("userId", "
 -- One live bot per Project.
 CREATE UNIQUE INDEX "soko_bot_project_live_key" ON "soko_bot"("projectId") WHERE "deletedAt" IS NULL AND "projectId" IS NOT NULL;
 
-CREATE TABLE "cmo_workspace" (
+CREATE TABLE "cmo_hire" (
     "id" UUID NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
@@ -33,12 +33,12 @@ CREATE TABLE "cmo_workspace" (
     "accountsDoneAt" TIMESTAMP(3),
     "onboardedAt" TIMESTAMP(3),
 
-    CONSTRAINT "cmo_workspace_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "cmo_hire_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "cmo_workspace_userId_key" ON "cmo_workspace"("userId");
-CREATE UNIQUE INDEX "cmo_workspace_sokoBotId_key" ON "cmo_workspace"("sokoBotId");
-CREATE UNIQUE INDEX "cmo_workspace_projectId_key" ON "cmo_workspace"("projectId");
+CREATE UNIQUE INDEX "cmo_hire_userId_key" ON "cmo_hire"("userId");
+CREATE UNIQUE INDEX "cmo_hire_sokoBotId_key" ON "cmo_hire"("sokoBotId");
+CREATE UNIQUE INDEX "cmo_hire_projectId_key" ON "cmo_hire"("projectId");
 
-ALTER TABLE "cmo_workspace" ADD CONSTRAINT "cmo_workspace_sokoBotId_fkey" FOREIGN KEY ("sokoBotId") REFERENCES "soko_bot"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-ALTER TABLE "cmo_workspace" ADD CONSTRAINT "cmo_workspace_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "cmo_hire" ADD CONSTRAINT "cmo_hire_sokoBotId_fkey" FOREIGN KEY ("sokoBotId") REFERENCES "soko_bot"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "cmo_hire" ADD CONSTRAINT "cmo_hire_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;

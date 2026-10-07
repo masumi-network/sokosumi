@@ -98,6 +98,10 @@ _Avoid_: CMO bot, marketing assistant, the CMO (that is the product)
 CMO's flow after identity onboarding, from the start form (website and main goal) until the person finishes it and CMO opens on the chat. It reuses what identity onboarding already learned instead of asking again.
 _Avoid_: Onboarding, CMO onboarding (both collide with Identity onboarding)
 
+**CMO hire**:
+The record that a person hired Cuso into a Workspace: the start form's answers, the Brand Brain, the strategy and Cuso's reports. One per person for now.
+_Avoid_: CMO workspace (Cuso works in an ordinary Workspace; this is not one)
+
 **Brand Brain**:
 What Cuso knows about a business (summary, voice, audience, products, competitors, channels), learned while Hiring Cuso and editable by the person.
 _Avoid_: Brand profile, business profile, brand guidelines (that is a Project's DESIGN.md)

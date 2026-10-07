@@ -3721,8 +3721,8 @@ export class SokoBotRuntimeService {
     return workspace;
   }
 
-  /** Cuso's Brand Brain and strategy, written to its CMO workspace. */
-  /** Cuso's Brand Brain, strategy and reports, written to its CMO workspace. */
+  /** Cuso's Brand Brain and strategy, written to its CMO hire. */
+  /** Cuso's Brand Brain, strategy and reports, written to its CMO hire. */
   private async saveCmoRecord(
     authorized: AuthorizedSokoBotRuntime,
     input: ExecuteSokoBotToolInput,

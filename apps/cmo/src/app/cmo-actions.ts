@@ -32,7 +32,7 @@ async function requireCore() {
   return core;
 }
 
-/** The person's CMO workspace, or null before onboarding. */
+/** The person's CMO hire, or null before they hire Cuso. */
 export async function loadOverview(): Promise<CmoOverview | null> {
   const core = await requireCore();
   const { data, response } = await getCmoOverview(core);
@@ -104,7 +104,7 @@ export async function retryLearning(): Promise<{
   const core = await requireCore();
   const { error } = await retryCmoOnboarding(core);
   const { data } = await getCmoOverview(core);
-  if (!data) throw new Error("Could not load the CMO workspace");
+  if (!data) throw new Error("Could not load CMO");
   const message =
     error && typeof error === "object" && "message" in error
       ? String((error as { message: unknown }).message)
@@ -171,7 +171,7 @@ export async function sendMessage(content: string): Promise<void> {
   if (!text) return;
   const core = await requireCore();
   const overview = await loadOverview();
-  if (!overview) throw new Error("No CMO workspace yet");
+  if (!overview) throw new Error("Cuso is not hired yet");
   const { error } = await postChatsRoomsByIdMessages({
     client: core.client,
     headers: chatHeaders(core, overview),

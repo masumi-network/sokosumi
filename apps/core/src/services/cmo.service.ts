@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import type { CmoWorkspace, Prisma } from "@sokosumi/database";
+import type { CmoHire, Prisma } from "@sokosumi/database";
 import {
   CMO_SOKO_BOT_VERSION_ID,
   type CmoBrandBrain,
@@ -131,33 +131,31 @@ async function generateProjectDesignMd(
 }
 
 /**
- * Reads how the brand looks and keeps it on the CMO workspace: the logo (the
+ * Reads how the brand looks and keeps it on the CMO hire: the logo (the
  * site's own, else its best icon stored as the Project logo), colours, fonts
  * and, when the API is configured, a DESIGN.md on the Project.
  */
 export async function learnCmoBrandVisual(
-  workspace: Pick<CmoWorkspace, "id" | "projectId" | "websiteUrl">,
+  hire: Pick<CmoHire, "id" | "projectId" | "websiteUrl">,
 ): Promise<CmoBrandVisual> {
   const [site, icon, designMd] = await Promise.all([
-    readBrandVisual(workspace.websiteUrl),
-    resolveSiteIconAsProjectLogo(workspace.websiteUrl, workspace.projectId)
+    readBrandVisual(hire.websiteUrl),
+    resolveSiteIconAsProjectLogo(hire.websiteUrl, hire.projectId)
       .then(async (logo) => {
         if (logo) {
           await prisma.project.update({
-            where: { id: workspace.projectId },
+            where: { id: hire.projectId },
             data: { logo },
           });
         }
         return logo;
       })
       .catch(() => null),
-    generateProjectDesignMd(workspace.projectId, workspace.websiteUrl).catch(
-      () => null,
-    ),
+    generateProjectDesignMd(hire.projectId, hire.websiteUrl).catch(() => null),
   ]);
   const visual = mergeBrandVisual(site, icon, designMd);
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: { brandVisual: visual as Prisma.InputJsonValue },
   });
   return visual;
@@ -185,18 +183,18 @@ export function cmoProjectName(businessName: string): string {
 }
 
 /**
- * Who pays for Cuso and whose plan opens execution: the workspace's
+ * Who pays for Cuso and whose plan opens execution: his Workspace's
  * organization when it has one, otherwise the owner.
  */
 async function cmoPayer(
-  workspace: Pick<CmoWorkspace, "userId" | "workspaceId">,
+  hire: Pick<CmoHire, "userId" | "workspaceId">,
 ): Promise<{ organizationId: string | null; referenceId: string }> {
   const row = await prisma.workspace.findUnique({
-    where: { id: workspace.workspaceId },
+    where: { id: hire.workspaceId },
     select: { organizationId: true },
   });
   const organizationId = row?.organizationId ?? null;
-  return { organizationId, referenceId: organizationId ?? workspace.userId };
+  return { organizationId, referenceId: organizationId ?? hire.userId };
 }
 
 /** "https://www.acme.io/about" → "acme.io"; falls back to the raw input. */
@@ -218,16 +216,16 @@ export function parseCmoStrategy(value: unknown): CmoStrategy | null {
   return parsed.success ? parsed.data : null;
 }
 
-export async function getCmoWorkspaceForUser(
+export async function getCmoHireForUser(
   userId: string,
-): Promise<CmoWorkspace | null> {
-  return prisma.cmoWorkspace.findUnique({ where: { userId } });
+): Promise<CmoHire | null> {
+  return prisma.cmoHire.findUnique({ where: { userId } });
 }
 
-export async function getCmoWorkspaceForBot(
+export async function getCmoHireForBot(
   sokoBotId: string,
-): Promise<CmoWorkspace | null> {
-  return prisma.cmoWorkspace.findUnique({ where: { sokoBotId } });
+): Promise<CmoHire | null> {
+  return prisma.cmoHire.findUnique({ where: { sokoBotId } });
 }
 
 /** The org's active plan that lets Cuso execute, or null. */
@@ -254,18 +252,16 @@ export async function hasActiveCmoSubscription(
 }
 
 /** The CMO tier picked without billing; ignored unless CMO_MOCK_BILLING is on. */
-export function cmoMockPlan(
-  workspace: Pick<CmoWorkspace, "mockPlan">,
-): string | null {
-  return getEnv().CMO_MOCK_BILLING ? workspace.mockPlan : null;
+export function cmoMockPlan(hire: Pick<CmoHire, "mockPlan">): string | null {
+  return getEnv().CMO_MOCK_BILLING ? hire.mockPlan : null;
 }
 
 /** A mock plan (when allowed) or a real paid plan lets Cuso execute. */
 async function isCmoSubscribed(
-  workspace: Pick<CmoWorkspace, "userId" | "workspaceId" | "mockPlan">,
+  hire: Pick<CmoHire, "userId" | "workspaceId" | "mockPlan">,
 ): Promise<boolean> {
-  if (cmoMockPlan(workspace)) return true;
-  return hasActiveCmoSubscription((await cmoPayer(workspace)).referenceId);
+  if (cmoMockPlan(hire)) return true;
+  return hasActiveCmoSubscription((await cmoPayer(hire)).referenceId);
 }
 
 /** Activates a CMO tier without checkout, on local and preview runs only. */
@@ -276,26 +272,26 @@ export async function chooseCmoMockPlan(
   if (!getEnv().CMO_MOCK_BILLING) {
     throw new CmoConflictError("Mock billing is off on this server");
   }
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: { mockPlan: plan, mockPlanActivatedAt: new Date() },
   });
 }
 
 async function startCmoTurn(
-  workspace: Pick<CmoWorkspace, "userId" | "workspaceId" | "sokoBotId">,
+  hire: Pick<CmoHire, "userId" | "workspaceId" | "sokoBotId">,
   input: { clientTurnId: string; message: string; route: PresetRoute },
 ): Promise<{ turnId: string }> {
   const { sokoBotControlPlane } = await import(
     "@/services/soko-bot-control-plane.service"
   );
   const started = await sokoBotControlPlane.startTurn({
-    userId: workspace.userId,
-    workspaceId: workspace.workspaceId,
+    userId: hire.userId,
+    workspaceId: hire.workspaceId,
     // Cuso, never the owner's personal assistant in the same workspace.
-    sokoBotId: workspace.sokoBotId,
+    sokoBotId: hire.sokoBotId,
     clientTurnId: input.clientTurnId,
     message: input.message,
     // The owner pressed the button, but no chat message carries the turn:
@@ -395,13 +391,13 @@ const TURN_ROW_SELECT = {
 } as const;
 
 export async function cmoLearningState(
-  workspace: Pick<CmoWorkspace, "userId" | "sokoBotId" | "brandBrain">,
+  hire: Pick<CmoHire, "userId" | "sokoBotId" | "brandBrain">,
   now: Date = new Date(),
 ): Promise<CmoLearningState> {
-  if (workspace.brandBrain) return "done";
+  if (hire.brandBrain) return "done";
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: workspace.sokoBotId,
+      sokoBotId: hire.sokoBotId,
       clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX },
     },
     orderBy: { createdAt: "desc" },
@@ -489,12 +485,12 @@ export function describeCmoStep(
 
 /** Cuso's latest research or strategy turn, step by step. */
 export async function cmoWork(
-  workspace: Pick<CmoWorkspace, "sokoBotId" | "websiteUrl">,
+  hire: Pick<CmoHire, "sokoBotId" | "websiteUrl">,
   now: Date = new Date(),
 ): Promise<CmoWork | null> {
   const turn = await prisma.sokoBotTurn.findFirst({
     where: {
-      sokoBotId: workspace.sokoBotId,
+      sokoBotId: hire.sokoBotId,
       OR: [
         { clientTurnId: { startsWith: ONBOARDING_TURN_PREFIX } },
         { clientTurnId: { startsWith: STRATEGY_TURN_PREFIX } },
@@ -520,7 +516,7 @@ export async function cmoWork(
     const described = describeCmoStep(
       call.capability,
       call.input,
-      workspace.websiteUrl,
+      hire.websiteUrl,
     );
     if (!described) return [];
     return [
@@ -581,14 +577,14 @@ export async function connectCmoChannel(input: {
   if (!isCmoAppUrl(input.callbackUrl)) {
     throw new CmoConflictError("Unknown return address");
   }
-  const workspace = await getCmoWorkspaceForUser(input.userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const { initiateProjectSocialConnection } = await import(
     "@/services/project-social-connections.service"
   );
   const { redirectUrl } = await initiateProjectSocialConnection({
-    projectId: workspace.projectId,
-    workspaceId: workspace.workspaceId,
+    projectId: hire.projectId,
+    workspaceId: hire.workspaceId,
     userId: input.userId,
     action: "connect",
     provider: input.provider,
@@ -602,14 +598,14 @@ export async function finalizeCmoChannel(input: {
   userId: string;
   connectionId: string;
 }): Promise<void> {
-  const workspace = await getCmoWorkspaceForUser(input.userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const { finalizeProjectSocialConnection } = await import(
     "@/services/project-social-connections.service"
   );
   await finalizeProjectSocialConnection({
-    projectId: workspace.projectId,
-    workspaceId: workspace.workspaceId,
+    projectId: hire.projectId,
+    workspaceId: hire.workspaceId,
     userId: input.userId,
     connectionId: input.connectionId,
   });
@@ -617,28 +613,28 @@ export async function finalizeCmoChannel(input: {
 
 /** The founder connected or skipped the Accounts step; a reload resumes on the plan. */
 export async function finishCmoAccountsStep(userId: string): Promise<void> {
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
-  if (!workspace.strategyApprovedAt) {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!hire.strategyApprovedAt) {
     throw new CmoConflictError("Approve the strategy first");
   }
-  if (workspace.accountsDoneAt) return;
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  if (hire.accountsDoneAt) return;
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: { accountsDoneAt: new Date() },
   });
 }
 
 /** The founder finished onboarding: CMO opens on the chat from now on. */
 export async function completeCmoOnboarding(userId: string): Promise<void> {
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
-  if (!workspace.strategyApprovedAt) {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!hire.strategyApprovedAt) {
     throw new CmoConflictError("Approve the strategy first");
   }
-  if (workspace.onboardedAt) return;
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  if (hire.onboardedAt) return;
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: { onboardedAt: new Date() },
   });
 }
@@ -647,9 +643,9 @@ export async function completeCmoOnboarding(userId: string): Promise<void> {
 export async function retryCmoOnboarding(
   userId: string,
 ): Promise<{ turnId: string }> {
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace yet");
-  const state = await cmoLearningState(workspace);
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const state = await cmoLearningState(hire);
   if (state !== "failed") {
     throw new CmoConflictError(
       state === "running"
@@ -657,12 +653,12 @@ export async function retryCmoOnboarding(
         : "Cuso already learned the business",
     );
   }
-  if (!workspace.brandVisual) {
-    waitUntil(learnCmoBrandVisual(workspace).catch(() => undefined));
+  if (!hire.brandVisual) {
+    waitUntil(learnCmoBrandVisual(hire).catch(() => undefined));
   }
-  return startCmoTurn(workspace, {
-    clientTurnId: `${ONBOARDING_TURN_PREFIX}${workspace.id}:${Date.now()}`,
-    message: onboardingMessage(workspace),
+  return startCmoTurn(hire, {
+    clientTurnId: `${ONBOARDING_TURN_PREFIX}${hire.id}:${Date.now()}`,
+    message: onboardingMessage(hire),
     route: CMO_ONBOARDING_ROUTE,
   });
 }
@@ -670,15 +666,15 @@ export async function retryCmoOnboarding(
 /**
  * Hires Cuso into the Workspace the person chose (ADR 0053): his marketing
  * Project and the CMO record go there, and his first turn starts. One CMO
- * workspace per person; a second call returns the existing one.
+ * hire per person; a second call returns the existing one.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
   workspaceId: string;
   websiteUrl: string;
   goals: string;
-}): Promise<CmoWorkspace> {
-  const existing = await getCmoWorkspaceForUser(input.userId);
+}): Promise<CmoHire> {
+  const existing = await getCmoHireForUser(input.userId);
   if (existing) return existing;
 
   // Throws not found unless the person can act in this workspace.
@@ -710,7 +706,7 @@ export async function startCmoOnboarding(input: {
     versionId: CMO_SOKO_BOT_VERSION_ID,
   });
 
-  const created = await prisma.cmoWorkspace.create({
+  const created = await prisma.cmoHire.create({
     data: {
       userId: input.userId,
       workspaceId: workspace.id,
@@ -727,13 +723,13 @@ export async function startCmoOnboarding(input: {
   waitUntil(
     learnCmoBrandVisual(created).catch((error) => {
       console.warn("CMO brand visual failed", {
-        cmoWorkspaceId: created.id,
+        cmoHireId: created.id,
         error: error instanceof Error ? error.message : "unknown",
       });
     }),
   );
 
-  // A turn that cannot start (no credits yet) leaves the workspace ready:
+  // A turn that cannot start (no credits yet) leaves the hire ready:
   // the learning card offers Try again and says why when it fails again.
   await startCmoTurn(created, {
     clientTurnId: `${ONBOARDING_TURN_PREFIX}${created.id}`,
@@ -745,7 +741,7 @@ export async function startCmoOnboarding(input: {
     route: CMO_ONBOARDING_ROUTE,
   }).catch((error) => {
     console.warn("CMO onboarding turn did not start", {
-      cmoWorkspaceId: created.id,
+      cmoHireId: created.id,
       error: error instanceof Error ? error.message : "unknown",
     });
   });
@@ -758,20 +754,20 @@ export async function requestCmoStrategy(input: {
   userId: string;
   note?: string;
 }): Promise<{ turnId: string }> {
-  const workspace = await getCmoWorkspaceForUser(input.userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
-  if (!parseCmoBrandBrain(workspace.brandBrain)) {
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!parseCmoBrandBrain(hire.brandBrain)) {
     throw new CmoConflictError("Cuso is still building the Brand Brain");
   }
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: { strategyApprovedAt: null },
   });
-  return startCmoTurn(workspace, {
-    clientTurnId: `${STRATEGY_TURN_PREFIX}${workspace.id}:${Date.now()}`,
+  return startCmoTurn(hire, {
+    clientTurnId: `${STRATEGY_TURN_PREFIX}${hire.id}:${Date.now()}`,
     message: [
-      `Write ${workspace.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
-      `Their main goal, in their words: ${workspace.goals}`,
+      `Write ${hire.businessName}'s marketing strategy for the next four weeks, starting ${tomorrow()}.`,
+      `Their main goal, in their words: ${hire.goals}`,
       input.note
         ? `Change request from the owner: ${input.note}\nKeep what still works, change what they asked, and list each difference in changes.`
         : "",
@@ -789,14 +785,14 @@ export async function requestCmoStrategy(input: {
 export async function saveCmoBrandBrain(
   where: { userId: string } | { sokoBotId: string },
   brandBrain: CmoBrandBrain,
-): Promise<CmoWorkspace> {
+): Promise<CmoHire> {
   const parsed = cmoBrandBrainSchema.parse(brandBrain);
-  const current = await prisma.cmoWorkspace.findUnique({
+  const current = await prisma.cmoHire.findUnique({
     where,
     select: { id: true },
   });
-  if (!current) throw new CmoNotFoundError("No CMO workspace");
-  return prisma.cmoWorkspace.update({
+  if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
+  return prisma.cmoHire.update({
     where: { id: current.id },
     data: {
       brandBrain: parsed as Prisma.InputJsonValue,
@@ -830,10 +826,10 @@ export async function saveCmoStrategy(
   where: { userId: string } | { sokoBotId: string },
   strategy: CmoStrategy,
   options: { turnId?: string } = {},
-): Promise<CmoWorkspace> {
+): Promise<CmoHire> {
   const parsed = cmoStrategySchema.parse(strategy);
-  const current = await prisma.cmoWorkspace.findUnique({ where });
-  if (!current) throw new CmoNotFoundError("No CMO workspace");
+  const current = await prisma.cmoHire.findUnique({ where });
+  if (!current) throw new CmoNotFoundError("Cuso is not hired yet");
   const history = current.strategy
     ? [
         {
@@ -844,7 +840,7 @@ export async function saveCmoStrategy(
         ...parseHistory(current.strategyHistory),
       ].slice(0, STRATEGY_HISTORY_LIMIT)
     : parseHistory(current.strategyHistory);
-  return prisma.cmoWorkspace.update({
+  return prisma.cmoHire.update({
     where: { id: current.id },
     data: {
       strategy: parsed as Prisma.InputJsonValue,
@@ -855,17 +851,15 @@ export async function saveCmoStrategy(
 }
 
 /** The owner's one approval: from now on Cuso executes the strategy. */
-export async function approveCmoStrategy(
-  userId: string,
-): Promise<CmoWorkspace> {
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
-  if (!parseCmoStrategy(workspace.strategy)) {
+export async function approveCmoStrategy(userId: string): Promise<CmoHire> {
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  if (!parseCmoStrategy(hire.strategy)) {
     throw new CmoConflictError("There is no strategy to approve yet");
   }
-  return prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
-    data: { strategyApprovedAt: workspace.strategyApprovedAt ?? new Date() },
+  return prisma.cmoHire.update({
+    where: { id: hire.id },
+    data: { strategyApprovedAt: hire.strategyApprovedAt ?? new Date() },
   });
 }
 
@@ -895,10 +889,10 @@ export async function reportCmoUpdate(input: {
   turnId: string;
   update: CmoReportUpdateInput;
 }): Promise<CmoUpdateRecord> {
-  const workspace = await getCmoWorkspaceForBot(input.sokoBotId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
+  const hire = await getCmoHireForBot(input.sokoBotId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
   const update = cmoReportUpdateInputSchema.parse(input.update);
-  const savedThisTurn = parseHistory(workspace.strategyHistory).filter(
+  const savedThisTurn = parseHistory(hire.strategyHistory).filter(
     (entry) => entry.turnId === input.turnId,
   );
   const record: CmoUpdateRecord = {
@@ -910,10 +904,10 @@ export async function reportCmoUpdate(input: {
       ? { previousStrategy: savedThisTurn[savedThisTurn.length - 1]?.strategy }
       : {}),
   };
-  await prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  await prisma.cmoHire.update({
+    where: { id: hire.id },
     data: {
-      updates: [record, ...parseCmoUpdates(workspace.updates)].slice(
+      updates: [record, ...parseCmoUpdates(hire.updates)].slice(
         0,
         UPDATES_LIMIT,
       ) as Prisma.InputJsonValue,
@@ -930,16 +924,16 @@ export async function pauseCmoCalendarEntry(input: {
   userId: string;
   entryId: string;
 }): Promise<void> {
-  const workspace = await getCmoWorkspaceForUser(input.userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
-  const strategy = parseCmoStrategy(workspace.strategy);
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const strategy = parseCmoStrategy(hire.strategy);
   const entry = strategy?.calendar.find((item) => item.id === input.entryId);
   if (!strategy || !entry) {
     throw new CmoNotFoundError("No such calendar entry");
   }
   if (entry.socialPostId) {
     const post = await prisma.socialPost.findFirst({
-      where: { id: entry.socialPostId, projectId: workspace.projectId },
+      where: { id: entry.socialPostId, projectId: hire.projectId },
       select: { status: true, revision: true },
     });
     if (post && (post.status === "DRAFT" || post.status === "SCHEDULED")) {
@@ -947,8 +941,8 @@ export async function pauseCmoCalendarEntry(input: {
         "@/services/social-posts.service"
       );
       await cancelSocialPost({
-        projectId: workspace.projectId,
-        workspaceId: workspace.workspaceId,
+        projectId: hire.projectId,
+        workspaceId: hire.workspaceId,
         userId: input.userId,
         postId: entry.socialPostId,
         revision: post.revision,
@@ -970,19 +964,19 @@ export async function pauseCmoCalendarEntry(input: {
 export async function revertCmoUpdate(input: {
   userId: string;
   updateId: string;
-}): Promise<CmoWorkspace> {
-  const workspace = await getCmoWorkspaceForUser(input.userId);
-  if (!workspace) throw new CmoNotFoundError("No CMO workspace");
-  const updates = parseCmoUpdates(workspace.updates);
+}): Promise<CmoHire> {
+  const hire = await getCmoHireForUser(input.userId);
+  if (!hire) throw new CmoNotFoundError("Cuso is not hired yet");
+  const updates = parseCmoUpdates(hire.updates);
   const target = updates.find((update) => update.id === input.updateId);
   const previous = parseCmoStrategy(target?.previousStrategy);
   if (!target || !previous) {
     throw new CmoNotFoundError("Nothing to revert for this update");
   }
-  if (target.revertedAt) return workspace;
+  if (target.revertedAt) return hire;
   await saveCmoStrategy({ userId: input.userId }, previous);
-  return prisma.cmoWorkspace.update({
-    where: { id: workspace.id },
+  return prisma.cmoHire.update({
+    where: { id: hire.id },
     data: {
       updates: updates.map((update) =>
         update.id === target.id
@@ -1003,11 +997,11 @@ export async function cmoExecutionRefusal(input: {
   versionId: string | null;
 }): Promise<string | null> {
   if (getSokoBotVersion(input.versionId).profile !== "cmo") return null;
-  const workspace = await getCmoWorkspaceForBot(input.sokoBotId);
-  if (!workspace) return null;
+  const hire = await getCmoHireForBot(input.sokoBotId);
+  if (!hire) return null;
   const verdict = cmoMayExecute({
-    approved: workspace.strategyApprovedAt !== null,
-    subscribed: await isCmoSubscribed(workspace),
+    approved: hire.strategyApprovedAt !== null,
+    subscribed: await isCmoSubscribed(hire),
   });
   return verdict.ok ? null : verdict.reason;
 }
@@ -1052,19 +1046,19 @@ export async function loadCmoMarketingContext(
   sokoBotId: string,
   now: Date = new Date(),
 ): Promise<Record<string, unknown> | null> {
-  const workspace = await getCmoWorkspaceForBot(sokoBotId);
-  if (!workspace) return null;
-  const strategy = parseCmoStrategy(workspace.strategy);
+  const hire = await getCmoHireForBot(sokoBotId);
+  if (!hire) return null;
+  const strategy = parseCmoStrategy(hire.strategy);
   return {
     business: {
-      name: workspace.businessName,
-      websiteUrl: workspace.websiteUrl,
-      goals: workspace.goals,
-      marketingProjectId: workspace.projectId,
+      name: hire.businessName,
+      websiteUrl: hire.websiteUrl,
+      goals: hire.goals,
+      marketingProjectId: hire.projectId,
     },
-    strategyApproved: workspace.strategyApprovedAt !== null,
-    subscriptionActive: await isCmoSubscribed(workspace),
-    connectedChannels: (await listCmoChannels(workspace.projectId)).map(
+    strategyApproved: hire.strategyApprovedAt !== null,
+    subscriptionActive: await isCmoSubscribed(hire),
+    connectedChannels: (await listCmoChannels(hire.projectId)).map(
       (channel) => ({
         provider: channel.provider,
         handle: channel.externalHandle,
@@ -1072,9 +1066,9 @@ export async function loadCmoMarketingContext(
         socialConnectionId: channel.id,
       }),
     ),
-    brandBrain: parseCmoBrandBrain(workspace.brandBrain),
+    brandBrain: parseCmoBrandBrain(hire.brandBrain),
     /** The brand's logo, colours and fonts: use them in images and layouts. */
-    brandVisual: parseCmoBrandVisual(workspace.brandVisual),
+    brandVisual: parseCmoBrandVisual(hire.brandVisual),
     strategy: strategy
       ? {
           ...strategy,
@@ -1083,7 +1077,7 @@ export async function loadCmoMarketingContext(
           calendarTotal: strategy.calendar.length,
         }
       : null,
-    recentUpdates: parseCmoUpdates(workspace.updates)
+    recentUpdates: parseCmoUpdates(hire.updates)
       .slice(0, 3)
       .map(({ previousStrategy: _previous, ...update }) => update),
   };
@@ -1095,23 +1089,23 @@ export async function buildCmoBeatPacket(
   now: Date,
   key: CmoSystemSchedule["key"],
 ): Promise<{ packet: string; skip: boolean }> {
-  const workspace = await getCmoWorkspaceForBot(sokoBotId);
-  if (!workspace) return { packet: "", skip: true };
+  const hire = await getCmoHireForBot(sokoBotId);
+  if (!hire) return { packet: "", skip: true };
   // Nothing runs without a reason: no approved strategy, no Brand Brain,
   // or not the reminder's one slot. A skipped run costs no turn.
   const skipReason = cmoRoutineSkipReason(key, {
-    brandBrain: workspace.brandBrain !== null,
-    strategySavedAt: workspace.strategy ? workspace.strategyUpdatedAt : null,
-    strategyApproved: workspace.strategyApprovedAt !== null,
+    brandBrain: hire.brandBrain !== null,
+    strategySavedAt: hire.strategy ? hire.strategyUpdatedAt : null,
+    strategyApproved: hire.strategyApprovedAt !== null,
     now,
   });
   if (skipReason) return { packet: "", skip: true };
   const context = await loadCmoMarketingContext(sokoBotId, now);
   if (!context) return { packet: "", skip: true };
-  const posts = workspace
+  const posts = hire
     ? await prisma.socialPost.findMany({
         where: {
-          projectId: workspace.projectId,
+          projectId: hire.projectId,
           updatedAt: { gte: new Date(now.getTime() - 14 * 86_400_000) },
         },
         orderBy: { updatedAt: "desc" },
@@ -1161,8 +1155,8 @@ export interface CmoUpNextItem {
 }
 
 export interface CmoOverview {
-  workspace: CmoWorkspace;
-  /** The workspace's organization, when it is not the owner's personal one. */
+  hire: CmoHire;
+  /** Cuso's Workspace's organization, when it is not a personal one. */
   organizationSlug: string | null;
   projectName: string;
   learning: CmoLearningState;
@@ -1245,9 +1239,9 @@ export async function getCmoOverview(
   userId: string,
   now: Date = new Date(),
 ): Promise<CmoOverview | null> {
-  const workspace = await getCmoWorkspaceForUser(userId);
-  if (!workspace) return null;
-  const payer = await cmoPayer(workspace);
+  const hire = await getCmoHireForUser(userId);
+  if (!hire) return null;
+  const payer = await cmoPayer(hire);
   const [organization, project, bot, channels] = await Promise.all([
     payer.organizationId
       ? prisma.organization.findUnique({
@@ -1256,11 +1250,11 @@ export async function getCmoOverview(
         })
       : null,
     prisma.project.findUnique({
-      where: { id: workspace.projectId },
+      where: { id: hire.projectId },
       select: { name: true, logo: true },
     }),
     prisma.sokoBot.findUnique({
-      where: { id: workspace.sokoBotId },
+      where: { id: hire.sokoBotId },
       select: {
         id: true,
         userId: true,
@@ -1269,11 +1263,11 @@ export async function getCmoOverview(
         workspace: { select: { organizationId: true } },
       },
     }),
-    listCmoChannels(workspace.projectId),
+    listCmoChannels(hire.projectId),
   ]);
   const postGroups = await prisma.socialPost.groupBy({
     by: ["status"],
-    where: { projectId: workspace.projectId },
+    where: { projectId: hire.projectId },
     _count: { _all: true },
   });
   if (!bot || !project) return null;
@@ -1281,7 +1275,7 @@ export async function getCmoOverview(
     "@/services/soko-bot-chat.service"
   );
   const room = await findOrOpenOwnerDirectRoom(bot);
-  const strategy = parseCmoStrategy(workspace.strategy);
+  const strategy = parseCmoStrategy(hire.strategy);
   const web = getWebAppBaseUrl().replace(/\/+$/, "");
   const credits = await buildCreditsPayload({
     userId,
@@ -1289,12 +1283,12 @@ export async function getCmoOverview(
     referenceId: payer.referenceId,
     tx: prisma,
   });
-  const mockPlan = cmoMockPlan(workspace);
+  const mockPlan = cmoMockPlan(hire);
   const cmoPlan = mockPlan ?? (await activeCmoPlan(payer.referenceId));
-  const learning = await cmoLearningState(workspace, now);
-  const work = await cmoWork(workspace, now);
+  const learning = await cmoLearningState(hire, now);
+  const work = await cmoWork(hire, now);
   const schedules = await prisma.sokoBotSchedule.findMany({
-    where: { sokoBotId: workspace.sokoBotId, systemKey: { not: null } },
+    where: { sokoBotId: hire.sokoBotId, systemKey: { not: null } },
     select: {
       systemKey: true,
       nextRunAt: true,
@@ -1314,10 +1308,10 @@ export async function getCmoOverview(
     };
   });
   return {
-    workspace,
+    hire,
     learning,
     work,
-    brandVisual: parseCmoBrandVisual(workspace.brandVisual),
+    brandVisual: parseCmoBrandVisual(hire.brandVisual),
     projectLogo: project.logo,
     routines,
     organizationSlug: organization?.slug ?? null,
@@ -1326,11 +1320,11 @@ export async function getCmoOverview(
     subscriptionActive: cmoPlan !== null,
     mockBilling: getEnv().CMO_MOCK_BILLING,
     mockPlan,
-    mockPlanActivatedAt: mockPlan ? workspace.mockPlanActivatedAt : null,
-    brandBrain: parseCmoBrandBrain(workspace.brandBrain),
+    mockPlanActivatedAt: mockPlan ? hire.mockPlanActivatedAt : null,
+    brandBrain: parseCmoBrandBrain(hire.brandBrain),
     strategy,
     botStatus: bot.status,
-    updates: parseCmoUpdates(workspace.updates),
+    updates: parseCmoUpdates(hire.updates),
     channels,
     upNext: cmoUpNext(
       strategy,
@@ -1340,7 +1334,7 @@ export async function getCmoOverview(
         .map((channel) => channel.provider),
     ),
     // Connecting an account is a human OAuth step in Sokosumi's Social page.
-    connectChannelUrl: `${web}/social?projectId=${workspace.projectId}`,
+    connectChannelUrl: `${web}/social?projectId=${hire.projectId}`,
     // TODO(cmo): a CMO plan checkout; Sokosumi's billing page until then.
     subscribeUrl: `${web}/billing`,
     billing: {

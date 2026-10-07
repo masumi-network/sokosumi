@@ -43,41 +43,41 @@ import { SokoBotBillingAccessError } from "@/services/soko-bot-billing.service";
 
 /**
  * CMO.xyz's API. The CMO app calls it server side with the person's Sign in
- * with Sokosumi token; everything is scoped to the caller's own CMO
- * workspace, so no organization header is needed.
+ * with Sokosumi token; everything is scoped to the caller's own CMO hire,
+ * so no organization header is needed.
  */
 const app = new OpenAPIHonoWithAuth();
 
 function mapOverview(overview: CmoOverview) {
-  const { workspace } = overview;
+  const { hire } = overview;
   return cmoOverviewSchema.parse({
-    id: workspace.id,
-    businessName: workspace.businessName,
-    websiteUrl: workspace.websiteUrl,
-    goals: workspace.goals,
+    id: hire.id,
+    businessName: hire.businessName,
+    websiteUrl: hire.websiteUrl,
+    goals: hire.goals,
     organizationSlug: overview.organizationSlug,
     projectName: overview.projectName,
-    workspaceId: workspace.workspaceId,
-    sokoBotId: workspace.sokoBotId,
-    projectId: workspace.projectId,
+    workspaceId: hire.workspaceId,
+    sokoBotId: hire.sokoBotId,
+    projectId: hire.projectId,
     roomId: overview.roomId,
     botStatus: overview.botStatus,
     learning: overview.learning,
     work: overview.work,
     brandVisual: overview.brandVisual,
     projectLogo: overview.projectLogo,
-    accountsDoneAt: workspace.accountsDoneAt,
-    onboardedAt: workspace.onboardedAt,
+    accountsDoneAt: hire.accountsDoneAt,
+    onboardedAt: hire.onboardedAt,
     routines: overview.routines,
     subscriptionActive: overview.subscriptionActive,
     mockBilling: overview.mockBilling,
     mockPlan: overview.mockPlan,
     mockPlanActivatedAt: overview.mockPlanActivatedAt,
     brandBrain: overview.brandBrain,
-    brandBrainUpdatedAt: workspace.brandBrainUpdatedAt,
+    brandBrainUpdatedAt: hire.brandBrainUpdatedAt,
     strategy: overview.strategy,
-    strategyUpdatedAt: workspace.strategyUpdatedAt,
-    strategyApprovedAt: workspace.strategyApprovedAt,
+    strategyUpdatedAt: hire.strategyUpdatedAt,
+    strategyApprovedAt: hire.strategyApprovedAt,
     updates: overview.updates.map(
       ({ previousStrategy, revertedAt, ...update }) => ({
         ...update,
@@ -103,13 +103,13 @@ function mapOverview(overview: CmoOverview) {
       published: overview.posts.PUBLISHED ?? 0,
       failed: (overview.posts.FAILED ?? 0) + (overview.posts.MISSED ?? 0),
     },
-    createdAt: workspace.createdAt,
+    createdAt: hire.createdAt,
   });
 }
 
 async function requireOverview(userId: string) {
   const overview = await getCmoOverview(userId);
-  if (!overview) throw notFound("No CMO workspace yet");
+  if (!overview) throw notFound("Cuso is not hired yet");
   return mapOverview(overview);
 }
 
@@ -132,10 +132,10 @@ app.openapi(
     operationId: "getCmoOverview",
     tags: ["CMO"],
     responses: {
-      200: jsonSuccessResponse(cmoOverviewSchema, "The caller's CMO workspace"),
+      200: jsonSuccessResponse(cmoOverviewSchema, "The caller's CMO hire"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
     },
   }),
   async (c) => {
@@ -158,7 +158,7 @@ app.openapi(
     responses: {
       201: jsonSuccessResponse(
         cmoOverviewSchema,
-        "CMO workspace created; Cuso is learning the business",
+        "Cuso hired; he is learning the business",
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
@@ -192,7 +192,7 @@ app.openapi(
       200: jsonSuccessResponse(cmoOverviewSchema, "Mock plan active"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("Mock billing is off on this server"),
     },
   }),
@@ -216,7 +216,7 @@ app.openapi(
       200: jsonSuccessResponse(cmoOverviewSchema, "Accounts step done"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("The strategy is not approved yet"),
     },
   }),
@@ -239,7 +239,7 @@ app.openapi(
       200: jsonSuccessResponse(cmoOverviewSchema, "Onboarding complete"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("The strategy is not approved yet"),
     },
   }),
@@ -262,7 +262,7 @@ app.openapi(
       201: jsonSuccessResponse(cmoTurnStartedSchema, "Cuso is learning again"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("Cuso is still learning or already done"),
     },
   }),
@@ -288,7 +288,7 @@ app.openapi(
       200: jsonSuccessResponse(cmoOverviewSchema, "Brand Brain saved"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
     },
   }),
   async (c) => {
@@ -317,7 +317,7 @@ app.openapi(
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("The Brand Brain is not ready yet"),
     },
   }),
@@ -341,7 +341,7 @@ app.openapi(
       200: jsonSuccessResponse(cmoOverviewSchema, "Strategy approved"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("There is no strategy to approve yet"),
     },
   }),
@@ -427,7 +427,7 @@ app.openapi(
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
-      404: jsonErrorResponse("No CMO workspace yet"),
+      404: jsonErrorResponse("Cuso is not hired yet"),
       409: jsonErrorResponse("Unknown return address"),
       503: jsonErrorResponse("Connecting this network is not set up"),
     },

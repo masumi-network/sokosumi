@@ -38,7 +38,7 @@ const {
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    cmoWorkspace: {
+    cmoHire: {
       findUnique: cmoFindUnique,
       update: cmoUpdate,
       create: cmoCreate,

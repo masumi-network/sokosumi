@@ -480,8 +480,8 @@ model Project {
   socialPosts             SocialPost[]
   socialConnectionIntents ProjectSocialConnectionIntent[]
 
-  sokoBots     SokoBot[]
-  cmoWorkspace CmoWorkspace?
+  sokoBots SokoBot[]
+  cmoHire  CmoHire?
 
   imageSessions ProjectImageSession[]
   imageJobs     ProjectImageJob[]
@@ -2083,7 +2083,7 @@ model SokoBot {
   chatRoomMemberships   ChatRoomSokoBotMember[]
   chatRoomMessages      ChatRoomMessage[]       @relation("ChatRoomSokoBotSender")
   chatRoomMentions      ChatRoomMention[]
-  cmoWorkspace          CmoWorkspace?
+  cmoHire               CmoHire?
   apiKeys               CoworkerApiKey[]
   assignedTasks         Task[]                  @relation("TaskAssigneeSokoBot")
   assignedTaskSchedules TaskSchedule[]          @relation("TaskScheduleAssigneeSokoBot")
@@ -2173,19 +2173,19 @@ model SokoBot {
   @@map("soko_bot")
 }
 
-/// One business a person runs through CMO.xyz. Cuso, the CMO bot, is an
-/// ordinary Soko Bot in the business's own organization workspace; this row
-/// holds what CMO adds on top: the onboarding answers, the Brand Brain and
+/// A person hiring Cuso through CMO.xyz (ADR 0053). Cuso is an ordinary Soko
+/// Bot in a Project of his own in the Workspace the person chose; this row
+/// holds what CMO adds on top: the start form's answers, the Brand Brain and
 /// the strategy (JSON, validated by the `@sokosumi/soko-bot` CMO schemas).
-model CmoWorkspace {
+model CmoHire {
   id        String   @id @default(uuid(7)) @db.Uuid
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  /// The person who started it. One CMO workspace per person for now.
+  /// The person who hired Cuso. One hire per person for now.
   userId      String  @unique
-  /// The owner's own Sokosumi workspace: the Project, Cuso and his work live
-  /// there, and its owner pays.
+  /// The Workspace Cuso works in: the Project, Cuso and his work live there,
+  /// and it pays (its organization, or the person for a personal one).
   workspaceId String  @db.Uuid
   sokoBotId   String  @unique @db.Uuid
   sokoBot     SokoBot @relation(fields: [sokoBotId], references: [id], onDelete: Cascade)
@@ -2222,7 +2222,7 @@ model CmoWorkspace {
   /// the chat; until then CMO shows the onboarding steps.
   onboardedAt         DateTime?
 
-  @@map("cmo_workspace")
+  @@map("cmo_hire")
 }
 
 /// Immutable copy of external Hermes chat history made during first-party
