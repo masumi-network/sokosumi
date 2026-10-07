@@ -2,25 +2,25 @@ import { z } from "@hono/zod-openapi";
 
 import {
   ComposioConfigError,
-  getComposioConnectedAccount,
+  projectComposioFetch,
+  projectComposioResponse,
 } from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime";
 import {
-  type ExecuteAdsTool,
   invalidToolResponse,
   parseToolRow,
   parseToolRows,
   requireToolRows,
-  withAdsToolSession,
 } from "@/lib/ads/composio-tools";
+import { tryUseLogger } from "@/lib/evlog";
 
-const KEYWORDS_FOR_KEYWORDS = "DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE";
-const ADS_ADVERTISERS =
-  "DATAFORSEO_GET_SERP_GOOGLE_ADS_ADVERTISERS_LIVE_ADVANCED";
-const ADS_SEARCH = "DATAFORSEO_GET_SERP_GOOGLE_ADS_SEARCH_LIVE_ADVANCED";
-const DATAFORSEO = { toolkitSlug: "dataforseo", name: "DataForSEO" };
+const DATAFORSEO_API = "https://api.dataforseo.com/v3";
+const KEYWORDS_FOR_KEYWORDS =
+  "/keywords_data/google_ads/keywords_for_keywords/live";
+const ORGANIC_SERP = "/serp/google/organic/live/advanced";
+const ADS_SEARCH = "/serp/google/ads_search/live/advanced";
 const DATAFORSEO_OK = 20000;
 /** "No Search Results": a task without items, not an error. */
 const NO_RESULTS = 40102;
@@ -28,8 +28,35 @@ const NO_RESULTS = 40102;
 const LIVE_TIMEOUT_MS = 60_000;
 const MAX_KEYWORDS = 50;
 const TREND_MONTHS = 12;
-const MAX_ADVERTISERS = 25;
+/** Organic results read per keyword; DataForSEO bills per 10. */
+const SERP_DEPTH = 10;
+const MAX_COMPETITORS = 10;
+/** DataForSEO bills ads searches per 40 results. */
 const ADS_DEPTH = 40;
+const ADS_PER_COMPETITOR = 4;
+/**
+ * Sites that rank for almost any query and advertise themselves, not the
+ * market. Matched by name in any country domain or subdomain.
+ */
+const PLATFORMS = new Set([
+  "amazon",
+  "facebook",
+  "glassdoor",
+  "google",
+  "indeed",
+  "instagram",
+  "linkedin",
+  "medium",
+  "pinterest",
+  "quora",
+  "reddit",
+  "tiktok",
+  "twitter",
+  "wikipedia",
+  "x",
+  "yelp",
+  "youtube",
+]);
 const ADS_WINDOW_DAYS = 30;
 const AD_FORMATS = ["text", "image", "video"] as const;
 const COMPETITION_LEVELS = ["LOW", "MEDIUM", "HIGH"] as const;
@@ -54,13 +81,13 @@ export const marketKeywordSchema = z.object({
 });
 export type MarketKeyword = z.infer<typeof marketKeywordSchema>;
 
-export interface MarketKeywordQuery {
+export interface MarketQuery {
   keywords: string[];
   locationCode: number;
   languageCode: string;
 }
 
-/** A recent ad of a market advertiser. Dates are ISO 8601 UTC. */
+/** A recent ad of a search competitor. Dates are ISO 8601 UTC. */
 export const marketAdSchema = z.object({
   creativeId: z.string(),
   advertiserId: z.string(),
@@ -81,11 +108,6 @@ export const marketAdSchema = z.object({
   verified: z.boolean(),
 });
 export type MarketAd = z.infer<typeof marketAdSchema>;
-
-export interface MarketAdQuery {
-  keywords: string[];
-  locationCode: number;
-}
 
 const envelopeSchema = z.object({
   status_code: z.number().nullish(),
@@ -148,44 +170,43 @@ function refused(statusCode: number, statusMessage?: string | null) {
   });
 }
 
+const proxyResponseSchema = z.object({
+  data: z.record(z.string(), z.unknown()),
+});
+
 /**
- * Runs `run` on the platform DataForSEO connection, as the Composio user that
- * owns it (Composio only opens a session for the owner). Without the connection
- * configured, or without an owner, raises a {@link ComposioConfigError}.
+ * POSTs one task to a DataForSEO live endpoint (they take one task per
+ * request) through the Composio proxy on the platform DataForSEO connection.
+ * Without the connection configured, raises a {@link ComposioConfigError}.
  */
-async function withPlatformDataForSeo<T>(
-  toolSlugs: readonly string[],
-  run: (execute: ExecuteAdsTool) => Promise<T>,
-): Promise<T> {
+async function postDataForSeo(
+  path: string,
+  task: Record<string, unknown>,
+  context: string,
+): Promise<Record<string, unknown>> {
   const connectedAccountId = getEnv().COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID;
   if (!connectedAccountId) {
     throw new ComposioConfigError(
       "COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID is not configured for Ads market lookups",
     );
   }
-  const { connectorUserId } =
-    await getComposioConnectedAccount(connectedAccountId);
-  if (!connectorUserId) {
-    throw new ComposioConfigError(
-      "COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID has no Composio user",
-    );
-  }
-  return withAdsToolSession(
-    {
-      connectedAccountId,
-      executorUserId: connectorUserId,
-      toolkit: DATAFORSEO,
-      label: "platform DataForSEO",
-      toolSlugs,
-      timeoutMs: LIVE_TIMEOUT_MS,
+  const response = await projectComposioFetch("/api/v3/tools/execute/proxy", {
+    method: "POST",
+    jsonBody: {
+      endpoint: `${DATAFORSEO_API}${path}`,
+      method: "POST",
+      connected_account_id: connectedAccountId,
+      body: [task],
     },
-    run,
-  );
+    timeoutMs: LIVE_TIMEOUT_MS,
+  });
+  const body = await projectComposioResponse<unknown>(response, context);
+  return parseToolRow(body, proxyResponseSchema, context).data;
 }
 
 /** The tasks of a response, after checking the envelope and every task status. */
 function checkedTasks(
-  payload: Record<string, unknown> | null,
+  payload: Record<string, unknown>,
   context: string,
 ): z.infer<typeof taskSchema>[] {
   const envelope = parseToolRow(payload, envelopeSchema, context);
@@ -226,18 +247,18 @@ function taskItems(
  * without it configured, raises a {@link ComposioConfigError}.
  */
 export async function fetchMarketKeywords(
-  query: MarketKeywordQuery,
+  query: MarketQuery,
 ): Promise<MarketKeyword[]> {
   const context = "fetch DataForSEO keywords";
-  const payload = await withPlatformDataForSeo(
-    [KEYWORDS_FOR_KEYWORDS],
-    (execute) =>
-      execute(KEYWORDS_FOR_KEYWORDS, {
-        keywords: query.keywords,
-        location_code: query.locationCode,
-        language_code: query.languageCode,
-        sort_by: "search_volume",
-      }),
+  const payload = await postDataForSeo(
+    KEYWORDS_FOR_KEYWORDS,
+    {
+      keywords: query.keywords,
+      location_code: query.locationCode,
+      language_code: query.languageCode,
+      sort_by: "search_volume",
+    },
+    context,
   );
   const [task] = checkedTasks(payload, context);
   return parseToolRows(task.result ?? [], keywordSuggestionSchema, context)
@@ -251,39 +272,51 @@ export async function fetchMarketKeywords(
 }
 
 const itemTypeSchema = z.object({ type: z.string().nullish() });
-const advertiserRefSchema = z.object({
-  advertiser_id: z.string().min(1),
-  approx_ads_count: z.number().nullish(),
-});
-const multiAccountAdvertiserSchema = z.object({
-  approx_ads_count: z.number().nullish(),
-  advertisers: z.array(advertiserRefSchema).nullish(),
+const organicItemSchema = z.object({
+  domain: z.string().min(1),
+  rank_group: z.number(),
 });
 
+function isPlatform(domain: string): boolean {
+  return domain
+    .split(".")
+    .slice(0, -1)
+    .some((label) => PLATFORMS.has(label));
+}
+
 /**
- * Advertiser ids by approximate ad count, largest first. Multi-account
- * advertisers count as their accounts; domain items are ignored.
+ * The domains ranking organically for the keywords, platforms aside: the most
+ * keywords first, then the best position. `www.` is dropped so a domain
+ * counts once.
  */
-function rankAdvertiserIds(items: unknown[], context: string): string[] {
-  const counts = new Map<string, number>();
-  const add = (id: string, count: number | null | undefined) =>
-    counts.set(id, Math.max(counts.get(id) ?? 0, count ?? 0));
-  for (const item of items) {
-    const { type } = parseToolRow(item, itemTypeSchema, context);
-    if (type === "ads_advertiser") {
-      const row = parseToolRow(item, advertiserRefSchema, context);
-      add(row.advertiser_id, row.approx_ads_count);
-    } else if (type === "ads_multi_account_advertiser") {
-      const group = parseToolRow(item, multiAccountAdvertiserSchema, context);
-      for (const row of group.advertisers ?? []) {
-        add(row.advertiser_id, row.approx_ads_count ?? group.approx_ads_count);
+function rankCompetitorDomains(serps: unknown[][], context: string): string[] {
+  const competitors = new Map<string, { keywords: number; best: number }>();
+  for (const items of serps) {
+    const ranks = new Map<string, number>();
+    for (const item of items) {
+      if (parseToolRow(item, itemTypeSchema, context).type !== "organic") {
+        continue;
       }
+      const row = parseToolRow(item, organicItemSchema, context);
+      const domain = row.domain.toLowerCase().replace(/^www\./, "");
+      if (isPlatform(domain)) continue;
+      ranks.set(
+        domain,
+        Math.min(ranks.get(domain) ?? row.rank_group, row.rank_group),
+      );
+    }
+    for (const [domain, rank] of ranks) {
+      const seen = competitors.get(domain);
+      competitors.set(domain, {
+        keywords: (seen?.keywords ?? 0) + 1,
+        best: Math.min(seen?.best ?? rank, rank),
+      });
     }
   }
-  return [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, MAX_ADVERTISERS)
-    .map(([id]) => id);
+  return [...competitors.entries()]
+    .sort(([, a], [, b]) => b.keywords - a.keywords || a.best - b.best)
+    .slice(0, MAX_COMPETITORS)
+    .map(([domain]) => domain);
 }
 
 const adSearchItemSchema = z.object({
@@ -338,7 +371,7 @@ function toMarketAd(row: z.infer<typeof adSearchItemSchema>): MarketAd {
   };
 }
 
-/** The advertisers tool wants `%` as `%25` and `+` as `%2B`. */
+/** DataForSEO SERP keywords want `%` as `%25` and `+` as `%2B`. */
 function encodeKeyword(keyword: string): string {
   return keyword.replace(/%/g, "%25").replace(/\+/g, "%2B");
 }
@@ -348,58 +381,86 @@ function utcDate(time: number): string {
 }
 
 /**
- * Recent Google ads of the advertisers running ads for the query's keywords:
- * the 25 biggest advertisers' ads of the last 30 days (up to the 40 DataForSEO returns), newest
- * last-shown first. No advertisers means no ads, without a second call. Runs
- * on the platform DataForSEO connection; without it configured, raises a
+ * The values of the calls that succeed. Live calls are slow at times, so a
+ * failed one only adds nothing (counted in the request log as `logKey`),
+ * unless every call fails: then the first failure is raised.
+ */
+async function successfulValues<T>(
+  logKey: string,
+  calls: Promise<T>[],
+): Promise<T[]> {
+  const settled = await Promise.allSettled(calls);
+  const failed = settled.filter((call) => call.status === "rejected");
+  if (failed[0] && failed.length === settled.length) throw failed[0].reason;
+  if (failed.length > 0) {
+    tryUseLogger()?.set({ dataforseo: { [logKey]: failed.length } });
+  }
+  return settled.flatMap((call) =>
+    call.status === "fulfilled" ? [call.value] : [],
+  );
+}
+
+const lastShown = (ad: MarketAd) => ad.lastShown ?? "";
+const byLastShown = (a: MarketAd, b: MarketAd) =>
+  lastShown(b).localeCompare(lastShown(a));
+
+/**
+ * Recent Google ads of the market's search competitors. DataForSEO's SERPs
+ * carry no paid results, so competitors are the 10 domains ranking
+ * organically for the keywords (platforms like Reddit aside); each one's 4 most recently shown ads of the
+ * last 30 days in the location come from the Ads Transparency Center. Newest
+ * last-shown first. A keyword or competitor whose call fails adds nothing,
+ * unless every one fails. Runs on the platform
+ * DataForSEO connection; without it configured, raises a
  * {@link ComposioConfigError}.
  */
-export async function fetchMarketAds(
-  query: MarketAdQuery,
-): Promise<MarketAd[]> {
+export async function fetchMarketAds(query: MarketQuery): Promise<MarketAd[]> {
   const context = "fetch DataForSEO ads";
   const now = Date.now();
-  const rows = await withPlatformDataForSeo(
-    [ADS_ADVERTISERS, ADS_SEARCH],
-    async (execute) => {
-      // Live endpoints take one task per request: one call per keyword.
-      const perKeyword = await Promise.all(
-        query.keywords.map((keyword) =>
-          execute(ADS_ADVERTISERS, {
-            tasks: [
-              {
-                keyword: encodeKeyword(keyword),
-                location_code: query.locationCode,
-              },
-            ],
-          }),
-        ),
-      );
-      const advertiserIds = rankAdvertiserIds(
-        perKeyword.flatMap((payload) =>
-          taskItems(checkedTasks(payload, context), context),
-        ),
+  const serps = await successfulValues(
+    "failedSerps",
+    query.keywords.map(async (keyword) => {
+      const payload = await postDataForSeo(
+        ORGANIC_SERP,
+        {
+          keyword: encodeKeyword(keyword),
+          location_code: query.locationCode,
+          language_code: query.languageCode,
+          depth: SERP_DEPTH,
+        },
         context,
       );
-      if (advertiserIds.length === 0) return [];
-      const search = await execute(ADS_SEARCH, {
-        advertiser_ids: advertiserIds,
-        location_code: query.locationCode,
-        date_from: utcDate(now - ADS_WINDOW_DAYS * 24 * 60 * 60 * 1000),
-        date_to: utcDate(now),
-        depth: ADS_DEPTH,
-      });
-      return taskItems(checkedTasks(search, context), context);
-    },
+      return taskItems(checkedTasks(payload, context), context);
+    }),
   );
-  const lastShown = (ad: MarketAd) => ad.lastShown ?? "";
+  const perCompetitor = await successfulValues(
+    "failedAdSearches",
+    rankCompetitorDomains(serps, context).map(async (domain) => {
+      const payload = await postDataForSeo(
+        ADS_SEARCH,
+        {
+          target: domain,
+          location_code: query.locationCode,
+          date_from: utcDate(now - ADS_WINDOW_DAYS * 24 * 60 * 60 * 1000),
+          date_to: utcDate(now),
+          depth: ADS_DEPTH,
+        },
+        context,
+      );
+      return parseToolRows(
+        taskItems(checkedTasks(payload, context), context),
+        adSearchItemSchema,
+        context,
+      )
+        .map(toMarketAd)
+        .sort(byLastShown)
+        .slice(0, ADS_PER_COMPETITOR);
+    }),
+  );
   const ads = new Map<string, MarketAd>();
-  for (const row of parseToolRows(rows, adSearchItemSchema, context)) {
-    const ad = toMarketAd(row);
+  for (const ad of perCompetitor.flat()) {
     const seen = ads.get(ad.creativeId);
     if (!seen || lastShown(ad) > lastShown(seen)) ads.set(ad.creativeId, ad);
   }
-  return [...ads.values()].sort((a, b) =>
-    lastShown(b).localeCompare(lastShown(a)),
-  );
+  return [...ads.values()].sort(byLastShown);
 }

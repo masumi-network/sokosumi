@@ -5868,7 +5868,7 @@ export type AdMarketKeyword = {
 
 export type ListAdMarketAdsResponse = {
     /**
-     * At most 40 ads of the last 30 days from the biggest advertisers for the profile keywords, last shown first
+     * At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first
      */
     ads: Array<AdMarketAd>;
     /**
@@ -5878,7 +5878,7 @@ export type ListAdMarketAdsResponse = {
 };
 
 /**
- * A recent Google ad of a market advertiser. previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.
+ * A recent Google ad of a search competitor (a domain ranking organically for the profile keywords). previewImage is a Google-hosted https URL (render it with referrerPolicy no-referrer); previewUrl is the ad on Google's Ads Transparency Center. Both are null when DataForSEO gives none or a non-https URL. Dates are UTC.
  */
 export type AdMarketAd = {
     creativeId: string;

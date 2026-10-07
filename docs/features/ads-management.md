@@ -27,11 +27,12 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
 | Meta create | `METAADS_CREATE_CAMPAIGN` (objective, `special_ad_categories: []`, `daily_budget`, PAUSED) | same |
 | Trending keywords | DataForSEO `POST /v3/keywords_data/google_ads/keywords_for_keywords/live` | One platform DataForSEO connection (basic auth) |
-| Market advertisers | DataForSEO `POST /v3/serp/google/ads_advertisers/live/advanced` (`keyword`, `location_code`) | same |
-| Market ads (with `preview_image`) | DataForSEO `POST /v3/serp/google/ads_search/live/advanced` (`advertiser_ids` ≤25, `location_code`, `date_from`) | same |
+| Search competitors | DataForSEO `POST /v3/serp/google/organic/live/advanced` (`keyword`, `location_code`, `language_code`, `depth` 10), one call per keyword | same |
+| Competitors' ads (with `preview_image`) | DataForSEO `POST /v3/serp/google/ads_search/live/advanced` (`target` domain, `location_code`, `date_from`), one call per competitor (≤10) | same |
 
 - Execution of per-user toolkits: reuse the restricted `tool_router` session pattern in `apps/core/src/clients/composio.client.ts` (`getConnectedSocialIdentity`, `publishXPost`): pin toolkit, connected account and an allow-list of tools.
-- DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints. Parse DataForSEO's documented response with zod. Core opens the session as the Composio user that owns that connection (read from the connected account), so it can be created under any user ID, including a dashboard `pg-test-…` user.
+- DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints (`POST /api/v3/tools/execute/proxy`, no tool session). Parse DataForSEO's documented response with zod. Live endpoints take one task per request.
+- Market ads are the **search competitors'** ads: the 10 domains ranking organically for the keywords (most keywords, then best position), each one's 4 newest Transparency Center ads. Not the paid results: DataForSEO SERPs contain no `paid` items (checked 2026-10-07, incl. "car insurance" desktop + mobile), and the `ads_advertisers` endpoint matches advertiser *names*, not keywords.
 - Google Ads v1 supports directly accessible customer accounts only. Composio's `googleads` tools have no `login-customer-id` parameter, so manager accounts and their client accounts are not offered; `loginCustomerId` stays null (column kept for later), and `login-customer-id` is deliberately not sent.
 - Money in API responses: decimal number in account currency + `currency` (ISO code). Google micros ÷ 1e6, Meta minor units ÷ the currency's minor-unit exponent (`fromMinorUnits`: USD 100, JPY 1). The campaigns response carries one `currency` for the whole account, not one per campaign. Writes differ: `METAADS_UPDATE_CAMPAIGN` takes `daily_budget` as a decimal in account currency, Google budgets are sent as `amount_micros`.
 - Tool versions: tool-router sessions always use the latest published toolkit version (Composio supports no version pin on `/api/v3.1/tool_router/session`; only direct tool execution takes one). Tool contracts were checked against `metaads` `20260915_00` and `googleads` `20260922_00`.
@@ -58,7 +59,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required)}` | Create, always PAUSED → 201 `{id}`; no start date |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
-| GET | `/ads/market/ads` | Advertisers for the profile keywords → their recent ads with `preview_image`, format, first/last shown |
+| GET | `/ads/market/ads` | Search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown |
 
 Errors map through the existing Composio error classes (`ComposioConfigError` → 503 "not configured", `ComposioApiError`/`ComposioToolError` → 502 with a safe message).
 

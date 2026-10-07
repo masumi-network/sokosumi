@@ -97,7 +97,7 @@ const marketAd: MarketAd = {
 function requestKey(input: {
   keywords: string[];
   locationCode: number;
-  languageCode?: string;
+  languageCode: string;
 }) {
   return createHash("sha256").update(JSON.stringify(input)).digest("hex");
 }
@@ -339,12 +339,6 @@ describe("project ad market service", () => {
   });
 
   describe("ads", () => {
-    // Ads do not depend on the language.
-    const ADS_KEY = requestKey({
-      keywords: ["running shoes", "trail"],
-      locationCode: 2276,
-    });
-
     it("is 404 without a profile and never calls DataForSEO", async () => {
       m.profileFindUnique.mockResolvedValue(null);
       await expect(listProjectAdMarketAds(scope)).rejects.toMatchObject({
@@ -363,13 +357,14 @@ describe("project ad market service", () => {
         expect.objectContaining({
           keywords: ["Running Shoes", "trail"],
           locationCode: 2276,
+          languageCode: "de",
         }),
       );
       expect(m.snapshotUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
           create: expect.objectContaining({
             kind: "ads",
-            requestKey: ADS_KEY,
+            requestKey: KEY,
             payload: [marketAd],
             fetchedAt: NOW,
           }),
@@ -397,7 +392,7 @@ describe("project ad market service", () => {
       expect(m.snapshotUpsert.mock.calls[0]?.[0].create.payload).toEqual([]);
     });
 
-    it("keeps the snapshot when only the language changes", async () => {
+    it("refetches when the language changes: the SERPs depend on it", async () => {
       m.snapshotFindUnique.mockResolvedValue(null);
       await listProjectAdMarketAds(scope);
       m.profileFindUnique.mockResolvedValue({
@@ -408,7 +403,8 @@ describe("project ad market service", () => {
       const keys = m.snapshotFindUnique.mock.calls.map(
         ([args]) => args.where.projectId_kind_requestKey.requestKey,
       );
-      expect(keys).toEqual([ADS_KEY, ADS_KEY]);
+      expect(keys[0]).toBe(KEY);
+      expect(keys[1]).not.toBe(KEY);
     });
   });
 });

@@ -5,27 +5,19 @@ import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
 const m = vi.hoisted(() => ({
   getEnv: vi.fn(),
-  createSession: vi.fn(),
-  executeTool: vi.fn(),
-  deleteSession: vi.fn(),
-  getConnectedAccount: vi.fn(),
+  composioFetch: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: m.getEnv }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
-  deleteComposioToolSession: m.deleteSession,
-  getComposioConnectedAccount: m.getConnectedAccount,
-}));
-vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/clients/social-post-providers/tools")
-  >()),
-  createComposioToolSession: m.createSession,
-  executeComposioTool: m.executeTool,
+  projectComposioFetch: m.composioFetch,
 }));
 
 import { fetchMarketAds, fetchMarketKeywords } from "./dataforseo";
+
+const PROXY = "/api/v3/tools/execute/proxy";
+const API = "https://api.dataforseo.com/v3";
 
 const query = {
   keywords: ["running shoes"],
@@ -39,50 +31,56 @@ function task(result: unknown, statusCode = 20000, statusMessage = "Ok.") {
   };
 }
 
+/** Composio's proxy wraps DataForSEO's body as `data`. */
+function proxied(data: unknown, status = 200) {
+  return new Response(JSON.stringify({ data, status, headers: {} }));
+}
+
+interface ProxyRequest {
+  endpoint: string;
+  method: string;
+  connected_account_id: string;
+  body: Record<string, unknown>[];
+}
+const requests = (): ProxyRequest[] =>
+  m.composioFetch.mock.calls.map(([, init]) => init.jsonBody);
+
 describe("fetchMarketKeywords", () => {
   beforeEach(() => {
     vi.resetAllMocks();
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
-    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
-    m.createSession.mockResolvedValue("sess_1");
   });
 
-  it("runs the tool as the owner of the platform connection", async () => {
-    m.executeTool.mockResolvedValue(task([]));
+  function mockDataForSeo(data: unknown) {
+    m.composioFetch.mockImplementation(async () => proxied(data));
+  }
+
+  it("posts one task through the Composio proxy on the platform connection", async () => {
+    mockDataForSeo(task([]));
     await fetchMarketKeywords(query);
-    expect(m.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolkitSlug: "dataforseo",
-        connectedAccountId: "ca_seo",
-        executorUserId: "pg-owner",
-        toolSlugs: ["DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE"],
-        context: "create platform DataForSEO session",
-      }),
-    );
-    expect(m.executeTool).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolSlug: "DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE",
-        arguments: {
-          keywords: ["running shoes"],
-          location_code: 2840,
-          language_code: "en",
-          sort_by: "search_volume",
-        },
-      }),
-    );
-    expect(m.executeTool).toHaveBeenCalledWith(
-      expect.objectContaining({ timeoutMs: 60_000 }),
-    );
-    expect(m.deleteSession).toHaveBeenCalledWith(
-      "sess_1",
-      "delete platform DataForSEO session",
-    );
+    expect(m.composioFetch).toHaveBeenCalledWith(PROXY, {
+      method: "POST",
+      jsonBody: {
+        endpoint: `${API}/keywords_data/google_ads/keywords_for_keywords/live`,
+        method: "POST",
+        connected_account_id: "ca_seo",
+        body: [
+          {
+            keywords: ["running shoes"],
+            location_code: 2840,
+            language_code: "en",
+            sort_by: "search_volume",
+          },
+        ],
+      },
+      timeoutMs: 60_000,
+    });
   });
 
   it("maps, orders the trend oldest first and sorts by volume with nulls last", async () => {
-    m.executeTool.mockResolvedValue(
+    mockDataForSeo(
       task([
         {
           keyword: "no data",
@@ -152,7 +150,7 @@ describe("fetchMarketKeywords", () => {
       month: ((8 + i) % 12) + 1,
       search_volume: i === 5 ? null : i,
     })).reverse();
-    m.executeTool.mockResolvedValue(
+    mockDataForSeo(
       task([{ keyword: "a", search_volume: 1, monthly_searches: months }]),
     );
     const [keyword] = await fetchMarketKeywords(query);
@@ -175,7 +173,7 @@ describe("fetchMarketKeywords", () => {
   });
 
   it("keeps the 50 highest-volume keywords", async () => {
-    m.executeTool.mockResolvedValue(
+    mockDataForSeo(
       task(
         Array.from({ length: 60 }, (_, i) => ({
           keyword: `k${i}`,
@@ -189,22 +187,19 @@ describe("fetchMarketKeywords", () => {
   });
 
   it("treats a task without results as no keywords", async () => {
-    m.executeTool.mockResolvedValue(task(null));
+    mockDataForSeo(task(null));
     expect(await fetchMarketKeywords(query)).toEqual([]);
   });
 
-  it("raises a tool error for a DataForSEO task error and still deletes the session", async () => {
-    m.executeTool.mockResolvedValue(
-      task(null, 40501, "Invalid Field: 'location_code'."),
-    );
+  it("raises a tool error for a DataForSEO task error", async () => {
+    mockDataForSeo(task(null, 40501, "Invalid Field: 'location_code'."));
     await expect(fetchMarketKeywords(query)).rejects.toBeInstanceOf(
       ComposioToolError,
     );
-    expect(m.deleteSession).toHaveBeenCalled();
   });
 
   it("raises a tool error, with DataForSEO's message kept for logs, for a failed envelope", async () => {
-    m.executeTool.mockResolvedValue({
+    mockDataForSeo({
       status_code: 40101,
       status_message: "Authentication failed.",
       tasks: [],
@@ -217,11 +212,11 @@ describe("fetchMarketKeywords", () => {
   });
 
   it("rejects a response without tasks or with a malformed row", async () => {
-    m.executeTool.mockResolvedValueOnce({ tasks: [] });
+    mockDataForSeo({ tasks: [] });
     await expect(fetchMarketKeywords(query)).rejects.toThrow(
       "invalid response",
     );
-    m.executeTool.mockResolvedValueOnce(task([{ search_volume: 1 }]));
+    mockDataForSeo(task([{ search_volume: 1 }]));
     await expect(fetchMarketKeywords(query)).rejects.toThrow(
       "invalid response",
     );
@@ -232,41 +227,38 @@ describe("fetchMarketKeywords", () => {
     await expect(fetchMarketKeywords(query)).rejects.toBeInstanceOf(
       ComposioConfigError,
     );
-    expect(m.createSession).not.toHaveBeenCalled();
+    expect(m.composioFetch).not.toHaveBeenCalled();
   });
 
-  it("raises a configuration error when the platform connection has no owner", async () => {
-    m.getConnectedAccount.mockResolvedValue({ connectorUserId: null });
-    await expect(fetchMarketKeywords(query)).rejects.toBeInstanceOf(
-      ComposioConfigError,
+  it("rejects a proxy response without a DataForSEO body", async () => {
+    m.composioFetch.mockResolvedValue(
+      new Response(JSON.stringify({ status: 502 })),
     );
-    expect(m.getConnectedAccount).toHaveBeenCalledWith("ca_seo");
-    expect(m.createSession).not.toHaveBeenCalled();
+    await expect(fetchMarketKeywords(query)).rejects.toThrow(
+      "invalid response",
+    );
   });
 });
 
-const ADVERTISERS = "DATAFORSEO_GET_SERP_GOOGLE_ADS_ADVERTISERS_LIVE_ADVANCED";
-const ADS_SEARCH = "DATAFORSEO_GET_SERP_GOOGLE_ADS_SEARCH_LIVE_ADVANCED";
-
 describe("fetchMarketAds", () => {
-  const adsQuery = { keywords: ["running shoes", "trail"], locationCode: 2840 };
+  const adsQuery = { ...query, keywords: ["running shoes", "trail"] };
   const NOW = new Date("2026-10-01T12:00:00.000Z");
+  const ORGANIC = `${API}/serp/google/organic/live/advanced`;
+  const ADS_SEARCH = `${API}/serp/google/ads_search/live/advanced`;
 
-  const advertiser = (id: string, count: number | null, title = id) => ({
-    type: "ads_advertiser",
-    title,
-    advertiser_id: id,
-    approx_ads_count: count,
-    verified: true,
+  const organic = (domain: string, rank: number) => ({
+    type: "organic",
+    rank_group: rank,
+    domain,
   });
-  /** One advertisers task per keyword, like DataForSEO. */
-  const advertiserTasks = (...itemsPerTask: unknown[][]) => ({
-    tasks: itemsPerTask.map((items) => ({
-      status_code: 20000,
-      status_message: "Ok.",
-      result: [{ type: "ads_advertiser", items }],
-    })),
-  });
+  /** A SERP task with the given organic results, plus a non-organic item. */
+  const serp = (...items: unknown[]) =>
+    task([
+      {
+        type: "organic",
+        items: [{ type: "local_pack", rank_group: 1, title: "Shop" }, ...items],
+      },
+    ]);
   const ad = (overrides: Record<string, unknown> = {}) => ({
     type: "ads_search",
     creative_id: "CR1",
@@ -284,212 +276,226 @@ describe("fetchMarketAds", () => {
     verified: true,
     ...overrides,
   });
-  const searchTask = (items: unknown[]) =>
+  const adsTask = (...items: unknown[]) =>
     task([{ type: "ads_search", items }]);
+  const NO_RESULTS = task(null, 40102, "No Search Results.");
 
-  /** The n-th advertisers call (one per keyword) answers with the n-th task. */
-  function mockTools(advertisers: unknown, search?: unknown) {
-    let advertiserCall = 0;
-    m.executeTool.mockImplementation(
-      async ({ toolSlug }: { toolSlug: string }) => {
-        if (toolSlug !== ADVERTISERS) return search;
-        const n = advertiserCall++;
-        const tasks = (advertisers as { tasks?: unknown[] } | undefined)?.tasks;
-        if (!tasks?.length) return advertisers;
-        return { ...(advertisers as object), tasks: [tasks[n % tasks.length]] };
+  /**
+   * Answers SERP calls by keyword and ads searches by target domain; anything
+   * not listed has no results.
+   */
+  function mockDataForSeo(
+    serps: Record<string, unknown>,
+    adsByDomain: Record<string, unknown> = {},
+  ) {
+    m.composioFetch.mockImplementation(
+      async (_path: string, { jsonBody }: { jsonBody: ProxyRequest }) => {
+        const [body] = jsonBody.body;
+        const data =
+          jsonBody.endpoint === ORGANIC
+            ? serps[String(body?.keyword)]
+            : adsByDomain[String(body?.target)];
+        return proxied(data ?? NO_RESULTS);
       },
     );
   }
-  const callsOf = (slug: string) =>
-    m.executeTool.mock.calls.filter(([arg]) => arg.toolSlug === slug);
+  const bodiesOf = (endpoint: string) =>
+    requests()
+      .filter((request) => request.endpoint === endpoint)
+      .map((request) => request.body);
 
   beforeEach(() => {
     vi.resetAllMocks();
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
-    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
-    m.createSession.mockResolvedValue("sess_1");
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
   afterEach(() => vi.useRealTimers());
 
-  it("runs both tools in one platform session: a call per keyword, then the top advertisers", async () => {
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)], [advertiser("AR2", 9)]),
-      searchTask([]),
-    );
-    await fetchMarketAds(adsQuery);
-    expect(m.createSession).toHaveBeenCalledTimes(1);
-    expect(m.createSession).toHaveBeenCalledWith(
-      expect.objectContaining({
-        toolkitSlug: "dataforseo",
-        connectedAccountId: "ca_seo",
-        executorUserId: "pg-owner",
-        toolSlugs: [ADVERTISERS, ADS_SEARCH],
-      }),
-    );
-    // DataForSEO live endpoints take one task per request.
-    expect(callsOf(ADVERTISERS).map(([arg]) => arg.arguments)).toEqual([
-      { tasks: [{ keyword: "running shoes", location_code: 2840 }] },
-      { tasks: [{ keyword: "trail", location_code: 2840 }] },
-    ]);
-    for (const [arg] of m.executeTool.mock.calls) {
-      expect(arg.timeoutMs).toBe(60_000);
-    }
-    expect(callsOf(ADS_SEARCH)[0]?.[0].arguments).toEqual({
-      advertiser_ids: ["AR2", "AR1"],
-      location_code: 2840,
-      date_from: "2026-09-01",
-      date_to: "2026-10-01",
-      depth: 40,
+  it("reads the organic results per keyword, then each competitor's ads in the market", async () => {
+    mockDataForSeo({
+      "running shoes": serp(organic("acme.com", 1)),
+      trail: serp(organic("trail.co", 2)),
     });
-    expect(m.deleteSession).toHaveBeenCalledTimes(1);
+    await fetchMarketAds(adsQuery);
+    // DataForSEO live endpoints take one task per request.
+    expect(bodiesOf(ORGANIC)).toEqual([
+      [
+        {
+          keyword: "running shoes",
+          location_code: 2840,
+          language_code: "en",
+          depth: 10,
+        },
+      ],
+      [
+        {
+          keyword: "trail",
+          location_code: 2840,
+          language_code: "en",
+          depth: 10,
+        },
+      ],
+    ]);
+    expect(bodiesOf(ADS_SEARCH)).toEqual([
+      [
+        {
+          target: "acme.com",
+          location_code: 2840,
+          date_from: "2026-09-01",
+          date_to: "2026-10-01",
+          depth: 40,
+        },
+      ],
+      [expect.objectContaining({ target: "trail.co" })],
+    ]);
+    for (const request of requests()) {
+      expect(request).toMatchObject({
+        method: "POST",
+        connected_account_id: "ca_seo",
+      });
+    }
   });
 
   it("encodes % and + in keywords, and nothing else", async () => {
-    mockTools(advertiserTasks([]), undefined);
-    await fetchMarketAds({
-      keywords: ["c++", "50% off", "a&b é"],
-      locationCode: 2840,
-    });
-    expect(
-      callsOf(ADVERTISERS).map(([arg]) => arg.arguments.tasks[0].keyword),
-    ).toEqual(["c%2B%2B", "50%25 off", "a&b é"]);
+    mockDataForSeo({});
+    await fetchMarketAds({ ...query, keywords: ["c++", "50% off", "a&b é"] });
+    expect(bodiesOf(ORGANIC).map(([body]) => body?.keyword)).toEqual([
+      "c%2B%2B",
+      "50%25 off",
+      "a&b é",
+    ]);
   });
 
-  it("takes advertisers from the tasks with results when another keyword has none", async () => {
-    mockTools(
+  it("ranks competitors by keywords ranked for, then best position, without www", async () => {
+    mockDataForSeo({
+      "running shoes": serp(
+        organic("www.solo-top.com", 1),
+        organic("Both.com", 5),
+        organic("both-low.com", 9),
+      ),
+      trail: serp(organic("both.com", 2), organic("both-low.com", 8)),
+    });
+    await fetchMarketAds(adsQuery);
+    expect(bodiesOf(ADS_SEARCH).map(([body]) => body?.target)).toEqual([
+      "both.com", // two keywords, best rank 2
+      "both-low.com", // two keywords, best rank 8
+      "solo-top.com",
+    ]);
+  });
+
+  it("skips platforms that rank for almost any query", async () => {
+    mockDataForSeo({
+      "running shoes": serp(
+        organic("www.reddit.com", 1),
+        organic("en.wikipedia.org", 2),
+        organic("www.amazon.co.uk", 3),
+        organic("x.com", 4),
+        organic("acme.com", 5),
+        organic("redditshoes.com", 6),
+      ),
+    });
+    await fetchMarketAds(adsQuery);
+    expect(bodiesOf(ADS_SEARCH).map(([body]) => body?.target)).toEqual([
+      "acme.com",
+      "redditshoes.com",
+    ]);
+  });
+
+  it("asks for the ads of the 10 strongest competitors only", async () => {
+    mockDataForSeo({
+      "running shoes": serp(
+        ...Array.from({ length: 12 }, (_, i) => organic(`d${i}.com`, i + 1)),
+      ),
+    });
+    await fetchMarketAds(adsQuery);
+    const targets = bodiesOf(ADS_SEARCH).map(([body]) => body?.target);
+    expect(targets).toHaveLength(10);
+    expect(targets[0]).toBe("d0.com");
+    expect(targets).not.toContain("d11.com");
+  });
+
+  it("returns no ads, without searching ads, when no keyword has organic results", async () => {
+    mockDataForSeo({ trail: serp() });
+    expect(await fetchMarketAds(adsQuery)).toEqual([]);
+    expect(bodiesOf(ADS_SEARCH)).toHaveLength(0);
+  });
+
+  it("skips competitors without ads (40102)", async () => {
+    mockDataForSeo(
       {
-        tasks: [
-          { status_code: 40102, status_message: "No Search Results." },
-          ...advertiserTasks([advertiser("AR1", 5)]).tasks,
-        ],
+        "running shoes": serp(organic("quiet.com", 1), organic("acme.com", 2)),
       },
-      searchTask([]),
+      { "acme.com": adsTask(ad()) },
     );
-    await fetchMarketAds(adsQuery);
-    expect(callsOf(ADS_SEARCH)[0]?.[0].arguments.advertiser_ids).toEqual([
-      "AR1",
+    expect((await fetchMarketAds(adsQuery)).map((a) => a.creativeId)).toEqual([
+      "CR1",
     ]);
   });
 
-  it("returns no ads, without searching, when every keyword has no results", async () => {
-    mockTools({
-      tasks: [
-        { status_code: 40102, status_message: "No Search Results." },
-        { status_code: 40102, status_message: "No Search Results." },
-      ],
-    });
-    expect(await fetchMarketAds(adsQuery)).toEqual([]);
-    expect(callsOf(ADS_SEARCH)).toHaveLength(0);
-  });
-
-  it("treats an ads search without results as no ads (40102)", async () => {
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)]),
-      task(null, 40102, "No Search Results."),
+  it("keeps each competitor's 4 most recent ads", async () => {
+    const days = [1, 9, 3, 7, 5, 2];
+    mockDataForSeo(
+      { "running shoes": serp(organic("acme.com", 1)) },
+      {
+        "acme.com": adsTask(
+          ...days.map((day) =>
+            ad({
+              creative_id: `D${day}`,
+              last_shown: `2026-09-0${day} 00:00:00 +00:00`,
+            }),
+          ),
+        ),
+      },
     );
-    expect(await fetchMarketAds(adsQuery)).toEqual([]);
-  });
-
-  it("flattens multi-account advertisers, ignores domains, dedupes and ranks by ad count", async () => {
-    mockTools(
-      advertiserTasks(
-        [
-          { type: "ads_domain", domain: "acme.com", rank_group: 1 },
-          advertiser("AR1", 10),
-          {
-            type: "ads_multi_account_advertiser",
-            title: "Big Brand",
-            approx_ads_count: 100,
-            advertisers: [
-              {
-                type: "ads_advertiser",
-                advertiser_id: "AR3",
-                approx_ads_count: 70,
-              },
-              {
-                type: "ads_advertiser",
-                advertiser_id: "AR4",
-                approx_ads_count: null,
-              },
-            ],
-          },
-        ],
-        [advertiser("AR1", 30), advertiser("AR5", 20)],
-      ),
-      searchTask([]),
-    );
-    await fetchMarketAds(adsQuery);
-    expect(callsOf(ADS_SEARCH)[0]?.[0].arguments.advertiser_ids).toEqual([
-      "AR4", // no count of its own: inherits the group's 100
-      "AR3",
-      "AR1", // 30 in the second keyword beats 10 in the first
-      "AR5",
+    expect((await fetchMarketAds(adsQuery)).map((a) => a.creativeId)).toEqual([
+      "D9",
+      "D7",
+      "D5",
+      "D3",
     ]);
-  });
-
-  it("asks for the 25 biggest advertisers only", async () => {
-    mockTools(
-      advertiserTasks(
-        Array.from({ length: 30 }, (_, i) => advertiser(`AR${i}`, i)),
-      ),
-      searchTask([]),
-    );
-    await fetchMarketAds(adsQuery);
-    const ids = callsOf(ADS_SEARCH)[0]?.[0].arguments.advertiser_ids;
-    expect(ids).toHaveLength(25);
-    expect(ids[0]).toBe("AR29");
-    expect(ids).not.toContain("AR0");
-  });
-
-  it("returns no ads without searching when no advertiser is found", async () => {
-    mockTools(
-      advertiserTasks([{ type: "ads_domain", domain: "acme.com" }], []),
-    );
-    expect(await fetchMarketAds(adsQuery)).toEqual([]);
-    expect(callsOf(ADS_SEARCH)).toHaveLength(0);
-    expect(m.deleteSession).toHaveBeenCalled();
-  });
-
-  it("treats advertiser tasks without results as no advertisers", async () => {
-    mockTools({ tasks: [{ status_code: 20000, result: null }] });
-    expect(await fetchMarketAds(adsQuery)).toEqual([]);
   });
 
   it("maps ads, dedupes by creative, sorts by last shown and drops non-https links", async () => {
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)]),
-      searchTask([
-        ad({ creative_id: "OLD", last_shown: "2026-09-10 00:00:00 +00:00" }),
-        ad({ creative_id: "CR1" }),
-        ad({ creative_id: "CR1", last_shown: "2026-01-01 00:00:00 +00:00" }),
-        ad({
-          creative_id: "TXT",
-          format: "text",
-          preview_image: null,
-          url: "http://insecure.example/ad",
-          last_shown: "2026-09-29 00:00:00 +00:00",
-        }),
-        ad({
-          creative_id: "VID",
-          format: "video",
-          preview_image: {
-            url: "http://insecure.example/a.png",
-            width: 1,
-            height: 1,
-          },
-          last_shown: "2026-09-28 00:00:00 +00:00",
-        }),
-        ad({
-          creative_id: "ODD",
-          format: "carousel",
-          preview_image: undefined,
-          last_shown: "2026-09-27 00:00:00 +00:00",
-        }),
-      ]),
+    mockDataForSeo(
+      {
+        "running shoes": serp(organic("acme.com", 1), organic("other.com", 2)),
+      },
+      {
+        "acme.com": adsTask(
+          ad({ creative_id: "OLD", last_shown: "2026-09-10 00:00:00 +00:00" }),
+          ad({ creative_id: "CR1" }),
+          ad({
+            creative_id: "TXT",
+            format: "text",
+            preview_image: null,
+            url: "http://insecure.example/ad",
+            last_shown: "2026-09-29 00:00:00 +00:00",
+          }),
+          ad({
+            creative_id: "VID",
+            format: "video",
+            preview_image: {
+              url: "http://insecure.example/a.png",
+              width: 1,
+              height: 1,
+            },
+            last_shown: "2026-09-28 00:00:00 +00:00",
+          }),
+        ),
+        "other.com": adsTask(
+          // The same creative under a second domain, seen earlier.
+          ad({ creative_id: "CR1", last_shown: "2026-01-01 00:00:00 +00:00" }),
+          ad({
+            creative_id: "ODD",
+            format: "carousel",
+            preview_image: undefined,
+            last_shown: "2026-09-27 00:00:00 +00:00",
+          }),
+        ),
+      },
     );
     const ads = await fetchMarketAds(adsQuery);
     expect(ads.map((a) => a.creativeId)).toEqual([
@@ -524,64 +530,82 @@ describe("fetchMarketAds", () => {
     expect(ads[3]).toMatchObject({ format: "other", previewImage: null });
   });
 
-  it("keeps the latest sighting of a creative, whatever the order", async () => {
-    const early = ad({ last_shown: "2026-09-02 00:00:00 +00:00" });
-    const late = ad({ last_shown: "2026-09-20 00:00:00 +00:00" });
-    for (const items of [
-      [early, late],
-      [late, early],
-    ]) {
-      mockTools(advertiserTasks([advertiser("AR1", 5)]), searchTask(items));
-      const ads = await fetchMarketAds(adsQuery);
-      expect(ads).toHaveLength(1);
-      expect(ads[0]?.lastShown).toBe("2026-09-20T00:00:00.000Z");
-    }
-  });
-
   it("treats an ads search without results as no ads", async () => {
-    mockTools(advertiserTasks([advertiser("AR1", 5)]), task(null));
+    mockDataForSeo(
+      { "running shoes": serp(organic("acme.com", 1)) },
+      { "acme.com": task(null) },
+    );
     expect(await fetchMarketAds(adsQuery)).toEqual([]);
   });
 
-  it("raises a tool error for a failed advertisers task and never searches", async () => {
-    mockTools({
-      tasks: [
-        { status_code: 20000, result: [] },
-        { status_code: 40501, status_message: "Invalid Field.", result: null },
-      ],
+  it("skips a keyword whose SERP fails, keeping the others", async () => {
+    mockDataForSeo({
+      "running shoes": serp(organic("acme.com", 1)),
+      trail: task(null, 40501, "Invalid Field."),
+    });
+    await fetchMarketAds(adsQuery);
+    expect(bodiesOf(ADS_SEARCH).map(([body]) => body?.target)).toEqual([
+      "acme.com",
+    ]);
+  });
+
+  it("raises when every keyword's SERP fails, and never searches ads", async () => {
+    mockDataForSeo({
+      "running shoes": task(null, 40501, "Invalid Field."),
+      trail: task(null, 50000, "Internal Error."),
     });
     await expect(fetchMarketAds(adsQuery)).rejects.toMatchObject({
       name: "ComposioToolError",
       providerStatus: 40501,
     });
-    expect(callsOf(ADS_SEARCH)).toHaveLength(0);
-    expect(m.deleteSession).toHaveBeenCalled();
+    expect(bodiesOf(ADS_SEARCH)).toHaveLength(0);
   });
 
-  it("raises a tool error for a failed ads search task or envelope", async () => {
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)]),
-      task(null, 50000, "Internal Error."),
+  it("skips a competitor whose ads search fails, keeping the others", async () => {
+    mockDataForSeo(
+      { "running shoes": serp(organic("slow.com", 1), organic("acme.com", 2)) },
+      {
+        "slow.com": task(null, 50000, "Internal Error."),
+        "acme.com": adsTask(ad()),
+      },
     );
+    expect((await fetchMarketAds(adsQuery)).map((a) => a.creativeId)).toEqual([
+      "CR1",
+    ]);
+  });
+
+  it("raises when every competitor's ads search fails", async () => {
+    const serps = {
+      "running shoes": serp(organic("acme.com", 1), organic("other.com", 2)),
+    };
+    mockDataForSeo(serps, {
+      "acme.com": task(null, 50000, "Internal Error."),
+      "other.com": task(null, 50000, "Internal Error."),
+    });
     await expect(fetchMarketAds(adsQuery)).rejects.toBeInstanceOf(
       ComposioToolError,
     );
-    mockTools(advertiserTasks([advertiser("AR1", 5)]), {
-      status_code: 40101,
-      status_message: "Authentication failed.",
-      tasks: [],
+    mockDataForSeo(serps, {
+      "acme.com": {
+        status_code: 40101,
+        status_message: "Authentication failed.",
+        tasks: [],
+      },
+      "other.com": task(null, 50000, "Internal Error."),
     });
     await expect(fetchMarketAds(adsQuery)).rejects.toMatchObject({
       providerStatus: 40101,
     });
   });
 
-  it("rejects a malformed advertiser or ad", async () => {
-    mockTools(advertiserTasks([{ type: "ads_advertiser", title: "no id" }]));
+  it("rejects a malformed organic result or ad", async () => {
+    mockDataForSeo({
+      "running shoes": serp({ type: "organic", rank_group: 1 }),
+    });
     await expect(fetchMarketAds(adsQuery)).rejects.toThrow("invalid response");
-    mockTools(
-      advertiserTasks([advertiser("AR1", 5)]),
-      searchTask([{ type: "ads_search", title: "no ids" }]),
+    mockDataForSeo(
+      { "running shoes": serp(organic("acme.com", 1)) },
+      { "acme.com": adsTask({ type: "ads_search", title: "no ids" }) },
     );
     await expect(fetchMarketAds(adsQuery)).rejects.toThrow("invalid response");
   });
@@ -591,6 +615,6 @@ describe("fetchMarketAds", () => {
     await expect(fetchMarketAds(adsQuery)).rejects.toBeInstanceOf(
       ComposioConfigError,
     );
-    expect(m.createSession).not.toHaveBeenCalled();
+    expect(m.composioFetch).not.toHaveBeenCalled();
   });
 });

@@ -9,7 +9,7 @@ import {
   fetchMarketKeywords,
   type MarketAd,
   type MarketKeyword,
-  type MarketKeywordQuery,
+  type MarketQuery,
   marketAdSchema,
   marketKeywordSchema,
 } from "@/lib/ads/dataforseo";
@@ -114,20 +114,14 @@ export async function setProjectAdMarketProfile(
   return toProfile(profile);
 }
 
-/**
- * The same profile, in any keyword order or case, maps to the same key. Ads
- * ignore the language, so changing it keeps the ads snapshot.
- */
-function profileRequestKey(
-  kind: SnapshotKind,
-  profile: MarketKeywordQuery,
-): string {
+/** The same profile, in any keyword order or case, maps to the same key. */
+function profileRequestKey(profile: MarketQuery): string {
   return createHash("sha256")
     .update(
       JSON.stringify({
         keywords: profile.keywords.map((k) => k.toLowerCase()).sort(),
         locationCode: profile.locationCode,
-        ...(kind === "keywords" && { languageCode: profile.languageCode }),
+        languageCode: profile.languageCode,
       }),
     )
     .digest("hex");
@@ -152,7 +146,7 @@ async function cachedMarketSnapshot<T extends Prisma.InputJsonValue>(
   if (!profile) throw notFound("Market profile not set");
 
   const { projectId, kind } = input;
-  const requestKey = profileRequestKey(kind, profile);
+  const requestKey = profileRequestKey(profile);
   const snapshotKey = {
     projectId_kind_requestKey: { projectId, kind, requestKey },
   };
@@ -196,7 +190,7 @@ export async function listProjectAdMarketKeywords(
   return { keywords: data, fetchedAt };
 }
 
-/** Recent ads of the advertisers in the Project's market profile. */
+/** Recent ads of the search competitors for the Project's market profile. */
 export async function listProjectAdMarketAds(
   input: ProjectScope,
 ): Promise<AdMarketAds> {
