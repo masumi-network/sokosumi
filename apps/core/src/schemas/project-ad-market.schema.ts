@@ -83,12 +83,18 @@ export const adMarketAdSchema = marketAdSchema.openapi("AdMarketAd", {
 
 export const listAdMarketAdsResponseSchema = z
   .object({
+    status: z.enum(["ready", "gathering", "failed"]).openapi({
+      description:
+        "ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.",
+    }),
     ads: z.array(adMarketAdSchema).openapi({
       description:
         "At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first",
     }),
-    fetchedAt: dateTimeSchema.openapi({
-      description: "When DataForSEO was last asked; results are cached for 24h",
+    // Union-with-null, not `.nullable()`: see `finalizeProjectAdConnectionResponseSchema`.
+    fetchedAt: z.union([dateTimeSchema, z.null()]).openapi({
+      description:
+        "When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet",
     }),
   })
   .openapi("ListAdMarketAdsResponse");

@@ -124,5 +124,7 @@ export function AdsMarketAds({
       />
     );
   }
-  return <AdsMarketAdGrid {...loaded.data} />;
+  return (
+    <AdsMarketAdGrid ads={loaded.data.ads} fetchedAt={loaded.data.fetchedAt} />
+  );
 }

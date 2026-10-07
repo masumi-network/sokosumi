@@ -5868,13 +5868,17 @@ export type AdMarketKeyword = {
 
 export type ListAdMarketAdsResponse = {
     /**
+     * ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot's, if any.
+     */
+    status: 'ready' | 'gathering' | 'failed';
+    /**
      * At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first
      */
     ads: Array<AdMarketAd>;
     /**
-     * When DataForSEO was last asked; results are cached for 24h
+     * When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet
      */
-    fetchedAt: Date;
+    fetchedAt: Date | null;
 };
 
 /**

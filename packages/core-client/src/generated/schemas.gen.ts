@@ -19449,6 +19449,15 @@ export const AdMarketKeywordSchema = {
 export const ListAdMarketAdsResponseSchema = {
     type: 'object',
     properties: {
+        status: {
+            type: 'string',
+            enum: [
+                'ready',
+                'gathering',
+                'failed'
+            ],
+            description: 'ready: the ads are current. gathering: DataForSEO is still working on them; ask again in about 20s. failed: the lookup failed and is not retried for an hour. While gathering or failed, ads are the previous snapshot\'s, if any.'
+        },
         ads: {
             type: 'array',
             items: {
@@ -19457,13 +19466,21 @@ export const ListAdMarketAdsResponseSchema = {
             description: 'At most 40 ads of the last 30 days: the 4 most recent of each of the 10 strongest search competitors, last shown first'
         },
         fetchedAt: {
-            type: 'string',
-            format: 'date-time',
-            example: '2021-01-01T00:00:00.000Z',
-            description: 'When DataForSEO was last asked; results are cached for 24h'
+            anyOf: [
+                {
+                    type: 'string',
+                    format: 'date-time',
+                    example: '2021-01-01T00:00:00.000Z'
+                },
+                {
+                    type: 'null'
+                }
+            ],
+            description: 'When the ads were taken; ready ads are cached for 24h. Null while there is no snapshot yet'
         }
     },
     required: [
+        'status',
         'ads',
         'fetchedAt'
     ]

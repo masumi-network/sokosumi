@@ -27,11 +27,11 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | Meta status / budget | `METAADS_UPDATE_CAMPAIGN` (one budget field per call) | same |
 | Meta create | `METAADS_CREATE_CAMPAIGN` (objective, `special_ad_categories: []`, `daily_budget`, PAUSED) | same |
 | Trending keywords | DataForSEO `POST /v3/keywords_data/google_ads/keywords_for_keywords/live` | One platform DataForSEO connection (basic auth) |
-| Search competitors | DataForSEO `POST /v3/serp/google/organic/live/advanced` (`keyword`, `location_code`, `language_code`, `depth` 10), one call per keyword | same |
-| Competitors' ads (with `preview_image`) | DataForSEO `POST /v3/serp/google/ads_search/live/advanced` (`target` domain, `location_code`, `date_from`), one call per competitor (≤10) | same |
+| Search competitors | DataForSEO queued `POST /v3/serp/google/organic/task_post` (`keyword`, `location_code`, `language_code`, `depth` 10), one task per keyword, all in one request; read with `GET …/organic/task_get/advanced/{id}` | same |
+| Competitors' ads (with `preview_image`) | DataForSEO queued `POST /v3/serp/google/ads_search/task_post` (`target` domain, `location_code`, `date_from`/`date_to`, `depth` 40), one task per competitor (≤10), all in one request; read with `GET …/ads_search/task_get/advanced/{id}` | same |
 
 - Execution of per-user toolkits: reuse the restricted `tool_router` session pattern in `apps/core/src/clients/composio.client.ts` (`getConnectedSocialIdentity`, `publishXPost`): pin toolkit, connected account and an allow-list of tools.
-- DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints (`POST /api/v3/tools/execute/proxy`, no tool session). Parse DataForSEO's documented response with zod. Live endpoints take one task per request.
+- DataForSEO: one clear path — Composio **proxy execute** on the platform connected account (`COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID`) for all three endpoints (`POST /api/v3/tools/execute/proxy`, no tool session). Parse DataForSEO's documented response with zod. Keywords stay live (one task per request). SERPs and ads are queued tasks: live ones hit 60s timeouts half the time when run in parallel, queued ones are ready in about 2.5 min and cost $0.0006 instead of $0.002. See [Market ads job](#market-ads-job).
 - Market ads are the **search competitors'** ads: the 10 domains ranking organically for the keywords (most keywords, then best position), each one's 4 newest Transparency Center ads. Not the paid results: DataForSEO SERPs contain no `paid` items (checked 2026-10-07, incl. "car insurance" desktop + mobile), and the `ads_advertisers` endpoint matches advertiser *names*, not keywords.
 - Google Ads v1 supports directly accessible customer accounts only. Composio's `googleads` tools have no `login-customer-id` parameter, so manager accounts and their client accounts are not offered; `loginCustomerId` stays null (column kept for later), and `login-customer-id` is deliberately not sent.
 - Money in API responses: decimal number in account currency + `currency` (ISO code). Google micros ÷ 1e6, Meta minor units ÷ the currency's minor-unit exponent (`fromMinorUnits`: USD 100, JPY 1). The campaigns response carries one `currency` for the whole account, not one per campaign. Writes differ: `METAADS_UPDATE_CAMPAIGN` takes `daily_budget` as a decimal in account currency, Google budgets are sent as `amount_micros`.
@@ -43,6 +43,7 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 - `ProjectAdAccount`: `id`, `projectId`, `connectionId`, `provider`, `externalAccountId` (Google customer id / Meta `act_…`), `loginCustomerId?`, `name`, `currency`, `timeZone?`, timestamps. `@@unique([projectId, provider, externalAccountId])`.
 - `ProjectAdMarketProfile`: `projectId` (unique), `keywords String[]` (1–10), `locationCode Int`, `languageCode String`, `updatedAt`.
 - `ProjectAdMarketSnapshot`: `id`, `projectId`, `kind` (`keywords` | `ads`), `requestKey` (hash of profile), `payload Json`, `fetchedAt`. Cache DataForSEO for 24h (it costs per call). `@@unique([projectId, kind, requestKey])`.
+- `ProjectAdMarketAdsJob`: `projectId` (id), `requestKey`, `stage` (`SERP` | `ADS` | `FAILED`), `pendingTaskIds String[]`, `collected Json`, `startedAt`, `checkedAt`. One row per Project; deleted when the ads snapshot is written. `collected` has one entry per finished task: its `{domain, rank}[]` (SERP) or its `MarketAd[]` (ADS, at most 4).
 - OAuth intents reuse `ProjectSocialConnectionIntent` (`provider` = `google_ads` / `meta_ads`, `socialConnectionId` null) and the existing `/composio/callback` popup flow. No new callback route.
 
 ## Core API (`/v1/projects/{id}/ads/...`, beta + Project access like social connections)
@@ -59,7 +60,21 @@ Let a Project manage its Google Ads and Meta Ads campaigns and see trending ads 
 | POST | `/ads/accounts/{accountId}/campaigns` `{name, dailyBudget, objective? (Meta, required)}` | Create, always PAUSED → 201 `{id}`; no start date |
 | GET / PUT | `/ads/market` | Market profile |
 | GET | `/ads/market/keywords` | Trending keywords (volume, 12-month trend, competition, CPC range) |
-| GET | `/ads/market/ads` | Search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown |
+| GET | `/ads/market/ads` | `{status: ready\|gathering\|failed, ads, fetchedAt}`: search competitors for the profile keywords → their recent ads with `preview_image`, format, first/last shown. Clients poll every ~20s while `gathering` |
+
+### Market ads job
+
+The ads endpoint drives a job; there is no cron. Each call moves it one step:
+
+1. A snapshot under 24h old for the current profile key: `ready`.
+2. Otherwise the stale snapshot's ads (or `[]`, `fetchedAt: null`) come back with every `gathering` or `failed`.
+3. No job, a job for another profile, or a `FAILED` job older than 1h: claim the row, post the SERP tasks, `gathering`. The claim is an insert (`skipDuplicates`) or an update on the seen `checkedAt`, so two requests never both post.
+4. A job checked under 20s ago: `gathering`, DataForSEO is not called.
+5. Otherwise claim the check (update on the seen `checkedAt`), then `task_get` each pending id. Done tasks move to `collected`; failed ones are dropped; tasks still pending after 30 min of the stage are dropped. When none is pending:
+   - SERP: rank the competitors; none → empty snapshot, job deleted. Else post one ads task per competitor and move to `ADS`.
+   - ADS: dedupe and sort, write the snapshot (other keys dropped), delete the job: `ready`.
+   - Every task of the stage failed: `FAILED`.
+6. A `FAILED` job under 1h old: `failed`, nothing is reposted. That caps what a broken lookup costs.
 
 Errors map through the existing Composio error classes (`ComposioConfigError` → 503 "not configured", `ComposioApiError`/`ComposioToolError` → 502 with a safe message).
 
@@ -98,5 +113,6 @@ Plain branches, each based on the one below. Draft PRs. Before every PR: `code-r
 | 10 | `ads/10-web-campaigns` | Web | Campaign list, pause/resume, budget |
 | 11 | `ads/11-web-campaign-create` | Web | New campaign sheet |
 | 12 | `ads/12-web-market` | Web | Market profile, trending keywords, ads gallery |
+| 13 | `ads/13-core-market-ads-async` | Core | Market ads as a queued DataForSEO job polled by the page |
 
 Ops (no PR): Google Ads developer token + Composio `googleads` auth config; Meta app (ads_read, ads_management, App Review, Business Verification) + Composio `metaads` auth config; DataForSEO account + Composio platform connection.
