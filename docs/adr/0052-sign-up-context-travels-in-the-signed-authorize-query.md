@@ -14,5 +14,16 @@ A first-party client such as CMO needs to hand values to the account it sends so
 
 - Entries are open: any key matching `^[a-z][a-z0-9_]{0,63}$`, at most 10 per sign-up, values at most 2,048 characters. A malformed parameter or entry is dropped and never blocks a sign-up.
 - Every account created after this ships gets a context, an origin-only one when no entries came. A client without `signUpOrigin` records `unknown`. A sign-up outside an OAuth request records `sokosumi`. Accounts created earlier have none, and none is backfilled.
+- Every first-party client row needs `signUpOrigin` in each environment where it is registered: `cmo` for CMO, `cli` for the Sokosumi CLI, `mac` for the Mac app. A new first-party client gets its own value, so an iPhone app gets its own client with `ios` instead of reusing the Mac one. A preview database forks mainnet, so previews created afterwards inherit mainnet's value; an existing preview database needs its own update. Each sign-up row keeps the request's `client_id` (internal, never returned), so after setting the value an operator moves that client's earlier `unknown` rows to it. This one-time correction is the only change to a context after it is written:
+
+  ```sql
+  UPDATE "oauthClient" SET "signUpOrigin" = 'cmo' WHERE "clientId" = '<client id>';
+
+  UPDATE "sign_up_context" AS s SET "origin" = c."signUpOrigin"
+  FROM "oauthClient" AS c
+  WHERE s."origin" = 'unknown' AND s."clientId" = c."clientId"
+    AND c."signUpOrigin" IS NOT NULL;
+  ```
+
 - The person, through any client acting for them, and admins can read the context. Core's bearer context does not keep the calling client, so restricting reads to the origin would need new auth work to protect values the person already had in their own address bar.
 - Sokosumi's own `/signup` page does not accept entries yet, since outside an OAuth request there is no signed query to carry them.
