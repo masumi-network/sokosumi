@@ -5143,6 +5143,23 @@ export type SignUpConversionRequest = {
     utmAttribution?: UtmAttributionRequest;
 };
 
+export type SignUpContext = {
+    /**
+     * The product the account was created through: `sokosumi`, a first-party client's sign-up origin such as `cmo`, or `unknown` for a client without one.
+     */
+    origin: string;
+    /**
+     * The values the sign-up origin handed over, as untrusted text, numbers or booleans.
+     */
+    context: {
+        [key: string]: string | number | boolean;
+    };
+    /**
+     * When the sign-up was recorded
+     */
+    createdAt: Date;
+};
+
 export type CoworkerWorkspaceAccess = {
     id: string;
     coworkerId: string;
@@ -33780,6 +33797,84 @@ export type PostUsersByIdSignUpConversionResponses = {
 };
 
 export type PostUsersByIdSignUpConversionResponse = PostUsersByIdSignUpConversionResponses[keyof PostUsersByIdSignUpConversionResponses];
+
+export type GetUsersByIdSignUpData = {
+    body?: never;
+    path: {
+        /**
+         * Pass the literal `me` for the authenticated effective user (session user, or actor with `X-Context-User-Id`), or a concrete user id the caller is allowed to resolve. Which actors may call a given subroute is documented on that operation.
+         */
+        id: string;
+    };
+    query?: never;
+    url: '/users/{id}/sign-up';
+};
+
+export type GetUsersByIdSignUpErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found - User or sign-up not found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpError = GetUsersByIdSignUpErrors[keyof GetUsersByIdSignUpErrors];
+
+export type GetUsersByIdSignUpResponses = {
+    /**
+     * The user's sign-up
+     */
+    200: {
+        data: SignUpContext;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            pagination?: PaginationMetadata;
+        };
+    };
+};
+
+export type GetUsersByIdSignUpResponse = GetUsersByIdSignUpResponses[keyof GetUsersByIdSignUpResponses];
 
 export type GetUsersByIdCoworkerAccessData = {
     body?: never;
