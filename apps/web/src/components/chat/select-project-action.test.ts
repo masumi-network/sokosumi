@@ -10,8 +10,11 @@ const { read, getMessage, send, start, session, getTurn, getWorkspaces } =
     getTurn: vi.fn(),
     getWorkspaces: vi.fn(),
   }));
-vi.mock("@/lib/services/chat-result-preview.service", () => ({
-  chatResultPreviewService: { forMessage: read, forTurn: read },
+vi.mock("@/lib/clients/core.client", () => ({
+  coreClientNoRedirect: {
+    getChatRoomMessageResults: read,
+    getMySokoBotTurnResults: read,
+  },
 }));
 vi.mock("@/lib/services/chat-room.service", () => ({
   chatRoomService: { getMessage },
@@ -52,14 +55,16 @@ describe("chat project selection", () => {
     getWorkspaces.mockResolvedValue({
       workspaces: [{ id: "workspace", organizationId: null }],
     });
-    read.mockResolvedValue([
-      {
-        id,
-        state: "available",
-        kind: "project_selection",
-        projectOptions: [{ id, name: "Books" }],
-      },
-    ]);
+    read.mockResolvedValue({
+      data: [
+        {
+          id,
+          state: "available",
+          kind: "project_selection",
+          projectOptions: [{ id, name: "Books" }],
+        },
+      ],
+    });
     getMessage.mockResolvedValue({
       parentMessageId: "thread",
       sender: { type: "sokoBot", sokoBot: { id: "bot" } },
@@ -106,7 +111,7 @@ describe("chat project selection", () => {
       },
     ],
   ])("rejects revoked, removed and non-selector choices", async (result) => {
-    read.mockResolvedValue(result);
+    read.mockResolvedValue({ data: result });
     expect((await selectChatProjectAction(input)).ok).toBe(false);
     expect(send).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
