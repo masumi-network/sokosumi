@@ -1,5 +1,5 @@
--- CMO.xyz: Cuso is a Soko Bot pinned to one Project in the owner's own
--- workspace, beside their personal assistant.
+-- CMO.xyz: Cuso is a Soko Bot pinned to one Project in the Workspace the
+-- person chose (ADR 0053), beside any personal assistant there.
 ALTER TABLE "soko_bot" ADD COLUMN "projectId" UUID;
 ALTER TABLE "soko_bot" ADD CONSTRAINT "soko_bot_projectId_fkey" FOREIGN KEY ("projectId") REFERENCES "project"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
