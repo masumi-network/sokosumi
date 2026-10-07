@@ -78,8 +78,18 @@ function headersFrom(message: IncomingMessage): Headers {
 
 const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
 
+/**
+ * Sent when the caller passes no `User-Agent`. `node:http` sends none (unlike
+ * global `fetch`, which sends `node`), and some vendors reject requests that
+ * have no User-Agent.
+ */
+const DEFAULT_USER_AGENT = "sokosumi-core";
+
 function buildRequestHeaders(init: SsrfSafeFetchInit): Record<string, string> {
   const headers = { ...init.headers };
+  if (!Object.keys(headers).some((key) => key.toLowerCase() === "user-agent")) {
+    headers["User-Agent"] = DEFAULT_USER_AGENT;
+  }
   if (
     init.body !== undefined &&
     !Object.keys(headers).some((key) => key.toLowerCase() === "content-length")
