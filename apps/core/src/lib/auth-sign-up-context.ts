@@ -1,5 +1,6 @@
 import { hasRequestState } from "@better-auth/core/context";
 import { getOAuthProviderState } from "@better-auth/oauth-provider";
+import { getOAuthState } from "better-auth/api";
 
 import prisma from "@/lib/db/prisma";
 import { tryUseLogger } from "@/lib/evlog";
@@ -20,14 +21,18 @@ const UNKNOWN_ORIGIN = "unknown";
 /**
  * The authorize query of the OAuth request this sign-up came through, or
  * null outside one. Email code and password sign-ups carry it as the signed
- * `oauth_query`, which the OAuth provider keeps in its per-request state.
+ * `oauth_query`, which the OAuth provider keeps in its per-request state. A
+ * social sign-up carries it through the provider's callback (and the preview
+ * OAuth proxy) in the OAuth state's server context.
  */
 async function readOAuthSignUpRequest(): Promise<URLSearchParams | null> {
   if (!(await hasRequestState())) {
     return null;
   }
-  const query = (await getOAuthProviderState())?.query;
-  return query ? new URLSearchParams(query) : null;
+  const query =
+    (await getOAuthProviderState())?.query ??
+    (await getOAuthState())?.serverContext?.query;
+  return typeof query === "string" && query ? new URLSearchParams(query) : null;
 }
 
 async function originOf(clientId: string): Promise<string> {
