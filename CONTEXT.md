@@ -252,6 +252,18 @@ _Avoid_: Shared login, SSO (when meaning a shared session), CMO sign-up
 A product run by Sokosumi itself, such as CMO or the Sokosumi Apple app, that uses Sign in with Sokosumi. A person is never asked to authorize it.
 _Avoid_: Trusted client
 
+**Sign-up attribution**:
+Where a person came from before creating their Sokosumi account: the campaign, referrer and page that brought them. Recorded once per account and read only by people, never to change product behavior.
+_Avoid_: Sign-up metadata, UTM data (except for the utm_* values themselves), referral source
+
+**Sign-up origin**:
+The product a person created their Sokosumi account through: Sokosumi itself or a first-party client such as CMO. Every account has exactly one, and Sokosumi decides it, never the link the person followed.
+_Avoid_: Source (that is the UTM source), referrer, entry product
+
+**Sign-up context**:
+The named values the sign-up origin handed over when the account was created, each a text, number or yes/no, such as CMO's `url` of `nmkr.io`. Kept on the account unchanged; only the person and admins read it.
+_Avoid_: Sign-up metadata, sign-up intent, sign-up data, sign-up parameters
+
 **Impersonation**:
 A platform admin acting as a non-admin user in a full one-hour session, started from the admin user overview with a required reason. Badged by a persistent "Acting as {name} ({email})" banner with an Exit control on every app page; every start is audit-logged with actor, target, and reason, and every stop with actor and target (stopping takes no reason by design).
 _Avoid_: Login as, switch user, mask
