@@ -236,7 +236,7 @@ Keep web on the Core DTO boundary (convention / review — not a separate CI gre
 
 - **Never** import `@sokosumi/database` from web (including `package.json` dependencies).
 - **Never** import domain enum **runtime const maps** from `@sokosumi/utils` — use `@sokosumi/core-client`. Forbidden names include: `TaskStatus`, `SokosumiJobStatus`, `JobType`, `AgentJobStatus`, `OnChainJobStatus`, `MemberRole`, `InvitationStatus`, `BlobStatus`, `NoticeKind`, `NotificationKind`, `Channel`.
-- **Allowed** from utils: Masumi protocol enums (`NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus`) and the approved pure helpers listed under [Core DTO boundary](#core-dto-boundary).
+- **Allowed** from utils: the approved pure helpers listed under [Core DTO boundary](#core-dto-boundary).
 - **Allowlist:** `src/lib/clients/__tests__/core-enums-drift.test.ts` may import `SokosumiJobStatus` from `@sokosumi/utils` only (parity guard against the shared Core/DB map).
 - After Core client regen, run `pnpm --filter web typecheck` (CI `typecheck` also covers this).
 
@@ -254,13 +254,12 @@ Generated Core `/v1` types are the source of truth for **entity** data web shows
 
 | Category | Examples | Canonical home | Rule |
 | -------- | -------- | -------------- | ---- |
-| Masumi / payment protocol | `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` | `@sokosumi/utils` (`masumi-protocol.ts`; used when bridging Masumi purchaser / payment responses; the state mapping itself lives in Core `helpers/purchase.ts`) | Payment-protocol state machine values, not `/v1` display DTOs. When the UI needs on-chain outcome, use Core job fields (`OnChainJobStatus`, `jobStatusSettled`, …). Do not invent Core REST DTOs that mirror Masumi purchaser `NextAction` shapes. |
 | Stable API error kinds | `CORE_API_ERROR_KINDS`, `CoreApiErrorKind` | `@sokosumi/utils` (`packages/utils/src/core-api-error-kind.ts`) | Shared Core↔web error-envelope contract (`kind` on `CoreApiRequestError`). Match on these constants, never on human-readable `message`. Not an entity schema; keep as a shared const map. |
 | UI-only display values | `expired` invitation status | Web: `InvitationDisplayStatus` in `src/lib/constants/invitation-display-status.ts` | Core/OpenAPI `InvitationStatus` is **DB-persisted only** (`pending` / `accepted` / `rejected` / `canceled`). `EXPIRED` is derived in the UI (pending + past expiry). Never add `EXPIRED` to the Core enum or OpenAPI schema. Use `InvitationDisplayStatus` for app UI. |
 | Better Auth session shapes | `Session`, `SessionUser`, `SessionRecord`, `Account` | `@sokosumi/utils` | Auth `/auth` protocol JSON, **not** `/v1` entity DTOs. Details in [Better Auth session types vs Core DTOs](#better-auth-session-types-vs-core-dtos) (SOK-593 / phase 5). |
 | Localized view models | `TaskWithCoworker` | Feature folders next to UI | Thin UI joins only. Details in [View models vs Core DTOs](#view-models-vs-core-dtos). |
 
-**Decision test:** If a value is (a) Masumi payment-protocol state, (b) a stable error `kind`, (c) UI-derived display state, (d) Better Auth `/auth` shape, or (e) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
+**Decision test:** If a value is (a) a stable error `kind`, (b) UI-derived display state, (c) Better Auth `/auth` shape, or (d) a feature-local view model — keep it out of Core REST entity DTOs. If more than one surface needs a **domain entity** field, push it to Core OpenAPI instead.
 
 #### Approved `@sokosumi/utils` imports for web
 
@@ -276,8 +275,7 @@ Import **pure helpers** and the **documented exceptions** above from `@sokosumi/
 8. **Task pure helpers** (status **logic**, not enum maps) — `userTaskStatusTransitionRequiresComment`, `isAgentOnlyTaskStatus`, `isTaskArchivableStatus`, `isTaskEditableStatus`, archive/editable status helpers
 9. **Uploads & org logo** — user-upload content-type/path helpers, `ORGANIZATION_LOGO_*` constants
 10. **Realtime / chat helpers** — Ably channel name builders, `isChatUiProviderReasoningPartType`, OpenRouter react-envelope helpers
-11. **Masumi payment-protocol bridges** — `NextJobAction`, `NextJobActionErrorType`, `OnChainTransactionStatus` **only** when transforming Masumi purchaser/payment responses (not as stand-ins for Core job DTOs)
-12. **Other pure helpers** — user-name helpers, design-md attachment helpers, webhook helpers when needed
+11. **Other pure helpers** — user-name helpers, design-md attachment helpers, webhook helpers when needed
 
 **Do not import from `@sokosumi/utils` in app code** (use generated Core instead):
 
