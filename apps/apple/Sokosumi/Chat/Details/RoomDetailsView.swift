@@ -75,21 +75,49 @@ struct RoomDetailsView: View {
             Text("Group", tableName: groupNameTable, comment: "Members inspector section for a group Direct's name.")
           }
         }
-        let guests = RoomRoster.guests(in: room)
+        // Row 31b2: read state from the same receipts as Seen by, so a live `chat_room_read` reorders the list.
+        let roster = RoomRoster.groups(in: room, currentUserId: workspaces.currentUserId, receipts: workspaces.readReceipts(for: room))
         Section {
-          let members = RoomRoster.members(in: room)
           // Web's roster says so only when it lists nobody at all, Guests included.
-          if members.isEmpty, guests.isEmpty {
+          if roster.isEmpty {
             Text("No members to show.").foregroundStyle(.secondary)
           }
-          ForEach(members) { member in
+          ForEach(roster.people) { member in
             managedRow(member)
           }
+          if !roster.neverRead.isEmpty {
+            // A division inside the people, not a third kind of member: a lighter mark than the headings.
+            RosterHeading(title: "Not read yet", count: roster.neverRead.count)
+              .font(.caption2.weight(.medium)).foregroundStyle(.secondary)
+              .padding(.top, 4)
+            ForEach(roster.neverRead) { member in
+              managedRow(member)
+            }
+          }
+        } header: {
+          if roster.showsHeadings, roster.peopleCount > 0 {
+            RosterHeading(title: "People", count: roster.peopleCount)
+          }
         }
-        if !guests.isEmpty {
-          Section("Guests") {
-            ForEach(guests) { guest in
+        if !roster.guests.isEmpty {
+          Section {
+            ForEach(roster.guests) { guest in
               managedRow(guest)
+            }
+          } header: {
+            if roster.showsHeadings {
+              RosterHeading(title: "Guests", count: roster.guests.count)
+            }
+          }
+        }
+        if !roster.agents.isEmpty {
+          Section {
+            ForEach(roster.agents) { agent in
+              managedRow(agent)
+            }
+          } header: {
+            if roster.showsHeadings {
+              RosterHeading(title: "Coworkers", count: roster.agents.count)
             }
           }
         }
@@ -139,17 +167,7 @@ struct RoomDetailsView: View {
       .buttonStyle(.plain).help("Show participant details")
       .accessibilityLabel("Show details for \(member.profile.name)")
       .accessibilityValue(presenceLabel(presence))
-      VStack(alignment: .leading, spacing: 2) {
-        HStack(spacing: 6) {
-          Text(member.profile.name).lineLimit(1)
-          if let badge = roleBadge(member.profile) {
-            Text(badge).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
-          }
-        }
-        if let subtitle = member.subtitle, !subtitle.isEmpty {
-          CopyTextButton(text: subtitle).font(.caption).foregroundStyle(.secondary)
-        }
-      }
+      memberText(member)
       Spacer(minLength: 0)
       if workspaces.canOpenDirect(member.id) {
         Button {
@@ -178,6 +196,24 @@ struct RoomDetailsView: View {
         .accessibilityLabel("Message \(member.profile.name)")
       }
     }.padding(.vertical, 2)
+  }
+
+  /// The name (with a Soko Bot's badge), the email or caption to copy, and when a reader last read the room.
+  private func memberText(_ member: RoomRosterMember) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      HStack(spacing: 6) {
+        Text(member.profile.name).lineLimit(1)
+        if let badge = roleBadge(member.profile) {
+          Text(badge).font(.caption).foregroundStyle(.secondary).lineLimit(1).layoutPriority(1)
+        }
+      }
+      if let subtitle = member.subtitle, !subtitle.isEmpty {
+        CopyTextButton(text: subtitle).font(.caption).foregroundStyle(.secondary)
+      }
+      if let lastReadAt = member.lastReadAt {
+        RosterReadTime(lastReadAt: lastReadAt)
+      }
+    }
   }
 
   /// Remove sits in the row's context menu on macOS and iOS, and in a trailing swipe on iOS. A row Core would refuse
@@ -264,12 +300,45 @@ struct RoomDetailsView: View {
     noticeSerial += 1
   }
 
-  /// Web's roster badges beside the name; humans carry none.
+  /// Web's roster badge beside the name: only a Soko Bot's, which tells it apart from a Coworker in the same section.
+  /// The Coworkers heading names Coworkers once instead of a word on every row; people carry none.
   private func roleBadge(_ profile: ChatParticipantProfile) -> String? {
     switch profile.recipient {
-    case .human: nil
-    case .coworker: "Coworker"
+    case .human, .coworker: nil
     case .sokoBot: "Personal assistant"
+    }
+  }
+}
+
+/// A roster heading and its count (web `RoomRosterPanel`'s section headings): "People 4", "Not read yet 2".
+private struct RosterHeading: View {
+  let title: LocalizedStringKey
+  let count: Int
+
+  var body: some View {
+    HStack(alignment: .firstTextBaseline, spacing: 6) {
+      Text(title)
+      Text(count, format: .number).monospacedDigit()
+    }
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(.isHeader)
+  }
+}
+
+/// When a member last read the room (web `RosterMemberReadState`), under the name and email: the interval alone in
+/// the row, the sentence for the tooltip and for anyone listening, since "2 hours ago" out of the column says
+/// nothing about what happened then. Refreshed each minute.
+private struct RosterReadTime: View {
+  let lastReadAt: Date
+  @Environment(\.locale) private var locale
+
+  var body: some View {
+    TimelineView(.periodic(from: .now, by: 60)) { context in
+      let age = relativeAgeLabel(since: lastReadAt, now: context.date, unitsStyle: .full, locale: locale)
+      Text(age)
+        .font(.caption).foregroundStyle(.secondary).lineLimit(1)
+        .help("Last read \(age)")
+        .accessibilityLabel("Last read \(age)")
     }
   }
 }

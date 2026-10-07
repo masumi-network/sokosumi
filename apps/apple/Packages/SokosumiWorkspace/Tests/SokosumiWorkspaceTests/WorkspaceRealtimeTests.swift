@@ -1396,6 +1396,38 @@ struct WorkspaceRealtimeTests {
     #expect(state.roomReadReceipts.readers.map(\.participant.id) == ["pat"])
     state.reset()
   }
+
+  /// Row 31b2: the Members inspector reads its room through the same receipts, so a live `chat_room_read` moves a
+  /// member out of "Not read yet" and up the list; another room's roster takes no live mark from the open one.
+  @Test func membersInspectorFollowsTheOpenRoomsReadEvents() async throws {
+    let fake = FakeRealtimeConnection()
+    let (state, auth, _) = try realtimeState([
+      (200, workspacesBody()), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA, roomB], userMembers: seenByMembers)),
+      (200, realtimePageBody(messages: [])), (200, realtimeReadBody(id: roomA))
+    ])
+    state.realtimeConnectionFactory = { fake }
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let open = try #require(state.rooms.first { $0.id == roomA })
+    let other = try #require(state.rooms.first { $0.id == roomB })
+    func roster(_ room: Components.Schemas.ChatRoom) -> RoomRosterGroups {
+      RoomRoster.groups(in: room, currentUserId: state.currentUserId, receipts: state.readReceipts(for: room))
+    }
+
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("pat")])
+    #expect(roster(open).neverRead.map(\.id) == [.human("kim")])
+
+    fake.deliver(.roomRead(.init(roomId: roomA, userId: "kim", lastReadAt: readAt(minutes: 10))))
+    for _ in 0 ..< 1000 where roster(open).neverRead.count == 1 {
+      await Task.yield()
+    }
+    #expect(roster(open).people.map(\.id) == [.human("user_1"), .human("kim"), .human("pat")])
+    #expect(roster(open).people.map(\.lastReadAt) == [nil, readAt(minutes: 10), readAt(minutes: 5)])
+    #expect(roster(open).neverRead.isEmpty)
+    #expect(roster(other).neverRead.map(\.id) == [.human("kim")])
+    state.reset()
+  }
 }
 
 private let typingOrigin = Date(timeIntervalSince1970: 1_800_000_000)
