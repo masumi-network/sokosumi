@@ -82,7 +82,7 @@ function oauthClientRow(clientId: string, signUpOrigin?: string): Row {
     redirectUris: [CLIENT],
     createdAt: new Date(),
     updatedAt: new Date(),
-    ...(signUpOrigin ? { signUpOrigin } : {}),
+    ...(signUpOrigin === undefined ? {} : { signUpOrigin }),
   };
 }
 
@@ -97,7 +97,11 @@ function createAuth(seedUsers: Row[] = []) {
     oauthConsent: [],
     oauthAccessToken: [],
     oauthRefreshToken: [],
-    oauthClient: [oauthClientRow("cmo", "cmo"), oauthClientRow("unset")],
+    oauthClient: [
+      oauthClientRow("cmo", "cmo"),
+      oauthClientRow("unset"),
+      oauthClientRow("blank", ""),
+    ],
   };
   const auth = betterAuth({
     baseURL: CORE,
@@ -239,6 +243,15 @@ describe("recording the sign-up origin", () => {
     await auth.signInWithCode({ oauthQuery });
 
     expectRecorded("unknown", "unset");
+  });
+
+  it("records unknown for a client with a blank sign-up origin", async () => {
+    const auth = createAuth();
+    const oauthQuery = await auth.authorize("blank");
+
+    await auth.signInWithCode({ oauthQuery });
+
+    expectRecorded("unknown", "blank");
   });
 
   it("records sokosumi for a sign-up outside an OAuth request", async () => {

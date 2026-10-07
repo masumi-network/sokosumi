@@ -12,7 +12,7 @@ import { parseSignUpContextEntries } from "./auth-sign-up-context-entries";
 
 /** Origin of a sign-up outside an OAuth request. */
 const SOKOSUMI_ORIGIN = "sokosumi";
-/** Origin of a sign-up through a client without a `signUpOrigin`. */
+/** Origin of a sign-up through a client without a (non-blank) `signUpOrigin`. */
 const UNKNOWN_ORIGIN = "unknown";
 
 async function originOf(clientId: string): Promise<string> {
@@ -20,7 +20,7 @@ async function originOf(clientId: string): Promise<string> {
     where: { clientId },
     select: { signUpOrigin: true },
   });
-  return client?.signUpOrigin ?? UNKNOWN_ORIGIN;
+  return client?.signUpOrigin || UNKNOWN_ORIGIN;
 }
 
 async function writeSignUpContext(userId: string): Promise<void> {
