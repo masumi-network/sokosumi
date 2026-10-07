@@ -15,4 +15,4 @@ Hiring Cuso puts Cuso, his marketing Project and the Brand Brain into the person
 - The business name is the organization's name, or the website's host for a personal workspace.
 - Cuso stays one per person. Two members of one organization each hire their own Cuso there, with two Brand Brains and two daily runs; sharing one Cuso per Workspace changes chat ownership and autonomy and is a separate decision.
 - Any member may hire Cuso into an organization, and he runs on the organization's plan and credits; the start form says so before the person starts. An existing user whose preferred Workspace is a team organization therefore hires into that team without a picker; a picker follows if people ask for one.
-- Links from CMO into Sokosumi (connecting a Social channel) name the organization, so Web opens Cuso's Project in his Workspace rather than whichever one is active there.
+- Links from CMO into Sokosumi (connecting a Social channel) open in whichever Workspace is active in Web, because Web has no link that selects an organization. For a Cuso in an organization the person may first have to switch Web to it; a link that selects the organization is a follow-up.
