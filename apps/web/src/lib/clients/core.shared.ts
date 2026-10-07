@@ -602,6 +602,12 @@ function transformTaskResponseEnvelope(data: any) {
   return data;
 }
 
+/** A `.catch` handler: Core's 404 becomes null; any other error propagates. */
+function nullWhenNotFound(error: unknown): null {
+  if (error instanceof CoreApiRequestError && error.status === 404) return null;
+  throw error;
+}
+
 export function createCoreClient(getClient: GetCoreClient) {
   async function getChatRooms(query?: GetChatsRoomsData["query"]) {
     return executeCoreOperation(
@@ -1822,20 +1828,13 @@ export function createCoreClient(getClient: GetCoreClient) {
    * user matches (Core responds 404).
    */
   async function getUserById(userId: string) {
-    try {
-      const result = await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetUsersById({ client, path: { id: userId }, cache: "no-store" }),
-        "Failed to fetch user",
-      );
-      return result.data;
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersById({ client, path: { id: userId }, cache: "no-store" }),
+      "Failed to fetch user",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
   }
 
   /**
@@ -1844,24 +1843,17 @@ export function createCoreClient(getClient: GetCoreClient) {
    * created before sign-ups were recorded).
    */
   async function getUserSignUp(userId: string) {
-    try {
-      const result = await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetUsersByIdSignUp({
-            client,
-            path: { id: userId },
-            cache: "no-store",
-          }),
-        "Failed to fetch user sign-up",
-      );
-      return result.data;
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    const result = await executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdSignUp({
+          client,
+          path: { id: userId },
+          cache: "no-store",
+        }),
+      "Failed to fetch user sign-up",
+    ).catch(nullWhenNotFound);
+    return result ? result.data : null;
   }
 
   async function startAdminImpersonation(body: {
@@ -4632,23 +4624,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * the user is not a member (Core responds 404 in that case).
    */
   async function getMyMemberInOrganization(organizationId: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetUsersByIdOrganizationsByOrganizationIdMember({
-            client,
-            path: { id: CURRENT_USER_PATH_ID, organizationId },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization membership",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetUsersByIdOrganizationsByOrganizationIdMember({
+          client,
+          path: { id: CURRENT_USER_PATH_ID, organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization membership",
+    ).catch(nullWhenNotFound);
   }
 
   /**
@@ -4899,23 +4884,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * (Core responds 404).
    */
   async function getOrganizationById(organizationId: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetOrganizationsById({
-            client,
-            path: { id: organizationId },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationsById({
+          client,
+          path: { id: organizationId },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    ).catch(nullWhenNotFound);
   }
 
   /**
@@ -4924,23 +4902,16 @@ export function createCoreClient(getClient: GetCoreClient) {
    * A 403 (the caller is not a member) propagates as CoreApiRequestError.
    */
   async function getOrganizationBySlug(slug: string) {
-    try {
-      return await executeCoreOperation(
-        getClient,
-        (client) =>
-          coreGetOrganizationBySlug({
-            client,
-            path: { slug },
-            cache: "no-store",
-          }),
-        "Failed to fetch organization",
-      );
-    } catch (error) {
-      if (error instanceof CoreApiRequestError && error.status === 404) {
-        return null;
-      }
-      throw error;
-    }
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetOrganizationBySlug({
+          client,
+          path: { slug },
+          cache: "no-store",
+        }),
+      "Failed to fetch organization",
+    ).catch(nullWhenNotFound);
   }
 
   async function getMySokoBot() {
