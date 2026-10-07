@@ -45,28 +45,6 @@ public struct ThreadReplyBar: Equatable, Sendable {
   }
 }
 
-/// Web's `format.relativeTime(date, { now, style: "narrow" })` (next-intl): the unit is the largest that
-/// fits — seconds under a minute, then minutes, hours, days, weeks, months (a twelfth of a year), years —
-/// and the value is rounded as JavaScript's `Math.round` does. Seconds may read "now"; other units are
-/// always numeric, so a day ago reads "1d ago", not "yesterday".
-public func threadReplyAgeLabel(since date: Date, now: Date, locale: Locale = .current) -> String {
-  let seconds = date.timeIntervalSince(now)
-  let day = 86400.0
-  let units: [(Calendar.Component, TimeInterval)] = [
-    (.second, 1), (.minute, 60), (.hour, 3600), (.day, day), (.weekOfMonth, 7 * day), (.month, 365 * day / 12), (.year, 365 * day)
-  ]
-  let limits: [TimeInterval] = [60, 3600, day, 7 * day, 365 * day / 12, 365 * day]
-  let index = limits.firstIndex { abs(seconds) < $0 } ?? units.count - 1
-  let (component, length) = units[index]
-  let formatter = RelativeDateTimeFormatter()
-  formatter.locale = locale
-  formatter.unitsStyle = .abbreviated
-  formatter.dateTimeStyle = component == .second ? .named : .numeric
-  var components = DateComponents()
-  components.setValue(Int((seconds / length + 0.5).rounded(.down)), for: component)
-  return formatter.localizedString(from: components)
-}
-
 /// Web's `applyThreadUnreadReplyCounts`: once the room's unread-thread read has answered, it owns every
 /// reply bar's count, and a parent absent from it has none.
 public func applyThreadUnreadReplyCounts(

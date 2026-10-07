@@ -28,7 +28,7 @@
       }
 
       /// `content` in a window of `size`, drawn after its layout settles; the window background shows through nowhere.
-      private static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> Drawn {
+      static func render(_ content: some View, size: NSSize, dark: Bool, settle: Int = 10) async throws -> Drawn {
         let host = NSHostingView(rootView: content
           .frame(width: size.width, height: size.height)
           .background(.background)
@@ -51,7 +51,7 @@
       }
 
       /// Light beside dark, recorded as one attachment; the words each appearance exposes.
-      private static func lightAndDark(named name: String, _ draw: (Bool) async throws -> Drawn) async throws -> [[String]] {
+      static func lightAndDark(named name: String, _ draw: (Bool) async throws -> Drawn) async throws -> [[String]] {
         var columns: [[CGImage]] = []
         var texts: [[String]] = []
         for dark in [false, true] {
@@ -294,7 +294,7 @@
   }
 
   /// What a hosted view drew, and the words it exposes.
-  private struct Drawn {
+  struct Drawn {
     let bitmap: NSBitmapImageRep
     let texts: [String]
   }

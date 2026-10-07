@@ -101,7 +101,7 @@
           #expect(texts.contains { $0.contains(label) }, "\(label) in \(texts)")
         }
         // The age follows the environment locale, as the app's other relative times do; the fixture pins English.
-        let age = threadReplyAgeLabel(since: Date().addingTimeInterval(-240), now: Date(), locale: Self.locale)
+        let age = relativeAgeLabel(since: Date().addingTimeInterval(-240), now: Date(), unitsStyle: .abbreviated, locale: Self.locale)
         #expect(texts.count { $0.contains(age) } == 4, "Each bar ends with the last reply's age, \(age): \(texts)")
       }
 
