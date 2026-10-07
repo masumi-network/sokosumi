@@ -369,11 +369,12 @@ const LINK_ROUTES = { "/signin": signInLink, "/signup": signUpLink };
 async function followLink(
   jar: CookieJar,
   path: keyof typeof LINK_ROUTES,
+  query = "",
 ): Promise<Response> {
   // Better Auth's origin check needs a request object; the routes pass it
   // headers only, so a cross-site link without an Origin may start the flow.
   const response = await LINK_ROUTES[path](
-    new Request(`${jar.origin}${path}`, {
+    new Request(`${jar.origin}${path}${query}`, {
       headers: { cookie: jar.header(), "x-vercel-forwarded-for": jar.ip },
     }),
   );
@@ -456,11 +457,35 @@ describe("CMO auth handler", () => {
     expect(stateCookies[0]).not.toMatch(/domain=/i);
     const authorizeUrl = response.headers.get("location") ?? "";
     expect(new URL(authorizeUrl).searchParams.get("prompt")).toBe("create");
+    expect(new URL(authorizeUrl).searchParams.has("signup_context")).toBe(
+      false,
+    );
     await send(auth, jar, callbackPath(core.approve(authorizeUrl)));
     expect(await sessionUser(auth, jar)).toEqual({
       name: "Ada Lovelace",
       email: "ada@example.com",
     });
+  });
+
+  it("forwards a Create account link's query as the sign-up context", async () => {
+    const response = await followLink(
+      jar,
+      "/signup",
+      "?url=nmkr.io&ref=a&ref=b&seats=3",
+    );
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.get("prompt")).toBe("create");
+    expect(
+      JSON.parse(authorize.searchParams.get("signup_context") ?? ""),
+    ).toEqual({ url: "nmkr.io", ref: "a", seats: "3" });
+  });
+
+  it("forwards no sign-up context from a sign-in link", async () => {
+    const response = await followLink(jar, "/signin", "?url=nmkr.io");
+
+    const authorize = new URL(response.headers.get("location") ?? "");
+    expect(authorize.searchParams.has("signup_context")).toBe(false);
   });
 
   it.each([
