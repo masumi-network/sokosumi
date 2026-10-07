@@ -2,19 +2,25 @@ import type { AdMarketAd } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { AdsMarketAdPreview } from "./ads-market-ad-preview";
-import { AdsUpdated } from "./ads-updated";
+import { AdsUpdated, relativePast } from "./ads-updated";
 
 interface AdsMarketAdGridProps {
   ads: AdMarketAd[];
   fetchedAt: Date | null;
+  /** Shown on the muted line with when the ads were fetched: "Refreshing…". */
+  notice?: string;
 }
 
 /**
- * Recent ads of the market's biggest advertisers: one calm card each, in a
+ * Recent ads of the project's search competitors: one calm card each, in a
  * grid of 1, 2 or 3 columns. Only the preview is client code, to fall back
  * when its image fails to load.
  */
-export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
+export function AdsMarketAdGrid({
+  ads,
+  fetchedAt,
+  notice,
+}: AdsMarketAdGridProps) {
   const t = useTranslations("App.Ads.market.ads");
   const formatter = useFormatter();
 
@@ -22,7 +28,7 @@ export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
     [
       t(`format.${format}`),
       lastShown
-        ? t("lastShown", { time: formatter.relativeTime(lastShown) })
+        ? t("lastShown", { time: relativePast(formatter, lastShown) })
         : null,
     ]
       .filter(Boolean)
@@ -30,7 +36,7 @@ export function AdsMarketAdGrid({ ads, fetchedAt }: AdsMarketAdGridProps) {
 
   return (
     <div className="flex flex-col gap-4" data-testid="ads-market-ads">
-      {fetchedAt && <AdsUpdated at={fetchedAt} />}
+      <AdsUpdated at={fetchedAt} notice={notice} />
       <ul className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {ads.map((ad) => (
           <li

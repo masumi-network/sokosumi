@@ -2998,7 +2998,7 @@
       },
       "market": {
         "setupTitle": "Set up your market",
-        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your market is running.",
+        "setupBody": "Add the keywords your customers search for and where. Then you see what is trending and which ads your search competitors are running.",
         "edit": "Edit market",
         "editBody": "Trending keywords and ads follow these keywords, country and language.",
         "form": {
@@ -3043,7 +3043,7 @@
           "emptyBody": "Try other keywords or another country."
         },
         "ads": {
-          "title": "Ads in your market",
+          "title": "Ads from your search competitors",
           "previewAlt": "Ad by {advertiser}",
           "textAd": "Text ad",
           "noPreview": "No preview",
@@ -3055,8 +3055,14 @@
           },
           "lastShown": "Last shown {time}",
           "viewAd": "View ad",
-          "emptyTitle": "No ads found for these advertisers yet",
-          "emptyBody": "Ads from your market's biggest advertisers appear here once they run."
+          "emptyTitle": "No competitor ads found",
+          "emptyBody": "Ads from sites ranking for your keywords appear here once they run.",
+          "gatheringTitle": "Gathering ads from your search competitors",
+          "gatheringBody": "This takes a few minutes. You can leave this page.",
+          "refreshing": "Refreshing…",
+          "failedTitle": "Couldn't gather competitor ads",
+          "failedBody": "We'll try again within the hour.",
+          "failedNotice": "Couldn't refresh, we'll try again within the hour"
         },
         "errors": {
           "unavailable": "Market data isn't available yet",

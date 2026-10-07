@@ -13,6 +13,7 @@ import { AdsErrorState } from "./ads-error-state";
 import { type AdsLoad, settleAdsLoad } from "./ads-load-error";
 import { AdsMarketAdGrid } from "./ads-market-ad-grid";
 import { AdsMarketKeywordList } from "./ads-market-keyword-list";
+import { AdsMarketPoller } from "./ads-market-poller";
 import { AdsCardsSkeleton } from "./ads-skeleton";
 
 interface AdsMarketResultsProps {
@@ -98,7 +99,13 @@ export function AdsMarketKeywords({
   return <AdsMarketKeywordList {...result.data} />;
 }
 
-/** The ads as they load: the grid, or what to show instead. */
+/**
+ * The ads as they load: the grid, or what to show instead. Core gathers them
+ * in the background, so while it does the page asks again every 20 seconds and
+ * the previous ads, if any, stay in view, with one muted line saying so. A
+ * failed lookup keeps them too. Everything sits in one live region, so
+ * screen readers hear the line and the arrival of the ads.
+ */
 export function AdsMarketAds({
   result,
 }: {
@@ -116,15 +123,38 @@ export function AdsMarketAds({
       />
     );
   }
-  if (loaded.data.ads.length === 0) {
-    return (
-      <EmptyState
-        description={t("ads.emptyBody")}
-        title={t("ads.emptyTitle")}
-      />
-    );
-  }
+
+  const { status, ads, fetchedAt } = loaded.data;
+  const gathering = status === "gathering";
+  const notice = {
+    ready: undefined,
+    gathering: t("ads.refreshing"),
+    failed: t("ads.failedNotice"),
+  }[status];
+
   return (
-    <AdsMarketAdGrid ads={loaded.data.ads} fetchedAt={loaded.data.fetchedAt} />
+    <div aria-busy={gathering} aria-live="polite" data-testid="ads-market-live">
+      {gathering ? <AdsMarketPoller /> : null}
+      {ads.length > 0 ? (
+        <AdsMarketAdGrid ads={ads} fetchedAt={fetchedAt} notice={notice} />
+      ) : (
+        <AdsMarketNoAds status={status} />
+      )}
+    </div>
   );
+}
+
+function AdsMarketNoAds({
+  status,
+}: {
+  status: ListAdMarketAdsResponse["status"];
+}) {
+  const t = useTranslations("App.Ads.market.ads");
+  const copy = {
+    ready: { title: t("emptyTitle"), description: t("emptyBody") },
+    gathering: { title: t("gatheringTitle"), description: t("gatheringBody") },
+    failed: { title: t("failedTitle"), description: t("failedBody") },
+  }[status];
+
+  return <EmptyState {...copy} />;
 }
