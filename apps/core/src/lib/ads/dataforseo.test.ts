@@ -72,6 +72,9 @@ describe("fetchMarketKeywords", () => {
         },
       }),
     );
+    expect(m.executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ timeoutMs: 60_000 }),
+    );
     expect(m.deleteSession).toHaveBeenCalledWith(
       "sess_1",
       "delete platform DataForSEO session",
@@ -284,10 +287,17 @@ describe("fetchMarketAds", () => {
   const searchTask = (items: unknown[]) =>
     task([{ type: "ads_search", items }]);
 
+  /** The n-th advertisers call (one per keyword) answers with the n-th task. */
   function mockTools(advertisers: unknown, search?: unknown) {
+    let advertiserCall = 0;
     m.executeTool.mockImplementation(
-      async ({ toolSlug }: { toolSlug: string }) =>
-        toolSlug === ADVERTISERS ? advertisers : search,
+      async ({ toolSlug }: { toolSlug: string }) => {
+        if (toolSlug !== ADVERTISERS) return search;
+        const n = advertiserCall++;
+        const tasks = (advertisers as { tasks?: unknown[] } | undefined)?.tasks;
+        if (!tasks?.length) return advertisers;
+        return { ...(advertisers as object), tasks: [tasks[n % tasks.length]] };
+      },
     );
   }
   const callsOf = (slug: string) =>
@@ -305,7 +315,7 @@ describe("fetchMarketAds", () => {
   });
   afterEach(() => vi.useRealTimers());
 
-  it("runs both tools in one platform session: a task per keyword, then the top advertisers", async () => {
+  it("runs both tools in one platform session: a call per keyword, then the top advertisers", async () => {
     mockTools(
       advertiserTasks([advertiser("AR1", 5)], [advertiser("AR2", 9)]),
       searchTask([]),
@@ -320,13 +330,14 @@ describe("fetchMarketAds", () => {
         toolSlugs: [ADVERTISERS, ADS_SEARCH],
       }),
     );
-    expect(callsOf(ADVERTISERS)).toHaveLength(1);
-    expect(callsOf(ADVERTISERS)[0]?.[0].arguments).toEqual({
-      tasks: [
-        { keyword: "running shoes", location_code: 2840 },
-        { keyword: "trail", location_code: 2840 },
-      ],
-    });
+    // DataForSEO live endpoints take one task per request.
+    expect(callsOf(ADVERTISERS).map(([arg]) => arg.arguments)).toEqual([
+      { tasks: [{ keyword: "running shoes", location_code: 2840 }] },
+      { tasks: [{ keyword: "trail", location_code: 2840 }] },
+    ]);
+    for (const [arg] of m.executeTool.mock.calls) {
+      expect(arg.timeoutMs).toBe(60_000);
+    }
     expect(callsOf(ADS_SEARCH)[0]?.[0].arguments).toEqual({
       advertiser_ids: ["AR2", "AR1"],
       location_code: 2840,
@@ -344,9 +355,7 @@ describe("fetchMarketAds", () => {
       locationCode: 2840,
     });
     expect(
-      callsOf(ADVERTISERS)[0]?.[0].arguments.tasks.map(
-        (t: { keyword: string }) => t.keyword,
-      ),
+      callsOf(ADVERTISERS).map(([arg]) => arg.arguments.tasks[0].keyword),
     ).toEqual(["c%2B%2B", "50%25 off", "a&b é"]);
   });
 
