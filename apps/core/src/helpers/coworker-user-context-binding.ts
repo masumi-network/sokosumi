@@ -18,6 +18,27 @@ import {
 import { buildCoworkerSiblingTaskListFilter } from "./vendor-siblings";
 
 /**
+ * Baseline access: a non-DRAFT task the user owns in the workspace, assigned
+ * to this coworker or a same-vendor sibling.
+ */
+function baselineTaskWhere(
+  authContext: CoworkerAuthenticationContext,
+  userId: string,
+  workspaceId: string | { in: string[] },
+): Prisma.TaskWhereInput {
+  return {
+    ownerId: userId,
+    workspaceId,
+    archivedAt: null,
+    status: { not: TaskStatus.DRAFT },
+    ...buildCoworkerSiblingTaskListFilter({
+      coworkerId: authContext.coworkerId,
+      vendorId: authContext.vendorId,
+    }),
+  };
+}
+
+/**
  * Ensures a coworker may act as the given workspace user for user-scoped
  * operations (profile, credits, projects, orgs, …).
  *
@@ -64,16 +85,7 @@ export async function assertCoworkerUserContextBinding(
   }
 
   const baselineTask = await tx.task.findFirst({
-    where: {
-      ownerId: userContext.userId,
-      workspaceId: workspace.id,
-      archivedAt: null,
-      status: { not: TaskStatus.DRAFT },
-      ...buildCoworkerSiblingTaskListFilter({
-        coworkerId: authContext.coworkerId,
-        vendorId: authContext.vendorId,
-      }),
-    },
+    where: baselineTaskWhere(authContext, userContext.userId, workspace.id),
     select: { id: true },
   });
 
@@ -112,4 +124,62 @@ export async function requireAuthorizedUserContext(
   }
 
   return userContext;
+}
+
+/**
+ * The user's organizations, narrowed for a coworker to those whose workspace
+ * its vendor may act in, by the policy of
+ * {@link assertCoworkerUserContextBinding}: DENIED/REVOKED never, GRANTED
+ * always, else a baseline task. Binding to one workspace must not reveal the
+ * user's other organizations. Session users and Soko Bots keep every id.
+ */
+export async function filterAuthorizedOrganizationIds(
+  authContext: AuthenticationContext,
+  userId: string,
+  organizationIds: string[],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Set<string>> {
+  if (authContext.actor !== "coworker" || organizationIds.length === 0) {
+    return new Set(organizationIds);
+  }
+
+  const workspaces = await tx.workspace.findMany({
+    where: { organizationId: { in: organizationIds } },
+    select: { id: true, organizationId: true },
+  });
+  const workspaceIds = workspaces.map((workspace) => workspace.id);
+  const [grants, baselineTasks] = await Promise.all([
+    tx.vendorGrant.findMany({
+      where: {
+        vendorId: authContext.vendorId,
+        workspaceId: { in: workspaceIds },
+      },
+      select: { workspaceId: true, status: true },
+    }),
+    tx.task.findMany({
+      where: baselineTaskWhere(authContext, userId, { in: workspaceIds }),
+      select: { workspaceId: true },
+      distinct: ["workspaceId"],
+    }),
+  ]);
+
+  const grantStatusByWorkspace = new Map(
+    grants.map((grant) => [grant.workspaceId, grant.status]),
+  );
+  const baselineWorkspaceIds = new Set(
+    baselineTasks.map((task) => task.workspaceId),
+  );
+
+  const authorized = new Set<string>();
+  for (const workspace of workspaces) {
+    const status = grantStatusByWorkspace.get(workspace.id);
+    const mayAct =
+      status === VendorGrantStatus.GRANTED ||
+      ((status === undefined || !isGrantDeniedOrRevoked(status)) &&
+        baselineWorkspaceIds.has(workspace.id));
+    if (mayAct && workspace.organizationId) {
+      authorized.add(workspace.organizationId);
+    }
+  }
+  return authorized;
 }

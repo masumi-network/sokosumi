@@ -1129,7 +1129,7 @@ describe("authMiddleware", () => {
     }
 
     function requestWithToken() {
-      return createApp().request("http://localhost/", {
+      return createAppWithErrorHandler().request("http://localhost/", {
         headers: { authorization: "Bearer oauth_first_party" },
       });
     }
@@ -1181,14 +1181,14 @@ describe("authMiddleware", () => {
       expect(response.status).toBe(401);
     });
 
-    it("returns 403 for a token without sokosumi:api", async () => {
+    it("returns 403 insufficient_scope for a token without sokosumi:api", async () => {
       oauthAccessTokenFindUniqueMock.mockResolvedValue(
         firstPartyToken({ scopes: ["openid"] }),
       );
 
       const response = await requestWithToken();
 
-      expect(response.status).toBe(403);
+      await expectInsufficientScope(response);
     });
 
     it("returns 401 when the user is banned", async () => {

@@ -135,8 +135,13 @@ answers **403** (`agentUserRouteAllowlistMiddleware`).
 | --- | --- |
 | `GET /v1/users/{id}` | Profile |
 | `GET /v1/users/{id}/credits` | Credits for the context workspace |
-| `GET /v1/users/{id}/organizations` | The user's organizations |
-| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one organization |
+| `GET /v1/users/{id}/organizations` | The user's organizations whose workspace the vendor may act in |
+| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403** |
+
+"May act in" is the binding rule above: never on a **DENIED** or **REVOKED**
+grant, always on **GRANTED**, otherwise when a baseline task exists in that
+workspace. Binding to one workspace does not reveal the user's other
+organizations.
 
 **Workspace discovery goes through OAuth.** `GET /v1/users/{id}/workspaces`
 is not on the coworker list, and a coworker cannot bind to a user who has no
