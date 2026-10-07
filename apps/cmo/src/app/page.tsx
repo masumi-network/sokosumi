@@ -37,6 +37,9 @@ function isRefused(response: Response | undefined): boolean {
   return response?.status === 401 || response?.status === 403;
 }
 
+/** The sign-up origin Core records for an account created through CMO. */
+const CMO_SIGN_UP_ORIGIN = "cmo";
+
 /**
  * The website a CMO sign-up link carried (`/signup?url=`), to start the
  * organization step with. Only a nicety: without it the person types it.
@@ -56,7 +59,7 @@ async function signUpWebsite(
     return undefined;
   }
   const { origin, context } = data.data;
-  return origin === "cmo" && typeof context.url === "string"
+  return origin === CMO_SIGN_UP_ORIGIN && typeof context.url === "string"
     ? context.url
     : undefined;
 }

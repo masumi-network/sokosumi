@@ -1,4 +1,8 @@
-import { getUsersById, type User } from "@sokosumi/core-client";
+import {
+  getUsersById,
+  type SignUpContext,
+  type User,
+} from "@sokosumi/core-client";
 import { type Client, createClient } from "@sokosumi/core-client/client";
 import { joinFirstAndLastName, OAUTH_PROVIDER_SCOPES } from "@sokosumi/utils";
 import type { AuthContext, BetterAuthPlugin } from "better-auth";
@@ -32,7 +36,7 @@ const SOKOSUMI_OAUTH_PROVIDER_ID = "sokosumi";
 export interface SokosumiSignInOptions {
   createAccount: boolean;
   /** Values a new account keeps as its sign-up context (ADR 0052). */
-  signUpContext?: Record<string, string | number | boolean>;
+  signUpContext?: SignUpContext["context"];
 }
 
 /**
