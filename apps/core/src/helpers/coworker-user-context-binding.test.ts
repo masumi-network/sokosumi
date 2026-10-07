@@ -215,7 +215,7 @@ describe("assertCoworkerUserContextBinding", () => {
     );
   });
 
-  it("404s when personal workspace is missing", async () => {
+  it("asks for X-Context-Organization-Id when the context user has no personal workspace", async () => {
     const { PersonalWorkspaceMissingError } = await import(
       "@sokosumi/database/repositories"
     );
@@ -228,7 +228,10 @@ describe("assertCoworkerUserContextBinding", () => {
         userId: "user_1",
         organizationId: null,
       }),
-    ).rejects.toMatchObject({ status: 404 });
+    ).rejects.toMatchObject({
+      status: 400,
+      cause: { kind: "context_organization_required" },
+    });
     expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 });

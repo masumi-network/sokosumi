@@ -1,5 +1,9 @@
 import { type Prisma, TaskStatus, VendorGrantStatus } from "@sokosumi/database";
-import { resolveWorkspaceForContextOrNotFound } from "@/helpers/personal-workspace-error";
+import {
+  isPersonalWorkspaceMissingError,
+  workspaceRepository,
+} from "@sokosumi/database/repositories";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import prisma from "@/lib/db/prisma";
 import {
@@ -9,7 +13,7 @@ import {
   type UserContext,
 } from "@/middleware/auth";
 
-import { forbidden } from "./error";
+import { badRequest, forbidden } from "./error";
 import {
   getWorkspaceGrant,
   isGrantDeniedOrRevoked,
@@ -40,11 +44,23 @@ export async function assertCoworkerUserContextBinding(
   userContext: Pick<UserContext, "userId" | "organizationId">,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const workspace = await resolveWorkspaceForContextOrNotFound(
-    userContext.userId,
-    userContext.organizationId,
-    tx,
-  );
+  const workspace = await workspaceRepository
+    .resolveWorkspaceForContext(
+      userContext.userId,
+      userContext.organizationId,
+      tx,
+    )
+    .catch((error: unknown) => {
+      // Without an organization header the context is the personal
+      // workspace. A user who only has organization workspaces needs one.
+      if (isPersonalWorkspaceMissingError(error)) {
+        throw badRequest(
+          "X-Context-Organization-Id is required: the context user has no personal workspace",
+          { kind: CORE_API_ERROR_KINDS.CONTEXT_ORGANIZATION_REQUIRED },
+        );
+      }
+      throw error;
+    });
 
   const grant = await getWorkspaceGrant(
     {

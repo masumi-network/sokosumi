@@ -137,6 +137,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
             extensions?: Record<string, unknown>;
             kind?: string;
             retryAfterSeconds?: number;
+            wwwAuthenticate?: string;
           })
         : undefined;
 
@@ -169,11 +170,12 @@ export const errorHandler: ErrorHandler = (error, c) => {
       meta,
     };
 
-    return c.json(
-      errorResponse,
-      status,
-      isThrottled ? { "Retry-After": String(retryAfterSeconds) } : undefined,
-    );
+    return c.json(errorResponse, status, {
+      ...(isThrottled ? { "Retry-After": String(retryAfterSeconds) } : {}),
+      ...(typeof cause?.wwwAuthenticate === "string"
+        ? { "WWW-Authenticate": cause.wwwAuthenticate }
+        : {}),
+    });
   }
 
   // Better Auth throws plain APIError (not HTTPException). A rejected

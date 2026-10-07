@@ -10,6 +10,8 @@ export interface HTTPExceptionMetadata {
   extensions?: Record<string, unknown>;
   /** Seconds clients should wait before retrying; sent as `Retry-After`. */
   retryAfterSeconds?: number;
+  /** Bearer challenge sent as `WWW-Authenticate` (RFC 6750 §3). */
+  wwwAuthenticate?: string;
 }
 
 /**
