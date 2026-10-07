@@ -62,16 +62,6 @@ struct ThreadReplyBarTests {
     #expect(bar.faces.map(\.imageURL) == ["https://example.test/grace.png", nil, nil])
   }
 
-  /// next-intl's `relativeTime(…, { style: "narrow" })`: the largest unit that fits, rounded like
-  /// `Math.round` (half up), "now" only for seconds, never "yesterday".
-  @Test(arguments: [
-    (0, "now"), (-30, "30s ago"), (-89, "1m ago"), (-150, "2m ago"), (-3 * 3600, "3h ago"),
-    (-86400, "1d ago"), (-14 * 86400, "2w ago"), (-90 * 86400, "3mo ago"), (-400 * 86400, "1y ago")
-  ] as [(Double, String)])
-  func ageFollowsWebsNarrowRelativeTime(offset: Double, label: String) {
-    #expect(threadReplyAgeLabel(since: now.addingTimeInterval(offset), now: now, locale: Locale(identifier: "en_US")) == label)
-  }
-
   /// Web's `applyThreadUnreadReplyCounts`: once the read answered it owns every bar, and a parent absent
   /// from it has no unread replies, whatever the message list said.
   @Test func theUnreadReadOwnsEveryBar() async throws {

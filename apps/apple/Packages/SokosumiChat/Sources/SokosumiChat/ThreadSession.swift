@@ -187,6 +187,7 @@ public final class ThreadSession: ObservableObject {
     sender: Components.Schemas.ChatRoomUserParticipant,
     mentions: [ComposerMention] = [],
     quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+    skills: [Components.Schemas.ChatRoomMessageSkill] = [],
     settled: @escaping (Result<Message, Error>) -> Void
   ) -> Bool {
     let draft = ComposerContent(content)
@@ -194,12 +195,13 @@ public final class ThreadSession: ObservableObject {
     let id = makeId()
     let shell = OutboundShell(
       clientTurnId: id, roomId: parent.roomId, parentMessageId: parent.id,
-      content: draft.text, quote: quote, createdAt: now(), sender: sender
+      content: draft.text, quote: quote, skills: skills, createdAt: now(), sender: sender
     )
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: parent.roomId, content: draft.text, clientMessageId: id,
-        parentMessageId: parent.id, mentions: mentions, quote: quote, organizationSlug: organizationSlug
+        parentMessageId: parent.id, mentions: mentions, quote: quote, skillIds: skills.map(\.id),
+        organizationSlug: organizationSlug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }

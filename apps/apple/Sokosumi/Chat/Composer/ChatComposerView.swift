@@ -20,6 +20,9 @@ import UniformTypeIdentifiers
     @State private var quotedLink: QuotedLink?
     @State private var insertion: ComposerInsertion?
     @State private var pasteGeneration = 0
+    /// Skills attached to the next message (row 42). Like web's, they are not part of the saved draft, so they
+    /// last as long as this composer's identity (one room or Thread).
+    @State private var skills: [Components.Schemas.ChatRoomMessageSkill] = []
     @EnvironmentObject private var uploads: ComposeUploads
     @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
     @Environment(\.appearsActive) private var appearsActive
@@ -66,6 +69,11 @@ import UniformTypeIdentifiers
     /// and shows no line, so a Thread reply never claims the room is about to get a message.
     private var announcesTyping: Bool {
       parentMessageId == nil
+    }
+
+    /// Web `shouldAllowRoomSkills`, for the room and its Threads alike.
+    private var allowsSkills: Bool {
+      MessageSkills.allowed(in: workspaces.rooms.first { $0.id == roomId })
     }
 
     private var canAttachFiles: Bool {
@@ -165,6 +173,11 @@ import UniformTypeIdentifiers
         input.attachImage = { data in attachImage(data) }
         input.attachmentDragChanged = { attachmentIngress.isEditorTargeted = $0 }
       }
+      if allowsSkills {
+        input.skills = ComposerSkills(selected: skills, search: { query in
+          try await workspaces.searchSkills(query, auth: auth)
+        }, change: { skills = $0 })
+      }
       return input
     }
 
@@ -226,13 +239,15 @@ import UniformTypeIdentifiers
     private func sendDraft() -> Bool {
       guard canSend else { return false }
       let content = preparedContent.text
+      let attached = allowsSkills ? skills : []
       let accepted = parentMessageId == nil
-        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
-        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, auth: auth)
+        ? workspaces.sendMessage(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
+        : workspaces.sendThreadReply(content, attachments: uploads.attachments, quote: pendingQuote, skills: attached, auth: auth)
       guard accepted else { return false }
       pasteGeneration += 1
       quotedLink = nil
       pendingQuote = nil
+      skills = []
       draft = ""
       savedDraft.save("")
       uploads.clear()

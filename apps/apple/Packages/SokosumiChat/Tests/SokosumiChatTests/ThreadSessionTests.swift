@@ -290,6 +290,25 @@ struct ThreadSessionTests {
     #expect(session.timeline.messages.map(\.id) == ["reply"])
   }
 
+  /// Row 42: a Thread reply carries its skills like a room send (web `handleThreadSend`).
+  @Test func aReplyCarriesItsSkillsToCoreAndOnItsShell() async throws {
+    let root = try await parent()
+    let transport = TestTransport([
+      (201, testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "turn-skills")
+        .replacingOccurrences(of: "\"parentMessageId\":null", with: "\"parentMessageId\":\"root\""))
+    ])
+    let client = try makeTestClient(transport)
+    let session = ThreadSession(makeId: { "turn-skills" })
+    session.open(root)
+    let skill = Components.Schemas.ChatRoomMessageSkill(id: "a/b/c", name: "c", description: nil, url: "https://skills.sh/a/b/c")
+    #expect(session.send("Reply", client: client, organizationSlug: nil, sender: sender, skills: [skill], settled: { _ in }))
+    #expect(session.displayedReplies.first?.skills == [skill])
+    while session.outbox.isSending {
+      await Task.yield()
+    }
+    #expect(try testRequestJSON(#require(transport.bodies.last))["skillIds"] as? [String] == ["a/b/c"])
+  }
+
   @Test func replyCountsWhenRealtimeEchoArrivesBeforeHTTPResponse() async throws {
     let root = try await parent()
     let replyBody = testCreatedMessageBody(id: "reply", content: "Reply", clientMessageId: "unused")

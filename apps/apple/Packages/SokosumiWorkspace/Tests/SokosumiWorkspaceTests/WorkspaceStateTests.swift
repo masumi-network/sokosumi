@@ -1418,6 +1418,54 @@ struct WorkspaceStateTests {
     #expect(posts[1]["content"] as? String == "@peer:peer")
   }
 
+  /// Row 42: the send carries `skillIds`, its shell shows the chips, Core's 400 for a skill it cannot read fails
+  /// the shell with Core's words, and Retry sends the same skills again (web `ClassicOutboundJob.skillIds`).
+  @Test func skillsRideTheSendAndItsRetry() async throws {
+    let roomID = "550e8400-e29b-41d4-a716-446655440000"
+    let confirmedID = "550e8400-e29b-41d4-a716-446655440505"
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, workspacesBody()),
+      (200, userBody),
+      (200, roomsBody(names: ["general"])),
+      (200, transcriptPageBody(messages: [], nextCursor: nil)),
+      (200, roomReadBody(id: roomID, unread: 0)),
+      (400, """
+      {"error":"Bad Request","message":"Could not attach the skill: skills.sh is unavailable","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms/\(roomID)/messages","method":"POST"}}
+      """),
+      (201, createdMessageBody(id: confirmedID, roomId: roomID, content: "Review this"))
+    ])
+    await state.reload(auth: auth)
+    await waitForTranscriptIdle(state)
+    let skill = Components.Schemas.ChatRoomMessageSkill(
+      id: "mattpocock/skills/grill-me", name: "grill-me", description: nil, url: "https://skills.sh/mattpocock/skills/grill-me"
+    )
+    #expect(state.sendMessage("Review this", skills: [skill], auth: auth))
+    #expect(state.displayedTranscript.last?.skills == [skill])
+    await waitForOutboundIdle(state)
+    let shell = try #require(state.outboundShells.first)
+    #expect(shell.status == .failed)
+    #expect(shell.errorMessage?.contains("Could not attach the skill: skills.sh is unavailable") == true)
+    #expect(state.displayedTranscript.last?.skills == [skill])
+    state.retryOutbound(clientTurnId: shell.clientTurnId)
+    await waitForOutboundIdle(state)
+    #expect(state.outboundShells.isEmpty)
+    let posts = zip(transport.operationIDs, transport.bodies).compactMap { id, body -> [String: Any]? in
+      guard id == "post/chats/rooms/{id}/messages" else { return nil }
+      return (try? JSONSerialization.jsonObject(with: body) as? [String: Any]) ?? [:]
+    }
+    #expect(posts.map { $0["skillIds"] as? [String] } == [[skill.id], [skill.id]])
+  }
+
+  /// Row 42: the composer's skill picker reads Core's catalog through the signed-in client.
+  @Test func theSkillPickerSearchesCoresCatalog() async throws {
+    let (state, auth, transport, _) = try ephemeralState([
+      (200, #"{"data":[{"id":"a/b/c","name":"c","source":"a/b","description":null,"installs":5}],"meta":{"timestamp":"\#(timestamp)","requestId":"req-1"}}"#)
+    ], visible: false)
+    let skills = try await state.searchSkills("  c ", auth: auth)
+    #expect(skills.map(\.id) == ["a/b/c"])
+    #expect(transport.operationIDs == ["searchChatSkills"])
+  }
+
   @Test func failedSendRemoveDropsLocalShellOnly() async throws {
     let roomID = "550e8400-e29b-41d4-a716-446655440000"
     let (state, auth, transport, _) = try ephemeralState([
