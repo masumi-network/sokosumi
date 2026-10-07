@@ -166,16 +166,22 @@ import SwiftUI
       return turn
     }
 
+    /// Web `MessageSkillChips` under the body (row 42), the pending shell's too; not while the row is edited or
+    /// stands in for a coworker's mention.
+    private var skills: [Components.Schemas.ChatRoomMessageSkill] {
+      message.deletedAt == nil && mentionShell == nil && !isEditingThisRow ? message.skills ?? [] : []
+    }
+
     private var threadReplyBar: ThreadReplyBar? {
       onReply == nil ? nil : ThreadReplyBar(message: message)
     }
 
     /// Web `keepsSeenByCornerClear` (row 31b3): the newest message's body ends in attachments and nothing is drawn
-    /// after it — no reactions, Thread bar, link preview, Soko Bot footer or failed send, and it is not being
-    /// edited. The faces then sit under the attachment instead of beside it, so the column never narrows for them.
+    /// after it — no reactions, Thread bar, skill chips, link preview, Soko Bot footer or failed send, and it is not
+    /// being edited. The faces then sit under the attachment instead of beside it, so the column never narrows for them.
     private var keepsSeenByCornerClear: Bool {
       newestEndsInAttachment && message.deletedAt == nil && mentionShell == nil && !isEditingThisRow && !showsReactions
-        && threadReplyBar == nil && unfurls.isEmpty && sokoBotFooter == nil && outbound?.status != .failed
+        && threadReplyBar == nil && skills.isEmpty && unfurls.isEmpty && sokoBotFooter == nil && outbound?.status != .failed
     }
 
     private var reactionAction: ((String) -> Void)? {
@@ -305,6 +311,9 @@ import SwiftUI
             } else if mentionShell == nil, message.quote == nil || !message.content.isEmpty {
               // Mention shells render their own state; Send to yourself posts only a quote, so there is no body to render.
               MessageMarkdownView(source: message.content, room: room, channels: channels, preparedDocument: preparedDocument)
+            }
+            if !skills.isEmpty {
+              MessageSkillChipsView(skills: skills)
             }
             ForEach(unfurls, id: \.url) { preview in
               MessageUnfurlView(preview: preview, remove: onRemoveUnfurl.map { action in { try await action(preview.url) } })

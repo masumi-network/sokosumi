@@ -1,3 +1,4 @@
+import CoreAPI
 import SokosumiChat
 import SwiftUI
 
@@ -27,6 +28,8 @@ import SwiftUI
     var onPaste: ((ComposerTextPaste) -> Void)?
     var insertion: ComposerInsertion?
     var onEdit: ((String) -> Void)?
+    /// Skills for the next message (row 42); nil where the send cannot carry them.
+    var skills: ComposerSkills?
 
     var body: some View {
       ComposerLayout {
@@ -37,6 +40,13 @@ import SwiftUI
           }
         }
       } formatting: {
+        // Web's `aboveEditor`: the attached skills first, then the formatting bar.
+        if let skills, !skills.selected.isEmpty {
+          ComposerSkillChips(skills: skills.selected) { skill in
+            skills.change(skills.selected.filter { $0.id != skill.id })
+            commands.focus()
+          }
+        }
         if toolbarVisible {
           ComposerFormatToolbar(commands: commands)
         }
@@ -64,6 +74,9 @@ import SwiftUI
           emojiPickerRequest += 1
         }
         .accessibilityIdentifier("composer.emojiPicker")
+        if let skills {
+          ComposerSkillButton(skills: skills, focusEditor: commands.focus)
+        }
         if !mentions.isEmpty {
           ComposerToolbarButton(title: "Mention", symbol: "at") {
             commands.openMentionPicker()
