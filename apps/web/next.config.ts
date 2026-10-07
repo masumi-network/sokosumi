@@ -125,6 +125,9 @@ const nextConfig: NextConfig = {
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
     optimizePackageImports: ["lucide-react", "radix-ui"],
+    turbopackGc: true,
+    turbopackLazyDynamicImports: true,
+    agentUpgrade: "security",
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };
