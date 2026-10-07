@@ -482,10 +482,13 @@ export async function sokosumiSignInRedirect(
     return new Response(null, { status: 403, headers });
   }
   if (!(await auth.api.getSession({ headers: request.headers }))) {
-    // Reversed, so the first of a repeated parameter wins.
-    const signUpContext = options.createAccount
-      ? Object.fromEntries([...new URL(request.url).searchParams].reverse())
-      : undefined;
+    // In the link's key order; the first of a repeated parameter wins.
+    const signUpContext: Record<string, string> = {};
+    if (options.createAccount) {
+      for (const [key, value] of new URL(request.url).searchParams) {
+        signUpContext[key] ??= value;
+      }
+    }
     const { url, setCookies } = await startSokosumiSignIn(
       auth,
       request.headers,

@@ -476,9 +476,10 @@ describe("CMO auth handler", () => {
 
     const authorize = new URL(response.headers.get("location") ?? "");
     expect(authorize.searchParams.get("prompt")).toBe("create");
-    expect(
-      JSON.parse(authorize.searchParams.get("signup_context") ?? ""),
-    ).toEqual({ url: "nmkr.io", ref: "a", seats: "3" });
+    // Compared as text: key order is the link's, and Core keeps the first 10.
+    expect(authorize.searchParams.get("signup_context")).toBe(
+      JSON.stringify({ url: "nmkr.io", ref: "a", seats: "3" }),
+    );
   });
 
   it("forwards no sign-up context from a sign-in link", async () => {
