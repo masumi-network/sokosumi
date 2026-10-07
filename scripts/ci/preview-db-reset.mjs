@@ -5,7 +5,7 @@
  * redeploys Core so its Vercel build runs `prisma migrate deploy` on the
  * clean branch. Use it after renaming a migration that the preview database
  * already applied. `/deploy <networks> --reset-db` does the same reset, then
- * deploys web and Core like `/deploy`.
+ * deploys every preview app like `/deploy`.
  *
  *   node scripts/ci/preview-db-reset.mjs    # `reset-db` job in preview-deploy.yml
  */
@@ -119,13 +119,13 @@ const RESET_DB_COMMAND = {
   retry: (networks) => `/reset-db ${networks.join(" ")}`,
 };
 
-/** `/deploy --reset-db`: reset, then deploy web and Core like `/deploy`. */
+/** `/deploy --reset-db`: reset, then deploy like `/deploy` (CMO too on mainnet). */
 const DEPLOY_RESET_COMMAND = {
   name: "/deploy",
   subject: "Preview deploy",
   apps: undefined,
-  redeploy: "web and Core deploy",
-  deployed: "deployed web and Core",
+  redeploy: "preview deploy",
+  deployed: "deployed the previews",
   retry: (networks) => `/deploy ${networks.join(" ")} ${RESET_DB_FLAG}`,
 };
 

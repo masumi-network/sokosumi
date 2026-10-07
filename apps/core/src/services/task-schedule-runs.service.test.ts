@@ -88,8 +88,20 @@ describe("taskScheduleReleaseService.releaseDueSchedules", () => {
       creatorSokoBotId: null,
     });
     expect(task?.events).toEqual([
-      expect.objectContaining({ status: TaskStatus.READY, userId: OWNER_ID }),
+      expect.objectContaining({
+        status: TaskStatus.CREATED,
+        comment: null,
+        userId: OWNER_ID,
+      }),
+      expect.objectContaining({
+        status: TaskStatus.READY,
+        userId: OWNER_ID,
+      }),
     ]);
+    const [created, status] = task!.events;
+    expect(created.createdAt!.getTime()).toBeLessThan(
+      status.createdAt!.getTime(),
+    );
     expect(runsOf(schedule.id).find((row) => row.id === run.id)).toMatchObject({
       state: TaskScheduleRunState.RELEASED,
       releasedTaskId: task?.id,

@@ -1,8 +1,8 @@
 import "server-only";
 
+import { createClient } from "@sokosumi/core-client/client";
 import { headers } from "next/headers";
 import { withUnauthorizedCoreRedirect } from "@/lib/auth/handle-unauthorized-core-error";
-import { createClient } from "@/lib/clients/generated/core/client";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { createCoreClient } from "./core.shared";

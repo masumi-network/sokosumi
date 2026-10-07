@@ -24,7 +24,7 @@ vi.mock("@/lib/auth/auth.server", () => ({ getSessionResult: mocks.session }));
 vi.mock("@/lib/clients/core.client", () => ({
   createCoreGeneratedClient: () => ({}),
 }));
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   acquireExportLease: mocks.acquire,
   releaseExportLease: mocks.release,
 }));

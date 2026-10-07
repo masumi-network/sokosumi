@@ -1,6 +1,6 @@
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { formatStripeBillingAddress } from "@/lib/billing/format-stripe-billing-address";
 import { formatStripeTaxIdVerificationStatus } from "@/lib/billing/format-stripe-tax-id-verification-status";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 type BillingDetailsTranslator = (
   key: string,

@@ -3,7 +3,7 @@ import type {
   AgentRatingDistribution as CoreAgentRatingDistribution,
   AgentReviews as CoreAgentReviews,
   Category as CoreCategory,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 

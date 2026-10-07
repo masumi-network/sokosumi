@@ -1,10 +1,13 @@
 "use client";
 
+import type {
+  EnterpriseContract,
+  EnterpriseContractStatus,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { parseAsString, parseAsStringLiteral, useQueryStates } from "nuqs";
 import { useEffect, useMemo, useState, useTransition } from "react";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -22,10 +25,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { searchOrganizationsClient } from "@/lib/actions/admin-search/client";
-import type {
-  EnterpriseContract,
-  EnterpriseContractStatus,
-} from "@/lib/clients/generated/core/types.gen";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 

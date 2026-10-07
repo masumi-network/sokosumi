@@ -1,11 +1,20 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { getDefaultVersionIdMock, listVersionsMock, getForAdminMock } =
-  vi.hoisted(() => ({
-    getDefaultVersionIdMock: vi.fn(),
-    listVersionsMock: vi.fn(),
-    getForAdminMock: vi.fn(),
-  }));
+const {
+  getDefaultVersionIdMock,
+  listVersionsMock,
+  getForAdminMock,
+  listEvaluationsMock,
+} = vi.hoisted(() => ({
+  getDefaultVersionIdMock: vi.fn(),
+  listVersionsMock: vi.fn(),
+  getForAdminMock: vi.fn(),
+  listEvaluationsMock: vi.fn(),
+}));
+
+vi.mock("@/services/soko-bot-model-evaluation.service", () => ({
+  listSokoBotModelEvaluations: listEvaluationsMock,
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/middleware/auth")>();
@@ -88,6 +97,65 @@ describe("admin Soko Bot route precedence", () => {
       data: {
         defaultVersionId: "v11",
         versions: [{ id: "v11", isDefault: true }],
+      },
+    });
+  });
+
+  it("serves model evaluations, not a bot named 'evaluations'", async () => {
+    listEvaluationsMock.mockResolvedValue({
+      currentJudgeModel: "anthropic/claude-opus-5.5",
+      currentRouteModel: "typesafe-ai/jev",
+      judge: [
+        {
+          id: "01960001-0001-7001-8001-000000000001",
+          createdAt: new Date("2026-09-30T10:00:00Z"),
+          label: "Judge comparison",
+          inUseModel: "anthropic/claude-opus-5.5",
+          models: [
+            {
+              model: "anthropic/claude-opus-5.5",
+              calls: 2,
+              errors: 0,
+              steady: 1,
+              repeated: 1,
+              matches: 1,
+              graded: 1,
+              falseFails: 0,
+              badCaught: 0,
+              bad: 0,
+              costPerCallUsd: 0.17,
+              medianMs: 8_000,
+            },
+          ],
+          cases: [
+            {
+              caseId: "chat-post",
+              grade: "pass",
+              why: null,
+              set: "lab",
+              answers: { "anthropic/claude-opus-5.5": ["pass", "pass"] },
+              contested: false,
+            },
+          ],
+        },
+      ],
+      router: [],
+    });
+
+    const response = await app.request("http://localhost/evaluations");
+
+    expect(response.status).toBe(200);
+    expect(getForAdminMock).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        judge: [
+          {
+            inUseModel: "anthropic/claude-opus-5.5",
+            createdAt: "2026-09-30T10:00:00.000Z",
+            models: [{ matches: 1, graded: 1 }],
+          },
+        ],
+        router: [],
       },
     });
   });

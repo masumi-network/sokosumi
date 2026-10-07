@@ -14,6 +14,7 @@ import {
   refineChannelOriginConflict,
   resolveTaskEventChannel,
 } from "@/helpers/task-event-channel";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import {
   taskEventChannelField,
   taskEventDeprecatedOriginField,
@@ -165,8 +166,7 @@ export function createTaskEventRequestSchema(
 
   return z
     .object({
-      status: z
-        .enum(TaskStatus)
+      status: taskStatusSchema
         .optional()
         .openapi({ example: TaskStatus.RUNNING }),
       comment: z

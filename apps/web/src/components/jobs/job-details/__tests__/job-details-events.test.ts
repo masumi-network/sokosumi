@@ -1,3 +1,4 @@
+import { AgentJobStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   getVisibleTimelineEvents,
@@ -7,7 +8,6 @@ import {
   shouldRenderAwaitingInputFormForViewer,
   splitInitiatedEvent,
 } from "@/components/jobs/job-details/job-details-events.utils";
-import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 function createEvent(
   id: string,

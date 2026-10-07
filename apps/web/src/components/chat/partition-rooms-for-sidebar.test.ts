@@ -1,6 +1,5 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 import { partitionRoomsForSidebar } from "./partition-rooms-for-sidebar";
 
@@ -14,6 +13,8 @@ function makeRoom(
     slug: overrides.kind === "channel" ? overrides.id : null,
     isSelfDirect: false,
     isGroupDirect: false,
+    isReadOnly: false,
+    formerUserMembers: [],
     groupName: null,
     directKey: null,
     topic: null,

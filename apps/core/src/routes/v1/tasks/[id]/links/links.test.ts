@@ -7,6 +7,7 @@ import { buildCoworkerSiblingTaskListFilter } from "@/helpers/vendor-siblings";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
 import { testVendor } from "@/test-fixtures/vendor";
+import { taskLinkPeerTaskSelect } from "@/types/task-link";
 import mountDeleteTaskLink from "./[linkId]/delete";
 import mountPatchTaskLink from "./[linkId]/patch";
 import mountGetTaskLinks from "./get";
@@ -314,20 +315,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -340,20 +331,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -402,20 +383,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -428,20 +399,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -473,20 +434,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -503,20 +454,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -582,20 +523,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -612,20 +543,10 @@ describe("GET /tasks/{id}/links", () => {
           },
           include: {
             fromTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
             toTask: {
-              select: {
-                id: true,
-                name: true,
-                status: true,
-                archivedAt: true,
-              },
+              select: taskLinkPeerTaskSelect,
             },
           },
           orderBy: { createdAt: "asc" },
@@ -710,12 +631,7 @@ describe("POST /tasks/{id}/links", () => {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         writeAccessFor: "user_123",
       },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        archivedAt: true,
-      },
+      select: taskLinkPeerTaskSelect,
     });
     const body = (await response.json()) as {
       data: {
@@ -1162,12 +1078,7 @@ describe("PATCH /tasks/{id}/links/{linkId}", () => {
         workspaceId: "11111111-1111-7111-8111-111111111111",
         writeAccessFor: "user_123",
       },
-      select: {
-        id: true,
-        name: true,
-        status: true,
-        archivedAt: true,
-      },
+      select: taskLinkPeerTaskSelect,
     });
     const body = (await response.json()) as {
       data: {

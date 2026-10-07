@@ -13,6 +13,7 @@ import {
   SOKO_BOT_TURN_TOKEN_HEADER,
   type SokoBotCapability,
 } from "@sokosumi/soko-bot";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import {
   createGateway,
   generateText,
@@ -22,6 +23,7 @@ import {
 } from "ai";
 
 import {
+  citableSources,
   fetchWebPage,
   listWorkspace,
   readWorkspaceFile,
@@ -43,6 +45,7 @@ class CoreRejected extends Error {
   constructor(
     message: string,
     readonly status: number,
+    readonly kind?: string,
   ) {
     super(message);
   }
@@ -59,12 +62,17 @@ const base = `${coreUrl}/v1/soko-bot-runtime/turns/${turnId}`;
 /** Aborted as soon as Core says the turn is no longer active. */
 const stopped = new AbortController();
 
+/**
+ * Only a 409 Core marks as the turn's end stops the loop; any other 409, such
+ * as a tool's write that lost a race, is that call's failure. Model calls
+ * reach Core through the gateway client, which keeps only the status, and
+ * Core answers them 409 only for an inactive turn.
+ */
 function isInactive(error: unknown): boolean {
-  const status =
-    error instanceof CoreRejected
-      ? error.status
-      : (error as { statusCode?: unknown } | null)?.statusCode;
-  return status === 409 || stopped.signal.aborted;
+  if (stopped.signal.aborted) return true;
+  if (error instanceof CoreRejected)
+    return error.kind === CORE_API_ERROR_KINDS.SOKO_BOT_TURN_INACTIVE;
+  return (error as { statusCode?: unknown } | null)?.statusCode === 409;
 }
 
 /**
@@ -77,7 +85,7 @@ const authHeaders: Record<string, string> = localToken
   ? { [SOKO_BOT_TURN_TOKEN_HEADER]: localToken }
   : {};
 
-/** POSTs to this turn's Core endpoint; 409 means the turn is over. */
+/** POSTs to this turn's Core endpoint; Core says when the turn is over. */
 async function callCore<T>(route: string, body: unknown): Promise<T> {
   const response = await fetch(`${base}${route}`, {
     method: "POST",
@@ -87,13 +95,17 @@ async function callCore<T>(route: string, body: unknown): Promise<T> {
   });
   const payload = (await response.json().catch(() => ({}))) as {
     message?: string;
+    kind?: string;
   } & T;
-  if (response.status === 409) stopped.abort();
-  if (!response.ok)
-    throw new CoreRejected(
-      payload.message ?? `Core answered ${response.status}`,
-      response.status,
-    );
+  const rejected = response.ok
+    ? null
+    : new CoreRejected(
+        payload.message ?? `Core answered ${response.status}`,
+        response.status,
+        payload.kind,
+      );
+  if (rejected && isInactive(rejected)) stopped.abort();
+  if (rejected) throw rejected;
   return payload;
 }
 
@@ -105,14 +117,28 @@ async function sandboxTool<T>(
   run: () => Promise<T>,
 ): Promise<T> {
   await callCore("/actions", { name, toolCallId, input });
+  // What the tool returned, clipped: the audit trail of what the bot read.
+  const report = (status: "completed" | "failed", output: unknown) =>
+    callCore("/actions/result", {
+      name,
+      toolCallId,
+      status,
+      output: JSON.stringify(output ?? null).slice(0, ACTION_OUTPUT_LIMIT),
+      sources: citableSources(name, output),
+    }).catch(() => undefined);
   try {
-    return await run();
-  } finally {
-    await callCore("/actions/result", { name, toolCallId }).catch(
-      () => undefined,
-    );
+    const output = await run();
+    await report("completed", output);
+    return output;
+  } catch (error) {
+    await report("failed", {
+      error: error instanceof Error ? error.message : "failed",
+    });
+    throw error;
   }
 }
+
+const ACTION_OUTPUT_LIMIT = 8_000;
 
 const plan: { step: string; status: string }[] = [];
 
@@ -181,7 +207,8 @@ function buildTools(
  * One search, in its own model call. The Gateway runs the search inside that
  * call; keeping it out of the main conversation matters because Gemini
  * rejects a replayed history that mixes Gateway-executed and runner-executed
- * tool calls in one step.
+ * tool calls in one step. The key must not be `web_search`: OpenAI models map
+ * that name to their own built-in tool and reject the call.
  */
 async function searchWeb(
   query: string,
@@ -190,8 +217,10 @@ async function searchWeb(
 ): Promise<{ query: string; results: unknown[] }> {
   const result = await generateText({
     model: gateway(model),
-    tools: { web_search: gateway.tools.perplexitySearch({ maxResults: 5 }) },
-    toolChoice: { type: "tool", toolName: "web_search" },
+    tools: {
+      perplexity_search: gateway.tools.perplexitySearch({ maxResults: 5 }),
+    },
+    toolChoice: { type: "tool", toolName: "perplexity_search" },
     stopWhen: stepCountIs(1),
     prompt: `Search the web for: ${query}`,
   });
@@ -222,6 +251,23 @@ async function runSubagent(
   return { findings: result.text || "(no findings)" };
 }
 
+/** Each provider's switch for a returned reasoning summary; others ignore it. */
+const REASONING_SUMMARY_OPTIONS = {
+  openai: { reasoningSummary: "auto" },
+  google: { thinkingConfig: { includeThoughts: true } },
+};
+
+/** The summaries the provider returned across steps, capped; undefined if none. */
+function reasoningSummary(
+  steps: readonly { reasoningText?: string | undefined }[],
+): string | undefined {
+  const text = steps
+    .map((step) => step.reasoningText?.trim() ?? "")
+    .filter(Boolean)
+    .join("\n\n");
+  return text ? text.slice(0, 20_000) : undefined;
+}
+
 async function main(): Promise<void> {
   let start: TurnStart;
   try {
@@ -249,6 +295,9 @@ async function main(): Promise<void> {
         forSubagent: false,
       }),
       stopWhen: stepCountIs(start.maxSteps),
+      // Ask for the provider's reasoning summary (never raw thoughts) so the
+      // chat can show what the bot considered, as Coworker replies do.
+      providerOptions: REASONING_SUMMARY_OPTIONS,
       abortSignal: AbortSignal.any([
         stopped.signal,
         AbortSignal.timeout(budgetMs),
@@ -256,8 +305,13 @@ async function main(): Promise<void> {
       maxRetries: 1,
     });
     await callCore("/complete", {
-      text: result.text,
+      // A model can answer in one step and end on an empty one; `text` is
+      // only the last step's.
+      text:
+        result.text ||
+        (result.steps.findLast((step) => step.text.trim())?.text ?? ""),
       finishReason: result.finishReason,
+      reasoning: reasoningSummary(result.steps),
     });
   } catch (error) {
     if (isInactive(error)) {

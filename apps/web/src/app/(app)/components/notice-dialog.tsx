@@ -1,6 +1,7 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { Notice } from "@sokosumi/core-client";
+import { NoticeKind } from "@sokosumi/core-client";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
@@ -15,8 +16,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { acknowledgeNoticeAction } from "@/lib/actions/notice/action";
-import type { Notice } from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
 import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";
 
@@ -180,14 +179,8 @@ export function NoticeDialog({
               type="button"
               variant="primary"
               onClick={handleOpenAction}
-              disabled={isSubmitting}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <Loader2
-                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {actionLabel ?? t("actions.openLink")}
             </Button>
           ) : null}
@@ -196,14 +189,8 @@ export function NoticeDialog({
               type="button"
               variant="primary"
               onClick={handleAcknowledge}
-              disabled={isSubmitting}
+              loading={isSubmitting}
             >
-              {isSubmitting ? (
-                <Loader2
-                  className="mr-2 size-4 animate-spin motion-reduce:animate-pulse"
-                  aria-hidden
-                />
-              ) : null}
               {t("actions.confirm")}
             </Button>
           ) : null}

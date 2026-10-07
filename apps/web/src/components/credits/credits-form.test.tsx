@@ -1,9 +1,8 @@
+import type { CreditTopUpPricing } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import CreditsForm from "@/components/credits/credits-form";
-import type { CreditTopUpPricing } from "@/lib/clients/generated/core";
 
 const mockRouterPush = vi.fn();
 const purchaseCreditsMock = vi.fn();

@@ -1,8 +1,11 @@
 import { createHash } from "node:crypto";
-import { withBetaBotOwner } from "@/helpers/soko-bot-beta";
 import { buildSokoBotOwnerTaskVisibilityWhere } from "@/helpers/task-visibility";
 import prisma from "@/lib/db/prisma";
 import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
+import {
+  commentNamesBot,
+  INVOLVING_DELEGATION,
+} from "@/lib/soko-bot/task-involvement";
 import {
   SokoBotBusyError,
   sokoBotControlPlane,
@@ -23,36 +26,6 @@ const MAX_EVENTS_PER_TASK = 5;
 const WORK_STATUSES = new Set(["READY", "QUEUED"]);
 
 const TERMINAL = ["COMPLETED", "CANCELED", "DRAFT"] as const;
-
-function tokens(text: string): Set<string> {
-  return new Set(
-    text
-      .toLowerCase()
-      .split(/[^\p{L}\p{N}]+/u)
-      .filter((word) => word.length >= 6),
-  );
-}
-
-/**
- * Cheap pre-filter for board-wide following: a comment reaches the bot only
- * when it addresses the bot, asks something, or overlaps with what the bot
- * already knows (memory). Everything else never becomes a turn.
- */
-export function isRelevantBoardComment(input: {
-  comment: string;
-  botName: string | null;
-  memoryTokens: Set<string>;
-}): boolean {
-  const text = input.comment.trim();
-  if (!text) return false;
-  const name = input.botName?.trim().toLowerCase();
-  if (name && text.toLowerCase().includes(name)) return true;
-  if (/\?/.test(text)) return true;
-  for (const word of tokens(text)) {
-    if (input.memoryTokens.has(word)) return true;
-  }
-  return false;
-}
 
 export interface SokoBotTaskboardSyncInput {
   abortSignal: AbortSignal;
@@ -90,13 +63,16 @@ function actorLabel(event: {
   sokoBotId: string | null;
   user: { name: string | null } | null;
   coworker: { name: string | null } | null;
-  sokoBot: { name: string | null } | null;
+  sokoBot: { name: string | null; user: { name: string | null } } | null;
 }): string {
   if (event.userId) return event.user?.name?.trim() || "a teammate";
   if (event.coworkerId)
     return `Coworker ${event.coworker?.name?.trim() || ""}`.trim();
   if (event.sokoBotId) {
-    return event.sokoBot?.name?.trim() || "a personal assistant";
+    // Named with its owner: another person's assistant speaks for them.
+    const name = event.sokoBot?.name?.trim() || "A personal assistant";
+    const owner = event.sokoBot?.user.name?.trim();
+    return owner ? `${name} (${owner}'s assistant)` : name;
   }
   return "the system";
 }
@@ -165,11 +141,11 @@ export class SokoBotTaskboardSyncService {
     const bots = await prisma.sokoBot.findMany({
       orderBy: { id: "asc" },
       take: 50,
-      where: withBetaBotOwner({
+      where: {
         ...(scan.cursorId ? { id: { gt: scan.cursorId } } : {}),
         archivedAt: null,
         adminPausedAt: null,
-      }),
+      },
       select: {
         id: true,
         name: true,
@@ -177,11 +153,6 @@ export class SokoBotTaskboardSyncService {
         workspaceId: true,
         followWholeBoard: true,
         ingestTimezone: true,
-        memoryRevisions: {
-          orderBy: { version: "desc" },
-          take: 1,
-          select: { markdown: true },
-        },
       },
     });
     for (const bot of bots) {
@@ -197,7 +168,6 @@ export class SokoBotTaskboardSyncService {
             workspaceId: bot.workspaceId,
             followWholeBoard: bot.followWholeBoard,
             ingestTimezone: bot.ingestTimezone,
-            memoryTokens: tokens(bot.memoryRevisions[0]?.markdown ?? ""),
           },
           since,
           input.abortSignal,
@@ -235,7 +205,6 @@ export class SokoBotTaskboardSyncService {
       workspaceId: string;
       followWholeBoard: boolean;
       ingestTimezone: string;
-      memoryTokens: Set<string>;
     },
     since: Date,
     abortSignal: AbortSignal,
@@ -264,7 +233,12 @@ export class SokoBotTaskboardSyncService {
                   status: { notIn: [...TERMINAL] },
                 },
                 {
-                  sokoBotDelegations: { some: { turn: { sokoBotId: bot.id } } },
+                  sokoBotDelegations: {
+                    some: {
+                      ...INVOLVING_DELEGATION,
+                      turn: { sokoBotId: bot.id },
+                    },
+                  },
                   updatedAt: { gte: since },
                 },
                 ...(bot.followWholeBoard
@@ -289,7 +263,7 @@ export class SokoBotTaskboardSyncService {
           assigneeSokoBotId: true,
           updatedAt: true,
           sokoBotDelegations: {
-            where: { turn: { sokoBotId: bot.id } },
+            where: { ...INVOLVING_DELEGATION, turn: { sokoBotId: bot.id } },
             take: 1,
             select: { id: true },
           },
@@ -391,7 +365,9 @@ export class SokoBotTaskboardSyncService {
           sokoBotId: true,
           user: { select: { name: true } },
           coworker: { select: { name: true } },
-          sokoBot: { select: { name: true } },
+          sokoBot: {
+            select: { name: true, user: { select: { name: true } } },
+          },
         },
       });
       const consumed = events.length
@@ -420,20 +396,19 @@ export class SokoBotTaskboardSyncService {
       // Status drift on Tasks the bot delegated is the events sync's job
       // (it wakes with the latest comment); here only comment-only events
       // on those Tasks count, so one change never produces two turns.
+      // A Task the bot is not part of, and another bot's comment anywhere,
+      // reach it only when they name it: otherwise one question woke every
+      // bot on the board, and each answer woke the rest.
       const meaningful = events
         .filter((event) => !consumedIds.has(event.id))
-        .filter((e) =>
-          boardOnly
-            ? Boolean(e.comment) &&
-              isRelevantBoardComment({
-                comment: e.comment ?? "",
-                botName: bot.name,
-                memoryTokens: bot.memoryTokens,
-              })
-            : assignedToBot
-              ? e.comment || e.status
-              : Boolean(e.comment) && !e.status,
-        );
+        .filter((e) => {
+          const named =
+            Boolean(e.comment) && commentNamesBot(e.comment ?? "", bot.name);
+          if (boardOnly || (e.sokoBotId && !e.status)) return named;
+          return assignedToBot
+            ? Boolean(e.comment || e.status)
+            : Boolean(e.comment) && !e.status;
+        });
       if (!work && meaningful.length === 0) {
         if (events.length > 0 && watch) {
           baselines.push({
@@ -484,12 +459,13 @@ export class SokoBotTaskboardSyncService {
       });
     const attention = await findAttentionItems({
       id: bot.id,
+      userId: bot.userId,
       workspaceId: bot.workspaceId,
       followWholeBoard: bot.followWholeBoard,
       now,
       cutoverAt: scan.createdAt,
     });
-    const followUps = await followUpsBlock(bot.id, bot.ingestTimezone, now);
+    const followUps = await followUpsBlock(bot, bot.ingestTimezone, now);
     if (updates.length === 0 && attention.length === 0) return false;
     // Every turn the bot starts counts, assigned work included. Exempting it
     // meant anyone who could put a Task on the bot could drive unlimited

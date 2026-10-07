@@ -10,6 +10,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
     <Sonner
       theme={theme as ToasterProps["theme"]}
       className="toaster group"
+      // Chat composer sets --toast-bottom-offset so toasts sit above it.
+      offset={{ bottom: "var(--toast-bottom-offset, 24px)", right: 24 }}
+      mobileOffset={{ bottom: "var(--toast-bottom-offset, 16px)", left: 16, right: 16 }}
       style={
         {
           "--normal-bg": "var(--popover)",

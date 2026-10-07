@@ -1,23 +1,21 @@
 import Foundation
 
-/// Tokens minted for the public Apple OAuth client. Stored via a `TokenStore`
-/// (Keychain on device; in-memory in tests). Never logged.
+/// Tokens minted for the public OAuth client. Stored via a `TokenStore`.
+/// Never logged.
 public struct OAuthTokens: Codable, Sendable, Equatable {
   public var accessToken: String
   public var refreshToken: String?
   public var expiresAt: Date
-  public var scope: String?
 
-  public init(accessToken: String, refreshToken: String?, expiresAt: Date, scope: String?) {
+  public init(accessToken: String, refreshToken: String?, expiresAt: Date) {
     self.accessToken = accessToken
     self.refreshToken = refreshToken
     self.expiresAt = expiresAt
-    self.scope = scope
   }
 
   /// Treat tokens expiring within the leeway as expired so a slow Core call
   /// never races a dead access token.
-  func isExpired(now: Date = Date(), leeway: TimeInterval = 60) -> Bool {
+  func isExpired(now: Date, leeway: TimeInterval = 60) -> Bool {
     now.addingTimeInterval(leeway) >= expiresAt
   }
 }

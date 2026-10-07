@@ -1,6 +1,6 @@
 ---
 name: sentry-cli-agent-conversation
-version: 0.45.0
+version: 0.46.0
 description: List and view agent conversations
 requires:
   bins: ["sentry"]
@@ -18,7 +18,7 @@ List recent agent conversations
 **Flags:**
 - `-n, --limit <value> - Number of conversations (1-1000) - (default: "25")`
 - `-q, --query <value> - Search query`
-- `-t, --period <value> - Time range: "7d", "2026-08-01..2026-09-01", ">=2026-08-01" - (default: "7d")`
+- `-t, --period <value> - Time range: "7d", "2024-01-01..2024-02-01", ">=2024-01-01" - (default: "7d")`
 - `-f, --fresh - Bypass cache, re-detect projects, and fetch fresh data`
 - `-c, --cursor <value> - Navigate pages: "next", "prev", "first" (or raw cursor string)`
 
@@ -27,6 +27,7 @@ List recent agent conversations
 | Field | Type | Description |
 |-------|------|-------------|
 | `conversationId` | string |  |
+| `webUrl` | string |  |
 | `title` | string \| null |  |
 | `flow` | array |  |
 | `errors` | number |  |
@@ -73,11 +74,14 @@ View an agent conversation transcript
 **Examples:**
 
 ```bash
-# View full transcript
-sentry agent-conversation view my-org conv-123
+# View full transcript (org auto-detected)
+sentry agent-conversation view conv-123
+
+# Explicit org (slash-separated)
+sentry agent-conversation view my-org/conv-123
 
 # JSON output
-sentry agent-conversation view my-org conv-123 --json
+sentry agent-conversation view my-org/conv-123 --json
 ```
 
 All commands also support `--json`, `--fields`, `--help`, `--log-level`, and `--verbose` flags.

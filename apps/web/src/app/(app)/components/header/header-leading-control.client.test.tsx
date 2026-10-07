@@ -151,6 +151,13 @@ describe("HeaderLeadingControl", () => {
     expect(back).toHaveAttribute("href", "/");
   });
 
+  it("shows back to home on studio", () => {
+    mockPathname = "/studio";
+    render(<HeaderLeadingControl />);
+    const back = screen.getByRole("link", { name: "back" });
+    expect(back).toHaveAttribute("href", "/");
+  });
+
   it("shows back to chats on personal-assistant root", () => {
     mockPathname = "/personal-assistant";
     render(<HeaderLeadingControl />);

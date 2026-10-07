@@ -1,6 +1,8 @@
 import * as Sentry from "@sentry/node";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { withPublicScheme } from "@/lib/request-scheme";
+import { asServedOnVercel } from "@/test-fixtures/served-on-vercel";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import type { AuthenticationContext, AuthVariables } from "./auth";
@@ -286,6 +288,35 @@ describe("sentryMiddleware", () => {
       expect.objectContaining({
         path: "/v1/share/:token",
         url: "http://localhost/v1/share/:token",
+      }),
+    );
+  });
+
+  it("reports the public HTTPS origin for a request served on Vercel", async () => {
+    const app = new Hono<{
+      Variables: { requestId: string } & Partial<AuthVariables>;
+    }>();
+
+    app.use("*", async (c, next) => {
+      c.set("requestId", "req_123");
+      return await next();
+    });
+    app.use("*", sentryMiddleware());
+    app.get("/v1/share/:token", (c) => c.text("ok"));
+
+    const served = new Request(
+      asServedOnVercel("https://api.example.com/v1/share/capability-token"),
+    );
+    const response = await app.fetch(withPublicScheme(served, "production"));
+
+    expect(response.status).toBe(200);
+    expect(startSpanMock.mock.calls[0][0].attributes["url.full"]).toBe(
+      "https://api.example.com/v1/share/:token",
+    );
+    expect(setContextMock).toHaveBeenCalledWith(
+      "request",
+      expect.objectContaining({
+        url: "https://api.example.com/v1/share/:token",
       }),
     );
   });

@@ -184,13 +184,66 @@ finish() {
 # Replace the example below. Set TOTAL_STAGES to match the stages you write.
 # ──────────────────────────────────────────────────────────────────────────
 
-TOTAL_STAGES=4
-
-banner "Sokosumi macOS release signing"
+TOTAL_STAGES=5
 
 REPO="masumi-network/sokosumi"
 TEAM_ID="GVWN7HXYJB"
+BUNDLE_ID="com.sokosumi.app"
 DEV_ID_PREFIX="Developer ID Application"
+
+# The provisioning profile expires and is replaced on its own schedule, so
+# `setup-release-signing.sh profile` runs this stage alone.
+profile_stage() {
+  stage "Developer ID provisioning profile"
+  say "The app takes its sign-in callback on an HTTPS link, which needs the"
+  say "Associated Domains entitlement. That entitlement is restricted: macOS"
+  say "kills a Developer ID app that carries it without a profile granting it."
+  printf '\n'
+  open_url "https://developer.apple.com/account/resources/identifiers/list"
+  step "Open the identifier $BUNDLE_ID."
+  step "Tick 'Associated Domains' under Capabilities, then Save."
+  printf '\n'
+  open_url "https://developer.apple.com/account/resources/profiles/add"
+  step "Under Distribution choose 'Developer ID', then Continue."
+  step "App ID: $BUNDLE_ID."
+  step "Certificate: the $DEV_ID_PREFIX certificate CI signs with."
+  step "Name it, e.g. 'Sokosumi Developer ID', then Generate and Download."
+  printf '\n'
+  note "CI reads the name out of the file, so any name works."
+  printf '\n'
+  pause "Press Enter once the .provisionprofile is downloaded."
+
+  local profile_path="" decoded
+  while :; do
+    ask profile_path "Path to the downloaded .provisionprofile:"
+    profile_path="${profile_path/#\~/$HOME}"
+    profile_path="${profile_path%\"}"; profile_path="${profile_path#\"}"
+    [[ -f "$profile_path" ]] && break
+    warn "No file at that path. Try again."
+  done
+
+  decoded="$(security cms -D -i "$profile_path" 2>/dev/null || true)"
+  if ! grep -q "$TEAM_ID.$BUNDLE_ID" <<<"$decoded" \
+     || ! grep -q "com.apple.developer.associated-domains" <<<"$decoded" \
+     || ! grep -q "<key>ProvisionsAllDevices</key>" <<<"$decoded"; then
+    warn "That is not a Developer ID profile for $BUNDLE_ID with Associated"
+    warn "Domains. CI would sign an app that cannot sign in, or fail to sign."
+    confirm "Set the secret anyway?" || exit 1
+  fi
+
+  set_secret APPLE_DEVELOPER_ID_PROFILE "$(base64 < "$profile_path" | tr -d '\n')"
+  pause "Press Enter to continue."
+}
+
+if [[ "${1:-}" == "profile" ]]; then
+  TOTAL_STAGES=1
+  banner "Sokosumi macOS Developer ID provisioning profile"
+  profile_stage
+  finish
+  exit 0
+fi
+
+banner "Sokosumi macOS release signing"
 
 # Signing credentials are never written to .env: they belong in GitHub
 # secrets and nowhere else on disk. That means re-runs re-prompt rather than
@@ -279,6 +332,9 @@ fi
 pause "Press Enter to continue."
 
 # ── Stage 3 ───────────────────────────────────────────────────────────────
+profile_stage
+
+# ── Stage 4 ───────────────────────────────────────────────────────────────
 stage "App Store Connect API key for notarization"
 say "notarytool authenticates with an App Store Connect API key rather than"
 say "your Apple ID, so the credential is not tied to one person and can be"
@@ -313,7 +369,7 @@ set_secret APPLE_NOTARY_KEY_P8 "$(base64 < "$P8_PATH" | tr -d '\n')"
 set_secret APPLE_NOTARY_KEY_ID "$NOTARY_KEY_ID"
 set_secret APPLE_NOTARY_ISSUER_ID "$NOTARY_ISSUER_ID"
 
-# ── Stage 4 ───────────────────────────────────────────────────────────────
+# ── Stage 5 ───────────────────────────────────────────────────────────────
 stage "Verify"
 say "Asking Apple's notary service for this key's submission history. It"
 say "answers only if the key, key ID and issuer ID all line up."
@@ -339,8 +395,8 @@ printf '\n'
 say "Secrets now on $REPO:"
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
   gh secret list --repo "$REPO" 2>/dev/null \
-    | grep -E "APPLE_DEVELOPER_ID_CERT_P12|APPLE_DEVELOPER_ID_CERT_PASSWORD|APPLE_NOTARY_KEY_P8|APPLE_NOTARY_KEY_ID|APPLE_NOTARY_ISSUER_ID" \
-    | sed 's/^/    /' || warn "none of the five are set yet"
+    | grep -E "APPLE_DEVELOPER_ID_CERT_P12|APPLE_DEVELOPER_ID_CERT_PASSWORD|APPLE_DEVELOPER_ID_PROFILE|APPLE_NOTARY_KEY_P8|APPLE_NOTARY_KEY_ID|APPLE_NOTARY_ISSUER_ID" \
+    | sed 's/^/    /' || warn "none of the six are set yet"
 fi
 printf '\n'
 say "Next: merge an Apple change to main. The 'Publish macOS DMG' job builds,"

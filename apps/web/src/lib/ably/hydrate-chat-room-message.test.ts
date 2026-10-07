@@ -3,6 +3,35 @@ import { describe, expect, it } from "vitest";
 import { hydrateChatRoomMessageFromRealtime } from "@/lib/ably/hydrate-chat-room-message";
 
 describe("hydrateChatRoomMessageFromRealtime", () => {
+  it("retains result descriptors when a live bot update completes its placeholder", () => {
+    const descriptor = {
+      id: "550e8400-e29b-41d4-a716-446655440010",
+      capturedAt: "2026-10-06T09:22:00.000Z",
+    };
+    const hydrated = hydrateChatRoomMessageFromRealtime({
+      id: "message",
+      roomId: "room",
+      parentMessageId: null,
+      content: "Created a task",
+      resultPreviews: [descriptor],
+      createdAt: descriptor.capturedAt,
+      deletedAt: null,
+      editedAt: null,
+      pinnedAt: null,
+      sender: { type: "sokoBot" },
+      mentions: [],
+      reactions: [],
+      threadReplyCount: 0,
+      threadLastReplyAt: null,
+      metadata: null,
+      quote: null,
+      membership: null,
+      unfurls: null,
+    });
+    expect(hydrated.resultPreviews).toEqual([
+      { ...descriptor, capturedAt: new Date(descriptor.capturedAt) },
+    ]);
+  });
   it("converts ISO date strings to Date instances", () => {
     const hydrated = hydrateChatRoomMessageFromRealtime({
       id: "550e8400-e29b-41d4-a716-446655440000",
@@ -243,5 +272,38 @@ describe("hydrateChatRoomMessageFromRealtime", () => {
     });
 
     expect(hydrated.threadRepliers).toEqual(threadRepliers);
+  });
+
+  it("keeps the skills attached to a message", () => {
+    const skills = [
+      {
+        id: "mattpocock/skills/grill-me",
+        name: "grill-me",
+        description: null,
+        url: "https://skills.sh/mattpocock/skills/grill-me",
+      },
+    ];
+    const hydrated = hydrateChatRoomMessageFromRealtime({
+      id: "550e8400-e29b-41d4-a716-446655440000",
+      roomId: "660e8400-e29b-41d4-a716-446655440000",
+      parentMessageId: null,
+      content: "sharpen this",
+      createdAt: "2026-08-03T12:00:00.000Z",
+      deletedAt: null,
+      editedAt: null,
+      pinnedAt: null,
+      sender: { type: "user", user: null },
+      mentions: [],
+      reactions: [],
+      threadReplyCount: 0,
+      threadLastReplyAt: null,
+      metadata: null,
+      quote: null,
+      membership: null,
+      unfurls: null,
+      skills,
+    });
+
+    expect(hydrated.skills).toEqual(skills);
   });
 });

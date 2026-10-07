@@ -1,3 +1,11 @@
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationInviteLink,
+  OrganizationRecord,
+  PendingInvitation,
+  StripeCustomerBillingDetails,
+} from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import { ResultAsync } from "neverthrow";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -15,14 +23,6 @@ import { BillingPortalErrorToast } from "@/components/billing/billing-portal-err
 import MembersTable from "@/components/members-table/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations/role-badge";
 import { coreClient } from "@/lib/clients/core.client";
-import type {
-  OrganizationDeletionEvaluation,
-  OrganizationInviteLink,
-  OrganizationRecord,
-  PendingInvitation,
-  StripeCustomerBillingDetails,
-} from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
 import { organizationService } from "@/lib/services/organization.service";
 import { organizationSeatService } from "@/lib/services/organization-seat.service";
 import { userService } from "@/lib/services/user.service";

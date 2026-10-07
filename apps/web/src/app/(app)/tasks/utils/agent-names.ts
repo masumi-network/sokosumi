@@ -1,4 +1,4 @@
-import type { Agent } from "@/lib/clients/generated/core";
+import type { Agent } from "@sokosumi/core-client";
 import { getAgentName } from "@/lib/helpers/agent";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 

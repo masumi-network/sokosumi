@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { ComposioApiError, ComposioToolError } from "@/clients/composio.client";
+import { ComposioApiError } from "@/clients/composio.client";
+import { ComposioToolError } from "@/clients/social-post-providers/tools";
 
 import { classifyPublishError } from "./social-post-publish-errors";
 
@@ -109,7 +110,7 @@ describe("classifyPublishError", () => {
     ],
     ["non-error value", "boom", { kind: "unknown", transient: true }],
   ])("classifies %s", (_name, error, expected) => {
-    expect(classifyPublishError(error)).toMatchObject(expected);
+    expect(classifyPublishError(error, "x")).toMatchObject(expected);
   });
 
   it("summarizes a tool error with the provider status and message", () => {
@@ -119,6 +120,7 @@ describe("classifyPublishError", () => {
         providerMessage: "Duplicate content",
         providerStatus: 403,
       }),
+      "x",
     );
 
     expect(result.summary).toBe("X rejected the post (403): Duplicate content");
@@ -127,6 +129,7 @@ describe("classifyPublishError", () => {
   it("summarizes a Composio API error by its message", () => {
     const result = classifyPublishError(
       new ComposioApiError(429, undefined, "publish X post failed (429)"),
+      "x",
     );
 
     expect(result.summary).toBe("publish X post failed (429)");
@@ -138,6 +141,7 @@ describe("classifyPublishError", () => {
         message: "X publish failed",
         providerMessage: `line one\n${"x".repeat(400)}`,
       }),
+      "x",
     );
 
     expect(result.summary).not.toContain("\n");
@@ -145,10 +149,10 @@ describe("classifyPublishError", () => {
   });
 
   it("falls back to a generic summary for unknown errors", () => {
-    expect(classifyPublishError(new Error("")).summary).toBe(
+    expect(classifyPublishError(new Error(""), "x").summary).toBe(
       "Unexpected error while publishing",
     );
-    expect(classifyPublishError(null).summary).toBe(
+    expect(classifyPublishError(null, "x").summary).toBe(
       "Unexpected error while publishing",
     );
   });

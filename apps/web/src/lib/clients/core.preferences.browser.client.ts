@@ -1,13 +1,13 @@
-import { createClient } from "@/lib/clients/generated/core/client";
-import {
-  getUsersByIdPreferences,
-  patchUsersByIdPreferences,
-} from "@/lib/clients/generated/core/sdk.gen";
 import type {
   GetUsersByIdPreferencesResponse,
   PatchUsersByIdPreferencesData,
   PatchUsersByIdPreferencesResponse,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import {
+  getUsersByIdPreferences,
+  patchUsersByIdPreferences,
+} from "@sokosumi/core-client";
+import { createClient } from "@sokosumi/core-client/client";
 import { getBrowserCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url.browser";
 
 import { executeCoreOperation } from "./core.request";

@@ -2,12 +2,17 @@ import type { SokoBotToolCall } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import prisma from "@/lib/db/prisma";
 import { ACTION_CAPABILITIES } from "./action-receipts";
-import { buildActionResponse } from "./action-response";
+import {
+  buildActionResponse,
+  HELD_BACK_REPLY,
+  parseActionNarrativeText,
+} from "./action-response";
 
 const db = vi.hoisted(() => ({
   sokoBotToolCall: { findMany: vi.fn(), findUnique: vi.fn() },
   sokoBotTurn: { findUnique: vi.fn() },
-  task: { findFirst: vi.fn() },
+  task: { findFirst: vi.fn(), findMany: vi.fn() },
+  job: { findMany: vi.fn() },
 }));
 vi.mock("@/lib/db/prisma", () => ({ default: db }));
 
@@ -50,9 +55,227 @@ function replay() {
   });
 }
 
+describe("action lines the owner reads", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("says a hire once and links the job", async () => {
+    const hire = {
+      capability: "hire_agent",
+      targetId: "job-one",
+      verification: "PROVIDER_ACK" as const,
+      effectEventId: null,
+    };
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ ...hire, id: "hire-a", toolCallId: "call-a" }),
+      receipt({ ...hire, id: "hire-b", toolCallId: "call-b" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    db.job.findMany.mockResolvedValueOnce([
+      { id: "job-one", agentId: "agent-one" },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Hired agent ([Open job](/agents/agent-one/jobs/job-one)).",
+    );
+    expect(result.appliedReceiptIds).toEqual(["hire-a", "hire-b"]);
+  });
+
+  it("collapses repeated Task changes into one line naming up to five", async () => {
+    const ids = ["a", "b", "c"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Updated 3 Tasks: [Task a](/tasks/a), [Task b](/tasks/b), [Task c](/tasks/c).",
+    );
+  });
+
+  it("counts more than five Task changes without naming them", async () => {
+    const ids = ["a", "b", "c", "d", "e", "f"];
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      ids.map((id) =>
+        receipt({
+          id: `receipt-${id}`,
+          toolCallId: `call-${id}`,
+          targetId: id,
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce(
+      ids.map((id) => ({
+        id,
+        name: `Task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Updated 6 Tasks.");
+  });
+
+  it("says repeated refused archives once, with a count", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce(
+      Array.from({ length: 9 }, (_, index) =>
+        receipt({
+          id: `receipt-${index}`,
+          toolCallId: `call-${index}`,
+          capability: "archive_task",
+          status: "FAILED",
+          disposition: "REJECTED",
+          verification: "NONE",
+          committedAt: null,
+          targetId: null,
+          input: { taskId: `task-${index}` },
+        }),
+      ),
+    );
+    db.task.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe("Couldn't archive 9 Tasks.");
+    expect(result.unfulfilledActions).toHaveLength(9);
+  });
+
+  it("counts a retried archive once and names the few Tasks it missed", async () => {
+    const refused = (index: number, taskId: string) =>
+      receipt({
+        id: `receipt-${index}`,
+        toolCallId: `call-${index}`,
+        capability: "archive_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: { taskId },
+      });
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      refused(0, "a"),
+      refused(1, "a"),
+      refused(2, "a"),
+      refused(3, "b"),
+    ]);
+    db.task.findMany.mockResolvedValueOnce(
+      ["a", "b"].map((id) => ({
+        id,
+        name: `Test task ${id}`,
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      })),
+    );
+    db.sokoBotTurn.findUnique.mockResolvedValue({ source: "CHAT" });
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Couldn't archive 2 Tasks: [Test task a](/tasks/a), [Test task b](/tasks/b).",
+    );
+    expect(result.unfulfilledActions).toHaveLength(4);
+  });
+
+  it("links a scheduled social post to where the owner finds it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "schedule_social_post",
+        targetId: "post-one",
+        result: { id: "post-one", projectId: "project-one" },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    db.job.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Scheduled social post ([Open post](/social?projectId=project-one&postId=post-one)).",
+    );
+  });
+
+  it("says a comment that canceled a Task canceled it", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "reply_to_task",
+        result: { id: "task-one", status: "CANCELED", statusChanged: true },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "Launch QA",
+        assignee: null,
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Canceled task [Launch QA](/tasks/task-one).",
+    );
+  });
+
+  it("links an uploaded file to its page, not to the public blob", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "upload_file",
+        targetId: "01a0f400-0000-7000-8000-000000000001",
+        verification: "PROVIDER_ACK",
+        effectEventId: null,
+        result: {
+          id: "01a0f400-0000-7000-8000-000000000001",
+          filename: "test-notes.md",
+          link: "/drive/files/01a0f400-0000-7000-8000-000000000001",
+          size: 12,
+        },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      "Uploaded file [test-notes.md](/drive/files/01a0f400-0000-7000-8000-000000000001).",
+    );
+    expect(result.answerText).not.toContain("blob");
+  });
+
+  it("still renders an older receipt that holds the blob URL", async () => {
+    const url =
+      "https://store.public.blob.vercel-storage.com/drive/users/u/test-notes.md";
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "upload_file",
+        targetId: url,
+        verification: "PROVIDER_ACK",
+        effectEventId: null,
+        result: { filename: "test-notes.md", url, size: 12 },
+      }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([]);
+    const result = await buildActionResponse(prisma, "turn-current", "");
+    expect(result.answerText).toBe(
+      `Uploaded file test-notes.md.\n\n[test-notes.md](${url})`,
+    );
+  });
+});
+
 describe("authoritative action responses", () => {
   beforeEach(() => {
     vi.resetAllMocks();
+    db.task.findMany.mockResolvedValue([]);
     db.sokoBotTurn.findUnique.mockResolvedValue({
       sokoBotId: "bot-one",
       workspaceId: "workspace-one",
@@ -80,15 +303,15 @@ describe("authoritative action responses", () => {
       );
       expect(result.answerText).toBe(
         historyPresent
-          ? "Archived task (task-one)."
-          : "I could not verify archive_task.",
+          ? "Archived task."
+          : "Couldn't confirm I archived a Task.",
       );
       expect(db.task.findFirst).toHaveBeenCalledWith({
         where: {
           id: "task-one",
-          ownerId: "owner",
           workspaceId: "workspace-one",
           archivedAt: { not: null },
+          // No owner filter: a teammate's public Task the bot archived confirms too.
           events: { some: { id: "event-one", sokoBotId: "bot-one" } },
         },
         select: { id: true },
@@ -109,7 +332,7 @@ describe("authoritative action responses", () => {
       narrative: null,
       observations: [],
       unfulfilledActions: [],
-      answerText: "Updated task (task-one).",
+      answerText: "Updated task.",
     });
     expect(db.sokoBotToolCall.findMany).toHaveBeenCalledWith({
       where: {
@@ -129,8 +352,104 @@ describe("authoritative action responses", () => {
       "turn-current",
       "All requested work is complete.",
     );
-    expect(result.answerText).toBe("Created task (task-one).");
+    expect(result.answerText).toBe("Created task.");
   });
+
+  it("shows the bot's own message beneath the verified receipts", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+    ]);
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      JSON.stringify({
+        kind: "CLARIFY",
+        message: "Hannah will cover pricing. Should I include Sokosumi itself?",
+        question: "SCOPE",
+        observationToolCallIds: [],
+      }),
+    );
+    expect(result.answerText).toBe(
+      "Created task.\n\nHannah will cover pricing. Should I include Sokosumi itself?",
+    );
+  });
+
+  it("reads the narrative when the model fences it or wraps it in prose", () => {
+    const narrative = {
+      kind: "REPORT",
+      message: "Done looking.",
+      question: null,
+      observationToolCallIds: [],
+    };
+    for (const text of [
+      `\`\`\`json\n${JSON.stringify(narrative)}\n\`\`\``,
+      `Here you go: ${JSON.stringify(narrative)}`,
+    ])
+      expect(parseActionNarrativeText(text)).toEqual(narrative);
+    expect(parseActionNarrativeText("No JSON here.")).toBeNull();
+  });
+
+  it("names created and assigned tasks from the stored task", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+      receipt({ id: "receipt-two", capability: "assign_task" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "x402 news [draft]",
+        assignee: { name: "Hannah" },
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(result.answerText).toBe(
+      "Created task [x402 news \\[draft\\]](/tasks/task-one).\nAssigned task [x402 news \\[draft\\]](/tasks/task-one) → Hannah.",
+    );
+  });
+
+  it("names the assignee of a Task created with one", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({ capability: "create_task" }),
+    ]);
+    db.task.findMany.mockResolvedValueOnce([
+      {
+        id: "task-one",
+        name: "[TEST] Receipt check",
+        assignee: { name: "Hannah" },
+        assigneeUser: null,
+        assigneeSokoBot: null,
+      },
+    ]);
+    const result = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(result.answerText).toBe(
+      "Created task [\\[TEST\\] Receipt check](/tasks/task-one) → Hannah.",
+    );
+  });
+
+  it.each([
+    { status: "PENDING" as const },
+    { status: "FAILED" as const },
+    { disposition: "REJECTED" as const },
+    { verification: "NONE" as const },
+    { committedAt: null },
+    { targetId: null },
+  ])(
+    "keeps a refused attempt out of a turn the bot started itself %j",
+    async (change) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([receipt(change)]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "SCHEDULE" });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "Morning update.",
+      );
+      expect(result.answerText).not.toContain("Couldn't");
+      // Still recorded for the claim check and the admin view.
+      expect(result.unfulfilledActions).toHaveLength(1);
+    },
+  );
 
   it.each([
     { status: "PENDING" as const },
@@ -147,7 +466,12 @@ describe("authoritative action responses", () => {
       "The update succeeded.",
     );
     expect(result.appliedReceiptIds).toEqual([]);
-    expect(result.answerText).toBe("I could not verify update_task.");
+    // One that ran without proof is unconfirmed; one that never ran failed.
+    expect(result.answerText).toBe(
+      "status" in change
+        ? "Couldn't update a Task."
+        : "Couldn't confirm I updated a Task.",
+    );
     expect(result.unfulfilledActions).toEqual([
       {
         action: "update_task",
@@ -173,7 +497,7 @@ describe("authoritative action responses", () => {
     );
     expect(result.appliedReceiptIds).toEqual([]);
     expect(result.answerText).toBe(
-      "The outcome of run_integration_tool is unknown. Reconciliation is required before retrying.",
+      "I couldn't confirm whether this went through: integration acknowledged operation. Check before trying again.",
     );
     expect(result.unfulfilledActions[0].reason).toBe("UNKNOWN");
   });
@@ -192,7 +516,7 @@ describe("authoritative action responses", () => {
     expect(result).toMatchObject({
       appliedReceiptIds: ["source-one"],
       unfulfilledActions: [],
-      answerText: "Previously verified: Updated task (task-one).",
+      answerText: "Previously verified: Updated task.",
     });
     expect(db.sokoBotToolCall.findMany).toHaveBeenNthCalledWith(2, {
       where: {
@@ -269,7 +593,7 @@ describe("authoritative action responses", () => {
     );
     expect(result.appliedReceiptIds).toEqual(["source-one"]);
     expect(result.unfulfilledActions).toEqual([]);
-    expect(result.answerText).toBe("Updated task (task-one).");
+    expect(result.answerText).toBe("Updated task.");
   });
 
   it.each(["create_table", "write_table_rows", "update_table_columns"])(
@@ -285,9 +609,7 @@ describe("authoritative action responses", () => {
       );
       expect(result.appliedReceiptIds).toHaveLength(1);
       expect(result.answerText).not.toContain("emailed");
-      expect(result.answerText).toContain(
-        capability === "create_table" ? "/drive/tables/table-one" : "table-one",
-      );
+      expect(result.answerText).toContain("/drive/tables/table-one");
       db.sokoBotToolCall.findMany.mockResolvedValue([
         receipt({ capability, targetId: "table-one", verification: "NONE" }),
       ]);
@@ -297,7 +619,7 @@ describe("authoritative action responses", () => {
         "Created the table.",
       );
       expect(unverified.appliedReceiptIds).toEqual([]);
-      expect(unverified.answerText).toBe(`I could not verify ${capability}.`);
+      expect(unverified.answerText).toMatch(/^Not confirmed: \w/);
     },
   );
 
@@ -339,7 +661,7 @@ describe("authoritative action responses", () => {
       "turn-current",
       "All posts were published.",
     );
-    expect(response.answerText).toBe(`${label} (post-one).`);
+    expect(response.answerText).toBe(`${label}.`);
     db.sokoBotToolCall.findMany.mockResolvedValueOnce([
       receipt({
         capability,
@@ -351,7 +673,7 @@ describe("authoritative action responses", () => {
     const unknown = await buildActionResponse(prisma, "turn-current", "Done.");
     expect(unknown.appliedReceiptIds).toEqual([]);
     expect(unknown.answerText).toBe(
-      `The outcome of ${capability} is unknown. Reconciliation is required before retrying.`,
+      `I couldn't confirm whether this went through: ${label.toLowerCase()}. Check before trying again.`,
     );
   });
 
@@ -396,6 +718,41 @@ describe("authoritative action responses", () => {
       'Connected at: "2026-09-28T10:00:00Z"',
     );
     expect(response.answerText).not.toContain("job");
+  });
+
+  it("shows the bot's own words instead of restating what it read", async () => {
+    const read = receipt({
+      capability: "list_project_social_accounts",
+      result: [
+        {
+          id: "account-one",
+          provider: "linkedin",
+          externalHandle: "acme",
+          status: "active",
+          connectedAt: "2026-09-28T10:00:00Z",
+          disconnectedAt: null,
+        },
+      ],
+    });
+    db.sokoBotToolCall.findMany
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([read]);
+    const response = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "Your LinkedIn account acme is connected.",
+      true,
+      {
+        kind: "REPORT",
+        message: "Your LinkedIn account acme is connected.",
+        question: null,
+        observationToolCallIds: ["read-social"],
+      },
+    );
+    expect(response.answerText).toBe(
+      "Your LinkedIn account acme is connected.",
+    );
+    expect(response.observations.length).toBeGreaterThan(0);
   });
 
   it("includes every connected account when providers have multiple accounts", async () => {
@@ -552,6 +909,71 @@ describe("authoritative action responses", () => {
     },
   );
 
+  function refusedThenCreated(
+    refused: Record<string, unknown>,
+    created: Record<string, unknown> = {},
+  ) {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        id: "refused",
+        toolCallId: "call-refused",
+        capability: "create_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+        input: { name: "Brief" },
+        createdAt: new Date("2026-09-26T12:00:00Z"),
+        ...refused,
+      }),
+      receipt({
+        id: "created",
+        toolCallId: "call-created",
+        capability: "create_task",
+        input: { name: "Brief", triggeringTaskId: "task-1" },
+        createdAt: new Date("2026-09-26T12:00:05Z"),
+        ...created,
+      }),
+    ]);
+  }
+
+  it("does not report a refused attempt the bot then made good", async () => {
+    refusedThenCreated({});
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Created task.");
+    expect(response.unfulfilledActions).toEqual([]);
+  });
+
+  it("still reports a refused attempt a different call followed", async () => {
+    refusedThenCreated({ input: { name: "Launch plan" } });
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.unfulfilledActions).toHaveLength(1);
+  });
+
+  it("always reports an attempt whose outcome is unknown", async () => {
+    refusedThenCreated({ status: "COMPLETED", disposition: "UNKNOWN" });
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toContain(
+      "I couldn't confirm whether this went through: created task.",
+    );
+  });
+
+  it("still reports a refused attempt nothing replaced", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([
+      receipt({
+        capability: "create_task",
+        status: "FAILED",
+        disposition: "REJECTED",
+        verification: "NONE",
+        committedAt: null,
+        targetId: null,
+      }),
+    ]);
+    const response = await buildActionResponse(prisma, "turn-current", "Done.");
+    expect(response.answerText).toBe("Couldn't create a Task.");
+  });
+
   it("combines receipts and persisted authorized read facts, without model facts", async () => {
     db.sokoBotToolCall.findMany
       .mockResolvedValueOnce([receipt()])
@@ -572,9 +994,12 @@ describe("authoritative action responses", () => {
         observationToolCallIds: ["read-one"],
       },
     );
-    expect(response.answerText).toBe(
-      'Updated task (task-one).\nObserved task "Launch": status "IN_PROGRESS".',
-    );
+    // The receipts say what happened; what the bot read stays on the record
+    // rather than being restated beneath them in fixed wording.
+    expect(response.answerText).toBe("Updated task.");
+    expect(response.observations).toEqual([
+      'Observed task "Launch": status "IN_PROGRESS".',
+    ]);
     expect(db.sokoBotToolCall.findMany).toHaveBeenLastCalledWith(
       expect.objectContaining({
         where: {
@@ -643,24 +1068,21 @@ describe("authoritative action responses", () => {
         observationToolCallIds: ["read-blocked"],
       },
     );
-    expect(response.answerText).toContain("Assigned task (task-one).");
-    expect(response.answerText).toContain(
+    expect(response.answerText).toBe("Assigned task.");
+    const observed = response.observations.join("\n");
+    expect(observed).toContain(
       'Observed task "Launch campaign": status "BLOCKED".',
     );
-    expect(response.answerText).toContain('Recorded project: "Autumn launch".');
-    expect(response.answerText).toContain('Recorded assignee: "Nina".');
-    expect(response.answerText).toContain(
+    expect(observed).toContain('Recorded project: "Autumn launch".');
+    expect(observed).toContain('Recorded assignee: "Nina".');
+    expect(observed).toContain(
       'Latest reported task update ("coworker"): "Waiting for owner approval of the campaign budget.".',
     );
-    expect(response.answerText).toContain(
-      "Recorded outcome assessment: The requested outcome is partially complete. Result evidence is not yet available.",
+    expect(observed).not.toMatch(/requested outcome|Result evidence/);
+    expect(observed).toContain(
+      'Not confirmed yet: "Approved campaign budget".',
     );
-    expect(response.answerText).toContain(
-      'Still unverified: "Approved campaign budget".',
-    );
-    expect(response.answerText).toContain(
-      '"Budget approval", status "INPUT_REQUIRED"',
-    );
+    expect(observed).toContain('"Budget approval", status "INPUT_REQUIRED"');
     expect(response.answerText).not.toContain("I approved");
     expect(response.appliedReceiptIds).toEqual(["receipt-one"]);
   });
@@ -707,10 +1129,60 @@ describe("authoritative action responses", () => {
         observations: [],
         unfulfilledActions: [],
         answerText: actionRequested
-          ? "No action was verified. Please specify the target and change you want."
+          ? "Nothing was changed in this turn."
           : "Synthetic response",
       });
-      expect(db.sokoBotTurn.findUnique).not.toHaveBeenCalled();
     },
   );
+
+  it.each(["EVENT", "SCHEDULE", "INGEST"])(
+    "stays silent on a %s turn where nothing was done or said",
+    async (source) => {
+      db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+      db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source });
+      const result = await buildActionResponse(
+        prisma,
+        "turn-current",
+        "",
+        true,
+        {
+          kind: "REPORT",
+          message: null,
+          question: null,
+          observationToolCallIds: [],
+        },
+      );
+      expect(result.answerText).toBe("Nothing to add.");
+    },
+  );
+
+  it("drops a held-back reply on a turn the bot started itself", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "EVENT" });
+    const result = await buildActionResponse(prisma, "turn-current", "", true, {
+      kind: "REPORT",
+      message: HELD_BACK_REPLY,
+      question: null,
+      observationToolCallIds: [],
+    });
+    expect(result.answerText).toBe("Nothing to add.");
+  });
+
+  it("keeps a held-back reply for the owner who asked", async () => {
+    db.sokoBotToolCall.findMany.mockResolvedValueOnce([]);
+    db.sokoBotTurn.findUnique.mockResolvedValueOnce({ source: "CHAT" });
+    const result = await buildActionResponse(
+      prisma,
+      "turn-current",
+      "I posted it.",
+      true,
+      {
+        kind: "REPORT",
+        message: HELD_BACK_REPLY,
+        question: null,
+        observationToolCallIds: [],
+      },
+    );
+    expect(result.answerText).toBe(HELD_BACK_REPLY);
+  });
 });

@@ -1,6 +1,5 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import type { ChatRoomCollection } from "@sokosumi/utils";
-
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 export const ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT =
   "organization-chat-rooms-changed";

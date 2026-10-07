@@ -1,6 +1,10 @@
 import { z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
+import { markLookedThreadReplyRowsRead } from "@/helpers/chat-thread-reply-notifications";
 import { notFound } from "@/helpers/error";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import prisma from "@/lib/db/prisma";
 import type { ChatRoomThread } from "@/schemas/chat-room.schema";
 import { chatRoomThreadSchema } from "@/schemas/chat-room.schema";
@@ -53,6 +57,16 @@ export async function setThreadMuteAndReadBack(params: {
   if (!state) {
     throw notFound("Thread not found");
   }
+
+  // Muting Looks the Thread, and so can unmuting, so both clear what that
+  // Look covers (SOK-1217).
+  const clearedRows = await markLookedThreadReplyRowsRead(
+    room.id,
+    params.userId,
+    prisma,
+  );
+  waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+  waitUntil(cancelNotificationEmails(clearedRows));
 
   const thread = await getChatRoomThread(
     room.id,

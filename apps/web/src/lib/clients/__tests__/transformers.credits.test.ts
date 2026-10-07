@@ -1,7 +1,6 @@
+import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
+import { getUsersByIdCreditsResponseTransformer } from "@sokosumi/core-client/transformers";
 import { describe, expect, it } from "vitest";
-
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
-import { getUsersByIdCreditsResponseTransformer } from "@/lib/clients/generated/core/transformers.gen";
 
 function buildCreditsResponse(enterprise: unknown) {
   return {

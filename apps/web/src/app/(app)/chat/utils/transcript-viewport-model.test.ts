@@ -1,9 +1,8 @@
-import { describe, expect, it } from "vitest";
-
 import type {
   ChatRoomMessage,
   ChatRoomMessageUnfurl,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { describe, expect, it } from "vitest";
 
 import { createPendingRoomMessage } from "./outbound-room-message";
 import type { RoomTranscriptRow } from "./room-transcript-ranges";

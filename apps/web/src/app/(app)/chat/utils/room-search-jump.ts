@@ -1,9 +1,9 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
   CHAT_MESSAGE_LIST_THREAD,
 } from "@/app/chat/chat-message-list";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 export interface RoomSearchJumpDeps {
   holdOffBottom: () => void;

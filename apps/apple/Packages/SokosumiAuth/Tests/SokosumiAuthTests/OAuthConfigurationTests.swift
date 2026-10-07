@@ -22,7 +22,7 @@ struct OAuthConfigurationTests {
     )
     #expect(fields["response_type"] == "code")
     #expect(fields["client_id"] == "mac-public-client")
-    #expect(fields["redirect_uri"] == "com.sokosumi.app:/auth")
+    #expect(fields["redirect_uri"] == "https://app.sokosumi.com/auth/apple/callback")
     #expect(fields["scope"] == "openid sokosumi:api offline_access")
     #expect(fields["code_challenge"] == "challenge-abc")
     #expect(fields["code_challenge_method"] == "S256")

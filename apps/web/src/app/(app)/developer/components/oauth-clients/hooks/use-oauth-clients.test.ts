@@ -120,6 +120,62 @@ describe("useOAuthClients", () => {
     });
   });
 
+  it("registers the home page and logo when given", async () => {
+    createClientMock.mockResolvedValue({
+      data: { client_id: "client_2", client_secret: "secret" },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "CMO",
+        redirectUris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+        clientUri: "https://cmo.xyz",
+        logoUri: "https://cmo.xyz/logo.png",
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        client_uri: "https://cmo.xyz",
+        logo_uri: "https://cmo.xyz/logo.png",
+      }),
+    );
+  });
+
+  it("registers no home page or logo when they are left empty", async () => {
+    createClientMock.mockResolvedValue({
+      data: { client_id: "client_2", client_secret: "secret" },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.create({
+        name: "CMO",
+        redirectUris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+        clientUri: "",
+        logoUri: "",
+      });
+    });
+
+    expect(createClientMock).toHaveBeenCalledWith({
+      redirect_uris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+      client_name: "CMO",
+      scope: "openid",
+      grant_types: ["authorization_code"],
+    });
+  });
+
   it("registers Core API scope when includeCoreApi is true", async () => {
     createClientMock.mockResolvedValue({
       data: {
@@ -388,6 +444,70 @@ describe("useOAuthClients", () => {
       },
     });
     expect(getClientsMock.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("updates the home page and logo when given", async () => {
+    updateClientMock.mockResolvedValue({
+      data: { client_id: "client_1" },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "CMO",
+        redirectUris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+        clientUri: "https://cmo.xyz",
+        logoUri: "https://cmo.xyz/logo.png",
+      });
+    });
+
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "CMO",
+        redirect_uris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+        client_uri: "https://cmo.xyz",
+        logo_uri: "https://cmo.xyz/logo.png",
+      },
+    });
+  });
+
+  it("leaves the stored home page and logo when the fields are emptied", async () => {
+    updateClientMock.mockResolvedValue({
+      data: { client_id: "client_1" },
+      error: null,
+    });
+
+    const { result } = renderHook(() => useOAuthClients());
+    await waitFor(() => {
+      expect(result.current.isInitialLoading).toBe(false);
+    });
+
+    await act(async () => {
+      await result.current.update({
+        clientId: "client_1",
+        name: "CMO",
+        redirectUris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+        clientUri: "",
+        logoUri: "",
+      });
+    });
+
+    // Better Auth takes only strings here; sending "" would store "" beside
+    // null for "not set".
+    expect(updateClientMock).toHaveBeenCalledWith({
+      client_id: "client_1",
+      update: {
+        client_name: "CMO",
+        redirect_uris: ["https://app.cmo.xyz/api/auth/callback/sokosumi"],
+      },
+    });
   });
 
   it("updates native application_type for private-use redirect URIs", async () => {

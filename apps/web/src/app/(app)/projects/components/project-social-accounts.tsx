@@ -1,24 +1,13 @@
 "use client";
 
-import {
-  Loader2,
-  MoreHorizontal,
-  RefreshCw,
-  TriangleAlert,
-} from "lucide-react";
+import type { ProjectSocialConnection } from "@sokosumi/core-client";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
+import { MoreHorizontal, Plus, RefreshCw, TriangleAlert } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { type ComponentType, useRef, useState } from "react";
-import { SiX } from "react-icons/si";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
-
-import {
-  FacebookIcon,
-  InstagramIcon,
-  LinkedInIcon,
-  TikTokIcon,
-  YouTubeIcon,
-} from "@/components/social-icons";
+import { SOCIAL_PROVIDERS } from "@/components/social-providers";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,7 +33,6 @@ import {
   finalizeProjectSocialConnection,
   initiateProjectSocialConnection,
 } from "@/lib/actions/project/action";
-import type { ProjectSocialConnection } from "@/lib/clients/generated/core/types.gen";
 import { useComposioOAuthPopup } from "@/lib/composio/use-composio-oauth-popup";
 import { cn } from "@/lib/utils";
 
@@ -64,19 +52,6 @@ interface Feedback {
 }
 
 type OAuthAction = "connect" | "reconnect" | "replace";
-
-const SOCIAL_PROVIDERS = [
-  { id: "x", name: "X", Icon: SiX },
-  { id: "tiktok", name: "TikTok", Icon: TikTokIcon },
-  { id: "instagram", name: "Instagram", Icon: InstagramIcon },
-  { id: "linkedin", name: "LinkedIn", Icon: LinkedInIcon },
-  { id: "facebook", name: "Facebook", Icon: FacebookIcon },
-  { id: "youtube", name: "YouTube", Icon: YouTubeIcon },
-] as const satisfies readonly {
-  id: ProjectSocialConnection["provider"];
-  name: string;
-  Icon: ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
-}[];
 
 const STATUS_TRANSLATION_KEYS: Record<
   ProjectSocialConnection["status"],
@@ -169,7 +144,10 @@ export function ProjectSocialAccounts({
             ? t("errors.duplicate")
             : message?.includes("reconnect must match")
               ? t("errors.reconnectMismatch")
-              : fallback,
+              : error.kind ===
+                  CORE_API_ERROR_KINDS.SOCIAL_FACEBOOK_PAGE_REQUIRED
+                ? t("errors.facebookPage")
+                : fallback,
     });
   }
 
@@ -343,16 +321,66 @@ export function ProjectSocialAccounts({
       data-testid="project-social-accounts"
       id="social-accounts"
     >
-      <div className="space-y-1">
-        <h2
-          id="social-accounts-heading"
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-base font-semibold"
-        >
-          {t("title")}
-        </h2>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <h2
+            id="social-accounts-heading"
+            ref={headingRef}
+            tabIndex={-1}
+            className="text-base font-semibold"
+          >
+            {t("title")}
+          </h2>
+          <p className="text-muted-foreground text-sm">{t("description")}</p>
+        </div>
+        <DropdownMenu>
+          {/* Disabled on the trigger, not the button: a loading button drops
+              native `disabled`, and only the trigger's own flag stops Radix
+              from opening the menu. */}
+          <DropdownMenuTrigger asChild disabled={isBusy}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              loading={pendingAction === "connect"}
+            >
+              <Plus className="size-4" aria-hidden />
+              {t("connectAccount")}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {SOCIAL_PROVIDERS.map((provider) => {
+              const { id, name, Icon } = provider;
+              const comingSoon = "comingSoon" in provider;
+              return (
+                <DropdownMenuItem
+                  key={id}
+                  aria-label={
+                    comingSoon
+                      ? t("connectComingSoon", { provider: name })
+                      : t("connect", { provider: name })
+                  }
+                  disabled={comingSoon}
+                  onSelect={() => {
+                    void startOAuth("connect", undefined, id);
+                  }}
+                >
+                  <Icon
+                    className={cn("size-4", comingSoon && "grayscale")}
+                    aria-hidden
+                  />
+                  {name}
+                  {comingSoon ? (
+                    <span className="text-muted-foreground ml-auto pl-4 text-xs">
+                      {t("comingSoon")}
+                    </span>
+                  ) : null}
+                </DropdownMenuItem>
+              );
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {feedback ? (
@@ -437,24 +465,18 @@ export function ProjectSocialAccounts({
                       variant="outline"
                       size="sm"
                       disabled={isBusy}
+                      loading={isRowPending && pendingAction === "reconnect"}
                       onClick={() => {
                         void startOAuth("reconnect", connection.id);
                       }}
                     >
-                      {isRowPending && pendingAction === "reconnect" ? (
-                        <Loader2
-                          className="size-4 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        <RefreshCw className="size-4" aria-hidden />
-                      )}
+                      <RefreshCw className="size-4" aria-hidden />
                       {t("reconnect")}
                     </Button>
                   ) : null}
                   {canDisconnect ? (
                     <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
+                      <DropdownMenuTrigger asChild disabled={isBusy}>
                         <Button
                           ref={(node) => {
                             if (node) {
@@ -469,18 +491,12 @@ export function ProjectSocialAccounts({
                           type="button"
                           variant="ghost"
                           size="icon"
-                          disabled={isBusy}
-                          aria-busy={isRowPending}
+                          loading={
+                            isRowPending && pendingAction !== "reconnect"
+                          }
                           aria-label={t("actions", { account: handle })}
                         >
-                          {isRowPending && pendingAction !== "reconnect" ? (
-                            <Loader2
-                              className="size-4 animate-spin motion-reduce:animate-pulse"
-                              aria-hidden
-                            />
-                          ) : (
-                            <MoreHorizontal className="size-4" aria-hidden />
-                          )}
+                          <MoreHorizontal className="size-4" aria-hidden />
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
@@ -511,43 +527,6 @@ export function ProjectSocialAccounts({
         </ul>
       ) : null}
 
-      <div className="space-y-2">
-        <h3 className="text-muted-foreground text-xs font-medium">
-          {t("connectHeading")}
-        </h3>
-        <div className="flex flex-wrap gap-2">
-          {SOCIAL_PROVIDERS.map(({ id, name, Icon }) => {
-            const isConnecting =
-              pendingAction === "connect" && pendingTarget === id;
-
-            return (
-              <Button
-                key={id}
-                aria-busy={isConnecting}
-                aria-label={t("connect", { provider: name })}
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isBusy}
-                onClick={() => {
-                  void startOAuth("connect", undefined, id);
-                }}
-              >
-                {isConnecting ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : (
-                  <Icon className="size-4" aria-hidden />
-                )}
-                {name}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
-
       <AlertDialog
         open={pendingConfirmation !== null}
         onOpenChange={(open) => {
@@ -558,7 +537,10 @@ export function ProjectSocialAccounts({
           onCloseAutoFocus={(event) => {
             event.preventDefault();
             const trigger = confirmationTriggerRef.current;
-            (trigger?.isConnected && !trigger.disabled
+            // A loading trigger is aria-disabled, not natively disabled.
+            (trigger?.isConnected &&
+            !trigger.disabled &&
+            trigger.getAttribute("aria-disabled") !== "true"
               ? trigger
               : headingRef.current
             )?.focus();
@@ -580,11 +562,15 @@ export function ProjectSocialAccounts({
             <AlertDialogCancel disabled={isBusy}>
               {t("cancel")}
             </AlertDialogCancel>
-            <AlertDialogAction disabled={isBusy} onClick={handleConfirmation}>
+            <AlertDialogAction
+              disabled={isBusy}
+              loading={
+                confirmationIsDisconnect && pendingAction === "disconnect"
+              }
+              onClick={handleConfirmation}
+            >
               {confirmationIsDisconnect
-                ? pendingAction === "disconnect"
-                  ? t("disconnecting")
-                  : t("disconnectDialog.confirm")
+                ? t("disconnectDialog.confirm")
                 : t("replaceDialog.confirm")}
             </AlertDialogAction>
           </AlertDialogFooter>

@@ -854,9 +854,9 @@
       #expect(input.string.isEmpty)
     }
 
-    /// Row 18a: web's edit composer (`modifierEnterSubmits`) saves on Return and treats
-    /// Command/Control as an alias; Option is never read. A save does not clear the draft.
-    @Test(arguments: [NSEvent.ModifierFlags(), .command, .control, .option])
+    /// Rows 18a and 18c: web's edit composer saves on Return; Option is never read. A save does not clear
+    /// the draft.
+    @Test(arguments: [NSEvent.ModifierFlags(), .option])
     func editingReturnSavesWithoutClearing(_ modifiers: NSEvent.ModifierFlags) throws {
       let input = editInput("Original")
       var submissions = 0
@@ -868,9 +868,11 @@
       #expect(input.string == "Original")
     }
 
-    /// Shift inserts a line in the edit composer, also with Command or Control held (web: Shift wins).
-    @Test(arguments: [NSEvent.ModifierFlags.shift, [.shift, .command], [.shift, .control]])
-    func editingShiftReturnInsertsLine(_ modifiers: NSEvent.ModifierFlags) throws {
+    /// Row 18c: since web #5324 the edit composer has the message composer's Return rule, so Shift, Command
+    /// and Control each insert a line (web test "inserts a newline on Ctrl+Enter instead of saving while
+    /// editing"); until then Command and Control saved.
+    @Test(arguments: [NSEvent.ModifierFlags.shift, .command, .control, [.shift, .command], [.shift, .control]])
+    func editingModifiedReturnInsertsLine(_ modifiers: NSEvent.ModifierFlags) throws {
       let input = editInput("Original")
       var submissions = 0
       input.submit = { submissions += 1
@@ -925,20 +927,22 @@
       #expect(cancelled)
     }
 
-    /// Web's aria label: "Edit message. Enter to save, Escape to cancel, Shift+Enter for a new line."
-    @Test func editingInputNamesItsKeys() {
+    /// Web's aria label: "Edit message. Use Save or Cancel to finish. On a keyboard, Enter saves, Escape
+    /// cancels, and Shift+Enter adds a new line."
+    @Test func editingInputNamesItsControlsAndKeys() {
       let input = editInput("Original")
       #expect(input.accessibilityLabel() == "Edit message")
-      #expect(input.accessibilityHelp() == "Return to save, Escape to cancel, Shift-Return for a new line.")
+      #expect(input.accessibilityHelp() == "Use Save or Cancel to finish. Return saves, Escape cancels, and Shift-Return adds a new line.")
       let message = MacComposerTextInput.InputView()
-      message.modifierReturnSubmits = false
+      message.cancel = nil
       #expect(message.accessibilityLabel() == "Message")
       #expect(message.accessibilityHelp() == nil)
     }
 
+    /// An input with a cancel action is the edit composer's.
     private func editInput(_ text: String) -> MacComposerTextInput.InputView {
       let input = MacComposerTextInput.InputView()
-      input.modifierReturnSubmits = true
+      input.cancel = {}
       input.string = text
       input.setSelectedRange(NSRange(location: text.utf16.count, length: 0))
       return input

@@ -1,7 +1,7 @@
+import type { Notice } from "@sokosumi/core-client";
+import { NoticeKind } from "@sokosumi/core-client";
 import { connection } from "next/server";
 import { getPendingNoticesAction } from "@/lib/actions/notice/action";
-import type { Notice } from "@/lib/clients/generated/core";
-import { NoticeKind } from "@/lib/clients/generated/core";
 
 import { NoticeDialogHydrator } from "./shell-hydrators.client";
 

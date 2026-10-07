@@ -1,7 +1,7 @@
 import type {
   MemberWithOrganization,
   OrganizationRecord,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /**
  * Resolves an account name from an organization ID and members list.

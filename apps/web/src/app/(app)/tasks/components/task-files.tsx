@@ -1,15 +1,15 @@
 "use client";
 
+import type {
+  PublicSharedTaskFile,
+  TaskFile,
+  TaskFileStatus,
+} from "@sokosumi/core-client";
 import { FileIcon } from "lucide-react";
 import { useId, useLayoutEffect, useState } from "react";
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Button } from "@/components/ui/button";
-import type {
-  PublicSharedTaskFile,
-  TaskFile,
-  TaskFileStatus,
-} from "@/lib/clients/generated/core";
 
 export type TaskFileListItem =
   | Pick<TaskFile, "id" | "name" | "fileUrl" | "size" | "mimeType" | "status">

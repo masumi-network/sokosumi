@@ -669,6 +669,69 @@ describe("getPublicSharedResourceByToken", () => {
     expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
   });
 
+  it("leaves the creation event out of the public milestones", async () => {
+    const at = (iso: string) => new Date(iso);
+    const event = (
+      id: string,
+      createdAt: Date,
+      status: "CREATED" | "DRAFT",
+    ) => ({
+      id,
+      createdAt,
+      updatedAt: createdAt,
+      channel: "SOKOSUMI",
+      comment: null,
+      cents: null,
+      transactionId: null,
+      user: { name: "Ada Lovelace", image: null },
+      coworker: null,
+      sokoBot: null,
+      transaction: null,
+      status,
+    });
+    publicShareFindUniqueMock.mockResolvedValue({
+      id: "share_created",
+      taskId: "tsk_created",
+      jobId: null,
+      token: "created-token",
+      allowSearchIndexing: false,
+      createdAt: at("2026-03-30T10:00:00.000Z"),
+      updatedAt: at("2026-03-30T10:00:00.000Z"),
+      job: null,
+      task: {
+        id: "tsk_created",
+        archivedAt: null,
+        createdAt: at("2026-03-30T10:00:00.000Z"),
+        updatedAt: at("2026-03-30T10:00:00.000Z"),
+        name: "Fresh task",
+        description: null,
+        status: "DRAFT",
+        assignee: {
+          id: "cow_123",
+          name: "Ops Agent",
+          slug: "ops-agent",
+          image: null,
+        },
+        jobs: [],
+        files: [],
+        events: [
+          event("evt_created", at("2026-03-30T10:00:00.000Z"), "CREATED"),
+          event("evt_draft", at("2026-03-30T10:00:00.001Z"), "DRAFT"),
+        ],
+      },
+    });
+
+    const resource = await getPublicSharedResourceByToken("created-token");
+
+    if (!resource || resource.kind !== "task") {
+      throw new Error("Expected a shared task response");
+    }
+    expect(resource.task.events.map((event) => event.id)).toEqual([
+      "evt_draft",
+    ]);
+    expect(() => publicSharedTaskSchema.parse(resource.task)).not.toThrow();
+  });
+
   it("validates a human-assigned shared task with a null slug", async () => {
     publicShareFindUniqueMock.mockResolvedValue({
       id: "share_human_task",

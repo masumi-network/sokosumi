@@ -51,7 +51,7 @@ public func isMessageContinuation(
 public func daySeparatorLabel(
   for date: Date,
   previous: Date?,
-  now: Date = Date(),
+  now: Date,
   calendar: Calendar = .current
 ) -> String? {
   if let previous, calendar.isDate(date, inSameDayAs: previous) {
@@ -105,9 +105,9 @@ public enum GroupNameChangeStatus: Equatable, Sendable {
   }
 }
 
-/// Centered status text for join/leave rows ("{name} joined" / "{name} left").
-/// Mirrors web `RoomStatusRow`. Nil when the message is not a
-/// membership row.
+/// Centered status text for join/leave rows: "{actor} added {name}" / "{actor} removed {name}"
+/// when someone else changed the roster, else "{name} joined" / "{name} left".
+/// Mirrors web `RoomStatusRow`. Nil when the message is not a membership row.
 public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) -> String? {
   guard let membership = message.membership else { return nil }
   let name: String = switch membership.subject {
@@ -118,10 +118,14 @@ public func membershipStatusText(_ message: Components.Schemas.ChatRoomMessage) 
   case let .case3(bot):
     bot.name
   }
-  switch membership.action {
-  case .joined:
+  switch (membership.action, membership.actor?.name) {
+  case let (.joined, actor?):
+    return "\(actor) added \(name)"
+  case let (.left, actor?):
+    return "\(actor) removed \(name)"
+  case (.joined, nil):
     return "\(name) joined"
-  case .left:
+  case (.left, nil):
     return "\(name) left"
   }
 }

@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 
 import {
   compareChatRoomsByRecentActivity,

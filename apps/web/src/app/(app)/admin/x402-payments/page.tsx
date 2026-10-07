@@ -1,7 +1,7 @@
+import type { AdminTaskX402Payment } from "@sokosumi/core-client";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { X402PaymentAction } from "@/components/admin/x402-payments/x402-payment-action";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { AdminTaskX402Payment } from "@/lib/clients/generated/core";
 import {
   type AdminTaskX402PaymentStatus,
   adminTaskX402PaymentService,

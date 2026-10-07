@@ -1,7 +1,6 @@
 import type { UseChatHelpers } from "@ai-sdk/react";
+import type { CoworkerMetadata } from "@sokosumi/core-client";
 import type { UIMessage } from "ai";
-
-import type { CoworkerMetadata } from "@/lib/clients/generated/core/types.gen";
 
 export type ChatStatus = "active" | "awaiting" | "resolved";
 export type ChatComposeKind = "chat" | "task";

@@ -1,14 +1,13 @@
-import { LockKeyhole } from "lucide-react";
-import { getFormatter, getTranslations } from "next-intl/server";
-
-import { SokoBotVersionActions } from "@/components/admin/soko-bots/soko-bot-version-actions.client";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
 import type {
   AdminSokoBotQuality,
   SokoBotLabRun,
   SokoBotVersionDetail as VersionDetail,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { LockKeyhole } from "lucide-react";
+import { getFormatter, getTranslations } from "next-intl/server";
+import { SokoBotVersionActions } from "@/components/admin/soko-bots/soko-bot-version-actions.client";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 
 interface SokoBotVersionDetailProps {
   version: VersionDetail;

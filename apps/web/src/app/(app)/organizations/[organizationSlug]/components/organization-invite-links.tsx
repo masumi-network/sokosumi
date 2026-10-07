@@ -1,6 +1,6 @@
+import type { OrganizationInviteLink } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-
 import {
   Card,
   CardContent,
@@ -8,7 +8,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { OrganizationInviteLink } from "@/lib/clients/generated/core";
 
 import { OrganizationInviteLinkForm } from "./organization-invite-link-form";
 import { OrganizationInviteLinkList } from "./organization-invite-link-list";

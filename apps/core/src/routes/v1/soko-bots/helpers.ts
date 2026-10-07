@@ -4,7 +4,6 @@ import {
   ComposioToolNotFoundError,
 } from "@composio/core";
 import { z } from "@hono/zod-openapi";
-import { isNmkrEmail } from "@sokosumi/utils";
 import type { Context, Next } from "hono";
 import { getEnv } from "@/config/env";
 import {
@@ -14,7 +13,6 @@ import {
   serviceUnavailable,
   unprocessableEntity,
 } from "@/helpers/error";
-import prisma from "@/lib/db/prisma";
 import type { EnvVariables } from "@/lib/hono";
 import { isSokoBotAuthContext, isUserAuthContext } from "@/middleware/auth";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
@@ -64,7 +62,7 @@ export const decisionParams = z.object({
 export const providerParamSchema = z.object({ provider: z.string().min(1) });
 
 /**
- * Kill switch + beta gate. Lives on the router so a new endpoint cannot
+ * Kill switch and actor check. Lives on the router so a new endpoint cannot
  * be added outside it.
  */
 export async function sokoBotRouteGate(
@@ -85,28 +83,10 @@ export async function sokoBotRouteGate(
       },
     );
   }
-  // Beta gate, matching the web route's 404 and the calendar routes' rule.
-  // It lives on the router rather than per handler so a new endpoint cannot
-  // be added outside it; the UI gate alone would leave the API open.
-  // Fail closed: every handler here requires a user actor today, and an
-  // endpoint added later for a coworker key must not slip past the beta by
-  // simply not being a user.
+  // Every handler here needs a person or a bot actor; a coworker key or
+  // anything added later that is neither must not reach them.
   const auth = c.var.authContext;
-  if (isSokoBotAuthContext(auth)) {
-    await next();
-    return;
-  }
-  if (!isUserAuthContext(auth)) {
-    throw notFound("Soko Bot is not enabled");
-  }
-  const user = await prisma.user.findUnique({
-    where: { id: auth.userId },
-    select: { email: true, emailVerified: true },
-  });
-  // Signup neither requires verification nor withholds the session, so the
-  // domain alone proves nothing: anyone can register `someone@nmkr.io`
-  // without holding that mailbox. Verification is what the whitelist rests on.
-  if (!user?.emailVerified || !isNmkrEmail(user.email)) {
+  if (!isSokoBotAuthContext(auth) && !isUserAuthContext(auth)) {
     throw notFound("Soko Bot is not enabled");
   }
   await next();

@@ -6,7 +6,9 @@ const {
   loadWorkspaceCalendarPageMock,
   notFoundMock,
   projectServiceMock,
+  sokoBotGetMineMock,
 } = vi.hoisted(() => ({
+  sokoBotGetMineMock: vi.fn(),
   hasSocialBetaAccessMock: vi.fn(),
   loadWorkspaceCalendarPageMock: vi.fn(),
   notFoundMock: vi.fn(() => {
@@ -18,6 +20,14 @@ const {
     listSocialConnections: vi.fn(),
     listSocialPosts: vi.fn(),
   },
+}));
+
+vi.mock("./components/social-calendar-preview", () => ({
+  SocialCalendarPreviewProvider: ({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) => <>{children}</>,
 }));
 
 vi.mock("next/server", () => ({ connection: async () => undefined }));
@@ -58,16 +68,25 @@ vi.mock("@/app/calendar/components/workspace-calendar", () => ({
 
 vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
   ProjectSocialPosts: (props: {
+    accounts?: React.ReactNode;
+    actions?: React.ReactNode;
+    calendar?: React.ReactNode;
     posts: { id: string }[];
+    connections: { id: string }[];
     projectId: string;
     selectedPostId?: string;
   }) => (
     <div
       data-testid="social-posts"
+      data-connections={props.connections.map((c) => c.id).join(",")}
       data-order={props.posts.map((post) => post.id).join(",")}
       data-project={props.projectId}
       data-selected={props.selectedPostId}
-    />
+    >
+      {props.actions}
+      {props.calendar}
+      {props.accounts}
+    </div>
   ),
 }));
 
@@ -84,12 +103,54 @@ vi.mock("@/app/projects/components/project-social-accounts", () => ({
   ),
 }));
 
-// The picker reaches for the sidebar switcher's list, which reads the session
-// through react-query. This file is about which state the page chooses.
-vi.mock("./components/social-project-picker", () => ({
-  SocialProjectPicker: ({ notice }: { notice?: string }) => (
+// The all-projects tab row reads the URL; it is tested on its own. Here it
+// only has to show what the page hands it.
+vi.mock("./components/social-all-projects-tabs", () => ({
+  SocialAllProjectsTabs: (props: {
+    actions: React.ReactNode;
+    calendar: React.ReactNode;
+    notice?: string;
+  }) => (
+    <div data-testid="social-all-projects-tabs">
+      {props.actions}
+      {props.calendar}
+      <div data-testid="social-no-project">
+        {props.notice ?? "pick a project"}
+      </div>
+    </div>
+  ),
+}));
+
+// The prompt and the menu reach for the sidebar switcher's list and chat
+// actions. This file is about which state the page chooses.
+vi.mock("./components/social-accounts-project-prompt", () => ({
+  SocialAccountsProjectPrompt: ({ notice }: { notice?: string }) => (
     <div data-testid="social-no-project">{notice ?? "pick a project"}</div>
   ),
+}));
+
+// The provider keeps `?compose` in the URL through nuqs; this file is about
+// which state the page chooses, not about the URL adapter.
+vi.mock("./components/social-compose-context", () => ({
+  SocialComposeProvider: ({ children }: { children: React.ReactNode }) =>
+    children,
+}));
+
+vi.mock("./components/social-new-post-menu", () => ({
+  SocialNewPostMenu: (props: {
+    project: { id: string } | null;
+    sokoBotId: string | null;
+  }) => (
+    <div
+      data-testid="social-new-post"
+      data-project={props.project?.id ?? ""}
+      data-soko-bot={props.sokoBotId ?? ""}
+    />
+  ),
+}));
+
+vi.mock("@/lib/services/soko-bot.service", () => ({
+  sokoBotService: { getMine: sokoBotGetMineMock },
 }));
 
 const PROJECT = {
@@ -136,6 +197,23 @@ describe("SocialPage", () => {
     projectServiceMock.listSocialPosts.mockResolvedValue(page());
     projectServiceMock.listSocialConnections.mockResolvedValue([]);
     loadWorkspaceCalendarPageMock.mockResolvedValue(CALENDAR);
+    sokoBotGetMineMock.mockResolvedValue({ id: "bot-1" });
+  });
+
+  it("offers every active connection to the post composer", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+    projectServiceMock.listSocialConnections.mockResolvedValue([
+      { id: "conn-x", status: "active", provider: "x" },
+      { id: "conn-ig", status: "active", provider: "instagram" },
+      { id: "conn-off", status: "disconnected", provider: "linkedin" },
+    ]);
+
+    await visit({ projectId: "project-1" });
+
+    expect(screen.getByTestId("social-posts")).toHaveAttribute(
+      "data-connections",
+      "conn-x,conn-ig",
+    );
   });
 
   it("stays hidden outside the beta", async () => {
@@ -151,14 +229,41 @@ describe("SocialPage", () => {
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
   });
 
-  it("asks which project to post for when no scope is set", async () => {
-    await visit();
+  it("shows every project's posting schedule when no scope is set", async () => {
+    await visit({ view: "week" });
 
+    const calendar = screen.getByTestId("social-calendar");
+    expect(calendar).toHaveAttribute("data-social-only", "true");
+    expect(calendar).toHaveAttribute("data-locked-project", "");
+    // Starting a post still works: the menu asks for a project itself.
+    expect(screen.getByTestId("social-new-post")).toHaveAttribute(
+      "data-project",
+      "",
+    );
+    expect(screen.getByTestId("social-new-post")).toHaveAttribute(
+      "data-soko-bot",
+      "bot-1",
+    );
+    // The same tab row a project gets; accounts belong to a project, so
+    // their tab says so instead.
+    expect(screen.getByTestId("social-all-projects-tabs")).toBeInTheDocument();
     expect(screen.getByTestId("social-no-project")).toBeInTheDocument();
     expect(screen.queryByTestId("social-posts")).not.toBeInTheDocument();
-    // Accounts belong to a project, so there is nothing to read without one.
     expect(projectServiceMock.getProjectById).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: "week" });
+  });
+
+  it("offers Soko Bot as not set up when the reader has none", async () => {
+    sokoBotGetMineMock.mockResolvedValue(null);
+
+    await visit();
+
+    expect(screen.getByTestId("social-new-post")).toHaveAttribute(
+      "data-soko-bot",
+      "",
+    );
   });
 
   it("treats a blank projectId as no scope rather than as a project", async () => {
@@ -180,6 +285,20 @@ describe("SocialPage", () => {
     );
     expect(notFoundMock).not.toHaveBeenCalled();
     expect(projectServiceMock.listSocialPosts).not.toHaveBeenCalled();
+    // The lost id must not narrow the all-projects calendar to nothing.
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ projectId: undefined });
+  });
+
+  it("loads the month range for a stale view=agenda link", async () => {
+    projectServiceMock.getProjectById.mockResolvedValue(PROJECT);
+
+    await visit({ projectId: "project-1", view: "agenda" });
+
+    // Social has no agenda list; the agenda range would leave the month
+    // grid missing posts.
+    const [{ searchParams }] = loadWorkspaceCalendarPageMock.mock.lastCall!;
+    await expect(searchParams).resolves.toMatchObject({ view: undefined });
   });
 
   it("opens the scoped project's posts, calendar and accounts", async () => {
@@ -195,9 +314,9 @@ describe("SocialPage", () => {
       "data-project",
       "project-1",
     );
-    // One read per tab: upcoming, drafts and needs attention. Published and
-    // canceled posts are left to the calendar.
-    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(3);
+    // One read per list: drafts and needs attention. Scheduled, published
+    // and canceled posts are left to the calendar tab.
+    expect(projectServiceMock.listSocialPosts).toHaveBeenCalledTimes(2);
   });
 
   /**

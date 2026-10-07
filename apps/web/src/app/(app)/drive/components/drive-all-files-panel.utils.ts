@@ -1,7 +1,4 @@
-import type {
-  FileResource,
-  FileSearchMeta,
-} from "@/lib/clients/generated/core";
+import type { FileResource, FileSearchMeta } from "@sokosumi/core-client";
 
 /**
  * Folding a newly loaded page into the list already on screen.

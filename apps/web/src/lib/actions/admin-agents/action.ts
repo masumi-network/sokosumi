@@ -1,18 +1,17 @@
 "use server";
 
+import type { PatchAdminAgentMetadataOverrideBody } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { updateTag } from "next/cache";
 import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { AGENTS_CACHE_TAG } from "@/lib/agents/core-loaders";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
-import type { PatchAdminAgentMetadataOverrideBody } from "@/lib/clients/generated/core";
 import {
   type AdminAgentListPage,
   adminAgentService,

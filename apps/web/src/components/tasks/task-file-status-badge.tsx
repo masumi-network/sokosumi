@@ -1,5 +1,6 @@
 "use client";
 
+import { TaskFileStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -8,7 +9,6 @@ import {
   StatusMarker,
   type StatusMarkerSpec,
 } from "@/components/ui/status-marker";
-import { TaskFileStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**

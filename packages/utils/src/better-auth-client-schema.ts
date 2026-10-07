@@ -1,8 +1,29 @@
+import * as z from "zod";
+
+// Core auth hooks validate the combined length with the other name part.
+const namePartInputSchema = z.string().trim().min(1).nullable();
+
 /**
  * Better Auth additional-field schema — single source of truth for Core `auth.ts`
  * and web Better Auth client field inference.
  */
 export const betterAuthUserAdditionalFields = {
+  // Null means "not given": social and sign-in-page email-code sign-ups create the user
+  // before anyone is asked, and users from before these fields never were.
+  // An empty string is never stored. Email sign-up requires both and derives
+  // the initial display `name` from them.
+  firstName: {
+    type: "string",
+    required: false,
+    defaultValue: null,
+    validator: { input: namePartInputSchema },
+  },
+  lastName: {
+    type: "string",
+    required: false,
+    defaultValue: null,
+    validator: { input: namePartInputSchema },
+  },
   termsAccepted: {
     type: "boolean",
     required: true,
@@ -51,5 +72,9 @@ export const betterAuthOrganizationAdditionalFields = {
   },
 } as const;
 
-export type BetterAuthOrganizationAdditionalFieldKey =
-  keyof typeof betterAuthOrganizationAdditionalFields;
+/**
+ * Set to `true` on a `/sign-in/email-otp` response when the code removed the
+ * account's password and Google or Microsoft links: Better Auth does that when
+ * the address was unproven. Core sets it, the sign-in page tells the person.
+ */
+export const EMAIL_CODE_SIGN_IN_METHODS_REMOVED = "signInMethodsRemoved";

@@ -119,6 +119,7 @@ describe("GET /organizations/{id}/billing-plan", () => {
       purchasedSeats: 3,
       subscriptionId: "sub_1",
       cancelAtPeriodEnd: true,
+      cancelAt: new Date("2026-03-01T00:00:00.000Z"),
       periodEnd: new Date("2026-03-01T00:00:00.000Z"),
     });
 
@@ -134,6 +135,7 @@ describe("GET /organizations/{id}/billing-plan", () => {
       isConsumable: false,
       purchasedSeats: 3,
       cancelAtPeriodEnd: true,
+      cancelAt: "2026-03-01T00:00:00.000Z",
       periodEnd: "2026-03-01T00:00:00.000Z",
     });
     expect(resolveOrganizationBillingPlanMock).toHaveBeenCalledWith(
@@ -152,6 +154,7 @@ describe("GET /organizations/{id}/billing-plan", () => {
       endsAt: new Date("2026-12-14T23:59:59.999Z"),
       activatedAt: new Date("2026-01-15T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 
@@ -167,7 +170,31 @@ describe("GET /organizations/{id}/billing-plan", () => {
       isConsumable: true,
       purchasedSeats: 10,
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
+    });
+  });
+
+  it("returns cancelAt when only cancel_at schedules the cancellation", async () => {
+    resolveOrganizationBillingPlanMock.mockResolvedValue({
+      mode: "self_serve",
+      plan: "pro",
+      purchasedSeats: 2,
+      subscriptionId: "sub_2",
+      cancelAtPeriodEnd: false,
+      cancelAt: new Date("2026-03-01T00:00:00.000Z"),
+      periodEnd: new Date("2026-03-01T00:00:00.000Z"),
+    });
+
+    const response = await createApp().request(
+      "http://localhost/org_1/billing-plan",
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.data).toMatchObject({
+      cancelAtPeriodEnd: false,
+      cancelAt: "2026-03-01T00:00:00.000Z",
     });
   });
 });

@@ -9,7 +9,10 @@
  * `TaskStatus` enums — OpenAPI/codegen owns web runtime types.
  */
 
-/** Task statuses referenced by status helpers. */
+/**
+ * Task statuses referenced by status helpers. CREATED is not one: it is only
+ * the first event of a Task, never a status any actor can move a Task to.
+ */
 export type UserTransitionTaskStatus =
   | "DRAFT"
   | "QUEUED"

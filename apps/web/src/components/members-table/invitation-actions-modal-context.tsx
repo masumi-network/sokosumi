@@ -1,17 +1,16 @@
 "use client";
 
+import type { PendingInvitation } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { toast } from "sonner";
-
 import { createModalContext } from "@/components/common/modal-context";
 import type {
   BetterAuthClientError,
   BetterAuthClientResult,
 } from "@/lib/actions/errors/better-auth";
 import { authClient } from "@/lib/auth/auth.client";
-import type { PendingInvitation } from "@/lib/clients/generated/core";
 
 export enum InvitationAction {
   CANCEL = "CANCEL",

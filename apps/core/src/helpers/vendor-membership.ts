@@ -188,7 +188,7 @@ export async function prepareVendorsForMemberDeletion(
  * Serialize membership changes with account deletion; see
  * `prepareVendorsForMemberDeletion` for the deletion side.
  */
-async function lockVendorMembershipMutation(
+export async function lockVendorMembershipMutation(
   vendorId: string,
   tx: Prisma.TransactionClient,
 ): Promise<void> {

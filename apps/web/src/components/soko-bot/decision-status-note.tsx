@@ -1,6 +1,5 @@
+import type { SokoBotPendingDecision } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
-
-import type { SokoBotPendingDecision } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 const TONE_CLASS: Record<SokoBotPendingDecision["status"], string> = {

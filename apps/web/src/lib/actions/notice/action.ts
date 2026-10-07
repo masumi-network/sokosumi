@@ -1,5 +1,6 @@
 "use server";
 
+import type { Notice, NoticeKind } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import {
   type ActionResultDto,
@@ -7,7 +8,6 @@ import {
 } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { coreClient, toCoreApiActionError } from "@/lib/clients/core.client";
-import type { Notice, NoticeKind } from "@/lib/clients/generated/core";
 
 export async function getPendingNoticesAction(
   kind?: NoticeKind,

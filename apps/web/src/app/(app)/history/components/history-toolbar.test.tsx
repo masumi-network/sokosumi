@@ -21,7 +21,9 @@ vi.mock("./history-view-filters", () => ({
   ),
 }));
 
-import type { HistoryStatus } from "@/app/history/utils/history-filters";
+vi.mock("./history-export-menu", () => ({
+  HistoryExportMenu: () => <button type="button">Export</button>,
+}));
 
 import { HistoryToolbar } from "./history-toolbar";
 
@@ -33,17 +35,17 @@ const filterLabels = {
   scopeLabel: "Scope",
   scopeOwned: "Owned",
   scopeWorkspace: "Workspace",
-  typeLabel: "Type",
-  statusLabel: "Status",
+  typeLabel: "Source",
   projectLabel: "Project",
   typeOptions: {
-    task: "Task",
-    job: "Job",
+    job: "Agent job",
     image: "Image",
+    task: "Task",
+    coworker: "Coworker",
+    sokoBot: "Soko Bot",
+    topUp: "Top up",
+    unattributed: "Other",
   },
-  statusOptions: {
-    archived: "Archived",
-  } as Record<HistoryStatus, string>,
 };
 
 describe("HistoryToolbar", () => {
@@ -51,11 +53,12 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
           search: {
-            placeholder: "Search history",
+            placeholder: "Search transactions",
             clear: "Clear",
           },
           filters: filterLabels,
@@ -66,7 +69,7 @@ describe("HistoryToolbar", () => {
     const searchSlot = container.querySelector(".hidden.md\\:block");
     expect(searchSlot).not.toBeNull();
     expect(
-      screen.getByPlaceholderText("Search history").closest(".hidden"),
+      screen.getByPlaceholderText("Search transactions").closest(".hidden"),
     ).toBeTruthy();
     expect(screen.getByTestId("history-view-filters")).toBeInTheDocument();
   });
@@ -75,11 +78,12 @@ describe("HistoryToolbar", () => {
     const { container } = render(
       <HistoryToolbar
         activeOrganizationId={null}
+        filters={{ q: null, scope: "owned", type: null, projectId: null }}
         projectOptions={[]}
         resultsCountLabel="3 results found"
         labels={{
           search: {
-            placeholder: "Search history",
+            placeholder: "Search transactions",
             clear: "Clear",
           },
           filters: filterLabels,

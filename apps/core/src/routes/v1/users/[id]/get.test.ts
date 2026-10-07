@@ -80,4 +80,32 @@ describe("GET /users/{id}", () => {
     expect(prismaTransactionMock).not.toHaveBeenCalled();
     expect(txUserFindUniqueMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    { firstName: "Ada", lastName: "Lovelace" },
+    // Users from before the name parts, or created by an email code sent without names.
+    { firstName: null, lastName: null },
+  ])(
+    "returns the session user's name parts $firstName $lastName",
+    async (parts) => {
+      pathUserFindUniqueMock.mockResolvedValue({
+        id: "user_123",
+        createdAt: new Date("2025-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2025-01-01T00:00:00.000Z"),
+        name: "Ada",
+        email: "ada@example.com",
+        emailVerified: true,
+        image: null,
+        role: "user",
+        ...parts,
+      });
+      const app = createApp();
+
+      const response = await app.request("http://localhost/me");
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as { data: Record<string, unknown> };
+      expect(body.data).toMatchObject({ name: "Ada", ...parts });
+    },
+  );
 });

@@ -1,9 +1,6 @@
+import { NotificationKind, SokosumiJobStatus } from "@sokosumi/core-client";
 import { CHAT_ROOM_PINNED_MESSAGE_ACTIONS } from "@sokosumi/utils";
 import * as z from "zod";
-import {
-  NotificationKind,
-  SokosumiJobStatus,
-} from "@/lib/clients/generated/core";
 
 import { TYPING_STATES } from "./room-typing-model";
 
@@ -77,6 +74,12 @@ const chatRoomMessageFullEventMessageSchema = z
     roomId: z.string().min(1),
     parentMessageId: z.string().nullable(),
     content: z.string(),
+    resultPreviews: z
+      .array(
+        z.object({ id: z.string().uuid(), capturedAt: z.string().datetime() }),
+      )
+      .max(6)
+      .optional(),
     createdAt: z.string(),
     deletedAt: z.string().nullable(),
     editedAt: z.string().nullable(),

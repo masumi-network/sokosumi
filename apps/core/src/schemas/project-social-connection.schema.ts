@@ -38,6 +38,12 @@ export const projectSocialConnectionSchema = z
     }),
     provider: projectSocialProviderSchema,
     externalHandle: z.string().nullable().openapi({ example: "sokosumi" }),
+    displayName: z.string().nullable().openapi({ example: "Sokosumi" }),
+    avatarUrl: z.string().url().nullable().openapi({
+      description: "Profile picture copy in Sokosumi storage",
+      example:
+        "https://abc.public.blob.vercel-storage.com/social-avatars/p/image-x-1.jpg",
+    }),
     status: z
       .enum(["pending", "active", "reauthorization_required", "disconnected"])
       .openapi({ example: "active" }),

@@ -115,3 +115,172 @@ test("stops waiting when browser launch fails", async () => {
     launchError,
   );
 });
+
+// SOK-1273: callback HTML reports receipt only. The terminal confirms sign-in.
+function assertSafeCallback(response: Response, html: string): void {
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("referrer-policy"), "no-referrer");
+  assert.equal(
+    response.headers.get("content-type"),
+    "text/html; charset=utf-8",
+  );
+  assert.match(html, /history\.replaceState/u);
+  assert.doesNotMatch(
+    html,
+    /auth-code|access-token|refresh-token|state=|private-description|sign-in completed|signed in/u,
+  );
+}
+
+for (const scenario of [
+  {
+    name: "wrong state",
+    query: "code=auth-code&state=wrong",
+    error: /OAuth state mismatch/u,
+  },
+  {
+    name: "missing state",
+    query: "code=auth-code",
+    error: /OAuth state mismatch/u,
+  },
+  {
+    name: "missing code",
+    query: "",
+    error: /did not include an authorization code/u,
+  },
+  {
+    name: "denied",
+    query: "error=access_denied&error_description=private-description",
+    error: /OAuth authorization failed/u,
+  },
+]) {
+  test(`callback page reports ${scenario.name} without success (SOK-1273)`, async () => {
+    let response: Response | undefined;
+    let html = "";
+    let tokenRequests = 0;
+    await assert.rejects(
+      loginWithBrowser({
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "cli-client",
+        port: 53683,
+        timeoutMs: 5000,
+        fetchImpl: async () => {
+          tokenRequests += 1;
+          throw new Error("Invalid callbacks must not exchange tokens");
+        },
+        openUrl: async (authorizationUrl) => {
+          const authorization = new URL(authorizationUrl);
+          const callback = new URL(
+            String(authorization.searchParams.get("redirect_uri")),
+          );
+          callback.search = scenario.query;
+          if (!scenario.name.includes("state")) {
+            callback.searchParams.set(
+              "state",
+              String(authorization.searchParams.get("state")),
+            );
+          }
+          response = await fetch(callback, {
+            headers: { connection: "close" },
+          });
+          html = await response.text();
+        },
+      }),
+      scenario.error,
+    );
+    if (!response) throw new Error("Callback response was not captured");
+    assert.equal(response.status, 400);
+    assert.match(html, /<h1>Sign-in could not continue<\/h1>/u);
+    assert.doesNotMatch(html, /BROWSER STEP COMPLETE/u);
+    assertSafeCallback(response, html);
+    assert.equal(tokenRequests, 0);
+  });
+}
+
+for (const scenario of [
+  {
+    name: "failed token exchange",
+    body: { error_description: "private-description" },
+    status: 401,
+    error: /OAuth token request failed/u,
+  },
+  {
+    name: "invalid token payload",
+    body: {},
+    status: 200,
+    error: /did not include an access token/u,
+  },
+]) {
+  test(`terminal confirms ${scenario.name}, browser does not claim success (SOK-1273)`, async () => {
+    let response: Response | undefined;
+    let html = "";
+    await assert.rejects(
+      loginWithBrowser({
+        authBaseUrl: "https://api.example.test/auth",
+        clientId: "cli-client",
+        port: 53683,
+        timeoutMs: 5000,
+        fetchImpl: async () =>
+          new Response(JSON.stringify(scenario.body), {
+            status: scenario.status,
+          }),
+        openUrl: async (authorizationUrl) => {
+          const authorization = new URL(authorizationUrl);
+          const callback = new URL(
+            String(authorization.searchParams.get("redirect_uri")),
+          );
+          callback.searchParams.set("code", "auth-code");
+          callback.searchParams.set(
+            "state",
+            String(authorization.searchParams.get("state")),
+          );
+          response = await fetch(callback, {
+            headers: { connection: "close" },
+          });
+          html = await response.text();
+        },
+      }),
+      scenario.error,
+    );
+    if (!response) throw new Error("Callback response was not captured");
+    assert.equal(response.status, 200);
+    assert.match(html, /terminal will confirm whether sign-in succeeds/u);
+    assertSafeCallback(response, html);
+  });
+}
+
+test("non-GET callback does not consume the pending sign-in", async () => {
+  let methodResponse: Response | undefined;
+  const credentials = await loginWithBrowser({
+    authBaseUrl: "https://api.example.test/auth",
+    clientId: "cli-client",
+    port: 53683,
+    timeoutMs: 5000,
+    fetchImpl: async () =>
+      new Response(JSON.stringify({ access_token: "access-token" })),
+    openUrl: async (authorizationUrl) => {
+      const authorization = new URL(authorizationUrl);
+      const callback = new URL(
+        String(authorization.searchParams.get("redirect_uri")),
+      );
+      callback.searchParams.set("code", "auth-code");
+      callback.searchParams.set(
+        "state",
+        String(authorization.searchParams.get("state")),
+      );
+      methodResponse = await fetch(callback, {
+        method: "POST",
+        headers: { connection: "close" },
+      });
+      await methodResponse.arrayBuffer();
+      const response = await fetch(callback, {
+        headers: { connection: "close" },
+      });
+      const html = await response.text();
+      assertSafeCallback(response, html);
+      assert.equal(response.status, 200);
+    },
+  });
+  assert.equal(methodResponse?.status, 405);
+  assert.equal(methodResponse?.headers.get("allow"), "GET");
+  assert.equal(credentials.authToken, "access-token");
+});

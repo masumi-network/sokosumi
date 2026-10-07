@@ -1,12 +1,12 @@
 "use client";
 
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { hasStripeBillingAddressWithCountry } from "@sokosumi/utils";
 import { AlertCircle, RefreshCw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
 import { toast } from "sonner";
-
 import {
   AsyncSearchCombobox,
   buildComboboxLabels,
@@ -32,7 +32,6 @@ import {
   createAdminInvoiceAction,
   getAdminRecipientBillingDetailsAction,
 } from "@/lib/actions/invoice-admin/action";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import type { AdminOrganizationOption } from "@/lib/services/admin-organization.service";
 import type { AdminUserOption } from "@/lib/services/admin-user.service";
 import type {
@@ -104,8 +103,7 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
     !isBillingLoading &&
     billingLoadError === null &&
     hasCompleteBilling &&
-    hasValidCredits &&
-    !isSubmitting;
+    hasValidCredits;
 
   function clearBillingState() {
     billingLoadIdRef.current += 1;
@@ -310,12 +308,10 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
               variant="outline"
               size="sm"
               onClick={handleRefreshBilling}
-              disabled={isBillingLoading}
+              loading={isBillingLoading}
               aria-label={t("Form.billingRefresh")}
             >
-              <RefreshCw
-                className={`size-4 ${isBillingLoading ? "animate-spin" : ""}`}
-              />
+              <RefreshCw className="size-4" />
               {t("Form.billingRefresh")}
             </Button>
           </div>
@@ -422,8 +418,12 @@ export function InvoiceForm({ prices }: InvoiceFormProps) {
       </div>
 
       <div className="flex justify-end border-t pt-6">
-        <Button type="submit" disabled={!canCreateInvoice}>
-          {isSubmitting ? t("Form.submitting") : t("Form.submit")}
+        <Button
+          type="submit"
+          disabled={!canCreateInvoice}
+          loading={isSubmitting}
+        >
+          {t("Form.submit")}
         </Button>
       </div>
     </form>

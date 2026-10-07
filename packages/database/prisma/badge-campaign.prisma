@@ -1,0 +1,36 @@
+/// One time-boxed announcement of an Announced feature: its sidebar row wears
+/// the New badge for users whose account existed before `startsAt`, until
+/// `endsAt` or until they open the feature. Core keeps campaigns for one
+/// feature from overlapping.
+model BadgeCampaign {
+  id          String   @id @default(uuid(7))
+  /// Announced feature key. Core validates it against `announcedFeatureSchema`
+  /// so a new feature needs no migration.
+  feature     String
+  startsAt    DateTime
+  endsAt      DateTime
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy User?               @relation("BadgeCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  seenBy    BadgeCampaignSeen[]
+
+  @@index([startsAt, endsAt])
+  @@index([feature, startsAt])
+  @@map("badge_campaign")
+}
+
+/// A user opened the campaign's feature, so its New badge is gone for them.
+model BadgeCampaignSeen {
+  userId     String
+  campaignId String
+  seenAt     DateTime @default(now())
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  campaign BadgeCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@id([userId, campaignId])
+  @@index([campaignId])
+  @@map("badge_campaign_seen")
+}

@@ -1,16 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { PrismaRaw } from "@sokosumi/database/client";
 import { badRequest } from "@/helpers/error";
-import type { AuthenticationContext } from "@/middleware/auth";
-import { resolveProjectReaderAccess } from "@/types/project";
-
-export async function projectActivityVisibility(
-  auth: AuthenticationContext,
-  workspaceId: string,
-): Promise<{ task: PrismaRaw.Sql; job: PrismaRaw.Sql }> {
-  const { sqlWhere } = await resolveProjectReaderAccess(auth, workspaceId);
-  return sqlWhere;
-}
 
 const projectActivityCursorSchema = z.object({
   workspaceId: z.uuid(),
@@ -62,12 +52,12 @@ interface ProjectActivityPageParams {
  * otherwise match everything after "50". Escaping them (and the escape
  * character itself) keeps the query a literal substring match.
  */
-export function projectNameSearchPattern(search: string): string {
+function projectNameSearchPattern(search: string): string {
   const escaped = search.replace(/[\\%_]/g, (match) => `\\${match}`);
   return `%${escaped}%`;
 }
 
-export function projectNameSearchClause(search: string) {
+function projectNameSearchClause(search: string) {
   return PrismaRaw.sql`AND p.name ILIKE ${projectNameSearchPattern(search)} ESCAPE '\\'`;
 }
 

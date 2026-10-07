@@ -1,3 +1,4 @@
+import { ssrfSafeFetch } from "@sokosumi/net";
 import { HTTPException } from "hono/http-exception";
 import {
   forbidden,
@@ -7,6 +8,7 @@ import {
 } from "@/helpers/error";
 
 const CREATE_CONVERSATION_TIMEOUT_MS = 25_000;
+const MAX_COWORKER_CONVERSATION_RESPONSE_BYTES = 1024 * 1024;
 
 const COWORKER_PROVIDER_CONFIG_ERROR_CODES = new Set([
   "billing_required",
@@ -145,6 +147,7 @@ export async function createCoworkerConversation(
   const url = `${base}/conversations`;
   const requestHeaders: Record<string, string> = {
     "Content-Type": "application/json",
+    "Accept-Encoding": "identity",
     "X-Sokosumi-User-Id": options.sokosumiUserId,
     "X-Coworker-Slug": options.coworkerSlug,
   };
@@ -164,8 +167,9 @@ export async function createCoworkerConversation(
 
   let response: Response;
   try {
-    response = await fetch(url, {
+    response = await ssrfSafeFetch(url, {
       method: "POST",
+      maxResponseBytes: MAX_COWORKER_CONVERSATION_RESPONSE_BYTES,
       headers: requestHeaders,
       body: JSON.stringify({ metadata }),
       signal: AbortSignal.timeout(CREATE_CONVERSATION_TIMEOUT_MS),

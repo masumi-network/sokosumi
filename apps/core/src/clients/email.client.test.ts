@@ -107,7 +107,7 @@ describe("sendEmail", () => {
         to: "user@example.com",
         subject: "Hello",
         html: "<p>Hi</p>",
-        tag: "magic-link",
+        tag: "email-code",
       }),
     ).rejects.toMatchObject({
       message: "Invalid API key",

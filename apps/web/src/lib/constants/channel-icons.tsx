@@ -1,3 +1,4 @@
+import { Channel } from "@sokosumi/core-client";
 import {
   CircleHelp,
   Mail,
@@ -14,7 +15,6 @@ import {
   SiWhatsapp,
 } from "react-icons/si";
 import { MasumiMessengerIcon, SokosumiIcon } from "@/components/masumi-logos";
-import { Channel } from "@/lib/clients/generated/core";
 
 export interface ChannelIconProps
   extends Omit<SVGAttributes, "ref" | "size" | "width" | "height"> {

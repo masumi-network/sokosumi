@@ -14,7 +14,7 @@ const taskItem = {
   title: "Review onboarding flow",
   description: "Audit copy and empty states",
   status: TaskStatus.RUNNING,
-  updatedAt: "2025-01-21T12:00:00.000Z",
+  createdAt: "2025-01-21T12:00:00.000Z",
   archivedAt: null,
   credits: 2.5,
   projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -29,7 +29,7 @@ const jobItem = {
   title: "Research competitors",
   description: "Generated market summary",
   status: SokosumiJobStatus.COMPLETED,
-  updatedAt: "2025-01-21T11:30:00.000Z",
+  createdAt: "2025-01-21T11:30:00.000Z",
   archivedAt: null,
   credits: 5,
   projectId: null,
@@ -51,10 +51,10 @@ describe("history schemas", () => {
   it("converts Date fields to ISO strings", () => {
     const result = historyItemSchema.parse({
       ...taskItem,
-      updatedAt: new Date("2025-01-21T12:00:00.000Z"),
+      createdAt: new Date("2025-01-21T12:00:00.000Z"),
     });
 
-    expect(result.updatedAt).toBe("2025-01-21T12:00:00.000Z");
+    expect(result.createdAt).toBe("2025-01-21T12:00:00.000Z");
   });
 
   it("keeps the OpenAPI paginated response example parseable", () => {

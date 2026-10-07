@@ -7,7 +7,8 @@ import SwiftUI
 /// The String Catalog for group Direct naming (`ChatGroupName.xcstrings`).
 let groupNameTable = "ChatGroupName"
 
-/// One sheet wiring shared by the sidebar row menu and the Members inspector.
+/// The window's Name Group sheet (`RoomEditSheetsHost`), opened from the sidebar row menu, the Members inspector and
+/// the title bar's room name.
 struct NameGroupSheet: ViewModifier {
   @Binding var presentation: RoomEditPresentation?
   @EnvironmentObject private var workspaces: WorkspaceState
@@ -46,7 +47,8 @@ struct NameGroupSheet: ViewModifier {
   }
 }
 
-/// The "Name Group…" command for the sidebar row menu and the Members inspector.
+/// The "Name Group…" command for the sidebar row menu and the Members inspector; its text is the title bar name's
+/// tooltip too.
 struct NameGroupLabel: View {
   var body: some View {
     Label {

@@ -1,6 +1,5 @@
 import { render } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const filterDropdownMenuMock = vi.fn();
 
@@ -29,40 +28,18 @@ const labels = {
   emptyResults: "No results found.",
   all: "All",
   scopeLabel: "Scope",
-  scopeOwned: "My history",
+  scopeOwned: "My transactions",
   scopeWorkspace: "Workspace",
-  typeLabel: "Type",
-  statusLabel: "Status",
+  typeLabel: "Source",
   projectLabel: "Project",
   typeOptions: {
-    task: "Task",
-    job: "Job",
+    job: "Agent job",
     image: "Image",
-  },
-  statusOptions: {
-    archived: "Archived",
-    [TaskStatus.DRAFT]: "Draft",
-    [TaskStatus.QUEUED]: "Queued",
-    [TaskStatus.READY]: "Ready",
-    [TaskStatus.GRANT_PENDING]: "Grant pending",
-    [TaskStatus.INPUT_REQUIRED]: "Input required",
-    [TaskStatus.APPROVAL_REQUIRED]: "Approval required",
-    [TaskStatus.AUTHENTICATION_REQUIRED]: "Authentication required",
-    [TaskStatus.OUT_OF_CREDITS]: "Out of credits",
-    [TaskStatus.CREDITS_TOPPED_UP]: "Credits topped up",
-    [TaskStatus.RUNNING]: "Running",
-    [TaskStatus.AWAITING_EXTERNAL]: "Awaiting external",
-    [TaskStatus.COMPLETED]: "Completed",
-    [TaskStatus.FAILED]: "Failed",
-    [TaskStatus.CANCELED]: "Canceled",
-    [SokosumiJobStatus.STARTED]: "Started",
-    [SokosumiJobStatus.RESULT_PENDING]: "Result missing",
-    [SokosumiJobStatus.PAYMENT_PENDING]: "Payment Pending",
-    [SokosumiJobStatus.PAYMENT_FAILED]: "Payment Failed",
-    [SokosumiJobStatus.REFUND_PENDING]: "Refund requested",
-    [SokosumiJobStatus.REFUND_RESOLVED]: "Refunded",
-    [SokosumiJobStatus.DISPUTE_PENDING]: "Dispute pending",
-    [SokosumiJobStatus.DISPUTE_RESOLVED]: "Dispute resolved",
+    task: "Task",
+    coworker: "Coworker",
+    sokoBot: "Soko Bot",
+    topUp: "Top up",
+    unattributed: "Other",
   },
 } as const;
 
@@ -96,14 +73,13 @@ describe("HistoryViewFilters", () => {
     replaceMock.mockClear();
   });
 
-  it("shows scope and history filter sections in workspace context", () => {
+  it("shows scope, source and project sections in workspace context", () => {
     const props = renderHistoryViewFilters("org-1");
 
     expect(props.buttonLabel).toBe("Filters");
     expect(props.sections.map((section) => section.id)).toEqual([
       "scope",
       "type",
-      "status",
       "project",
     ]);
   });
@@ -113,28 +89,32 @@ describe("HistoryViewFilters", () => {
 
     expect(props.sections.map((section) => section.id)).toEqual([
       "type",
-      "status",
       "project",
     ]);
   });
 
-  it("shows job-only statuses in the status filter when no type is selected", () => {
+  // A spend has an amount and a date, not a lifecycle, so the ledger has no
+  // status axis to filter on.
+  it("offers no status filter", () => {
     const props = renderHistoryViewFilters("org-1");
-    const statusSection = props.sections.find(
-      (section) => section.id === "status",
-    );
 
-    expect(statusSection?.options).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          value: SokosumiJobStatus.PAYMENT_PENDING,
-          label: "Payment Pending",
-        }),
-        expect.objectContaining({
-          value: SokosumiJobStatus.DISPUTE_RESOLVED,
-          label: "Dispute resolved",
-        }),
-      ]),
-    );
+    expect(
+      props.sections.find((section) => section.id === "status"),
+    ).toBeUndefined();
+  });
+
+  it("offers every consumption source, including the unattributed ones", () => {
+    const props = renderHistoryViewFilters("org-1");
+    const typeSection = props.sections.find((section) => section.id === "type");
+
+    expect(typeSection?.options.map((option) => option.value)).toEqual([
+      "job",
+      "image",
+      "task",
+      "coworker",
+      "sokoBot",
+      "topUp",
+      "unattributed",
+    ]);
   });
 });

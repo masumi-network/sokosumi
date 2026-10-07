@@ -1,5 +1,10 @@
 "use client";
 
+import type {
+  SokoBotLabRun,
+  SokoBotLabVerdict,
+  SokoBotVersion,
+} from "@sokosumi/core-client";
 import {
   evaluateScenario,
   type ScenarioResult,
@@ -21,11 +26,6 @@ import {
   simulateSokoBotTaskEventAction,
   startSokoBotTurnAction,
 } from "@/lib/actions/soko-bot/action";
-import type {
-  SokoBotLabRun,
-  SokoBotLabVerdict,
-  SokoBotVersion,
-} from "@/lib/clients/generated/core";
 import type { ChatTurnDetail } from "@/lib/soko-bot/chat-state";
 import { cn } from "@/lib/utils";
 
@@ -187,7 +187,7 @@ function LiveRunPanel({ live }: { live: LiveRun }) {
           {calls.map((call, index) => (
             <li
               key={call.id}
-              className="flex items-baseline gap-2 font-mono text-[0.6875rem]"
+              className="flex items-baseline gap-2 font-mono text-2xs"
             >
               <span className="text-muted-foreground w-4 shrink-0 text-right tabular-nums">
                 {index + 1}
@@ -550,7 +550,7 @@ export function ScenarioLab({
                 {Math.round(current.systemPrompt.length / 1024)} KB
               </button>
               {promptOpen ? (
-                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-[0.6875rem] leading-snug whitespace-pre-wrap break-words">
+                <pre className="app-scrollbar bg-background mt-2 max-h-96 overflow-auto rounded-md border p-2 font-mono text-2xs leading-snug whitespace-pre-wrap break-words">
                   {current.systemPrompt}
                 </pre>
               ) : null}
@@ -710,13 +710,14 @@ function ScenarioRow({
           size="sm"
           variant="ghost"
           disabled={disabled}
+          loading={running}
           onClick={onRun}
         >
           <Play
             aria-hidden
             className={cn("size-3.5", running && "animate-pulse")}
           />
-          {running ? t("running") : t("run")}
+          {t("run")}
         </Button>
       </div>
       {failure ? (

@@ -7,6 +7,9 @@ import {
   type ServerResponse,
 } from "node:http";
 
+import { asRecord } from "../api/models/parse-helpers.js";
+import { renderOAuthCallbackPage } from "./oauth-callback-page.js";
+
 export interface OAuthTokenCredentials {
   authToken: string;
   refreshToken: string | null;
@@ -95,12 +98,6 @@ function requireText(value: string | undefined, label: string): string {
   const text = String(value || "").trim();
   if (!text) throw new Error(`${label} is required`);
   return text;
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : {};
 }
 
 export function buildAuthorizationUrl({
@@ -360,31 +357,35 @@ function closeServer(server: Server): Promise<void> {
   });
 }
 
+type OAuthCallbackResult = { code: string } | { error: Error };
+
 function waitForCallback({
   server,
   callbackPath,
   timeoutMs,
   signal,
   port,
+  expectedState,
 }: {
   server: Server;
   callbackPath: string;
   timeoutMs: number;
   signal?: AbortSignal;
   port: number;
-}): Promise<string> {
-  return new Promise<string>((resolve, reject) => {
+  expectedState: string;
+}): Promise<OAuthCallbackResult> {
+  return new Promise<OAuthCallbackResult>((resolve, reject) => {
     let settled = false;
     let timeout: NodeJS.Timeout;
     const finish = (
       kind: "resolve" | "reject",
-      value: string | Error,
+      value: OAuthCallbackResult | Error,
     ): void => {
       if (settled) return;
       settled = true;
       clearTimeout(timeout);
       signal?.removeEventListener("abort", onAbort);
-      if (kind === "resolve" && typeof value === "string") {
+      if (kind === "resolve" && !(value instanceof Error)) {
         resolve(value);
         return;
       }
@@ -422,21 +423,29 @@ function waitForCallback({
           return;
         }
 
-        response.statusCode = 200;
+        let result: OAuthCallbackResult;
+        try {
+          if (settled) throw new Error("OAuth login is no longer waiting");
+          if (request.method !== "GET") {
+            response.statusCode = 405;
+            response.setHeader("allow", "GET");
+            response.end("Method not allowed");
+            return;
+          }
+          result = parseOAuthCallback(url.toString(), { expectedState });
+        } catch (error) {
+          result = {
+            error:
+              error instanceof Error ? error : new Error("Invalid callback"),
+          };
+        }
+        const isValid = "code" in result;
+        response.statusCode = isValid ? 200 : 400;
         response.setHeader("cache-control", "no-store");
         response.setHeader("content-type", "text/html; charset=utf-8");
         response.setHeader("referrer-policy", "no-referrer");
-        response.end(`<!doctype html>
-<html lang="en">
-  <head><meta name="referrer" content="no-referrer"><title>Sokosumi sign-in completed</title></head>
-  <body>
-    <p>Sokosumi sign-in completed. You can close this window.</p>
-    <script>
-      window.history.replaceState(null, "", window.location.pathname);
-    </script>
-  </body>
-</html>`);
-        finish("resolve", url.toString());
+        response.end(renderOAuthCallbackPage(isValid));
+        finish("resolve", result);
       },
     );
     if (signal?.aborted) {
@@ -478,7 +487,7 @@ export async function loginWithBrowser({
   const state = randomBytes(32).toString("base64url");
   const redirectUri = `http://${OAUTH_LOOPBACK_HOST}:${resolvedPort}${resolvedPath}`;
   const server = serverFactory();
-  let callbackPromise: Promise<string> | undefined;
+  let callbackPromise: Promise<OAuthCallbackResult> | undefined;
 
   const callbackAbortController = new AbortController();
   const abortCallback = () => callbackAbortController.abort();
@@ -504,10 +513,12 @@ export async function loginWithBrowser({
       timeoutMs,
       signal: callbackAbortController.signal,
       port: resolvedPort,
+      expectedState: state,
     });
     await openUrl(authorizationUrl);
-    const callbackUrl = await callbackPromise;
-    const { code } = parseOAuthCallback(callbackUrl, { expectedState: state });
+    const callback = await callbackPromise;
+    if ("error" in callback) throw callback.error;
+    const { code } = callback;
     return exchangeAuthorizationCode({
       authBaseUrl,
       clientId: resolvedClientId,

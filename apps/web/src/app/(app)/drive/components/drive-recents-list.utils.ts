@@ -1,4 +1,4 @@
-import type { DriveRecentsItem } from "@/lib/clients/generated/core";
+import type { DriveRecentsItem } from "@sokosumi/core-client";
 import { getDateGroupKey } from "@/lib/utils/datetime";
 
 export interface DriveRecentsDayGroup {

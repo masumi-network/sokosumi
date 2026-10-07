@@ -3,52 +3,38 @@ import * as z from "zod";
 import {
   confirmPasswordSchema,
   emailSchema,
-  inputPasswordSchema,
-  nameSchema,
+  firstAndLastNameSchema,
   passwordSchema,
 } from "@/lib/auth/data";
 
-const socialProviderIdSchema = z.enum(["google", "microsoft", "credential"]);
+const socialProviderIdSchema = z.enum(["google", "microsoft"]);
 export type SocialProviderId = z.infer<typeof socialProviderIdSchema>;
 
 /** Every way to sign in, for analytics (`provider` on `sign_up` / `login`). */
 export const authMethodIdSchema = z.enum([
   ...socialProviderIdSchema.options,
-  "magic-link",
+  "credential",
+  "email-otp",
   "passkey",
 ]);
 export type AuthMethodId = z.infer<typeof authMethodIdSchema>;
 
-export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+// Sign-in and sign-up both ask for the email first, then everything else;
+// a password reset and the account page's change-email ask for nothing else.
+export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
-    currentPassword: inputPasswordSchema(t),
-    rememberMe: z.boolean(),
   });
 
-export type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
+export type EmailFormSchemaType = z.infer<ReturnType<typeof emailFormSchema>>;
 
 export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    name: nameSchema(t),
-    email: emailSchema(t),
+  firstAndLastNameSchema(t).safeExtend({
     password: passwordSchema(t),
-    termsAccepted: z.boolean(),
     marketingOptIn: z.boolean().optional(),
   });
 
 export type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
-
-export const forgotPasswordFormSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z.object({
-    email: emailSchema(t),
-  });
-
-export type ForgotPasswordFormSchemaType = z.infer<
-  ReturnType<typeof forgotPasswordFormSchema>
->;
 
 export const resetPasswordFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,

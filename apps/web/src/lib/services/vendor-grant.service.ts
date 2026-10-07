@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { VendorGrant } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
-import type { VendorGrant } from "@/lib/clients/generated/core";
 
 export type ListVendorGrantsFilters = {
   status?: VendorGrant["status"];

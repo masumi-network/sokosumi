@@ -42,6 +42,11 @@ describe("Soko Bot memory", () => {
     // A UUIDv7 whose digit run passes Luhn: "5-9572-30751931" is 13 digits.
     "01a03f23-0fd8-72c5-9572-30751931fe0b",
     "Created task 01a03f23-0fd8-72c5-9572-30751931fe0b for Hannah",
+    // Digit-only leading groups that pass Luhn with no letter to break them.
+    "33559564-8375-4519-a0f7-535b2860f85f",
+    "80438387-9191-4703-bd12-c54ee0fb7be9",
+    "01a06224-1459-794b-8298-912429661226",
+    "turn 840b56e5-696e-4978-8010-491395997331 failed",
     "sha 9f8e1d2c3b4a5968778695a4b3c2d1e0f9a8b7c6",
   ])("keeps identifiers that merely contain digits: %s", (entry) => {
     expect(containsSokoBotSensitiveMaterial(entry)).toBe(false);

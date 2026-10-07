@@ -2,7 +2,16 @@ import assert from "node:assert/strict";
 
 import { test } from "vitest";
 
-import { getFirstName, resolveAccountDisplayName } from "./user-name.js";
+import {
+  getFirstName,
+  joinFirstAndLastName,
+  resolveAccountDisplayName,
+} from "./user-name.js";
+
+test("joinFirstAndLastName trims each part and joins with one space", () => {
+  assert.equal(joinFirstAndLastName(" Ada ", " Lovelace "), "Ada Lovelace");
+  assert.equal(joinFirstAndLastName("Ada", ""), "Ada");
+});
 
 test("resolveAccountDisplayName prefers a non-empty trimmed name", () => {
   assert.equal(resolveAccountDisplayName("  Ada  ", "ada@example.com"), "Ada");

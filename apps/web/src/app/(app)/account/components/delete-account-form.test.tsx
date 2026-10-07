@@ -1,3 +1,4 @@
+import type { Account } from "@sokosumi/utils";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -52,7 +53,28 @@ const translations: Record<string, string> = {
     "A signed task payment authorization is still live. Retry account deletion after it expires, or contact support.",
   "App.Account.Delete.Errors.taskX402PaymentBillingOwnerMismatch":
     "A task payment has inconsistent billing ownership; contact support to repair it, then delete your account again.",
+  "App.Account.Delete.confirmEmail": "Type your email to confirm",
   "Library.Auth.Schema.Password.required": "Password is required",
+  "Library.Auth.Schema.Email.confirmationMismatch":
+    "Type the email address shown above.",
+};
+
+const passwordAccount: Account = {
+  accountId: "credential-account",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  id: "account-credential",
+  providerId: "credential",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  userId: "user-1",
+};
+
+const googleAccount: Account = {
+  accountId: "google-account",
+  createdAt: "2026-01-01T00:00:00.000Z",
+  id: "account-google",
+  providerId: "google",
+  updatedAt: "2026-01-01T00:00:00.000Z",
+  userId: "user-1",
 };
 
 vi.mock("next/link", () => ({
@@ -66,6 +88,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/account",
   useRouter: () => ({
     push: mockRouterPush,
     refresh: mockRouterRefresh,
@@ -73,6 +96,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("next-intl", () => ({
+  useLocale: () => "en",
   useTranslations: (namespace?: string) => (key: string) =>
     translations[namespace ? `${namespace}.${key}` : key] ??
     (namespace ? `${namespace}.${key}` : key),
@@ -86,7 +110,12 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
+  authClient: { signIn: { email: vi.fn(), social: vi.fn() } },
   deleteUser: (...args: unknown[]) => deleteUserMock(...args),
+  useSession: () => ({
+    data: { user: { email: "owner@example.com", emailVerified: true } },
+    isPending: false,
+  }),
 }));
 
 vi.mock("@/lib/ably/release-push-device.client", () => ({
@@ -108,6 +137,8 @@ describe("DeleteAccountForm", () => {
   it("lists mapped blockers and disables confirm while any remain", async () => {
     render(
       <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
         blockers={[
           "TASK_PAYMENT_CLAIM_REVIEW_REQUIRED",
           "TASK_PAYMENT_CLAIM_PENDING",
@@ -162,7 +193,13 @@ describe("DeleteAccountForm", () => {
   });
 
   it("lists a running-subscription blocker with a billing link and disables confirm", async () => {
-    render(<DeleteAccountForm blockers={["RUNNING_SUBSCRIPTION"]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={["RUNNING_SUBSCRIPTION"]}
+      />,
+    );
 
     await openDialog();
 
@@ -183,6 +220,8 @@ describe("DeleteAccountForm", () => {
   it("lists owner-role and in-flight work blockers with way-out links", async () => {
     render(
       <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
         blockers={[
           "USER_OWNS_ORGANIZATION",
           "IN_FLIGHT_JOB",
@@ -233,7 +272,13 @@ describe("DeleteAccountForm", () => {
   });
 
   it("blocks deletion while the user is the last Vendor admin", async () => {
-    render(<DeleteAccountForm blockers={["USER_IS_LAST_VENDOR_ADMIN"]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={["USER_IS_LAST_VENDOR_ADMIN"]}
+      />,
+    );
 
     await openDialog();
 
@@ -248,7 +293,14 @@ describe("DeleteAccountForm", () => {
   });
 
   it("disables confirm when preflight failed to load", async () => {
-    render(<DeleteAccountForm blockers={[]} preflightFailed />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+        preflightFailed
+      />,
+    );
 
     await openDialog();
 
@@ -261,7 +313,14 @@ describe("DeleteAccountForm", () => {
   });
 
   it("retries preflight by refreshing the page", async () => {
-    render(<DeleteAccountForm blockers={[]} preflightFailed />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+        preflightFailed
+      />,
+    );
 
     const user = await openDialog();
     await user.click(screen.getByRole("button", { name: "Try again" }));
@@ -280,7 +339,13 @@ describe("DeleteAccountForm", () => {
       },
     });
 
-    render(<DeleteAccountForm blockers={[]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+      />,
+    );
 
     const user = await openDialog();
     await user.type(screen.getByLabelText("Current password"), "Password123!");
@@ -309,7 +374,13 @@ describe("DeleteAccountForm", () => {
       },
     });
 
-    render(<DeleteAccountForm blockers={[]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+      />,
+    );
 
     const user = await openDialog();
     await user.type(screen.getByLabelText("Current password"), "Password123!");
@@ -340,7 +411,13 @@ describe("DeleteAccountForm", () => {
       }),
     );
 
-    render(<DeleteAccountForm blockers={[]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+      />,
+    );
 
     const user = await openDialog();
     await user.type(screen.getByLabelText("Current password"), "Password123!");
@@ -375,7 +452,13 @@ describe("DeleteAccountForm", () => {
       },
     });
 
-    render(<DeleteAccountForm blockers={[]} />);
+    render(
+      <DeleteAccountForm
+        accounts={[passwordAccount]}
+        hasPassword
+        blockers={[]}
+      />,
+    );
 
     const user = await openDialog();
     await user.type(screen.getByLabelText("Current password"), "Password123!");
@@ -386,6 +469,105 @@ describe("DeleteAccountForm", () => {
     await waitFor(() => {
       expect(deleteUserMock).toHaveBeenCalledOnce();
     });
+    expect(releasePushDeviceMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * A social or email-code sign-up owns no password. Typing the account's
+   * email stands in for it; Core then requires a fresh session instead.
+   */
+  it("confirms with the typed email when the account has no password", async () => {
+    deleteUserMock.mockResolvedValue({ error: null });
+
+    render(
+      <DeleteAccountForm
+        accounts={[googleAccount]}
+        hasPassword={false}
+        blockers={[]}
+        userEmail="Owner@Example.com"
+      />,
+    );
+
+    const user = await openDialog();
+    expect(screen.queryByLabelText("Current password")).not.toBeInTheDocument();
+    await user.type(
+      screen.getByLabelText("Type your email to confirm"),
+      "owner@example.com ",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    await waitFor(() => {
+      expect(mockRouterPush).toHaveBeenCalledWith("/");
+    });
+    expect(deleteUserMock).toHaveBeenCalledWith({});
+  });
+
+  it("refuses an email that is not the account's", async () => {
+    render(
+      <DeleteAccountForm
+        accounts={[googleAccount]}
+        hasPassword={false}
+        blockers={[]}
+        userEmail="owner@example.com"
+      />,
+    );
+
+    const user = await openDialog();
+    await user.type(
+      screen.getByLabelText("Type your email to confirm"),
+      "someone@example.com",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    expect(
+      await screen.findByText("Type the email address shown above."),
+    ).toBeInTheDocument();
+    expect(deleteUserMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Without a password Better Auth gates the delete on session age and
+   * reports a stale one as `SESSION_EXPIRED`.
+   */
+  it("asks the viewer to sign in again when the session is too old", async () => {
+    const { toast } = await import("sonner");
+    deleteUserMock.mockResolvedValue({
+      error: {
+        code: "SESSION_EXPIRED",
+        message: "Session expired",
+        status: 400,
+        statusText: "Bad Request",
+      },
+    });
+
+    render(
+      <DeleteAccountForm
+        accounts={[googleAccount]}
+        hasPassword={false}
+        blockers={[]}
+        userEmail="owner@example.com"
+      />,
+    );
+
+    const user = await openDialog();
+    await user.type(
+      screen.getByLabelText("Type your email to confirm"),
+      "owner@example.com",
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Yes, delete my account" }),
+    );
+
+    expect(
+      await screen.findByText("Components.ReauthDialog.title"),
+    ).toBeInTheDocument();
+    // The confirmation dialog closes so the two never stack.
+    expect(screen.queryByText("Are you sure?")).not.toBeInTheDocument();
+    expect(toast.error).not.toHaveBeenCalled();
     expect(releasePushDeviceMock).not.toHaveBeenCalled();
   });
 });

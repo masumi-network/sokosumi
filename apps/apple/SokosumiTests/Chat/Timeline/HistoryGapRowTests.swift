@@ -340,6 +340,7 @@
       private func message(_ index: Int) -> Components.Schemas.ChatRoomMessage {
         var message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: "room",
                                                   content: "Message \(index): " + String(repeating: "a line of the fixture transcript, ", count: 5),
+                                                  createdAt: Date(),
                                                   sender: .init(id: "user-\(index % 2)", name: "Example", email: "example@example.com", presence: .online)))
         message.id = "fixture-\(index)"
         message.createdAt = Date(timeIntervalSince1970: 1_700_000_000 + Double(index) * 60)

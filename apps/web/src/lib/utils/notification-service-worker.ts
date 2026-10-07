@@ -1,9 +1,8 @@
+import { NotificationKind } from "@sokosumi/core-client";
 import * as z from "zod";
-
 import { getEnvPublicConfig } from "@/config/env.public";
 import type { NotificationEventData } from "@/lib/ably/schema";
 import { notificationEventDataSchema } from "@/lib/ably/schema";
-import { NotificationKind } from "@/lib/clients/generated/core";
 
 import { getBrowserNotificationPermission } from "./browser-notification";
 

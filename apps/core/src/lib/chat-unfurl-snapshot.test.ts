@@ -18,7 +18,10 @@ const {
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
 vi.mock("@vercel/blob", () => ({ del: delMock, put: putMock }));
-vi.mock("@sokosumi/net", () => ({ ssrfSafeFetch: ssrfSafeFetchMock }));
+vi.mock("@sokosumi/net", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/net")>()),
+  ssrfSafeFetch: ssrfSafeFetchMock,
+}));
 vi.mock("@sentry/node", () => ({ captureException: captureExceptionMock }));
 
 import {

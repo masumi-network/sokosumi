@@ -29,8 +29,6 @@ import {
 import {
   assertApiKeyTarget,
   type CliTargetConfig,
-  MAINNET_API_URL,
-  PREPROD_API_URL,
   resolveCliConfig,
   sanitizeApiUrl,
   targetFromUserApiKey,
@@ -45,6 +43,20 @@ import {
 import { type AuthLoginOptions, runAuthLogin } from "../cli/auth-login.js";
 import { CLI_VERSION } from "../cli/metadata.js";
 import { SelectInput, type SelectItem } from "./select-input.js";
+import {
+  canToggleSignInNetwork,
+  createTargetConfig,
+  displayTargetLabel,
+  type HostedTarget,
+  nextSignInNetworkConfig,
+  resolveStatusCoreClient,
+} from "./status-network.js";
+import {
+  formatVendorReviewLine,
+  formatWorkspaceReviewLine,
+  vendorMembershipCaption,
+  workspaceMembershipCaption,
+} from "./status-review.js";
 import { TUI_THEME } from "./theme.js";
 
 export interface StatusAppOptions {
@@ -89,7 +101,6 @@ function adaptSelectHandler<T>(
 }
 
 type AuthMethod = "oauth" | "api-key";
-type HostedTarget = "mainnet" | "preprod";
 type OAuthConfirm = "sign-in";
 type SelectorItem<T> = SelectItem<T>;
 type AuthPhase = "idle" | "waiting" | "success" | "error";
@@ -118,19 +129,6 @@ export function oauthCallbackDisplayUri(
   return `http://${OAUTH_LOOPBACK_HOST}:${port}${normalizedPath}`;
 }
 
-export function resolveHostedTargetConfig(
-  env: AuthEnvironment,
-  target: HostedTarget,
-  overrides: Partial<Pick<CliTargetConfig, "clientId">> = {},
-): CliTargetConfig {
-  return resolveCliConfig({
-    env,
-    apiUrl: target === "preprod" ? PREPROD_API_URL : MAINNET_API_URL,
-    preprod: target === "preprod",
-    ...overrides,
-  });
-}
-
 function explicitApiKeyError(
   apiKey: string,
   config: CliTargetConfig,
@@ -143,78 +141,6 @@ function explicitApiKeyError(
   } catch (error) {
     return error instanceof Error ? error.message : String(error);
   }
-}
-
-export function displayTargetLabel(config: CliTargetConfig): string {
-  if (config.target !== "custom") return config.target;
-  return sanitizeApiUrl(config.apiUrl);
-}
-
-export function apiKeyTargetEscapeState(): {
-  screen: "auth-method";
-  pendingApiKey: null;
-} {
-  return { screen: "auth-method", pendingApiKey: null };
-}
-
-export function resolveSelectedHostedTarget(
-  config: CliTargetConfig,
-): HostedTarget {
-  return config.target === "preprod" ? "preprod" : "mainnet";
-}
-
-export function isNetworkSelectionLocked(
-  config: CliTargetConfig,
-  options: { preprod?: boolean; apiUrl?: string } = {},
-): boolean {
-  return Boolean(
-    options.preprod || options.apiUrl || config.target === "custom",
-  );
-}
-
-export function toggleHostedTarget(target: HostedTarget): HostedTarget {
-  return target === "mainnet" ? "preprod" : "mainnet";
-}
-
-export function canToggleSignInNetwork(options: {
-  route: "boot" | "auth" | "signed-in";
-  screen: AuthScreen;
-  networkSelectionLocked: boolean;
-  busy: boolean;
-}): boolean {
-  return (
-    options.route === "auth" &&
-    options.screen === "auth-method" &&
-    !options.networkSelectionLocked &&
-    !options.busy
-  );
-}
-
-export function nextSignInNetworkConfig(
-  selectedConfig: CliTargetConfig,
-  env: AuthEnvironment,
-  clientIdOverride?: string,
-): CliTargetConfig {
-  return createTargetConfig(
-    env,
-    toggleHostedTarget(resolveSelectedHostedTarget(selectedConfig)),
-    clientIdOverride,
-  );
-}
-
-export function resolveStatusCoreClient(options: {
-  coreClientOverride?: CoreHttpClient;
-  selectedApiUrl: string;
-  configApiUrl: string;
-  createClient: () => CoreHttpClient;
-}): CoreHttpClient {
-  if (
-    options.coreClientOverride !== undefined &&
-    options.selectedApiUrl === options.configApiUrl
-  ) {
-    return options.coreClientOverride;
-  }
-  return options.createClient();
 }
 
 export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
@@ -230,18 +156,6 @@ export function buildSignInMenuItems(): SelectorItem<AuthMethod>[] {
       hint: apiKeyPrefixHint(),
     },
   ];
-}
-
-function createTargetConfig(
-  env: AuthEnvironment,
-  target: HostedTarget,
-  clientIdOverride?: string,
-): CliTargetConfig {
-  return resolveHostedTargetConfig(
-    env,
-    target,
-    clientIdOverride ? { clientId: clientIdOverride } : {},
-  );
 }
 
 function navigationHint({
@@ -375,28 +289,6 @@ function messageLine(
     },
     message,
   );
-}
-
-export function vendorMembershipCaption(loading: boolean): string {
-  return loading
-    ? "Loading vendor memberships…"
-    : "Vendor memberships from Core. Review only.";
-}
-
-export function workspaceMembershipCaption(loading: boolean): string {
-  return loading
-    ? "Loading organization workspaces…"
-    : "Organization workspaces from Core. Review only.";
-}
-
-export function formatVendorReviewLine(vendor: Vendor): string {
-  return `${vendor.name || "Unnamed vendor"} · ${vendor.role || "unknown"} · ${vendor.id}`;
-}
-
-export function formatWorkspaceReviewLine(
-  workspace: OrganizationWorkspace,
-): string {
-  return `${workspace.name || "Unnamed workspace"} · ${workspace.role || workspace.slug || "unknown"} · ${workspace.organizationId}`;
 }
 
 function resourceReviewScreen({
@@ -906,9 +798,8 @@ function StatusApp({
           return;
         }
         if (screen === "api-key-target") {
-          const reset = apiKeyTargetEscapeState();
-          setPendingApiKey(reset.pendingApiKey);
-          setScreen(reset.screen);
+          setPendingApiKey(null);
+          setScreen("auth-method");
           setMessage("");
           return;
         }

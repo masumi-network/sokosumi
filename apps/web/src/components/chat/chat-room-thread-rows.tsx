@@ -1,9 +1,9 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-
 import { chatRoomThreadListHref } from "@/app/chat/utils/chat-route-base";
 import {
   type RoomMentionRoster,
@@ -18,7 +18,6 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 
@@ -151,7 +150,7 @@ export function ChatRoomThreadRows({
                       ) : (
                         <span
                           data-slot="thread-unread-count"
-                          className="text-muted-foreground text-[0.625rem] leading-4 font-semibold tabular-nums"
+                          className="text-muted-foreground text-2xs leading-4 font-semibold tabular-nums"
                         >
                           {roomCountLabel(thread.unreadReplyCount)}
                         </span>

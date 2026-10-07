@@ -4,7 +4,6 @@ import {
   creditsPerImageCents,
   imageOutputDimensions,
   imageOutputMegapixels,
-  isPerImageDerivableUnit,
 } from "./image-credits.js";
 
 const SQUARE_1K = { aspectRatio: "1:1", resolution: "1K" };
@@ -129,7 +128,6 @@ describe("creditsPerImageCents", () => {
       expect(
         creditsPerImageCents({ unit, unitPriceUsd: 0.01 }, SQUARE_1K),
       ).toBe(null);
-      expect(isPerImageDerivableUnit(unit)).toBe(false);
     }
     // An override may still supply the figure a human verified by hand.
     expect(

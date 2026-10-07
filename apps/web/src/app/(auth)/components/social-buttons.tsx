@@ -1,45 +1,54 @@
 "use client";
 
 import { track } from "@vercel/analytics";
-import { KeyRound, Loader2, Mail } from "lucide-react";
-import { useSearchParams } from "next/navigation";
+import { KeyRound } from "lucide-react";
 import { useTranslations } from "next-intl";
-import {
-  type ComponentProps,
-  type FormEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { type ComponentProps, useCallback, useEffect, useState } from "react";
 import {
   GoogleLoginButton,
   MicrosoftLoginButton,
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAuthCaptcha } from "@/components/auth-captcha";
-
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { ButtonLoadingBar } from "@/components/ui/button-loading-bar";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
-} from "@/lib/auth/auth.utils";
-import { emailSchema } from "@/lib/auth/data";
+import { buildSocialCallbackUrls } from "@/lib/auth/auth.utils";
 import { finishAuthInPlace } from "@/lib/auth/finish-auth.client";
 import { cn } from "@/lib/utils";
+import type {
+  LastUsedAuthMethod,
+  ProviderAuthMethod,
+} from "@/lib/utils/last-used-auth-method";
 
-export type SocialButtonProviderId = "google" | "microsoft";
-export type SignInMethodId = SocialButtonProviderId | "passkey" | "magic-link";
+type SocialButtonProviderId = Exclude<ProviderAuthMethod, "passkey">;
 
 interface SocialButtonsProps {
+  /**
+   * Where a sign-in started here ends: `AuthFlow`'s return URL, which falls
+   * back to resuming the page's OAuth request.
+   */
   returnUrl?: string;
-  lastUsedMethod?: SignInMethodId | null;
-  prefilledEmail?: string;
-  showMagicLink?: boolean;
+  lastUsedMethod?: LastUsedAuthMethod | null;
   showPasskey?: boolean;
+  /** Which intent the provider buttons report to Vercel Analytics. */
+  eventType?: "signIn" | "signUp";
+  /** Another sign-in is starting, e.g. with the email; every button waits. */
+  disabled?: boolean;
+  /** Whether a sign-in started here is still running. */
+  onPendingChange?: (pending: boolean) => void;
+}
+
+/** Marks the method used last, in the corner of its button. */
+function LastUsedBadge({ label }: { label: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-2xs font-medium group-has-[:disabled]/provider:opacity-50"
+    >
+      {label}
+    </span>
+  );
 }
 
 const socialButtons: Array<{
@@ -59,78 +68,84 @@ const socialButtons: Array<{
   },
 ];
 
+/**
+ * The person closed the browser's passkey prompt, let it time out, or another
+ * prompt replaced it. Better Auth passes simplewebauthn's code on without the
+ * underlying error, so a `NotAllowedError` (the passthrough code) cannot be
+ * told apart further; by spec it means cancelled, timed out or not permitted.
+ */
+function isPasskeyPromptDismissed(code: string | undefined): boolean {
+  return (
+    code === "AUTH_CANCELLED" ||
+    code === "ERROR_PASSTHROUGH_SEE_CAUSE_PROPERTY" ||
+    code === "ERROR_CEREMONY_ABORTED"
+  );
+}
+
 export default function SocialButtons({
   returnUrl,
-  lastUsedMethod = null,
-  prefilledEmail,
-  showMagicLink = false,
-  showPasskey = false,
-}: SocialButtonsProps = {}) {
+  lastUsedMethod,
+  showPasskey,
+  eventType,
+  disabled,
+  onPendingChange,
+}: SocialButtonsProps) {
   const t = useTranslations("Auth.SocialButtons");
-  const {
-    widget: captcha,
-    runWithCaptcha,
-    getErrorMessage,
-  } = useAuthCaptcha("magic-link");
-  const searchParams = useSearchParams();
-  const effectiveReturnUrl = useMemo(
-    () => returnUrl ?? buildOAuthConsentReturnUrlFromSearchParams(searchParams),
-    [returnUrl, searchParams],
+  // The sign-in that is starting. Every button waits while one runs.
+  const [pendingMethod, setPendingMethod] = useState<ProviderAuthMethod | null>(
+    null,
   );
-  const [magicLinkEmail, setMagicLinkEmail] = useState(prefilledEmail ?? "");
-  const [isMagicLinkVisible, setIsMagicLinkVisible] = useState(false);
-  const [isRequestingMagicLink, setIsRequestingMagicLink] = useState(false);
-  const [isSigningInWithPasskey, setIsSigningInWithPasskey] = useState(false);
-  const [magicLinkSentTo, setMagicLinkSentTo] = useState<string | null>(null);
-  const hasMagicLinkSuccess =
-    magicLinkEmail.trim().length > 0 &&
-    magicLinkEmail.trim() === magicLinkSentTo;
+
+  const isWaiting = pendingMethod !== null || disabled;
+
+  // Every change goes through here, so the parent hears it from the same event.
+  function changePendingMethod(method: ProviderAuthMethod | null) {
+    setPendingMethod(method);
+    onPendingChange?.(method !== null);
+  }
+
+  // Back from the provider restores this page as it was left, mid sign-in.
+  useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) changePendingMethod(null);
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   const finishPasskeySignIn = useCallback(
-    () =>
+    (result: unknown) =>
       finishAuthInPlace({
         eventType: "signIn",
         provider: "passkey",
-        returnUrl: effectiveReturnUrl,
+        returnUrl,
+        result,
       }),
-    [effectiveReturnUrl],
+    [returnUrl],
   );
 
-  const handlePasskeySignIn = async (options?: {
-    autoFill?: boolean;
-    showErrors?: boolean;
-  }) => {
-    const { autoFill = false, showErrors = true } = options ?? {};
-
-    if (!autoFill) {
-      track("Sign In", { provider: "passkey", direct_signup_link: false });
-      setIsSigningInWithPasskey(true);
-    }
+  const handlePasskeySignIn = async () => {
+    track("Sign In", { provider: "passkey", direct_signup_link: false });
+    changePendingMethod("passkey");
 
     try {
-      const result = await authClient.signIn.passkey({
-        autoFill,
-      });
+      const result = await authClient.signIn.passkey();
 
       if (result.error) {
         const errorCode =
           "code" in result.error ? result.error.code : undefined;
 
-        if (showErrors && errorCode !== "AUTH_CANCELLED") {
+        if (!isPasskeyPromptDismissed(errorCode)) {
           toast.error(t("passkeyError"));
         }
         return;
       }
 
-      await finishPasskeySignIn();
-    } catch (_error) {
-      if (showErrors) {
-        toast.error(t("passkeyError"));
-      }
+      await finishPasskeySignIn(result.data);
+    } catch {
+      toast.error(t("passkeyError"));
     } finally {
-      if (!autoFill) {
-        setIsSigningInWithPasskey(false);
-      }
+      changePendingMethod(null);
     }
   };
 
@@ -164,7 +179,7 @@ export default function SocialButtons({
           return;
         }
 
-        await finishPasskeySignIn();
+        await finishPasskeySignIn(result.data);
       } catch {
         return undefined;
       }
@@ -177,72 +192,23 @@ export default function SocialButtons({
     };
   }, [finishPasskeySignIn, showPasskey]);
 
-  const handleMagicLinkSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const trimmedEmail = magicLinkEmail.trim();
-    if (!emailSchema().safeParse(trimmedEmail).success) {
-      toast.error(t("magicLinkInvalidEmail"));
-      return;
-    }
-
-    track("Sign In", { provider: "magic-link", direct_signup_link: false });
-    setIsRequestingMagicLink(true);
-
-    try {
-      // The link lands on the callback page (full page load), which fires the
-      // `login` GTM event and then forwards to the return URL.
-      await runWithCaptcha(async (fetchOptions) => {
-        const result = await authClient.signIn.magicLink({
-          fetchOptions,
-          email: trimmedEmail,
-          callbackURL: buildAuthCallbackUrl(
-            "/auth/callback/signin",
-            "magic-link",
-            effectiveReturnUrl,
-          ),
-        });
-
-        if (result.error) {
-          toast.error(
-            getErrorMessage(
-              result.error,
-              result.error.message ?? t("magicLinkError"),
-            ),
-          );
-          return;
-        }
-
-        setMagicLinkSentTo(trimmedEmail);
-      });
-    } catch (_error) {
-      toast.error(t("magicLinkError"));
-    } finally {
-      setIsRequestingMagicLink(false);
-    }
-  };
-
-  const handleMagicLinkClick = () => {
-    setIsMagicLinkVisible((currentValue) => !currentValue);
-  };
-
   const handleClick = async (key: SocialButtonProviderId) => {
-    track("Sign In", { provider: key, direct_signup_link: false });
-
-    const result = await authClient.signIn.social({
+    if (isWaiting) return;
+    changePendingMethod(key);
+    track(eventType === "signUp" ? "Sign Up" : "Sign In", {
       provider: key,
-      callbackURL: buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        key,
-        effectiveReturnUrl,
-      ),
-      newUserCallbackURL: buildAuthCallbackUrl(
-        "/auth/callback/signup",
-        key,
-        effectiveReturnUrl,
-      ),
+      direct_signup_link: false,
     });
+
+    // On success the browser leaves for the provider, so the buttons stay busy.
+    const result = await authClient.signIn
+      .social({
+        provider: key,
+        ...buildSocialCallbackUrls(key, returnUrl),
+      })
+      .catch(() => ({ error: { message: undefined } }));
     if (result.error) {
+      changePendingMethod(null);
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
     }
@@ -252,21 +218,28 @@ export default function SocialButtons({
     <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => {
         const isLastUsed = lastUsedMethod === socialButton.key;
+        const isPending = pendingMethod === socialButton.key;
 
         return (
-          <div className="relative" key={socialButton.key}>
-            {isLastUsed && (
-              <span
-                aria-hidden="true"
-                className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-              >
-                {t("lastUsed")}
-              </span>
+          <div
+            className={cn(
+              "group/provider relative",
+              // The provider button is third-party, so it cannot take
+              // `loading`: draw the same bar over it and keep its logo.
+              isPending && "text-foreground overflow-hidden rounded-md",
             )}
+            aria-busy={isPending || undefined}
+            key={socialButton.key}
+          >
+            {isLastUsed && <LastUsedBadge label={t("lastUsed")} />}
             <socialButton.Button
               onClick={() => handleClick(socialButton.key)}
+              // The pending one stays enabled, so it keeps focus and full
+              // contrast; handleClick already ignores clicks while waiting.
+              disabled={isWaiting && !isPending}
               className={cn(
-                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                "text-foreground! m-0! flex h-[50px]! w-full! rounded-md! border! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! disabled:pointer-events-none! disabled:opacity-50! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!",
+                isPending && "cursor-progress!",
                 isLastUsed
                   ? "border-primary-tertiary! bg-primary-quinary! hover:bg-primary-quaternary!"
                   : "bg-senary! hover:bg-quinary! border-transparent!",
@@ -274,18 +247,18 @@ export default function SocialButtons({
               align="center"
               text={t("continueWith", { provider: socialButton.name })}
             />
+            {isPending && (
+              <ButtonLoadingBar
+                label={t("continueWith", { provider: socialButton.name })}
+              />
+            )}
           </div>
         );
       })}
       {showPasskey && (
-        <div className="relative">
+        <div className="group/provider relative">
           {lastUsedMethod === "passkey" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
+            <LastUsedBadge label={t("lastUsed")} />
           )}
           <Button
             type="button"
@@ -296,79 +269,16 @@ export default function SocialButtons({
                 ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
                 : "bg-senary hover:bg-quinary border-transparent",
             )}
-            disabled={isSigningInWithPasskey}
+            disabled={isWaiting}
+            loading={pendingMethod === "passkey"}
             onClick={() => {
               void handlePasskeySignIn();
             }}
           >
-            {isSigningInWithPasskey ? (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            ) : (
-              <KeyRound className="size-4" />
-            )}
+            <KeyRound className="size-4" />
             {t("continueWith", { provider: t("passkeyProvider") })}
           </Button>
         </div>
-      )}
-      {showMagicLink && (
-        <div className="relative">
-          {lastUsedMethod === "magic-link" && (
-            <span
-              aria-hidden="true"
-              className="text-primary pointer-events-none absolute top-1.5 right-2 z-10 text-[0.625rem] font-medium"
-            >
-              {t("lastUsed")}
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="secondary"
-            className={cn(
-              "text-foreground h-[50px] w-full justify-center gap-2 rounded-md border px-4 py-2 text-sm font-normal shadow-none",
-              lastUsedMethod === "magic-link"
-                ? "border-primary-tertiary bg-primary-quinary hover:bg-primary-quaternary"
-                : "bg-senary hover:bg-quinary border-transparent",
-            )}
-            onClick={handleMagicLinkClick}
-          >
-            <Mail className="size-4" />
-            {t("continueWith", { provider: t("magicLinkProvider") })}
-          </Button>
-        </div>
-      )}
-      {showMagicLink && isMagicLinkVisible && (
-        <form
-          className="bg-card-background flex flex-col gap-2 rounded-md border p-4"
-          onSubmit={handleMagicLinkSubmit}
-        >
-          {hasMagicLinkSuccess && (
-            <p className="text-muted-foreground text-center text-sm">
-              {t("magicLinkSuccess")}
-            </p>
-          )}
-          <Input
-            type="email"
-            className="text-center placeholder:text-center"
-            value={magicLinkEmail}
-            onChange={(event) => {
-              setMagicLinkEmail(event.target.value);
-            }}
-            placeholder={t("magicLinkPlaceholder")}
-            aria-label={t("magicLinkInputLabel")}
-          />
-          {captcha}
-          <Button
-            type="submit"
-            variant="outline"
-            disabled={isRequestingMagicLink}
-          >
-            {isRequestingMagicLink
-              ? t("magicLinkSubmitting")
-              : hasMagicLinkSuccess
-                ? t("magicLinkResend")
-                : t("magicLinkSubmit")}
-          </Button>
-        </form>
       )}
     </div>
   );

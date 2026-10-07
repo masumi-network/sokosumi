@@ -1,8 +1,8 @@
 "use client";
 
+import type { DriveTasksListItem } from "@sokosumi/core-client";
+import { getDriveTasks } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveTasksListItem } from "@/lib/clients/generated/core";
-import { getDriveTasks } from "@/lib/clients/generated/core";
 import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
 /** Core max page size for task items. */

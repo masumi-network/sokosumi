@@ -1,10 +1,9 @@
+import type { TaskParticipant } from "@sokosumi/core-client";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import { TaskActivitySubscribeControl } from "@/app/tasks/components/task-activity-subscribe";
-import type { TaskParticipant } from "@/lib/clients/generated/core/types.gen";
 
 const {
   subscribeTaskParticipantMock,

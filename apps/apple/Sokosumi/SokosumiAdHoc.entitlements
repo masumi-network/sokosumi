@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Sokosumi.entitlements without the Associated Domains key, for builds with no
+  team (`DEVELOPMENT_TEAM=`: CI and local test runs). Associated Domains is a
+  restricted entitlement: macOS kills an ad-hoc signed app that carries it at
+  launch. Such a build cannot sign in, which no test does. Keep the rest of
+  the list the same as Sokosumi.entitlements.
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.app-sandbox</key>
+	<true/>
+	<key>com.apple.security.files.user-selected.read-write</key>
+	<true/>
+	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.print</key>
+	<true/>
+</dict>
+</plist>

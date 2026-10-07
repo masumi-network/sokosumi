@@ -1,11 +1,11 @@
 "use client";
 
+import type { OrganizationRecord } from "@sokosumi/core-client";
 import { Pencil } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import OrganizationInformationModal from "@/components/organizations/organization-information/modal";
 import { Button } from "@/components/ui/button";
-import type { OrganizationRecord } from "@/lib/clients/generated/core";
 
 import { useOrganizationMetadata } from "./organization-metadata-context";
 

@@ -19,11 +19,11 @@
 
       private static func room(_ name: String, channel: Int = 0) -> Components.Schemas.ChatRoom {
         .init(
-          id: "room-\(name)", name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, discoverability: ._public,
+          id: "room-\(name)", name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, discoverability: ._public,
           createdByUserId: "user_1", createdAt: fixedDate, updatedAt: fixedDate,
           unreadCount: channel, channelUnreadCount: channel, threadUnreadCount: 0, unreadThreadCount: 0, unreadThreads: [],
-          unreadMentionCount: 0, starredAt: nil, mutedAt: nil, markedUnread: false, myAccess: .member,
-          userMembers: [], coworkerMembers: [], sokoBotMembers: []
+          unreadMentionCount: 0, starredAt: nil, mutedAt: nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
+          userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
         )
       }
 
@@ -116,7 +116,7 @@
       let roomId = parts.count >= 4 ? parts[3] : ""
       let room = """
       {"id":"\(roomId)","organizationId":null,"organizationName":null,"name":"launch","slug":null,"kind":"channel",\
-      "isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,\
+      "isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,\
       "createdByUserId":"user_1","createdAt":"2026-01-01T00:00:00.000Z","updatedAt":"2026-01-01T00:00:00.000Z",\
       "unreadCount":0,"unreadMentionCount":0,"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,\
       "myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}

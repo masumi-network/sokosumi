@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 
 export type CoworkerAccessScope =
   | { type: "personal" }

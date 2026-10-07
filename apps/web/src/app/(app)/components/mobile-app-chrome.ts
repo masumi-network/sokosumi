@@ -5,16 +5,15 @@ import {
   isChatShellPathname,
 } from "@/app/chat/utils/chat-route-base";
 
-/**
- * Bottom-nav tab list roots: exact matches get the mobile tab bar; nested
- * paths get a back control to the list root (no back at the root itself).
- */
+/** Exact paths that show the mobile tab bar. */
 const MOBILE_TAB_LIST_PATHS = [
   "/tasks",
   "/agents",
   "/drive",
   "/calendar",
   "/schedules",
+  "/social",
+  "/studio",
   "/projects",
   "/you",
   "/history",
@@ -43,6 +42,10 @@ const MAIN_APP_MOBILE_LIST_PATH_SET = new Set<string>(
 
 const MOBILE_TAB_LIST_PATH_SET = new Set<string>(MOBILE_TAB_LIST_PATHS);
 
+const MOBILE_NON_TAB_HUB_LIST_PATH_SET = new Set<string>(
+  MOBILE_NON_TAB_HUB_LIST_PATHS,
+);
+
 type SearchParamsLike =
   | URLSearchParams
   | { get?: (key: string) => string | null }
@@ -56,7 +59,7 @@ export interface MobileAppBackTarget {
   labelKey: MobileAppBackLabelKey;
 }
 
-/** True for exact main list routes that show the mobile bottom tab bar. */
+/** True for exact main list routes. */
 export function isMainAppMobileChromePathname(
   pathname: string | null | undefined,
 ): boolean {
@@ -94,7 +97,9 @@ export function resolveMobileAppBackTarget(
       root === "/agents" ||
       root === "/drive" ||
       root === "/calendar" ||
-      root === "/schedules"
+      root === "/schedules" ||
+      root === "/social" ||
+      root === "/studio"
     ) {
       return { href: "/", labelKey: "back" };
     }
@@ -108,7 +113,8 @@ export function resolveMobileAppBackTarget(
 
 /**
  * Fixed tab bar: Welcome home / chats list / other chat shell (except
- * rooms) + main list routes. `/` is home chrome, not a chat shell path.
+ * rooms) + tab list roots and non-tab hubs. `/` is home chrome, not a
+ * chat shell path.
  */
 export function shouldShowMobileBottomNav(
   pathname: string | null | undefined,
@@ -127,12 +133,16 @@ export function shouldShowMobileBottomNav(
   if (isChatShellPathname(pathname)) {
     return true;
   }
-  return isMainAppMobileChromePathname(pathname);
+  return (
+    MOBILE_TAB_LIST_PATH_SET.has(pathname) ||
+    MOBILE_NON_TAB_HUB_LIST_PATH_SET.has(pathname)
+  );
 }
 
 /**
  * Leading slot shows Sokosumi brand on Chats list and every bottom-nav tab
- * root (Tasks / Projects / You). Agents shows back to home. Nested pages keep back.
+ * root (Tasks / Projects / You). Agents, Social and Studio keep back to home.
+ * Nested pages keep back.
  * `/history` keeps brand chrome after Search left the tab bar.
  */
 export function shouldShowMobileBrandLeading(
@@ -146,7 +156,11 @@ export function shouldShowMobileBrandLeading(
   if (!pathname) {
     return false;
   }
-  if (pathname === "/agents") {
+  if (
+    pathname === "/agents" ||
+    pathname === "/social" ||
+    pathname === "/studio"
+  ) {
     return false;
   }
   return MOBILE_TAB_LIST_PATH_SET.has(pathname);

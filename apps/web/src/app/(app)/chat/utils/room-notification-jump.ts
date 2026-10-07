@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 
 /**
  * What a lookup found. `notReadable` and `unavailable` are different answers:

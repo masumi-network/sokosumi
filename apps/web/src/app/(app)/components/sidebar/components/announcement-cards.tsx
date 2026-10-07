@@ -1,12 +1,12 @@
 "use client";
 
+import type { Notice } from "@sokosumi/core-client";
 import dynamic from "next/dynamic";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
 import { useNoticeDialog } from "@/app/components/notice-dialog-context";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
-import type { Notice } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { isVideoUrl } from "@/lib/utils/file-preview";
 import { parseNoticeTemplate } from "@/lib/utils/notice-template";

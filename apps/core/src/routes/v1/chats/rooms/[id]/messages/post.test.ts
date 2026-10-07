@@ -78,6 +78,13 @@ vi.mock("@vercel/functions", () => ({
   waitUntil: waitUntilMock,
 }));
 
+const { resolveMessageSkillsMock } = vi.hoisted(() => ({
+  resolveMessageSkillsMock: vi.fn(),
+}));
+vi.mock("@/services/skill-catalog.service", () => ({
+  resolveMessageSkills: resolveMessageSkillsMock,
+}));
+
 vi.mock("@/services/chat-room-coworker-dispatch.service", () => ({
   dispatchChatRoomMention: dispatchMock,
 }));
@@ -249,6 +256,7 @@ const sokoBotAuthContext: AuthVariables["authContext"] = {
 function roomWithMembers(
   overrides: {
     kind?: "channel" | "direct";
+    directKey?: string | null;
     name?: string;
     userMembers?: Array<{
       userId: string;
@@ -281,7 +289,7 @@ function roomWithMembers(
     name: overrides.name ?? "general",
     slug: "general",
     kind: overrides.kind ?? "channel",
-    directKey: null,
+    directKey: overrides.directKey ?? null,
     topic: null,
     createdByUserId: USER_ID,
     createdAt: new Date("2025-01-01T00:00:00.000Z"),
@@ -580,6 +588,32 @@ describe("POST /chats/rooms/{id}/messages", () => {
     });
     expect(publishChatRoomMessageRealtime).toHaveBeenCalled();
   });
+
+  it.each([undefined, "11111111-1111-4111-8111-111111111111"])(
+    "refuses a room or thread message to a Direct whose peer has left (parent %s)",
+    async (parentMessageId) => {
+      roomFindFirstMock.mockResolvedValue(
+        roomWithMembers({
+          kind: "direct",
+          directKey: `${USER_ID}:${ALICE_ID}`,
+          userMembers: [{ userId: USER_ID, user: { name: USER_ID } }],
+          coworkerMembers: [],
+          sokoBotMembers: [],
+        }),
+      );
+      const response = await createApp(userAuthContext).request(
+        `/${ROOM_ID}/messages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ content: "Hello?", parentMessageId }),
+        },
+      );
+      expect(response.status).toBe(403);
+      expect(messageCreateMock).not.toHaveBeenCalled();
+      expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
+    },
+  );
 
   it("publishes no invalidation when message creation rolls back", async () => {
     prismaTransactionMock.mockRejectedValueOnce(
@@ -1778,6 +1812,103 @@ describe("POST /chats/rooms/{id}/messages", () => {
           },
         }),
       );
+    });
+  });
+
+  describe("skills", () => {
+    const skill = {
+      id: "mattpocock/skills/grill-me",
+      name: "grill-me",
+      description: "Interview",
+      url: "https://skills.sh/mattpocock/skills/grill-me",
+      content: "Ask.",
+    };
+    const chip = {
+      id: skill.id,
+      name: skill.name,
+      description: skill.description,
+      url: skill.url,
+    };
+
+    it("snapshots attached skills and shows readers only the chip", async () => {
+      roomFindFirstMock.mockResolvedValue(roomWithMembers());
+      resolveMessageSkillsMock.mockResolvedValue([skill]);
+      messageCreateMock.mockResolvedValue(
+        createdMessage({
+          senderUserId: USER_ID,
+          metadata: { skills: [chip] },
+        }),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "sharpen this plan",
+          skillIds: [skill.id],
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      const body = await response.json();
+      expect(body.data.skills).toEqual([chip]);
+      expect(JSON.stringify(body.data)).not.toContain("Ask.");
+      expect(resolveMessageSkillsMock).toHaveBeenCalledWith([skill.id]);
+      expect(messageCreateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            metadata: { skills: [chip] },
+            attachedSkills: {
+              create: [
+                {
+                  position: 0,
+                  skillId: skill.id,
+                  name: skill.name,
+                  content: "Ask.",
+                },
+              ],
+            },
+          }),
+        }),
+      );
+    });
+
+    it("refuses a skill that cannot be resolved before writing anything", async () => {
+      const { SokoBotSkillError } = await import(
+        "@/services/soko-bot-skills.service"
+      );
+      resolveMessageSkillsMock.mockRejectedValue(
+        new SokoBotSkillError('Skill "nope" not found'),
+      );
+
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "use this",
+          skillIds: ["a/b/nope"],
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it("refuses more than three skills", async () => {
+      const app = createApp(userAuthContext);
+      const response = await app.request(`/${ROOM_ID}/messages`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          content: "use these",
+          skillIds: ["a/b/1", "a/b/2", "a/b/3", "a/b/4"],
+        }),
+      });
+
+      expect(response.status).toBe(422);
+      expect(resolveMessageSkillsMock).not.toHaveBeenCalled();
     });
   });
 

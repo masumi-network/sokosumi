@@ -165,4 +165,17 @@ describe("every call inside an extraction job is bounded", () => {
     expect(init.signal).toBeInstanceOf(AbortSignal);
     fetchSpy.mockRestore();
   });
+
+  it("throws on a failed download so the job retries", async () => {
+    // A pathname written again after a delete answers 404 for a few seconds
+    // although `head` finds it; returning null recorded such a file as
+    // unreadable for good.
+    headMock.mockResolvedValue({ size: 1, url: "https://example.test/x" });
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("Blob not found", { status: 404 }));
+
+    await expect(downloadBlob("drive/users/u/x.txt")).rejects.toThrow("404");
+    fetchSpy.mockRestore();
+  });
 });

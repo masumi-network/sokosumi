@@ -1,7 +1,7 @@
 import type {
   AgentListItem,
   Category as CoreCategory,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /**
  * Gallery presentation shape for catalog browse (Cardano + x402 list items).

@@ -1,9 +1,7 @@
 import { CoworkerWorkspaceAccessStatus, MemberRole } from "@sokosumi/database";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildCoworkerUsableInWorkspaceWhere } from "@/helpers/access-control";
-
 import { forbidden } from "@/helpers/error";
-
 import {
   approveCoworkerWorkspaceAccess,
   type CoworkerWorkspaceAccessWithCoworker,
@@ -15,9 +13,8 @@ import {
   resolveCoworkerAccessTargetWorkspaceId,
   revokeCoworkerWorkspaceAccess,
   toCoworkerWorkspaceAccessApiShape,
-  upsertCoworkerWorkspaceAccess,
-  userBelongsToWorkspace,
 } from "./coworker-workspace-access";
+import { upsertCoworkerWorkspaceAccess } from "./coworker-workspace-access-grant";
 
 const accessFindUnique = vi.fn();
 const accessFindFirst = vi.fn();
@@ -357,57 +354,6 @@ describe("coworker-workspace-access helpers", () => {
     });
   });
 
-  describe("userBelongsToWorkspace", () => {
-    it("returns true for personal workspace owner", async () => {
-      workspaceFindUnique.mockResolvedValue({
-        userId: "user-1",
-        organizationId: null,
-      });
-
-      await expect(
-        userBelongsToWorkspace("user-1", "workspace-1"),
-      ).resolves.toBe(true);
-      expect(memberFindFirst).not.toHaveBeenCalled();
-    });
-
-    it("returns false for non-owner of personal workspace", async () => {
-      workspaceFindUnique.mockResolvedValue({
-        userId: "user-1",
-        organizationId: null,
-      });
-
-      await expect(
-        userBelongsToWorkspace("user-2", "workspace-1"),
-      ).resolves.toBe(false);
-    });
-
-    it("returns true when user is org member of workspace org", async () => {
-      workspaceFindUnique.mockResolvedValue({
-        userId: null,
-        organizationId: "org-1",
-      });
-      memberFindFirst.mockResolvedValue({ id: "m1" });
-
-      await expect(
-        userBelongsToWorkspace("user-1", "workspace-1"),
-      ).resolves.toBe(true);
-      expect(memberFindFirst).toHaveBeenCalledWith({
-        where: {
-          organizationId: "org-1",
-          userId: "user-1",
-        },
-        select: { id: true },
-      });
-    });
-
-    it("returns false when workspace missing", async () => {
-      workspaceFindUnique.mockResolvedValue(null);
-      await expect(
-        userBelongsToWorkspace("user-1", "workspace-1"),
-      ).resolves.toBe(false);
-    });
-  });
-
   describe("upsertCoworkerWorkspaceAccess", () => {
     it("throws notFound when workspace missing", async () => {
       workspaceFindUnique.mockResolvedValue(null);
@@ -582,7 +528,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(accessUpsert).toHaveBeenCalled();
     });
 
-    it("vendor admin on member workspace grants immediately", async () => {
+    it("vendor admin on own personal workspace grants immediately", async () => {
       workspaceFindUnique
         .mockResolvedValueOnce({
           id: "workspace-1",
@@ -629,7 +575,7 @@ describe("coworker-workspace-access helpers", () => {
       expect(accessCreate).not.toHaveBeenCalled();
     });
 
-    it("vendor admin on member workspace reopens DENIED to GRANTED", async () => {
+    it("vendor admin on own personal workspace reopens DENIED to GRANTED", async () => {
       workspaceFindUnique
         .mockResolvedValueOnce({
           id: "workspace-1",

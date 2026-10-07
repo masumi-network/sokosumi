@@ -7,7 +7,7 @@ argument-hint: "[row id]"
 
 # Apple parity: next row
 
-One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merged. `PARITY.md` is the source of truth for scope, order and state; `apps/apple/VISION.md` ("Iteration loop") and `apps/apple/AGENTS.md` hold the rules. Read all three before step 1, the Resume checkpoint first. Run these steps once.
+One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merged. `PARITY.md` is the source of truth for scope, order and state; `apps/apple/VISION.md` ("Iteration loop") and `apps/apple/AGENTS.md` hold the rules. Read all three before step 1, the Resume checkpoint first. Read `PARITY.md` by section, never whole: a row is `grep -n '^| <id> |' apps/apple/PARITY.md`. Per-slice evidence lives in `apps/apple/PARITY-LOG.md`; open only the slices the row cites. Run these steps once.
 
 **This session's row** is the row id the user passed (`/apple-parity-next 24h`), or, without one, the row step 2 or 3 finds. Up to two sessions can run in parallel, each on its own row; a session touches only its own row's PR and leaves the others alone.
 
@@ -30,6 +30,7 @@ One fresh session carries one row of `apps/apple/PARITY.md` from `Todo` to merge
    - never re-request review.
 
    Resolve conflicts by merging `main`, never by rebasing or force-pushing. Regenerate `openapi.json` with `scripts/update-core-api.py`; never hand-merge it. Re-run a CI job only when its log shows an infrastructure flake or a known-flaky test listed in the Resume checkpoint. Done when the user has merged the PR.
+6. **Mark the row Done.** From a fresh branch on the new `origin/main`, open one draft docs PR (`docs(apple): mark parity <row> done`) that sets this row to `Done` with its merge date and squash SHA, keeping its unverified list, and updates the Work order. Done when that PR is open.
 
 ## Subagent brief
 
@@ -45,7 +46,7 @@ Fill in every item. Name concrete files and SHAs, and keep claims about web beha
 - **PARITY**:
   - this row set to `In review — [#<PR>](…)`, with corrected text;
   - every row whose PR has merged but that still reads `In review` set to `Done`, with its merge date and follow-up SHAs, keeping its unverified list;
-  - a slice section;
+  - a slice section appended to `PARITY-LOG.md`;
   - a Resume checkpoint bullet;
   - the Work order no longer leading with this row.
 

@@ -1,18 +1,17 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { Vendor } from "@sokosumi/core-client";
 import {
   ORGANIZATION_LOGO_ALLOWED_MIME_TYPES,
   ORGANIZATION_LOGO_MAX_SIZE_BYTES,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
-
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,7 +28,6 @@ import {
   patchAdminVendorAction,
 } from "@/lib/actions/admin-vendors/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { Vendor } from "@/lib/clients/generated/core";
 import { ORGANIZATION_LOGO_UPLOAD_CLIENT_TIMEOUT_MS } from "@/lib/constants/organization-logo";
 import {
   ClientTimeoutError,
@@ -388,7 +386,6 @@ export function VendorForm(props: VendorFormProps) {
   });
 
   const isDisabled =
-    isSaving ||
     isUploadingLightLogo ||
     isUploadingDarkLogo ||
     (props.mode === "edit" && !form.formState.isDirty);
@@ -479,8 +476,7 @@ export function VendorForm(props: VendorFormProps) {
           </FormItem>
         </div>
 
-        <Button type="submit" disabled={isDisabled}>
-          {isSaving ? <Loader2 className="size-4 animate-spin" /> : null}
+        <Button type="submit" disabled={isDisabled} loading={isSaving}>
           {props.mode === "create" ? t("create") : t("save")}
         </Button>
       </form>

@@ -131,7 +131,8 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
 
   it("keeps the label in the accessibility tree when the rail collapses", () => {
     renderNav({ bot });
-    const label = screen.getByText("sokoBot");
+    // The row's label span; the name sits inside it beside the New pill.
+    const label = screen.getByText("sokoBot").parentElement!;
     expect(tokens(label.className)).toContain(
       "group-data-[collapsible=icon]:max-w-0",
     );
@@ -145,7 +146,7 @@ describe("PersonalAssistantNav as an ordinary Sidebar row", () => {
 
   it("clips the label on collapse instead of re-ellipsizing it", () => {
     renderNav({ bot });
-    const label = screen.getByText("sokoBot");
+    const label = screen.getByText("sokoBot").parentElement!;
     expect(tokens(label.className)).toContain("text-clip!");
     expect(tokens(label.className)).not.toContain("truncate");
   });

@@ -21,7 +21,13 @@ const {
   memberFindUniqueMock,
   setThreadMutedMock,
   getThreadMock,
+  markLookedRowsReadMock,
+  publishClearedNotificationsMock,
+  cancelNotificationEmailsMock,
 } = vi.hoisted(() => ({
+  markLookedRowsReadMock: vi.fn(),
+  publishClearedNotificationsMock: vi.fn(),
+  cancelNotificationEmailsMock: vi.fn(),
   roomFindFirstMock: vi.fn(),
   organizationFindUniqueMock: vi.fn(),
   memberFindUniqueMock: vi.fn(),
@@ -40,6 +46,27 @@ vi.mock("@/lib/db/prisma", () => ({
 vi.mock("../../../../room-unread", () => ({
   setChatRoomThreadMuted: (...args: unknown[]) => setThreadMutedMock(...args),
   getChatRoomThread: (...args: unknown[]) => getThreadMock(...args),
+}));
+
+vi.mock("@/helpers/chat-thread-reply-notifications", () => ({
+  markLookedThreadReplyRowsRead: (...args: unknown[]) =>
+    markLookedRowsReadMock(...args),
+}));
+
+vi.mock("@/helpers/notifications", () => ({
+  publishClearedNotifications: (...args: unknown[]) =>
+    publishClearedNotificationsMock(...args),
+}));
+
+vi.mock("@/helpers/notification-email-dispatch", () => ({
+  cancelNotificationEmails: (...args: unknown[]) =>
+    cancelNotificationEmailsMock(...args),
+}));
+
+vi.mock("@vercel/functions", () => ({
+  waitUntil: (promise: Promise<unknown>) => {
+    void Promise.resolve(promise).catch(() => {});
+  },
 }));
 
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
@@ -156,6 +183,7 @@ beforeEach(() => {
     mutedAt: null,
   });
   getThreadMock.mockResolvedValue(thread());
+  markLookedRowsReadMock.mockResolvedValue([]);
 });
 
 describe("DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute", () => {
@@ -176,6 +204,29 @@ describe("DELETE /chats/rooms/{id}/threads/{parentMessageId}/mute", () => {
 
     const body = await response.json();
     expect(body.data.mutedAt).toBeNull();
+  });
+
+  /**
+   * SOK-1217. The unmute can move the Look, so it clears the Thread-reply rows
+   * that Look now covers, the same way opening the Thread does.
+   */
+  it("clears the Thread-reply rows the Look now covers", async () => {
+    const cleared = [{ id: "n-reply", emailId: null, emailScheduledAt: null }];
+    markLookedRowsReadMock.mockResolvedValue(cleared);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/threads/${PARENT_ID}/mute`,
+      { method: "DELETE" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(markLookedRowsReadMock).toHaveBeenCalledWith(
+      ROOM_ID,
+      USER_ID,
+      expect.anything(),
+    );
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["n-reply"]);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith(cleared);
   });
 
   it("returns 404 when the parent is not a live root of this room", async () => {

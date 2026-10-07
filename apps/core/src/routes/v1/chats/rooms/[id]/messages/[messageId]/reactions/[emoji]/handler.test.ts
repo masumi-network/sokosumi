@@ -131,7 +131,10 @@ beforeEach(() => {
     id: ROOM_ID,
     organizationId: ORG_ID,
     kind: "channel",
-    userMembers: [{ access: "member" }],
+    directKey: null,
+    userMembers: [{ userId: USER_ID, access: "member" }],
+    coworkerMembers: [],
+    sokoBotMembers: [],
   });
   organizationFindUniqueMock.mockResolvedValue({ id: ORG_ID });
   memberFindUniqueMock.mockResolvedValue({
@@ -325,4 +328,31 @@ describe("DELETE /chats/rooms/{id}/messages/{messageId}/reactions/{emoji}", () =
     expect(response.status).toBe(200);
     expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
   });
+});
+
+describe("reactions in a read-only Direct", () => {
+  it.each(["PUT", "DELETE"])(
+    "refuses %s once everyone else has left",
+    async (method) => {
+      roomFindFirstMock.mockResolvedValue({
+        id: ROOM_ID,
+        organizationId: ORG_ID,
+        kind: "direct",
+        directKey: `${USER_ID}:user_departed`,
+        userMembers: [{ userId: USER_ID, access: "member" }],
+        coworkerMembers: [],
+        sokoBotMembers: [],
+      });
+
+      const response = await createApp(userAuthContext).request(
+        reactionPath("👍"),
+        { method },
+      );
+
+      expect(response.status).toBe(403);
+      expect(reactionCreateManyMock).not.toHaveBeenCalled();
+      expect(reactionDeleteManyMock).not.toHaveBeenCalled();
+      expect(publishChatRoomMessageRealtime).not.toHaveBeenCalled();
+    },
+  );
 });

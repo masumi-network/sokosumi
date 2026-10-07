@@ -37,6 +37,8 @@ export function JoinCard({ token, organization, user }: JoinCardProps) {
         organizationSlug={organization.slug}
         isAuthenticated={Boolean(user)}
         currentUserName={user?.name?.trim() ?? ""}
+        currentUserFirstName={user?.firstName}
+        currentUserLastName={user?.lastName}
       />
     </OrganizationInviteCard>
   );

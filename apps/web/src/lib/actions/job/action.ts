@@ -1,6 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import type { Job } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import {
@@ -16,14 +17,12 @@ import {
   coreClient,
   toCoreApiActionError,
 } from "@/lib/clients/core.client";
-import type { Job } from "@/lib/clients/generated/core";
 import {
   type JobDetailsNameFormSchemaType,
   jobDetailsNameFormSchema,
   type ProvideJobInputSchemaType,
   provideJobInputSchema,
 } from "@/lib/schemas/job";
-import { jobService } from "@/lib/services/job.service";
 import {
   type AuthenticatedRequest,
   withSession,
@@ -157,7 +156,13 @@ export const moveJobToWorkspace = withSession<
   { jobId: string }
 >(async ({ agentId, jobId, organizationId }) => {
   try {
-    await jobService.moveJobToWorkspace(jobId, organizationId);
+    const result = await coreClient.moveJobToWorkspace(jobId, {
+      organizationId,
+    });
+    if (!result.data) {
+      throw new Error("Failed to move job to workspace");
+    }
+
     revalidatePath(`/agents/${agentId}/jobs`);
     revalidatePath(`/agents/${agentId}/jobs/${jobId}`);
     return { jobId };

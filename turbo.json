@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.dev/schema.json",
+  "globalDependencies": ["package.json", "pnpm-workspace.yaml"],
   "globalEnv": [
     "CI",
     "NODE_ENV",

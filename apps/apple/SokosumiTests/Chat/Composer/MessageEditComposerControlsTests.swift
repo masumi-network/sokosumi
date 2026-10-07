@@ -26,7 +26,8 @@
   extension NativeWindowTests {
     /// Row 18b as refined by the user (2026-09-23): the edit field keeps a pointer path as two compact icon
     /// controls at its trailing edge, Cancel then Save, centred on the first line. Save runs the same commit
-    /// as Return, Cancel cancels, and both are disabled while a save is in flight; Save also over the limit.
+    /// as Return, Cancel cancels, and both are disabled while a save is in flight; Save also over the limit
+    /// and, since row 18c, on an empty or unchanged draft.
     /// SwiftUI draws the buttons without an `NSView`, so the tests find them by their pixels.
     @MainActor struct MessageEditComposerControlsTests {
       private static let overLimit = String(repeating: "a", count: ComposerContent.maximumLength + 1)
@@ -115,6 +116,61 @@
         fixture.click(atPixel: controls[1].center, in: bitmap)
         try await Task.sleep(for: .milliseconds(200))
         #expect(fixture.editing.source != nil, "Still editing.")
+        #expect(EditRequestProtocol.requests.isEmpty, "Nothing was sent.")
+      }
+
+      /// Row 18c, web's `canSaveEdit`: Save is enabled only for a changed, non-empty draft within the limit.
+      /// Cancel stays enabled throughout. The renders are PARITY's 18c fixture image.
+      @Test(arguments: [false, true])
+      func saveIsEnabledOnlyForAChangedDraft(dark: Bool) async throws {
+        let toolbarWasVisible = ComposerPreferences().toolbarVisible
+        ComposerPreferences().toolbarVisible = true
+        defer { ComposerPreferences().toolbarVisible = toolbarWasVisible }
+        let fixture = try await MessageEditComposerFixture.make(dark: dark)
+        defer { fixture.window.orderOut(nil) }
+        func controls(_ state: String, draft: String) async throws -> [DrawnControl] {
+          fixture.editing.draft = draft
+          try await fixture.waitForDraft(draft)
+          let bitmap = try fixture.record(named: "message-edit-save-\(state)-\(dark ? "dark" : "light").png")
+          let controls = try Self.controls(in: fixture, bitmap: bitmap)
+          try #require(controls.count == 2, "\(state): found \(controls.map(\.rect)) beside the field.")
+          return controls
+        }
+        let enabled = try await controls("changed", draft: "Original, fixed")
+        #expect(enabled[1].coloredPixels > 20, "Save carries the accent on a changed draft (\(enabled[1].coloredPixels) coloured pixels).")
+        for (state, draft) in [("unchanged", "Original"), ("padded", "  Original  "), ("empty", ""), ("over-limit", Self.overLimit)] {
+          let disabled = try await controls(state, draft: draft)
+          #expect(disabled[1].strength < enabled[1].strength * 0.8, "\(state): Save dims (\(enabled[1].strength) → \(disabled[1].strength)).")
+          #expect(disabled[1].coloredPixels < enabled[1].coloredPixels / 4, "\(state): Save loses the accent (\(disabled[1].coloredPixels)).")
+          #expect(disabled[0].strength > enabled[0].strength * 0.8, "\(state): Cancel stays enabled (\(enabled[0].strength) → \(disabled[0].strength)).")
+        }
+        let again = try await controls("changed-again", draft: "Original, fixed")
+        #expect(again[1].strength > enabled[1].strength * 0.8, "Save comes back with a change (\(again[1].strength)).")
+      }
+
+      /// Before 18c a click on ✓ over an empty or unchanged draft ran the commit, which cancels it. Now the
+      /// control is disabled: the edit stays open and nothing is sent. Return still cancels such a draft
+      /// (`MessageEditComposerReturnTests`), as web's Enter does.
+      @Test(arguments: ["Original", "  Original  ", ""])
+      func clickingSaveOnAnUnchangedOrEmptyDraftDoesNothing(draft: String) async throws {
+        EditRequestProtocol.reset()
+        let fixture = try await MessageEditComposerFixture.make(client: MessageEditComposerFixture.heldClient())
+        defer {
+          fixture.editing.reset()
+          fixture.window.orderOut(nil)
+        }
+        fixture.editing.draft = draft
+        try await fixture.waitForDraft(draft)
+        let bitmap = try fixture.bitmap()
+        let controls = try Self.controls(in: fixture, bitmap: bitmap)
+        try #require(controls.count == 2, "Found \(controls.map(\.rect)) beside the field.")
+        fixture.click(atPixel: controls[1].center, in: bitmap)
+        // A click's effect may land a turn later. Typing on takes turns too, and ends on a state a fired
+        // commit cannot reach: still editing, nothing sent.
+        fixture.editing.draft = "Changed"
+        try await fixture.waitForDraft("Changed")
+        #expect(fixture.editing.source != nil, "The disabled ✓ cancelled the edit.")
+        #expect(!fixture.editing.isSaving)
         #expect(EditRequestProtocol.requests.isEmpty, "Nothing was sent.")
       }
 

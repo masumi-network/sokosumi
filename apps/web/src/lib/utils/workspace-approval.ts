@@ -2,7 +2,7 @@ import type {
   MemberWithOrganization,
   NotificationItem,
   VendorGrant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 export const VENDOR_GRANT_PENDING_MESSAGE_KEY =
   "notifications.vendorGrant.pending";

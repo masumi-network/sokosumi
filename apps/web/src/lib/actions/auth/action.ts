@@ -1,5 +1,6 @@
 "use server";
 
+import type { SignUpConversionResponse } from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 
 import {
@@ -12,10 +13,7 @@ import {
   resetPasswordViaCore,
   setPasswordViaCore,
 } from "@/lib/auth/core-auth-http.server";
-import {
-  clearResetPasswordToken,
-  getResetPasswordToken,
-} from "@/lib/reset-password-token-cookie";
+import { getResetPasswordToken } from "@/lib/reset-password-token-cookie";
 import {
   type NewPasswordFormType,
   newPasswordFormSchema,
@@ -84,7 +82,10 @@ export async function resetPasswordWithToken(
 
   try {
     await resetPasswordViaCore(parsedResult.data.password, token);
-    await clearResetPasswordToken();
+    // The cookie stays: Core has spent the token, and clearing it here would
+    // re-render the page, which leaves for "request a new link" when the
+    // token is gone, before the person can retry a failed sign-out. It
+    // expires within the hour; a stale one only reaches "Request a new link".
     return toActionResult(ok());
   } catch (error) {
     console.error("Failed to reset password", error);
@@ -97,5 +98,21 @@ export async function handleUtmConversion(): Promise<void> {
     await utmService.handleUTMConversion();
   } catch (error) {
     console.error("Failed to create utm attribution", error);
+  }
+}
+
+/**
+ * Counts a new social account once: claims it from Core and records its UTM
+ * attribution. Returns the provider for the GTM `sign_up` event, or `null`
+ * when this session's account is not an uncounted social sign-up.
+ */
+export async function claimSignUpConversion(): Promise<
+  SignUpConversionResponse["provider"]
+> {
+  try {
+    return await utmService.claimSignUpConversion();
+  } catch (error) {
+    console.error("Failed to claim social sign-up", error);
+    return null;
   }
 }

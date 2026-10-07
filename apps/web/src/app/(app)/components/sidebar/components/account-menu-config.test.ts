@@ -1,6 +1,6 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
 
 import { getAccountNavItems } from "./account-menu-config";
 

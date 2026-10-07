@@ -1,5 +1,16 @@
 "use client";
 
+import type {
+  TaskEvent,
+  TaskFile,
+  TaskParticipant,
+} from "@sokosumi/core-client";
+import {
+  BlobStatus,
+  Channel,
+  TaskEventStatus,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import {
   extractFileLikeLinks,
   extractHttpLinks,
@@ -43,12 +54,6 @@ import {
   createTaskComment,
   loadOlderTaskActivityEvents,
 } from "@/lib/actions/task/action";
-import { BlobStatus, Channel, TaskStatus } from "@/lib/clients/generated/core";
-import type {
-  TaskEvent,
-  TaskFile,
-  TaskParticipant,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   CHANNEL_APP_NAME_KEY_MAP,
   CHANNEL_ICON_MAP,
@@ -80,6 +85,9 @@ interface TaskActivityProps {
   actorSystemLabel: string;
   actionCommentedLabel: string;
   actionUpdatedStatusLabel: string;
+  actionCreatedTaskLabel: string;
+  /** Names the creation event when it has no actor (system, schedule). */
+  taskOwnerId?: string;
   events: TaskEvent[];
   /** Total comment events on the Task (Core meta); drives grouping. */
   commentCount?: number;
@@ -195,6 +203,8 @@ export function TaskActivitySection({
   actorSystemLabel,
   actionCommentedLabel,
   actionUpdatedStatusLabel,
+  actionCreatedTaskLabel,
+  taskOwnerId,
   events,
   commentCount: commentCountProp,
   latestCommentId: latestCommentIdProp,
@@ -495,6 +505,7 @@ export function TaskActivitySection({
               userById,
               coworkerById,
               sokoBotById,
+              taskOwnerId,
             );
             const actorName =
               actorInfo?.ownerName != null
@@ -569,11 +580,13 @@ export function TaskActivitySection({
                 )
               : null;
             const action =
-              chargePresentation.actionKind === "commented"
-                ? actionCommentedLabel
-                : chargePresentation.actionKind === "charged"
-                  ? (chargedLabel ?? actionUpdatedStatusLabel)
-                  : actionUpdatedStatusLabel;
+              chargePresentation.actionKind === "createdTask"
+                ? actionCreatedTaskLabel
+                : chargePresentation.actionKind === "commented"
+                  ? actionCommentedLabel
+                  : chargePresentation.actionKind === "charged"
+                    ? (chargedLabel ?? actionUpdatedStatusLabel)
+                    : actionUpdatedStatusLabel;
             const shouldShowSecondaryChargeLine =
               chargePresentation.shouldShowSecondaryChargeLine;
             const shouldShowAuthenticateButton =
@@ -610,7 +623,10 @@ export function TaskActivitySection({
             const isCardEvent = isCommentEvent || isAuthEvent || isBillingEvent;
             const shouldHighlightDoneBorder =
               event.status === TaskStatus.COMPLETED && isCommentEvent;
-            const isStatusOnlyEvent = !isCardEvent && Boolean(event.status);
+            // CREATED is the creation event, not a status the Task can be in.
+            const taskStatus =
+              event.status === TaskEventStatus.CREATED ? null : event.status;
+            const isStatusOnlyEvent = !isCardEvent && Boolean(taskStatus);
 
             const row = (
               <div
@@ -629,13 +645,13 @@ export function TaskActivitySection({
                     isCardEvent && "py-3",
                   )}
                 >
-                  {isStatusOnlyEvent && event.status ? (
+                  {isStatusOnlyEvent && taskStatus ? (
                     <div className="flex size-6 shrink-0 items-center justify-center">
                       <span
                         data-testid={`status-dot-${event.id}`}
                         className={cn(
                           "size-1.5 shrink-0 rounded-full",
-                          getTaskStatusDotColorClass(event.status),
+                          getTaskStatusDotColorClass(taskStatus),
                         )}
                         aria-hidden
                       />
@@ -656,50 +672,59 @@ export function TaskActivitySection({
                       {actorImage ? (
                         <AvatarImage src={actorImage} alt={actorName} />
                       ) : null}
-                      <AvatarFallback className="bg-muted text-[0.625rem]">
+                      <AvatarFallback className="bg-muted text-2xs">
                         {getInitials(actorName)}
                       </AvatarFallback>
                     </Avatar>
                   )}
                   <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                    <div className="flex flex-row items-baseline justify-between gap-2">
-                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm">
-                        <span className="text-sm font-medium">{actorName}</span>
-                        <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                          <span>{action}</span>
-                          {!event.status ? (
+                    <div className="flex flex-row items-baseline justify-between gap-2 max-sm:flex-wrap max-sm:gap-y-0.5">
+                      <div className="flex flex-wrap items-baseline gap-1.5 text-sm max-sm:contents">
+                        <span className="max-sm:order-1 text-sm font-medium">
+                          {actorName}
+                        </span>
+                        <span className="max-sm:order-3 max-sm:basis-full sm:contents">
+                          <span className="text-muted-foreground text-xs">
+                            <span>{action}</span>{" "}
+                            {!taskStatus ? (
+                              <>
+                                <span className="whitespace-nowrap">
+                                  {originFromLabel}
+                                  <ChannelIcon
+                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                    role="img"
+                                    aria-label={originFromLabel}
+                                    data-testid={`origin-icon-${event.id}`}
+                                  />
+                                </span>
+                              </>
+                            ) : null}
+                          </span>
+                          {taskStatus ? (
                             <>
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
+                              {" "}
+                              <TaskStatusInline
+                                status={taskStatus}
+                                label={tStatus(taskStatus)}
+                              />{" "}
+                              <span className="text-muted-foreground text-xs">
+                                <span className="whitespace-nowrap">
+                                  {originFromLabel}
+                                  <ChannelIcon
+                                    className="text-muted-foreground ml-1 inline size-3.5 align-text-bottom"
+                                    role="img"
+                                    aria-label={originFromLabel}
+                                    data-testid={`origin-icon-${event.id}`}
+                                  />
+                                </span>
+                              </span>
                             </>
                           ) : null}
                         </span>
-                        {event.status ? (
-                          <>
-                            <TaskStatusInline
-                              status={event.status}
-                              label={tStatus(event.status)}
-                            />
-                            <span className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                              <span>{originFromLabel}</span>
-                              <ChannelIcon
-                                className="text-muted-foreground size-3.5 shrink-0"
-                                role="img"
-                                aria-label={originFromLabel}
-                                data-testid={`origin-icon-${event.id}`}
-                              />
-                            </span>
-                          </>
-                        ) : null}
                       </div>
                       <TimeAgo
                         date={event.createdAt}
-                        className="text-muted-foreground text-xs whitespace-nowrap"
+                        className="text-muted-foreground text-xs whitespace-nowrap max-sm:order-2"
                       />
                     </div>
                     {formattedComment ? (

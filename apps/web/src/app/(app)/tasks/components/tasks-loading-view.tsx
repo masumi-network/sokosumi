@@ -14,7 +14,7 @@ import { ColumnHeader } from "./column-header";
 export interface TasksLoadingLabels {
   tabs: {
     tasks: string;
-    jobs: string;
+    calendar: string;
   };
   columns: Record<KanbanColumnId, string>;
   display: {
@@ -30,14 +30,14 @@ interface TasksLoadingViewProps {
 /** Sync shell labels for Instant Navigations / `loading.tsx` (no cookies/i18n). */
 export const TASKS_LOADING_DEFAULT_LABELS: TasksLoadingLabels = {
   tabs: {
-    tasks: "Tasks",
-    jobs: "Jobs",
+    tasks: "Board",
+    calendar: "Calendar",
   },
   columns: {
     backlog: "Backlog",
     todo: "Todo",
-    "in-progress": "In Progress",
-    "input-required": "Input Required",
+    "in-progress": "In progress",
+    "input-required": "Input required",
     done: "Done",
   },
   display: {
@@ -73,7 +73,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
               {labels.tabs.tasks}
             </div>
             <div className="text-muted-foreground rounded-md border-none px-3 py-1.5 text-sm font-medium transition-colors">
-              {labels.tabs.jobs}
+              {labels.tabs.calendar}
             </div>
           </div>
         </div>
@@ -114,7 +114,7 @@ export function TasksLoadingView({ viewMode, labels }: TasksLoadingViewProps) {
 
 function TasksBoardLoading({ labels }: { labels: TasksLoadingLabels }) {
   return (
-    <div className="-mx-2 flex h-full min-h-[calc(100dvh-8.5rem)] w-full min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
+    <div className="-mx-2 flex size-full min-h-[calc(100dvh-8.5rem)] min-w-0 flex-1 items-stretch gap-3 overflow-x-auto overflow-y-hidden px-2 pb-4 app-scrollbar">
       {KANBAN_COLUMNS.map((column, index) => {
         const isFirstColumn = index === 0;
 

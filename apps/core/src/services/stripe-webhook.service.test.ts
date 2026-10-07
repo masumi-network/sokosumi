@@ -92,8 +92,11 @@ describe("stripeWebhookService.handleEvent", () => {
           stripeEventType: "customer.created",
           customerId: "cus_new_123",
         }),
-        extra: expect.objectContaining({ eventId: "evt_created_123" }),
+        extra: { eventId: "evt_created_123", customer: "cus_new_123" },
       }),
+    );
+    expect(JSON.stringify(captureExceptionMock.mock.calls)).not.toContain(
+      "new@example.com",
     );
   });
 

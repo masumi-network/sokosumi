@@ -1,20 +1,6 @@
 "use server";
 
-import { err, ok } from "neverthrow";
-import { revalidatePath } from "next/cache";
-import * as z from "zod";
-
-import {
-  type ActionResultDto,
-  toActionResult,
-} from "@/lib/actions/action-result";
-import type { ActionError } from "@/lib/actions/errors/action-error";
-import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import {
-  CoreApiRequestError,
-  toCoreApiActionError,
-} from "@/lib/clients/core.client";
-import type { SokoBotIntegrationCatalogEntry } from "@/lib/clients/generated/core";
+import type { SokoBotIntegrationCatalogEntry } from "@sokosumi/core-client";
 import {
   type InstallSokoBotSkillResponse,
   type SokoBot,
@@ -29,7 +15,20 @@ import {
   type SokoBotSkillBrowse,
   type SokoBotSkillSearchResult,
   type StartSokoBotTurnResponse,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { err, ok } from "neverthrow";
+import { revalidatePath } from "next/cache";
+import * as z from "zod";
+import {
+  type ActionResultDto,
+  toActionResult,
+} from "@/lib/actions/action-result";
+import type { ActionError } from "@/lib/actions/errors/action-error";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
+import {
+  CoreApiRequestError,
+  toCoreApiActionError,
+} from "@/lib/clients/core.client";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import {
   SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE,

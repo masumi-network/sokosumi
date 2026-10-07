@@ -1,4 +1,5 @@
 import "./rooms-client-harness";
+import type { ChatRoom, ChatRoomMessage } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -20,7 +21,6 @@ import {
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
-import type { ChatRoom, ChatRoomMessage } from "@/lib/clients/generated/core";
 import { RoomsClient } from "../rooms-client";
 import {
   channelRoom,

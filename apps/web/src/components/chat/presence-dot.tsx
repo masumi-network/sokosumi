@@ -1,4 +1,4 @@
-import type { ChatRoomPresence } from "@/lib/clients/generated/core";
+import type { ChatRoomPresence } from "@sokosumi/core-client";
 import { cn } from "@/lib/utils";
 
 /**

@@ -11,6 +11,8 @@ export const EXTERNAL_EFFECT_CAPABILITIES = new Set([
   "run_integration_tool",
   "upload_file",
   "publish_social_post",
+  // A paid provider call: never repeated after an unclear failure.
+  "generate_image",
 ]);
 
 export const ACTION_CAPABILITIES = new Set([
@@ -59,7 +61,12 @@ export function actionInputHash(value: unknown): string {
   return createHash("sha256").update(canonicalActionJson(value)).digest("hex");
 }
 
-/** Archival success requires the retained task and its committed history. */
+/**
+ * Archival success requires the retained task and its committed history: the
+ * bot's own archive event on it, in the turn's workspace. Who owns the Task is
+ * not part of the proof; the archive already checked the owner may change it,
+ * and a teammate's public Task archived that way must confirm too.
+ */
 export async function verifyTaskArchiveReceipt(
   tx: Prisma.TransactionClient,
   receiptId: string,
@@ -83,7 +90,6 @@ export async function verifyTaskArchiveReceipt(
   return !!(await tx.task.findFirst({
     where: {
       id: receipt.targetId,
-      ownerId: receipt.turn.userId,
       workspaceId: receipt.turn.workspaceId,
       archivedAt: { not: null },
       events: {
@@ -206,6 +212,17 @@ export async function commitActionReceipt(
  */
 export function externalActionReceipt(capability: string, result: unknown) {
   let targetId: string | null = null;
+  // The studio refused before sending, and refunded: nothing happened.
+  if (
+    capability === "generate_image" &&
+    z.object({ status: z.literal("FAILED") }).safeParse(result).success
+  )
+    return {
+      targetId,
+      disposition: "REJECTED" as const,
+      verification: "NONE" as const,
+      committedAt: null,
+    };
   if (capability === "hire_agent" || capability === "provide_job_input") {
     const acknowledged = z
       .object({
@@ -224,16 +241,30 @@ export function externalActionReceipt(capability: string, result: unknown) {
       })
       .safeParse(result);
     if (acknowledged.success) targetId = acknowledged.data.id;
+  } else if (capability === "generate_image") {
+    // Only a job the provider took; an uncertain submission stays UNKNOWN.
+    const acknowledged = z
+      .object({
+        jobId: z.string().min(1).max(2048),
+        status: z.enum([
+          "PENDING",
+          "SUBMITTING",
+          "QUEUED",
+          "RUNNING",
+          "SUCCEEDED",
+        ]),
+      })
+      .safeParse(result);
+    if (acknowledged.success) targetId = acknowledged.data.jobId;
   } else if (capability === "upload_file") {
     const acknowledged = z
       .object({
-        url: z.url().max(2048),
+        id: z.uuid(),
         filename: z.string().min(1),
         size: z.number().int().nonnegative(),
       })
       .safeParse(result);
-    if (acknowledged.success && acknowledged.data.url.startsWith("https://"))
-      targetId = acknowledged.data.url;
+    if (acknowledged.success) targetId = acknowledged.data.id;
   }
   return {
     targetId,

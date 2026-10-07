@@ -54,6 +54,8 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     notification: {
       groupBy: notificationGroupByMock,
+      // No Thread-reply rows: the badge count is the grouped count as is.
+      findMany: vi.fn().mockResolvedValue([]),
     },
     chatRoomPinnedMessage: {
       groupBy: pinGroupByMock,
@@ -63,6 +65,9 @@ vi.mock("@/lib/db/prisma", () => ({
     },
     chatRoomReadState: {
       findMany: readStateFindManyMock,
+    },
+    user: {
+      findMany: vi.fn().mockResolvedValue([]),
     },
     $queryRawUnsafe: queryRawUnsafeMock,
     $transaction: prismaTransactionMock,

@@ -1,6 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { subscriptionRepository } from "@sokosumi/database/repositories";
 
-import { findActiveSubscriptionByReferenceId } from "@/helpers/active-subscription";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -39,6 +39,7 @@ const route = withOrganizationSlugHeaderParameter(
               plan: "starter",
               status: "active",
               cancelAtPeriodEnd: false,
+              cancelAt: null,
               periodStart: "2025-01-01T00:00:00.000Z",
               periodEnd: "2025-02-01T00:00:00.000Z",
               seats: 1,
@@ -63,10 +64,11 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const subscription = await findActiveSubscriptionByReferenceId(
-      resolvedUserId,
-      prisma,
-    );
+    const subscription =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        resolvedUserId,
+        prisma,
+      );
 
     return ok(c, activeSubscriptionResponseSchema.parse({ subscription }));
   });

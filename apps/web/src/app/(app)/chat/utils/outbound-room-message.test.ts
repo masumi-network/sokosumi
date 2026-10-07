@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_TOO_LONG_MESSAGE } from "@sokosumi/utils";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   CLIENT_MESSAGE_ID_METADATA_KEY,
@@ -87,6 +86,31 @@ describe("outbound room message", () => {
         responseMessageId: null,
       },
     ]);
+  });
+
+  it("shows the attached skills on the pending shell, and none when there are none", () => {
+    const skill = {
+      id: "mattpocock/skills/grill-me",
+      name: "grill-me",
+      description: null,
+      url: "https://skills.sh/mattpocock/skills/grill-me",
+    };
+    const withSkill = createPendingRoomMessage({
+      clientTurnId: "turn-1",
+      roomId: "room-1",
+      content: "sharpen this",
+      senderUser,
+      skills: [skill],
+    });
+    const without = createPendingRoomMessage({
+      clientTurnId: "turn-2",
+      roomId: "room-1",
+      content: "hi",
+      senderUser,
+    });
+
+    expect(withSkill.skills).toEqual([skill]);
+    expect(without).not.toHaveProperty("skills");
   });
 
   it("confirms a pending shell in place without duplicating", () => {

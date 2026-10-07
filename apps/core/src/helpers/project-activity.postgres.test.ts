@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { createPrismaClient } from "@sokosumi/database/client";
 import { afterAll, describe, expect, it, vi } from "vitest";
+import { resolveProjectReaderAccess } from "@/types/project";
 import {
   encodeProjectActivityCursor,
   type ProjectActivityRow,
   projectActivityPageQuery,
-  projectActivityVisibility,
 } from "./project-activity";
 
 vi.mock("@/helpers/vendor-grants", async (importOriginal) => {
@@ -88,7 +88,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('archived-event', '2034-01-01')`;
         await tx.$executeRaw`INSERT INTO "jobEvent" VALUES ('job','2026-04-01')`;
         await tx.$executeRaw`INSERT INTO project_event VALUES (${id(8)}::uuid,'2026-05-01'),(${id(26)}::uuid,'2032-01-01')`;
-        const human = await projectActivityVisibility(
+        const { sqlWhere: human } = await resolveProjectReaderAccess(
           {
             actor: "user",
             userId: "reader",
@@ -139,7 +139,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
           await page(human, encodeProjectActivityCursor(workspaceId, anchor)),
         ).toEqual(second);
 
-        const coworker = await projectActivityVisibility(
+        const { sqlWhere: coworker } = await resolveProjectReaderAccess(
           {
             actor: "coworker",
             coworkerId: "cow",
@@ -154,7 +154,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
         // Grant sees public task events and same-vendor private tasks, not drafts,
         // another owner's private work or unassigned jobs.
         expect(coworkerIds.slice(0, 6)).toEqual([8, 6, 2, 1, 25, 24].map(id));
-        const ungranted = await projectActivityVisibility(
+        const { sqlWhere: ungranted } = await resolveProjectReaderAccess(
           { actor: "coworker", coworkerId: "cow", vendorId },
           workspaceId,
         );
@@ -162,7 +162,7 @@ describe.skipIf(!enabled)("project activity SQL against PostgreSQL", () => {
           (await page(ungranted, undefined, 30)).slice(0, 4).map((p) => p.id),
         ).toEqual([8, 2, 25, 24].map(id));
 
-        const otherReader = await projectActivityVisibility(
+        const { sqlWhere: otherReader } = await resolveProjectReaderAccess(
           {
             actor: "user",
             userId: "another",

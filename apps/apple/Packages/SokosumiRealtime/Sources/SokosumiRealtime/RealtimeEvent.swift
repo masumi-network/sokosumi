@@ -13,10 +13,19 @@ public enum ResolvedRealtimeDelivery: Sendable {
   case roomHealth(roomId: String, healthy: Bool, continuityLost: Bool)
   case connectionHealth(healthy: Bool)
   case revoked(roomId: String)
+  /// `chat_rooms_changed` on the user's control channel: these sidebar collections went stale (SOK-986).
+  case roomsChanged(Set<ChatRoomCollection>)
   /// Full member set of one organization's presence channel (ADR 0003).
   case presenceRoster(organizationId: String, members: [ChatPresenceMember])
   /// A chat-kind row on the user notifications channel.
   case notification(ChatNotificationEvent)
+  /// A Typing event on the watched room's typing channel, already bound to its sender (ADR 0033).
+  case typing(roomId: String, signal: ChatTypingSignal)
+  /// The watched room's typing channel is subscribed, and may or may not be published to. Nil: the
+  /// token does not grant it or could not be minted, so the room shows nobody.
+  case typingChannel(roomId: String, canPublish: Bool?)
+  /// A member's Room last-read moved (row 31b1, web `useChatRoomRealtime`'s `onRoomRead`).
+  case roomRead(ChatRoomReadEvent)
   case ignored
 
   /// Shared Ably payloads do not carry a meaningful viewer reaction flag.
@@ -52,7 +61,7 @@ private func personalize(
 /// through the same `ChatRoomMessage` shape history renders; anything
 /// unparseable, for another room, or for push (out of scope) is ignored —
 /// the transcript only moves on proof, never on hope. Presence arrives
-/// through `OrgPresenceChannel`, not as messages.
+/// through `OrgPresenceChannel` and Typing through `RoomTypingChannel`, not here.
 func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery {
   if let named = resolveNamedDelivery(channel: channel, event: eventName, data: data) {
     return named
@@ -85,8 +94,18 @@ func resolveRealtimeDelivery(channel: String, event eventName: String, data: Any
   ))
 }
 
-/// Pins, notifications and membership revokes: events identified by name alone. Nil for every other event.
+/// Pins, read receipts, notifications, membership revokes and rooms changed: events identified by name alone. Nil for every
+/// other event.
 private func resolveNamedDelivery(channel: String, event eventName: String, data: Any) -> ResolvedRealtimeDelivery? {
+  if eventName == chatRoomReadEventName {
+    // Web's `chatRoomReadEventDataSchema` (its `lastReadAt` is `z.iso.datetime()`), and the room must be the channel's own.
+    guard let roomId = parseChatRoomId(fromChannelName: channel),
+          let dict = data as? [String: Any], dict["roomId"] as? String == roomId,
+          let userId = dict["userId"] as? String, !userId.isEmpty,
+          let sentAt = dict["lastReadAt"] as? String, isZodISODateTime(sentAt),
+          let lastReadAt = realtimeDate(from: sentAt) else { return .ignored }
+    return .roomRead(ChatRoomReadEvent(roomId: roomId, userId: userId, lastReadAt: lastReadAt))
+  }
   if eventName == chatRoomPinnedMessageEventName {
     guard let roomId = parseChatRoomId(fromChannelName: channel),
           let pin = decodeRealtimeValue(data, as: PinEvent.self),
@@ -107,7 +126,33 @@ private func resolveNamedDelivery(channel: String, event eventName: String, data
     }
     return .revoked(roomId: roomId)
   }
+  if eventName == chatRoomsChangedEventName {
+    guard channel.hasPrefix("chat_control:user_"), let collections = parseRoomsChanged(data) else { return .ignored }
+    return .roomsChanged(collections)
+  }
   return nil
+}
+
+/// Web `chatRoomsChangedEventSchema`: one or more known collections, a non-empty room id or null, and an ISO time.
+/// One unknown collection rejects the whole event, as on web.
+private func parseRoomsChanged(_ data: Any) -> Set<ChatRoomCollection>? {
+  guard let dict = data as? [String: Any],
+        let names = dict["collections"] as? [String], !names.isEmpty,
+        dict["roomId"] is NSNull || (dict["roomId"] as? String)?.isEmpty == false,
+        let sentAt = dict["at"] as? String, isZodISODateTime(sentAt)
+  else { return nil }
+  let collections = names.compactMap(ChatRoomCollection.init(rawValue:))
+  return collections.count == names.count ? Set(collections) : nil
+}
+
+/// zod 4.6.5 `z.iso.datetime()` with its defaults (`regexes.datetime`, no offset, no local time, any precision): a real
+/// Gregorian date, `T`, `hh:mm:ss`, optional fraction, then `Z` and nothing else. ASCII digits only, as in JavaScript.
+private func isZodISODateTime(_ value: String) -> Bool {
+  let leapDay = "(?:[0-9][0-9][2468][048]|[0-9][0-9][13579][26]|[0-9][0-9]0[48]|[02468][048]00|[13579][26]00)-02-29"
+  let otherDay = "[0-9]{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12][0-9]|3[01])|(?:0[469]|11)-(?:0[1-9]|[12][0-9]|30)|02-(?:0[1-9]|1[0-9]|2[0-8]))"
+  let time = "(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9](?:\\.[0-9]+)?Z"
+  guard let pattern = try? Regex("(?:\(leapDay)|\(otherDay))T\(time)") else { return false }
+  return value.wholeMatch(of: pattern) != nil
 }
 
 private struct PinEvent: Decodable {

@@ -1,6 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { waitUntil } from "@vercel/functions";
 
+import { markLookedThreadReplyRowsRead } from "@/helpers/chat-thread-reply-notifications";
 import { notFound } from "@/helpers/error";
+import { cancelNotificationEmails } from "@/helpers/notification-email-dispatch";
+import { publishClearedNotifications } from "@/helpers/notifications";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -36,7 +40,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/{id}/threads/{parentMessageId}/read",
     description:
-      "Mark a thread root as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState only — does not change room read state or CHAT notifications.",
+      "Mark a thread root as looked for the current user (ThreadPanel open). Upserts ChatRoomThreadReadState and clears the mention and direct-message notifications for replies in Threads the user Participates in that the look covers. Does not change room read state.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
@@ -73,6 +77,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     if (!state) {
       throw notFound("Thread not found");
     }
+
+    // The Look is what reads a Thread, so it clears the Thread's rows
+    // (SOK-1217).
+    const clearedRows = await markLookedThreadReplyRowsRead(
+      room.id,
+      userContext.userId,
+      prisma,
+    );
+    waitUntil(publishClearedNotifications(clearedRows.map((row) => row.id)));
+    waitUntil(cancelNotificationEmails(clearedRows));
 
     return ok(c, chatRoomThreadReadStateSchema.parse(state));
   });

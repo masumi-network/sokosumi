@@ -21,10 +21,6 @@ vi.mock("@/lib/auth/auth.server", () => ({
   getSession: (...args: unknown[]) => getSessionMock(...args),
 }));
 
-vi.mock("@/lib/beta-access", () => ({
-  hasSokoBotBetaAccess: () => false,
-}));
-
 vi.mock("@/app/components/private-sidebar-cache", () => ({
   getPrivateCachedMembershipVisibleRooms: (...args: unknown[]) =>
     getPrivateCachedMembershipVisibleRoomsMock(...args),
@@ -43,13 +39,13 @@ vi.mock("@/components/chat/organization-chat-list.client", () => ({
   OrganizationChatList: (props: {
     rooms: Array<{ id: string; name?: string | null }>;
     archivedRooms: unknown[];
-    canDeleteArchivedRooms?: boolean;
+    isOrgOwnerOrAdmin?: boolean;
   }) => (
     <div
       data-testid="organization-chat-list"
       data-room-names={props.rooms.map((room) => room.name).join("|")}
       data-archived-count={String(props.archivedRooms.length)}
-      data-can-delete={String(Boolean(props.canDeleteArchivedRooms))}
+      data-can-delete={String(Boolean(props.isOrgOwnerOrAdmin))}
     />
   ),
 }));
@@ -74,7 +70,7 @@ const ORG_ID = "org_1";
 interface OrganizationChatListProps {
   rooms: Array<{ id: string; name?: string | null }>;
   archivedRooms: unknown[];
-  canDeleteArchivedRooms?: boolean;
+  isOrgOwnerOrAdmin?: boolean;
   dismissSheetOnNavigate?: boolean;
 }
 
@@ -163,7 +159,7 @@ describe("ChatPage progressive rooms (mobile LCP)", () => {
       { id: "room-1", name: "Plan.Net Studios x NMKR" },
     ]);
     expect(props.archivedRooms).toEqual([]);
-    expect(props.canDeleteArchivedRooms).toBe(false);
+    expect(props.isOrgOwnerOrAdmin).toBe(false);
     expect(props.dismissSheetOnNavigate).toBe(false);
 
     // Deferred fetch is started by the Suspense child type, not by the parent

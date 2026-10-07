@@ -1,5 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { isChatUiProviderReasoningPartType } from "@sokosumi/utils";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 export interface CoworkerThoughtDisclosure {
   text: string;

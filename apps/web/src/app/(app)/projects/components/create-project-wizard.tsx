@@ -1,12 +1,12 @@
 "use client";
 
+import type { Project } from "@sokosumi/core-client";
 import { isEmptyOrValidWebsiteUrl, normalizeWebsiteUrl } from "@sokosumi/utils";
 import { track } from "@vercel/analytics";
-import { ArrowLeft, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-
 import { ProjectBrandSetup } from "@/app/projects/components/project-brand-setup";
 import { ProjectBriefingField } from "@/app/projects/components/project-briefing-field";
 import { PROJECT_NAME_MAX_LENGTH } from "@/app/projects/project-briefing";
@@ -20,7 +20,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createProject } from "@/lib/actions/project/action";
-import type { Project } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 import type { ProjectCreationSource } from "./project-form";
@@ -124,6 +123,11 @@ export function CreateProjectWizard({
         briefing: briefing.trim() || null,
         websiteUrl: normalizedWebsite,
       });
+      // The wizard never sends an identifier, so Core has nothing to reject.
+      if (!result.ok) {
+        throw new Error("Failed to create project");
+      }
+      const { projectId, project } = result.value;
 
       if (creationSource) {
         track("Project created", {
@@ -133,12 +137,12 @@ export function CreateProjectWizard({
       }
 
       if (normalizedWebsite) {
-        setCreatedProjectId(result.projectId);
-        storeCreatedProject(result.project);
+        setCreatedProjectId(projectId);
+        storeCreatedProject(project);
         return;
       }
 
-      onSuccess?.(result.projectId, trimmedName, result.project);
+      onSuccess?.(projectId, trimmedName, project);
       onOpenChange(false);
     } catch (error) {
       console.error("Failed to create project", error);
@@ -169,7 +173,7 @@ export function CreateProjectWizard({
               >
                 <span
                   className={cn(
-                    "bg-primary block h-full w-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
                     index <= (isBrandStep ? SETUP_STEPS : step)
                       ? "scale-x-100"
                       : "scale-x-0",
@@ -178,7 +182,7 @@ export function CreateProjectWizard({
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-2xs font-medium tracking-[0.16em] tabular-nums">
             {t("Wizard.stepLabel", {
               current: String(isBrandStep ? SETUP_STEPS : step + 1).padStart(
                 2,
@@ -205,10 +209,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 0 ? (
               <div className="mx-auto w-full max-w-md text-center">
-                <h2 className="text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.name.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
                   {t("Wizard.name.subtitle")}
                 </p>
                 <div className="mt-10 space-y-4 text-left">
@@ -249,10 +253,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 1 ? (
               <div className="mx-auto flex min-h-0 w-full max-w-xl flex-col">
-                <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-center text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.briefing.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-base leading-[1.6] text-balance">
                   {t("Wizard.briefing.subtitle")}
                 </p>
                 <ProjectBriefingField
@@ -267,10 +271,10 @@ export function CreateProjectWizard({
 
             {!isBrandStep && step === 2 ? (
               <div className="mx-auto w-full max-w-xl">
-                <h2 className="text-center text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="text-center text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Wizard.review.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-center text-base leading-[1.6] text-balance">
                   {t("Wizard.review.subtitle")}
                 </p>
 
@@ -364,18 +368,11 @@ export function CreateProjectWizard({
                   variant="primary"
                   size="lg"
                   className="h-11 px-6"
-                  disabled={!canContinueFromName || isSubmitting}
+                  disabled={!canContinueFromName}
+                  loading={isSubmitting}
                   onClick={() => void handleCreate()}
                 >
-                  {isSubmitting ? (
-                    <Loader2
-                      className="size-4 animate-spin motion-reduce:animate-pulse"
-                      aria-hidden
-                    />
-                  ) : null}
-                  {isSubmitting
-                    ? t("Wizard.nav.creating")
-                    : t("Wizard.nav.create")}
+                  {t("Wizard.nav.create")}
                 </Button>
               )}
             </>

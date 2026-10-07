@@ -10,15 +10,8 @@ import {
 import { requireUserAuthContext } from "@/middleware/auth";
 import { chatRoomSchema } from "@/schemas/chat-room.schema";
 
-import {
-  mapChatRoomWithSidebarFlags,
-  requireChatRoomUserAccess,
-} from "../helpers";
-import {
-  getChatRoomUnreadCounts,
-  getChatRoomUnreadMentionCounts,
-  roomUnreadFields,
-} from "../room-unread";
+import { requireChatRoomUserAccess } from "../helpers";
+import { roomSidebarPayload } from "../room-unread";
 
 const paramsSchema = z.object({
   id: z
@@ -59,34 +52,13 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       userContext.userId,
       prisma,
     );
-    const [unreadCounts, unreadMentionCounts, organization] = await Promise.all(
-      [
-        getChatRoomUnreadCounts([room.id], userContext.userId, prisma),
-        getChatRoomUnreadMentionCounts([room.id], userContext.userId, prisma),
-        room.organizationId
-          ? prisma.organization.findUnique({
-              where: { id: room.organizationId },
-              select: { name: true },
-            })
-          : Promise.resolve(null),
-      ],
-    );
 
     return ok(
       c,
-      chatRoomSchema.parse(
-        await mapChatRoomWithSidebarFlags(room, userContext.userId, prisma, {
-          ...(await roomUnreadFields(
-            unreadCounts.get(room.id),
-            room.id,
-            userContext.userId,
-            prisma,
-          )),
-          unreadMentionCount: unreadMentionCounts.get(room.id) ?? 0,
-          activeOrganizationId: userContext.organizationId,
-          organizationName: organization?.name ?? null,
-        }),
-      ),
+      await roomSidebarPayload(room, userContext.userId, prisma, {
+        activeOrganizationId: userContext.organizationId,
+        loadOrganizationName: true,
+      }),
     );
   });
 }

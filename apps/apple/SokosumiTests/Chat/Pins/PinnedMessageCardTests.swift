@@ -11,16 +11,17 @@
   @MainActor struct PinnedMessageCardTests {
     @Test(arguments: [false, true])
     func previewsFitInspectorWithoutExpandingShortMessages(dark: Bool) async throws {
-      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
-                                             unreadMentionCount: 0, markedUnread: false, myAccess: .member,
-                                             userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+                                             unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
+                                             userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
       let sources: [String?] = ["A short **pinned message**.",
                                 String(repeating: "A longer paragraph with **bold text** and `code`. ", count: 30), nil]
       let measurements = sources.map { _ in HeightMeasurement() }
       let items = try sources.enumerated().map { index, source in
         let message = source.map {
           chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: room.id, content: $0,
+                                      createdAt: Date(),
                                       sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .online)))
         }
         let payload = try message.map { try JSONDecoder().decode(
@@ -82,13 +83,14 @@
 
     private func render(_ sources: [(content: String, quote: Components.Schemas.ChatRoomMessageQuote?)], width: CGFloat,
                         dark: Bool) async throws -> [HeightMeasurement] {
-      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false,
+      let room = Components.Schemas.ChatRoom(id: "fixture", name: "General", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
                                              createdByUserId: "person", createdAt: .now, updatedAt: .now, unreadCount: 0,
-                                             unreadMentionCount: 0, markedUnread: false, myAccess: .member,
-                                             userMembers: [], coworkerMembers: [], sokoBotMembers: [])
+                                             unreadMentionCount: 0, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
+                                             userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: [])
       let measurements = sources.map { _ in HeightMeasurement() }
       let items = try sources.enumerated().map { index, source in
         let message = chatRoomMessage(from: .init(clientTurnId: "fixture-\(index)", roomId: room.id, content: source.content, quote: source.quote,
+                                                  createdAt: Date(),
                                                   sender: .init(id: "person", name: "Example Person", email: "person@example.com", presence: .online)))
         let payload = try JSONDecoder().decode(Components.Schemas.ChatRoomPinnedMessageListItem.MessagePayload.self,
                                                from: JSONEncoder().encode(message))

@@ -7,10 +7,44 @@ import Testing
 
 private let timestamp = "2026-01-01T00:00:00.000Z"
 
-private func accessBody(gate: String) -> String {
+private let personalWorkspaceId = "11111111-1111-7111-8111-111111111111"
+
+/// One `UserWorkspace`: personal for nil, an organization otherwise.
+private func userWorkspaceJSON(_ organizationId: String?, preferred: Bool) -> String {
+  guard let organizationId else {
+    return #"{"id":"\#(personalWorkspaceId)","kind":"personal","name":"Me","organizationId":null,"slug":null,"logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+  }
+  let slug = organizationId == "org_1" ? "acme" : "other"
+  let name = organizationId == "org_1" ? "Acme" : "Other"
+  return #"{"id":"22222222-2222-7222-8222-\#(organizationId == "org_1" ? "000000000001" : "000000000002")","kind":"organization","name":"\#(name)","organizationId":"\#(organizationId)","slug":"\#(slug)","logo":null,"websiteUrl":null,"preferred":\#(preferred)}"#
+}
+
+/// `GET /users/me/workspaces`: the given workspaces (nil is personal) with
+/// `preferred` on the one a session opens.
+private func workspacesBody(
+  _ organizationIds: [String?] = [nil, "org_1"],
+  preferring preferred: String? = nil,
+  pendingInvitationCount: Int = 0
+) -> String {
+  let workspaces = organizationIds.map { userWorkspaceJSON($0, preferred: $0 == preferred) }
+  return """
+  {"data":{"workspaces":[\(workspaces.joined(separator: ","))],"pendingInvitationCount":\(pendingInvitationCount)},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
   """
-  {"data":{"gate":"\(gate)","hasPersonalWorkspace":true,"hasOrganizationMembership":false,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+}
+
+/// `PUT /users/me/workspaces/preferred` reply.
+private func preferredWorkspaceBody(_ organizationId: String?) -> String {
   """
+  {"data":\(userWorkspaceJSON(organizationId, preferred: true)),"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+  """
+}
+
+private let userBody = """
+{"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
+"""
+
+private func requestJSON(_ body: Data) throws -> [String: Any] {
+  try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
 }
 
 private func roomJSON(
@@ -21,7 +55,7 @@ private func roomJSON(
   unreadMentionCount: Int
 ) -> String {
   """
-  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
+  {"id":"\(id)","organizationId":null,"organizationName":null,"name":"\(name)","slug":null,"kind":"\(kind)","isSelfDirect":false,"directKey":null,"isGroupDirect":false,"isReadOnly":false,"formerUserMembers":[],"groupName":null,"topic":null,"discoverability":null,"createdByUserId":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","unreadCount":\(unreadCount),"unreadMentionCount":\(unreadMentionCount),"starredAt":null,"pinnedMessageCount":0,"mutedAt":null,"markedUnread":false,"myAccess":"member","peerInActiveOrganization":false,"userMembers":[],"coworkerMembers":[],"sokoBotMembers":[]}
   """
 }
 
@@ -61,6 +95,10 @@ private final class ScriptedTransport: ClientTransport, @unchecked Sendable {
       return (HTTPResponse(status: .internalServerError), HTTPBody("{}"))
     }
     let next = responses.removeFirst()
+    // Status 0 stands for no response at all, as in `ChatRecipientRosterTests`.
+    if next.0 == 0 {
+      throw URLError(.notConnectedToInternet)
+    }
     return (HTTPResponse(status: HTTPResponse.Status(code: next.0)), HTTPBody(next.1))
   }
 }
@@ -136,40 +174,79 @@ struct ChatServiceTests {
     }
   }
 
-  @Test(arguments: [false, true]) func channelUpdateSendsSettingsOnlyForManagers(managesSettings: Bool) async throws {
+  /// SOK-1258: the settings PATCH sends name, topic and visibility only; the roster moved to the members endpoints.
+  @Test func channelUpdateSendsSettingsWithoutRoster() async throws {
     let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
-    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Guests cannot update channel settings or roster.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
+    let forbidden = "{\"error\":\"Forbidden\",\"message\":\"Only an organization owner or admin can update channel settings.\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"PATCH\"}}"
     let transport = ScriptedTransport([(200, response), (403, forbidden)])
     let client = try makeClient(transport)
-    var draft = ChannelEditDraft(room: .init(
-      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, topic: nil, discoverability: ._private,
+    let currentRoom = Components.Schemas.ChatRoom(
+      id: "channel", organizationId: "org", name: "Team", slug: "team", kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false, topic: nil, discoverability: ._private,
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
-    ))
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
+    )
+    var draft = ChannelEditDraft(room: currentRoom)
     draft.setName(" Renamed ")
     draft.setTopic("  ")
     draft.visibility = .external
-    draft.recipients = [.human("peer"), .coworker("agent"), .sokoBot("bot")]
-    let permissions = ChannelEditPermissions(canEditMembers: true, canManageSettings: managesSettings)
-    let update = draft.updateRequest(permissions: permissions, currentUserId: "me")
-    let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    let result = try await ChatService().updateRoom(client: client, roomId: "channel", request: draft.updateRequest, organizationSlug: "team")
     #expect(result.id == "channel")
     let request = try #require(transport.requests.first).request
     #expect(request.method == .patch)
     #expect(request.path == "/chats/rooms/channel")
     #expect(orgSlugHeader(request) == "team")
     let body = try #require(JSONSerialization.jsonObject(with: transport.bodies[0]) as? [String: Any])
-    #expect(body["memberUserIds"] as? [String] == ["me", "peer"])
-    #expect(body["coworkerIds"] as? [String] == ["agent"])
-    #expect(body["sokoBotIds"] as? [String] == ["bot"])
-    #expect(body["name"] as? String == (managesSettings ? "Renamed" : nil))
-    #expect(body["topic"] as? String == (managesSettings ? "" : nil))
-    #expect(body["discoverability"] as? String == (managesSettings ? "external" : nil))
-    #expect(body["slug"] == nil)
-    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Guests cannot update channel settings or roster.")) {
-      try await ChatService().updateRoom(client: client, roomId: "channel", request: update, organizationSlug: "team")
+    #expect(Set(body.keys) == ["name", "topic", "discoverability"])
+    #expect(body["name"] as? String == "Renamed")
+    #expect((body["topic"] as? String)?.isEmpty == true)
+    #expect(body["discoverability"] as? String == "external")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can update channel settings.")) {
+      try await ChatService().updateRoom(client: client, roomId: "channel", request: draft.updateRequest, organizationSlug: "team")
     }
+  }
+
+  /// SOK-1258: incremental membership under the organization header. Adding groups ids by kind (sorted, empty kinds
+  /// omitted); person, Coworker and Soko Bot removals each hit their own route, and Core's rejections surface as-is.
+  @Test func channelMembershipUsesIncrementalRoutes() async throws {
+    let room = roomJSON(id: "channel", name: "Team", kind: "channel", unreadCount: 0, unreadMentionCount: 0)
+    let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
+    func failure(_ status: String, _ message: String) -> String {
+      "{\"error\":\"\(status)\",\"message\":\"\(message)\",\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\",\"path\":\"/chats/rooms/channel\",\"method\":\"DELETE\"}}"
+    }
+    let transport = ScriptedTransport([
+      (200, response),
+      (200, "{\"data\":{\"id\":\"channel\",\"remainingUserMemberCount\":2},\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"),
+      (403, failure("Forbidden", "Only an organization owner or admin can remove a channel member.")),
+      (200, response),
+      (200, response),
+      (403, failure("Forbidden", "Only its owner can remove this personal assistant."))
+    ])
+    let client = try makeClient(transport)
+    let service = ChatService()
+    let added = try await service.addChannelMembers(client: client, roomId: "channel",
+                                                    recipients: [.human("zoe"), .human("amy"), .sokoBot("bot")], organizationSlug: "team")
+    #expect(added.id == "channel")
+    try await service.removeMember(client: client, roomId: "channel", userId: "guest", organizationSlug: "team")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only an organization owner or admin can remove a channel member.")) {
+      try await service.removeMember(client: client, roomId: "channel", userId: "peer", organizationSlug: "team")
+    }
+    #expect(try await service.removeCoworker(client: client, roomId: "channel", coworkerId: "agent", organizationSlug: "team").id == "channel")
+    #expect(try await service.removeSokoBot(client: client, roomId: "channel", sokoBotId: "bot", organizationSlug: "team").id == "channel")
+    await #expect(throws: ChatServiceError.unprocessable(statusCode: 403, message: "Only its owner can remove this personal assistant.")) {
+      try await service.removeSokoBot(client: client, roomId: "channel", sokoBotId: "other", organizationSlug: "team")
+    }
+    let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
+    #expect(routes == [
+      "POST /chats/rooms/channel/members", "DELETE /chats/rooms/channel/members/guest", "DELETE /chats/rooms/channel/members/peer",
+      "DELETE /chats/rooms/channel/coworkers/agent", "DELETE /chats/rooms/channel/soko-bots/bot", "DELETE /chats/rooms/channel/soko-bots/other"
+    ])
+    #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
+    let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }
+    #expect(bodies.count == 1)
+    #expect(Set(bodies[0].keys) == ["userIds", "sokoBotIds"])
+    #expect(bodies[0]["userIds"] as? [String] == ["amy", "zoe"])
+    #expect(bodies[0]["sokoBotIds"] as? [String] == ["bot"])
   }
 
   @Test func groupNameSendsOnlyGroupNameAndOmitsSlugForPersonalDirects() async throws {
@@ -178,9 +255,9 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(200, response), (200, response)])
     let client = try makeClient(transport)
     var draft = GroupNameDraft(room: .init(
-      id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, groupName: "Launch crew",
+      id: "direct", name: "Ann, Bob", kind: .direct, isSelfDirect: false, isGroupDirect: true, isReadOnly: false, groupName: "Launch crew",
       createdByUserId: "me", createdAt: .distantPast, updatedAt: .distantPast, unreadCount: 0, unreadMentionCount: 0,
-      markedUnread: false, myAccess: .member, userMembers: [], coworkerMembers: [], sokoBotMembers: []
+      markedUnread: false, myAccess: .init(value1: .member, value2: "member"), userMembers: [], formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
     ))
     draft.setName(" Crew ")
     _ = try await ChatService().updateRoom(client: client, roomId: "direct", request: draft.updateRequest, organizationSlug: nil)
@@ -252,10 +329,34 @@ struct ChatServiceTests {
     let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
     #expect(list.rooms.map(\.id) == ["old"])
     #expect(list.canDelete == (role != "member"))
+    #expect(!list.roleLoadFailed)
     #expect(transport.requests[0].request.path == "/users/me/organizations/org/member")
     let query = requestQuery(transport.requests[1].request)
     #expect(query.contains("status=archived") && query.contains("kind=channel"))
     #expect(orgSlugHeader(transport.requests[1].request) == "team")
+  }
+
+  /// Row 32b2: web reads the archived list beside the caller's memberships and turns a failed membership read into
+  /// `[]` (`private-sidebar-cache.ts`), so the rows still list and Delete is off.
+  @Test(arguments: roleReadFailures)
+  func archivedChannelsListWhenTheRoleReadFails(status: Int, body: String) async throws {
+    let transport = ScriptedTransport([
+      (status, body),
+      (200, roomsPageBody(rooms: [roomJSON(id: "old", name: "Old", kind: "channel", unreadCount: 0, unreadMentionCount: 0)], nextCursor: nil))
+    ])
+    let list = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    #expect(list.rooms.map(\.id) == ["old"])
+    #expect(!list.canDelete && list.roleLoadFailed)
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/organizations/{organizationId}/member", "get/chats/rooms"])
+    #expect(requestQuery(transport.requests[1].request).contains("status=archived"))
+  }
+
+  /// A 401 is the session ending, not a missing role: the load still fails, so the coordinator signs out.
+  @Test func archivedChannelsRoleReadUnauthorizedStillThrows() async throws {
+    let transport = ScriptedTransport([(401, errorEnvelope("Unauthorized", message: "Session expired"))])
+    await #expect(throws: ChatServiceError.unauthorized("Session expired")) {
+      _ = try await ChatService().archivedChannels(client: makeClient(transport), organizationId: "org", organizationSlug: "team")
+    }
   }
 
   @Test func channelAvailabilityUsesOrganizationAndQuery() async throws {
@@ -272,7 +373,7 @@ struct ChatServiceTests {
     {"error":"Forbidden","message":"No shared channel","meta":{"timestamp":"\(timestamp)","requestId":"request","path":"/v1/chats/rooms","method":"POST"}}
     """
     let transport = ScriptedTransport([(403, response)])
-    var selection = DirectConversationSelection(hasOrganization: true)
+    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
     selection.add(.human("peer"))
     do {
       _ = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
@@ -290,7 +391,7 @@ struct ChatServiceTests {
     let transport = ScriptedTransport([(201, response), (200, response), (201, response)])
     let client = try makeClient(transport)
     for recipient in [DirectRecipient.human("human"), .coworker("coworker"), .sokoBot("01960001-0001-7001-8001-000000000099")] {
-      var selection = DirectConversationSelection(hasOrganization: false)
+      var selection = DirectConversationSelection(hasOrganization: false, currentUserId: "me")
       selection.add(recipient)
       let result = try await ChatService().openDirect(client: client, selection: selection, organizationSlug: nil)
       #expect(result.id == "direct")
@@ -309,7 +410,7 @@ struct ChatServiceTests {
     let room = roomJSON(id: "group", name: "Team", kind: "direct", unreadCount: 0, unreadMentionCount: 0)
     let response = "{\"data\":\(room),\"meta\":{\"timestamp\":\"\(timestamp)\",\"requestId\":\"request\"}}"
     let transport = ScriptedTransport([(200, response)])
-    var selection = DirectConversationSelection(hasOrganization: true)
+    var selection = DirectConversationSelection(hasOrganization: true, currentUserId: "me")
     selection.add(.human("alice"))
     selection.add(.human("bob"))
     let result = try await ChatService().openDirect(client: makeClient(transport), selection: selection, organizationSlug: "team")
@@ -372,68 +473,19 @@ struct ChatServiceTests {
     #expect(requestQuery(transport.requests[1].request).contains("cursor=cursor-2"))
   }
 
-  @Test func fetchOrganizationsReturnsList() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let orgs = try await ChatService().fetchOrganizations(client: makeClient(transport))
-    #expect(orgs.count == 1)
-    #expect(orgs[0].slug == "acme")
-    #expect(transport.requests[0].operationID == "get/users/{id}/organizations")
-  }
-
-  @Test func personalPreferredOrganizationSendsExplicitNull() async throws {
-    // Core requires the key: `{}` is a 422 (defaultValidationHook), so the
-    // personal switch must encode `{"organizationId":null}` explicitly.
-    // Wired with the app's real middleware stack.
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    try await ChatService().setPreferredOrganization(client: client, organizationId: nil)
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization"])
-    let body = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-    #expect(json.keys.contains("organizationId"))
-    #expect(json["organizationId"] is NSNull)
-    // URLSession uploadTask uses this header: a stale length vs the rewritten
-    // body is a protocol error and surfaces as NSURLError -1005.
-    #expect(transport.requests[0].request.headerFields[.contentLength] == "\(body.count)")
-  }
-
-  @Test func organizationPreferredOrganizationKeepsId() async throws {
-    // The rewrite must only fire for empty bodies: a real org id passes
-    // through with its value intact.
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    try await ChatService().setPreferredOrganization(client: client, organizationId: "org_1")
-    let body = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: body) as? [String: Any])
-    #expect(json["organizationId"] as? String == "org_1")
+  @Test func setPreferredWorkspaceSendsWorkspaceId() async throws {
+    let transport = ScriptedTransport([(200, preferredWorkspaceBody(nil))])
+    try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: personalWorkspaceId)
+    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/workspaces/preferred"])
+    #expect(try requestJSON(#require(transport.bodies.first)) as NSDictionary == ["workspaceId": personalWorkspaceId])
   }
 
   @Test func documented500SurfacesFriendlyMessage() async throws {
     let transport = ScriptedTransport([(500, """
-    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
     """)])
     do {
-      try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
+      try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: personalWorkspaceId)
       Issue.record("expected an error")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -447,10 +499,10 @@ struct ChatServiceTests {
     // User symptom (SOK-973 follow-up): a 422 dumped raw response headers
     // into the window. It must surface as a short message instead.
     let transport = ScriptedTransport([(422, """
-    {"error":"Unprocessable Entity","message":"organizationId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/preferred-organization","method":"PUT"}}
+    {"error":"Unprocessable Entity","message":"workspaceId: Required","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/users/me/workspaces/preferred","method":"PUT"}}
     """)])
     do {
-      try await ChatService().setPreferredOrganization(client: makeClient(transport), organizationId: nil)
+      try await ChatService().setPreferredWorkspace(client: makeClient(transport), workspaceId: "")
       Issue.record("expected an error")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -475,84 +527,61 @@ struct ChatServiceTests {
   @Test func initialLoadPerformsNoWrites() async throws {
     // Launch must not PUT: re-asserting a default preference on every launch
     // yanks cross-client state and turns every flaky upload into a dead
-    // window (production -1005 on PUT). Only access + organizations are read.
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    // window (production -1005 on PUT). Only workspaces + user are read.
+    let transport = ScriptedTransport([(200, workspacesBody()), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(Set(transport.requests.map(\.operationID)) == ["get/users/{id}/workspace-access", "get/users/{id}/organizations", "get/users/{id}", "get/users/{id}/preferred-organization"])
-    #expect(state.defaultSelection == .personal)
-    #expect(state.organizations.map(\.slug) == ["acme"])
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/workspaces", "get/users/{id}"])
+    #expect(state.defaultSelection.workspace == .personal)
+    #expect(state.options.map(\.id) == ["personal", "org_1"])
+    #expect(state.options.map(\.title) == ["Personal", "Acme"])
+    #expect(state.options.map(\.workspace) == [.personal, .organization(id: "org_1", slug: "acme")])
     #expect(state.currentUserId == "user_1")
     #expect(state.currentUser.name == "Me")
     #expect(state.currentUser.email == "me@example.com")
   }
 
   @Test func initialLoadDefaultsToFirstOrgWithoutPersonal() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"gate":"ready","hasPersonalWorkspace":false,"hasOrganizationMembership":true,"hasPendingOrganizationInvites":false},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":"org_1"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody(["org_1"], preferring: "org_1")), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .organization(id: "org_1", slug: "acme"))
+    #expect(state.defaultSelection.workspace == .organization(id: "org_1", slug: "acme"))
+    #expect(state.options.map(\.id) == ["org_1"])
+  }
+
+  @Test(arguments: [(0, WorkspaceGate.identityOnboarding), (2, .pendingInvites)])
+  func emptyWorkspaceListBlocksBeforeReadingUser(pendingInvitationCount: Int, gate: WorkspaceGate) async throws {
+    let transport = ScriptedTransport([(200, workspacesBody([], pendingInvitationCount: pendingInvitationCount))])
+    await #expect(throws: ChatServiceError.blocked(gate)) {
+      try await ChatService().loadInitialState(client: makeClient(transport))
+    }
+    #expect(transport.requests.map(\.operationID) == ["get/users/{id}/workspaces"])
   }
 
   @Test func switchWorkspacePersistsThenListsWithSlug() async throws {
     // Explicit user switches are the only writes: PUT, then rooms reloaded
     // under the new slug.
+    let options = try await loadedOptions()
     let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody("org_1")),
       (200, roomsPageBody(rooms: [roomJSON(id: "550e8400-e29b-41d4-a716-446655440020", name: "launch", kind: "channel", unreadCount: 1, unreadMentionCount: 0)], nextCursor: nil))
     ])
-    let rooms = try await ChatService().switchWorkspace(
-      client: makeClient(transport),
-      selection: .organization(id: "org_1", slug: "acme")
-    )
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization", "get/chats/rooms"])
+    let rooms = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[1])
+    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/workspaces/preferred", "get/chats/rooms"])
+    #expect(try requestJSON(#require(transport.bodies.first))["workspaceId"] as? String == options[1].workspaceId)
     #expect(orgSlugHeader(transport.requests[1].request) == "acme")
     #expect(rooms.map(\.name) == ["launch"])
   }
 
   @Test func switchWorkspaceRestoresPreviousPreferenceWhenRoomsFail() async throws {
+    let options = try await loadedOptions()
     let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
+      (200, preferredWorkspaceBody("org_1")),
       (500, """
       {"error":"Internal Server Error","message":"boom","meta":{"timestamp":"\(timestamp)","requestId":"req-1","path":"/v1/chats/rooms","method":"GET"}}
       """),
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
+      (200, preferredWorkspaceBody(nil))
     ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
     do {
-      _ = try await ChatService().switchWorkspace(
-        client: client,
-        selection: .organization(id: "org_1", slug: "acme"),
-        previous: .personal
-      )
+      _ = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[1], previous: options[0])
       Issue.record("expected rooms failure")
     } catch let error as ChatServiceError {
       let message = String(describing: error)
@@ -560,32 +589,25 @@ struct ChatServiceTests {
       #expect(message.contains("boom"))
     }
     #expect(transport.requests.map(\.operationID) == [
-      "put/users/{id}/preferred-organization",
+      "put/users/{id}/workspaces/preferred",
       "get/chats/rooms",
-      "put/users/{id}/preferred-organization"
+      "put/users/{id}/workspaces/preferred"
     ])
-    let rollback = try #require(transport.bodies.last)
-    let json = try #require(JSONSerialization.jsonObject(with: rollback) as? [String: Any])
-    #expect(json["organizationId"] is NSNull)
+    #expect(try requestJSON(#require(transport.bodies.last))["workspaceId"] as? String == personalWorkspaceId)
   }
 
-  @Test func switchToPersonalSendsExplicitNull() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, roomsPageBody(rooms: [], nextCursor: nil))
-    ])
-    let client = try Client.connecting(
-      to: #require(URL(string: "https://core.example/v1")),
-      transport: transport,
-      middlewares: [ExplicitNullPreferredOrganizationMiddleware()]
-    )
-    _ = try await ChatService().switchWorkspace(client: client, selection: .personal)
-    let putBody = try #require(transport.bodies.first)
-    let json = try #require(JSONSerialization.jsonObject(with: putBody) as? [String: Any])
-    #expect(json["organizationId"] is NSNull)
+  @Test func switchToPersonalSendsItsWorkspaceIdWithoutSlug() async throws {
+    let options = try await loadedOptions(preferring: "org_1")
+    let transport = ScriptedTransport([(200, preferredWorkspaceBody(nil)), (200, roomsPageBody(rooms: [], nextCursor: nil))])
+    _ = try await ChatService().switchWorkspace(client: makeClient(transport), to: options[0])
+    #expect(try requestJSON(#require(transport.bodies.first))["workspaceId"] as? String == personalWorkspaceId)
     #expect(orgSlugHeader(transport.requests[1].request) == nil)
+  }
+
+  /// Options as launch builds them: personal, then Acme.
+  private func loadedOptions(preferring preferred: String? = nil) async throws -> [WorkspaceSession.Option] {
+    let transport = ScriptedTransport([(200, workspacesBody(preferring: preferred)), (200, userBody)])
+    return try await ChatService().loadInitialState(client: makeClient(transport)).options
   }
 
   @Test func friendlyMessageShortensTransportErrors() {
@@ -618,11 +640,11 @@ struct ChatServiceTests {
         == "slug taken"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"), mode: .coreMessage)
-        == "Sign in to continue"
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"), mode: .coreMessage)
+        == "Log in to continue"
     )
     #expect(
-      friendlyMessage(for: ChatServiceError.unauthorized("Sign in to continue"))
+      friendlyMessage(for: ChatServiceError.unauthorized("Log in to continue"))
         == "Couldn't complete the request. Try again."
     )
     #expect(
@@ -640,52 +662,15 @@ struct ChatServiceTests {
   }
 
   @Test func serverWorkspaceRestoresWhenStillPresent() async throws {
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"},{"id":"org_2","createdAt":"\(timestamp)","name":"Other","slug":"other","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":"org_2"},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody([nil, "org_1", "org_2"], preferring: "org_2")), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .organization(id: "org_2", slug: "other"))
+    #expect(state.defaultSelection.workspace == .organization(id: "org_2", slug: "other"))
   }
 
   @Test func serverPersonalSelectionRestores() async throws {
-    let transport = ScriptedTransport([
-      (200, accessBody(gate: "ready")),
-      (200, """
-      {"data":[{"id":"org_1","createdAt":"\(timestamp)","name":"Acme","slug":"acme","role":"member"}],"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"id":"user_1","createdAt":"\(timestamp)","updatedAt":"\(timestamp)","name":"Me","email":"me@example.com","emailVerified":true,"role":"user"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, #"{"data":{"organizationId":null},"meta":{"timestamp":"2026-01-01T00:00:00.000Z","requestId":"req-1"}}"#)
-    ])
+    let transport = ScriptedTransport([(200, workspacesBody(preferring: nil)), (200, userBody)])
     let state = try await ChatService().loadInitialState(client: makeClient(transport))
-    #expect(state.defaultSelection == .personal)
-  }
-
-  @Test func setPreferredOrganizationSucceeds() async throws {
-    let transport = ScriptedTransport([
-      (200, """
-      {"data":{"organizationId":"org_1"},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """),
-      (200, """
-      {"data":{"organizationId":null},"meta":{"timestamp":"\(timestamp)","requestId":"req-1"}}
-      """)
-    ])
-    let service = ChatService()
-    await #expect(throws: Never.self) {
-      try await service.setPreferredOrganization(client: makeClient(transport), organizationId: "org_1")
-    }
-    await #expect(throws: Never.self) {
-      try await service.setPreferredOrganization(client: makeClient(transport), organizationId: nil)
-    }
-    #expect(transport.requests.map(\.operationID) == ["put/users/{id}/preferred-organization", "put/users/{id}/preferred-organization"])
+    #expect(state.defaultSelection.workspace == .personal)
   }
 }
 
@@ -758,6 +743,16 @@ private func drivePageBody(items: [String], nextCursor: String?) -> String {
   await first.value
   #expect(picker.errorMessage == "Latest failure")
   #expect(!picker.loading)
+}
+
+/// Row 41: the root crumb names whose Files these are (web `driveWorkspaceRootLabel`, `App.Drive.myDrive`).
+@Test @MainActor func drivePickerRootNamesTheWorkspacesFiles() {
+  #expect(DrivePicker.rootTitle(for: .init(id: "personal", title: "Personal", workspace: .personal, workspaceId: personalWorkspaceId)) == "My Files")
+  #expect(DrivePicker.rootTitle(for: nil) == "My Files")
+  let acme = WorkspaceSession.Option(id: "org_1", title: "Acme", workspace: .organization(id: "org_1", slug: "acme"), workspaceId: "w1")
+  #expect(DrivePicker.rootTitle(for: acme) == "Acme")
+  let unnamed = WorkspaceSession.Option(id: "org_2", title: "", workspace: .organization(id: "org_2", slug: "unnamed"), workspaceId: "w2")
+  #expect(DrivePicker.rootTitle(for: unnamed) == "Organization")
 }
 
 @Test @MainActor func drivePickerShowsUnexpectedResponseAndTransportCopy() async {
@@ -851,9 +846,7 @@ extension ChatServiceTests {
       (201, guestEnvelope(invitation)),
       (409, guestError("Conflict", "A pending invitation already exists for this email in this room.")),
       (204, ""),
-      (404, guestError("Not Found", "Invitation not found")),
-      (200, guestEnvelope("{\"id\":\"room\",\"remainingUserMemberCount\":2}")),
-      (400, guestError("Bad Request", "Only guest members can be removed this way. Host members must leave themselves."))
+      (404, guestError("Not Found", "Invitation not found"))
     ])
     let client = try makeClient(transport)
     let service = ChatService()
@@ -866,15 +859,10 @@ extension ChatServiceTests {
     await #expect(throws: ChatServiceError.unprocessable(statusCode: 404, message: "Invitation not found")) {
       try await service.revokeInvitation(client: client, roomId: "room", invitationId: "inv", organizationSlug: "team")
     }
-    try await service.removeGuest(client: client, roomId: "room", userId: "guest", organizationSlug: "team")
-    await #expect(throws: ChatServiceError.unprocessable(statusCode: 400, message: "Only guest members can be removed this way. Host members must leave themselves.")) {
-      try await service.removeGuest(client: client, roomId: "room", userId: "me", organizationSlug: "team")
-    }
     let routes = transport.requests.map { "\($0.request.method.rawValue) \($0.request.path ?? "")" }
     #expect(routes == [
       "GET /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations", "POST /chats/rooms/room/invitations",
-      "DELETE /chats/rooms/room/invitations/inv", "DELETE /chats/rooms/room/invitations/inv",
-      "DELETE /chats/rooms/room/members/guest", "DELETE /chats/rooms/room/members/me"
+      "DELETE /chats/rooms/room/invitations/inv", "DELETE /chats/rooms/room/invitations/inv"
     ])
     #expect(transport.requests.allSatisfy { orgSlugHeader($0.request) == "team" })
     let bodies = try transport.bodies.filter { !$0.isEmpty }.map { try #require(JSONSerialization.jsonObject(with: $0) as? [String: Any]) }

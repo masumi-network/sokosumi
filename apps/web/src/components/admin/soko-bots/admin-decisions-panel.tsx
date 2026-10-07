@@ -1,8 +1,7 @@
+import type { SokoBotPendingDecision } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { Panel } from "@/components/soko-bot/panel";
 import { DecisionStatusBadge } from "@/components/soko-bot/soko-bot-badges";
-import type { SokoBotPendingDecision } from "@/lib/clients/generated/core";
 
 interface AdminDecisionsPanelProps {
   decisions: SokoBotPendingDecision[];

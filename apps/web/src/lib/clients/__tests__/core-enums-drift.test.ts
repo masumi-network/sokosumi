@@ -1,6 +1,3 @@
-import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
-
 import {
   AgentEntryType,
   AgentJobStatus,
@@ -16,8 +13,11 @@ import {
   RiskClassification,
   SokosumiJobStatus,
   StripeSubscriptionStatus,
+  TaskEventStatus,
   TaskStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { SokosumiJobStatus as UtilsSokosumiJobStatus } from "@sokosumi/utils";
+import { describe, expect, it } from "vitest";
 
 /**
  * Drift guard: generated Core OpenAPI const enums must keep stable runtime
@@ -43,6 +43,13 @@ describe("generated Core enum drift guard", () => {
       COMPLETED: "COMPLETED",
       FAILED: "FAILED",
       CANCELED: "CANCELED",
+    });
+  });
+
+  it("TaskEventStatus is TaskStatus plus the event-only CREATED", () => {
+    expect({ ...TaskEventStatus }).toEqual({
+      ...TaskStatus,
+      CREATED: "CREATED",
     });
   });
 

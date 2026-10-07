@@ -1,7 +1,7 @@
 import type {
   Member as OrganizationMember,
   PendingInvitation,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 export type { OrganizationMember };
 

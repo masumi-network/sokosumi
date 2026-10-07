@@ -1,11 +1,10 @@
 "use client";
 
+import type { ChatRoomPresence } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import type { ComponentProps } from "react";
-
 import { PresenceDot } from "@/components/chat/presence-dot";
 import { useMemberPresence } from "@/contexts/org-presence-provider";
-import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 function presenceLabel(
   t: ReturnType<typeof useTranslations<"App.Channels">>,

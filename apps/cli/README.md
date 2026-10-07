@@ -1,6 +1,9 @@
 # Sokosumi CLI
 
-Published npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi); package path `apps/cli`; binary `sokosumi`. Lives in this monorepo. Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: `package.json`] This checkout defines npm package [`@masumi_network/sokosumi`](https://www.npmjs.com/package/@masumi_network/sokosumi), version `1.0.2`, with public access.
+It requires Node.js 24 and packages `dist` and `skills`. The binary is `sokosumi`.
+Product intent is [`VISION.md`](./VISION.md). Contract is [`SPEC.md`](./SPEC.md).
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not check registry publication or package installation.
 
 ## Product direction
 
@@ -11,15 +14,15 @@ The agent can stay on its operator's hardware or cloud host. Hermes is an option
 
 [VERIFIED: `src/cli/commands/coworkers.ts`, `src/cli/registration-authority.ts`]
 Discover existing Workspaces, Vendors, and Coworkers before proposing a new record. Reuse suitable records.
-The current path uses a selected organization Workspace on Preprod. It does not accept a personal Workspace for connection.
-Core still requires platform-admin authority to create a Coworker. CLI connection requires Vendor-admin and organization membership.
+The current path uses a selected organization Workspace on Preprod, or the caller's personal Workspace with `--personal`.
+On Preprod, a Vendor admin can create a private Coworker. On Mainnet, Core still requires platform-admin authority. CLI connection requires Vendor-admin membership and either organization membership or `--personal`. With `--personal`, `register` and `connect` create a missing personal Workspace.
 Platform-admin status does not bypass those CLI connection checks. See the [role-aware Skill](skills/sokosumi/SKILL.md).
 
 [REPORTED: first milestone] Prove a real Task with the existing agent before broadening the flow.
-[OPEN] Live runtime execution and seller receipt remain unverified. Payment submission and global publication remain separate work.
+[OPEN] Live runtime execution remains unverified. `runtime receipt` reads the seller receipt, but no live Task has proven it yet. Payment submission and global publication remain separate work.
 The [implementation plan](docs/developer-cli-implementation-plan.md) retains the milestone history.
 
-### Private Workspace setup and platform-admin handoff
+### Private Workspace setup and Coworker provisioning
 
 [VERIFIED: source only] Web has Workspace creation and developer invitations.
 Use the Workspace switcher to create or select the organization, then invite the intended developers.
@@ -53,7 +56,7 @@ If a write reports uncertain completion, inspect `admin members` before retrying
 Coworker provisioning and connection can continue when no Seat is available.
 
 [VERIFIED: `src/cli/commands/coworkers.ts`] Discover existing records first. Provision only when the intended Coworker is missing.
-A platform admin uses the chosen Vendor ID and final name. A user without that role needs a platform-admin handoff.
+A Vendor admin provisions a private Coworker under their own Vendor. A platform admin can provision under any Vendor.
 Confirm the intended account before provisioning:
 
 ```bash
@@ -63,19 +66,19 @@ pnpm --filter @masumi_network/sokosumi sokosumi -- --preprod coworkers provision
 ```
 
 [VERIFIED: `src/api/models/user-identity.ts`, `src/cli/commands/coworkers.ts`]
-`provision` checks the live account for the exact `admin` role before creation. Core still authorizes the request.
+`provision` checks the live account for the platform `admin` role or Vendor-admin membership in the selected Vendor. Core still authorizes the request.
 The CLI verifies that the returned Coworker belongs to the requested Vendor and has `isWhitelisted: false`.
 If creation cannot be confirmed, inspect the Coworker list before retrying. Core errors retain their status and request details.
 
 [CORRECTION, VERIFIED: `src/cli/commands/coworkers.ts`] The handoff now includes both `handoff.coworkerId` and `handoff.vendorId`.
 Keep these IDs with the selected organization ID and Workspace slug. If provisioning for someone else, give them these non-secret IDs.
 The connecting account uses `coworkers connect` below and must have the required Vendor and organization memberships.
-Provisioning itself does not require those memberships. The trusted operator creates and keeps the runtime key.
+A platform admin can provision without those memberships. The trusted operator creates and keeps the runtime key.
 [VERIFIED: `../core/src/routes/v1/coworkers/coworker-management-access.ts`] Vendor admins can manage the Vendor's Coworkers.
 Provisioning under a Vendor does not assign the Coworker to a person by email.
 
-[VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:77-80,110-135`]
-Core checks platform admin access and Vendor existence, then creates the Coworker with `isWhitelisted: false`.
+[VERIFIED: source only, `apps/core/src/routes/v1/coworkers/post.ts:86-92,108-155`]
+Core checks platform-admin access or, on Preprod, Vendor-admin membership under a Vendor lock. It then creates the Coworker with `isWhitelisted: false`.
 Provisioning does not grant Workspace access. Private profiles are still returned by Core's
 `scope=all` list; private means restricted Workspace selection here.
 [List route](../core/src/routes/v1/coworkers/get.ts)
@@ -83,7 +86,7 @@ Provisioning does not grant Workspace access. Private profiles are still returne
 
 [CORRECTION, VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-credentials.ts`, `src/coworker/runtime-task.ts`]
 The earlier README listed runtime execution as planned work. An existing agent can now start and complete an assigned Task.
-Runtime commands use a separate Coworker credential on Preprod. Live Task execution and seller receipt remain unverified.
+Runtime commands use a separate Coworker credential on Preprod. Live Task execution and a live seller receipt remain unverified.
 See the [agent runtime pilot](docs/agent-runtime-pilot.md), [ADR 0004](docs/adr/0004-coworker-capabilities-and-graduation.md),
 and the [implementation plan](docs/developer-cli-implementation-plan.md).
 
@@ -98,7 +101,12 @@ Install the framework-neutral Skill from the repository:
 npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi
 ```
 
-This installs Skill files only. It does not install the CLI executable, which is published to npm as `@masumi_network/sokosumi` (`npm i -g @masumi_network/sokosumi`, or run without installing via `npx @masumi_network/sokosumi`).
+[REPORTED: existing distribution instructions] This command installs Skill files only. Install the CLI separately with `npm i -g @masumi_network/sokosumi`, or build this checkout below.
+
+[VERIFIED: `package.json`, `src/cli/commands/skills.ts`] The CLI package includes the Skills beside `dist`.
+Use `sokosumi skills --json` to list them, or `sokosumi skills path` to locate their directory.
+Load `sokosumi/SKILL.md` from that directory through the host's Skill loader. CLI installation does not configure that loader.
+See [distribution details](skills/sokosumi/references/distribution.md).
 
 ## Run
 
@@ -169,12 +177,12 @@ Other command families reject `--organization-slug`. Connection and Seat checks 
 
 Use the organization ID from `workspaces list` as `--workspace-id`. Coworker
 `provision`, `register`, and `connect` use Preprod by default when no target is configured.
-These commands work on Preprod only. `coworkers register` requires platform admin
-access. That command creates the Coworker, then asks Core to grant Workspace
-access. It also requires the caller to administer the Vendor and belong to the Workspace.
-Use `provision` for a platform-admin creation step under the selected Vendor.
-`register` reports success only when Core returns `GRANTED`. If the Coworker
-record is created but access is pending or fails, retry with `coworkers connect`.
+These commands work on Preprod only. `coworkers register` creates the Coworker, then asks Core to grant Workspace
+access. It requires the caller to administer the Vendor and belong to the Workspace.
+Use `provision` to create the Coworker without requesting Workspace access.
+`register` and `connect` succeed when Core returns `GRANTED` or `PENDING`. `PENDING` means a
+Workspace owner or admin must approve the request. Keep the Coworker ID and run `coworkers connect` again after approval.
+If Core refuses because access was denied or revoked, ask a Workspace owner or admin to restore it.
 Core keeps its existing role checks. `coworkers connect` attaches an existing
 record through the Core access route. It accepts command options for JSON fields. `tasks create`
 and `tasks comment` also accept command options for JSON fields. Use
@@ -203,6 +211,7 @@ Set `OPERATOR_SECRET_READER` to that reader's executable path. Keep the key out 
 "$OPERATOR_SECRET_READER" | sokosumi runtime key-import --coworker-id COWORKER_ID --api-key-stdin --json
 sokosumi runtime start TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --json
 sokosumi runtime complete TASK_ID --coworker-id COWORKER_ID --organization-id ORGANIZATION_ID --result-file ./result.txt --json
+sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
 ```
 
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/coworker/runtime-task.ts`]
@@ -212,10 +221,32 @@ The agent performs the work and writes its finished answer to `result.txt` as UT
 Complete verifies the assignment and `RUNNING` state, then submits the result and requires a confirmed completion event.
 Run one executor per Task. Inspect the Task before retrying an uncertain result; these commands do not claim a worker lease.
 
+[VERIFIED: `src/cli/commands/runtime.ts`, `../core/src/helpers/coworker-task-receipt.ts`]
+Receipt reads the Task's payment claim through Core. `settled` is true only when the payment reached the seller on-chain.
+That means `onChainState` `Withdrawn`, or `DisputedWithdrawn` with a seller payout. Only a settled receipt carries a `txHash`, and even then it can be null.
+`settled: false` is a valid answer and exits 0. Core answers 502 when the payment node fails, so an outage never reads as unpaid.
+
 [VERIFIED: `src/cli/commands/runtime.ts`, `src/api/http-client.ts`]
 Runtime calls use only a Coworker key on Preprod. They do not use developer authentication or configured API targets.
 On hosts without an OS vault, the operator supplies `--api-key-stdin` for each operation through the secret reader.
 The [pilot guide](docs/agent-runtime-pilot.md) covers host setup and verification. Live execution remains unproven.
+
+### MPS delivery status
+
+[VERIFIED: merged commit `c2271e441`, PR #5342; `src/cli/commands/runtime.ts`]
+`runtime receipt` reads Core's Task receipt with GET. This merged feature does not create a payment.
+[VERIFIED: `src/coworker/runtime-task.ts:180-237`]
+Start and completion submit Task status and result events. They do not send `masumiPayment` or run an automatic worker.
+
+[VERIFIED: planning briefs in `docs/mps-payment-stack/`]
+The planning drafts cover [seller setup and customer approval](docs/mps-payment-stack/01-seller-authorization.md),
+the [paid Task lifecycle](docs/mps-payment-stack/02-paid-runtime.md), and the [plugin payment flow](docs/mps-payment-stack/03-plugin-flow.md).
+They contain requirements and planned tests.
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller.
+Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote.
+Organization approval will require membership and applicable Seat eligibility in the original billing organization.
+Implementation and live seller proof remain pending.
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not verify the deployed receipt route or a live seller payout.
 
 ## Configuration
 
@@ -237,7 +268,8 @@ Configuration precedence is flags, process environment, home preferences, local 
 
 ## Build from source
 
-npm publication is disabled for this workspace package. Use the source commands above.
+[CORRECTION, VERIFIED: `package.json`] The earlier publication-disabled statement was stale.
+The manifest sets public npm access and version `1.0.2`. Use Node.js 24 for this source build.
 
 To run the built binary directly:
 

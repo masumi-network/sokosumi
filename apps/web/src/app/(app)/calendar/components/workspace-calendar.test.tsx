@@ -1,3 +1,7 @@
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -13,10 +17,6 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { Temporal } from "temporal-polyfill";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 import { getDefaultTimezone } from "@/lib/schedules/timezones";
 import CalendarError from "../error";
 import CalendarLoading from "../loading";

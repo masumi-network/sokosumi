@@ -19,8 +19,9 @@ const params = z.object({
 const route = createRoute({
   method: "get",
   path: "/workspace-access",
+  deprecated: true,
   description:
-    "Current-user workspace access facts: path `me` for the session user, or a user id when the caller may access that user's data. `ready` if personal workspace and/or any organization membership exists; `pending-invites` if neither and they have non-expired pending organization invitations; `identity-onboarding` if neither and no pending org entry.",
+    "Deprecated: use `GET /users/{id}/workspaces`; an empty list with `pendingInvitationCount` replaces the gate (ADR 0051). Current-user workspace access facts: path `me` for the session user, or a user id when the caller may access that user's data. `ready` if personal workspace and/or any organization membership exists; `pending-invites` if neither and they have non-expired pending organization invitations; `identity-onboarding` if neither and no pending org entry.",
   tags: ["Users"],
   request: { params },
   responses: {

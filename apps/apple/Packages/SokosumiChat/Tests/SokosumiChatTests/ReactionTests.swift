@@ -1,3 +1,4 @@
+import CoreAPI
 import Foundation
 import SokosumiChat
 import Testing
@@ -35,6 +36,18 @@ import Testing
     }
   }
 
+  /// Row 41: the chip's tooltip follows web's `formatWhoReactedLabel` ("Reactions.whoReacted" / "Reactions.andMore").
+  @Test func whoReactedFollowsWebsWording() {
+    typealias Reaction = Components.Schemas.ChatRoomMessageReaction
+    let ada = Components.Schemas.ChatRoomMessageReactor(id: "user-1", name: "Ada")
+    let bob = Components.Schemas.ChatRoomMessageReactor(id: "user-2", name: "Bob")
+    #expect(Reaction(emoji: "👍", count: 2, reactedByCurrentUser: false, reactors: [ada, bob]).whoReacted == "Ada, Bob")
+    #expect(Reaction(emoji: "👍", count: 5, reactedByCurrentUser: false, reactors: [ada, bob]).whoReacted == "Ada, Bob, and 3 more")
+    // No name known: web says "and {count} more", and nothing at all when nobody is left to count.
+    #expect(Reaction(emoji: "👍", count: 3, reactedByCurrentUser: false, reactors: []).whoReacted == "and 3 more")
+    #expect(Reaction(emoji: "👍", count: 0, reactedByCurrentUser: false, reactors: []).whoReacted == nil)
+  }
+
   @Test func catalogSearchPreservesAliasesWithoutDuplicateEmoji() {
     #expect(ReactionEmoji.matching("SMILE").contains { $0.emoji == "😄" })
     #expect(ReactionEmoji.matching("thumbsup").contains { $0.emoji == "👍" })
@@ -46,6 +59,7 @@ import Testing
 
   @Test func reversedResponsesPreserveOtherEmojiAndDeletedMessages() {
     var message = chatRoomMessage(from: .init(clientTurnId: "reaction", roomId: "room", content: "Current content",
+                                              createdAt: Date(),
                                               sender: .init(id: "user", name: "User", email: "user@example.com", presence: .online)))
     message.id = "message"
     #expect(canReactToMessage(message))

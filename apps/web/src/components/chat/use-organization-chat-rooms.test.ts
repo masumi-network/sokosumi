@@ -1,10 +1,6 @@
+import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-} from "@/lib/clients/generated/core";
 
 import {
   emptyListResult,
@@ -15,6 +11,7 @@ import {
 } from "./__tests__/organization-chat-list-harness";
 import {
   clearMembershipVisibleRoomsSnapshot,
+  getLatestMembershipVisibleRoomsSnapshot,
   hasLiveMembershipVisibleRoomsPublisher,
 } from "./membership-visible-rooms-store";
 import { ORGANIZATION_CHAT_ROOMS_CHANGED_EVENT } from "./organization-chat-events";
@@ -57,6 +54,8 @@ interface MountOptions {
   rooms?: ChatRoom[];
   archivedRooms?: ChatRoom[];
   paintOnly?: boolean;
+  organizationId?: string;
+  currentUserId?: string;
 }
 
 interface RoomListProps {
@@ -76,8 +75,15 @@ function mount({
   rooms = NO_ROOMS,
   archivedRooms = NO_ROOMS,
   paintOnly = false,
+  organizationId,
+  currentUserId,
 }: MountOptions = {}) {
-  const initialProps: RoomListProps = { rooms, archivedRooms };
+  const initialProps: RoomListProps = {
+    rooms,
+    archivedRooms,
+    organizationId,
+    currentUserId,
+  };
   return renderHook(
     (props: RoomListProps) =>
       useOrganizationChatRooms({
@@ -136,6 +142,78 @@ describe("useOrganizationChatRooms", () => {
       ]);
     });
   });
+
+  it.each([true, false])(
+    "retains fetched Direct read-only=%s while a stale mobile remount refresh is pending",
+    async (isReadOnly) => {
+      const original = makeRoom({
+        id: "direct",
+        kind: "direct",
+        myAccess: "member",
+        isReadOnly: !isReadOnly,
+      });
+      const seed = [original];
+      const refreshed = { ...original, isReadOnly };
+      listRoomsMock
+        .mockResolvedValueOnce(emptyListResult([refreshed]))
+        .mockReturnValue(new Promise(() => {}));
+      const first = mount({ rooms: seed });
+      await waitFor(() =>
+        expect(first.result.current.roomRows[0]?.isReadOnly).toBe(isReadOnly),
+      );
+      first.unmount();
+
+      const remounted = mount({ rooms: seed });
+      expect(remounted.result.current.roomRows[0]?.isReadOnly).toBe(isReadOnly);
+      expect(
+        getLatestMembershipVisibleRoomsSnapshot()?.rooms[0]?.isReadOnly,
+      ).toBe(isReadOnly);
+    },
+  );
+
+  it("uses fresh server props instead of an earlier sidebar snapshot", async () => {
+    const seed = [
+      makeRoom({
+        id: "direct",
+        kind: "direct",
+        myAccess: "member",
+        isReadOnly: false,
+      }),
+    ];
+    listRoomsMock
+      .mockResolvedValueOnce(
+        emptyListResult([{ ...seed[0], isReadOnly: true }]),
+      )
+      .mockReturnValue(new Promise(() => {}));
+    const first = mount({ rooms: seed });
+    await waitFor(() =>
+      expect(first.result.current.roomRows[0]?.isReadOnly).toBe(true),
+    );
+    first.unmount();
+
+    const fresh = mount({ rooms: [{ ...seed[0], isReadOnly: false }] });
+    expect(fresh.result.current.roomRows[0]?.isReadOnly).toBe(false);
+  });
+
+  it.each([
+    { organizationId: "org-2", currentUserId: "user-1" },
+    { organizationId: "org-1", currentUserId: "user-2" },
+  ])(
+    "does not reuse a remount snapshot for $organizationId/$currentUserId",
+    async (scope) => {
+      const seed = [channel("seed")];
+      listRoomsMock
+        .mockResolvedValueOnce(emptyListResult([channel("private-snapshot")]))
+        .mockReturnValue(new Promise(() => {}));
+      const first = mount({ rooms: seed });
+      await waitFor(() =>
+        expect(first.result.current.roomRows[0]?.id).toBe("private-snapshot"),
+      );
+      first.unmount();
+      const other = mount({ rooms: seed, ...scope });
+      expect(other.result.current.roomRows[0]?.id).toBe("seed");
+    },
+  );
 
   it("replaces the rows when new props arrive", () => {
     const { result, rerender } = mount({

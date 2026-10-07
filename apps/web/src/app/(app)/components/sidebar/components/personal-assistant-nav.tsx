@@ -39,12 +39,7 @@ async function WithBot() {
  * waits on Core. Hidden without Soko Bot beta access: the route 404s for
  * everyone else, so an entry pointing at it would only be a dead end.
  */
-export default function PersonalAssistantNav({
-  enabled,
-}: {
-  enabled: boolean;
-}) {
-  if (!enabled) return null;
+export default function PersonalAssistantNav() {
   return (
     <Suspense fallback={<PersonalAssistantNavClient />}>
       <WithBot />

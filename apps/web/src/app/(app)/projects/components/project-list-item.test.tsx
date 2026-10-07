@@ -1,9 +1,8 @@
+import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { ProjectListItem } from "@/app/projects/components/project-list-item";
 import { PROJECTS_LIST_ROW_LAYOUT_CLASS } from "@/app/projects/constants";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 
 vi.mock("@/components/time-ago", () => ({
   TimeAgo: ({
@@ -90,8 +89,8 @@ describe("ProjectListItem", () => {
     );
     expect(link.className).toContain("items-center");
     expect(link.className).toContain("gap-4");
-    // The row sits inside PROJECTS_BROWSE_LAYOUT_CLASS, which is
-    // --card-background, so the hover has to be the step past it. Pinned
+    // The row is a --background card inside the --card-background list
+    // card; its hover steps to --card-background-hover, as task rows do. Pinned
     // exactly: "hover:bg-card-background" is a substring of the correct
     // class, so a toContain on the shorter name passes either way.
     //
@@ -102,13 +101,25 @@ describe("ProjectListItem", () => {
     expect(row?.className.split(/\s+/)).toContain(
       "hover:bg-card-background-hover",
     );
-    // Square at every breakpoint: the row is full-bleed inside the card, so a
-    // radius of its own would round the hover fill between straight dividers.
-    expect(link.className).toContain("rounded-none");
-    expect(link.className).not.toContain("rounded-lg");
-    expect(link.className).not.toContain("border-border");
-    expect(link.className).not.toContain("bg-overlay");
+    // The row is its own bordered card, as in the task list. The link rounds
+    // too, so the forced-colors outline that `outline-hidden` keeps follows
+    // the card's left corners; the Pin button sits outside the link.
+    expect(row?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining(["bg-background", "border", "rounded-lg"]),
+    );
+    expect(link.className.split(/\s+/)).toContain("rounded-lg");
     expect(link.className.split(/\s+/)).not.toContain("border");
+    // Keyboard focus rings the whole card. A ring on the link alone would
+    // stop at the Pin button and draw a line through the row.
+    expect(link.className.split(/\s+/)).toContain("outline-hidden");
+    expect(row?.className.split(/\s+/)).toEqual(
+      expect.arrayContaining([
+        "has-[>a:focus-visible]:ring-2",
+        "has-[>a:focus-visible]:ring-ring",
+        "has-[>a:focus-visible]:outline-2",
+        "has-[>a:focus-visible]:outline-transparent",
+      ]),
+    );
 
     const article = link.closest("article");
     for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {

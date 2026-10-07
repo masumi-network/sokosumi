@@ -13,7 +13,6 @@ vi.mock("next/headers", () => ({
 import { RESET_PASSWORD_TOKEN_COOKIE_NAME } from "./reset-password-token";
 import {
   applyResetPasswordTokenCookie,
-  clearResetPasswordToken,
   getResetPasswordToken,
 } from "./reset-password-token-cookie";
 
@@ -50,18 +49,5 @@ describe("reset password token cookie", () => {
     cookieGet.mockReturnValue({ value: "reset_token_1" });
 
     await expect(getResetPasswordToken()).resolves.toBe("reset_token_1");
-  });
-
-  it("clears the reset token at the same cookie path", async () => {
-    await clearResetPasswordToken();
-
-    expect(cookieSet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: RESET_PASSWORD_TOKEN_COOKIE_NAME,
-        value: "",
-        path: "/reset-password",
-        maxAge: 0,
-      }),
-    );
   });
 });

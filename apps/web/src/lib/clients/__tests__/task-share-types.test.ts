@@ -1,6 +1,5 @@
+import type { TaskShare } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type { TaskShare } from "@/lib/clients/generated/core/types.gen";
 
 /**
  * Regression guard for the generated Core client.

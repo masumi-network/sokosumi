@@ -1,7 +1,5 @@
 import "server-only";
 
-import type { CoreApiPagination } from "@/lib/clients/core.client";
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   CancelSocialPostRequest,
   CreateSocialPostRequest,
@@ -26,7 +24,9 @@ import type {
   StarredProject,
   TaskListItem,
   UpdateSocialPostRequest,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import type { CoreApiPagination } from "@/lib/clients/core.client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 interface ListProjectsParams {
   cursor?: string | null;
@@ -42,12 +42,14 @@ interface ListProjectResourcesParams {
 
 interface CreateProjectInput {
   name: string;
+  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
 }
 
 interface PatchProjectInput {
   name?: string;
+  identifier?: string;
   briefing?: string | null;
   websiteUrl?: string | null;
   logo?: string | null;
@@ -181,6 +183,7 @@ export const projectService = (() => {
   async function createProject(input: CreateProjectInput): Promise<Project> {
     const result = await coreClient.postProjects({
       name: input.name,
+      ...(input.identifier ? { identifier: input.identifier } : {}),
       briefing: input.briefing ?? null,
       websiteUrl: input.websiteUrl ?? null,
     });

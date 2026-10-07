@@ -2,7 +2,8 @@ import CoreAPI
 
 /// The account preferences both chat models read: unread-count display and
 /// the notification matrix. User-scoped, so GET/PATCH carry no organization
-/// header. Callers stay split and project the fields they own.
+/// header. Reads apply one snapshot onto both projections; writes stay
+/// field-scoped so a display PATCH cannot clobber the matrix.
 struct UserPreferencesSnapshot: Equatable, Sendable {
   var showRoomUnreadCount: Bool
   var pushOptIn: Bool
@@ -59,5 +60,21 @@ extension ChatService {
     case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
     case let .undocumented(statusCode, payload): throw await unprocessableError(statusCode: statusCode, payload: payload)
     }
+  }
+}
+
+public extension ChatService {
+  /// One `GET /users/me/preferences` applied onto both chat projections.
+  @MainActor
+  func refreshUserPreferences(
+    display: ChatDisplayPreferences,
+    notifications: ChatNotificationPreferences,
+    client: Client
+  ) async throws {
+    let displayRequest = display.beginRefresh()
+    let notificationRequest = notifications.beginRefresh()
+    let snapshot = try await userPreferences(client: client)
+    display.apply(snapshot, request: displayRequest)
+    notifications.apply(snapshot, request: notificationRequest)
   }
 }

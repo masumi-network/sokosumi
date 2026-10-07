@@ -116,7 +116,11 @@ function createApp(options: AppOptions = {}) {
 
 function mockTransaction(tx: TransactionMock) {
   prismaTransactionMock.mockImplementation(async (callback) => {
-    return await callback(tx);
+    return await callback({
+      $queryRaw: vi.fn().mockResolvedValue([]),
+      vendorMember: { findFirst: vi.fn().mockResolvedValue(null) },
+      ...tx,
+    });
   });
 }
 
@@ -314,7 +318,21 @@ describe("coworker management CRUD endpoints", () => {
     expect(body.data.priority).toBe(10);
   });
 
-  it("rejects create for non-admin", async () => {
+  it("rejects create for a user who is not a Vendor admin", async () => {
+    mockTransaction({
+      coworker: {
+        findUnique: coworkerFindUniqueMock,
+        findFirst: coworkerFindFirstTxMock,
+        create: coworkerCreateMock,
+        updateMany: coworkerUpdateManyMock,
+      },
+      coworkerApiKey: {
+        updateMany: coworkerApiKeyUpdateManyMock,
+      },
+      vendor: {
+        findUnique: vendorFindUniqueMock.mockResolvedValue({ id: vendorId }),
+      },
+    });
     const app = createApp();
     const response = await app.request("http://localhost/", {
       method: "POST",
@@ -328,7 +346,7 @@ describe("coworker management CRUD endpoints", () => {
     });
 
     expect(response.status).toBe(403);
-    expect(prismaTransactionMock).not.toHaveBeenCalled();
+    expect(coworkerCreateMock).not.toHaveBeenCalled();
   });
 
   it("creates coworker with normalized capabilities", async () => {

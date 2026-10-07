@@ -4,65 +4,28 @@ import { describe, expect, it } from "vitest";
 import { ProjectDetailHeader } from "@/app/projects/components/project-detail-header";
 
 describe("ProjectDetailHeader", () => {
-  it("places metadata as a full-width sibling row below the title", () => {
-    const { container } = render(
+  it("renders the name as the page heading beside the project actions", () => {
+    render(
       <ProjectDetailHeader
         projectName="Example project"
-        websiteUrl="https://www.example.com/about"
-        backLabel="Back"
-        metadata={[
-          { label: "Updated", value: "Today" },
-          { label: "Created", value: "Yesterday" },
-        ]}
         actions={<button type="button">Actions</button>}
       />,
     );
 
-    const root = container.firstElementChild;
-    expect(root?.className).not.toContain("px-4");
-    expect(root?.className).not.toContain("md:px-0");
-
-    // No back affordance at all when the parent is the projects index: the
-    // sidebar scope switcher is that navigation now.
     expect(
-      screen.queryByRole("link", { name: "Back" }),
-    ).not.toBeInTheDocument();
-    expect(screen.getByRole("link", { name: /example.com/ })).toHaveAttribute(
-      "href",
-      "https://www.example.com/about",
-    );
-    expect(screen.getByText("Updated")).toBeInTheDocument();
-    expect(screen.getByText("Today")).toBeInTheDocument();
+      screen.getByRole("heading", { level: 1, name: "Example project" }),
+    ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
-    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
-
-    // The dates describe the project, so they sit under its name rather than
-    // as a third full-width row of chrome above the content.
-    const heading = screen.getByRole("heading", { name: "Example project" });
-    const metadata = root?.querySelector("dl");
-    expect(metadata).toBeTruthy();
-    expect(heading.parentElement?.parentElement?.contains(metadata!)).toBe(
-      true,
-    );
+    // Website and dates moved to the Properties rail.
+    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    expect(screen.queryByRole("term")).not.toBeInTheDocument();
   });
 
-  it("takes the surrounding surface's inset instead of spacing of its own", () => {
-    const { container } = render(
-      <ProjectDetailHeader
-        backHref="/projects/project-1"
-        className="px-4 md:px-6"
-        projectName="Example project"
-        backLabel="Back to project"
-        metadata={[]}
-      />,
-    );
+  it("wraps a long name instead of truncating it", () => {
+    render(<ProjectDetailHeader projectName="A very long project name" />);
 
-    // It is the workspace card's header now, so the card decides the gutter.
-    const root = container.firstElementChild;
-    expect(root?.className).toContain("px-4");
-    expect(root?.className).toContain("md:px-6");
-    expect(
-      screen.getByRole("link", { name: "Back to project" }),
-    ).toHaveAttribute("href", "/projects/project-1");
+    const heading = screen.getByRole("heading", { level: 1 });
+    expect(heading.className).not.toContain("truncate");
+    expect(heading.className).toContain("break-words");
   });
 });

@@ -1,3 +1,5 @@
+import type { MemberWithOrganization } from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import {
   Bell,
   BookOpen,
@@ -14,8 +16,6 @@ import {
 } from "lucide-react";
 import type { ComponentType } from "react";
 import { NOTIFICATION_PREFERENCES_HREF } from "@/app/account/constants";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
 import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 
 export interface HelpLinkItem {

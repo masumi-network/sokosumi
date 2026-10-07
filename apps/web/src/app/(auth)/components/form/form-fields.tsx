@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type {
   ControllerRenderProps,
@@ -12,17 +11,23 @@ import type {
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
+  FormDescription,
   FormField,
   FormItem,
+  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { LEGAL_URLS } from "@/lib/constants/legal-urls";
 import type { FormData } from "@/lib/form";
 
 import { PasswordInput } from "./password-input";
-import type { AuthNamespace } from "./types";
+
+type AuthNamespace =
+  | "Auth.Email.Form"
+  | "Auth.Pages.ForgotPassword.Form"
+  | "Auth.Pages.SignUp.Form"
+  | "Auth.Pages.ResetPassword.Form";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -30,13 +35,18 @@ interface FormFieldsProps<T extends FieldValues> {
   namespace: AuthNamespace;
 }
 
+/**
+ * The fields of an auth step. Each step asks one or two things that its
+ * header already names, so a field's name sits inside it as the placeholder,
+ * centered with the button. The label stays for screen readers and password
+ * managers.
+ */
 export function FormFields<T extends FieldValues>({
   form,
   formData,
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
-  const authT = useTranslations("Auth");
 
   return (
     <>
@@ -47,15 +57,20 @@ export function FormFields<T extends FieldValues>({
           name={formDataItem.name as unknown as Path<T>}
           render={({ field }) => (
             <FormItem>
+              {formDataItem.labelKey && formDataItem.type !== "checkbox" ? (
+                <FormLabel className="sr-only">
+                  {t(formDataItem.labelKey)}
+                </FormLabel>
+              ) : null}
               <FormControl>
-                <FormInput
-                  field={field}
-                  formDataItem={formDataItem}
-                  t={t}
-                  authT={authT}
-                />
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
-              <FormMessage />
+              {formDataItem.descriptionKey ? (
+                <FormDescription className="text-center">
+                  {t(formDataItem.descriptionKey)}
+                </FormDescription>
+              ) : null}
+              <FormMessage className="text-center" />
             </FormItem>
           )}
         />
@@ -64,79 +79,39 @@ export function FormFields<T extends FieldValues>({
   );
 }
 
-interface FormInputProps<T extends FieldValues> {
+// `FormControl` hands its child the field id and the ARIA wiring to the
+// error message; the rest props carry them to the input.
+interface FormInputProps<T extends FieldValues>
+  extends Pick<
+    React.ComponentProps<"input">,
+    "id" | "aria-describedby" | "aria-invalid"
+  > {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  authT: IntlTranslation<"Auth">;
 }
 
 function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
-  authT,
+  ...controlProps
 }: FormInputProps<T>) {
-  const { autoComplete, type, labelKey, name, placeholderKey, disabled } =
-    formDataItem;
+  const { autoComplete, type, labelKey, name, disabled } = formDataItem;
+  // The auth fields' placeholders repeat their labels.
+  const placeholder = labelKey && t(labelKey);
 
   if (type === "checkbox") {
-    const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
-      ? t("Fields.TermsAccepted.Label.iAgreeTo")
-      : null;
-    const termsOfServiceText = t.has(
-      "Fields.TermsAccepted.Label.termsOfService",
-    )
-      ? t("Fields.TermsAccepted.Label.termsOfService")
-      : null;
-    const andText = t.has("Fields.TermsAccepted.Label.and")
-      ? t("Fields.TermsAccepted.Label.and")
-      : null;
-    const privacyPolicyText = t.has("Fields.TermsAccepted.Label.privacyPolicy")
-      ? t("Fields.TermsAccepted.Label.privacyPolicy")
-      : null;
-
-    const allTranslationsExist =
-      iAgreeToText && termsOfServiceText && andText && privacyPolicyText;
-
-    const TermsAcceptedLabel = allTranslationsExist ? (
-      <Label
-        htmlFor={labelKey?.toString() ?? name.toString()}
-        className="flex flex-wrap items-center gap-1"
-      >
-        <span>{iAgreeToText}</span>
-        <Link
-          target="_blank"
-          href={LEGAL_URLS.TERMS_OF_SERVICE}
-          className="underline"
-        >
-          {termsOfServiceText}
-        </Link>
-        <span>{andText}</span>
-        <Link
-          target="_blank"
-          href={LEGAL_URLS.PRIVACY_POLICY}
-          className="underline"
-        >
-          {privacyPolicyText}
-        </Link>
-      </Label>
-    ) : null;
+    const id = labelKey?.toString() ?? name.toString();
 
     return (
       <div className="flex items-center gap-2">
         <Checkbox
-          id={labelKey?.toString() ?? name.toString()}
+          id={id}
           checked={field.value}
           onCheckedChange={field.onChange}
         />
-        {name === "termsAccepted" ? (
-          TermsAcceptedLabel
-        ) : (
-          <Label htmlFor={labelKey?.toString() ?? name.toString()}>
-            {labelKey && t(labelKey)}
-          </Label>
-        )}
+        <Label htmlFor={id}>{labelKey && t(labelKey)}</Label>
       </div>
     );
   }
@@ -144,11 +119,11 @@ function FormInput<T extends FieldValues>({
   if (type === "password") {
     return (
       <PasswordInput
+        {...controlProps}
         data-testid={`auth-field-${name.toString()}`}
         autoComplete={autoComplete}
-        placeholder={placeholderKey && t(placeholderKey)}
-        showLabel={authT("PasswordToggle.show")}
-        hideLabel={authT("PasswordToggle.hide")}
+        placeholder={placeholder}
+        className="text-center"
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
         disabled={disabled}
@@ -158,10 +133,14 @@ function FormInput<T extends FieldValues>({
 
   return (
     <Input
+      {...controlProps}
       data-testid={`auth-field-${name.toString()}`}
       autoComplete={autoComplete}
-      placeholder={placeholderKey && t(placeholderKey)}
+      placeholder={placeholder}
+      className="text-center"
       type={type ?? "text"}
+      // Phones would otherwise capitalise and autocorrect the address.
+      {...(type === "email" && { autoCapitalize: "none", spellCheck: false })}
       {...field}
       value={field.value}
       disabled={disabled}

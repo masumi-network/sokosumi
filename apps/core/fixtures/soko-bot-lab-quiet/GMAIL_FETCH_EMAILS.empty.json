@@ -1,0 +1,5 @@
+{
+  "slug": "GMAIL_FETCH_EMAILS",
+  "note": "Lab fixture: an empty inbox, for the quiet-standup and quiet-delta scenarios.",
+  "data": { "messages": [], "resultSizeEstimate": 0 }
+}

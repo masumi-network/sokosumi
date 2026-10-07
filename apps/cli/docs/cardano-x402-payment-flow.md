@@ -1,10 +1,12 @@
 # Cardano payments for Sokosumi Coworkers
 
-Status: MPS-first direction accepted; payment and seller receipt contracts remain open
+Status: MPS-first direction accepted; receipt reads merged; paid execution and live payout proof remain open
 
 Date: 2026-09-24
 
 Scope: define the MPS-first Sokosumi Coworker payment MVP, then record Cardano x402 through Sokosumi as later work. This is not an approved API contract.
+
+[CORRECTION, VERIFIED: merge commit `c2271e4418faae9f8cae527bc1e29354975c8fa5`, 2026-09-30] [PR #5342](https://github.com/masumi-network/sokosumi/pull/5342) implemented Core and CLI receipt reads. [Runtime completion](../src/coworker/runtime-task.ts#L195) still submits only Task status and its result. The MPS diagrams below describe the proposed payment path. They do not show an implemented CLI payment command. See the [receipt verification limits](coworker-mps-receipt-plan.md) and [remaining payment drafts](mps-payment-stack/01-seller-authorization.md).
 
 Claims use provenance labels:
 
@@ -39,7 +41,7 @@ Claims use provenance labels:
         | Install Skill from apps/cli/skills/sokosumi
         | Skill installer does not install the CLI executable
         v
-[CLI executable install path: OPEN]
+[CLI executable: source build or configured npm package]
         |
         | Owner browser approval flow: OPEN
         v
@@ -257,17 +259,17 @@ Claims use provenance labels:
 
 ## Small PR sequence
 
-1. [PROPOSED] Keep Coworker registration on Sokosumi Preprod. Leave all Core permissions and whitelist operations unchanged in the CLI work.
-2. [OPEN] Confirm whether platform-admin pre-provisioning is the intended path for Coworker records. Current Core rejects ordinary Vendor-admin create requests.
-3. [PROPOSED] Add the CLI workspace selection and grant flow for an existing Coworker using existing Core routes. Report success only after `GRANTED`.
-4. [PROPOSED] Trace one paid Sokosumi Task through MPS on Cardano Preprod. Verify seller receipt to the Coworker wallet. If the current purchase path cannot do this, ask Core/MPS owners to define their change.
-5. [PROPOSED] Add the Hermes adapter around the supported Coworker and Task interfaces. Keep the Skill at `apps/cli/skills/sokosumi`; choose a separate CLI binary release path before promising one-command install.
-6. [PROPOSED] Add waitlist request and admin review only after the existing submission surface is confirmed. This remains separate from global whitelist control.
-7. [PROPOSED] Later, route Cardano x402 buyers through Sokosumi. Test MPS and `@x402/cardano` interoperability before adding an adapter. Do not use direct-to-wallet x402 for this MVP.
+[CORRECTION, VERIFIED: GitHub reads, 2026-09-30] The earlier sequence listed registration, Workspace connection, and Hermes as future changes. [#5241](https://github.com/masumi-network/sokosumi/pull/5241), [#5286](https://github.com/masumi-network/sokosumi/pull/5286), and [#5287](https://github.com/masumi-network/sokosumi/pull/5287) are merged. [#5338](https://github.com/masumi-network/sokosumi/pull/5338) added bundled Skills and discovery. These merges do not prove a live paid Task.
+
+1. [PROPOSED] [#5463](https://github.com/masumi-network/sokosumi/pull/5463): configure the MPS seller and enforce customer approval for a Task payment.
+2. [PROPOSED] [#5464](https://github.com/masumi-network/sokosumi/pull/5464): implement funding, paid runtime execution, result submission, settlement, and refund recovery.
+3. [PROPOSED] [#5465](https://github.com/masumi-network/sokosumi/pull/5465): complete the packaged plugin instructions and prove an authorized Preprod sale on an installed host.
+
+[VERIFIED: draft branch contents, 2026-09-30] These three PRs contain planning documents and documentation corrections. Payment implementation and its acceptance tests remain pending. Waitlist review and Cardano x402 interoperability remain separate later work.
 
 ## Least confident decisions
 
 1. [OPEN] Whether the current MPS purchase from `masumiPayment` pays the Coworker's intended wallet.
-2. [OPEN] Whether platform-admin pre-provisioning is acceptable for the first CLI release under unchanged Core permissions.
+2. [OPEN] Seller credential rotation and funded-payment recovery need implementation review. [REPORTED: user decisions, 2026-09-30] The first flow uses an existing developer-managed MPS seller, with self-service CLI setup and encrypted Core storage.
 3. [OPEN] How a remote hosted runtime receives owner approval and the `coworker_*` credential.
 4. [OPEN] Whether MPS `POST /payment/x402` interoperates with the selected standard x402 clients.

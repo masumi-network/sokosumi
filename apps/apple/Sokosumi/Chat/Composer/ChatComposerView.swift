@@ -22,6 +22,7 @@ import UniformTypeIdentifiers
     @State private var pasteGeneration = 0
     @EnvironmentObject private var uploads: ComposeUploads
     @EnvironmentObject private var attachmentIngress: ComposerAttachmentIngress
+    @Environment(\.appearsActive) private var appearsActive
 
     /// A pasted Message link that became the pending quote.
     private struct QuotedLink {
@@ -47,11 +48,8 @@ import UniformTypeIdentifiers
     }
 
     private var composerPlaceholder: String {
-      if parentMessageId != nil {
-        return "Reply to thread"
-      }
-      guard let room = workspaces.rooms.first(where: { $0.id == roomId }) else { return "Message" }
-      return "Message \(roomDisplayName(room, currentUserId: workspaces.currentUserId))"
+      SokosumiChat.composerPlaceholder(room: workspaces.rooms.first { $0.id == roomId }, currentUserId: workspaces.currentUserId,
+                                       inThread: parentMessageId != nil)
     }
 
     private var preparedContent: ComposerContent {
@@ -62,6 +60,12 @@ import UniformTypeIdentifiers
     /// whole message there.
     private var requiresBody: Bool {
       workspaces.directStream.roomId == roomId
+    }
+
+    /// Typing belongs to the room's main transcript (ADR 0033): the Thread composer announces nothing
+    /// and shows no line, so a Thread reply never claims the room is about to get a message.
+    private var announcesTyping: Bool {
+      parentMessageId == nil
     }
 
     private var canAttachFiles: Bool {
@@ -85,9 +89,20 @@ import UniformTypeIdentifiers
         }
         ComposerAttachmentsView(uploads: uploads)
         editor
-        if preparedContent.isTooLong, !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
-          Button("Attach message as Markdown file") { attachOverflow() }
-            .disabled(!canAttachFiles)
+        // Web's `belowEditor` over the limit: the hint, and the conversion where the room takes files.
+        if preparedContent.isTooLong {
+          HStack {
+            ComposerTooLongHint()
+            Spacer(minLength: 8)
+            if !draft.isEmpty, workspaces.canAttachFiles(roomId: roomId) {
+              Button("Convert to file", systemImage: "doc.text") { attachOverflow() }
+                .controlSize(.small)
+                .disabled(!canAttachFiles)
+            }
+          }
+        }
+        if announcesTyping {
+          RoomTypingLine(typing: workspaces.typing, room: workspaces.rooms.first { $0.id == roomId })
         }
       }
       .fileImporter(isPresented: $filePickerPresented, allowedContentTypes: [.data], allowsMultipleSelection: true) { result in
@@ -102,10 +117,18 @@ import UniformTypeIdentifiers
         }, select: { attachment in
           guard canAttachFiles else { return }
           uploads.add(attachment)
-        })
+        }, workspace: workspaces.selection)
       }
-      .padding([.horizontal, .bottom], 8)
+      .padding(.horizontal, 8)
+      // The Typing line stands in the bottom padding, as on web from `md` up.
+      .padding(.bottom, announcesTyping ? 4 : 8)
       .background(.background)
+      // Web's editor blurs with its browser window. A Mac text view keeps first responder
+      // when its window goes behind another, so that stop comes from the window.
+      .onChange(of: appearsActive) { _, active in
+        guard announcesTyping, !active else { return }
+        Task { @MainActor in workspaces.composerStoppedTyping(roomId: roomId) }
+      }
       .onChange(of: workspaces.directStream.restoredDraft, initial: true) { _, _ in
         guard let text = workspaces.directStream.restoredDraft(for: roomId, parentMessageId: parentMessageId) else { return }
         draft = savedDraft.restoreFailedSend(text, preserving: draft)
@@ -128,6 +151,12 @@ import UniformTypeIdentifiers
       ), submit: sendDraft, focusRequest: quoteFocusRequest, placeholder: composerPlaceholder, canSend: canSend, content: preparedContent, channels: workspaces.composerChannels, mentions: workspaces.composerMentions)
       input.onPaste = { paste in quotePastedLink(paste) }
       input.insertion = insertion
+      if announcesTyping {
+        input.onEdit = { text in
+          workspaces.composerEdited(roomId: roomId, hasText: !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, now: Date())
+        }
+        input.onBlur = { workspaces.composerStoppedTyping(roomId: roomId) }
+      }
       if workspaces.canAttachFiles(roomId: roomId) {
         input.attach = { filePickerPresented = true }
         input.attachFromDrive = { drivePickerPresented = true }

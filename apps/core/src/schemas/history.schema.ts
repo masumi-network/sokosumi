@@ -38,8 +38,9 @@ const historyBaseItemSchema = z.object({
     description: "Short subtitle or description for the history row",
     example: "Audit copy and empty states",
   }),
-  updatedAt: dateTimeSchema.openapi({
-    description: "Source entity updatedAt timestamp used for feed ordering",
+  createdAt: dateTimeSchema.openapi({
+    description:
+      "When the source entity was created. The feed orders by this and renders it, and it is the date the entity's own card shows. Deliberately not `updatedAt`: that is a row-touch column, and a backfill on an unrelated field relabelled a year of rows as today.",
   }),
   archivedAt: dateTimeSchema.nullable().openapi({
     description:
@@ -155,7 +156,7 @@ export const historyListResponseExample = {
       title: "Review onboarding flow",
       description: "Audit copy and empty states",
       status: TaskStatus.RUNNING,
-      updatedAt: "2025-01-21T12:00:00.000Z",
+      createdAt: "2025-01-21T12:00:00.000Z",
       archivedAt: null,
       credits: 2.5,
       projectId: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
@@ -173,7 +174,7 @@ export const historyListResponseExample = {
       title: "Research competitors",
       description: "Generated market summary",
       status: SokosumiJobStatus.COMPLETED,
-      updatedAt: "2025-01-21T11:30:00.000Z",
+      createdAt: "2025-01-21T11:30:00.000Z",
       archivedAt: null,
       credits: 5,
       projectId: null,
@@ -192,7 +193,7 @@ export const historyListResponseExample = {
       title: "A bold event poster: one dominant subject centred in the upper…",
       description: "gemini-3.1-flash-image-preview · 8 credits",
       status: "active",
-      updatedAt: "2025-01-21T11:00:00.000Z",
+      createdAt: "2025-01-21T11:00:00.000Z",
       archivedAt: null,
       credits: 8,
       assetId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",

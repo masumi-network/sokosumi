@@ -76,6 +76,7 @@ function buildProject(
     workspaceId: WORKSPACE_ID,
     name: "Project",
     websiteUrl: "https://example.com",
+    identifier: null,
     logo: null,
     designMdUrl,
     designMdExtractionId,

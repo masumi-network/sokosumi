@@ -1,11 +1,11 @@
 "use client";
 
+import type { SokoBotVersionDetail } from "@sokosumi/core-client";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,7 +22,6 @@ import {
   archiveAdminSokoBotVersionAction,
   promoteAdminSokoBotVersionAction,
 } from "@/lib/actions/admin-soko-bots/action";
-import type { SokoBotVersionDetail } from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 
 interface SokoBotVersionActionsProps {
@@ -114,12 +113,12 @@ export function SokoBotVersionActions({ version }: SokoBotVersionActionsProps) {
                 {t("Actions.cancel")}
               </AlertDialogCancel>
               <AlertDialogAction
-                disabled={isPromoting}
+                loading={isPromoting}
                 onClick={() => {
                   void handlePromote();
                 }}
               >
-                {isPromoting ? t("Actions.promoting") : t("Actions.promote")}
+                {t("Actions.promote")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -149,13 +148,13 @@ export function SokoBotVersionActions({ version }: SokoBotVersionActionsProps) {
                   {t("Actions.cancel")}
                 </AlertDialogCancel>
                 <AlertDialogAction
-                  disabled={isArchiving}
+                  loading={isArchiving}
                   className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                   onClick={() => {
                     void handleArchive();
                   }}
                 >
-                  {isArchiving ? t("Actions.archiving") : t("Actions.archive")}
+                  {t("Actions.archive")}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

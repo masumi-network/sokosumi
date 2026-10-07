@@ -1,6 +1,5 @@
+import type { SokoBotAdminAction } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type { SokoBotAdminAction } from "@/lib/clients/generated/core";
 
 import { groupAuditOperations } from "../audit-operations";
 

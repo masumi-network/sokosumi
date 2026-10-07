@@ -1,8 +1,8 @@
 "use server";
 
+import type { Job } from "@sokosumi/core-client";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { Job } from "@/lib/clients/generated/core";
 import {
   type AuthenticatedRequest,
   withSession,

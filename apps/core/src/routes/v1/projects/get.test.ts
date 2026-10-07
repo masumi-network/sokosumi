@@ -112,6 +112,7 @@ const PROJECT_ROW = {
   workspaceId: WORKSPACE_CONTEXT.workspaceId,
   name: "Research",
   websiteUrl: null,
+  identifier: null,
   logo: null,
   designMdUrl: null,
   designMdExtractionId: null,

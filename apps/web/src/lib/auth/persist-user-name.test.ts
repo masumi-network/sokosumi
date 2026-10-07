@@ -1,12 +1,15 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authClient } from "@/lib/auth/auth.client";
 
-import { persistUserName, userHasName } from "./persist-user-name";
+import { persistFirstAndLastName, userHasName } from "./persist-user-name";
+
+const { getSessionMock } = vi.hoisted(() => ({ getSessionMock: vi.fn() }));
 
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     updateUser: vi.fn(),
+    getSession: (...args: unknown[]) => getSessionMock(...args),
   },
 }));
 
@@ -24,16 +27,70 @@ describe("userHasName", () => {
   });
 });
 
-describe("persistUserName", () => {
-  it("returns ok when updateUser succeeds", async () => {
+const ADA = { firstName: "Ada", lastName: "Lovelace" };
+
+describe("persistFirstAndLastName", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    getSessionMock.mockResolvedValue({
+      data: { user: { name: "" } },
+      error: null,
+    });
+  });
+  it("derives the display name for a user who has none", async () => {
     vi.mocked(authClient.updateUser).mockResolvedValueOnce({
       data: null,
       error: null,
     });
 
-    const result = await persistUserName("Ada");
+    const result = await persistFirstAndLastName(ADA, " ");
 
     expect(result.isOk()).toBe(true);
+    expect(authClient.updateUser).toHaveBeenLastCalledWith({
+      ...ADA,
+      name: "Ada Lovelace",
+    });
+  });
+
+  it("leaves an existing display name alone", async () => {
+    vi.mocked(authClient.updateUser).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    await persistFirstAndLastName(ADA, "Countess of Lovelace");
+
+    expect(authClient.updateUser).toHaveBeenLastCalledWith(ADA);
+  });
+
+  it("preserves a name saved after the initial session was read", async () => {
+    getSessionMock.mockResolvedValue({
+      data: { user: { name: "Countess of Lovelace" } },
+      error: null,
+    });
+    vi.mocked(authClient.updateUser).mockResolvedValueOnce({
+      data: null,
+      error: null,
+    });
+
+    await persistFirstAndLastName(ADA, "");
+
+    expect(authClient.updateUser).toHaveBeenLastCalledWith(ADA);
+    expect(getSessionMock).toHaveBeenCalledWith({
+      query: { disableCookieCache: true },
+    });
+  });
+
+  it("does not overwrite names when the current session cannot be read", async () => {
+    getSessionMock.mockResolvedValue({
+      data: null,
+      error: { message: "Session unavailable" },
+    });
+
+    const result = await persistFirstAndLastName(ADA, "");
+
+    expect(result.isErr()).toBe(true);
+    expect(authClient.updateUser).not.toHaveBeenCalled();
   });
 
   it("returns err with the update message when updateUser fails", async () => {
@@ -42,7 +99,7 @@ describe("persistUserName", () => {
       error: { message: "Name rejected" },
     });
 
-    const result = await persistUserName("Ada");
+    const result = await persistFirstAndLastName(ADA, "");
 
     expect(result.isErr()).toBe(true);
     if (result.isErr()) {

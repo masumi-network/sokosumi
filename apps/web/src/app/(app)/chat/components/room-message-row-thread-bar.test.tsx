@@ -4,14 +4,14 @@
  * It names the replies that are new to this reader while any are unread, and
  * falls back to the plain reply count otherwise.
  */
+
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NextIntlClientProvider } from "next-intl";
 import { describe, expect, it, vi } from "vitest";
-
 import messages from "@/../messages/en.json";
 import { createFormats } from "@/i18n/time-format";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { ChatMessageRow } from "./room-message-row";
 

@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 import { getInitials } from "@/lib/utils/text";
 import {
   ChannelKindGlyph,
@@ -35,7 +35,7 @@ export function ChannelRoomMark({
       />
       <span
         data-slot="channel-tile"
-        className="bg-muted text-foreground relative hidden size-5 shrink-0 items-center justify-center rounded-md text-[0.5625rem] leading-none font-semibold group-data-[collapsible=icon]:inline-flex"
+        className="bg-muted text-foreground relative hidden size-5 shrink-0 items-center justify-center rounded-md text-2xs leading-none font-semibold group-data-[collapsible=icon]:inline-flex"
         aria-hidden
       >
         {getInitials(name)}

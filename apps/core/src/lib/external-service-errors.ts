@@ -150,6 +150,7 @@ export function logSuppressedExternalError(
   label: string,
   error: unknown,
   extra?: Record<string, unknown>,
+  message?: string,
 ): void {
   const level = isSchemaDriftPrismaError(error) ? "error" : "warn";
   // Same last line of defence Sentry's `beforeSend` applies, for the other
@@ -157,7 +158,7 @@ export function logSuppressedExternalError(
   // own credential back to us, and `extra` routinely holds that text.
   const payload = redactDeep(
     {
-      error: getErrorMessage(error),
+      error: message ?? getErrorMessage(error),
       ...extra,
     },
     getEnvSecrets(),
@@ -181,20 +182,30 @@ export function captureExternalServiceError(
     label: string;
     sentry?: Parameters<typeof Sentry.captureException>[1];
     extra?: Record<string, unknown>;
+    /** Fixed text for failures whose provider details may contain personal data. */
+    message?: string;
   },
 ): void {
+  // Classify the original failure, but keep its message, stack and cause out
+  // of both sinks when the caller needs a privacy-safe report.
+  const reportedError = options.message ? new Error(options.message) : error;
   if (shouldSuppressSentryForExternalError(error)) {
-    logSuppressedExternalError(options.label, error, options.extra);
+    logSuppressedExternalError(
+      options.label,
+      error,
+      options.extra,
+      options.message,
+    );
     return;
   }
 
   if (!options.extra) {
-    Sentry.captureException(error, options.sentry);
+    Sentry.captureException(reportedError, options.sentry);
     return;
   }
 
   Sentry.withScope((scope) => {
     scope.setExtras(options.extra!);
-    Sentry.captureException(error, options.sentry);
+    Sentry.captureException(reportedError, options.sentry);
   });
 }

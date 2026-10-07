@@ -36,26 +36,7 @@ vi.mock("@/services/stripe-backed-subscription.service", () => ({
     handleSubscriptionCreatedEventMock(...args),
 }));
 
-import {
-  handleStripeAuthWebhookOnEvent,
-  isBillingStripeEventType,
-} from "./stripe-auth-webhook-on-event";
-
-describe("isBillingStripeEventType", () => {
-  it.each(["invoice.paid", "customer.created"] as const)(
-    "returns true for %s",
-    (eventType) => {
-      expect(isBillingStripeEventType(eventType)).toBe(true);
-    },
-  );
-
-  it.each(["customer.subscription.deleted", "customer.updated"] as const)(
-    "returns false for %s",
-    (eventType) => {
-      expect(isBillingStripeEventType(eventType)).toBe(false);
-    },
-  );
-});
+import { handleStripeAuthWebhookOnEvent } from "./stripe-auth-webhook-on-event";
 
 describe("handleStripeAuthWebhookOnEvent", () => {
   beforeEach(() => {
@@ -151,6 +132,70 @@ describe("handleStripeAuthWebhookOnEvent", () => {
 
   it.each([
     {
+      name: "flexible billing mode sets only cancel_at",
+      previous_attributes: { cancel_at: null },
+      cancel_at_period_end: false,
+    },
+    {
+      name: "classic billing mode sets both fields",
+      previous_attributes: { cancel_at: null, cancel_at_period_end: false },
+      cancel_at_period_end: true,
+    },
+  ])("tells the wallet once when $name", async (variant) => {
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_updated",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_123",
+          customer: "cus_123",
+          cancel_at_period_end: variant.cancel_at_period_end,
+          cancel_at: 1_800_000_000,
+        },
+        previous_attributes: variant.previous_attributes,
+      },
+    } as never);
+
+    expect(notifySubscriptionEndingMock).toHaveBeenCalledTimes(1);
+    expect(notifySubscriptionEndingMock).toHaveBeenCalledWith(
+      { userId: "user-1", organizationId: null },
+      { stripeSubscriptionId: "sub_123", cancelAt: 1_800_000_000 },
+    );
+  });
+
+  it.each([
+    {
+      name: "a cancellation moved to another date",
+      previous_attributes: { cancel_at: 1_700_000_000 },
+      cancel_at_period_end: false,
+      cancel_at: 1_800_000_000,
+    },
+    {
+      name: "a flexible-mode cancellation that was resumed",
+      previous_attributes: { cancel_at: 1_800_000_000 },
+      cancel_at_period_end: false,
+      cancel_at: null,
+    },
+  ])("says nothing about $name", async (variant) => {
+    await handleStripeAuthWebhookOnEvent({
+      id: "evt_sub_updated",
+      type: "customer.subscription.updated",
+      data: {
+        object: {
+          id: "sub_123",
+          customer: "cus_123",
+          cancel_at_period_end: variant.cancel_at_period_end,
+          cancel_at: variant.cancel_at,
+        },
+        previous_attributes: variant.previous_attributes,
+      },
+    } as never);
+
+    expect(notifySubscriptionEndingMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
       name: "a subscription that stays set to end",
       previous_attributes: { items: {} },
       cancel_at_period_end: true,
@@ -184,17 +229,39 @@ describe("handleStripeAuthWebhookOnEvent", () => {
     expect(notifySubscriptionEndingMock).not.toHaveBeenCalled();
   });
 
-  it("routes billing events through stripeWebhookService", async () => {
-    const event = {
-      id: "evt_invoice",
-      type: "invoice.paid",
-      data: { object: { id: "in_123" } },
-    } as never;
+  it.each(["invoice.paid", "customer.created"] as const)(
+    "routes %s through stripeWebhookService",
+    async (type) => {
+      const event = {
+        id: "evt_billing",
+        type,
+        data: { object: { id: "obj_123" } },
+      } as never;
 
-    await handleStripeAuthWebhookOnEvent(event);
+      await handleStripeAuthWebhookOnEvent(event);
 
-    expect(handleEventMock).toHaveBeenCalledWith(event);
-    expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
+      expect(handleEventMock).toHaveBeenCalledWith(event);
+      expect(handleSubscriptionDeletedEventMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it("leaves an event it does not handle out of billing", async () => {
+    const infoSpy = vi.spyOn(console, "info").mockImplementation(() => {});
+
+    try {
+      await handleStripeAuthWebhookOnEvent({
+        id: "evt_customer_updated",
+        type: "customer.updated",
+        data: { object: { id: "cus_123" } },
+      } as never);
+
+      expect(handleEventMock).not.toHaveBeenCalled();
+      expect(infoSpy).toHaveBeenCalledWith(
+        "Unhandled Stripe event type: customer.updated",
+      );
+    } finally {
+      infoSpy.mockRestore();
+    }
   });
 
   it("handles checkout.session.completed", async () => {

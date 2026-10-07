@@ -29,6 +29,12 @@ describe("chats routes OpenAPI contract", () => {
     expect(doc.paths?.["/threads/earlier"]?.get).toBeDefined();
   });
 
+  it("exposes the chat skill search", () => {
+    const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
+
+    expect(doc.paths?.["/skills"]?.get).toBeDefined();
+  });
+
   it("exposes invitee invitation routes", () => {
     const doc = chatsRouter.getOpenAPI31Document(openApiInfo);
 

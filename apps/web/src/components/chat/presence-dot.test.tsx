@@ -1,7 +1,6 @@
+import type { ChatRoomPresence } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 import { PresenceDot } from "./presence-dot";
 

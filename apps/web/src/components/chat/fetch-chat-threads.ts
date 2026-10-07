@@ -1,8 +1,8 @@
-import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import {
   getChatsThreadsEarlierResponseTransformer,
   getChatsThreadsUnreadResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
+import { fetchBackgroundJson } from "@/components/chat/fetch-background-json";
 import type {
   ChatEarlierThreadsPage,
   ChatUnreadThreadsPage,

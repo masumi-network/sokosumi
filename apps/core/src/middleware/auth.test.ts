@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { Hono } from "hono";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
@@ -646,6 +647,9 @@ describe("authMiddleware", () => {
       authenticationMethod: "oauth",
     });
     expect(getSessionMock).not.toHaveBeenCalled();
+    expect(verifyApiKeyMock).toHaveBeenCalledWith({
+      body: { configId: "default", key: "oauth_token" },
+    });
     expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalledWith({
       where: {
         token: expect.any(String),
@@ -659,6 +663,7 @@ describe("authMiddleware", () => {
           select: {
             disabled: true,
             scopes: true,
+            skipConsent: true,
           },
         },
       },
@@ -674,6 +679,119 @@ describe("authMiddleware", () => {
         scopes: true,
       },
     });
+  });
+
+  it("checks a prefixed OAuth access token without trying it as an API key", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+        skipConsent: true,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_valid",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      actor: "user",
+      userId: "user_oauth",
+      authenticationMethod: "oauth",
+    });
+    // Better Auth stores the SHA-256 base64url digest of the unprefixed token.
+    expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          token: createHash("sha256").update("valid").digest("base64url"),
+        },
+      }),
+    );
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an unknown prefixed OAuth access token without trying it as an API key", async () => {
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_unknown",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(oauthAccessTokenFindUniqueMock).toHaveBeenCalled();
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for an expired prefixed OAuth access token without trying it as an API key", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() - 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: null,
+      refreshToken: null,
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+        skipConsent: true,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_rejected",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 401 for a prefixed OAuth access token whose refresh grant was revoked", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      revoked: null,
+      userId: "user_oauth",
+      refreshId: "refresh_123",
+      refreshToken: { revoked: new Date() },
+      clientId: "client_123",
+      scopes: ["openid", "sokosumi:api"],
+      user: { role: "user", banned: false, banExpires: null },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+        skipConsent: true,
+      },
+    });
+
+    const app = createApp();
+    const response = await app.request("http://localhost/", {
+      headers: {
+        authorization: "Bearer soko_access_token_rejected",
+      },
+    });
+
+    expect(response.status).toBe(401);
+    expect(verifyApiKeyMock).not.toHaveBeenCalled();
   });
 
   it("returns 401 for an OAuth token whose user is banned", async () => {
@@ -946,6 +1064,103 @@ describe("authMiddleware", () => {
 
     expect(response.status).toBe(401);
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
+  });
+
+  describe("first-party client", () => {
+    function firstPartyToken(overrides: Record<string, unknown> = {}) {
+      return {
+        token: "hashed_token",
+        expiresAt: new Date(Date.now() + 60_000),
+        revoked: null,
+        userId: "user_oauth",
+        refreshId: null,
+        refreshToken: null,
+        clientId: "client_first_party",
+        scopes: ["openid", "sokosumi:api"],
+        user: { role: "user", banned: false, banExpires: null },
+        client: {
+          disabled: false,
+          scopes: ["openid", "sokosumi:api"],
+          skipConsent: true,
+        },
+        ...overrides,
+      };
+    }
+
+    function requestWithToken() {
+      return createApp().request("http://localhost/", {
+        headers: { authorization: "Bearer oauth_first_party" },
+      });
+    }
+
+    it("authenticates a token with no consent row", async () => {
+      oauthAccessTokenFindUniqueMock.mockResolvedValue(firstPartyToken());
+
+      const response = await requestWithToken();
+
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({
+        actor: "user",
+        userId: "user_oauth",
+        organizationId: null,
+        role: "user",
+        authenticationMethod: "oauth",
+      });
+    });
+
+    it("returns 401 for a client without the mark and without a consent row", async () => {
+      oauthAccessTokenFindUniqueMock.mockResolvedValue(
+        firstPartyToken({
+          client: {
+            disabled: false,
+            scopes: ["openid", "sokosumi:api"],
+            skipConsent: null,
+          },
+        }),
+      );
+
+      const response = await requestWithToken();
+
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 401 when the client is disabled", async () => {
+      oauthAccessTokenFindUniqueMock.mockResolvedValue(
+        firstPartyToken({
+          client: {
+            disabled: true,
+            scopes: ["openid", "sokosumi:api"],
+            skipConsent: true,
+          },
+        }),
+      );
+
+      const response = await requestWithToken();
+
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 401 for a token without sokosumi:api", async () => {
+      oauthAccessTokenFindUniqueMock.mockResolvedValue(
+        firstPartyToken({ scopes: ["openid"] }),
+      );
+
+      const response = await requestWithToken();
+
+      expect(response.status).toBe(401);
+    });
+
+    it("returns 401 when the user is banned", async () => {
+      oauthAccessTokenFindUniqueMock.mockResolvedValue(
+        firstPartyToken({
+          user: { role: "user", banned: true, banExpires: null },
+        }),
+      );
+
+      const response = await requestWithToken();
+
+      expect(response.status).toBe(401);
+    });
   });
 
   it("returns 401 when bearer token is invalid", async () => {

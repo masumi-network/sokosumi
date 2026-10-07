@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import { Loader2, MegaphoneOff, X } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 import {
@@ -20,10 +21,6 @@ import {
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
 import { Button } from "@/components/ui/button";
-import type {
-  ChatRoomMessage,
-  ChatRoomThread,
-} from "@/lib/clients/generated/core";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
 export interface ThreadListPanelLabels {
@@ -274,17 +271,17 @@ export function ThreadListPanel({
               onClick={() => {
                 void handleMarkAllRead();
               }}
-              disabled={isMarkingAllRead}
+              loading={isMarkingAllRead}
               data-testid="thread-list-mark-all-read"
             >
-              {isMarkingAllRead ? labels.loading : labels.markAllRead}
+              {labels.markAllRead}
             </Button>
           ) : null}
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-10 md:size-8 rounded-full"
             aria-label={labels.close}
             title={labels.close}
             onClick={onClose}
@@ -349,7 +346,6 @@ export function ThreadListPanel({
             }}
             labels={{
               load: labels.loadOlder,
-              loading: labels.loading,
               error: labels.error,
               retry: labels.loadOlder,
             }}

@@ -63,7 +63,9 @@ export function mountSokoBotEventRoutes(app: OpenAPIHonoWithAuth): void {
     const pagedEvents = events.slice(0, take);
     return ok(
       c,
-      z.array(taskEventSchema).parse(pagedEvents.map(mapTaskEvent)),
+      z
+        .array(taskEventSchema)
+        .parse(pagedEvents.map((event) => mapTaskEvent(event))),
       createPaginationMeta(pagedEvents, count, take, hasMore, cursor),
     );
   });

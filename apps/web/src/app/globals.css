@@ -17,6 +17,12 @@
      own follows this. */
   --default-transition-duration: 310ms;
 
+  /* The one step below Tailwind's `text-xs`, for dense meta and badges only.
+     rem, so it follows the root size with Dynamic Type like the rest of the
+     scale. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1rem;
+
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -144,6 +150,10 @@
      the theme: 3.90:1 in dark. Alias the themed tokens instead. */
   --color-agent-verified-background: var(--semantic-success-quinary);
   --color-agent-verified-foreground: var(--semantic-success);
+  /* Link/hashtag colors inside native-looking social post previews. */
+  --color-social-x-link: var(--social-x-link);
+  --color-social-linkedin-link: var(--social-linkedin-link);
+  --color-social-instagram-link: var(--social-instagram-link);
 
   --animate-reasoning-text-shine: reasoning-text-shine 2.5s ease-in-out infinite;
   /* Beautiful UI shimmer — register like reasoning-text-shine so Tailwind emits it. */
@@ -151,6 +161,32 @@
   /* Classic outbound pending: slow dual-arc ring in the timestamp slot. */
   --animate-outbound-pending-spin: outbound-pending-spin 1.4s linear infinite;
   --animate-auth-logo-marquee: auth-logo-marquee 40s linear infinite;
+  /* The drawn caret in an InputOTP slot. */
+  --animate-caret-blink: caret-blink 1.25s ease-out infinite;
+  /* A loading Button's bar: sweeps out past one edge, then back out past the other. */
+  --animate-button-loading-sweep: button-loading-sweep 1.1s ease-in-out infinite
+    alternate;
+
+  @keyframes button-loading-sweep {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+
+  @keyframes caret-blink {
+    0%,
+    70%,
+    100% {
+      opacity: 1;
+    }
+    20%,
+    50% {
+      opacity: 0;
+    }
+  }
 
   @keyframes bui-shimmer-text {
     0% {
@@ -476,6 +512,9 @@
   --semantic-warning-foreground: hsla(25, 100%, 98%, 1);
 
   --semantic-success: hsla(142, 72%, 27%, 1);
+  --social-x-link: #1d9bf0;
+  --social-linkedin-link: #0a66c2;
+  --social-instagram-link: #00376b;
   --semantic-success-tertiary: hsla(142, 26.6%, 79.6%, 1);
   --semantic-success-quaternary: hsla(142, 100.0%, 90.0%, 1);
   --semantic-success-quinary: hsla(142, 26.6%, 93.4%, 1);
@@ -701,6 +740,9 @@
   --semantic-warning-foreground: hsla(0, 0%, 4%, 1);
 
   --semantic-success: hsla(142, 71%, 45%, 1);
+  --social-x-link: #1d9bf0;
+  --social-linkedin-link: #71b7fb;
+  --social-instagram-link: #e0f1ff;
   --semantic-success-tertiary: hsla(142, 62.6%, 20.4%, 1);
   --semantic-success-quaternary: hsla(142, 56.7%, 14.7%, 1);
   --semantic-success-quinary: hsla(142, 45.9%, 9.7%, 1);
@@ -739,6 +781,22 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+
+  /*
+   * Wrap once, here, instead of per element. A heading balances its lines so a
+   * title never strands one word; a paragraph avoids a lone last word.
+   * `truncate`, `line-clamp-*` and `text-wrap` utilities still win: they sit in
+   * the later utilities layer.
+   */
+  h1,
+  h2,
+  h3,
+  h4 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
   }
 
   /*
@@ -919,6 +977,32 @@ body[data-agent-fullbleed="true"] main[data-app-main] [data-app-main-inner] {
   @media (prefers-reduced-motion: no-preference) {
     &:active:not(:disabled, [aria-disabled="true"]) {
       transform: scale(0.995);
+    }
+  }
+}
+
+/* Tap target for an icon control whose painted box stays small (dense toolbars,
+   chips, inline dismiss). A transparent ::after centered on the control grows
+   what a finger can hit to 40px below md and 32px from md up; a control that
+   is already that big keeps its own box. DESIGN.md → Accessibility → Touch
+   targets has the rule and the spacing it needs from its neighbours.
+
+   It sets `position: relative`. `absolute` or `fixed` on the same element
+   still wins: Tailwind emits single-property utilities after this one. A
+   scroll container (`overflow-*-auto`) clips the ::after, so give the
+   container room (`-m-1.5 p-1.5`) or grow the control instead. */
+@utility hit-area {
+  position: relative;
+
+  &::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - --spacing(10)) / 2));
+  }
+
+  @variant md {
+    &::after {
+      inset: min(0px, calc((100% - --spacing(8)) / 2));
     }
   }
 }

@@ -1,15 +1,14 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
-
 import { CopyableValue } from "@/components/copyable-value";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { getEnvPublicConfig } from "@/config/env.public";
-import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 import { buildJobTransactionUrl } from "@/lib/utils/url";

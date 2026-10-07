@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import type { CreditTopUpPricing, Organization } from "@sokosumi/core-client";
 import {
   getCreditTopUpTotalMinorUnits,
   isPositiveIntegerCredits,
   selectCreditTopUpTier,
 } from "@sokosumi/utils";
-import { Building2, Loader2 } from "lucide-react";
+import { Building2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect } from "react";
@@ -34,10 +35,6 @@ import { Input } from "@/components/ui/input";
 import { purchaseCredits } from "@/lib/actions/credits/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { CreditsErrorCode } from "@/lib/actions/errors/error-codes/credits";
-import type {
-  CreditTopUpPricing,
-  Organization,
-} from "@/lib/clients/generated/core";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { cn } from "@/lib/utils";
 
@@ -404,11 +401,9 @@ export default function CreditsForm({
             >
               <Button
                 type="submit"
-                disabled={isSubmitting || !hasValidCreditsValue}
+                disabled={!hasValidCreditsValue}
+                loading={isSubmitting}
               >
-                {isSubmitting && (
-                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                )}
                 {organization ? t("topUpButtonOrganization") : t("topUpButton")}
               </Button>
               {!isQuickAmountSelected &&

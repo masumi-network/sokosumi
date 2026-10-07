@@ -32,8 +32,9 @@ final class OrgPresenceChannel: @unchecked Sendable {
   init(realtime: ARTRealtime, onEvent: @escaping RealtimeEventHandler) {
     self.realtime = realtime
     self.onEvent = onEvent
-    connectionListener = realtime.connection.on { [weak self] change in
-      guard change.current == .connected else { return }
+    // Token renewal emits `update` while still connected. Only a real reconnect
+    // starts another authorization; reacting to our own renewal would mint forever.
+    connectionListener = realtime.connection.on(.connected) { [weak self] _ in
       self?.queue.async { [weak self] in
         guard let self, active, scope.organizationId != nil else { return }
         synchronize()

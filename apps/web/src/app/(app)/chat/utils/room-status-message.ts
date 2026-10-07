@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 
 /**
  * A row the room writes about itself (joined/left, Group name changes), not a

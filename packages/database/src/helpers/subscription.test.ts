@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it, vi } from "vitest";
 import { type Prisma as PrismaType } from "../generated/prisma/client.js";
 import {
-  buildLocalFreeOrganizationMemberSubscriptionReferenceId,
   buildLocalFreeOrganizationSubscriptionReferenceId,
   buildLocalFreeUserSubscriptionReferenceId,
   ensureInitialLocalFreeSubscriptionPeriod,
@@ -128,17 +127,6 @@ describe("local free subscription references", () => {
         new Date("2026-05-01T00:00:00.000Z"),
       ),
       "user:user-1:local-free:2026-05-01T00:00:00.000Z:subscription",
-    );
-  });
-
-  it("builds organization member reference ids with organization context", () => {
-    assert.equal(
-      buildLocalFreeOrganizationMemberSubscriptionReferenceId(
-        "user-1",
-        "org-1",
-        new Date("2026-05-01T00:00:00.000Z"),
-      ),
-      "member:user-1:local-free:org-1:2026-05-01T00:00:00.000Z",
     );
   });
 });
@@ -711,6 +699,76 @@ describe("transitionToNextLocalFreeSubscriptionPeriod", () => {
       createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create.activatesAt?.toISOString(),
       "2026-04-15T00:00:00.000Z",
     );
+    vi.useRealTimers();
+  });
+
+  it("starts the free period at endedAt when the paid subscription ends early", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T12:00:00.000Z"));
+    const { createSubscriptionMock, createTransactionMock, tx } =
+      createTransitionClient({
+        organization: null,
+        user: { id: "user-1" },
+      });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: new Date("2026-04-09T11:59:00.000Z"),
+          createdAt: new Date("2026-03-20T10:00:00.000Z"),
+          endedAt: new Date("2026-04-09T11:59:00.000Z"),
+          id: "subscription-source",
+          periodEnd: new Date("2026-04-20T10:00:00.000Z"),
+          referenceId: "user-1",
+          seats: null,
+          stripeCustomerId: "cus_1",
+          stripeSubscriptionId: "sub_stripe_source",
+        },
+      },
+      tx,
+    );
+
+    const created = createSubscriptionMock.mock.calls[0][0].data;
+    assert.equal(created.periodStart.toISOString(), "2026-04-09T11:59:00.000Z");
+    assert.equal(created.periodEnd.toISOString(), "2026-04-20T10:00:00.000Z");
+    assert.equal(
+      createTransactionMock.mock.calls[0]?.[0].data.sourceCreditBucket.create
+        .activatesAt,
+      null,
+    );
+    vi.useRealTimers();
+  });
+
+  it("starts the free period at periodEnd when the subscription ended after it", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-09T00:00:00.000Z"));
+    const { createSubscriptionMock, tx } = createTransitionClient({
+      organization: null,
+      user: { id: "user-1" },
+    });
+
+    await transitionToNextLocalFreeSubscriptionPeriod(
+      {
+        setCanceledAt: true,
+        subscription: {
+          canceledAt: null,
+          createdAt: new Date("2026-01-30T10:00:00.000Z"),
+          endedAt: new Date("2026-03-05T10:00:00.000Z"),
+          id: "subscription-source",
+          periodEnd: new Date("2026-02-28T10:00:00.000Z"),
+          referenceId: "user-1",
+          seats: null,
+          stripeCustomerId: "cus_1",
+          stripeSubscriptionId: "sub_stripe_source",
+        },
+      },
+      tx,
+    );
+
+    const created = createSubscriptionMock.mock.calls[0][0].data;
+    assert.equal(created.periodStart.toISOString(), "2026-02-28T10:00:00.000Z");
+    assert.equal(created.periodEnd.toISOString(), "2026-03-30T10:00:00.000Z");
     vi.useRealTimers();
   });
 

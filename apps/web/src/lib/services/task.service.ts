@@ -1,10 +1,8 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   CreateTaskContext,
   GetWorkspacesCalendarData,
-  JobSummary,
   Task,
   TaskActivitySummary,
   TaskEvent,
@@ -12,13 +10,14 @@ import type {
   TaskLink,
   TaskLinkDeleted,
   TaskParticipant,
+  TaskPriority,
   TaskWorkspace,
   UserWritableTaskLinkRelation,
   WorkspaceCalendarEntry,
   WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { AgentJobStatus } from "@/lib/types/core-dto";
+} from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
 interface ListTasksParams {
   status?: TaskStatus | TaskStatus[];
@@ -34,15 +33,6 @@ interface ListTasksParams {
   sort?: "createdAt";
   /** Only the Tasks this Task Schedule created. */
   scheduleId?: string;
-}
-
-interface ListJobsParams {
-  scope?: "workspace" | "owned";
-  agentId?: string;
-  projectId?: string;
-  status?: AgentJobStatus;
-  cursor?: string | null;
-  limit?: number;
 }
 
 interface CreateTaskInput {
@@ -70,6 +60,7 @@ interface PatchTaskInput {
   context?: CreateTaskContext;
   /** A future time queues the Task; null clears a saved Run at. */
   runAt?: Date | null;
+  priority?: TaskPriority;
 }
 
 interface CreateTaskEventInput {
@@ -182,30 +173,6 @@ export const taskService = (() => {
   > {
     const result = await coreClient.getWorkspaceCalendarSources();
     return result.data;
-  }
-
-  async function listJobs(params: ListJobsParams = {}): Promise<{
-    jobs: JobSummary[];
-    pagination: {
-      cursor: string | null;
-      limit: number;
-      total: number;
-      nextCursor: string | null;
-    } | null;
-  }> {
-    const result = await coreClient.getJobs({
-      scope: params.scope,
-      agentId: params.agentId,
-      projectId: params.projectId,
-      status: params.status,
-      cursor: params.cursor ?? undefined,
-      limit: params.limit,
-    });
-
-    return {
-      jobs: result.data,
-      pagination: result.meta?.pagination ?? null,
-    };
   }
 
   async function getTaskById(taskId: string): Promise<Task | null> {
@@ -495,7 +462,6 @@ export const taskService = (() => {
     getActivitySummary,
     getWorkspaceCalendar,
     getWorkspaceCalendarSources,
-    listJobs,
     listTasks,
     getTaskById,
     getTaskWorkspace,

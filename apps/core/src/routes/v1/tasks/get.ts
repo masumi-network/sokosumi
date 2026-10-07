@@ -44,6 +44,7 @@ import {
   requireUserContext,
 } from "@/middleware/auth";
 import { requireWorkspaceContext } from "@/middleware/workspace";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
 import { cursorPaginationQuerySchema } from "@/schemas/pagination.schema";
 import { taskListSchema } from "@/schemas/task.schema";
 import { taskListInclude } from "@/types/task";
@@ -52,7 +53,7 @@ const taskStatusQuerySchema = z
   .preprocess(
     preprocessMultiValueQueryInput,
     z
-      .array(z.enum(TaskStatus))
+      .array(taskStatusSchema)
       .min(1)
       .optional()
       .transform(deduplicateQueryValues),
@@ -96,12 +97,12 @@ const projectIdQuerySchema = z
   });
 
 const taskSortQuerySchema = z
-  .enum(["createdAt"])
+  .enum(["createdAt", "updatedAt", "priority"])
   .optional()
   .openapi({
     param: { name: "sort", in: "query" },
     description:
-      "createdAt: newest created first. Omitted: most recently updated first.",
+      "createdAt (default): newest created first, which is the date each Task renders. updatedAt: most recently touched first — this is a row-touch column, so a bulk write moves rows and makes cursor pagination unstable. priority: urgent first, none last, then most recently updated.",
     example: "createdAt",
   });
 
@@ -336,10 +337,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     }
 
     const takePlusOne = take + 1;
+    // Default to the field the Task cards display. "updatedAt" is Prisma's
+    // @updatedAt row touch, so ordering by it floats every row a bulk write
+    // touches to the top while the card still shows its real creation date,
+    // and it makes cursor pagination unstable: a row updated mid-paging moves
+    // between pages, so "Load more" can duplicate or skip rows.
     const orderBy =
-      sort === "createdAt"
-        ? ([{ createdAt: "desc" as const }, { id: "desc" as const }] as const)
-        : ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const);
+      sort === "updatedAt"
+        ? ([{ updatedAt: "desc" as const }, { id: "desc" as const }] as const)
+        : sort === "priority"
+          ? ([
+              { priority: "asc" as const },
+              { updatedAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const)
+          : ([
+              { createdAt: "desc" as const },
+              { id: "desc" as const },
+            ] as const);
     // A list view does not need list/count snapshot consistency, so run these
     // as independent queries. The list include uses relation counts instead of
     // loading each task's full event and job graphs.

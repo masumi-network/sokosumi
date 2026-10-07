@@ -1,8 +1,12 @@
 "use client";
 
+import type {
+  ChatEarlierThread,
+  ChatRoom,
+  ChatUnreadThread,
+} from "@sokosumi/core-client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
 import { roomMentionNames } from "@/app/chat/utils/room-mention-names";
 import { formatUnreadThreadsPreview } from "@/app/chat/utils/unread-threads-preview";
@@ -10,11 +14,6 @@ import {
   ThreadListRowContent,
   threadListRowClassName,
 } from "@/components/chat/thread-list-row";
-import type {
-  ChatEarlierThread,
-  ChatRoom,
-  ChatUnreadThread,
-} from "@/lib/clients/generated/core";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import { chatRoomMessageHref } from "@/lib/utils/notification-href";
 

@@ -1,7 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
+import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
 import { deliverCalendarInvalidationsNow } from "@/helpers/calendar-invalidation";
+import { conflict } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { isProjectIdentifierUniqueConstraintError } from "@/helpers/prisma";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
 import {
@@ -25,7 +28,7 @@ const route = withOrganizationSlugHeaderParameter(
     method: "post",
     path: "/",
     description:
-      "Create a project with an optional website and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.",
+      "Create a project with an optional identifier, website, and briefing in the active workspace. The deprecated description field is accepted as a briefing alias. Interactive session user only; coworker keys are rejected.",
     tags: ["Projects"],
     request: {
       body: {
@@ -40,6 +43,7 @@ const route = withOrganizationSlugHeaderParameter(
       201: jsonSuccessResponse(projectSchema, "Project created"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Project identifier already in use"),
     },
   }),
 );
@@ -52,15 +56,24 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const briefing = body.briefing?.trim() || null;
     const filesToken = briefing ? generateProjectFilesToken() : null;
 
-    let project = await prisma.project.create({
-      data: {
-        workspaceId: workspaceContext.workspaceId,
-        name: body.name,
-        filesToken,
-        briefing,
-        websiteUrl: body.websiteUrl ?? null,
-      },
-    });
+    let project = await prisma.project
+      .create({
+        data: {
+          workspaceId: workspaceContext.workspaceId,
+          name: body.name,
+          identifier: body.identifier,
+          filesToken,
+          briefing,
+          websiteUrl: body.websiteUrl ?? null,
+        },
+      })
+      .catch((error: unknown) => {
+        throw isProjectIdentifierUniqueConstraintError(error)
+          ? conflict("Project identifier already in use in this workspace", {
+              kind: CORE_API_ERROR_KINDS.PROJECT_IDENTIFIER_TAKEN,
+            })
+          : error;
+      });
     await deliverCalendarInvalidationsNow(workspaceContext.workspaceId);
 
     if (briefing && filesToken) {

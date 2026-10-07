@@ -1,10 +1,10 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   getToneStyle,
   MARKER_ICONS,
   StatusMarker,
   type StatusMarkerSpec,
 } from "@/components/ui/status-marker";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
 

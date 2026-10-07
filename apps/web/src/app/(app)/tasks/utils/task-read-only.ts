@@ -1,4 +1,4 @@
-import { TaskStatus } from "@/lib/clients/generated/core";
+import { TaskStatus } from "@sokosumi/core-client";
 
 interface ReadOnlyForViewerParams {
   /**

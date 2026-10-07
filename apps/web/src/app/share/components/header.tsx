@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { APP_HEADER_SAFE_AREA_PADDING_CLASS } from "@/app/components/app-shell-safe-area";
-import { SignUpButton } from "@/auth/components/buttons";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
@@ -10,6 +11,7 @@ interface HeaderProps {
 }
 
 export default function Header({ className }: HeaderProps) {
+  const t = useTranslations("Auth.Words");
   return (
     <header
       className={cn(
@@ -35,7 +37,9 @@ export default function Header({ className }: HeaderProps) {
         </div>
 
         <div>
-          <SignUpButton />
+          <Button asChild variant="primary">
+            <Link href="/signup">{t("signUp")}</Link>
+          </Button>
         </div>
       </div>
     </header>

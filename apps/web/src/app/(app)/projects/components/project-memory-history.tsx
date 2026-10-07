@@ -4,6 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
 import Markdown from "@/components/markdown";
 import { cn } from "@/lib/utils";
 
@@ -107,7 +108,12 @@ function HistoryEntry({ version }: { version: ProjectMemoryVersion }) {
             {t("modelLine", { model: version.modelLabel })}
           </p>
           {version.content ? (
-            <Markdown className="text-foreground">{version.content}</Markdown>
+            <Markdown
+              className="text-foreground"
+              components={SECTION_MARKDOWN_HEADINGS}
+            >
+              {version.content}
+            </Markdown>
           ) : (
             <p className="text-muted-foreground text-sm">
               {t("history.contentUnavailable")}

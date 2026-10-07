@@ -1,8 +1,7 @@
+import type { AdminSokoBotDetail } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { shortId } from "@/components/soko-bot/format";
 import { Panel } from "@/components/soko-bot/panel";
-import type { AdminSokoBotDetail } from "@/lib/clients/generated/core";
 import { formatBytes } from "@/lib/utils/format-bytes";
 
 interface AdminMemoryPanelProps {

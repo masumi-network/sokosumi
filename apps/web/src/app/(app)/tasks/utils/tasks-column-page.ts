@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Coworker } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import type {
   KanbanColumnId,
   TaskWithCoworker,
@@ -11,8 +13,6 @@ import type {
   TasksScope,
   TasksVisibilityFilter,
 } from "@/app/tasks/utils/tasks-filters";
-import type { Coworker } from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 
 type ColumnCursor = string | null;

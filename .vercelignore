@@ -1,12 +1,14 @@
-# Only affects CLI uploads (`vercel deploy` from this root). Web and core
-# production deploys go through scripts/ci/vercel-deploy.mjs, which sends a
-# gitSource ref rather than files.
+# Filters CLI uploads (`vercel deploy` from this root). Vercel also applies it
+# to Git deployments: it deletes every match right after the clone, before the
+# Ignored Build Step.
+#
+# Do not list `.git`. scripts/ci/vercel-ignore.mjs needs the clone's history
+# for `turbo query affected`, and the CLI never uploads `.git` anyway.
 #
 # Everything below is regenerated on Vercel by `pnpm install` and the build, so
 # none of it should ever be uploaded.
 
 node_modules
-.git
 .pnpm-store
 
 # Framework and build output

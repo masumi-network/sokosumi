@@ -1,11 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
-import { publishChatRoomMembershipStatusMessagesBestEffort } from "@/helpers/chat-room-message-realtime";
 import { badRequest, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
-import { publishChatMembershipRevoked } from "@/lib/ably/publish";
-import prisma from "@/lib/db/prisma";
+import { serializableTransaction } from "@/lib/db/transaction";
 import {
   type OpenAPIHonoWithAuth,
   withOrganizationSlugHeaderParameter,
@@ -14,9 +13,11 @@ import { requireUserAuthContext } from "@/middleware/auth";
 import { leftChatRoomSchema } from "@/schemas/chat-room.schema";
 
 import {
-  membershipAccessForUser,
-  requireChatRoomUserAccess,
-} from "../../../helpers";
+  publishChannelMembershipEffects,
+  removeOwnedSokoBotsFromChannel,
+  requireChannelRosterAccess,
+} from "../../../channel-membership";
+import { isOrganizationOwnerOrAdmin } from "../../../helpers";
 import { recordChannelMembershipStatus } from "../../../membership-status";
 
 const paramsSchema = z.object({
@@ -41,16 +42,17 @@ const route = withOrganizationSlugHeaderParameter(
     method: "delete",
     path: "/{id}/members/{userId}",
     description:
-      "Remove a guest from an external channel. Caller must be a host-org room member (`access=member`). Only targets with `access=guest` may be removed this way; host members leave via `DELETE .../members/me`.",
+      "Remove someone else from a Channel. Any host member (`access=member`) may remove a Guest; only an organization owner or admin may remove a host member. Their own Soko Bots leave the Channel with them. To leave yourself, use `DELETE .../members/me`. Matched channels are managed by Sokosumi.",
     tags: ["Chat Rooms"],
     request: {
       params: paramsSchema,
     },
     responses: {
-      200: jsonSuccessResponse(leftChatRoomSchema, "Guest removed"),
+      200: jsonSuccessResponse(leftChatRoomSchema, "Member removed"),
       400: jsonErrorResponse("Invalid request"),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      409: jsonErrorResponse("Concurrent membership change"),
       404: jsonErrorResponse("Room not found"),
       500: jsonErrorResponse("Internal Server Error"),
     },
@@ -66,109 +68,78 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Use DELETE .../members/me to leave a room yourself.");
     }
 
-    const { result, statusMessages } = await prisma.$transaction(async (tx) => {
-      const room = await requireChatRoomUserAccess(
-        roomId,
-        userContext.userId,
-        tx,
-      );
+    const { result, statusMessages, mentionMessageIds } =
+      await serializableTransaction(async (tx) => {
+        const { room, organizationId, actor } =
+          await requireChannelRosterAccess(tx, roomId, userContext.userId);
 
-      if (room.kind === "direct") {
-        throw badRequest("Cannot remove members from a direct room.");
-      }
-
-      const callerAccess = membershipAccessForUser(
-        room.userMembers,
-        userContext.userId,
-      );
-      if (callerAccess === "guest") {
-        throw forbidden("Guests cannot remove room members.");
-      }
-
-      const targetMembership = await tx.chatRoomUserMember.findUnique({
-        where: {
-          roomId_userId: {
-            roomId: room.id,
-            userId: targetUserId,
-          },
-        },
-        select: {
-          access: true,
-          user: { select: { id: true, name: true } },
-        },
-      });
-
-      if (!targetMembership) {
-        throw notFound("Room member not found");
-      }
-
-      if (targetMembership.access !== "guest") {
-        throw badRequest(
-          "Only guest members can be removed this way. Host members must leave themselves.",
+        const target = room.userMembers.find(
+          (member) => member.userId === targetUserId,
         );
-      }
+        if (!target) {
+          throw notFound("Room member not found");
+        }
 
-      const targetName =
-        targetMembership.user.name?.trim() || targetMembership.user.id;
+        if (target.access !== "guest") {
+          const { role } = await resolveMemberOrganizationById({
+            id: organizationId,
+            userId: userContext.userId,
+            tx,
+          });
+          if (!isOrganizationOwnerOrAdmin(role)) {
+            throw forbidden(
+              "Only an organization owner or admin can remove a member.",
+            );
+          }
+        }
 
-      const createdStatus = await recordChannelMembershipStatus(tx, {
-        roomId: room.id,
-        roomKind: room.kind,
-        changes: [
-          {
-            action: "left",
-            subject: {
-              type: "user",
-              id: targetUserId,
-              name: targetName,
+        await tx.chatRoomUserMember.deleteMany({
+          where: { roomId: room.id, userId: targetUserId },
+        });
+        await tx.chatRoomReadState.deleteMany({
+          where: { roomId: room.id, userId: targetUserId },
+        });
+        const bots = await removeOwnedSokoBotsFromChannel(
+          tx,
+          room,
+          targetUserId,
+          actor,
+        );
+
+        const statusMessages = await recordChannelMembershipStatus(tx, {
+          roomId: room.id,
+          roomKind: room.kind,
+          changes: [
+            {
+              action: "left",
+              subject: {
+                type: "user",
+                id: targetUserId,
+                name: target.user.name.trim() || targetUserId,
+              },
+              actor,
             },
-          },
-        ],
-      });
+            ...bots.changes,
+          ],
+        });
 
-      await tx.chatRoomUserMember.deleteMany({
-        where: { roomId: room.id, userId: targetUserId },
-      });
-      await tx.chatRoomReadState.deleteMany({
-        where: { roomId: room.id, userId: targetUserId },
-      });
+        const remainingUserMemberCount = await tx.chatRoomUserMember.count({
+          where: { roomId: room.id },
+        });
 
-      const remainingUserMemberCount = await tx.chatRoomUserMember.count({
-        where: { roomId: room.id },
-      });
+        return {
+          result: { id: room.id, remainingUserMemberCount },
+          statusMessages,
+          mentionMessageIds: bots.mentionMessageIds,
+        };
+      }, "Channel membership changed concurrently. Please try again.");
 
-      return {
-        result: { id: room.id, remainingUserMemberCount },
-        statusMessages: createdStatus,
-      };
+    await publishChannelMembershipEffects({
+      roomId: result.id,
+      statusMessages,
+      removedUserIds: [targetUserId],
+      mentionMessageIds,
     });
-
-    // Membership already committed. Status timeline and multi-tab revoke must
-    // not gate each other (or fail the remove after the row is gone).
-    const [statusResults, revokeResult] = await Promise.allSettled([
-      Promise.all(
-        statusMessages.map((message) =>
-          publishChatRoomMembershipStatusMessagesBestEffort([message]),
-        ),
-      ),
-      publishChatMembershipRevoked({
-        userId: targetUserId,
-        roomId: result.id,
-        reason: "removed",
-      }),
-    ]);
-    if (statusResults.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership status after guest remove",
-        statusResults.reason,
-      );
-    }
-    if (revokeResult.status === "rejected") {
-      console.error(
-        "Failed to publish chat membership revoke after guest remove",
-        revokeResult.reason,
-      );
-    }
 
     return ok(c, leftChatRoomSchema.parse(result));
   });

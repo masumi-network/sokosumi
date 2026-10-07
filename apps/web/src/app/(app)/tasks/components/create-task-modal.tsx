@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { loadCreateTaskModalData } from "@/app/tasks/actions";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
 import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import type { CoworkerOption } from "@/lib/types/coworker";
@@ -422,9 +423,9 @@ export function CreateTaskModal({
           onCreated={() => {
             router.refresh();
           }}
-          onSuccess={(taskId) => {
+          onSuccess={(task) => {
             handleClose();
-            router.push(`/tasks/${taskId}`);
+            router.push(taskHref(task));
           }}
           onCreateAnother={() => {
             clearPromptOverride();

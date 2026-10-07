@@ -18,6 +18,7 @@ import SwiftUI
     let jump: (String) async throws -> MessageNavigationResult
     @EnvironmentObject private var workspaces: WorkspaceState
     @EnvironmentObject private var auth: AuthState
+    @Environment(RoomEditSheets.self) private var roomEditSheets: RoomEditSheets?
     @StateObject private var search = RoomSearch()
     @State private var destination: RoomToolsInspectorDestination?
     @State private var query = ""
@@ -43,9 +44,18 @@ import SwiftUI
       return scope + [searching ? query : "", String(retry), String(searching)]
     }
 
+    /// The title bar's room name (row 31c): its mark, name and topic, and what clicking the name opens. The role is
+    /// the workspace's (`isOrganizationOwnerOrAdmin`), false until it is read, so the name opens Members until then.
+    private var header: RoomHeaderIdentity? {
+      room.map {
+        RoomHeaderIdentity(room: $0, currentUserId: workspaces.currentUserId, isOwnerOrAdmin: workspaces.isOrganizationOwnerOrAdmin)
+      }
+    }
+
     func body(content: Content) -> some View {
       content
         .toolbar { roomToolbar }
+        .modifier(RoomHeaderModifier(identity: header, searching: destination == .search, open: openFromTitle))
         .inspector(isPresented: inspectorPresented) {
           inspectorContent
             .inspectorColumnWidth(min: 280, ideal: 340, max: 420)
@@ -199,6 +209,21 @@ import SwiftUI
       cancelJump()
       if destination == .search {
         destination = nil
+      }
+    }
+
+    /// Web's title opens the members panel rather than toggling it, and the settings or rename dialog its shell owns.
+    private func openFromTitle(_ action: RoomHeaderIdentity.TitleAction) {
+      switch action {
+      case .members:
+        if destination == .search {
+          cancelJump()
+        }
+        destination = .members
+      case .channelSettings:
+        roomEditSheets?.editChannel = .init(id: workspaces.compositionContext, roomId: roomId)
+      case .nameGroup:
+        roomEditSheets?.nameGroup = .init(id: workspaces.compositionContext, roomId: roomId)
       }
     }
 

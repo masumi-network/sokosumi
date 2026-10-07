@@ -35,6 +35,13 @@ struct TimeFormatPreferenceTests {
     #expect(TimeFormatPreference.twelveHour.dateTime(evening, locale: Locale(identifier: "de_DE"), timeZone: utc).contains("9:13"))
   }
 
+  /// Row 41: web's Edited tooltip names the change ("Edited {when}"), not the bare timestamp.
+  @Test func editedTooltipSaysEditedBeforeTheTime() {
+    let locale = Locale(identifier: "en_US")
+    #expect(TimeFormatPreference.twentyFourHour.edited(evening, locale: locale, timeZone: utc) == "Edited Sep 21, 2026 at 21:13")
+    #expect(TimeFormatPreference.twelveHour.edited(evening, locale: locale, timeZone: utc) == "Edited Sep 21, 2026 at 9:13\u{202F}PM")
+  }
+
   @Test func autoTitleNamesWhatItResolvesTo() {
     #expect(TimeFormatPreference.detected(locale: Locale(identifier: "en_US")) == .twelveHour)
     #expect(TimeFormatPreference.detected(locale: Locale(identifier: "de_DE")) == .twentyFourHour)

@@ -77,6 +77,26 @@ describe("linkifyBareDomainsInMarkdown", () => {
     expect(linkifyBareDomainsInMarkdown(input)).toBe(input);
   });
 
+  it("does not linkify a domain-like email local part", () => {
+    const input = "theshivangigupta.in@gmail.com";
+    expect(linkifyBareDomainsInMarkdown(input)).toBe(input);
+    expect(linkifyBareDomainsInMarkdown(`mail ${input} please`)).toBe(
+      `mail ${input} please`,
+    );
+  });
+
+  it("does not linkify a domain-like local part with plus or underscore", () => {
+    for (const input of ["name.in+tag@gmail.com", "name.in_x@gmail.com"]) {
+      expect(linkifyBareDomainsInMarkdown(input)).toBe(input);
+    }
+  });
+
+  it("still linkifies a host whose path contains @", () => {
+    expect(linkifyBareDomainsInMarkdown("see medium.com/@user")).toBe(
+      "see [medium.com/@user](https://medium.com/@user)",
+    );
+  });
+
   it("does not linkify inside inline code", () => {
     const input = "use `google.com` in code";
     expect(linkifyBareDomainsInMarkdown(input)).toBe(input);

@@ -25,6 +25,13 @@ const {
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: getEnvMock }));
+const { taskCreditsChargedMock } = vi.hoisted(() => ({
+  taskCreditsChargedMock: vi.fn(async () => new Map<string, number>()),
+}));
+vi.mock("@/lib/soko-bot/task-charges", () => ({
+  taskCreditsCharged: taskCreditsChargedMock,
+  roundCredits: (credits: number) => Math.round(credits * 100) / 100,
+}));
 vi.mock("@/services/soko-bot-proactive.service", () => ({
   proactiveGate: proactiveGateMock,
 }));
@@ -130,7 +137,11 @@ describe("SokoBotEventsSyncService", () => {
     expect((await service.syncDelegatedWork(input)).scanned).toBe(1);
     expect(delegationFindManyMock).toHaveBeenLastCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ id: { gt: "d499" } }),
+        where: expect.objectContaining({
+          id: { gt: "d499" },
+          // A comment alone does not make the bot part of the Task.
+          action: { not: "reply_to_task" },
+        }),
       }),
     );
     expect(metadataUpdateMock).toHaveBeenLastCalledWith(
@@ -250,11 +261,15 @@ describe("SokoBotEventsSyncService", () => {
       taskDelegation("b", "DRAFT", "DRAFT"),
       taskDelegation("c", "READY", "FAILED"),
     ]);
+    taskCreditsChargedMock.mockResolvedValueOnce(new Map([["task_a", 190.6]]));
     const result = await new SokoBotEventsSyncService().syncDelegatedWork(
       input,
     );
 
     expect(result).toEqual({ scanned: 3, woken: 1, deferred: 0, failed: 0 });
+    expect(taskCreditsChargedMock).toHaveBeenCalledWith(
+      expect.arrayContaining(["task_a", "task_c"]),
+    );
     expect(startTurnMock).toHaveBeenCalledTimes(1);
     const call = startTurnMock.mock.calls[0]?.[0];
     expect(call).toMatchObject({
@@ -263,7 +278,7 @@ describe("SokoBotEventsSyncService", () => {
       source: "EVENT",
     });
     expect(call.message).toContain(
-      'Task "Task a" (id task_a) is now COMPLETED (was READY)',
+      'Task "Task a" (id task_a) is now COMPLETED (was READY). Charged 190.6 credits.',
     );
     expect(call.message).toContain("is now FAILED");
     expect(call.eventBatch).toEqual(
@@ -361,6 +376,25 @@ describe("SokoBotEventsSyncService", () => {
       ),
     ).toBe(true);
   });
+  it("tells the bot what a finished Task charged, so it can compare with the approval", () => {
+    const message = buildEventMessage([
+      {
+        delegationId: "d",
+        kind: "TASK",
+        entityId: "t1",
+        name: "Pricing research",
+        from: "READY",
+        to: "COMPLETED",
+        note: null,
+        creditsCharged: 421.31,
+      },
+    ]);
+    expect(message).toContain(
+      '- Task "Pricing research" (id t1) is now COMPLETED (was READY). Charged 421.31 credits.',
+    );
+    expect(message).toContain("say plainly if it went over");
+  });
+
   it("retains overflow beyond eight changes and queues only the selected occurrences", async () => {
     delegationFindManyMock.mockResolvedValue(
       Array.from({ length: 10 }, (_, i) =>

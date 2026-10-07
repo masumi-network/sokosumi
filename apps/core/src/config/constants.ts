@@ -1,11 +1,12 @@
-import {
-  DEFAULT_WEBHOOK_TIMEOUT_MS,
-  FILE_UPLOAD_MAX_SIZE_BYTES,
-} from "@sokosumi/utils";
+import { DEFAULT_WEBHOOK_TIMEOUT_MS } from "@sokosumi/net";
+import { FILE_UPLOAD_MAX_SIZE_BYTES } from "@sokosumi/utils";
 
 /**
  * Time durations in seconds
  */
+/** One day in milliseconds. */
+export const DAY_MS = 24 * 60 * 60 * 1_000;
+
 export const TIME = {
   /** Email verification link expiration (2 days) */
   EMAIL_VERIFICATION_EXPIRES: 2 * 24 * 60 * 60,
@@ -184,7 +185,7 @@ export const LIMITS = {
 /** User-Agent sent with outbound webhook requests from the Core API. */
 export const WEBHOOK_USER_AGENT = "Sokosumi-Core-API/1.0";
 
-/** Outbound webhook request timeout for Core API callers (from `@sokosumi/utils`). */
+/** Outbound webhook request timeout for Core API callers (from `@sokosumi/net`). */
 export const WEBHOOK_TIMEOUT_MS = DEFAULT_WEBHOOK_TIMEOUT_MS;
 
 /**

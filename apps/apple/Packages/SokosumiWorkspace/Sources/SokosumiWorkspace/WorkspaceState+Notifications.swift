@@ -12,22 +12,6 @@ enum ChatNotificationNavigationError: LocalizedError {
 }
 
 public extension WorkspaceState {
-  /// Re-read the account's delivery matrix so a change made on web arrives.
-  /// A failed read keeps the last known matrix and reports false.
-  @discardableResult
-  func refreshNotificationPreferences(auth: AuthState) async -> Bool {
-    guard let client = resolveClient(auth: auth) else { return false }
-    do {
-      try await notificationPreferences.refresh(client: client)
-      return true
-    } catch {
-      if let error = error as? ChatServiceError {
-        signOutIfUnauthorized(error, auth: auth)
-      }
-      return false
-    }
-  }
-
   func setNotificationPreset(_ preset: ChatNotificationPreset, auth: AuthState) async throws {
     try await setNotificationReach(notificationPreferences.changes(for: preset), auth: auth)
   }
@@ -37,7 +21,7 @@ public extension WorkspaceState {
   /// first, which is where web asks the browser.
   func setNotificationReach(_ changes: [ChatNotificationKind: ChatNotificationReach], auth: AuthState) async throws {
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to change notification preferences.")
+      throw ChatServiceError.unauthorized("Log in to change notification preferences.")
     }
     let presenter = notificationPresenter
     do {

@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
-  Static Info.plist (SOK-972). A generated Info.plist cannot carry
-  CFBundleURLTypes (INFOPLIST_KEY_ array values do not propagate), and the
-  system browser needs the com.sokosumi.app scheme registered to return the
-  OAuth callback (com.sokosumi.app:/auth) to this app. Standard keys use
-  build-setting expansion so version/identity stay in the project.
+  Static Info.plist (SOK-972): a generated Info.plist cannot carry the
+  custom Sokosumi* keys below. Standard keys use build-setting expansion so
+  version/identity stay in the project.
+
+  No CFBundleURLTypes: the OAuth callback is the HTTPS link
+  https://app.sokosumi.com/auth/apple/callback, claimed through the
+  Associated Domains entitlement. Registering a custom scheme again would
+  reopen the redirect any other app can claim.
 -->
 <plist version="1.0">
 <dict>
@@ -38,18 +41,5 @@
 	<string>https://api.sokosumi.com/v1</string>
 	<key>SokosumiWebBaseURL</key>
 	<string>https://app.sokosumi.com</string>
-	<key>CFBundleURLTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeRole</key>
-			<string>Editor</string>
-			<key>CFBundleURLName</key>
-			<string>com.sokosumi.app</string>
-			<key>CFBundleURLSchemes</key>
-			<array>
-				<string>com.sokosumi.app</string>
-			</array>
-		</dict>
-	</array>
 </dict>
 </plist>

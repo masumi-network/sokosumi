@@ -1,8 +1,7 @@
 "use client";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { useEffect, useRef } from "react";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /** Initial room history page. */
 export interface RoomMessagePage {

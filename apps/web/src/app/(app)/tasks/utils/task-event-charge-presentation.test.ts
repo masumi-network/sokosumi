@@ -116,6 +116,22 @@ describe("getTaskEventChargePresentation", () => {
         shouldShowSecondaryChargeLine: false,
       },
     },
+    {
+      name: "creation event reads as created the task",
+      event: {
+        comment: null,
+        status: "CREATED",
+        credits: null,
+        transactionId: null,
+      },
+      expected: {
+        hasComment: false,
+        hasCharge: false,
+        isAttemptedCharge: false,
+        actionKind: "createdTask",
+        shouldShowSecondaryChargeLine: false,
+      },
+    },
   ] as const)("$name", ({ event, expected }) => {
     expect(getTaskEventChargePresentation(event)).toEqual(expected);
   });

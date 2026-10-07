@@ -1,5 +1,7 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import {
   ExternalLink,
   HandCoins,
@@ -33,8 +35,6 @@ import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { requestRefundJob } from "@/lib/actions/job/action";
-import type { Job } from "@/lib/clients/generated/core";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /**
@@ -110,11 +110,13 @@ export function canRenderRefundRequest(job: Job): job is PaidJob {
 
 function ButtonBase({
   disabled,
+  loading,
   onClick,
   children,
   className,
 }: {
   disabled: boolean;
+  loading?: boolean;
   onClick?: () => void;
   children: React.ReactNode;
   className?: string;
@@ -123,6 +125,7 @@ function ButtonBase({
     <Button
       variant="ghost"
       disabled={disabled}
+      loading={loading}
       onClick={onClick}
       className={cn(
         "text-muted-foreground flex items-center justify-end gap-2 text-sm",
@@ -150,9 +153,9 @@ function RefundErrorButton({
       disabled={isLoading}
     >
       {isLoading ? (
-        <LoaderCircle className="h-3.5 w-3.5 animate-spin motion-reduce:animate-pulse" />
+        <LoaderCircle className="size-3.5 animate-spin motion-reduce:animate-pulse" />
       ) : (
-        <RefreshCw className="h-3.5 w-3.5" />
+        <RefreshCw className="size-3.5" />
       )}
       <span>{t("error")}</span>
     </button>
@@ -267,8 +270,8 @@ export default function RequestRefundButton({
         <Icon
           className={
             statusConfig.isAnimated
-              ? "h-4 w-4 animate-spin motion-reduce:animate-pulse"
-              : "h-4 w-4"
+              ? "size-4 animate-spin motion-reduce:animate-pulse"
+              : "size-4"
           }
         />
         {t(statusConfig.labelKey)}
@@ -344,14 +347,11 @@ export default function RequestRefundButton({
               <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <AlertDialogTrigger asChild>
                   <ButtonBase
-                    disabled={isLoading || !isRefundEnabled(job)}
+                    disabled={!isRefundEnabled(job)}
+                    loading={isLoading}
                     className={className}
                   >
-                    {isLoading ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-                    ) : (
-                      <HandCoins className="h-4 w-4" />
-                    )}
+                    <HandCoins className="size-4" />
                     {t("request")}
                   </ButtonBase>
                 </AlertDialogTrigger>
@@ -368,7 +368,7 @@ export default function RequestRefundButton({
                           className="text-primary flex items-center gap-1 hover:underline"
                         >
                           {t("learnMore")}
-                          <ExternalLink className="h-3 w-3" />
+                          <ExternalLink className="size-3" />
                         </a>
                       </span>
                     </AlertDialogDescription>

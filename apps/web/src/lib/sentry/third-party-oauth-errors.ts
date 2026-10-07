@@ -1,7 +1,5 @@
 import type { ErrorEvent } from "@sentry/nextjs";
 
-import { getSentryErrorEventMessage } from "@/lib/sentry/error-event-message";
-
 /**
  * Better Auth / FedCM rejections on iOS Chrome surface as minified unhandled
  * rejections with no stack (SOKOSUMI-PZ on `/auth/google` and `/agents`).
@@ -40,13 +38,4 @@ export function isMinifiedOAuthRejectionNoise(
         : "";
 
   return isOAuthNoiseTransaction(transaction);
-}
-
-export function isMinifiedOAuthRejectionNoiseMessage(
-  event: ErrorEvent,
-): boolean {
-  return isMinifiedOAuthRejectionNoise(
-    event,
-    getSentryErrorEventMessage(event),
-  );
 }

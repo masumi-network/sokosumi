@@ -1,7 +1,7 @@
 "use client";
 
+import type { PushDeviceBrowserDetails } from "@sokosumi/core-client";
 import type Ably from "ably";
-import type { PushDeviceBrowserDetails } from "@/lib/clients/generated/core/types.gen";
 import { updatePushDeviceBrowser } from "@/lib/services/push-devices.service";
 import { getOSFromUserAgent } from "@/lib/utils/user-agent";
 

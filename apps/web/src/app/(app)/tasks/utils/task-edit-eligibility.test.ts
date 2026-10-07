@@ -1,7 +1,6 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import { isTaskEditPageAllowed } from "@/app/tasks/utils/task-edit-eligibility";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("isTaskEditPageAllowed", () => {
   it("allows editable tasks", () => {

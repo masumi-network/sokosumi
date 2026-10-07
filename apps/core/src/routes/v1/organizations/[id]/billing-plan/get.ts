@@ -37,6 +37,7 @@ const route = createRoute({
           isConsumable: false,
           purchasedSeats: 3,
           cancelAtPeriodEnd: false,
+          cancelAt: null,
           periodEnd: "2026-03-01T00:00:00.000Z",
         },
         meta: {
@@ -81,6 +82,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             : false,
         purchasedSeats: billingPlan.purchasedSeats,
         cancelAtPeriodEnd: billingPlan.cancelAtPeriodEnd,
+        cancelAt: billingPlan.cancelAt,
         periodEnd: billingPlan.periodEnd,
       }),
     );

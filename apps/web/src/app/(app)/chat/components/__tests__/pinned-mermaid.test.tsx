@@ -1,8 +1,7 @@
+import type { ChatRoomPinnedMessageListItem } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-
 import { PinnedMessagesPanel } from "@/app/chat/components/pinned-messages-panel";
-import type { ChatRoomPinnedMessageListItem } from "@/lib/clients/generated/core";
 
 const { listPinnedMessages } = vi.hoisted(() => ({
   listPinnedMessages: vi.fn(),

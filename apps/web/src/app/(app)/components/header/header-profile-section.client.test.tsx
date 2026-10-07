@@ -1,9 +1,8 @@
+import type { UserWorkspace } from "@sokosumi/core-client";
 import type { SessionUser } from "@sokosumi/utils";
 import { act, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
 import HeaderProfileSectionClient from "@/app/components/header/header-profile-section.client";
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
 
 const useSessionMock = vi.fn();
 const headerWorkspaceSwitchMock = vi.fn();
@@ -37,46 +36,32 @@ const sessionUser: SessionUser = {
   marketingOptIn: false,
 };
 
-const members: MemberWithOrganization[] = [
+const workspaces: UserWorkspace[] = [
   {
-    id: "member-1",
+    id: "ws-a",
+    kind: "organization",
+    name: "Org A",
     organizationId: "org-a",
-    userId: "user-1",
-    role: "member",
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    seatAssignedAt: null,
-    organization: {
-      id: "org-a",
-      name: "Org A",
-      slug: "org-a",
-      logo: null,
-      metadata: null,
-      stripeCustomerId: null,
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    },
+    slug: "org-a",
+    logo: null,
+    websiteUrl: null,
+    preferred: false,
   },
   {
-    id: "member-2",
+    id: "ws-b",
+    kind: "organization",
+    name: "Org B",
     organizationId: "org-b",
-    userId: "user-1",
-    role: "member",
-    createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    seatAssignedAt: null,
-    organization: {
-      id: "org-b",
-      name: "Org B",
-      slug: "org-b",
-      logo: null,
-      metadata: null,
-      stripeCustomerId: null,
-      createdAt: new Date("2026-01-01T00:00:00.000Z"),
-    },
+    slug: "org-b",
+    logo: null,
+    websiteUrl: null,
+    preferred: false,
   },
 ];
 
 async function renderProfileSection(props: {
   sessionUser: SessionUser;
-  members: MemberWithOrganization[];
+  workspaces: UserWorkspace[];
   hasPersonalWorkspace?: boolean;
   activeOrganizationId: string | null;
 }) {
@@ -110,7 +95,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -132,7 +117,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-b",
     });
 
@@ -154,7 +139,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -173,7 +158,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -195,7 +180,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 
@@ -222,7 +207,7 @@ describe("HeaderProfileSectionClient", () => {
 
     await renderProfileSection({
       sessionUser,
-      members,
+      workspaces,
       activeOrganizationId: "org-a",
     });
 

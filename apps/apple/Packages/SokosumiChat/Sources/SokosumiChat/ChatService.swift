@@ -3,7 +3,7 @@ import Foundation
 import OpenAPIRuntime
 
 /// UI-free workspace + rooms + transcript + classic send.
-/// Only `ready` continues into chat. Personal omits `X-Organization-Slug`;
+/// Only a non-empty workspaces list continues into chat. Personal omits `X-Organization-Slug`;
 /// organizations send it. Unread chrome trusts Core; never zero it locally.
 public struct ChatService: Sendable {
   static let roomListLimit = 100
@@ -11,11 +11,9 @@ public struct ChatService: Sendable {
 
   public init() {}
 
-  /// `GET /users/me/workspace-access`.
-  private func fetchAccess(client: Client) async throws -> Components.Schemas.WorkspaceAccess {
-    let response = try await client.getUsersIdWorkspaceAccess(
-      .init(path: .init(id: "me"))
-    )
+  /// `GET /users/me/workspaces`.
+  private func fetchWorkspaces(client: Client) async throws -> Components.Schemas.UserWorkspaces {
+    let response = try await client.getUsersIdWorkspaces(.init(path: .init(id: "me")))
     switch response {
     case let .ok(okResponse):
       return try okResponse.body.json.data
@@ -32,45 +30,16 @@ public struct ChatService: Sendable {
     }
   }
 
-  /// `GET /users/me/organizations`.
-  func fetchOrganizations(client: Client) async throws -> [Components.Schemas.Organization] {
-    let response = try await client.getUsersIdOrganizations(
-      .init(path: .init(id: "me"))
-    )
-    switch response {
-    case let .ok(okResponse):
-      return try okResponse.body.json.data
-    case let .unauthorized(value):
-      throw try unauthorized(value.body.json.message)
-    case let .forbidden(forbidden):
-      throw try rejected(status: 403, message: forbidden.body.json.message)
-    case let .notFound(notFound):
-      throw try rejected(status: 404, message: notFound.body.json.message)
-    case let .internalServerError(serverError):
-      throw try rejected(status: 500, message: serverError.body.json.message)
-    case let .undocumented(statusCode, payload):
-      throw await unprocessableError(statusCode: statusCode, payload: payload)
-    }
-  }
-
-  /// `PUT /users/me/preferred-organization`. Nil id selects personal.
-  func setPreferredOrganization(
-    client: Client,
-    organizationId: String?
-  ) async throws {
-    let response = try await client.putUsersIdPreferredOrganization(
-      .init(
-        path: .init(id: "me"),
-        body: .json(.init(organizationId: organizationId))
-      )
+  /// `PUT /users/me/workspaces/preferred`: the workspace a new session opens.
+  func setPreferredWorkspace(client: Client, workspaceId: String) async throws {
+    let response = try await client.putUsersIdWorkspacesPreferred(
+      .init(path: .init(id: "me"), body: .json(.init(workspaceId: workspaceId)))
     )
     switch response {
     case .ok:
       return
     case let .unauthorized(value):
       throw try unauthorized(value.body.json.message)
-    case let .badRequest(badRequest):
-      throw try rejected(status: 400, message: badRequest.body.json.message)
     case let .forbidden(forbidden):
       throw try rejected(status: 403, message: forbidden.body.json.message)
     case let .notFound(notFound):
@@ -106,34 +75,17 @@ public struct ChatService: Sendable {
 
   /// Restores the server-selected workspace without writing a preference.
   func loadInitialState(client: Client) async throws -> InitialWorkspaceState {
-    let access = try await fetchAccess(client: client)
-    guard access.gate == .ready else { throw ChatServiceError.blocked(access.gate) }
-    let organizations = try await fetchOrganizations(client: client)
+    let workspaces = try await fetchWorkspaces(client: client)
+    if let gate = WorkspaceGate(workspaces) {
+      throw ChatServiceError.blocked(gate)
+    }
     let user = try await fetchCurrentUser(client: client)
-    let organizationId = try await fetchPreferredOrganization(client: client)
-    let selection: WorkspaceSelection
-    if let organizationId, let organization = organizations.first(where: { $0.id == organizationId }) {
-      selection = .organization(id: organization.id, slug: organization.slug)
-    } else if organizationId == nil, access.hasPersonalWorkspace {
-      selection = .personal
-    } else {
-      // Membership may change between the reads. Retry the whole gate instead
-      // of inventing a personal workspace or reusing an inaccessible selection.
+    let options = workspaces.workspaces.compactMap(WorkspaceSession.Option.init)
+    let preferred = workspaces.workspaces.first(where: \.preferred).flatMap(WorkspaceSession.Option.init)
+    guard let selection = preferred ?? options.first else {
       throw ChatServiceError.unexpectedResponse("Workspace access changed. Try again.")
     }
-    return .init(access: access, organizations: organizations, currentUser: user, defaultSelection: selection)
-  }
-
-  private func fetchPreferredOrganization(client: Client) async throws -> String? {
-    let response = try await client.getUsersIdPreferredOrganization(.init(path: .init(id: "me")))
-    switch response {
-    case let .ok(value): return try value.body.json.data.organizationId
-    case let .unauthorized(value): throw try unauthorized(value.body.json.message)
-    case let .forbidden(value): throw try rejected(status: 403, message: value.body.json.message)
-    case let .notFound(value): throw try rejected(status: 404, message: value.body.json.message)
-    case let .internalServerError(value): throw try rejected(status: 500, message: value.body.json.message)
-    case let .undocumented(code, payload): throw await unprocessableError(statusCode: code, payload: payload)
-    }
+    return .init(options: options, currentUser: user, defaultSelection: selection)
   }
 
   /// Explicit user switch only: persist the preference, then reload rooms
@@ -141,19 +93,19 @@ public struct ChatService: Sendable {
   /// `previous` so Core does not keep a preference the UI never committed.
   func switchWorkspace(
     client: Client,
-    selection: WorkspaceSelection,
-    previous: WorkspaceSelection? = nil
+    to option: WorkspaceSession.Option,
+    previous: WorkspaceSession.Option? = nil
   ) async throws -> [Components.Schemas.ChatRoom] {
     try Task.checkCancellation()
-    try await setPreferredOrganization(client: client, organizationId: selection.organizationId)
+    try await setPreferredWorkspace(client: client, workspaceId: option.workspaceId)
     do {
       try Task.checkCancellation()
-      let rooms = try await listRooms(client: client, organizationSlug: selection.organizationSlug)
+      let rooms = try await listRooms(client: client, organizationSlug: option.workspace.organizationSlug)
       try Task.checkCancellation()
       return rooms
     } catch {
       if let previous, !Task.isCancelled {
-        try? await setPreferredOrganization(client: client, organizationId: previous.organizationId)
+        try? await setPreferredWorkspace(client: client, workspaceId: previous.workspaceId)
       }
       throw error
     }

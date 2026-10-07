@@ -18,6 +18,7 @@ import {
 } from "@/lib/soko-bot/action-receipts";
 
 const VERIFIER_VERSION = "transactional-receipts-v1";
+const TASK_DELEGATION_CAPABILITIES = new Set(["create_task", "assign_task"]);
 
 /** User-facing state comes from assessed evidence, never generated success prose. */
 export function sokoBotOutcomeSummary(
@@ -405,18 +406,28 @@ export async function assessSokoBotIntentOutcome(
     invalidation?.assessedAt,
   );
   const criteria = criteriaSchema.safeParse(assessmentCriteria);
+  // Tasks this intent created or assigned carry the delegated result.
+  const taskIds = [
+    ...new Set([
+      ...(targetIds.success ? targetIds.data : []),
+      ...currentReceipts.flatMap((receipt) =>
+        TASK_DELEGATION_CAPABILITIES.has(receipt.capability) && receipt.targetId
+          ? [receipt.targetId]
+          : [],
+      ),
+    ]),
+  ];
   const taskEvidence: TaskOutcomeEvidence[] = [];
   if (
     criteria.success &&
     criteria.data.some((criterion) => criterion.kind === "OUTCOME") &&
-    targetIds.success &&
-    targetIds.data.length > 0
+    taskIds.length > 0
   ) {
     // Reuse the runtime's audience boundary. Never fetch arbitrary result URLs;
     // external artifacts remain unverified until an authorized reader checks them.
     const tasks = await tx.task.findMany({
       where: {
-        id: { in: targetIds.data.slice(0, 32) },
+        id: { in: taskIds.slice(0, 32) },
         workspaceId: turn.workspaceId,
         archivedAt: null,
         ...buildSokoBotAudienceTaskVisibilityWhere(

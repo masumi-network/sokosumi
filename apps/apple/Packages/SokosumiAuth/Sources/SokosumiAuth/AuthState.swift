@@ -167,13 +167,13 @@ public final class AuthState: ObservableObject {
     case OAuthBrowserError.missingCallback:
       "Sign-in returned without an authorization code."
     case OAuthError.needsSignIn:
-      "Your session expired. Sign in again."
+      "Your session expired. Log in again."
     case OAuthError.stateMismatch, OAuthError.invalidCallbackURL:
       "Sign-in was interrupted. Try again."
     case let OAuthError.tokenExchangeFailed(_, message, _):
       message.isEmpty ? "Sign-in failed." : message
     case TokenStoreError.encodingFailed, TokenStoreError.writeFailed:
-      "Signed in, but your session could not be saved on this device. Try again."
+      "Logged in, but your session could not be saved on this device. Try again."
     case let error as URLError where error.code == .notConnectedToInternet:
       "No network connection. Check your connection and try again."
     case let error as URLError:

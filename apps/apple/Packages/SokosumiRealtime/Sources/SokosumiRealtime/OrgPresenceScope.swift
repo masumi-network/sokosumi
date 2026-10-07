@@ -14,32 +14,23 @@ struct OrgPresenceScope {
 
   private(set) var organizationId: String?
   private(set) var isGranted = false
-  private var authorization: UUID?
-  private var queued = false
+  private var turn = AuthorizationTurn()
 
   mutating func setOrganization(_ id: String?) {
     organizationId = id
     isGranted = false
-    authorization = nil
-    queued = false
+    turn.reset()
   }
 
   /// Nil while personal, or while another authorization is in flight (the
   /// request is queued and runs when that one settles).
   mutating func requestAuthorization() -> UUID? {
     guard organizationId != nil else { return nil }
-    guard authorization == nil else {
-      queued = true
-      return nil
-    }
-    let id = UUID()
-    authorization = id
-    return id
+    return turn.begin()
   }
 
   mutating func finishAuthorization(_ id: UUID, capability: String?, failed: Bool) -> Outcome {
-    guard authorization == id, let organizationId else { return .stale }
-    authorization = nil
+    guard let organizationId, turn.finish(id) else { return .stale }
     let granted = !failed && (organizationIds(grantedPresenceIn: capability) ?? []).contains(organizationId)
     isGranted = granted
     return granted ? .granted(organizationId) : .denied(failed: failed)
@@ -47,7 +38,6 @@ struct OrgPresenceScope {
 
   /// True once when a request arrived during authorization.
   mutating func takeQueued() -> Bool {
-    defer { queued = false }
-    return queued
+    turn.takeQueued()
   }
 }

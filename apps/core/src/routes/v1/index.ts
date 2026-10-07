@@ -35,6 +35,7 @@ import sokoBotRuntimeRouter from "./soko-bot-runtime/index.js";
 import sokoBotsRouter from "./soko-bots/index.js";
 import tasksRouter from "./tasks/index.js";
 import toolsRouter from "./tools/index.js";
+import transactionsRouter from "./transactions/index.js";
 import usersRouter from "./users/index.js";
 import vendorsRouter from "./vendors/index.js";
 import webhooksRouter from "./webhooks/index.js";
@@ -96,8 +97,6 @@ app.use(
       "X-Organization-Slug",
       "X-Context-User-Id",
       "X-Context-Organization-Id",
-      "X-Delegation-User-Id",
-      "X-Delegation-Organization-Id",
       CALENDAR_CLIENT_VERSION_HEADER,
     ],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
@@ -158,6 +157,7 @@ app.route("/soko-bots", sokoBotsRouter);
 app.route("/coworkers", coworkersRouter);
 app.route("/tasks", tasksRouter);
 app.route("/tools", toolsRouter);
+app.route("/transactions", transactionsRouter);
 app.route("/products", productsRouter);
 app.route("/realtime", realtimeRouter);
 app.route("/vendors", vendorsRouter);

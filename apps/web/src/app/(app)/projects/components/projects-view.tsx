@@ -1,20 +1,19 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { ProjectListItem as ProjectListItemType } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { ListMobileCreateFab } from "@/app/components/list-mobile-create-fab";
 import { LIST_MOBILE_CREATE_FAB_CLEARANCE } from "@/app/components/mobile-create-fab-geometry";
 import { loadMoreProjects } from "@/app/projects/actions";
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
 } from "@/app/projects/constants";
 import { Button } from "@/components/ui/button";
-import type { ProjectListItem as ProjectListItemType } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 import { AddProjectButton } from "./add-project-button";
@@ -33,7 +32,6 @@ export interface ProjectsViewLabels {
     description: string;
   };
   loadMore: string;
-  loading: string;
   loadMoreError: string;
   counts: {
     tasks: string;
@@ -138,12 +136,14 @@ export function ProjectsView({
           <div
             data-testid="projects-browse"
             className={cn(
-              "bg-card-background overflow-hidden rounded-xl",
-              PROJECTS_LIST_CARD_MIN_H_CLASS,
+              PROJECTS_BROWSE_CARD_CLASS,
+              // Only while there are no rows: a short list sits in a card that
+              // ends with it, as Transactions does, not in a mostly empty well.
+              !hasLoadedProjects && PROJECTS_LIST_CARD_MIN_H_CLASS,
             )}
           >
             {hasLoadedProjects ? (
-              <div className={PROJECTS_BROWSE_DIVIDE_CLASS}>
+              <div className={PROJECTS_BROWSE_LIST_CLASS}>
                 {items.map((project) => (
                   <ProjectListItem
                     key={project.id}
@@ -170,19 +170,9 @@ export function ProjectsView({
             <Button
               variant="outline"
               onClick={handleLoadMore}
-              disabled={isPending}
+              loading={isPending}
             >
-              {isPending ? (
-                <>
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                  {labels.loading}
-                </>
-              ) : (
-                labels.loadMore
-              )}
+              {labels.loadMore}
             </Button>
           </div>
         ) : null}

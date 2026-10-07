@@ -1,11 +1,7 @@
+import type { TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type {
-  TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import { TaskSchedulesView } from "./task-schedules-view";
@@ -117,6 +113,7 @@ function schedule(overrides: Partial<TaskSchedule>): TaskSchedule {
     assigneeUserId: null,
     createdAt: new Date("2030-01-01T00:00:00.000Z"),
     updatedAt: new Date("2030-01-01T00:00:00.000Z"),
+    canWrite: true,
     ...overrides,
   };
 }
@@ -144,7 +141,6 @@ function renderView(
       selectedState={state}
       canCreate
       canCreatePrivate={false}
-      currentUserId="user_1"
     />,
   );
 }
@@ -347,7 +343,6 @@ describe("TaskSchedulesView", () => {
         selectedState={null}
         canCreate
         canCreatePrivate={false}
-        currentUserId="user_1"
       />,
     );
     loadMoreTaskSchedulesMock.mockResolvedValue({

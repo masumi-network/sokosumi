@@ -1,6 +1,5 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   isMessageContinuation,
@@ -98,6 +97,7 @@ function sokoBotMessage(
         caption: null,
         image: null,
         avatarSeed: "seed-1",
+        ownerUserId: "user-1",
         presence: "online",
       },
     },

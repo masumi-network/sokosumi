@@ -14,8 +14,91 @@ export interface CreateSokoBotScheduleInput {
   workspaceId: string;
   name: string;
   timezone: string;
-  cronExpression: string;
+  /** Recurring runs; exactly one of `cronExpression` and `runAt`. */
+  cronExpression?: string;
+  /** One run at this instant (ISO 8601), then the schedule disables itself. */
+  runAt?: string;
   prompt: string;
+}
+
+const MAX_ONE_TIME_LEAD_MS = 366 * 24 * 60 * 60 * 1_000;
+
+function isRestricted(field: string | undefined): boolean {
+  return field !== undefined && field !== "*" && field !== "?";
+}
+
+/**
+ * Cron runs when day-of-month OR weekday matches once both are set, so
+ * "0 10 1-7 * 1" fires every Monday and on the 1st–7th. Nobody means that.
+ */
+function assertNoDayOrTrap(cronExpression: string) {
+  const fields = cronExpression.trim().split(/\s+/);
+  const [dayOfMonth, , dayOfWeek] = fields.slice(-3);
+  if (isRestricted(dayOfMonth) && isRestricted(dayOfWeek)) {
+    throw new SokoBotScheduleValidationError(
+      "Cron treats a day-of-month together with a weekday as either one, not both. For an nth weekday use `#` in the weekday field (first Monday: `0 10 * * 1#1`) and `*` for day-of-month.",
+    );
+  }
+}
+
+/** Minute, hour, day and month of `at` on the wall clock of `timezone`. */
+function wallClockCron(at: Date, timezone: string): string {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-US", {
+      timeZone: timezone,
+      hourCycle: "h23",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+    })
+      .formatToParts(at)
+      .map((part) => [part.type, part.value]),
+  );
+  return `${Number(parts.minute)} ${Number(parts.hour)} ${Number(parts.day)} ${Number(parts.month)} *`;
+}
+
+export function resolveScheduleTiming(
+  input: { cronExpression?: string; runAt?: string; timezone: string },
+  now = new Date(),
+): { cronExpression: string; nextRunAt: Date; runOnce: boolean } {
+  if (input.runAt) {
+    const at = new Date(input.runAt);
+    if (
+      Number.isNaN(at.getTime()) ||
+      at.getTime() <= now.getTime() ||
+      at.getTime() - now.getTime() > MAX_ONE_TIME_LEAD_MS
+    ) {
+      throw new SokoBotScheduleValidationError(
+        "runAt must be a moment in the future, within a year",
+      );
+    }
+    let cronExpression: string;
+    try {
+      cronExpression = wallClockCron(at, input.timezone);
+    } catch {
+      throw new SokoBotScheduleValidationError(
+        `Unknown timezone ${input.timezone}`,
+      );
+    }
+    return { cronExpression, nextRunAt: at, runOnce: true };
+  }
+  if (!input.cronExpression) {
+    throw new SokoBotScheduleValidationError(
+      "Give a cronExpression for a recurring schedule or runAt for a one-time one",
+    );
+  }
+  assertNoDayOrTrap(input.cronExpression);
+  const nextRunAt = computeNextRunWithMinimumInterval(
+    { cron: input.cronExpression, timezone: input.timezone, from: now },
+    MIN_SCHEDULE_INTERVAL_MS,
+  );
+  if (!nextRunAt) {
+    throw new SokoBotScheduleValidationError(
+      "Invalid cron expression, timezone, or interval below one minute",
+    );
+  }
+  return { cronExpression: input.cronExpression, nextRunAt, runOnce: false };
 }
 
 export interface UpdateSokoBotScheduleInput {
@@ -41,15 +124,7 @@ export async function createSokoBotSchedule(
   transaction?: Prisma.TransactionClient,
 ) {
   const db = transaction ?? prisma;
-  const nextRunAt = computeNextRunWithMinimumInterval(
-    { cron: input.cronExpression, timezone: input.timezone },
-    MIN_SCHEDULE_INTERVAL_MS,
-  );
-  if (!nextRunAt) {
-    throw new SokoBotScheduleValidationError(
-      "Invalid cron expression, timezone, or interval below one minute",
-    );
-  }
+  const { cronExpression, nextRunAt, runOnce } = resolveScheduleTiming(input);
   const name = input.name.trim();
   const prompt = input.prompt.trim();
   if (!name || !prompt) {
@@ -92,7 +167,8 @@ export async function createSokoBotSchedule(
           consecutiveFailures: 0,
           workspaceId: input.workspaceId,
           timezone: input.timezone,
-          cronExpression: input.cronExpression,
+          cronExpression,
+          runOnce,
           prompt: prompt.slice(0, 20_000),
           nextRunAt,
         },
@@ -113,7 +189,8 @@ export async function createSokoBotSchedule(
         workspaceId: input.workspaceId,
         name: name.slice(0, 120),
         timezone: input.timezone,
-        cronExpression: input.cronExpression,
+        cronExpression,
+        runOnce,
         prompt: prompt.slice(0, 20_000),
         nextRunAt,
       },
@@ -180,6 +257,7 @@ export async function updateSokoBotSchedule(
   const schedule = await findScheduleForUser(input.userId, input, transaction);
   const timezone = input.timezone ?? schedule.timezone;
   const cronExpression = input.cronExpression ?? schedule.cronExpression;
+  if (input.cronExpression) assertNoDayOrTrap(input.cronExpression);
   const now = new Date();
   const nextRunAt = computeNextRunWithMinimumInterval(
     { cron: cronExpression, timezone, from: now },
@@ -197,6 +275,8 @@ export async function updateSokoBotSchedule(
       input.enabled === true && !schedule.enabled ? 0 : undefined,
     timezone: input.timezone,
     cronExpression: input.cronExpression,
+    // A new cron makes a one-time schedule recurring.
+    runOnce: input.cronExpression ? false : undefined,
     prompt: input.prompt?.trim(),
     nextRunAt:
       input.timezone !== undefined ||
@@ -259,6 +339,7 @@ export function listSokoBotSchedules(sokoBotId: string) {
       enabled: true,
       timezone: true,
       cronExpression: true,
+      runOnce: true,
       prompt: true,
       nextRunAt: true,
       lastRunAt: true,

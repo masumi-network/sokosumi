@@ -17,7 +17,8 @@ const MESSAGES = {
           emptyBody: "Memory is written the first time a task completes.",
           modelLine: "{model} · hosted in the EU",
           defaultModel: "Mistral Medium",
-          notConfigured: "Not configured (AI_GATEWAY_API_KEY)",
+          offHint: "Completed tasks will not add to memory.",
+          off: "Memory is off",
           copyLink: "Copy link",
           openRaw: "Open raw",
           copied: "Copied",
@@ -130,6 +131,20 @@ describe("ProjectMemoryPanel", () => {
     // The hint explains why it will not grow, not why it is hidden.
     expect(screen.getByTestId("project-memory-disabled")).toBeInTheDocument();
     expect(screen.getByText(/Ship the studio/)).toBeInTheDocument();
+  });
+
+  it("does not promise memory that updates are switched off for", () => {
+    renderPanel({ contextMd: null, content: null, memoryEnabled: false });
+
+    expect(screen.getByText("Memory is off")).toBeInTheDocument();
+    expect(
+      screen.getByText("Completed tasks will not add to memory."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Builds as tasks complete")).toBeNull();
+    expect(screen.queryByText(/hosted in the EU/)).toBeNull();
+    expect(
+      screen.queryByText("Memory is written the first time a task completes."),
+    ).toBeNull();
   });
 
   it("names the model the document was written with when the project has none", () => {

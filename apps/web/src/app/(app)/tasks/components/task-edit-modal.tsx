@@ -1,9 +1,9 @@
 "use client";
 
+import { TaskStatus } from "@sokosumi/core-client";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useState } from "react";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 
 import type {
@@ -47,11 +47,16 @@ export function TaskEditModal({
   const router = useRouter();
   const pathname = usePathname();
   const [isDismissDisabled, setIsDismissDisabled] = useState(false);
+  // Path may be an identifier slug (`/tasks/SOK-12-fix-login/edit`) while
+  // `taskId` is the uuid used for PATCH. Close by stripping `/edit`.
   const handleClose = useCallback(() => {
-    router.replace(`/tasks/${taskId}`);
-  }, [router, taskId]);
+    const detailPath = pathname.endsWith("/edit")
+      ? pathname.slice(0, -"/edit".length)
+      : `/tasks/${taskId}`;
+    router.replace(detailPath);
+  }, [pathname, router, taskId]);
 
-  const isOpen = pathname === `/tasks/${taskId}/edit`;
+  const isOpen = pathname.endsWith("/edit");
 
   return (
     <TaskFormModal

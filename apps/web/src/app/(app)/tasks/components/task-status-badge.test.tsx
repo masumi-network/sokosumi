@@ -1,10 +1,10 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
   TaskStatusBadge,
   TaskStatusInline,
 } from "@/app/tasks/components/task-status-badge";
-import { TaskStatus } from "@/lib/clients/generated/core";
 
 describe("TaskStatusBadge", () => {
   /**

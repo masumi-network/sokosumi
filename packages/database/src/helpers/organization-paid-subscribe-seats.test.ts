@@ -170,6 +170,7 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
       purchasedSeats: 0,
       subscriptionId: "sub-free",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockResolvedValue({ seatAssignedAt: null } as never);
@@ -187,6 +188,7 @@ describe("autoAssignSeatsOnPaidSubscribe", () => {
       purchasedSeats: 2,
       subscriptionId: "sub-paid",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-09-01T00:00:00.000Z"),
     });
     getMemberMock.mockImplementation(

@@ -7,8 +7,8 @@ public struct ChannelDraft: Equatable, Sendable {
 
   /// Core's channel limits (`name` and `topic` `.max(80)` / `.max(200)`, the sanitized slug 80), counted as web and zod count: UTF-16 units.
   public static let nameLimit = 80
-  public static let topicLimit = 200
-  public static let slugLimit = 80
+  static let topicLimit = 200
+  static let slugLimit = 80
 
   public private(set) var slug = ""
   public private(set) var name = ""

@@ -683,6 +683,42 @@ describe("POST /{id}/events", () => {
     expect(tx.task.updateMany).not.toHaveBeenCalled();
   });
 
+  it.each([
+    {
+      actor: "user",
+      userId: USER_ID,
+      organizationId: null,
+      role: "user",
+    },
+    { actor: "coworker", coworkerId: "cow_123", vendorId: "vendor_123" },
+    {
+      actor: "sokoBot",
+      sokoBotId: "bot_123",
+      userId: USER_ID,
+      workspaceId: "ws_123",
+      organizationId: null,
+    },
+  ] as const)("rejects status CREATED from a $actor", async (authContext) => {
+    const tx: TransactionMock = {
+      taskEvent: { create: vi.fn() },
+      task: { updateMany: vi.fn() },
+    };
+    mockTransaction(tx);
+
+    const app = createApp(authContext);
+    app.onError(errorHandler);
+
+    const response = await app.request(`http://localhost/${TASK_ID}/events`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: TaskStatus.CREATED }),
+    });
+
+    expect(response.status).toBe(422);
+    expect(tx.taskEvent.create).not.toHaveBeenCalled();
+    expect(tx.task.updateMany).not.toHaveBeenCalled();
+  });
+
   it.each([TaskStatus.INPUT_REQUIRED, TaskStatus.APPROVAL_REQUIRED])(
     "rejects %s from a user even when a coworker is assigned",
     async (status) => {

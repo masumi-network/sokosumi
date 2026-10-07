@@ -1,7 +1,6 @@
 "use client";
 
 import type { SessionUser } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -11,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { clearPendingOrganizationJoinCookieAction } from "@/lib/actions/workspace-gate/action";
 import { activateOrganizationWorkspaceWithRetry } from "@/lib/activate-organization-workspace";
 import { authClient } from "@/lib/auth/auth.client";
+import { buildAuthPageUrl } from "@/lib/auth/auth.utils";
 import { signOutWithPushRelease } from "@/lib/auth/sign-out.client";
 import type { PendingInvitationDetail } from "@/lib/services/organization.service";
 import { getReturnUrlFromCurrentLocation } from "@/lib/utils/url";
@@ -31,6 +31,8 @@ export default function InvitationActions({
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
   const { persistIfNeeded, NameFields } = useCollectUserName(
     user?.name?.trim() ?? "",
+    user?.firstName,
+    user?.lastName,
   );
 
   const { id, email } = invitation;
@@ -45,13 +47,12 @@ export default function InvitationActions({
   );
 
   const goToAuth = (path: "/signin" | "/signup") => {
-    const params = new URLSearchParams();
-    params.set("returnUrl", getReturnUrlFromCurrentLocation());
-    params.set("email", email);
-    if (path === "/signup") {
-      params.set("invitationId", id);
-    }
-    router.push(`${path}?${params.toString()}`);
+    router.push(
+      buildAuthPageUrl(path, {
+        returnUrl: getReturnUrlFromCurrentLocation(),
+        invitationId: id,
+      }),
+    );
   };
 
   const handleAccept = async () => {
@@ -174,24 +175,18 @@ export default function InvitationActions({
             className="w-full"
             onClick={handleAccept}
             disabled={loading || retryOrganizationId !== null}
+            loading={loading && action === "accept" && !retryOrganizationId}
           >
-            {loading && action === "accept" && !retryOrganizationId && (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
-            {loading && action === "accept" && !retryOrganizationId
-              ? t("joining")
-              : t("accept", { organization: organizationName })}
+            {t("accept", { organization: organizationName })}
           </Button>
           {retryOrganizationId ? (
             <Button
               className="w-full"
               onClick={handleRetryActivation}
               disabled={loading}
+              loading={loading && action === "accept"}
               data-testid="invitation-retry-activation"
             >
-              {loading && action === "accept" && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
               {t("activateRetry")}
             </Button>
           ) : null}
@@ -201,10 +196,8 @@ export default function InvitationActions({
             className="w-full"
             onClick={handleReject}
             disabled={loading}
+            loading={loading && action === "reject"}
           >
-            {loading && action === "reject" && (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
             {t("decline")}
           </Button>
         </div>
@@ -215,10 +208,11 @@ export default function InvitationActions({
       <div className="flex flex-col gap-4">
         <p>{t("emailMismatch")}</p>
         <div className="flex justify-between gap-2 sm:gap-4">
-          <Button variant="outline" onClick={handleLogout}>
-            {loading && action === "logout" && (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            loading={loading && action === "logout"}
+          >
             {t("logout")}
           </Button>
           <Button onClick={handleIgnore}>{t("ignore")}</Button>

@@ -92,6 +92,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
       isPublic: false,
@@ -103,6 +105,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
       isPublic: false,
@@ -114,6 +118,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "   ",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
       isPublic: false,
@@ -125,6 +131,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "  My App  ",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: false,
       isPublic: false,
@@ -141,6 +149,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "not-a-url",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
       isPublic: false,
@@ -152,6 +162,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "http://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
       isPublic: false,
@@ -163,6 +175,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
     });
     expect(result.success).toBe(false);
@@ -172,6 +186,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "Mac App",
       redirectUris: "com.sokosumi.app:/oauth/signin",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: true,
       isPublic: true,
@@ -183,6 +199,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "Mac App",
       redirectUris: "sokosumi://oauth/signin",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: true,
       isPublic: true,
@@ -194,6 +212,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "Mac App",
       redirectUris: "com.sokosumi.app://auth",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: true,
       isPublic: true,
@@ -206,6 +226,8 @@ describe("createOAuthClientSchema", () => {
       name: "Mac App",
       redirectUris:
         "https://example.com/callback\ncom.sokosumi.app:/oauth/signin",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: true,
       isPublic: false,
@@ -217,6 +239,8 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "Mac App",
       redirectUris: "https://example.com/callback\ncom.sokosumi.app://auth",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: true,
       includeOfflineAccess: true,
       isPublic: false,
@@ -228,10 +252,49 @@ describe("createOAuthClientSchema", () => {
     const result = schema.safeParse({
       name: "My App",
       redirectUris: "https://example.com/callback",
+      clientUri: "",
+      logoUri: "",
       includeCoreApi: false,
       includeOfflineAccess: false,
     });
     expect(result.success).toBe(false);
+  });
+
+  const VALID = {
+    name: "CMO",
+    redirectUris: "https://app.cmo.xyz/api/auth/callback/sokosumi",
+    clientUri: "",
+    logoUri: "",
+    includeCoreApi: true,
+    includeOfflineAccess: true,
+    isPublic: false,
+  };
+
+  it("accepts an https home page and logo", () => {
+    const result = schema.safeParse({
+      ...VALID,
+      clientUri: " https://cmo.xyz ",
+      logoUri: "https://cmo.xyz/logo.png",
+    });
+    expect(result.success && result.data).toMatchObject({
+      clientUri: "https://cmo.xyz",
+      logoUri: "https://cmo.xyz/logo.png",
+    });
+  });
+
+  it.each([
+    "http://cmo.xyz",
+    "javascript:alert(1)",
+    "data:image/png;base64,AAAA",
+    "cmo.xyz",
+  ])("rejects a home page or logo that is not an https URL (%s)", (value) => {
+    for (const field of ["clientUri", "logoUri"] as const) {
+      const result = schema.safeParse({ ...VALID, [field]: value });
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(
+        "Validation.httpsUrlInvalid",
+      );
+    }
   });
 });
 

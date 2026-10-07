@@ -1,9 +1,9 @@
 "use client";
 
+import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { BookmarkPlus, ListFilter } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import type { WorkspaceLabel } from "@/lib/clients/generated/core";
 import {
   countActiveFileFilters,
   EMPTY_FILE_FILTERS,

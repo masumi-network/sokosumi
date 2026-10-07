@@ -1,7 +1,6 @@
 "use client";
 
 import type { Account } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -19,7 +18,6 @@ import {
 } from "@/components/ui/dialog";
 import { useReauthGate } from "@/hooks/use-reauth-gate";
 import { authClient } from "@/lib/auth/auth.client";
-import { unlinkSocialAccountInput } from "@/lib/auth/unlink-social-account";
 
 interface DisconnectModalProps {
   account: Account;
@@ -54,9 +52,7 @@ export default function DisconnectModal({
     setLoading(true);
 
     try {
-      const result = await authClient.unlinkAccount(
-        unlinkSocialAccountInput(account),
-      );
+      const result = await authClient.unlinkAccount({ accountId: account.id });
 
       if (!result.error) {
         toast.success(t("success"));
@@ -99,11 +95,8 @@ export default function DisconnectModal({
             <Button
               variant="primary"
               onClick={handleDisconnect}
-              disabled={loading}
+              loading={loading}
             >
-              {loading && (
-                <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-              )}
               {t("confirm")}
             </Button>
             <DialogClose asChild>

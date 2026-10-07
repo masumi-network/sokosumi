@@ -65,7 +65,6 @@ export function evaluationBinding() {
     process.env.VERCEL_GIT_COMMIT_SHA !== binding.sourceSha ||
     process.env.VERCEL_GIT_COMMIT_REF !== binding.branch ||
     !getEnv().SOKO_BOT_PROACTIVE_PAUSED ||
-    getEnv().SOKO_BOT_TURN_JUDGE_ENABLED ||
     Date.parse(binding.expiresAt) <= Date.now()
   )
     throw new Error("Evaluation allowance unavailable");
@@ -474,18 +473,6 @@ export function assertEvaluationTool(capability: string, input: unknown) {
   const binding = evaluationBinding();
   if (!binding) return;
   const parsed = z.object({ taskId: z.string() }).safeParse(input);
-  const decision = z
-    .object({
-      toolName: z.literal("archive_task"),
-      proposal: z.object({ taskId: z.string() }),
-    })
-    .safeParse(input);
-  if (
-    capability === "request_user_decision" &&
-    decision.success &&
-    binding.taskIds.includes(decision.data.proposal.taskId)
-  )
-    return;
   if (
     ["get_task_status", "archive_task"].includes(capability) &&
     parsed.success &&

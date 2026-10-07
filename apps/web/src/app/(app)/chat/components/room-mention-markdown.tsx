@@ -1,15 +1,14 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomSokoBotParticipant,
+} from "@sokosumi/core-client";
 import type { ChannelLinkTarget } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { type MutableRefObject, type ReactNode, useMemo, useRef } from "react";
 import type { Components } from "react-markdown";
-
 import Markdown from "@/components/markdown";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomSokoBotParticipant,
-} from "@/lib/clients/generated/core";
 
 import { ChatParticipantHoverCard } from "./chat-participant-hover-card";
 import { participantDirectKey } from "./open-direct-with-participant";

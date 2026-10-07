@@ -1,0 +1,13 @@
+diff --git a/dist/chunks/config.d.BxjInJat.d.ts b/dist/chunks/config.d.BxjInJat.d.ts
+index d8b9b33..18aada3 100644
+--- a/dist/chunks/config.d.BxjInJat.d.ts
++++ b/dist/chunks/config.d.BxjInJat.d.ts
+@@ -1701,6 +1701,8 @@ interface Assertion<
+ 	R extends void | Promise<void> = void,
+ 	T = unknown
+ > extends VitestAssertion<Chai.Assertion, R, T>, JestAssertion<R, T>, ChaiMockAssertion<R, T>, Matchers<R, T> {
++	// Vitest 5.0.3 + TypeScript 7: mapped Chai.Assertion keys drop `.not`.
++	not: Assertion<R, T>;
+ 	/**
+ 	* Ensures a value is of a specific type.
+ 	*

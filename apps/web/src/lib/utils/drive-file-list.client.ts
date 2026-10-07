@@ -1,8 +1,8 @@
 "use client";
 
+import type { DriveItem } from "@sokosumi/core-client";
+import { getDriveFiles } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveItem } from "@/lib/clients/generated/core";
-import { getDriveFiles } from "@/lib/clients/generated/core";
 import type { FilesSortBy, FilesSortOrder } from "@/lib/utils/files-sort";
 
 /** Core max page size — fewer round trips than the default 20. */

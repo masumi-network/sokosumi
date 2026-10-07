@@ -7,7 +7,7 @@ const { acquire, release } = vi.hoisted(() => ({
 vi.mock("@/lib/clients/core.client", () => ({
   createCoreGeneratedClient: () => ({}),
 }));
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   acquireExportLease: acquire,
   releaseExportLease: release,
 }));

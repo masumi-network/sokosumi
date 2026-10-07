@@ -5,6 +5,7 @@ vi.mock("server-only", () => ({}));
 export {};
 
 const listContractsMock = vi.fn();
+const updateContractMock = vi.fn();
 const toCoreApiActionErrorMock = vi.fn();
 
 vi.mock("next/cache", () => ({
@@ -33,6 +34,7 @@ vi.mock("@/lib/clients/core.client", () => ({
 vi.mock("@/lib/services/enterprise-contract-admin.service", () => ({
   enterpriseContractAdminService: {
     listContracts: (...args: unknown[]) => listContractsMock(...args),
+    updateContract: (...args: unknown[]) => updateContractMock(...args),
   },
   parseEnterpriseContractActivationBlockedError: vi.fn(() => null),
 }));
@@ -97,5 +99,49 @@ describe("enterprise contract actions", () => {
 
     expect(result.value).toEqual([{ id: "contract-1" }]);
     expect(listContractsMock).toHaveBeenCalledOnce();
+  });
+
+  it("rejects a non-admin credit update without calling Core or revalidating", async () => {
+    const { updateEnterpriseContractAction } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await updateEnterpriseContractAction({
+      session: memberSession,
+      id: "contract-1",
+      body: { creditsPerMonth: 100_000 },
+    });
+    expect(result).toMatchObject({
+      ok: false,
+      error: { message: "Admin access required" },
+    });
+    expect(updateContractMock).not.toHaveBeenCalled();
+    expect(revalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("updates credits through Core for admins and revalidates the contract pages", async () => {
+    updateContractMock.mockResolvedValue({
+      id: "contract-1",
+      creditsPerMonth: 100_000,
+    });
+    const { updateEnterpriseContractAction } = await import("./action");
+    const { revalidatePath } = await import("next/cache");
+    const result = await updateEnterpriseContractAction({
+      session: adminSession,
+      id: "contract-1",
+      body: { creditsPerMonth: 100_000 },
+    });
+    expect(result).toEqual({
+      ok: true,
+      value: { id: "contract-1", creditsPerMonth: 100_000 },
+    });
+    expect(updateContractMock).toHaveBeenCalledExactlyOnceWith("contract-1", {
+      creditsPerMonth: 100_000,
+    });
+    expect(revalidatePath).toHaveBeenCalledWith("/admin/enterprise-contracts");
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/admin/enterprise-contracts/contract-1",
+    );
+    expect(revalidatePath).toHaveBeenCalledWith(
+      "/admin/enterprise-contracts/contract-1/edit",
+    );
   });
 });

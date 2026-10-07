@@ -31,6 +31,7 @@ struct MessageDeletionTests {
 
   @Test func replyCountIsNotDecrementedTwice() {
     var parent = chatRoomMessage(from: .init(clientTurnId: "parent", roomId: testRoomId, content: "Parent",
+                                             createdAt: Date(),
                                              sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
     parent.id = "parent"
     parent.threadReplyCount = 2
@@ -47,6 +48,7 @@ struct MessageDeletionTests {
 
   @Test func modificationsRequireOwnPersistedHumanMessage() {
     var message = chatRoomMessage(from: .init(clientTurnId: "pending", roomId: testRoomId, content: "Message",
+                                              createdAt: Date(),
                                               sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
     #expect(!canModifyOwnMessage(message, userId: "user"))
     message.id = "persisted"

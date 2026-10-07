@@ -105,7 +105,11 @@ export default function mount(app: OpenAPIHonoWithAuth) {
 
     return ok(
       c,
-      z.array(taskEventSchema).parse(pagedEvents.map((e) => mapTaskEvent(e))),
+      z
+        .array(taskEventSchema)
+        .parse(
+          pagedEvents.map((e) => mapTaskEvent(e, { onBehalfOfOwner: true })),
+        ),
       paginationMeta,
     );
   });

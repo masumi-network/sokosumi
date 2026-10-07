@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomSokoBotParticipant,
+} from "@sokosumi/core-client";
 import { CHAT_ROOM_MESSAGE_CONTENT_MAX_LENGTH } from "@sokosumi/utils";
 import { useTranslations } from "next-intl";
 import { useMemo, useRef } from "react";
@@ -12,10 +16,6 @@ import {
 import { Button } from "@/components/ui/button";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomSokoBotParticipant,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   composerMentionDisplayNames,

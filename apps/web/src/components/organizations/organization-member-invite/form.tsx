@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { MemberRole } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { Dispatch, SetStateAction } from "react";
@@ -10,7 +10,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberRole } from "@/lib/clients/generated/core";
 import {
   type InviteFormSchemaType,
   inviteFormData,
@@ -78,16 +77,18 @@ export default function OrganizationMemberInviteForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-8"
+      >
         <fieldset disabled={isLoading} className="flex flex-col gap-8">
           <FormFields form={form} formData={inviteFormData} />
-          <Button type="submit" disabled={isLoading} className="w-full">
-            {isLoading && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
-            )}
-            {t("submit")}
-          </Button>
         </fieldset>
+        {/* Outside the fieldset: a disabled fieldset would natively
+            disable the button and fade its loading bar. */}
+        <Button type="submit" className="w-full" loading={isLoading}>
+          {t("submit")}
+        </Button>
       </form>
     </Form>
   );

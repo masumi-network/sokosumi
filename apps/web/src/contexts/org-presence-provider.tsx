@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoomPresence } from "@sokosumi/core-client";
 import type { ChatPresenceState } from "@sokosumi/utils";
 import {
   createContext,
@@ -9,11 +10,9 @@ import {
   useEffect,
   useState,
 } from "react";
-
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
 import { useOrgPresenceMap } from "@/lib/ably/use-org-presence-map";
 import { useOrgPresencePublisher } from "@/lib/ably/use-org-presence-publisher";
-import type { ChatRoomPresence } from "@/lib/clients/generated/core";
 
 const OrgPresenceMapContext = createContext<Map<
   string,

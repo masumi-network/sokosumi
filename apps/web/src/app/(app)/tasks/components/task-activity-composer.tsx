@@ -1,7 +1,8 @@
 "use client";
 
+import type { DriveFile } from "@sokosumi/core-client";
 import { formatTaskAttachmentMarkdown } from "@sokosumi/utils";
-import { ALargeSmall, AtSign, Loader2, Paperclip } from "lucide-react";
+import { ALargeSmall, AtSign, Paperclip } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useRef, useState } from "react";
@@ -30,7 +31,6 @@ import {
 } from "@/components/ui/file-upload";
 import type { MentionRecordEntry } from "@/components/ui/mention-textarea-utils";
 import { useMountEffect } from "@/hooks/use-mount-effect";
-import type { DriveFile } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   type ComposerActiveFormats,
@@ -240,16 +240,9 @@ export function TaskActivityComposer({
                 className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
                 title={tToolbar("attach")}
                 aria-label={tToolbar("attach")}
-                disabled={isUploading}
+                loading={isUploading}
               >
-                {isUploading ? (
-                  <Loader2
-                    className="size-4 animate-spin motion-reduce:animate-pulse"
-                    aria-hidden
-                  />
-                ) : (
-                  <Paperclip className="size-4" aria-hidden />
-                )}
+                <Paperclip className="size-4" aria-hidden />
               </Button>
             </AttachmentSubmenu>
             <Button

@@ -1,6 +1,6 @@
+import { TaskVisibility } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { TaskVisibility } from "@/lib/clients/generated/core";
 
 import { TaskPrivateIndicator } from "./task-private-indicator";
 

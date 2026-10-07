@@ -1,5 +1,7 @@
 "use client";
 
+import type { DriveFile, DriveItem } from "@sokosumi/core-client";
+import { getUsersByIdOrganizations } from "@sokosumi/core-client";
 import { isDriveFolderMarkerName } from "@sokosumi/utils";
 import {
   Building2,
@@ -26,8 +28,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { useSession } from "@/lib/auth/auth.client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveFile, DriveItem } from "@/lib/clients/generated/core";
-import { getUsersByIdOrganizations } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   driveStoreForActiveWorkspace,

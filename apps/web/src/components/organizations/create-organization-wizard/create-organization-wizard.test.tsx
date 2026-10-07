@@ -4,8 +4,7 @@ import { useState } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const handleSelectWorkspaceMock = vi.fn();
-const generateOrganizationSlugMock = vi.fn();
-const organizationCreateMock = vi.fn();
+const createOrganizationWorkspaceActionMock = vi.fn();
 const organizationUpdateMock = vi.fn();
 const resolveOrganizationSiteIconMock = vi.fn();
 const createOrganizationInviteLinkMock = vi.fn();
@@ -39,8 +38,8 @@ vi.mock("@/components/design-md/use-design-md-generation", () => ({
 }));
 
 vi.mock("@/lib/actions/organization/action", () => ({
-  generateOrganizationSlug: (...args: unknown[]) =>
-    generateOrganizationSlugMock(...args),
+  createOrganizationWorkspaceAction: (...args: unknown[]) =>
+    createOrganizationWorkspaceActionMock(...args),
   inviteOrganizationMembersBulk: vi.fn(),
 }));
 vi.mock("@/lib/actions/organization/invite-link-action", () => ({
@@ -55,15 +54,16 @@ vi.mock("@/lib/actions/organization/site-icon-action", () => ({
 vi.mock("@/lib/auth/auth.client", () => ({
   authClient: {
     organization: {
-      create: (...args: unknown[]) => organizationCreateMock(...args),
       update: (...args: unknown[]) => organizationUpdateMock(...args),
     },
   },
 }));
 
+const toastErrorMock = vi.fn();
+
 vi.mock("sonner", () => ({
   toast: {
-    error: vi.fn(),
+    error: (...args: unknown[]) => toastErrorMock(...args),
     success: vi.fn(),
   },
 }));
@@ -88,13 +88,9 @@ function WizardHarness({
 describe("CreateOrganizationWizard", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    generateOrganizationSlugMock.mockResolvedValue({
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
       ok: true,
-      value: "acme",
-    });
-    organizationCreateMock.mockResolvedValue({
-      data: { id: "org-1" },
-      error: null,
+      value: { organizationId: "org-1" },
     });
     organizationUpdateMock.mockResolvedValue({ error: null });
     resolveOrganizationSiteIconMock.mockResolvedValue({
@@ -112,7 +108,7 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByTestId("create-org-wizard-back"));
 
     expect(onOrganizationReadyMock).not.toHaveBeenCalled();
-    expect(organizationCreateMock).not.toHaveBeenCalled();
+    expect(createOrganizationWorkspaceActionMock).not.toHaveBeenCalled();
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
@@ -131,7 +127,11 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledWith({
+      name: "Acme",
+      websiteUrl: "https://acme.com/",
     });
 
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
@@ -142,31 +142,44 @@ describe("CreateOrganizationWizard", () => {
     expect(handleSelectWorkspaceMock).not.toHaveBeenCalled();
   });
 
-  it("activates via the workspace switcher when no onOrganizationReady is provided", async () => {
-    const user = userEvent.setup();
-    render(<WizardHarness />);
+  it.each(["Close", "Finish"])(
+    "selects and closes via %s without onOrganizationReady, even while selection is pending",
+    async (method) => {
+      const user = userEvent.setup();
+      handleSelectWorkspaceMock.mockReturnValue(new Promise<void>(() => {}));
+      render(<WizardHarness />);
 
-    await user.type(
-      screen.getByPlaceholderText("Details.namePlaceholder"),
-      "Acme",
-    );
-    await user.type(
-      screen.getByPlaceholderText("Details.urlPlaceholder"),
-      "acme.com",
-    );
-    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+      await user.type(
+        screen.getByPlaceholderText("Details.namePlaceholder"),
+        "Acme",
+      );
+      await user.type(
+        screen.getByPlaceholderText("Details.urlPlaceholder"),
+        "acme.com",
+      );
+      await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
-    await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
-    });
+      await waitFor(() => {
+        expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+      });
 
-    await user.click(screen.getByRole("button", { name: /close/i }));
+      if (method === "Finish") {
+        await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+        await user.click(
+          screen.getByRole("button", { name: /Nav.finishSetup/i }),
+        );
+        await user.click(screen.getByRole("button", { name: /Nav.finish$/i }));
+      } else {
+        await user.click(screen.getByRole("button", { name: /close/i }));
+      }
 
-    expect(handleSelectWorkspaceMock).toHaveBeenCalledWith("org-1", {
-      shouldRedirectAgentJobsBasePath: false,
-    });
-    expect(onOrganizationReadyMock).not.toHaveBeenCalled();
-  });
+      expect(handleSelectWorkspaceMock).toHaveBeenCalledWith("org-1", {
+        shouldRedirectAgentJobsBasePath: false,
+      });
+      expect(onOrganizationReadyMock).not.toHaveBeenCalled();
+      expect(screen.queryByRole("dialog")).toBeNull();
+    },
+  );
 
   it("completes the created organization when the dialog is dismissed after step 0", async () => {
     const user = userEvent.setup();
@@ -183,12 +196,70 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
     await user.click(screen.getByRole("button", { name: /close/i }));
 
     expect(onOrganizationReadyMock).toHaveBeenCalledWith("org-1");
+  });
+
+  it("stays open on Finish while onOrganizationReady leaves", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
+    await user.click(screen.getByRole("button", { name: /Nav.finish/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+
+    await user.keyboard("{Escape}");
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(onOrganizationReadyMock).toHaveBeenCalledOnce();
+  });
+
+  it("shows the ready step while leaving when dismissed after create", async () => {
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+    await waitFor(() => {
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
+    });
+
+    await user.click(screen.getByRole("button", { name: /close/i }));
+
+    expect(screen.getByRole("dialog")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Nav.finish/i })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
   });
 
   it("lets logo and brand steps advance empty", async () => {
@@ -206,7 +277,7 @@ describe("CreateOrganizationWizard", () => {
     await user.click(screen.getByRole("button", { name: /Nav.next/i }));
 
     await waitFor(() => {
-      expect(organizationCreateMock).toHaveBeenCalledOnce();
+      expect(createOrganizationWorkspaceActionMock).toHaveBeenCalledOnce();
     });
 
     expect(screen.getByText("Logo.title")).toBeTruthy();
@@ -214,5 +285,63 @@ describe("CreateOrganizationWizard", () => {
     expect(screen.getByText("Brand.title")).toBeTruthy();
     await user.click(screen.getByRole("button", { name: /Nav.finishSetup/i }));
     expect(screen.getByText("Invite.title")).toBeTruthy();
+  });
+
+  it.each([
+    [
+      "offers sign in when the person is signed out",
+      { code: "UNAUTHENTICATED" },
+      "Errors.createFailed",
+      true,
+    ],
+    [
+      "shows Core's message at the organization limit",
+      {
+        code: "ORGANIZATION_LIMIT_REACHED",
+        message: "You have reached the maximum number of organizations",
+      },
+      "You have reached the maximum number of organizations",
+      false,
+    ],
+    [
+      "falls back to the generic message",
+      { code: "INTERNAL_SERVER_ERROR" },
+      "Errors.createFailed",
+      false,
+    ],
+  ])("%s", async (_label, error, message, offersSignIn) => {
+    createOrganizationWorkspaceActionMock.mockResolvedValue({
+      ok: false,
+      error,
+    });
+    const user = userEvent.setup();
+    render(<WizardHarness onOrganizationReady={onOrganizationReadyMock} />);
+
+    await user.type(
+      screen.getByPlaceholderText("Details.namePlaceholder"),
+      "Acme",
+    );
+    await user.type(
+      screen.getByPlaceholderText("Details.urlPlaceholder"),
+      "acme.com",
+    );
+    await user.click(screen.getByRole("button", { name: /Nav.next/i }));
+
+    await waitFor(() => {
+      expect(toastErrorMock).toHaveBeenCalledOnce();
+    });
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      message,
+      ...(offersSignIn
+        ? [
+            expect.objectContaining({
+              action: expect.objectContaining({
+                label: "Errors.unauthorizedAction",
+              }),
+            }),
+          ]
+        : []),
+    );
+    expect(onOrganizationReadyMock).not.toHaveBeenCalled();
   });
 });

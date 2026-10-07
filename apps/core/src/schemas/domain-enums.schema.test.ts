@@ -11,6 +11,7 @@ import {
   OnChainJobStatus,
   PaymentType,
   RiskClassification,
+  TaskPriority,
   TaskScheduleEndsMode,
   TaskScheduleState,
   TaskStatus,
@@ -39,6 +40,8 @@ import {
   sokosumiJobStatusSchema,
   stripeSubscriptionStatusNullableSchema,
   stripeSubscriptionStatusSchema,
+  taskEventStatusSchema,
+  taskPrioritySchema,
   taskScheduleEndsModeSchema,
   taskScheduleStateSchema,
   taskStatusSchema,
@@ -50,9 +53,17 @@ import {
  * Web generated-client drift is guarded separately in apps/web.
  */
 describe("domain enum schemas", () => {
-  it("named TaskStatus schema values match Prisma", () => {
-    expect([...taskStatusSchema.options].sort()).toEqual(
+  it("named TaskEventStatus schema values match Prisma", () => {
+    expect([...taskEventStatusSchema.options].sort()).toEqual(
       Object.values(TaskStatus).sort(),
+    );
+  });
+
+  it("named TaskStatus schema is Prisma's without the event-only CREATED", () => {
+    expect([...taskStatusSchema.options].sort()).toEqual(
+      Object.values(TaskStatus)
+        .filter((status) => status !== TaskStatus.CREATED)
+        .sort(),
     );
   });
 
@@ -60,6 +71,13 @@ describe("domain enum schemas", () => {
     expect([...taskVisibilitySchema.options].sort()).toEqual(
       Object.values(TaskVisibility).sort(),
     );
+  });
+
+  it("named TaskPriority schema values match Prisma, urgent first", () => {
+    expect([...taskPrioritySchema.options]).toEqual(
+      Object.values(TaskPriority),
+    );
+    expect(taskPrioritySchema.options[0]).toBe("URGENT");
   });
 
   it("named TaskScheduleState schema values match Prisma", () => {

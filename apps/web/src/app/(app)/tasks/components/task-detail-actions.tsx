@@ -1,5 +1,11 @@
 "use client";
 
+import type { MemberWithOrganization, TaskShare } from "@sokosumi/core-client";
+import {
+  type TaskLink,
+  TaskLinkRelation,
+  TaskStatus,
+} from "@sokosumi/core-client";
 import {
   CORE_API_ERROR_KINDS,
   isTaskArchivableStatus,
@@ -33,9 +39,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { loadTaskScheduleDialogOptions } from "@/app/tasks/actions";
 import { markTaskArchived } from "@/app/tasks/utils/archived-task-ids";
+import { taskHref } from "@/app/tasks/utils/task-href";
 import { canArchiveParkedTaskForViewer } from "@/app/tasks/utils/task-read-only";
 import { taskSchedulePath } from "@/app/tasks/utils/task-schedule-view";
 import type { ProjectFilterOption } from "@/app/tasks/utils/tasks-filters";
@@ -69,15 +75,6 @@ import {
   deleteTaskLink,
   setTaskStatusFromDrag,
 } from "@/lib/actions/task/action";
-import type {
-  MemberWithOrganization,
-  TaskShare,
-} from "@/lib/clients/generated/core";
-import {
-  type TaskLink,
-  TaskLinkRelation,
-  TaskStatus,
-} from "@/lib/clients/generated/core";
 import type { CoworkerOption } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { stripInlineMarkdown } from "@/lib/utils/strip-markdown";
@@ -563,7 +560,7 @@ export function TaskDetailActions({
           label={labels.share}
           variant="ghost"
           size="icon"
-          className="size-7"
+          className="size-10 md:size-8"
         />
       ) : null}
       {hasOverflowMenuActions ? (
@@ -576,7 +573,7 @@ export function TaskDetailActions({
               type="button"
               variant="outline"
               size="icon"
-              className="size-8 shrink-0"
+              className="size-10 md:size-8 shrink-0"
               aria-label={actionsMenuLabel}
               disabled={actionsDisabled}
             >
@@ -959,7 +956,7 @@ export function TaskDetailActions({
               </AlertDialogCancel>
               <AlertDialogAction
                 onClick={handleArchive}
-                disabled={isArchivePending}
+                loading={isArchivePending}
               >
                 {labels.archive}
               </AlertDialogAction>
@@ -1096,6 +1093,7 @@ export function TaskDetailActions({
                 value: {
                   taskId: result.value.createdTaskId,
                   name: result.value.name,
+                  identifier: result.value.identifier,
                 },
               };
             }}
@@ -1108,10 +1106,10 @@ export function TaskDetailActions({
               router.refresh();
               toast.success(tDetailActions("createRelatedSuccess"));
             }}
-            onSuccess={(createdTaskId) => {
+            onSuccess={(createdTask) => {
               setIsCreateRelatedOpen(false);
               setSelectedCreateRelatedOption(null);
-              router.push(`/tasks/${createdTaskId}`);
+              router.push(taskHref(createdTask));
             }}
           />
         </TaskFormModal>

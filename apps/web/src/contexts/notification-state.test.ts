@@ -1,7 +1,6 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import { notificationReducer } from "@/contexts/notification-state";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 
 function createNotification(
   overrides: Partial<NotificationItem> = {},

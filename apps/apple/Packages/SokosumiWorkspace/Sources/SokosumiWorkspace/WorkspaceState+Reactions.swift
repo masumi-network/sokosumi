@@ -13,7 +13,7 @@ public extension WorkspaceState {
   func toggleReaction(_ source: Components.Schemas.ChatRoomMessage, emoji: String, auth: AuthState) async throws -> Bool {
     guard source.roomId == transcriptRoomId, canReactToMessage(source) else { return false }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to react to messages.")
+      throw ChatServiceError.unauthorized("Log in to react to messages.")
     }
     let confirmed = confirmedMessage(source.id) ?? source
     let confirmedReacted = confirmed.reactions.contains { $0.emoji == emoji && $0.reactedByCurrentUser }

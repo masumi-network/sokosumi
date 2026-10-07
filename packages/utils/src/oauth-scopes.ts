@@ -16,10 +16,6 @@ export const OAUTH_PROVIDER_SCOPES = [
   OAUTH_SCOPE_OFFLINE_ACCESS,
 ] as const;
 
-export const OAUTH_CLIENT_REGISTRATION_DEFAULT_SCOPES = [
-  OAUTH_SCOPE_OPENID,
-] as const;
-
 export interface BuildOAuthClientScopeParamOptions {
   includeCoreApi: boolean;
   includeOfflineAccess: boolean;

@@ -1,4 +1,4 @@
-import type { ChatRoom } from "@/lib/clients/generated/core";
+import type { ChatRoom } from "@sokosumi/core-client";
 
 /**
  * Room roster chrome (header stack + Members rail) is for channels and

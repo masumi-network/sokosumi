@@ -4,8 +4,9 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_CARD_CLASS,
   PROJECTS_BROWSE_HEADER_ROW_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
   PROJECTS_PAGE_SHELL_CLASS,
@@ -111,6 +112,8 @@ describe("projects list CLS layout pairing", () => {
     expect(item).toMatch(/PROJECTS_LIST_ROW_LAYOUT_CLASS/);
     expect(loading).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
     expect(item).not.toMatch(/PROJECTS_ITEM_LAYOUT_CLASS/);
+    expect(loading).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
+    expect(item).toMatch(/PROJECTS_LIST_ROW_CARD_CLASS/);
     expect(PROJECTS_LIST_ROW_LAYOUT_CLASS).toBe(
       "[content-visibility:auto] [contain-intrinsic-size:auto_72px]",
     );
@@ -124,11 +127,14 @@ describe("projects list CLS layout pairing", () => {
       readApp("projects/components/projects-view.tsx"),
     );
 
-    expect(loading).toContain("bg-card-background overflow-hidden rounded-xl");
-    expect(view).toContain("bg-card-background overflow-hidden rounded-xl");
-    expect(loading).toMatch(/PROJECTS_BROWSE_DIVIDE_CLASS/);
-    expect(view).toMatch(/PROJECTS_BROWSE_DIVIDE_CLASS/);
-    expect(PROJECTS_BROWSE_DIVIDE_CLASS).toBe("divide-border divide-y");
+    expect(loading).toMatch(/PROJECTS_BROWSE_CARD_CLASS/);
+    expect(view).toMatch(/PROJECTS_BROWSE_CARD_CLASS/);
+    expect(PROJECTS_BROWSE_CARD_CLASS).toBe(
+      "bg-card-background overflow-hidden rounded-xl p-2",
+    );
+    expect(loading).toMatch(/PROJECTS_BROWSE_LIST_CLASS/);
+    expect(view).toMatch(/PROJECTS_BROWSE_LIST_CLASS/);
+    expect(PROJECTS_BROWSE_LIST_CLASS).toBe("flex flex-col gap-2");
   });
 
   it("skeleton and live browse share PROJECTS_BROWSE_HEADER_ROW_CLASS", () => {

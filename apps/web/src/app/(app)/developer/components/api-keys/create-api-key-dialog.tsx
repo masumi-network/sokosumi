@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,7 +25,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
-import type { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
+import type { CreateApiKeyDialogProps, CreateApiKeyRequest } from "./types";
 import {
   createApiKeySchema,
   DEFAULT_CREATE_FORM_VALUES,
@@ -45,7 +44,7 @@ export function CreateApiKeyDialog({
 
   const schema = createApiKeySchema(t);
 
-  const form = useForm<CreateApiKeyFormData>({
+  const form = useForm<CreateApiKeyRequest>({
     resolver: zodResolver(schema),
     defaultValues: DEFAULT_CREATE_FORM_VALUES,
   });
@@ -65,7 +64,7 @@ export function CreateApiKeyDialog({
     form.reset();
   };
 
-  const onSubmit = async (values: CreateApiKeyFormData) => {
+  const onSubmit = async (values: CreateApiKeyRequest) => {
     const result = await createApiKey({
       name: values.name,
     });
@@ -181,10 +180,7 @@ export function CreateApiKeyDialog({
                   >
                     {t("CreateDialog.cancelButton")}
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                    ) : null}
+                  <Button type="submit" loading={isSubmitting}>
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>

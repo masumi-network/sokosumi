@@ -1,8 +1,8 @@
 import { DndContext } from "@dnd-kit/core";
+import { TaskStatus, TaskVisibility } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
-import { TaskStatus, TaskVisibility } from "@/lib/clients/generated/core";
 
 import { KanbanBoard } from "./kanban-board";
 import { TaskCard } from "./task-card";
@@ -39,6 +39,8 @@ function buildTask(visibility: TaskVisibility): TaskWithCoworker {
     id: "task-1",
     name: "Ship filter",
     status: TaskStatus.READY,
+    identifier: null,
+    priority: "NONE",
     visibility,
     description: null,
     descriptionPlain: null,
@@ -68,6 +70,63 @@ describe("TaskCard privacy cue", () => {
     render(<TaskCard task={buildTask(TaskVisibility.PUBLIC)} />);
 
     expect(screen.queryByLabelText("Private")).not.toBeInTheDocument();
+  });
+});
+
+describe("TaskCard priority", () => {
+  it("shows the priority icon before the name", () => {
+    render(
+      <TaskCard
+        task={{ ...buildTask(TaskVisibility.PUBLIC), priority: "URGENT" }}
+      />,
+    );
+
+    const icon = screen.getByRole("img", { name: "URGENT" });
+    const name = screen.getByText("Ship filter");
+    expect(
+      icon.compareDocumentPosition(name) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("hides the priority icon when there is none", () => {
+    render(<TaskCard task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(screen.queryByRole("img", { name: "NONE" })).not.toBeInTheDocument();
+    expect(document.querySelector("[data-priority]")).toBeNull();
+  });
+});
+
+describe("TaskCard short id", () => {
+  it("shows the identifier before the name and links with the slug URL", () => {
+    render(
+      <TaskCard
+        task={{
+          ...buildTask(TaskVisibility.PUBLIC),
+          identifier: "SOK-12",
+        }}
+      />,
+    );
+
+    const identifier = screen.getByText("SOK-12");
+    expect(identifier).toHaveClass("text-muted-foreground", "tabular-nums");
+    expect(
+      identifier.compareDocumentPosition(screen.getByText("Ship filter")) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
+      "href",
+      "/tasks/SOK-12-ship-filter",
+    );
+  });
+
+  it("shows no identifier and links by id without a project", () => {
+    render(<TaskCard task={buildTask(TaskVisibility.PUBLIC)} />);
+
+    expect(screen.queryByText(/^SOK-/)).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Ship filter/ })).toHaveAttribute(
+      "href",
+      "/tasks/task-1",
+    );
   });
 });
 
@@ -155,7 +214,12 @@ describe("TaskCard project navigation", () => {
   it("keeps project navigation separate from the full-card task link", () => {
     const task = {
       ...buildTask(TaskVisibility.PUBLIC),
-      project: { id: "project-1", name: "Long project name", logo: null },
+      project: {
+        id: "project-1",
+        name: "Long project name",
+        identifier: "SOK",
+        logo: null,
+      },
     };
     render(<TaskCard task={task} />);
     const project = screen.getByRole("link", { name: "openProject" });
@@ -203,6 +267,7 @@ describe("TaskCard density", () => {
         project: {
           id: "project-1",
           name: "A very long project name with international campaign details",
+          identifier: "SOK",
           logo: null,
         },
         tags: {
@@ -288,7 +353,12 @@ describe("Compact board card wiring", () => {
     ({ isDragEnabled, canDrag }) => {
       const task: TaskWithCoworker = {
         ...buildTask(TaskVisibility.PUBLIC),
-        project: { id: "project-1", name: "Launch project", logo: null },
+        project: {
+          id: "project-1",
+          name: "Launch project",
+          identifier: "SOK",
+          logo: null,
+        },
         tags: { manual: ["design"], automatic: [], rejected: [] },
       };
       const { container } = render(

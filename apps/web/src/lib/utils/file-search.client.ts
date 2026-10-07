@@ -1,12 +1,11 @@
 "use client";
 
-import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 import type {
   FileCollection,
   FileResource,
   FileSearchMeta,
   WorkspaceLabel,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import {
   deleteDriveCollectionsById,
   getDriveCollections,
@@ -21,7 +20,8 @@ import {
   postDriveResourcesByIdSuggestionsBySuggestionIdDecision,
   postDriveResourcesMetadataBatch,
   postDriveResourcesSelectionToken,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
 
 /**
  * Browser calls for the Files surface.

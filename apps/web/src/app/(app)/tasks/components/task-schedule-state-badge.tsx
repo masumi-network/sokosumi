@@ -1,8 +1,5 @@
+import { type TaskSchedule, TaskScheduleState } from "@sokosumi/core-client";
 import { Badge } from "@/components/ui/badge";
-import {
-  type TaskSchedule,
-  TaskScheduleState,
-} from "@/lib/clients/generated/core";
 import { TaskPrivateIndicator } from "./task-private-indicator";
 
 interface TaskScheduleStateBadgeProps {

@@ -1,6 +1,5 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -18,6 +17,8 @@ interface JoinActionsProps {
   organizationSlug: string;
   isAuthenticated: boolean;
   currentUserName: string;
+  currentUserFirstName?: string | null;
+  currentUserLastName?: string | null;
 }
 
 export function JoinActions({
@@ -26,6 +27,8 @@ export function JoinActions({
   organizationSlug,
   isAuthenticated,
   currentUserName,
+  currentUserFirstName,
+  currentUserLastName,
 }: JoinActionsProps) {
   const t = useTranslations("Join");
   const router = useRouter();
@@ -34,7 +37,11 @@ export function JoinActions({
   const [retryOrganizationId, setRetryOrganizationId] = useState<string | null>(
     null,
   );
-  const { persistIfNeeded, NameFields } = useCollectUserName(currentUserName);
+  const { persistIfNeeded, NameFields } = useCollectUserName(
+    currentUserName,
+    currentUserFirstName,
+    currentUserLastName,
+  );
   const busy = isJoining || isDeclining;
 
   const handleJoin = async () => {
@@ -114,13 +121,9 @@ export function JoinActions({
           className="w-full"
           onClick={handleJoin}
           disabled={busy || retryOrganizationId !== null}
+          loading={isJoining && !retryOrganizationId}
         >
-          {isJoining && !retryOrganizationId && (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          )}
-          {isJoining && !retryOrganizationId
-            ? t("joining")
-            : t("join", { organization: organizationName })}
+          {t("join", { organization: organizationName })}
         </Button>
         {retryOrganizationId ? (
           <Button
@@ -130,11 +133,9 @@ export function JoinActions({
               void handleRetryActivation();
             }}
             disabled={busy}
+            loading={isJoining}
             data-testid="join-retry-activation"
           >
-            {isJoining && (
-              <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-            )}
             {t("activateRetry")}
           </Button>
         ) : null}
@@ -146,10 +147,8 @@ export function JoinActions({
             void handleDecline();
           }}
           disabled={busy}
+          loading={isDeclining}
         >
-          {isDeclining && (
-            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-          )}
           {t("decline")}
         </Button>
       </div>

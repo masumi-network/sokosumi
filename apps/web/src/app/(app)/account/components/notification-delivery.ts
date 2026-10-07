@@ -1,4 +1,4 @@
-import type { NotificationPreference } from "@/lib/clients/generated/core";
+import type { NotificationPreference } from "@sokosumi/core-client";
 
 export type NotificationCategory = NotificationPreference["category"];
 

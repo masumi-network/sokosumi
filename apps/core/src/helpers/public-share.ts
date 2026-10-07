@@ -1,4 +1,9 @@
-import { jobInclude, type Prisma, TaskVisibility } from "@sokosumi/database";
+import {
+  jobInclude,
+  type Prisma,
+  TaskStatus,
+  TaskVisibility,
+} from "@sokosumi/database";
 import { mapJobWithStatus } from "@sokosumi/database/helpers";
 import {
   jobWithEvents,
@@ -111,6 +116,11 @@ type PublicTaskWithRelations = Prisma.TaskGetPayload<{
 function mapPublicTaskMilestone(
   event: PublicTaskWithRelations["events"][number],
 ): PublicSharedTaskMilestone | null {
+  // The public page leaves out the creation event.
+  if (event.status === TaskStatus.CREATED) {
+    return null;
+  }
+
   const comment = event.comment?.trim() || null;
   // Prefer event.cents (auth mapTaskEvent). Fall back to spend amount for
   // historical settled rows that stored a transaction but null cents.

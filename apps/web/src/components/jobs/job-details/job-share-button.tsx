@@ -1,11 +1,10 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
 import { Share } from "lucide-react";
 import { useTranslations } from "next-intl";
-
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import type { Job } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 import JobShareModal from "./job-share-modal";

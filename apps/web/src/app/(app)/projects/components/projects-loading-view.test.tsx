@@ -6,8 +6,9 @@ import {
   ProjectsPageSkeleton,
 } from "@/app/projects/components/projects-loading-view";
 import {
-  PROJECTS_BROWSE_DIVIDE_CLASS,
+  PROJECTS_BROWSE_LIST_CLASS,
   PROJECTS_LIST_CARD_MIN_H_CLASS,
+  PROJECTS_LIST_ROW_CARD_CLASS,
   PROJECTS_LIST_ROW_LAYOUT_CLASS,
 } from "@/app/projects/constants";
 
@@ -78,9 +79,9 @@ describe("ProjectsLoadingView", () => {
       "md:w-64",
     );
 
-    const divide = browse.lastElementChild;
-    for (const token of PROJECTS_BROWSE_DIVIDE_CLASS.split(/\s+/)) {
-      expect(divide?.className).toContain(token);
+    const list = browse.lastElementChild;
+    for (const token of PROJECTS_BROWSE_LIST_CLASS.split(/\s+/)) {
+      expect(list?.className).toContain(token);
     }
 
     const items = browse.querySelectorAll("article");
@@ -91,7 +92,6 @@ describe("ProjectsLoadingView", () => {
       expect(row?.className).toContain("flex-row");
       expect(row?.className).toContain("items-center");
       expect(row?.className).toContain("gap-4");
-      expect(row?.className).toContain("rounded-none");
       expect(row?.className).not.toContain("-mx-2");
       expect(row?.className).not.toContain("border-border");
       expect(row?.className).not.toContain("bg-overlay");
@@ -99,8 +99,12 @@ describe("ProjectsLoadingView", () => {
       // Avatar + name + briefing + one count pill + activity stamp; no
       // overflow actions column.
       expect(item.querySelectorAll('[data-slot="skeleton"]').length).toBe(5);
-      for (const token of PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/)) {
-        expect(item.className).toContain(token);
+      const itemTokens = item.className.split(/\s+/);
+      for (const token of [
+        ...PROJECTS_LIST_ROW_LAYOUT_CLASS.split(/\s+/),
+        ...PROJECTS_LIST_ROW_CARD_CLASS.split(/\s+/),
+      ]) {
+        expect(itemTokens).toContain(token);
       }
     }
 

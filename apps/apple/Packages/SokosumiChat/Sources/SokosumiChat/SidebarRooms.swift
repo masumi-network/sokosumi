@@ -90,13 +90,24 @@ public struct DirectRoomAvatarParticipant: Equatable, Sendable, Identifiable {
 }
 
 /// Faces for a Direct sidebar row. Empty means the row should show the
-/// message glyph (self-only Direct, or not a Direct). Caps at 3, same
-/// order as `roomDisplayName`.
+/// message glyph (not a Direct, or a Direct with nobody to show). Caps at 3,
+/// same order as `roomDisplayName`. A Self Direct shows its owner, the
+/// reader; with every peer gone a Direct shows the Former members, so the
+/// row still says who it was with (web `getDirectParticipants`).
 public func directRoomAvatarParticipants(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
 ) -> [DirectRoomAvatarParticipant] {
-  Array(directRoomOtherParticipants(room, currentUserId: currentUserId).prefix(3))
+  if room.kind == .direct, room.isSelfDirect, let owner = room.userMembers.first {
+    return [.init(id: owner.id, name: owner.name.isEmpty ? owner.email : owner.name, imageURL: owner.image, presence: owner.presence)]
+  }
+  let others = directRoomOtherParticipants(room, currentUserId: currentUserId)
+  if !others.isEmpty || room.kind != .direct {
+    return Array(others.prefix(3))
+  }
+  return room.formerUserMembers.prefix(3).map {
+    DirectRoomAvatarParticipant(id: $0.id, name: $0.name.isEmpty ? $0.email : $0.name, imageURL: $0.image)
+  }
 }
 
 /// Other humans (not you), then coworkers, then Soko Bots — the same
@@ -141,29 +152,26 @@ private func compareParticipants(
 /// external rooms use the stored name; a named group Direct shows its Group
 /// name (ADR-0040); other Directs list the participants with yourself
 /// excluded (humans by name-or-email, then coworkers, then bots).
-/// A self-only Direct falls back to the stored name — which is why several
-/// distinct self-note rooms can all read as your own name.
+/// A Self Direct is "You" before anything else (row 27c). With nobody else
+/// left, a Direct is named after its Former members, never the reader, and
+/// finally the stored name.
 public func roomDisplayName(
   _ room: Components.Schemas.ChatRoom,
   currentUserId: String
 ) -> String {
   guard room.kind == .direct else { return room.name }
+  if room.isSelfDirect {
+    return "You"
+  }
   if let groupName = room.groupName, !groupName.isEmpty {
     return groupName
   }
   let names = directRoomOtherParticipants(room, currentUserId: currentUserId).map(\.name)
-  if names.isEmpty {
-    let target = room.userMembers.first { $0.id != currentUserId }
-      ?? room.userMembers.first
-    if let target {
-      return target.name.isEmpty ? target.email : target.name
-    }
-    return room.name
+  if !names.isEmpty {
+    return participantNameList(names)
   }
-  if names.count <= 3 {
-    return names.joined(separator: ", ")
-  }
-  return "\(names.prefix(3).joined(separator: ", ")) and \(names.count - 3) more"
+  let former = participantNameList(formerMemberNames(room))
+  return former.isEmpty ? room.name : former
 }
 
 private func compareNameThenId(_ lhs: (String, String), _ rhs: (String, String)) -> Bool {
@@ -277,7 +285,7 @@ public func sidebarRoomKind(_ room: Components.Schemas.ChatRoom) -> SidebarRoomK
     return .external
   }
   // Guests are always on external rooms (DB invariant); safety net.
-  if room.myAccess == .guest {
+  if room.myAccess.value1 == .guest {
     return .external
   }
   return room.kind == .channel ? .channel : .direct

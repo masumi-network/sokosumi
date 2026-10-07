@@ -49,10 +49,6 @@ export function clampDriveFileName(name: string): string {
   return name.slice(0, DRIVE_FILE_MAX_NAME_LENGTH);
 }
 
-export function sanitizeDriveFolderName(name: string): string {
-  return sanitizeUserUploadFilename(name);
-}
-
 export function normalizeDriveFolderPath(path: string): string {
   return path
     .trim()

@@ -19,7 +19,7 @@ public extension WorkspaceState {
   func loadPins(auth: AuthState, older: Bool = false) async throws {
     guard canUsePins else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to view pinned messages.")
+      throw ChatServiceError.unauthorized("Log in to view pinned messages.")
     }
     try await pins.load(client: client, organizationSlug: selection?.workspace.organizationSlug, older: older)
   }
@@ -27,7 +27,7 @@ public extension WorkspaceState {
   func setPinned(_ pinned: Bool, messageId: String, auth: AuthState) async throws {
     guard canUsePins, let roomId = transcriptRoomId, !pendingPins.contains(messageId) else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to update pinned messages.")
+      throw ChatServiceError.unauthorized("Log in to update pinned messages.")
     }
     let generation = pins.roomGeneration
     let revision = pins.revision
@@ -69,7 +69,7 @@ public extension WorkspaceState {
       return true
     }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to view this message.")
+      throw ChatServiceError.unauthorized("Log in to view this message.")
     }
     return try await timeline.loadPage(.around(messageId), client: client,
                                        organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)
@@ -78,7 +78,7 @@ public extension WorkspaceState {
   func returnToLatest(auth: AuthState) async throws -> Bool {
     guard timeline.historicalAnchor != nil else { return true }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to load messages.")
+      throw ChatServiceError.unauthorized("Log in to load messages.")
     }
     return try await timeline.loadPage(.returnToLatest, client: client,
                                        organizationSlug: selection?.workspace.organizationSlug, generation: timeline.generation)

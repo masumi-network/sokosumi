@@ -107,7 +107,7 @@ test("registration gate copy provides workspace and Vendor setup guidance", () =
   );
   assert.match(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),
-    /creating a Coworker still requires a platform admin/,
+    /On Preprod, provision a private Coworker/,
   );
   assert.doesNotMatch(
     describeRegistrationAdminVendorRequirement("https://app.example.test"),

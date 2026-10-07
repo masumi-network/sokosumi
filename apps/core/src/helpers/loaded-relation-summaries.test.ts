@@ -9,7 +9,7 @@ describe("projectSummaryFromLoadedRelation", () => {
     ).toBeNull();
   });
 
-  it("maps a loaded project to id, name, and logo", () => {
+  it("maps a loaded project to id, name, identifier, and logo", () => {
     expect(
       projectSummaryFromLoadedRelation(
         "Task tsk_1",
@@ -17,12 +17,14 @@ describe("projectSummaryFromLoadedRelation", () => {
         {
           id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
           name: "Autumn",
+          identifier: "AUT",
           logo: "https://example.com/logo.png",
         },
       ),
     ).toEqual({
       id: "aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa",
       name: "Autumn",
+      identifier: "AUT",
       logo: "https://example.com/logo.png",
     });
   });

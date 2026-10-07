@@ -58,10 +58,11 @@ public extension ChatService {
     }
   }
 
-  /// Web `listArchivedRooms` plus the owner/admin flag that enables Delete.
+  /// Web `listArchivedRooms` plus the owner/admin flag that enables Delete. Web reads the two apart
+  /// (`private-sidebar-cache.ts`): a failed role read still lists the rooms, with Delete off.
   func archivedChannels(client: Client, organizationId: String, organizationSlug: String) async throws -> ArchivedChannelList {
-    let canDelete = try await isOrganizationOwnerOrAdmin(client: client, organizationId: organizationId)
+    let canDelete = try await organizationOwnerOrAdminIfReadable(client: client, organizationId: organizationId)
     let rooms = try await listRooms(client: client, organizationSlug: organizationSlug, kind: .channel, status: .archived)
-    return ArchivedChannelList(rooms: rooms, canDelete: canDelete)
+    return ArchivedChannelList(rooms: rooms, canDelete: canDelete == true, roleLoadFailed: canDelete == nil)
   }
 }

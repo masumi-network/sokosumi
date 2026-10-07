@@ -1,0 +1,5 @@
+{
+  "slug": "GOOGLECALENDAR_EVENTS_LIST",
+  "note": "Lab fixture: an empty calendar, for the quiet-standup and quiet-delta scenarios.",
+  "data": { "items": [] }
+}

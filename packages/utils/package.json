@@ -36,12 +36,13 @@
   "dependencies": {
     "decimal.js": "10.6.0",
     "namefully": "2.2.0",
+    "slugify": "1.6.9",
     "zod": "4.6.5"
   },
   "devDependencies": {
-    "@types/node": "24.19.0",
+    "@types/node": "24.19.1",
     "@typescript/typescript6": "6.0.2",
     "typescript": "7.0.2",
-    "vitest": "5.0.2"
+    "vitest": "5.0.3"
   }
 }

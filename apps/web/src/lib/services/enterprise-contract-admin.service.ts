@@ -1,6 +1,5 @@
 import "server-only";
 
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   ActivateEnterpriseContractRequest,
   ActivateEnterpriseContractResponse,
@@ -10,7 +9,8 @@ import type {
   EnterpriseContractPreview,
   EnterpriseContractStatus,
   PatchEnterpriseContractRequest,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export interface EnterpriseContractActivationBlockedError {
   kind: "enterprise_activation_blocked";

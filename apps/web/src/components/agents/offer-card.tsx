@@ -1,5 +1,6 @@
 "use client";
 
+import type { Vendor } from "@sokosumi/core-client";
 import {
   AlignLeft,
   AppWindow,
@@ -20,7 +21,6 @@ import {
   Users,
 } from "lucide-react";
 import { type ReactNode, useState } from "react";
-
 import { VendorMark } from "@/components/agents/vendor-mark";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,7 +30,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { DocumentTextPreview } from "@/components/ui/document-text-preview";
-import type { Vendor } from "@/lib/clients/generated/core";
 import type { CoworkerOffer } from "@/lib/types/coworker";
 import { cn } from "@/lib/utils";
 import { isOfficeFile, officeViewerUrl } from "@/lib/utils/file-preview";
@@ -433,7 +432,7 @@ export function OfferCard({
       type="button"
       onClick={onClick}
       className={cn(
-        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,box-shadow,transform] duration-200 hover:border-primary hover:shadow-sm press",
+        "group bg-card border-border flex flex-col overflow-hidden rounded-2xl border text-left transition-[border-color,transform] duration-200 hover:border-primary hover:shadow-sm press",
         FOCUS_RING,
       )}
     >
@@ -499,7 +498,7 @@ function OfferEmbed({
       <img
         src={url}
         alt={title}
-        className="bg-card-background h-full w-full object-contain"
+        className="bg-card-background size-full object-contain"
         loading="lazy"
       />
     );
@@ -511,7 +510,7 @@ function OfferEmbed({
       <iframe
         title={title}
         sandbox="allow-scripts"
-        className="bg-background h-full w-full"
+        className="bg-background size-full"
         loading="lazy"
         {...(text ? { srcDoc: text } : { src: url })}
       />
@@ -529,7 +528,7 @@ function OfferEmbed({
       <iframe
         src={src}
         title={title}
-        className="bg-card-background h-full w-full"
+        className="bg-card-background size-full"
       />
     );
   }

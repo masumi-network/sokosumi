@@ -1,13 +1,13 @@
 "use client";
 
+import type { Coworker } from "@sokosumi/core-client";
 import { COWORKER_IMAGE_MAX_SIZE_BYTES } from "@sokosumi/utils";
-import { Bot, Loader2 } from "lucide-react";
+import { Bot } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-
 import { OrganizationLogoUploadField } from "@/components/organizations/organization-logo-upload-field";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,7 +23,6 @@ import { Textarea } from "@/components/ui/textarea";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import {
   COWORKER_CAPTION_MAX_LENGTH,
   COWORKER_NAME_MIN_LENGTH,
@@ -336,15 +335,8 @@ export function CoworkerDisplayForm({
           </div>
 
           <div className="flex flex-wrap gap-3">
-            <Button type="submit" disabled={isDisabled}>
-              {isSavingText ? (
-                <>
-                  <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  {t("saving")}
-                </>
-              ) : (
-                t("saveChanges")
-              )}
+            <Button type="submit" disabled={isDisabled} loading={isSavingText}>
+              {t("saveChanges")}
             </Button>
             <Button
               type="button"

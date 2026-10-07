@@ -15,8 +15,10 @@ import {
   hasCalendarWorkspaceAccess,
   lockCalendarWorkspaceMembership,
 } from "@/helpers/calendar-membership-fence";
+import { findThreadReplyRowsPassedByRoomRead } from "@/helpers/chat-thread-reply-notifications";
 import type { NotificationDelivery } from "@/helpers/notification-delivery";
 import {
+  CHAT_ROOM_BADGE_MESSAGE_KEYS,
   resolveNotificationDelivery,
   toNotificationCategory,
 } from "@/helpers/notification-delivery";
@@ -175,10 +177,27 @@ async function chatRoomArrivals(
       },
     });
 
+    // A Thread reply's row stays unread for its Thread after the reader opened
+    // the room past it (SOK-1217). It is no longer news in the room, so it is
+    // no arrival here, as when Room last-read cleared it.
+    const passedIds = waiting.some((row) =>
+      CHAT_ROOM_BADGE_MESSAGE_KEYS.includes(row.messageKey),
+    )
+      ? new Set(
+          (
+            await findThreadReplyRowsPassedByRoomRead(
+              [notification.referenceId],
+              notification.userId,
+              client,
+            )
+          ).map((row) => row.id),
+        )
+      : new Set<string>();
+
     let count = 0;
     for (const row of waiting) {
       // Reminders refer to existing messages, so they add no arrivals.
-      if (isFollowUpMessageKey(row.messageKey)) {
+      if (isFollowUpMessageKey(row.messageKey) || passedIds.has(row.id)) {
         continue;
       }
       if (!row.inApp) {

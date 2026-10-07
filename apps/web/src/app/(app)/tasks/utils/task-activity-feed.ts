@@ -1,5 +1,5 @@
-import { TaskStatus } from "@/lib/clients/generated/core";
-import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
+import type { TaskEvent } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 
 /** Visible comments when the thread is collapsed. More than this → group chrome. */
 export const TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT = 5;

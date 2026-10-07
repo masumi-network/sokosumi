@@ -49,8 +49,8 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 ### Generated Files
 
-- **Never hand-edit generated files.** Auto-generated artifacts (files marked `This file is auto-generated`, anything under `src/lib/clients/generated/`, Prisma client output, etc.) must remain exactly as their generator produces them. Hand-applied edits silently regress on the next regeneration.
-- **Fix the source, then regenerate.** To change generated output, edit the upstream source of truth (e.g. the Core Zod/OpenAPI schemas under `apps/core/src/schemas/`) and re-run the generator (e.g. `pnpm --filter web generate:core:snapshot` for the Core API client). Commit the regenerated files as-is.
+- **Never hand-edit generated files.** Auto-generated artifacts (files marked `This file is auto-generated`, anything under `packages/core-client/src/generated/`, Prisma client output, etc.) must remain exactly as their generator produces them. Hand-applied edits silently regress on the next regeneration.
+- **Fix the source, then regenerate.** To change generated output, edit the upstream source of truth (e.g. the Core Zod/OpenAPI schemas under `apps/core/src/schemas/`) and re-run the generator (e.g. `pnpm --filter @sokosumi/core-client generate:snapshot` for the Core API client). Commit the regenerated files as-is.
 - If a generated file looks wrong, the bug is in the generator input or config — chase it there, not in the output.
 
 ### Shared Packages and Deduplication
@@ -66,6 +66,6 @@ A shortcut is fine when the user asked for the smallest change, when a hotfix ha
 
 - **Forbidden in `apps/web`**: importing `@sokosumi/database` repositories/helpers, instantiating or calling the Prisma client, or issuing raw SQL. Web services (`src/lib/services/`) and actions (`src/lib/actions/`) coordinate domain flows but obtain their data by calling Core endpoints.
 - **Required in `apps/core`**: every new data-access need is implemented as a versioned route under `apps/core/src/routes/v1/`, using direct Prisma (legacy services may still use `@sokosumi/database/repositories`), validated with the Core Zod/OpenAPI schemas (`apps/core/src/schemas/`).
-- **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter web generate:core:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
+- **Web → Core wiring**: after adding/changing a Core endpoint, regenerate the Core API client (`pnpm --filter @sokosumi/core-client generate:snapshot`), then run `pnpm --filter web typecheck` (or `pnpm web:typecheck`) to catch DTO drift. Do not chain typecheck into the generate script. Call regenerated endpoints from the web service layer. Do not hand-edit the generated client—see [Generated Files](#generated-files).
 - **Web DTO boundary**: do not import `@sokosumi/database` or domain enum **values** from `@sokosumi/utils` in web — use the generated Core client. Details and approved utils exceptions live in `apps/web/AGENTS.md` (Core DTO boundary).
 - **Why**: a single owner for data access keeps authorization, validation, and schema invariants in one place, lets the web app stay a thin client, and removes Prisma/Postgres credentials from the web runtime.

@@ -1,12 +1,12 @@
 import "server-only";
 
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   AdminAgentDetail,
   AdminAgentListItem,
   AgentStatus,
   PatchAdminAgentMetadataOverrideBody,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export interface AdminAgentListPage {
   agents: AdminAgentListItem[];

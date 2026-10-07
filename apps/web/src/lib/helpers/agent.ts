@@ -1,6 +1,5 @@
+import type { Agent, AgentExampleOutput } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
-import type { Agent, AgentExampleOutput } from "@/lib/clients/generated/core";
 import { categoryStylesSchema } from "@/lib/schemas/category";
 import type { CategoryStyles } from "@/lib/types/category";
 import { type CoreAgentDto, isCoreAgentDetail } from "@/lib/types/core-dto";

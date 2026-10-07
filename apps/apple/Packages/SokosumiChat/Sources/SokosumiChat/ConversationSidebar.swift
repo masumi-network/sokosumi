@@ -272,12 +272,12 @@ public final class ConversationSidebar: ObservableObject {
 
   public func perform(
     _ action: Action, roomId: String, client: Client, organizationSlug: String?,
-    now: Date = Date(), makeId: () -> UUID = UUID.init
+    clock: (now: Date, makeId: () -> UUID)
   ) async throws {
     guard canPerform(action, roomId: roomId), let room = rooms.first(where: { $0.id == roomId }) else { return }
-    let token = makeId()
+    let token = clock.makeId()
     let previousDate = action.dateField.flatMap { room[keyPath: $0] }
-    let optimisticDate: Date? = action == .pin || action == .mute ? now : nil
+    let optimisticDate: Date? = action == .pin || action == .mute ? clock.now : nil
     pendingActions[roomId] = PendingAction(token: token, action: action, previousDate: previousDate, optimisticDate: optimisticDate)
     actionError = nil
     patchDate(roomId: roomId, action: action, date: optimisticDate)
@@ -308,7 +308,7 @@ public final class ConversationSidebar: ObservableObject {
   /// latest one throws so the coordinator reloads the list, because an earlier overlapping reorder may
   /// have landed and no local snapshot is safe to put back.
   public func reorderPinned(
-    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date = Date()
+    _ roomIds: [String], client: Client, organizationSlug: String?, now: Date
   ) async throws {
     reorderRequest += 1
     let request = reorderRequest

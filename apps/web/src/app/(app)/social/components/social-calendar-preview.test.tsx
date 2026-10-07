@@ -1,0 +1,108 @@
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { NuqsTestingAdapter } from "nuqs/adapters/testing";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { load, onUrlUpdate } = vi.hoisted(() => ({
+  load: vi.fn(),
+  onUrlUpdate: vi.fn(),
+}));
+vi.mock("next-intl", () => ({ useTranslations: () => (key: string) => key }));
+vi.mock("./social-calendar-preview-actions", () => ({
+  loadSocialCalendarPreview: load,
+}));
+vi.mock("@/app/projects/components/social-posts/project-social-posts", () => ({
+  ProjectSocialPosts: ({
+    projectId,
+    selectedPostId,
+    previewOnly,
+  }: {
+    projectId: string;
+    selectedPostId: string;
+    previewOnly: boolean;
+  }) => (
+    <div
+      role="dialog"
+      data-project={projectId}
+      data-post={selectedPostId}
+      data-preview-only={String(previewOnly)}
+    />
+  ),
+}));
+
+import {
+  SocialCalendarPreviewProvider,
+  useSocialCalendarPreview,
+} from "./social-calendar-preview";
+
+function CalendarPost() {
+  const preview = useSocialCalendarPreview();
+  return (
+    <button
+      type="button"
+      onClick={(event) =>
+        preview?.("post-project", "scheduled-post", event.currentTarget)
+      }
+    >
+      Open post
+    </button>
+  );
+}
+describe("Social calendar previews", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+  it("opens the post's own project in a preview without changing calendar query state", async () => {
+    load.mockResolvedValue({
+      post: { id: "scheduled-post", projectId: "post-project" },
+      connections: [],
+    });
+    render(
+      <NuqsTestingAdapter
+        searchParams="?view=week&date=2026-10-05&timezone=Europe%2FPrague&tab=calendar"
+        onUrlUpdate={onUrlUpdate}
+      >
+        <SocialCalendarPreviewProvider>
+          <CalendarPost />
+        </SocialCalendarPreviewProvider>
+      </NuqsTestingAdapter>,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Open post" }));
+    await waitFor(() =>
+      expect(screen.getByRole("dialog")).toHaveAttribute(
+        "data-post",
+        "scheduled-post",
+      ),
+    );
+    expect(screen.getByRole("dialog")).toHaveAttribute(
+      "data-project",
+      "post-project",
+    );
+    expect(screen.getByRole("dialog")).toHaveAttribute(
+      "data-preview-only",
+      "true",
+    );
+    expect(load).toHaveBeenCalledWith({
+      projectId: "post-project",
+      postId: "scheduled-post",
+    });
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+  it("restores calendar focus when loading is canceled", async () => {
+    const user = userEvent.setup();
+    load.mockImplementation(() => new Promise(() => {}));
+    render(
+      <NuqsTestingAdapter>
+        <SocialCalendarPreviewProvider>
+          <CalendarPost />
+        </SocialCalendarPreviewProvider>
+      </NuqsTestingAdapter>,
+    );
+    const trigger = screen.getByRole("button", { name: "Open post" });
+    await user.click(trigger);
+    expect(screen.getByRole("dialog")).toHaveAttribute("aria-busy", "true");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(trigger).toHaveFocus());
+    expect(onUrlUpdate).not.toHaveBeenCalled();
+  });
+});

@@ -35,10 +35,6 @@ const FIXED_SITES: ReadonlyArray<readonly [string, string]> = [
   ["components/agents/agent-card.tsx", 'sm: "hover:bg-card-background-hover'],
   ["components/agents/agent-card.tsx", "md:hover:bg-card-background-hover"],
   [
-    "app/(app)/soko-bots/components/team-chart.tsx",
-    'className="hover:bg-card-background-hover group',
-  ],
-  [
     "components/notifications/notification-center-row.tsx",
     'className="hover:bg-card-background-hover -mx-1',
   ],

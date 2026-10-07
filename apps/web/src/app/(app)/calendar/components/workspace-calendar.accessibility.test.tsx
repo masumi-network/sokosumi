@@ -1,11 +1,11 @@
+import type {
+  WorkspaceCalendarItem,
+  WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { NuqsTestingAdapter } from "nuqs/adapters/testing";
 import { describe, expect, it, vi } from "vitest";
-import type {
-  WorkspaceCalendarItem,
-  WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
 
 const pushMock = vi.hoisted(() => vi.fn());
 const openCreateTaskModalMock = vi.hoisted(() => vi.fn());

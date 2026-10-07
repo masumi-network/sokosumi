@@ -164,6 +164,33 @@ describe("groupRosterMembers", () => {
     expect(idsOf(agents)).toEqual(["zeta", "alpha", "mid"]);
   });
 
+  it("puts guests in their own group, whatever their read state", () => {
+    const { people, neverRead, guests } = groupRosterMembers(
+      [human("ada"), human("gus"), human("gia"), human(VIEWER_ID)],
+      VIEWER_ID,
+      {
+        readStateFor: (id) => (id === "gus" ? { kind: "unread" } : null),
+      },
+      new Set(["gus", "gia"]),
+    );
+
+    expect(idsOf(people)).toEqual([VIEWER_ID, "ada"]);
+    expect(neverRead).toEqual([]);
+    expect(idsOf(guests)).toEqual(["gus", "gia"]);
+  });
+
+  it("puts a guest viewer first among the guests", () => {
+    const { people, guests } = groupRosterMembers(
+      [human("ada"), human("gus"), human(VIEWER_ID)],
+      VIEWER_ID,
+      noReads,
+      new Set(["gus", VIEWER_ID]),
+    );
+
+    expect(idsOf(people)).toEqual(["ada"]);
+    expect(idsOf(guests)).toEqual([VIEWER_ID, "gus"]);
+  });
+
   it("does not mutate the roster it was handed", () => {
     const roster = [human("ada"), human(VIEWER_ID)];
 

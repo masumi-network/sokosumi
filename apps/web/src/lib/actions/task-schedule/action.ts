@@ -1,9 +1,15 @@
 "use server";
 
+import type {
+  CreateTaskScheduleRunRequest,
+  TaskScheduleRule,
+  TaskScheduleRuleReplacement,
+  TaskVisibility,
+  UpdateTaskScheduleRunRequest,
+} from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { ResultAsync } from "neverthrow";
 import { revalidatePath } from "next/cache";
-
 import {
   TASK_SCHEDULES_PATH,
   taskSchedulePath,
@@ -14,12 +20,6 @@ import {
 } from "@/lib/actions/action-result";
 import { CoreApiRequestError } from "@/lib/clients/core.client";
 import type { TaskScheduleStateAction } from "@/lib/clients/core.shared";
-import type {
-  TaskScheduleRule,
-  TaskScheduleRuleReplacement,
-  TaskVisibility,
-  UpdateTaskScheduleRunRequest,
-} from "@/lib/clients/generated/core";
 import { taskScheduleService } from "@/lib/services/task-schedule.service";
 import {
   type AuthenticatedRequest,
@@ -71,6 +71,12 @@ interface ChangeTaskScheduleStateParameters extends AuthenticatedRequest {
 }
 
 interface DeleteTaskScheduleParameters extends AuthenticatedRequest {
+  scheduleId: string;
+}
+
+interface RunTaskScheduleNowParameters
+  extends AuthenticatedRequest,
+    CreateTaskScheduleRunRequest {
   scheduleId: string;
 }
 
@@ -158,6 +164,20 @@ export const deleteTaskSchedule = withSession<
     await taskScheduleService.deleteSchedule(scheduleId);
     revalidatePath(TASK_SCHEDULES_PATH);
     return { scheduleId };
+  }),
+);
+
+/** Run now: creates the Task at once; the rule and its Runs stay as they are. */
+export const runTaskScheduleNow = withSession<
+  RunTaskScheduleNowParameters,
+  TaskScheduleActionResult<{ scheduleId: string; taskId: string }>
+>(async ({ session: _session, scheduleId, ...body }) =>
+  runTaskScheduleAction(async () => {
+    const { run } = await taskScheduleService.runNow(scheduleId, body);
+    revalidateTaskSchedule(scheduleId);
+    // A Run now Run is released with its Task (ADR 0047).
+    if (!run.releasedTaskId) throw new Error("Run now created no Task");
+    return { scheduleId, taskId: run.releasedTaskId };
   }),
 );
 

@@ -1,15 +1,15 @@
+import type { EnterpriseContract } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { ActivateContractDialog } from "@/components/admin/enterprise-contracts/activate-contract-dialog";
 import { CancelContractDialog } from "@/components/admin/enterprise-contracts/cancel-contract-dialog";
+import { ChangeCreditsPerMonthDialog } from "@/components/admin/enterprise-contracts/change-credits-per-month-dialog";
 import { ContractPeriodsTable } from "@/components/admin/enterprise-contracts/contract-periods-table";
 import { ContractStatusBadge } from "@/components/admin/enterprise-contracts/contract-status-badge";
 import { PreviewSchedulePanel } from "@/components/admin/enterprise-contracts/preview-schedule-panel";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import type { EnterpriseContract } from "@/lib/clients/generated/core/types.gen";
 import { formatCreditsForDisplay } from "@/lib/utils/credits";
 
 function formatDateTime(
@@ -76,7 +76,13 @@ export async function ContractDetail({ contract }: ContractDetailProps) {
               </>
             ) : null}
             {isActive ? (
-              <CancelContractDialog contractId={contract.id} />
+              <>
+                <ChangeCreditsPerMonthDialog
+                  contractId={contract.id}
+                  creditsPerMonth={contract.creditsPerMonth}
+                />
+                <CancelContractDialog contractId={contract.id} />
+              </>
             ) : null}
           </div>
         ) : null}

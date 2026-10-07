@@ -335,6 +335,26 @@ describe("useChatRefreshScheduler", () => {
     expect(refresh).toHaveBeenCalledTimes(2);
   });
 
+  it.each(["hidden", "blur"] as const)(
+    "reads on mount while %s, so a room never waits for focus to show history",
+    async (kind) => {
+      visibility.mockReturnValue(kind === "hidden" ? "hidden" : "visible");
+      hasFocus.mockReturnValue(false);
+      const refresh = vi.fn().mockResolvedValue(undefined);
+      const { rerender } = mount(refresh, { refreshOnMount: true });
+
+      await act(async () => undefined);
+      expect(refresh).toHaveBeenCalledTimes(1);
+      rerender({ key: "room-2", healthy: true });
+      await act(async () => undefined);
+      expect(refresh).toHaveBeenCalledTimes(2);
+
+      // Timer reads stay quiet in the background.
+      await tick(CHAT_HEALTHY_REFRESH_MS * 2);
+      expect(refresh).toHaveBeenCalledTimes(2);
+    },
+  );
+
   it("marks the in-flight read stale on unmount and stops the timer", async () => {
     let seenCurrent: boolean | null = null;
     const pending = Promise.withResolvers<void>();

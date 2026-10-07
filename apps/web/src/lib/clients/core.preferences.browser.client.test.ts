@@ -10,10 +10,8 @@ vi.mock("@/lib/clients/utils/core-api-base-url.browser", () => ({
 
 // Partial mock: `client.gen` calls `createConfig` at import time, and the
 // generated SDK function imports it.
-vi.mock("@/lib/clients/generated/core/client", async (importOriginal) => ({
-  ...(await importOriginal<
-    typeof import("@/lib/clients/generated/core/client")
-  >()),
+vi.mock("@sokosumi/core-client/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@sokosumi/core-client/client")>()),
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 

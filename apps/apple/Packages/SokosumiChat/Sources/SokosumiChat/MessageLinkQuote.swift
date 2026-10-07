@@ -34,7 +34,7 @@ func sourceReaderUserIds(source: Components.Schemas.ChatRoom, target: Components
   let roster = source.userMembers.map(\.id)
   guard source.kind == .channel, let organizationId = source.organizationId, organizationId == target.organizationId,
         source.discoverability == ._public || source.discoverability == .external else { return roster }
-  return roster + target.userMembers.filter { $0.access?.value1 != .guest }.map(\.id)
+  return roster + target.userMembers.filter { $0.access != .guest }.map(\.id)
 }
 
 /// The quote a pasted Message link may be sent as in `targetRoom`, or nil when

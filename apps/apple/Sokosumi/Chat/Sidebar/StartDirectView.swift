@@ -11,12 +11,13 @@ struct StartDirectView: View {
 
   init(
     hasOrganization: Bool,
+    currentUserId: String,
     load: @escaping () async throws -> ChatRecipientRoster,
     open: @escaping (DirectConversationSelection) async throws -> Bool
   ) {
     self.load = load
     self.open = open
-    _picker = StateObject(wrappedValue: DirectRecipientPicker(hasOrganization: hasOrganization))
+    _picker = StateObject(wrappedValue: DirectRecipientPicker(hasOrganization: hasOrganization, currentUserId: currentUserId))
   }
 
   var body: some View {
@@ -108,8 +109,8 @@ struct StartDirectView: View {
   private var searchPlaceholder: String {
     switch picker.selection.recipients.first {
     case nil: "Search people or AI coworkers"
-    case .human: "Add more people"
-    case .coworker, .sokoBot: "Replace recipient"
+    case .human where !picker.selection.isSelfDirect: "Add more people"
+    case .human, .coworker, .sokoBot: "Replace recipient"
     }
   }
 
@@ -127,7 +128,9 @@ struct StartDirectView: View {
       VStack(spacing: 8) {
         if picker.roster.membersLoadFailed {
           HStack {
-            Text("Couldn’t load people. AI coworkers are still available.")
+            Text(picker.roster.recipientsLoadFailed
+              ? "Couldn’t load recipients. You can still message yourself."
+              : "Couldn’t load people. AI coworkers are still available.")
               .font(.callout).foregroundStyle(.secondary)
             Spacer()
             Button("Retry") { retry += 1 }.disabled(picker.creating)
@@ -225,8 +228,9 @@ private struct DirectRecipientRow: View {
 }
 
 #Preview("New chat") {
-  StartDirectView(hasOrganization: true, load: {
+  StartDirectView(hasOrganization: true, currentUserId: "me", load: {
     .init(targets: [
+      .messageYourself(userId: "me", name: "Ada Lovelace", imageURL: nil),
       .init(id: .human("one"), name: "Alexandra Long Recipient Name", detail: "alexandra@example.com"),
       .init(id: .human("two"), name: "Sam Rivera", detail: "sam@example.com"),
       .init(id: .coworker("ai"), name: "Research assistant", detail: "Research and analysis"),

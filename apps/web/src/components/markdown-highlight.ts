@@ -1,115 +1,71 @@
-// Constants for performance and security
 const MAX_QUERY_LENGTH = 256;
-const REGEX_CACHE_SIZE = 50;
+const MARK_CLASS_NAME = [
+  "bg-primary-tertiary",
+  "text-foreground",
+  "rounded-sm",
+  "px-0.5",
+];
 
-interface HighlightOptions {
-  term?: string | undefined;
+interface HastLikeNode {
+  type?: string;
+  tagName?: string;
+  value?: string;
+  properties?: Record<string, unknown>;
+  children?: HastLikeNode[];
 }
 
 function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-// LRU cache for compiled regexes
-class LRUCache<K, V> {
-  private cache = new Map<K, V>();
-  private maxSize: number;
+function underline(text: string) {
+  return Array.from(text, (char) => `${char}̲`).join("");
+}
 
-  constructor(maxSize: number) {
-    this.maxSize = maxSize;
-  }
+/**
+ * Highlights the search term in the parsed tree, where a match can only be
+ * display text. Matching the markdown source instead cut links at the term
+ * and corrupted tags whose names or attributes contained it.
+ *
+ * A match is wrapped in `<mark>`; inside code it gets a combining underline,
+ * so the syntax highlighter still sees one plain string.
+ */
+export function rehypeSearchTermHighlight(term: string | undefined) {
+  const query = (term ?? "").trim();
+  if (!query || query.length > MAX_QUERY_LENGTH) return;
+  const regex = new RegExp(`(${escapeRegex(query)})`, "gi");
 
-  get(key: K): V | undefined {
-    const value = this.cache.get(key);
-    if (value !== undefined) {
-      // Move to end (most recently used)
-      this.cache.delete(key);
-      this.cache.set(key, value);
-    }
-    return value;
-  }
-
-  set(key: K, value: V): void {
-    // Remove if exists to update position
-    this.cache.delete(key);
-
-    // Check size limit
-    if (this.cache.size >= this.maxSize) {
-      // Remove least recently used (first item)
-      const firstKey = this.cache.keys().next().value;
-      if (firstKey !== undefined) {
-        this.cache.delete(firstKey);
+  function highlight(node: HastLikeNode, inCode: boolean) {
+    if (!node.children) return;
+    node.children = node.children.flatMap((child) => {
+      if (child.type !== "text") {
+        highlight(child, inCode || child.tagName === "code");
+        return child;
       }
-    }
-
-    this.cache.set(key, value);
-  }
-
-  has(key: K): boolean {
-    return this.cache.has(key);
-  }
-}
-
-const regexCache = new LRUCache<string, RegExp>(REGEX_CACHE_SIZE);
-
-function getCachedRegex(term: string): RegExp {
-  let regex = regexCache.get(term);
-  if (!regex) {
-    const escaped = escapeRegex(term);
-    regex = new RegExp(`(${escaped})`, "gi");
-    regexCache.set(term, regex);
-  }
-  return regex;
-}
-
-export function applyMarkdownHighlighting(
-  markdown: string,
-  options: HighlightOptions,
-) {
-  const q = (options.term ?? "").trim();
-  if (!q || q.length > MAX_QUERY_LENGTH) return markdown;
-
-  try {
-    const regex = getCachedRegex(q);
-
-    const markOpen =
-      '<mark class="bg-primary-tertiary text-foreground rounded-sm px-0.5">';
-    const markClose = "</mark>";
-    const markReplacement = `${markOpen}$1${markClose}`;
-
-    function applyUnderlineToGroup(group: string) {
-      return group
-        .split("")
-        .map((ch) => `${ch}\u0332`)
-        .join("");
-    }
-
-    function applyUnderline(text: string) {
-      return text.replace(regex, (_m, g1: string) => applyUnderlineToGroup(g1));
-    }
-    function applyMark(text: string) {
-      return text.replace(regex, markReplacement);
-    }
-
-    const fencedParts = markdown.split(/(```[\s\S]*?```)/g);
-
-    const processed = fencedParts
-      .map((part) => {
-        const isFenced = part.startsWith("```");
-        if (isFenced) return applyUnderline(part);
-        const inlineParts = part.split(/(`[^`\n]+`)/g);
-        return inlineParts
-          .map((seg) => {
-            const isInline = seg.startsWith("`") && seg.endsWith("`");
-            if (isInline) return applyUnderline(seg);
-            return applyMark(seg);
-          })
+      // Odd entries are the matches, from the capture group.
+      const parts = (child.value ?? "").split(regex);
+      if (parts.length === 1) return child;
+      if (inCode) {
+        const value = parts
+          .map((part, index) => (index % 2 ? underline(part) : part))
           .join("");
-      })
-      .join("");
-
-    return processed;
-  } catch {
-    return markdown;
+        return { ...child, value };
+      }
+      return parts.flatMap((part, index): HastLikeNode[] => {
+        if (!part) return [];
+        const text = { type: "text", value: part };
+        if (index % 2 === 0) return [text];
+        return [
+          {
+            type: "element",
+            tagName: "mark",
+            properties: { className: MARK_CLASS_NAME },
+            children: [text],
+          },
+        ];
+      });
+    });
   }
+
+  return (tree: HastLikeNode) => highlight(tree, false);
 }

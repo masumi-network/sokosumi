@@ -262,6 +262,22 @@ describe("BreadcrumbNavigationClient", () => {
     expect(screen.queryByText("Edit")).not.toBeInTheDocument();
   });
 
+  it("shows a Drive file page under Files without a files segment", () => {
+    usePathnameMock.mockReturnValue(
+      "/drive/files/01a0f400-0000-7000-8000-000000000001",
+    );
+
+    render(
+      <BreadcrumbNavigationClient
+        organizations={organizations}
+        breadcrumbMessages={{ ...breadcrumbMessages, drive: "Files" }}
+      />,
+    );
+
+    expect(screen.getByText("Files")).toBeInTheDocument();
+    expect(screen.queryByText("files")).not.toBeInTheDocument();
+  });
+
   it("shows admin users list breadcrumbs", () => {
     usePathnameMock.mockReturnValue("/admin/users");
 

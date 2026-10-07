@@ -11,7 +11,7 @@ public enum DirectRecipient: Hashable, Sendable {
     switch self {
     case let .human(id):
       let eligible = (room.kind == .channel && room.discoverability == .external)
-        || (hasActiveOrganization && room.myAccess != .guest)
+        || (hasActiveOrganization && room.myAccess.value1 != .guest)
       return id != currentUserId && eligible && room.userMembers.contains { $0.id == id }
     case let .coworker(id): return room.coworkerMembers.contains { $0.id == id }
     case let .sokoBot(id): return room.sokoBotMembers.contains { $0.id == id }

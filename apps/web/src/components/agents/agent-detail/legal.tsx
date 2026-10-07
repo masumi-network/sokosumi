@@ -1,7 +1,6 @@
+import type { Agent } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Agent } from "@/lib/clients/generated/core";
 
 function AgentDetailLegal({ legal }: { legal: Agent["legal"] }) {
   const t = useTranslations("Components.Agents.AgentDetail.Legal");

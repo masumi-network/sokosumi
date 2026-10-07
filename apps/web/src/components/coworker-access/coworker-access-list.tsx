@@ -1,11 +1,10 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
@@ -19,7 +18,6 @@ import {
   revokeMyCoworkerAccess,
   revokeOrganizationCoworkerAccess,
 } from "@/lib/actions/workspace-approval-action";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import {
   isWorkspaceApprovalGranted,
   isWorkspaceApprovalPending,
@@ -237,10 +235,8 @@ function CoworkerAccessCardActions({
               "approveError",
             )
           }
+          loading={loadingAction === "approve"}
         >
-          {loadingAction === "approve" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("approve")}
         </Button>
         <Button
@@ -256,10 +252,8 @@ function CoworkerAccessCardActions({
               "denyError",
             )
           }
+          loading={loadingAction === "deny"}
         >
-          {loadingAction === "deny" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("deny")}
         </Button>
       </div>
@@ -282,10 +276,8 @@ function CoworkerAccessCardActions({
               "revokeError",
             )
           }
+          loading={loadingAction === "revoke"}
         >
-          {loadingAction === "revoke" ? (
-            <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-          ) : null}
           {tActions("revoke")}
         </Button>
       </div>

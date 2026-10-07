@@ -1,3 +1,4 @@
+import { TaskStatus } from "@sokosumi/core-client";
 import {
   act,
   fireEvent,
@@ -11,7 +12,6 @@ import { type ComponentProps, forwardRef, useImperativeHandle } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { TaskForm } from "@/app/tasks/components/task-form";
 import { createTask, updateTask } from "@/lib/actions/task/action";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { TASK_STATUS_DISPLAY_ORDER } from "@/lib/utils/task-status-order";
 import { mockCoworkerOption } from "@/test-fixtures/coworker";
 
@@ -422,8 +422,12 @@ const projectOptions = [
   },
 ];
 
-function createTaskSuccess(taskId: string, name: string) {
-  return { ok: true as const, value: { taskId, name } };
+function createTaskSuccess(
+  taskId: string,
+  name: string,
+  identifier: string | null = null,
+) {
+  return { ok: true as const, value: { taskId, name, identifier } };
 }
 
 function updateTaskSuccess(taskId: string) {
@@ -1497,7 +1501,11 @@ describe("TaskForm", () => {
     expect(onSuccess).not.toHaveBeenCalled();
 
     await user.click(goToTask);
-    expect(onSuccess).toHaveBeenCalledWith("task-1");
+    expect(onSuccess).toHaveBeenCalledWith({
+      id: "task-1",
+      identifier: null,
+      name: "Task one",
+    });
   });
 
   it("hides humans and locks Unassigned on tasks with a Run at", async () => {

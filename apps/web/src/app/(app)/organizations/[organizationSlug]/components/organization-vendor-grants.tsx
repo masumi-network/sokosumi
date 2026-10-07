@@ -1,3 +1,4 @@
+import type { VendorGrant } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import {
   Card,
@@ -7,7 +8,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { VendorGrantVendorList } from "@/components/vendor-grants/vendor-grant-vendor-list";
-import type { VendorGrant } from "@/lib/clients/generated/core";
 import { vendorService } from "@/lib/services/vendor.service";
 import { vendorGrantService } from "@/lib/services/vendor-grant.service";
 import { groupVendorGrantsByVendor } from "@/lib/utils/workspace-approval";

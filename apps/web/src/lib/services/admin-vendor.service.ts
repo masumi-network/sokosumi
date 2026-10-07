@@ -1,11 +1,11 @@
 import "server-only";
 
-import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 import type {
   CreateVendorRequest,
   PatchVendorRequest,
   Vendor,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
 
 export const adminVendorService = (() => {
   async function listVendors(): Promise<Vendor[]> {

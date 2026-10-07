@@ -1,8 +1,5 @@
+import type { Coworker, CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { getDeveloperVendorAdminAccess } from "@/app/developer/get-developer-vendor-admin-access";
-import type {
-  Coworker,
-  CoworkerWorkspaceAccess,
-} from "@/lib/clients/generated/core";
 import { coworkerAccessService } from "@/lib/services/coworker-access.service";
 
 import { DeveloperCoworkerEarlyAccess } from "./developer-coworker-early-access";

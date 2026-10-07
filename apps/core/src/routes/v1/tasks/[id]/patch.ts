@@ -50,6 +50,7 @@ import { publishTaskEventData } from "@/lib/ably/publish";
 import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireOwnerUserContext } from "@/middleware/auth";
+import { taskPrioritySchema } from "@/schemas/domain-enums.schema";
 import { createTaskContextSchema, taskSchema } from "@/schemas/task.schema";
 import { requireNoHumanAssigneeOnPrivateTask } from "@/services/task-domain.service";
 import { buildTaskIncludeForViewer, taskEventApiInclude } from "@/types/task";
@@ -90,6 +91,7 @@ export const patchTaskRequestSchema = z
       example: "01960001-0001-7001-8001-000000000099",
     }),
     assigneeUserId: z.string().nullish().openapi({ example: "user_123" }),
+    priority: taskPrioritySchema.optional(),
     runAt: dateTimeSchema.nullish().openapi({
       description:
         "Future time the Task moves to Ready. Setting it puts the Task in QUEUED (requires a Coworker or Soko Bot assignee); null on a QUEUED Task clears it and moves the Task back to DRAFT.",
@@ -108,12 +110,13 @@ export const patchTaskRequestSchema = z
       data.coworkerId === undefined &&
       data.assigneeSokoBotId === undefined &&
       data.assigneeUserId === undefined &&
+      data.priority === undefined &&
       data.runAt === undefined
     ) {
       ctx.addIssue({
         code: "custom",
         message:
-          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, or runAt is required",
+          "At least one of name, description, projectId, context, assigneeId, assigneeSokoBotId, assigneeUserId, priority, or runAt is required",
         path: ["name"],
       });
     }
@@ -170,6 +173,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       assigneeId,
       assigneeSokoBotId,
       assigneeUserId,
+      priority,
       runAt,
     } = c.req.valid("json");
 
@@ -341,6 +345,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
           name,
           description: nextDescription,
           projectId,
+          priority,
           ...(assigneeWrite ?? {}),
           runAt: runAtWrite,
           ...(nextStatus !== task.status ? { status: nextStatus } : {}),

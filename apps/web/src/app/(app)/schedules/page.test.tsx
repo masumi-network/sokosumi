@@ -110,7 +110,6 @@ describe("SchedulesPage", () => {
         selectedProjectId: PROJECT.id,
         canCreate: true,
         canCreatePrivate: true,
-        currentUserId: "user-1",
       }),
     );
   });

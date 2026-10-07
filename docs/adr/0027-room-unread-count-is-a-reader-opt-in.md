@@ -7,11 +7,11 @@
   never the badge's meaning.
 - Date: 2026-09-07
 
-A reader may switch on a numeric **Room unread** on chat sidebar rows. It is
-one account-wide boolean on the user record, `showRoomUnreadCount`, **off by
-default**. Switched on, a row with unread messages shows that count as muted
-text beside the mention badge. Switched off, which is what every existing
-reader gets, the row renders exactly as it did before. The count obeys the
+A chat sidebar row shows its numeric **Room unread** unless the reader
+switches it off. Storage is `hideRoomUnreadCount`, **shown unless switched
+off**. The wire field is still `showRoomUnreadCount`. See
+[ADR-0038](./0038-room-unread-count-is-on-by-default.md). A row with unread
+messages shows that count as muted text. The count obeys the
 suppression the rest of the row's chrome already obeys: no count on a muted
 room. Opening a room does not hide it. Bold, badge, and count follow unread
 state alone, so they go quiet only on a room that is read, marked read, or
@@ -24,13 +24,14 @@ nothing.
 rejected, and why this is allowed:** 0026 lists "numeric unread on the row"
 in its Rejected line. That entry rejected a number shown to everyone, as the
 row's default chrome, at a time when the number could not be trusted on first
-paint. This is narrower on both counts. It is off unless a reader asks for it,
-so no sidebar changes under anyone on upgrade; and it renders the same
+paint. This was narrower on both counts. It was off unless a reader asked for
+it, so no sidebar changed under anyone on upgrade; and it renders the same
 `unreadCount` that already drives bold, so it cannot disagree with the bold
 beside it. The known limitation 0026 records still applies and is unchanged:
 an in-flight back-navigation can paint fully-read and then leftover. A reader
-who opts in sees that as the number moving once, where a reader who does not
-still sees bold clearing once.
+who opted in saw that as the number moving once, where a reader who did not
+still saw bold clearing once. ADR-0038 later shows the number unless the
+reader switches it off.
 
 **Why not switch the mention badge to count messages:** the badge counts user
 mentions and direct messages, and a reader relies on it to tell a message

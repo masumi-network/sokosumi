@@ -1,7 +1,7 @@
 "use client";
 
+import type { ChatRoomUserParticipant } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
-
 import type {
   RoomReader,
   RoomReadReceipts,
@@ -16,7 +16,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { ChatRoomUserParticipant } from "@/lib/clients/generated/core";
 
 /**
  * Which readers a message shows — the newest message in the transcript, and
@@ -114,11 +113,7 @@ function SeenByDetail({
             className="flex h-7 items-center gap-2 px-2"
             data-testid={`room-seen-by-reader-${participant.id}`}
           >
-            <ParticipantAvatar
-              participant={participant}
-              className="size-5"
-              textClassName="text-[0.5rem]"
-            />
+            <ParticipantAvatar participant={participant} className="size-5" />
             <span className="min-w-0 flex-1 truncate text-xs">
               {participantName(participant)}
             </span>
@@ -165,7 +160,6 @@ function SeenByPending({
           <ParticipantAvatar
             participant={participant}
             className="size-5 opacity-60 grayscale"
-            textClassName="text-[0.5rem]"
           />
           <span className="text-muted-foreground min-w-0 flex-1 truncate text-xs">
             {participantName(participant)}
@@ -217,14 +211,14 @@ export function RoomSeenByLine({ readers, receipts }: RoomSeenByLineProps) {
       <PopoverTrigger asChild>
         <button
           type="button"
-          // `group`: the faces go colour on hover, focus and open, and the
-          // trigger is the only element that knows all three.
+          // `group/seen-by`: the faces go colour on hover, focus and open of
+          // this trigger alone, not of the message row around it.
           //
           // 16px of faces is not a touch target, so the pseudo-element takes
           // it to 44. Out here in the corner it overlaps no words, which is
           // exactly what it could not have done on the last line of a
           // paragraph. Pointers do not need it, so it is gone above md.
-          className="group relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden"
+          className="group/seen-by relative flex cursor-pointer rounded-full outline-none after:absolute after:-inset-3.5 focus-visible:ring-2 focus-visible:ring-ring md:after:hidden"
           aria-label={summary}
           title={summary}
           data-testid="room-seen-by-line"

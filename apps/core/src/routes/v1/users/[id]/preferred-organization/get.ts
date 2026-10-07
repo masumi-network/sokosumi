@@ -14,8 +14,9 @@ import { resolveActiveOrganizationIdForSession } from "@/services/preferred-orga
 const route = createRoute({
   method: "get",
   path: "/preferred-organization",
+  deprecated: true,
   description:
-    "Resolve the workspace to restore using the same rules as web sign-in: the saved organization when membership still exists, otherwise personal when available, otherwise the first remaining organization. This read does not update the saved preference or an active session. Check workspace-access first: null means personal only when a personal workspace exists; it also represents no workspace when setup is required. Path `me` selects the authenticated user; explicit user ids follow the existing user-route access rules.",
+    "Deprecated: use `GET /users/{id}/workspaces`, which marks the `preferred` workspace (ADR 0051). Resolve the workspace to restore using the same rules as web sign-in: the saved organization when membership still exists, otherwise personal when available, otherwise the first remaining organization. This read does not update the saved preference or an active session. Check workspace-access first: null means personal only when a personal workspace exists; it also represents no workspace when setup is required. Path `me` selects the authenticated user; explicit user ids follow the existing user-route access rules.",
   tags: ["Users"],
   request: { params: z.object({ id: usersRoutePathUserIdSchema }) },
   responses: {

@@ -1,7 +1,6 @@
+import type { AdminSokoBotListItem } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
-import type { AdminSokoBotListItem } from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

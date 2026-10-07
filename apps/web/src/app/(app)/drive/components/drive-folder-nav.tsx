@@ -41,18 +41,29 @@ export function DriveFolderNav({
   current,
   onSelect,
   actions,
+  virtualFolder,
 }: {
   folders: string[];
   current: string;
   onSelect: (folder: string) => void;
   actions?: ReactNode;
+  /** A folder that is not a path (Sokosumi Projects), listed at the root. */
+  virtualFolder?: { label: string; onOpen: () => void };
 }) {
   const t = useTranslations("App.Drive.Files");
-  const children = childFolders(folders, current);
+  const rows = childFolders(folders, current).map((folder) => ({
+    key: folder,
+    label: folder.split("/").at(-1) ?? folder,
+    onOpen: () => onSelect(folder),
+  }));
+  if (virtualFolder && !current) {
+    rows.push({ key: "\0virtual", ...virtualFolder });
+    rows.sort((a, b) => a.label.localeCompare(b.label));
+  }
 
   // Nothing to navigate: no folders anywhere and none entered. A trail with
   // only "All files" on it would be furniture.
-  if (folders.length === 0 && !current) return null;
+  if (folders.length === 0 && !current && !virtualFolder) return null;
 
   const segments = current ? current.split("/") : [];
 
@@ -104,24 +115,24 @@ export function DriveFolderNav({
         ) : null}
       </div>
 
-      {children.length > 0 ? (
+      {rows.length > 0 ? (
         <ul
           className="grid grid-cols-1 gap-2 @lg:grid-cols-2 @3xl:grid-cols-3 @5xl:grid-cols-4"
           data-testid="drive-folder-children"
         >
-          {children.map((folder) => (
-            <li key={folder}>
+          {rows.map((row) => (
+            <li key={row.key}>
               <button
                 type="button"
                 className="bg-card-background hover:bg-card-background-hover focus-visible:ring-ring flex min-h-11 w-full items-center gap-3 rounded-lg border px-3 py-2 text-left text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2"
-                title={folder}
-                onClick={() => onSelect(folder)}
+                title={row.label}
+                onClick={row.onOpen}
               >
                 <Folder
                   className="text-muted-foreground size-5 shrink-0"
                   aria-hidden
                 />
-                <span className="truncate">{folder.split("/").at(-1)}</span>
+                <span className="truncate">{row.label}</span>
               </button>
             </li>
           ))}

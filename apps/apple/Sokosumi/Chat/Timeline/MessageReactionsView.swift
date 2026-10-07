@@ -1,4 +1,5 @@
 import CoreAPI
+import SokosumiChat
 import SwiftUI
 
 #if os(macOS)
@@ -9,32 +10,35 @@ import SwiftUI
     var body: some View {
       LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), alignment: .leading)], alignment: .leading, spacing: 6) {
         ForEach(reactions, id: \.emoji) { reaction in
-          Button { toggle?(reaction.emoji) } label: {
-            HStack(spacing: 4) {
-              Text(reaction.emoji)
-              Text(reaction.count, format: .number).font(.caption)
+          Group {
+            if let toggle {
+              Button { toggle(reaction.emoji) } label: { chip(reaction) }
+                .buttonStyle(.plain)
+            } else {
+              // Web's `aria-disabled` chip: drawn as usual and still says who reacted, but takes no tap (a
+              // Read-only Direct, or a message that cannot take Reactions yet).
+              chip(reaction)
+                .accessibilityElement(children: .ignore)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(reaction.reactedByCurrentUser ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12), in: .capsule)
-            .overlay(Capsule().strokeBorder(reaction.reactedByCurrentUser ? Color.accentColor : Color.secondary.opacity(0.3)))
-            .contentShape(.capsule)
           }
-          .buttonStyle(.plain)
-          .disabled(toggle == nil)
-          .help(participants(reaction))
+          .help(reaction.whoReacted ?? "")
           .accessibilityLabel("\(reaction.emoji), ^[\(reaction.count) reaction](inflect: true)")
           .accessibilityValue(reaction.reactedByCurrentUser ? "You reacted" : "You have not reacted")
-          .accessibilityHint(participants(reaction))
+          .accessibilityHint(reaction.whoReacted ?? "")
         }
       }
     }
 
-    private func participants(_ reaction: Components.Schemas.ChatRoomMessageReaction) -> String {
-      let names = reaction.reactors.map(\.name).joined(separator: ", ")
-      let remaining = max(0, reaction.count - reaction.reactors.count)
-      guard remaining > 0 else { return names }
-      return names.isEmpty ? "\(remaining) more" : "\(names), and \(remaining) more"
+    private func chip(_ reaction: Components.Schemas.ChatRoomMessageReaction) -> some View {
+      HStack(spacing: 4) {
+        Text(reaction.emoji)
+        Text(reaction.count, format: .number).font(.caption)
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 4)
+      .background(reaction.reactedByCurrentUser ? Color.accentColor.opacity(0.18) : Color.secondary.opacity(0.12), in: .capsule)
+      .overlay(Capsule().strokeBorder(reaction.reactedByCurrentUser ? Color.accentColor : Color.secondary.opacity(0.3)))
+      .contentShape(.capsule)
     }
   }
 #endif

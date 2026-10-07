@@ -72,6 +72,10 @@ const nextConfig: NextConfig = {
         destination: "/schedules?projectId=:projectId",
         permanent: true,
       },
+      // Older names for Log in and Register. The query passes through, so a
+      // returnUrl or an OAuth request survives.
+      { source: "/login", destination: "/signin", permanent: false },
+      { source: "/register", destination: "/signup", permanent: false },
     ];
   },
   // Portless named URLs (`https://web.sokosumi.localhost`) and worktree
@@ -120,7 +124,10 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "4mb",
     },
     ...(!isWebpackDev && { turbopackRustReactCompiler: true }),
-    optimizePackageImports: ["lucide-react", "radix-ui"],
+    optimizePackageImports: ["lucide-react", "radix-ui", "@lobehub/icons"],
+    turbopackGc: true,
+    turbopackLazyDynamicImports: true,
+    agentUpgrade: "security",
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };

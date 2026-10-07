@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom, ChatRoomInvitation } from "@sokosumi/core-client";
 import {
   Archive,
   ArrowUpDown,
@@ -38,6 +39,7 @@ import { CreateChannelDialog } from "@/app/chat/components/create-channel-dialog
 import { CreateDirectDialog } from "@/app/chat/components/create-direct-dialog";
 import { useRoomSelection } from "@/app/chat/components/room-cache-provider";
 import { getRoomDisplayName } from "@/app/chat/components/room-helpers";
+import { canManageChannelSettings } from "@/app/chat/utils/channel-member-permissions";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -68,10 +70,6 @@ import {
   SIDEBAR_ROW_CLASS,
   SIDEBAR_ROW_LABEL_INSET_CLASS,
 } from "@/components/ui/sidebar-classes";
-import type {
-  ChatRoom,
-  ChatRoomInvitation,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   getActiveRoomIdFromPathname,
@@ -115,7 +113,7 @@ const EMPTY_PENDING_INVITATIONS: ChatRoomInvitation[] = [];
 
 /** Same absolute slot as live room rows so archived height matches Channels/DMs. */
 const ARCHIVED_TRAILING_CONTROL_CLASS =
-  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:hidden";
+  "absolute top-1/2 right-1 z-10 flex size-8 -translate-y-1/2 items-center justify-center after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5";
 
 /**
  * A room the All unreads filter lists with nothing unread: read during the
@@ -169,7 +167,8 @@ interface OrganizationChatListProps {
   pendingInvitations?: ChatRoomInvitation[];
   currentUserId: string;
   organizationId: string | null;
-  canDeleteArchivedRooms?: boolean;
+  /** Caller is an owner or admin of the active organization. */
+  isOrgOwnerOrAdmin?: boolean;
   /**
    * Wrap room/section links in Radix `SheetClose` (sidebar Sheet).
    * Set false when the list is page-mounted outside a Sheet.
@@ -188,7 +187,7 @@ export function OrganizationChatList({
   pendingInvitations = EMPTY_PENDING_INVITATIONS,
   currentUserId,
   organizationId,
-  canDeleteArchivedRooms = false,
+  isOrgOwnerOrAdmin = false,
   dismissSheetOnNavigate = true,
   paintOnly = false,
 }: OrganizationChatListProps) {
@@ -485,6 +484,7 @@ export function OrganizationChatList({
       ),
       onRoomUpdated: replaceRoom,
       dismissSheetOnNavigate,
+      canManageSettings: canManageChannelSettings(room, isOrgOwnerOrAdmin),
     };
   }
 
@@ -775,13 +775,12 @@ export function OrganizationChatList({
                                   variant="default"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={acceptBusy}
                                   onClick={() =>
                                     handleAcceptInvitation(invitation)
                                   }
                                 >
-                                  {acceptBusy
-                                    ? t("loading")
-                                    : tExternal("accept")}
+                                  {tExternal("accept")}
                                 </Button>
                                 <Button
                                   type="button"
@@ -789,13 +788,12 @@ export function OrganizationChatList({
                                   variant="outline"
                                   className="h-6 px-2 text-xs"
                                   disabled={anyBusy}
+                                  loading={declineBusy}
                                   onClick={() =>
                                     handleDeclineInvitation(invitation)
                                   }
                                 >
-                                  {declineBusy
-                                    ? t("loading")
-                                    : tExternal("decline")}
+                                  {tExternal("decline")}
                                 </Button>
                               </div>
                             </div>
@@ -875,7 +873,7 @@ export function OrganizationChatList({
                       const isDeleting = deletingRoomId === room.id;
                       const actionBusy =
                         restoringRoomId !== null || deletingRoomId !== null;
-                      const showOverflowMenu = canDeleteArchivedRooms;
+                      const showOverflowMenu = isOrgOwnerOrAdmin;
                       return (
                         <SidebarMenuItem
                           key={room.id}
@@ -961,17 +959,11 @@ export function OrganizationChatList({
                                   : "[@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/room-row:opacity-100 [@media(hover:hover)]:group-hover/room-row:opacity-100",
                               )}
                               disabled={actionBusy}
+                              loading={isRestoring}
                               onClick={() => handleRestoreRoom(room)}
                               aria-label={`${tActions("restore")} ${room.name}`}
                             >
-                              <RotateCcw
-                                className={cn(
-                                  "size-3.5",
-                                  isRestoring &&
-                                    "animate-spin motion-reduce:animate-pulse",
-                                )}
-                                aria-hidden
-                              />
+                              <RotateCcw className="size-3.5" aria-hidden />
                             </Button>
                           )}
                         </SidebarMenuItem>
@@ -1012,7 +1004,7 @@ export function OrganizationChatList({
                     {tActions("cancel")}
                   </AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={deletingRoomId !== null}
+                    loading={deletingRoomId !== null}
                     onClick={(event) => {
                       event.preventDefault();
                       handleConfirmDeleteRoom();

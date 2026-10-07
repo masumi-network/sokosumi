@@ -5,6 +5,11 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import {
+  ProjectSelectionMessage,
+  readProjectSelectionReply,
+} from "@/components/chat/project-selection-message";
+import { ResultPreviews } from "@/components/chat/result-previews";
 import Markdown from "@/components/markdown";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import type { ChatDelegation, ChatTurn } from "@/lib/soko-bot/chat-state";
@@ -45,6 +50,7 @@ function UserRow({
   muted?: boolean;
 }) {
   const timestamp = useTimestamp();
+  const selectedProject = readProjectSelectionReply(content);
   return (
     <div className="group/message flex w-full justify-end gap-3 px-4 py-0.5">
       <div className="flex max-w-[75%] flex-col items-end gap-0.5">
@@ -54,11 +60,15 @@ function UserRow({
             muted && "opacity-70",
           )}
         >
-          {content}
+          {selectedProject ? (
+            <ProjectSelectionMessage project={selectedProject} />
+          ) : (
+            content
+          )}
         </div>
         <time
           dateTime={createdAt}
-          className="text-muted-foreground px-1 text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+          className="text-muted-foreground px-1 text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
         >
           {timestamp(createdAt)}
         </time>
@@ -98,7 +108,7 @@ function MessageFooter({
     <div className="flex items-center gap-2 pt-0.5 pb-2">
       <CopyButton text={text} />
       {durationMs ? (
-        <span className="text-muted-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
+        <span className="text-muted-foreground text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100">
           {t("answeredIn", {
             seconds: Math.max(1, Math.round(durationMs / 1000)),
           })}
@@ -106,7 +116,7 @@ function MessageFooter({
       ) : null}
       <time
         dateTime={createdAt}
-        className="text-muted-foreground text-[0.625rem] tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
+        className="text-muted-foreground text-2xs tabular-nums opacity-0 transition-opacity group-hover/message:opacity-100"
       >
         {timestamp(createdAt)}
       </time>
@@ -127,7 +137,7 @@ function CopyButton({ text }: { text: string }) {
           setTimeout(() => setCopied(false), 1500);
         });
       }}
-      className="text-muted-foreground press hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-[0.6875rem] font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
+      className="text-muted-foreground press hover:text-foreground hover:bg-card-background border-border focus-visible:inset-ring-1 focus-visible:inset-ring-ring focus-visible:ring-ring-halo inline-flex items-center gap-1 rounded-md border px-1.5 py-1 text-2xs font-medium opacity-0 transition-opacity group-hover/message:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:outline-none"
     >
       {copied ? (
         <>
@@ -288,6 +298,14 @@ export function TurnRows({
                 {t("noAnswer")}
               </p>
             )}
+            <ResultPreviews
+              descriptors={turn.resultPreviews ?? []}
+              source={{ turnId: turn.id }}
+              existingDecisionIds={turn.decisions.map(
+                (decision) => decision.id,
+              )}
+              onDecisionResolved={onDecisionResolved}
+            />
             <DelegationChips delegations={turn.delegations} />
             {turn.decisions.map((decision) => (
               <DecisionCard

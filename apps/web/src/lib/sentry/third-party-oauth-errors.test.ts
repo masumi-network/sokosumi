@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { createErrorEvent } from "@/lib/sentry/__tests__/error-event-fixture";
-import {
-  isMinifiedOAuthRejectionNoise,
-  isMinifiedOAuthRejectionNoiseMessage,
-} from "@/lib/sentry/third-party-oauth-errors";
+import { isMinifiedOAuthRejectionNoise } from "@/lib/sentry/third-party-oauth-errors";
 
 describe("isMinifiedOAuthRejectionNoise", () => {
   it("drops minified Aa rejections on auth routes without a stack", () => {
@@ -23,13 +20,14 @@ describe("isMinifiedOAuthRejectionNoise", () => {
 
   it("drops minified Aa rejections on agents without a stack", () => {
     expect(
-      isMinifiedOAuthRejectionNoiseMessage(
+      isMinifiedOAuthRejectionNoise(
         createErrorEvent({
           transaction: "/agents",
           exception: {
             values: [{ type: "Error", value: "Aa" }],
           },
         }),
+        "Aa",
       ),
     ).toBe(true);
   });

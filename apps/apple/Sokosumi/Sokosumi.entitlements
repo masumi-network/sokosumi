@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Builds signed for a team use this file. Builds with no team (ad-hoc: CI and
+  local test runs) use SokosumiAdHoc.entitlements, which must stay the same
+  list without the Associated Domains key.
+-->
 <plist version="1.0">
 <dict>
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<!--
+		  Lets ASWebAuthenticationSession take the OAuth redirect at
+		  https://app.sokosumi.com/auth/apple/callback. The host lists this app
+		  under webcredentials in /.well-known/apple-app-site-association.
+		-->
+		<string>webcredentials:app.sokosumi.com</string>
+	</array>
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.files.user-selected.read-write</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
+	<true/>
+	<key>com.apple.security.print</key>
 	<true/>
 </dict>
 </plist>

@@ -8,10 +8,12 @@ import { bearerAuth } from "hono/bearer-auth";
 import { createMiddleware } from "hono/factory";
 import { resolveAgentApiKeyAuthContext } from "@/helpers/agent-api-key-auth";
 import { forbidden, unauthorized } from "@/helpers/error";
-import { auth } from "@/lib/auth";
+import {
+  hashStoredOAuthToken,
+  OAUTH_ACCESS_TOKEN_PREFIX,
+} from "@/lib/auth-oauth-token-prefixes";
 import {
   COWORKER_API_KEY_PREFIX,
-  hashApiKey,
   isSokoBotApiKeyToken,
 } from "@/lib/coworker-api-key";
 import prisma from "@/lib/db/prisma";
@@ -468,6 +470,7 @@ async function verifyApiKey(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
+  const { auth } = await import("@/lib/auth");
   const apiKeyResult = await auth.api.verifyApiKey({
     body: { configId: "default", key: token },
   });
@@ -516,15 +519,11 @@ async function verifyAgentApiKey(
   return true;
 }
 
-const hashAccessToken = async (value: string) => {
-  const tokenWithoutPrefix = value.replace(/^soko_access_token_/, "");
-  return await hashApiKey(tokenWithoutPrefix);
-};
-
 /**
  * Verifies an OAuth access token and sets the authentication context if valid.
  * Requires `sokosumi:api` on the access token, consent, and the client's
- * allow-list (`OauthClient.scopes`). Rejects disabled clients.
+ * allow-list (`OauthClient.scopes`). Rejects disabled clients. A first-party
+ * client (`OauthClient.skipConsent`) needs no consent.
  * `openid`-only tokens are identity-scoped and must not authenticate Core `/v1`.
  *
  * @param token - The OAuth access token to verify
@@ -535,7 +534,7 @@ async function verifyOAuthToken(
   token: string,
   c: Context<AuthEnv>,
 ): Promise<boolean> {
-  const hashedToken = await hashAccessToken(token);
+  const hashedToken = hashStoredOAuthToken(token, OAUTH_ACCESS_TOKEN_PREFIX);
   const oauthToken = await prisma.oauthAccessToken.findUnique({
     where: { token: hashedToken },
     include: {
@@ -547,6 +546,7 @@ async function verifyOAuthToken(
         select: {
           disabled: true,
           scopes: true,
+          skipConsent: true,
         },
       },
     },
@@ -593,20 +593,23 @@ async function verifyOAuthToken(
     return false;
   }
 
-  const consent = await prisma.oauthConsent.findFirst({
-    where: {
-      userId: oauthToken.userId,
-      clientId: oauthToken.clientId,
-    },
-    orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
-    select: {
-      id: true,
-      scopes: true,
-    },
-  });
+  // A first-party client skips consent, so it has no consent row (ADR 0046).
+  if (!client.skipConsent) {
+    const consent = await prisma.oauthConsent.findFirst({
+      where: {
+        userId: oauthToken.userId,
+        clientId: oauthToken.clientId,
+      },
+      orderBy: [{ updatedAt: "desc" }, { id: "desc" }],
+      select: {
+        id: true,
+        scopes: true,
+      },
+    });
 
-  if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
-    return false;
+    if (!consent || !hasCoreApiOAuthScope(consent.scopes)) {
+      return false;
+    }
   }
 
   setAuthContext(c, {
@@ -637,8 +640,12 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
       throw unauthorized("Invalid or expired agent token");
     }
 
-    const apiKeyValid = await verifyApiKey(token, c);
-    if (apiKeyValid) {
+    // An OAuth access token is never an API key. Trying it as one makes
+    // Better Auth log "Failed to validate API key" at error level.
+    if (
+      !token.startsWith(OAUTH_ACCESS_TOKEN_PREFIX) &&
+      (await verifyApiKey(token, c))
+    ) {
       return true;
     }
 
@@ -652,6 +659,10 @@ const bearerMiddleware: MiddlewareHandler<AuthEnv> = bearerAuth({
 });
 
 const sessionMiddleware: MiddlewareHandler<AuthEnv> = async (c, next) => {
+  // Loaded on first use: this middleware is in every route's graph, and the
+  // auth module drags better-auth, its plugins and Stripe into suites that
+  // never reach a session. Same reason as `middleware/organization.ts`.
+  const { auth } = await import("@/lib/auth");
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });

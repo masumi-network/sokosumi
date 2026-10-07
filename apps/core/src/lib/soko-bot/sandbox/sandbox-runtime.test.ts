@@ -32,8 +32,8 @@ vi.mock("@/config/env", () => ({
   }),
   getBetterAuthPublicBaseUrl: () => "https://core.example.com",
 }));
-vi.mock("@/lib/db/prisma", () => ({
-  default: {
+vi.mock("@/lib/db/prisma", () => {
+  const client = {
     sokoBotTurn: {
       findUniqueOrThrow: vi
         .fn()
@@ -43,8 +43,15 @@ vi.mock("@/lib/db/prisma", () => ({
       create: createEventMock,
       findFirst: vi.fn().mockResolvedValue(null),
     },
-  },
-}));
+  };
+  return {
+    default: {
+      ...client,
+      $transaction: (operation: (tx: unknown) => Promise<unknown>) =>
+        operation({ ...client, $executeRaw: vi.fn() }),
+    },
+  };
+});
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   sokoBotControlPlane: { reconcileTurn: reconcileTurnMock },
 }));

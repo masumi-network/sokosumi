@@ -57,6 +57,7 @@ export default async function AdminSokoBotVersionsPage() {
           versions={catalog.versions.map((version) => ({
             id: version.id,
             name: version.name,
+            euPinned: version.inferenceRegion === "eu",
           }))}
           defaultVersionId={catalog.defaultVersionId}
           inUse={usage.versions}

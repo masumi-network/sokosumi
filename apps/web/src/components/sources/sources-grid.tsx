@@ -1,10 +1,9 @@
+import type { TaskFileStatus as TaskFileStatusType } from "@sokosumi/core-client";
+import { BlobStatus } from "@sokosumi/core-client";
 import { FileIcon } from "lucide-react";
-
 import { FileChipWithMetadata } from "@/components/jobs/job-details/file-chip-with-metadata";
 import { TaskFileStatusBadge } from "@/components/tasks/task-file-status-badge";
 import { Favicon } from "@/components/ui/favicon";
-import { BlobStatus } from "@/lib/clients/generated/core";
-import type { TaskFileStatus as TaskFileStatusType } from "@/lib/clients/generated/core/types.gen";
 import { getBlobUrl } from "@/lib/helpers/blob";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
@@ -48,7 +47,7 @@ export function SourcesGrid(props: SourcesGridProps) {
             href={link.url}
             target="_blank"
             rel="noreferrer noopener"
-            className="press hover:bg-accent focus-visible:ring-ring inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition outline-none"
+            className="press hover:bg-accent focus-visible:ring-ring focus-visible:ring-2 inline-flex w-full max-w-full items-center gap-3 rounded-md border p-2 transition-[color,background-color,border-color,transform] outline-none"
           >
             <div className="bg-card-background relative size-4 shrink-0 items-center justify-center overflow-hidden rounded">
               <Favicon

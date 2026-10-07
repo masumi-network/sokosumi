@@ -1,5 +1,6 @@
 "use server";
 
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
@@ -7,13 +8,11 @@ import {
   type ActionResultDto,
   toActionResult,
 } from "@/lib/actions/action-result";
-
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 import {
   type InvoiceListItem,
   type InvoiceStatusFilter,

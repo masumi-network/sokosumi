@@ -1,5 +1,5 @@
 import * as Sentry from "@sentry/node";
-import { buildWebhookFailureContext, postWebhook } from "@sokosumi/utils";
+import { buildWebhookFailureContext, postWebhook } from "@sokosumi/net";
 
 import { WEBHOOK_TIMEOUT_MS, WEBHOOK_USER_AGENT } from "@/config/constants";
 import { getEnv } from "@/config/env";
@@ -11,9 +11,8 @@ export const webhookClient = (() => {
   /**
    * Calls a webhook URL with timeout protection.
    * Fire-and-forget pattern - reports failures but doesn't throw. Shared
-   * transport and failure-context shaping live in `@sokosumi/utils` so web and
-   * core stay in sync; receiver backpressure (queue full) is treated as
-   * expected and skipped.
+   * transport and failure-context shaping live in `@sokosumi/net`. Receiver
+   * backpressure (queue full) is treated as expected and skipped.
    */
   async function call(
     webhookUrl: string,

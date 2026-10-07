@@ -28,18 +28,16 @@ interface MermaidSource {
 /** Protect original spans, then identify them by their restored display offset. */
 export function prepareMermaidMarkdown({
   source,
-  highlightTerm = "",
   transform,
 }: {
   source: string;
-  highlightTerm?: string;
   transform: (markdown: string) => string;
 }) {
   const tokens = new Map<string, MermaidSource>();
   const displaySource = transform(source);
   // Sanitization can decode character references. Reserve the transformed text
   // too, so an entity in untrusted prose cannot impersonate a protected span.
-  const reserved = source + displaySource + highlightTerm;
+  const reserved = source + displaySource;
   let tokenPoint = 0xe000;
   let cursor = 0;
   let protectedSource = "";
@@ -49,7 +47,6 @@ export function prepareMermaidMarkdown({
       const end = node.position?.end?.offset;
       if (start === undefined || end === undefined) return;
       const raw = source.slice(start, end);
-      // Search must not highlight the placeholder itself.
       while (reserved.includes(String.fromCodePoint(tokenPoint))) tokenPoint++;
       const token = String.fromCodePoint(tokenPoint++);
       protectedSource += source.slice(cursor, start) + token;

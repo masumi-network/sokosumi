@@ -1,12 +1,11 @@
+import type { AdminSokoBotDetail } from "@sokosumi/core-client";
 import { ChevronRight } from "lucide-react";
 import Link from "next/link";
 import { getFormatter, getTranslations } from "next-intl/server";
-
 import { shortId } from "@/components/soko-bot/format";
 import { MetaGrid } from "@/components/soko-bot/meta-grid";
 import { Panel } from "@/components/soko-bot/panel";
 import { StatusBadge } from "@/components/soko-bot/status-badge";
-import type { AdminSokoBotDetail } from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOTS_ROUTE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 

@@ -1,4 +1,10 @@
 "use client";
+import type {
+  DataTable,
+  TableColumn,
+  TableRow,
+  TableView,
+} from "@sokosumi/core-client";
 import { encodeTableCsv } from "@sokosumi/utils";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, MoreHorizontal, Plus, Sparkles } from "lucide-react";
@@ -39,12 +45,6 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useSession } from "@/lib/auth/auth.client";
-import type {
-  DataTable,
-  TableColumn,
-  TableRow,
-  TableView,
-} from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { cn } from "@/lib/utils";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
@@ -639,7 +639,7 @@ function TableWorkspace({
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="text-muted-foreground size-7 shrink-0"
+                          className="text-muted-foreground hit-area size-7 shrink-0"
                           aria-label={t("columnMenu", { column: column.name })}
                         >
                           <MoreHorizontal className="size-4" />
@@ -1208,7 +1208,8 @@ function TableWorkspace({
           {dialog !== "history" && (
             <DialogFooter>
               <Button
-                disabled={pending || (dialog === "enrich" && !!taskId)}
+                disabled={dialog === "enrich" && !!taskId}
+                loading={pending}
                 onClick={() =>
                   void run(
                     async () => {
@@ -1295,11 +1296,7 @@ function TableWorkspace({
                   )
                 }
               >
-                {pending
-                  ? t("saving")
-                  : dialog === "enrich"
-                    ? t("createTask")
-                    : t("save")}
+                {dialog === "enrich" ? t("createTask") : t("save")}
               </Button>
             </DialogFooter>
           )}

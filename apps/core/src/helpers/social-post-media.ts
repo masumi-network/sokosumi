@@ -1,12 +1,14 @@
 import { SsrfError, ssrfSafeFetch } from "@sokosumi/net";
 import {
-  SOCIAL_POST_MEDIA_RULES,
   type SocialPostMediaKind,
   type SocialPostMediaRef,
+  type SocialPostProvider,
+  socialPostMaxBytesForKind,
   socialPostMediaKindForMime,
+  socialPostProviderLabel,
 } from "@sokosumi/utils";
 
-import type { PublishXMediaInput } from "@/clients/composio.client";
+import type { SocialPostMediaBytes } from "@/clients/social-post-providers/types";
 import { socialPostMediaRefSchema } from "@/schemas/social-post.schema";
 
 const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
@@ -14,7 +16,8 @@ const MEDIA_DOWNLOAD_TIMEOUT_MS = 60_000;
 export type SocialPostMediaErrorKind =
   | "media_missing"
   | "media_type_mismatch"
-  | "media_too_large";
+  | "media_too_large"
+  | "unsupported_provider";
 
 /** A Drive file cannot be published as-is; retrying will not help. */
 export class SocialPostMediaError extends Error {
@@ -61,18 +64,6 @@ export function requireSocialPostMedia(
   );
 }
 
-export function socialPostMediaMaxBytes(kind: SocialPostMediaKind): number {
-  const rules = SOCIAL_POST_MEDIA_RULES.x;
-  switch (kind) {
-    case "image":
-      return rules.maxImageBytes;
-    case "gif":
-      return rules.maxGifBytes;
-    case "video":
-      return rules.maxVideoBytes;
-  }
-}
-
 /** Base MIME type of a response, lowercased and stripped of parameters. */
 function servedMimeType(contentType: string | null): string {
   return (contentType ?? "").split(";")[0].trim().toLowerCase();
@@ -90,10 +81,12 @@ function kindLabel(kind: SocialPostMediaKind): string {
 }
 
 async function downloadOne(
+  provider: SocialPostProvider,
   ref: SocialPostMediaRef,
   signal?: AbortSignal,
-): Promise<PublishXMediaInput> {
-  const maxBytes = socialPostMediaMaxBytes(ref.kind);
+): Promise<SocialPostMediaBytes> {
+  const maxBytes = socialPostMaxBytesForKind(provider, ref.kind);
+  const label = socialPostProviderLabel(provider);
   let response: Response;
   try {
     response = await ssrfSafeFetch(ref.fileUrl, {
@@ -109,7 +102,7 @@ async function downloadOne(
     if (error instanceof SsrfError && /maxResponseBytes/.test(error.message)) {
       throw new SocialPostMediaError(
         "media_too_large",
-        `Media file "${ref.name}" is too large for X`,
+        `Media file "${ref.name}" is too large for ${label}`,
       );
     }
     throw error;
@@ -131,7 +124,7 @@ async function downloadOne(
   if (bytes.length > maxBytes) {
     throw new SocialPostMediaError(
       "media_too_large",
-      `Media file "${ref.name}" is too large for X`,
+      `Media file "${ref.name}" is too large for ${label}`,
     );
   }
   return { bytes, name: ref.name, mimeType: servedMime, kind: ref.kind };
@@ -142,13 +135,14 @@ async function downloadOne(
  * checks it still matches what was validated at schedule time.
  */
 export async function downloadSocialPostMedia(
+  provider: SocialPostProvider,
   media: readonly SocialPostMediaRef[],
   signal?: AbortSignal,
-): Promise<PublishXMediaInput[]> {
-  const downloaded: PublishXMediaInput[] = [];
+): Promise<SocialPostMediaBytes[]> {
+  const downloaded: SocialPostMediaBytes[] = [];
   for (const ref of media) {
     signal?.throwIfAborted();
-    downloaded.push(await downloadOne(ref, signal));
+    downloaded.push(await downloadOne(provider, ref, signal));
   }
   return downloaded;
 }

@@ -4,7 +4,22 @@
       "error": "Security check could not load. Turn off content blockers or reload the page.",
       "verificationFailed": "The security check failed. Please try again.",
       "missingResponse": "Complete the security check and try again.",
-      "requestFailed": "Unable to complete this request. Please try again later."
+      "requestFailed": "Unable to complete this request. Please try again later.",
+      "rateLimited": "Too many requests in a row. Wait a minute, then try again."
+    },
+    "EmailCodeForm": {
+      "sent": "We sent a 6-digit code to {email}.",
+      "sentNoAddress": "We emailed you a 6-digit code.",
+      "codeLabel": "Code from the email",
+      "incomplete": "Enter the 6-digit code from the email.",
+      "invalid": "That code is not right. Check the email and try again.",
+      "expired": "This code has expired. Send a new code.",
+      "tooManyAttempts": "Too many wrong tries. Send a new code.",
+      "generic": "We could not check the code. Try again.",
+      "resend": "Send a new code",
+      "resendIn": "Send a new code in {seconds}s",
+      "rateLimited": "Too many tries in a row. Wait a minute, then try again.",
+      "notSent": "We could not send a code. Try again."
     },
     "EmergencyDialog": {
       "title": "Emergency maintenance",
@@ -16,11 +31,11 @@
       "frequentlyUsed": "Frequently used",
       "noResults": "No emoji found",
       "categories": {
-        "smileysEmotion": "Smileys & Emotion",
-        "peopleBody": "People & Body",
-        "animalsNature": "Animals & Nature",
-        "foodDrink": "Food & Drink",
-        "travelPlaces": "Travel & Places",
+        "smileysEmotion": "Smileys & emotion",
+        "peopleBody": "People & body",
+        "animalsNature": "Animals & nature",
+        "foodDrink": "Food & drink",
+        "travelPlaces": "Travel & places",
         "activities": "Activities",
         "objects": "Objects",
         "symbols": "Symbols",
@@ -29,24 +44,25 @@
     },
     "ReauthDialog": {
       "confirm": "Confirm",
-      "continueWithEmail": "Email me a sign-in link",
+      "confirmCode": "Confirm with code",
+      "continueWithEmail": "Email me a code",
       "continueWithGoogle": "Continue with Google",
       "continueWithMicrosoft": "Continue with Microsoft",
-      "description": "Your session is too old for this change. Sign in again to continue.",
-      "magicLinkError": "We could not send the link. Try again.",
-      "magicLinkSent": "Link sent to {email}. Open it on this device to sign in again.",
+      "description": "Your session is too old for this change. Log in again to continue.",
+      "emailCodeError": "We could not send the code. Try again.",
       "noMethod": "Confirm your email address first, then try again.",
-      "orEmail": "Or sign in by email:",
+      "orEmail": "Or log in by email:",
       "orSocial": "Or continue with a connected account.",
       "passwordError": "We could not verify that password.",
       "passwordLabel": "Current password",
-      "rememberMe": "Keep me signed in",
-      "resendEmail": "Send the link again",
-      "retryPrompt": "You are signed in again. Try that again now.",
-      "sessionLost": "Open the sign-in page and sign in again.",
+      "retryPrompt": "You are logged in again. Try that again now.",
+      "sessionLost": "Open the sign-in page and log in again.",
       "socialError": "We could not start that sign-in.",
-      "termsNotAccepted": "Accept the updated terms before signing in again.",
       "title": "Confirm it is you"
+    },
+    "Button": {
+      "loading": "{label}, in progress",
+      "loadingUnnamed": "In progress"
     },
     "ShareButton": {
       "share": "Share",
@@ -59,10 +75,10 @@
     },
     "Agents": {
       "RiskClassification": {
-        "minimal": "Minimal Risk",
-        "limited": "Limited Risk",
-        "high": "High Risk",
-        "unacceptable": "Unacceptable Risk"
+        "minimal": "Minimal risk",
+        "limited": "Limited risk",
+        "high": "High risk",
+        "unacceptable": "Unacceptable risk"
       },
       "AgentVerifiedBadge": {
         "tooltip": "This agent's authenticity is verified through an Agent Identity.",
@@ -90,11 +106,11 @@
         "percentage": "{percentage}%"
       },
       "Reviews": {
-        "customerReviews": "Customer Reviews",
+        "customerReviews": "Customer reviews",
         "noReviewsYet": "No reviews yet",
         "beFirstToReview": "Be the first to write a review!",
-        "signInToReview": "Sign in to write a review",
-        "signIn": "Sign in",
+        "signInToReview": "Log in to write a review",
+        "signIn": "Log in",
         "readMore": "Read more",
         "showLess": "Show less",
         "Pagination": {
@@ -103,16 +119,16 @@
       },
       "AgentDetail": {
         "Stats": {
-          "executedJobs": "Executed Jobs",
-          "averageExecutionTime": "Average Execution Time",
+          "executedJobs": "Executed jobs",
+          "averageExecutionTime": "Average execution time",
           "rating": "Rating"
         },
         "Overview": {
           "description": "Description",
-          "tags": "At a Glance"
+          "tags": "At a glance"
         },
         "Examples": {
-          "title": "Example Outputs",
+          "title": "Example outputs",
           "download": "Download"
         },
         "Legal": {
@@ -123,20 +139,24 @@
           "other": "Other"
         },
         "Risk": {
-          "title": "EU AI Act Risk Classification"
+          "title": "EU AI Act risk classification"
         }
       },
       "agentsNotAvailable": "No agents available",
-      "agentsNotFound": "No Agents found",
+      "agentsNotFound": "No agents found",
       "AgentCard": {
-        "view": "Show Details",
+        "view": "Show details",
         "detailsUnavailable": "Details unavailable"
       },
       "Kind": {
         "cardano": "Cardano",
         "x402": "x402"
       },
-      "othersCategory": "Others"
+      "othersCategory": "Others",
+      "ActionButtons": {
+        "back": "Back",
+        "close": "Close"
+      }
     },
     "UserAvatar": {
       "account": "Account",
@@ -148,7 +168,7 @@
       "legal": "Legal",
       "support": "Support",
       "documentation": "Documentation",
-      "serviceplanAiCoworker": "Serviceplan AI Coworker",
+      "serviceplanAiCoworker": "Serviceplan AI coworker",
       "termsOfService": "Terms of Service",
       "privacyPolicy": "Privacy Policy",
       "imprint": "Imprint",
@@ -157,7 +177,7 @@
       "expandSidebar": "Expand sidebar",
       "logout": "Log out",
       "lowCreditsLabel": "Low credits {credits, number}",
-      "creditsSummary": "Credits Summary:",
+      "creditsSummary": "Credits summary:",
       "monthlyUsageLimit": "Monthly usage limit",
       "additionalCreditsHero": "{credits, number}",
       "additionalCreditsLabel": "Additional credits",
@@ -172,10 +192,10 @@
     },
     "OrganizationSwitcher": {
       "switchWorkspace": "Switch workspace",
-      "personalAccount": "Personal Account",
+      "personalAccount": "Personal account",
       "createWorkspace": "Create workspace",
       "organizationsHeading": "Organizations",
-      "createOrJoinOrganization": "Create or Join Organization",
+      "createOrJoinOrganization": "Create or join organization",
       "userAvatarAlt": "User avatar"
     },
     "DataTable": {
@@ -215,12 +235,12 @@
         "assignSeat": "Assign seat",
         "remove": "Remove",
         "unassignSeat": "Remove seat",
-        "changeToOwner": "Change to Owner",
-        "changeToAdmin": "Change to Admin",
-        "changeToMember": "Change to Member",
+        "changeToOwner": "Change to owner",
+        "changeToAdmin": "Change to admin",
+        "changeToMember": "Change to member",
         "Modal": {
-          "changeRoleTitle": "Change Role",
-          "removeTitle": "Remove Member",
+          "changeRoleTitle": "Change role",
+          "removeTitle": "Remove member",
           "unassignSeatTitle": "Remove seat",
           "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
@@ -242,26 +262,28 @@
             "unassignSeat": "Failed to remove seat"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           }
-        }
+        },
+        "open": "Member actions"
       },
       "InvitationActions": {
-        "resend": "Resend Invitation",
-        "cancel": "Cancel Invitation",
+        "resend": "Resend invitation",
+        "cancel": "Cancel invitation",
         "CancelModal": {
-          "title": "Cancel Invitation",
+          "title": "Cancel invitation",
           "description": "Are you sure you want to cancel the invitation of {email}?",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
           "error": "Failed to cancel invitation",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           }
         },
         "resendSuccess": "Invitation resent successfully",
-        "resendError": "Failed to resend invitation"
+        "resendError": "Failed to resend invitation",
+        "open": "Invitation actions"
       }
     },
     "OrganizationCombobox": {
@@ -300,13 +322,13 @@
       "tasks": "Tasks",
       "connections": "Connections",
       "developer": "Developer",
-      "personal-assistant": "Personal Assistant",
-      "history": "History",
+      "personal-assistant": "Personal assistant",
+      "history": "Credit history",
       "new": "New",
       "notifications": "Notifications",
       "projects": "Projects",
-      "oauth-clients": "OAuth Clients",
-      "api-keys": "API Keys",
+      "oauth-clients": "OAuth clients",
+      "api-keys": "API keys",
       "coworkers": "Coworkers",
       "vendors": "Vendors",
       "docs": "Documentation",
@@ -318,30 +340,31 @@
       "studio": "Content Studio",
       "design-md": "Design",
       "memory": "Memory",
-      "social": "Social"
+      "social": "Social Scheduling",
+      "evaluations": "Model evaluations"
     },
     "Jobs": {
       "StatusBadge": {
         "started": "Started",
         "completed": "Completed",
         "failed": "Failed",
-        "paymentPending": "Payment Pending",
-        "paymentFailed": "Payment Failed",
+        "paymentPending": "Payment pending",
+        "paymentFailed": "Payment failed",
         "processing": "Working",
-        "agentConnectionFailed": "Agent Connection Failed",
-        "paymentNodeConnectionFailed": "Node Connection Failed",
-        "inputRequired": "Input Required",
-        "disputeRequested": "Dispute Pending",
-        "disputeResolved": "Dispute Resolved",
-        "refundRequested": "Refund Requested",
+        "agentConnectionFailed": "Agent connection failed",
+        "paymentNodeConnectionFailed": "Node connection failed",
+        "inputRequired": "Input required",
+        "disputeRequested": "Dispute pending",
+        "disputeResolved": "Dispute resolved",
+        "refundRequested": "Refund requested",
         "refundResolved": "Refunded",
-        "resultPending": "Result Missing",
+        "resultPending": "Result missing",
         "unknown": "Unknown"
       },
       "AgentStatusBadge": {
         "initiated": "Initiated",
-        "awaitingPayment": "Awaiting Payment",
-        "awaitingInput": "Input Required",
+        "awaitingPayment": "Awaiting payment",
+        "awaitingInput": "Input required",
         "running": "Working",
         "completed": "Completed",
         "failed": "Failed",
@@ -351,7 +374,7 @@
         "activity": "Activity",
         "actionUpdatedStatus": "changed status to",
         "emptyActivity": "No activities yet.",
-        "eyebrow": "Public Job",
+        "eyebrow": "Public job",
         "Header": {
           "Actions": {
             "moveToWorkspace": "Move to workspace",
@@ -373,7 +396,7 @@
             },
             "Form": {
               "Name": {
-                "placeholder": "Please input Job Name"
+                "placeholder": "Please input job name"
               }
             },
             "edit": "Edit",
@@ -384,7 +407,7 @@
             "error": "Failed to update job name",
             "Errors": {
               "unauthenticated": "You must be logged in to update job name.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "unauthorized": "You are not the owner of this job."
             }
@@ -435,7 +458,7 @@
             },
             "Errors": {
               "unauthenticated": "You must be logged in.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "jobShareNotFound": "Job Share not found",
               "unauthorized": "You are not the owner of this job."
@@ -468,29 +491,29 @@
           "maximize": "Maximize",
           "expand": "Expand",
           "collapse": "Show less",
-          "maximizeTitle": "Job Result",
+          "maximizeTitle": "Job result",
           "close": "Close",
           "exportingMarkdown": "Exporting Markdown…",
           "exportingPdf": "Exporting PDF…",
           "exportingDocx": "Exporting Word…",
           "exportMarkdownError": "Failed to export Markdown",
           "exportPdfError": "Failed to export PDF",
-          "exportDocxError": "Failed to export Word Document",
+          "exportDocxError": "Failed to export Word document",
           "exportAsPdf": "Export as PDF",
-          "exportAsDocx": "Export as Word Document",
+          "exportAsDocx": "Export as Word document",
           "exportAsMarkdown": "Export as Markdown",
           "Refund": {
             "error": "Failed to request refund",
-            "request": "Request Refund",
-            "requested": "Refund Requested",
-            "disputePending": "Dispute Pending",
-            "disputeResolved": "Dispute Resolved",
+            "request": "Request refund",
+            "requested": "Refund requested",
+            "disputePending": "Dispute pending",
+            "disputeResolved": "Dispute resolved",
             "refunded": "Refunded",
-            "confirmTitle": "Request Refund?",
+            "confirmTitle": "Request refund?",
             "confirmDescription": "Are you sure you want to request a refund for this job?",
             "learnMore": "Learn more about refunds and disputes",
             "cancel": "Cancel",
-            "confirm": "Request Refund",
+            "confirm": "Request refund",
             "Tooltip": {
               "available": {
                 "title": "Refund available",
@@ -507,21 +530,21 @@
             },
             "Errors": {
               "unauthenticated": "You must be logged in to request a refund.",
-              "unauthenticatedAction": "Login",
+              "unauthenticatedAction": "Log in",
               "jobNotFound": "Job not found",
               "unauthorized": "You must be job owner to request a refund"
             }
           }
         },
         "AwaitingInput": {
-          "title": "Awaiting Input",
+          "title": "Awaiting input",
           "submit": "Submit",
           "submitSuccess": "Input submitted successfully",
           "submitError": "Failed to submit input",
           "noInputsRequired": "No additional inputs required"
         },
         "Sources": {
-          "title": "Links & Files",
+          "title": "Links & files",
           "files": "Files",
           "links": "Links"
         },
@@ -540,7 +563,6 @@
         "noExecutedJobs": "No executed jobs",
         "emptyJobs": "No jobs yet. Hire this coworker to start one.",
         "loadMore": "Load more",
-        "loading": "Loading...",
         "loadMoreError": "Failed to load more jobs"
       }
     },
@@ -560,25 +582,21 @@
       },
       "InformationModal": {
         "Title": {
-          "create": "Create Organization",
-          "edit": "Edit Organization"
+          "edit": "Edit organization"
         },
         "Form": {
           "Submit": {
-            "create": "Create",
             "edit": "Save"
           },
           "cancel": "Cancel",
           "Success": {
-            "create": "Organization created successfully",
             "edit": "Organization updated successfully"
           },
           "Error": {
-            "create": "Failed to create organization",
             "edit": "Failed to update organization"
           },
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           },
           "Fields": {
             "Name": {
@@ -623,8 +641,7 @@
           "next": "Continue",
           "skip": "Skip",
           "finishSetup": "Finish setup",
-          "finish": "Go to workspace",
-          "creating": "Creating…"
+          "finish": "Go to workspace"
         },
         "Details": {
           "title": "Name your organization",
@@ -652,7 +669,7 @@
           "previewAlt": "Organization logo preview"
         },
         "Brand": {
-          "title": "Brand Guidelines",
+          "title": "Brand guidelines",
           "tooltip": "Brand Guidelines are a DESIGN.md file: your colors, fonts, tone, and style in one place. Your coworkers read it so everything they make for you looks and sounds like you.",
           "generating": "Reading {domain} to build your brand style…",
           "generatingNoDomain": "Reading your website to build your brand style…",
@@ -675,7 +692,6 @@
           "emailsPlaceholder": "alex@acme.com, sam@acme.com",
           "emailsHint": "Commas, semicolons, or new lines.",
           "sendInvites": "Send invites",
-          "sending": "Sending…",
           "inviteSuccess": "Invites sent",
           "inviteSummary": "Sent {sent}, failed {failed}.",
           "linkError": "Failed to create invite link",
@@ -683,11 +699,11 @@
         },
         "Errors": {
           "createFailed": "Failed to create organization",
-          "unauthorizedAction": "Login"
+          "unauthorizedAction": "Log in"
         }
       },
       "RemoveModal": {
-        "title": "Remove Organization",
+        "title": "Remove organization",
         "description": "Are you sure you want to remove the organization \"{organization}\"?",
         "confirm": "Confirm",
         "cancel": "Cancel",
@@ -702,7 +718,7 @@
         "Errors": {
           "additionalMembers": "Remove all other members before deleting this organization.",
           "lastWorkspace": "You cannot delete your last workspace.",
-          "unauthorizedAction": "Login",
+          "unauthorizedAction": "Log in",
           "runningSubscription": "Cancel your running subscription and wait until the paid period ends.",
           "enterpriseContractActive": "This organization has an active enterprise contract and cannot be deleted.",
           "billingLink": "Go to billing",
@@ -729,14 +745,14 @@
         }
       },
       "InviteMemberModal": {
-        "title": "Invite Member",
+        "title": "Invite member",
         "Form": {
-          "submit": "Invite Member",
+          "submit": "Invite member",
           "cancel": "Cancel",
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
-            "unauthorizedAction": "Login"
+            "unauthorizedAction": "Log in"
           },
           "Fields": {
             "Email": {
@@ -807,7 +823,6 @@
       "showAll": "Show all",
       "showOlder": "Show older notifications",
       "justNow": "Just now",
-      "loading": "Loading...",
       "markAllRead": "Mark all read",
       "markAllReadError": "Failed to mark all notifications as read",
       "markReadError": "Failed to mark notification as read",
@@ -833,7 +848,6 @@
       "browserPermissionInAppTitle": "Get alerts when you're in another tab",
       "browserPermissionInAppDescription": "Allow browser notifications for tasks, billing, system, and chat updates while Sokosumi is open but not focused.",
       "browserPermissionEnable": "Enable browser notifications",
-      "browserPermissionRequesting": "Waiting for permission…",
       "browserPermissionDeniedTitle": "Browser notifications are blocked",
       "browserPermissionDeniedDescription": "Notifications for this site are blocked in your browser. Open your browser’s notification settings for Sokosumi to allow them.",
       "browserPermissionInstallTitle": "Add Sokosumi to your Home Screen",
@@ -841,7 +855,6 @@
       "pushQuietTitle": "Push notifications stopped in this browser",
       "pushQuietDescription": "This browser lost its push subscription, so updates do not arrive here. Your other devices may still get them.",
       "pushQuietRestore": "Turn push back on",
-      "pushQuietRestoring": "Turning push back on…",
       "vendorGrantAcceptSuccess": "Vendor access approved",
       "vendorGrantAcceptError": "Failed to approve vendor access",
       "coworkerAccessAcceptSuccess": "Coworker early access approved",
@@ -998,18 +1011,78 @@
       "failed": "This diagram could not be rendered. Check its syntax in the source below.",
       "copied": "Source copied.",
       "copyFailed": "Could not copy. Select the diagram source below and copy it manually."
+    },
+    "ChatResults": {
+      "unavailable": "Result unavailable or no longer accessible",
+      "loading": "Loading results…",
+      "loadError": "Results could not be loaded",
+      "retry": "Retry",
+      "open": "Open source",
+      "openLabel": "Open source: {title}",
+      "downloadLabel": "Download {name}",
+      "recorded": "Recorded {time}",
+      "assignee": "Assigned to",
+      "project": "Project",
+      "destination": "Account",
+      "scheduled": "Scheduled for",
+      "recurrence": "Recurrence",
+      "bytes": "{size} bytes",
+      "kind": {
+        "task": "Task",
+        "task_schedule": "Task schedule",
+        "bot_schedule": "Bot follow-up",
+        "social_post": "Social post",
+        "studio_job": "Studio generation",
+        "job": "Agent result",
+        "file": "File",
+        "decision": "Approval"
+      },
+      "status": {
+        "DRAFT": "Draft",
+        "READY": "Ready",
+        "INPUT_REQUIRED": "Waiting for input",
+        "RUNNING": "Running",
+        "COMPLETED": "Completed",
+        "FAILED": "Failed",
+        "CANCELLED": "Cancelled",
+        "ACTIVE": "Active",
+        "PAUSED": "Paused",
+        "ENDED": "Ended",
+        "SCHEDULED": "Scheduled",
+        "PUBLISHED": "Published",
+        "QUEUED": "Queued",
+        "PENDING": "Pending",
+        "PROCESSING": "Processing",
+        "ACCEPTED": "Accepted",
+        "REJECTED": "Rejected",
+        "EXPIRED": "Expired",
+        "SUCCEEDED": "Completed",
+        "SUBMITTING": "Submitting",
+        "CANCELED": "Cancelled",
+        "SUBMISSION_UNCERTAIN": "Awaiting confirmation",
+        "ORPHANED": "Needs attention"
+      },
+      "download": "Download",
+      "selection": {
+        "label": "Choose a project",
+        "search": "Search projects…",
+        "empty": "No projects available. Ask the bot to refresh the choices.",
+        "sending": "Sending your choice…",
+        "selected": "Selected {name}",
+        "failed": "Could not send your choice. Please try again.",
+        "selectedProject": "Selected project"
+      }
     }
   },
   "Join": {
     "title": "You've been invited",
     "invitedToJoin": "Join {organization} on Sokosumi.",
     "join": "Join {organization}",
-    "joining": "Joining…",
     "linkHintOwner": "Anyone with this link can join as a member.",
-    "signedOutHint": "Sign in or create an account to accept this invite.",
+    "signedOutHint": "Log in or create an account to accept this invite.",
     "haveAccount": "Already have an account?",
     "noAccount": "New to Sokosumi?",
-    "signIn": "Sign in to join",
+    "signIn": "Log in to join",
     "register": "Create an account",
     "decline": "Decline",
     "activateRetry": "Try switching again",
@@ -1017,7 +1090,7 @@
       "joinFailed": "Failed to join the organization",
       "declineFailed": "We could not decline this invite.",
       "activateFailed": "We could not switch you into that organization. Try again before continuing.",
-      "unauthorizedAction": "Login"
+      "unauthorizedAction": "Log in"
     },
     "Invalid": {
       "title": "This invite link isn't available",
@@ -1034,20 +1107,19 @@
       "invitedToJoin": "Join {organization} on Sokosumi.",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
-      "goToOrganization": "Go to Organization",
-      "declinedTitle": "Invitation Declined",
+      "goToOrganization": "Go to organization",
+      "declinedTitle": "Invitation declined",
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
-      "goToHome": "Go to Home",
+      "goToHome": "Go to home",
       "Actions": {
         "accept": "Join {organization}",
-        "joining": "Joining…",
         "decline": "Decline",
         "logout": "Logout",
         "ignore": "Ignore",
         "activateRetry": "Try switching again",
         "emailMismatch": "You are not the invited user.",
-        "signedOutHint": "Sign in or create an account to accept this invite.",
-        "signIn": "Sign in to join",
+        "signedOutHint": "Log in or create an account to accept this invite.",
+        "signIn": "Log in to join",
         "register": "Create an account",
         "Success": {
           "accept": "Invitation accepted successfully",
@@ -1059,19 +1131,19 @@
           "activate": "We could not switch you into that organization. Try again before continuing."
         },
         "Errors": {
-          "unauthorizedAction": "Login"
+          "unauthorizedAction": "Log in"
         }
       }
     },
     "InvitationErrorCard": {
       "NotFound": {
-        "title": "Invitation Not Found",
+        "title": "Invitation not found",
         "description": "There was an issue with your invitation.",
         "content": "There is no invitation with this ID.",
         "footer": "Go back to home"
       },
       "Expired": {
-        "title": "Invitation Expired",
+        "title": "Invitation expired",
         "description": "There was an issue with your invitation.",
         "content": "The invitation you're trying to access has expired.",
         "footer": "Go back to home"
@@ -1089,8 +1161,8 @@
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
       "errorId": "Error ID: {errorId}",
-      "tryAgain": "Try Again",
-      "goLogin": "Go to Login"
+      "tryAgain": "Try again",
+      "goLogin": "Log in"
     },
     "Footer": {
       "termsOfServices": "Terms of Service",
@@ -1099,8 +1171,8 @@
       "acceptableUse": "Acceptable Use"
     },
     "Aside": {
-      "titleLine1": "AI Coworkers",
-      "titleLine2": "for Marketing",
+      "titleLine1": "AI coworkers",
+      "titleLine2": "for marketing",
       "bullet1": "Specialized AI coworker built for marketing.",
       "bullet2": "Built for small and large marketing teams.",
       "bullet3": "Works with the tools you already use.",
@@ -1110,65 +1182,21 @@
       "quoteAuthor": "Florian Haller",
       "quoteRole": "CEO, Serviceplan Group"
     },
-    "Schema": {
-      "Email": {
-        "invalid": "Please enter a valid email address.",
-        "required": "Email is required"
-      },
-      "Name": {
-        "min": "Name must be at least 2 characters.",
-        "max": "Name must be at most 128 characters.",
-        "invalid": "Name must be a valid string.",
-        "required": "Name is required"
-      },
-      "Password": {
-        "invalid": "Password must be a valid string.",
-        "min": "Password must be at least 8 characters",
-        "max": "Password must be at most 128 characters",
-        "lowercase": "Password must contain at least one lowercase letter.",
-        "uppercase": "Password must contain at least one uppercase letter.",
-        "number": "Password must contain at least one number.",
-        "required": "Password is required"
-      },
-      "CurrentPassword": {
-        "invalid": "Current password must be a valid string.",
-        "required": "Current password is required"
-      },
-      "InputPassword": {
-        "invalid": "Password must be a valid string.",
-        "required": "Password is required"
-      },
-      "ConfirmPassword": {
-        "invalid": "Confirm password must be a valid string.",
-        "match": "Password doesn't match",
-        "required": "Confirm password is required"
-      }
-    },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Login / Register",
+        "default": "Sokosumi - Log in / Register",
         "template": "Sokosumi - %s"
       },
       "description": "Use AI coworkers to finish your most time-consuming tasks"
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
-      "passwordDivider": "or sign in with password",
-      "emailDivider": "or register with email",
-      "success": "Login successful",
+      "orDivider": "or",
+      "emailCodeError": "We could not send a code. Please try again.",
       "error": "Login failed",
       "lastUsed": "Last used",
       "passkeyProvider": "Passkey",
-      "passkeyError": "We could not sign you in with a passkey. Please try again.",
-      "magicLinkProvider": "Magic Link",
-      "magicLinkInputLabel": "Email for Magic Link",
-      "magicLinkPlaceholder": "Enter your email",
-      "magicLinkSubmit": "Send me a Magic Link",
-      "magicLinkSubmitting": "Sending Magic Link...",
-      "magicLinkResend": "Resend Magic Link",
-      "magicLinkSuccess": "Check your inbox for your Magic Link.",
-      "magicLinkError": "We could not send a Magic Link. Please try again.",
-      "magicLinkInvalidEmail": "Please enter a valid email address."
+      "passkeyError": "We could not log you in with a passkey. Please try again."
     },
     "Words": {
       "signUp": "Register"
@@ -1177,29 +1205,37 @@
       "show": "Show password",
       "hide": "Hide password"
     },
+    "Email": {
+      "Form": {
+        "label": "Email",
+        "continueWithEmail": "Continue with email",
+        "changeEmail": "Change email",
+        "usePasswordInstead": "Use a password instead",
+        "emailCodeInstead": "Email me a code instead",
+        "emailCodeSending": "Sending code...",
+        "codeStillWorks": "The code we sent still works.",
+        "useCodeInstead": "Use the code instead",
+        "error": "We could not check this email. Please try again."
+      }
+    },
     "Pages": {
       "SignIn": {
         "Metadata": {
-          "title": "Login",
+          "title": "Log in",
           "description": "Use AI coworkers to finish your most time-consuming tasks"
         },
         "Header": {
-          "title": "Login",
-          "description": "Hire agents on our platform"
+          "title": "Log in",
+          "description": "Hire agents on our platform",
+          "descriptionFor": "Log in with your Sokosumi account to continue to {client}"
         },
         "Form": {
-          "submit": "Login",
+          "submit": "Log in",
           "lastUsed": "Last used",
           "error": "Invalid email or password",
           "Fields": {
-            "Email": {
-              "placeholder": "Email"
-            },
             "Password": {
-              "placeholder": "Password"
-            },
-            "RememberMe": {
-              "label": "Keep me signed in"
+              "label": "Password"
             }
           },
           "forgotPassword": "Forgot password?",
@@ -1207,76 +1243,62 @@
             "message": "Don't have an account?",
             "link": "Register"
           },
-          "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to login"
+          "NoAccount": {
+            "title": "No account for this address",
+            "description": "Check it for typos, or create one now.",
+            "createAccount": "Create account"
+          },
+          "Handover": {
+            "codeSent": "You already have an account, so we sent you a code to log in.",
+            "password": "You already have an account. Enter your password to log in.",
+            "codeNotSentNotice": "You already have an account."
           }
         }
       },
       "SignUp": {
         "Metadata": {
-          "title": "Register",
+          "title": "Create your account",
           "description": "Use AI coworkers to finish your most time-consuming tasks"
         },
         "Google": {
           "title": "Authenticate with Google",
           "description": "Redirecting you to Google...",
           "error": "Failed to initiate Google authentication. Please try again.",
-          "retry": "Try Again"
+          "retry": "Try again"
         },
         "Microsoft": {
           "title": "Authenticate with Microsoft",
           "description": "Redirecting you to Microsoft...",
           "error": "Failed to initiate Microsoft authentication. Please try again.",
-          "retry": "Try Again"
+          "retry": "Try again"
         },
         "Header": {
-          "title": "Register",
+          "title": "Create your account",
           "viaInvitation": "(via invitation)",
-          "description": "Hire agents on our platform"
+          "description": "Hire agents on our platform",
+          "descriptionFor": "Create your Sokosumi account to continue to {client}"
         },
         "Form": {
           "submit": "Register",
-          "error": "Register failed",
+          "AccountExists": {
+            "title": "You already have an account",
+            "description": "Log in with this email, or enter a different one to register.",
+            "logIn": "Log in"
+          },
+          "addPassword": "Add a password for future logins",
+          "removePassword": "Sign up without a password",
           "Fields": {
-            "Email": {
-              "placeholder": "Email"
-            },
-            "Name": {
-              "placeholder": "Name"
-            },
-            "TermsAccepted": {
-              "Label": {
-                "iAgreeTo": "I agree to the",
-                "termsOfService": "Terms of Service",
-                "and": "and",
-                "privacyPolicy": "Privacy Policy"
-              }
-            },
             "MarketingOptIn": {
-              "label": "I would like to receive updates and news from Sokosumi"
-            },
-            "Organization": {
-              "placeholder": "Select an organization",
-              "search": "Search organizations",
-              "create": "Create {organization}",
-              "new": "New Organization",
-              "createPlaceholder": "New organization name",
-              "success": "Organization created successfully",
-              "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see or create organizations"
+              "label": "I would like to receive updates and news"
             },
             "Password": {
-              "placeholder": "Password"
+              "label": "Password",
+              "description": "At least 8 characters."
             }
-          },
-          "Errors": {
-            "termsNotAccepted": "You must accept the terms and conditions to register",
-            "emailDomainNotAllowed": "Email domain not allowed",
-            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",
-            "link": "Login"
+            "link": "Log in"
           }
         }
       },
@@ -1294,8 +1316,12 @@
           "reset_password": "Reset password",
           "Fields": {
             "Email": {
-              "placeholder": "Email"
+              "label": "Email"
             }
+          },
+          "linkExpired": "That reset link expired or was already used. Request a new one.",
+          "Errors": {
+            "generic": "We could not send the reset email. Try again."
           }
         }
       },
@@ -1309,17 +1335,59 @@
         "Form": {
           "submit": "Reset password",
           "success": "Password reset. You have been signed out on all devices.",
-          "error": "Password reset failed",
+          "error": "We could not reset your password. The link may have expired or been used already.",
           "Fields": {
             "Password": {
-              "placeholder": "New password"
+              "label": "New password"
             },
             "ConfirmPassword": {
-              "placeholder": "Confirm password"
+              "label": "Confirm password"
             }
-          }
+          },
+          "requestNewLink": "Request a new link",
+          "signOutError": "Password changed. We could not finish signing out of this browser. Try again to continue to sign-in.",
+          "continueToSignIn": "Continue to sign-in"
         }
       }
+    },
+    "TermsNotice": {
+      "text": "By creating an account, you agree to the <terms>Terms of Service</terms> and the <privacy>Privacy Policy</privacy>."
+    },
+    "OAuthHandBack": {
+      "backToSokosumi": "Back to Sokosumi",
+      "continuing": "Continuing…",
+      "continuingTo": "Continuing to {client}…",
+      "errorTitle": "Unable to continue",
+      "errorTitleFor": "Unable to continue to {client}",
+      "errorDescription": "This sign-in request has expired or is no longer valid. Go back to the app you came from and start again.",
+      "errorDescriptionFor": "This sign-in request has expired or is no longer valid. Go back to {client} and start again.",
+      "chooseAccountTitle": "Choose an account",
+      "chooseAccountTitleFor": "Choose an account for {client}",
+      "signedInAs": "Logged in to Sokosumi as <account>{email}</account>",
+      "continueAs": "Continue as {account}",
+      "useAnotherAccount": "Use another account",
+      "accountCheckError": "Could not check your account. Try again.",
+      "signOutError": "Could not sign out. Try again."
+    },
+    "OAuthClient": {
+      "backTo": "Back to {client}"
+    },
+    "SignInError": {
+      "accountNotLinked": "This email already has a Sokosumi account. Log in with your password or an email code first, then connect Google or Microsoft under Connections.",
+      "cancelled": "Sign-in was cancelled. Choose how you want to continue.",
+      "generic": "We could not log you in. Please try again.",
+      "expired": "That sign-in took too long or was started in another browser. Please try again.",
+      "clientMisconfigured": "This app's sign-in request is not set up correctly. Please contact the app's developer and share the error code with them.",
+      "title": "Sign-in did not work",
+      "code": "Error code: {code}",
+      "description": "Details: {description}",
+      "backToSignIn": "Back to sign-in"
+    },
+    "SignInMethodsRemoved": {
+      "title": "Your old sign-in methods were removed",
+      "description": "You logged in with a code, so we removed your old password and Google/Microsoft links for security. Set a new password in your account.",
+      "setPassword": "Set a new password",
+      "continue": "Continue"
     }
   },
   "App": {
@@ -1328,13 +1396,13 @@
     "delete": "Delete",
     "cancel": "Cancel",
     "save": "Save",
-    "History": {
+    "TransactionHistory": {
       "Metadata": {
-        "title": "History",
-        "description": "Review tasks, jobs, and conversations in one timeline."
+        "title": "Credit history",
+        "description": "Every credit consumption on your account, newest first."
       },
       "Search": {
-        "placeholder": "Search history...",
+        "placeholder": "Search transactions...",
         "clear": "Clear search"
       },
       "ResultsCount": {
@@ -1346,54 +1414,59 @@
         "emptyResults": "No results found.",
         "all": "All",
         "scopeLabel": "Scope",
-        "scopeOwned": "My history",
+        "scopeOwned": "My transactions",
         "scopeWorkspace": "Workspace",
-        "typeLabel": "Type",
-        "statusLabel": "Status",
+        "typeLabel": "Source",
         "projectLabel": "Project",
         "typeOptions": {
+          "job": "Agent job",
+          "image": "Image",
           "task": "Task",
-          "job": "Job",
-          "image": "Image"
-        },
-        "statusOptions": {
-          "archived": "Archived",
-          "DRAFT": "Draft",
-          "QUEUED": "Scheduled",
-          "READY": "Ready",
-          "GRANT_PENDING": "Grant pending",
-          "INPUT_REQUIRED": "Input required",
-          "APPROVAL_REQUIRED": "Approval required",
-          "AUTHENTICATION_REQUIRED": "Authentication required",
-          "OUT_OF_CREDITS": "Paused: credits needed",
-          "CREDITS_TOPPED_UP": "Credits topped up",
-          "RUNNING": "Running",
-          "AWAITING_EXTERNAL": "Awaiting external",
-          "COMPLETED": "Completed",
-          "FAILED": "Failed",
-          "CANCELED": "Canceled"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Top up",
+          "unattributed": "Other"
         }
       },
       "Empty": {
-        "title": "No history yet",
-        "description": "Your tasks, jobs, and conversations will appear here once there is activity."
+        "title": "No transactions yet",
+        "description": "Every job run, image generation, other credit consumption and top up will appear here."
       },
       "List": {
         "loadMore": "Load more",
-        "loading": "Loading history...",
-        "loadMoreError": "Failed to load more history"
+        "loadMoreError": "Failed to load more transactions"
       },
       "Row": {
         "credit": "credit",
         "credits": "credits",
-        "creditsUnavailable": "—",
         "noDescription": "No description",
-        "updated": "Updated",
+        "consumed": "Consumed",
         "kind": {
+          "job": "Agent job",
+          "image": "Image",
           "task": "Task",
-          "job": "Job",
-          "image": "Image"
+          "coworker": "Coworker",
+          "sokoBot": "Soko Bot",
+          "topUp": "Top up",
+          "unattributed": "Other"
         }
+      },
+      "Export": {
+        "button": "Export CSV",
+        "title": "Export transactions",
+        "lastMonth": "Last month",
+        "thisMonth": "This month",
+        "last30Days": "Last 30 days",
+        "month": "Month",
+        "from": "From",
+        "to": "To",
+        "download": "Download CSV",
+        "filtersNote": "Uses the filters above. Dates are UTC."
+      },
+      "Chart": {
+        "label": "Credits spent per day, last 30 days",
+        "total": "{count} credits spent in the last 30 days",
+        "day": "{date}: {count} credits"
       }
     },
     "Chat": {
@@ -1404,7 +1477,7 @@
       "title": "Chat",
       "description": "Chat with your AI coworkers",
       "Chat": {
-        "newChat": "New Chat",
+        "newChat": "New chat",
         "conversationSwitcher": "Conversations",
         "noChats": "No chats yet",
         "welcomeSendFailed": "Your message could not be sent. Please try again.",
@@ -1414,7 +1487,7 @@
           "description": "This chat is empty.{specialization} Send a message to get started!",
           "suggestionTitle": "Try asking:"
         },
-        "introducingCoworkers": "Introducing: Agentic Coworkers",
+        "introducingCoworkers": "Introducing: agentic coworkers",
         "emptyTitle": "Start a conversation",
         "emptyDescription": "Ask me anything and I'll help you out. You can start a new chat or continue an existing one.",
         "inputPlaceholder": "Type your message...",
@@ -1431,12 +1504,12 @@
         "hoursAgo": "{count} hours ago",
         "daysAgo": "{count} days ago",
         "deleteDialog": {
-          "title": "Delete Chat",
+          "title": "Delete chat",
           "description": "Are you sure you want to delete this chat? This action cannot be undone.",
           "cancel": "Cancel",
           "delete": "Delete"
         },
-        "comingSoon": "Coming Soon",
+        "comingSoon": "Coming soon",
         "attachmentMenu": {
           "trigger": "Add",
           "uploadFile": "Upload file",
@@ -1452,10 +1525,10 @@
           "resultsCount": "{found} of {total}",
           "noResults": "No matching conversations",
           "noConversations": "No conversations yet",
-          "untitledChat": "Untitled Chat",
+          "untitledChat": "Untitled chat",
           "deleteChatAriaLabel": "Delete chat",
           "deleteDialog": {
-            "title": "Delete Chat",
+            "title": "Delete chat",
             "description": "Are you sure you want to delete this chat? This action cannot be undone.",
             "cancel": "Cancel",
             "delete": "Delete"
@@ -1494,13 +1567,13 @@
           "thoughtForDuration": "Thought for {duration}",
           "expandSteps": "Show thought"
         },
-        "chatErrorTitle": "Chat Error",
+        "chatErrorTitle": "Chat error",
         "errorFallbackDescription": "Something went wrong with the chat interface. Please try refreshing or contact support if the issue persists.",
         "errorReference": "Reference: room {roomId}",
         "pastedImage": "Pasted image",
         "errorTitle": "Error",
         "errorDescription": "An error occurred while processing your message. Please try again.",
-        "tryAgain": "Try Again",
+        "tryAgain": "Try again",
         "networkErrorAfterRetry": "We couldn't reach the server after a few attempts. Please check your connection and try again.",
         "sidebarNew": "New"
       },
@@ -1511,17 +1584,17 @@
         "cta": {
           "avatarAlt": "{name}",
           "button": "Chat with {name}",
-          "searchAgents": "Search Agents",
-          "opening": "Opening chat…",
+          "searchAgents": "Search agents",
           "error": "Could not open the chat. Please try again."
         },
         "stats": {
-          "sinceLastActivity": "Since you were last active, {when}",
           "completed": "{count, plural, one {# task completed} other {# tasks completed}}",
           "worked": "{minutes, plural, one {# minute worked} other {# minutes worked}}",
           "awaiting": "{count, plural, one {# task needs your input} other {# tasks need your input}}",
           "byTeammates": "{count, plural, one {# task from your team} other {# tasks from your team}}",
-          "recent": "In the last 24 hours"
+          "recent": "In the last 24 hours",
+          "trendUp": "{count} more than the previous 24 hours",
+          "trendDown": "{count} fewer than the previous 24 hours"
         },
         "team": {
           "avatarAlt": "{name}",
@@ -1530,11 +1603,16 @@
         },
         "searchAgents": {
           "label": "Search",
-          "subtitle": "Specialized Agents"
+          "subtitle": "Specialized agents"
         }
       },
       "SokoBot": {
-        "feedbackAsk": "Useful?",
+        "connectTitle": "Give {bot} your inbox and calendar",
+        "connectBody": "Unlocks meeting prep, follow-up reminders and your daily brief.",
+        "connectConnected": "{name} connected",
+        "connectProvider": "Connect {name}",
+        "connectDismiss": "Dismiss",
+        "connectError": "Could not start the connection.",
         "feedbackUseful": "Useful",
         "feedbackNotUseful": "Not useful",
         "feedbackThanks": "Thanks, noted.",
@@ -1543,23 +1621,30 @@
         "task": "Task",
         "chainDepth": "Assistant-to-assistant reply {depth} of {max}. A person writing here resets the count.",
         "chainRoomRate": "{count} of {max} assistant messages in this room this hour.",
-        "chainLastHop": "This is the last hop — it will not wake anyone else."
+        "chainLastHop": "This is the last hop — it will not wake anyone else.",
+        "source": {
+          "inbox": "From your inbox",
+          "standup": "Daily stand-up",
+          "weeklyWrap": "Weekly wrap",
+          "scheduled": "Scheduled: {name}",
+          "taskUpdate": "Task update"
+        }
       }
     },
     "Tasks": {
       "Page": {
-        "title": "Task Manager",
+        "title": "Task manager",
         "description": "Create tasks for agents to execute and manage your work efficiently in a collaborative view."
       },
       "Tabs": {
-        "tasks": "Tasks",
-        "jobs": "Jobs"
+        "tasks": "Board",
+        "calendar": "Calendar"
       },
       "Columns": {
         "backlog": "Backlog",
         "todo": "Todo",
-        "inProgress": "In Progress",
-        "inputRequired": "Input Required",
+        "inProgress": "In progress",
+        "inputRequired": "Input required",
         "done": "Done"
       },
       "PendingVendorGrantBanner": {
@@ -1577,7 +1662,7 @@
       },
       "Actions": {
         "loading": "Loading...",
-        "loadMore": "Load More"
+        "loadMore": "Load more"
       },
       "createTaskFab": "Create task",
       "personalAssistant": "Personal assistant",
@@ -1586,8 +1671,7 @@
       "Errors": {
         "updateStatus": "Failed to update task status",
         "loadMore": "Failed to load more tasks",
-        "loadCreateTask": "Failed to load create task form",
-        "loadJobs": "Failed to load jobs"
+        "loadCreateTask": "Failed to load create task form"
       },
       "Card": {
         "comments": "Comments",
@@ -1635,25 +1719,6 @@
         "visibilityLabel": "Visibility",
         "visibilityPrivate": "Private"
       },
-      "Jobs": {
-        "filterButton": "Filters",
-        "agentLabel": "Agent",
-        "jobStatusLabel": "Job status",
-        "jobStatusOptions": {
-          "INITIATED": "Initiated",
-          "AWAITING_PAYMENT": "Awaiting payment",
-          "AWAITING_INPUT": "Awaiting input",
-          "RUNNING": "Running",
-          "COMPLETED": "Completed",
-          "FAILED": "Failed"
-        },
-        "recentTitle": "Recent",
-        "emptyRecent": "No recently finished jobs.",
-        "emptyList": "No jobs yet. Hire a coworker and your jobs show up here.",
-        "emptySection": "No jobs in this status.",
-        "untitled": "Untitled job",
-        "unknownAgent": "Unknown agent"
-      },
       "Detail": {
         "back": "Back to tasks",
         "privateBadge": "Private",
@@ -1662,19 +1727,18 @@
         "properties": "Properties",
         "status": "Status",
         "pendingApproval": "Pending approval",
-        "owner": "Owner",
-        "creator": "Creator",
         "organization": "Organization",
         "project": "Project",
+        "noProject": "No project",
         "personalWorkspace": "Personal",
         "coworker": "Coworker",
-        "credits": "Credits",
         "created": "Created",
         "updated": "Updated",
         "description": "Description",
         "context": "Context",
-        "linkedTasksTitle": "Linked tasks",
-        "linkedTasksEmpty": "No linked tasks yet.",
+        "copyIdentifier": "Copy task ID",
+        "identifierCopied": "Copied {identifier}",
+        "identifierCopyError": "Could not copy the task ID",
         "jobs": "Jobs",
         "jobsEmpty": "No jobs yet.",
         "jobsUntitled": "Untitled job",
@@ -1698,7 +1762,6 @@
         "actorUser": "User",
         "actorSokoBot": "Assistant",
         "actorSokoBotWithOwner": "{assistant} · {owner}'s assistant",
-        "actorSokoBotRole": "{owner}'s personal assistant",
         "actorSystem": "System",
         "originFromApp": "from {appName}",
         "channelApp": {
@@ -1718,6 +1781,7 @@
         },
         "actionCommented": "commented",
         "actionUpdatedStatus": "changed status to",
+        "actionCreatedTask": "created the task",
         "actionChargedCredits": "charged {credits, plural, =1 {# credit} other {# credits}}",
         "actionTriedChargedCredits": "tried to charge {credits, plural, =1 {# credit} other {# credits}}",
         "statusLabels": {
@@ -1777,7 +1841,7 @@
           "createRelatedDialogTitle": "{relation} task...",
           "relations": {
             "related": "Related",
-            "blocks": "Blocks",
+            "blocks": "Blocking",
             "blockedBy": "Blocked by",
             "parent": "Parent task",
             "subtask": "Sub-task",
@@ -1810,11 +1874,12 @@
             "copyLink": "Failed to copy public link"
           },
           "Errors": {
-            "unauthenticated": "Please sign in to manage task sharing",
-            "unauthenticatedAction": "Sign in",
+            "unauthenticated": "Please log in to manage task sharing",
+            "unauthenticatedAction": "Log in",
             "unauthorized": "You are not allowed to manage this task share",
             "taskNotFound": "Task not found"
-          }
+          },
+          "copyLink": "Copy link"
         },
         "switchedWorkspace": "Switched to {account} account",
         "workspaceSwitchPrompt": {
@@ -1845,6 +1910,8 @@
         },
         "files": "Files",
         "assignee": "Assignee",
+        "noAssignee": "No assignee",
+        "memberFallback": "Member",
         "schedule": "Schedule",
         "privateSchedule": "Private schedule",
         "participantsList": "Task participants",
@@ -1856,7 +1923,7 @@
       "NewTask": {
         "ContextAttachments": {
           "label": "Context",
-          "brand": "Brand Guidelines",
+          "brand": "Brand guidelines",
           "namedBrand": "{name} brand guidelines",
           "personalBrand": "Personal brand guidelines",
           "brandMenuAria": "Choose brand guidelines",
@@ -1868,7 +1935,7 @@
           "infoAria": "About task context",
           "info": "Brand guidelines, briefing, and memory are attached as DESIGN.md, BRIEFING.md, and CONTEXT.md files for the coworker to read."
         },
-        "title": "New Task",
+        "title": "New task",
         "details": "Details",
         "detailsDescription": "Briefly explain the task that needs to be done",
         "name": "Task name",
@@ -1908,13 +1975,13 @@
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
-        "uploadFile": "Upload File",
+        "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
         "removeAttachment": "Remove attachment",
-        "createTask": "Create Task",
-        "scheduleTask": "Schedule Task",
+        "createTask": "Create task",
+        "scheduleTask": "Schedule task",
         "openRunAt": "Set start time",
         "cancel": "Cancel",
         "ctrl": "Ctrl",
@@ -1927,7 +1994,7 @@
         "privateDescription": "Hidden from other workspace members. Still visible to you, your Soko Bot, and the assigned coworker."
       },
       "EditTask": {
-        "title": "Edit Task",
+        "title": "Edit task",
         "details": "Details",
         "detailsDescription": "Update the task details before sending it",
         "name": "Task name",
@@ -1951,7 +2018,7 @@
         "untitledTask": "Untitled task",
         "saveError": "Failed to save task",
         "back": "Back",
-        "uploadFile": "Upload File",
+        "uploadFile": "Upload file",
         "uploadFileError": "Failed to upload file",
         "uploadingFile": "Uploading {fileName}",
         "uploadingFiles": "Uploading {count} files",
@@ -1972,40 +2039,9 @@
           "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
           "weeklyListWithTime": "Weekly ({weekdays}, {time})",
           "monthly": "Monthly",
-          "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-          "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+          "monthlyWithDayTime": "Monthly (day {day}, {time})",
+          "monthlyEveryNWithDayTime": "Every {n} months (day {day}, {time})",
           "custom": "Custom cron"
-        },
-        "firstRun": "First run",
-        "timeOfDay": "Time of day",
-        "repeatEvery": "Repeat every",
-        "repeatOn": "Repeat on",
-        "ends": "Ends",
-        "never": "Never",
-        "on": "On date",
-        "after": "After",
-        "occurrences": "occurrences",
-        "pickDate": "Pick a date",
-        "preview": "Preview",
-        "noPreview": "No upcoming runs",
-        "timezone": "Timezone",
-        "customCron": "Custom cron expression",
-        "customCronValid": "Valid cron expression",
-        "unit": {
-          "day": "day",
-          "week": "week",
-          "month": "month"
-        },
-        "save": "Save",
-        "cancel": "Cancel",
-        "errors": {
-          "required": "This field is required.",
-          "futureDateTime": "Select a future date and time.",
-          "invalidTime": "Enter a valid time (HH:MM).",
-          "positiveInteger": "Enter a positive integer.",
-          "selectAtLeastOneWeekday": "Select at least one weekday.",
-          "endDateInPast": "End date cannot be in the past.",
-          "invalidCron": "Enter a valid cron expression for the selected timezone."
         }
       },
       "RunAt": {
@@ -2039,7 +2075,6 @@
         "newSchedule": "New schedule",
         "empty": "No schedules here yet. A schedule creates a new task every time it runs.",
         "loadMore": "Load more",
-        "loadingMore": "Loading…",
         "loadMoreError": "Couldn't load more schedules.",
         "nextRun": "Next run {datetime}",
         "noNextRun": "No upcoming run",
@@ -2061,10 +2096,62 @@
           "errors": {
             "stale": "This schedule changed somewhere else. Reload the page and try again.",
             "saveFailed": "Couldn't save the schedule."
+          },
+          "When": {
+            "title": "When",
+            "repeat": "Repeat",
+            "repeats": {
+              "daily": "Daily",
+              "weekdays": "Weekdays",
+              "weekly": "Weekly",
+              "monthly": "Monthly",
+              "interval": "Every few days",
+              "custom": "Custom"
+            },
+            "on": "On",
+            "pickADay": "Pick at least one day",
+            "dayOfMonth": "Day of the month",
+            "dayN": "Day {day}",
+            "shortMonths": "Skips months without this day",
+            "every": "Every",
+            "days": "days",
+            "starting": "starting",
+            "startDate": "Start date",
+            "pickDate": "Pick a date",
+            "cron": "Cron",
+            "cronHelp": "Five fields: minute, hour, day, month, weekday.",
+            "cronInvalid": "That cron expression isn't valid.",
+            "cronLegacy": "Saved before five fields were required. It keeps running; a changed cron needs five fields.",
+            "at": "At",
+            "time": "Time",
+            "timeSearch": "Type a time, e.g. 08:30",
+            "useTime": "Use {time}",
+            "timezone": "Timezone",
+            "timezoneSearch": "Search timezones",
+            "noTimezone": "No timezone found",
+            "ends": "Ends",
+            "endsNever": "Never",
+            "endsOn": "On a date",
+            "endsAfter": "After a number of runs",
+            "endDate": "End date",
+            "runs": "runs",
+            "summary": {
+              "daily": "Every day at {time}",
+              "weekdays": "Every weekday at {time}",
+              "weekly": "Every {days} at {time}",
+              "monthly": "Every month on day {day} at {time}",
+              "interval": "Every {n} days at {time}",
+              "custom": "Custom schedule",
+              "incomplete": "Pick when this runs"
+            },
+            "next": "Next: {date}",
+            "noNext": "No upcoming runs",
+            "nextRuns": "Next runs"
           }
         },
         "Actions": {
           "edit": "Edit",
+          "runNow": "Run now",
           "pause": "Pause",
           "resume": "Resume",
           "end": "End",
@@ -2073,6 +2160,8 @@
           "resumed": "Schedule resumed",
           "ended": "Schedule ended",
           "deleted": "Schedule deleted",
+          "ranNow": "Task created",
+          "openTask": "Open task",
           "failed": "Couldn't update the schedule. Try again.",
           "confirmEndTitle": "End this schedule?",
           "confirmEndDescription": "It stops creating tasks for good, and its skipped or moved runs are dropped. Tasks it already created stay.",
@@ -2088,6 +2177,7 @@
           "noUpcomingRuns": "No runs planned yet.",
           "noUpcomingRunsInactive": "No runs are planned while the schedule is paused or ended.",
           "runSkipped": "Skipped",
+          "taskRunNow": "Run now",
           "runMoved": "Moved",
           "createdTasks": "Tasks created",
           "noCreatedTasks": "No tasks created yet.",
@@ -2110,8 +2200,22 @@
           "description": "Every schedule in your workspace. Each run creates a new task."
         }
       },
+      "Priority": {
+        "title": "Priority",
+        "change": "Change priority",
+        "noResults": "No priority matches",
+        "updateError": "Failed to update priority",
+        "levels": {
+          "URGENT": "Urgent",
+          "HIGH": "High",
+          "MEDIUM": "Medium",
+          "LOW": "Low",
+          "NONE": "No priority"
+        }
+      },
       "Tags": {
-        "autoGenerated": "Auto-Generated Tags:",
+        "autoGenerated": "Auto-generated tags:",
+        "autoGeneratedTitle": "Auto tags",
         "suggesting": "Generating tags…",
         "label": "Tags",
         "empty": "No tags yet",
@@ -2144,7 +2248,6 @@
       },
       "list": {
         "loadMore": "Load more",
-        "loading": "Loading projects...",
         "filter": {
           "placeholder": "Filter projects",
           "clear": "Clear filter",
@@ -2217,7 +2320,12 @@
           "subtitle": "A short title for the campaign or initiative.",
           "websiteLabel": "Website",
           "websitePlaceholder": "example.com",
-          "websiteHint": "Optional. Used to fetch the logo and brand guidelines."
+          "websiteHint": "Optional. Used to fetch the logo and brand guidelines.",
+          "identifierLabel": "Identifier",
+          "identifierPlaceholder": "Auto",
+          "identifierHint": "Used in task IDs, e.g. {example}",
+          "identifierInvalid": "Use 2-7 letters or digits, starting with a letter.",
+          "identifierTaken": "This identifier is already used in this workspace."
         },
         "briefing": {
           "title": "Write the briefing",
@@ -2244,7 +2352,6 @@
           "next": "Continue",
           "back": "Back",
           "create": "Create project",
-          "creating": "Creating…",
           "openProject": "Open project"
         }
       },
@@ -2253,7 +2360,7 @@
         "namePlaceholder": "Enter a short title"
       },
       "EditProject": {
-        "title": "Edit Project",
+        "title": "Edit project",
         "details": "Details",
         "detailsDescription": "Update the project name, website, and briefing.",
         "name": "Project name",
@@ -2263,15 +2370,14 @@
       },
       "ProjectSocialAccounts": {
         "title": "Social accounts",
-        "description": "Connect social accounts to this project. Publishing is currently available for X.",
+        "description": "Connect social accounts to this project. Draft, schedule, and publish posts on any connected platform.",
         "account": "{provider} account",
         "connect": "Connect {provider} account",
-        "connectHeading": "Connect an account",
+        "connectAccount": "Connect X, YouTube, LinkedIn…",
         "actions": "Actions for {account}",
         "reconnect": "Reconnect",
         "replace": "Replace",
         "disconnect": "Disconnect",
-        "disconnecting": "Disconnecting…",
         "unknownHandle": "Unknown account",
         "status": {
           "active": "Connected",
@@ -2298,6 +2404,7 @@
           "providerRevocationFailed": "This account is disconnected from this project, but the provider may still authorize this app. Revoke the app in your account settings."
         },
         "errors": {
+          "facebookPage": "Facebook publishing needs an account that manages exactly one Page. Use an account with a single manageable Page.",
           "inFlight": "Another account action is already in progress.",
           "popupBlocked": "Your browser blocked the authorization window. Allow popups and try again.",
           "timeout": "Authorization took too long. Try again.",
@@ -2310,13 +2417,14 @@
           "finalize": "We could not finish connecting this account. Try again.",
           "disconnect": "We could not disconnect this account. Try again.",
           "notConfigured": "This integration is not configured yet. Contact support to enable it."
-        }
+        },
+        "comingSoon": "Coming soon",
+        "connectComingSoon": "{provider} (coming soon)"
       },
       "SocialPosts": {
         "loadMore": "Load more",
         "loading": "Loading…",
         "title": "Social posts",
-        "description": "Draft text posts for X and schedule them from this Project.",
         "newPost": "New post",
         "moreActions": "Post actions",
         "noAccount": "No account",
@@ -2324,17 +2432,15 @@
           "authorizationRevoked": "Coworker scheduling access was revoked. Reschedule this post to publish it."
         },
         "sections": {
-          "upcoming": "Upcoming",
+          "calendar": "Calendar",
           "drafts": "Drafts",
-          "attention": "Needs attention"
+          "attention": "Needs attention",
+          "accounts": "Accounts"
         },
-        "selectedPost": "Selected post",
         "empty": {
-          "upcoming": "No scheduled posts yet.",
           "drafts": "No drafts yet."
         },
         "emptyHint": {
-          "upcoming": "Schedule a post and it shows up here and on the calendar.",
           "drafts": "Save a post as a draft to finish it later."
         },
         "status": {
@@ -2356,33 +2462,37 @@
           "editTitle": "Edit post",
           "scheduleTitle": "Schedule post",
           "rescheduleTitle": "Reschedule post",
-          "description": "Write the text, pick the account, and choose when it goes out.",
           "text": "Text",
           "textPlaceholder": "What do you want to post?",
           "characters": "{count} / {limit}",
           "media": {
             "addFromDrive": "Add from Drive",
             "upload": "Upload",
-            "uploading": "Uploading…",
             "remove": "Remove {name}",
-            "hint": "Up to 4 images, or one GIF, or one video.",
-            "unsupported": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
+            "unsupported": "Use a file type {provider} accepts.",
             "alreadyAttached": "That file is already attached.",
             "uploadDuplicate": "A file with this name already exists in the Drive. Rename it and try again.",
             "uploadFailed": "The upload failed. Try again.",
             "errors": {
-              "too_many_images": "X allows at most 4 images per post.",
-              "too_many_gifs": "X allows one GIF per post.",
-              "too_many_videos": "X allows one video per post.",
-              "mixed_media": "Use images, one GIF, or one video — not a mix.",
-              "unsupported_type": "Use a JPG, PNG, WebP, GIF, or MP4 file.",
-              "too_large": "A file is too large for X."
+              "too_many_images": "{provider} allows at most {max} images per post.",
+              "too_many_gifs": "{provider} allows one GIF per post.",
+              "too_many_videos": "{provider} allows one video per post.",
+              "mixed_media": "{provider} does not allow mixing images, a GIF, or a video.",
+              "unsupported_type": "{provider} does not accept this file type.",
+              "too_large": "A file is too large for {provider}."
             }
           },
+          "requirements": {
+            "text_or_media_required": "Add text or media.",
+            "text_required": "{provider} requires text.",
+            "media_required": "{provider} requires at least one image or video.",
+            "video_required": "{provider} requires a video."
+          },
           "account": "Account",
-          "noAccount": "Choose an account",
-          "unknownHandle": "Unknown X account",
-          "scheduledAt": "Scheduled time",
+          "accounts": "Post to",
+          "accountOption": "{provider} {handle}",
+          "noAccounts": "Connect one to post or schedule. You can still save a draft.",
+          "unknownHandle": "Unknown account",
           "scheduledAtTooSoon": "Choose a time at least one minute from now.",
           "saveDraft": "Save draft",
           "save": "Save",
@@ -2390,7 +2500,43 @@
           "reschedule": "Reschedule",
           "cancel": "Cancel post",
           "edit": "Edit",
-          "close": "Close"
+          "close": "Close",
+          "schedulePicker": {
+            "quickPicks": "Quick picks",
+            "quick": {
+              "inAnHour": "In an hour ({time})",
+              "tomorrowMorning": "Tomorrow {time}",
+              "nextMonday": "Monday {time}"
+            },
+            "pickDate": "Pick a date",
+            "pickTime": "Pick a time",
+            "dateSelected": "Date: {date}",
+            "timeSelected": "Time: {time}",
+            "times": "Times",
+            "now": "Now"
+          },
+          "timezone": {
+            "yours": "Times are in your time zone, {zone}.",
+            "goesOut": "Goes out {date}, your time ({zone}).",
+            "postZone": "Scheduled as {date} in {zone}."
+          },
+          "platforms": "Limits per platform",
+          "platformLimit": "{provider} {format} · {count} / {limit}",
+          "formats": {
+            "post": "post",
+            "mediaPost": "image or video post",
+            "video": "video (text is the title and description)"
+          },
+          "publishNow": "Post now",
+          "when": "When",
+          "whenOptional": "Optional. Leave it empty to keep a draft.",
+          "scheduleFor": "Schedule for {date}",
+          "rescheduleFor": "Reschedule for {date}",
+          "noAccountsTitle": "No account connected yet",
+          "connectAccount": "Connect account",
+          "dismiss": "Cancel",
+          "previewEmpty": "Your post shows here as you write.",
+          "pickAccount": "Pick an account to post to."
         },
         "cancelDialog": {
           "title": "Cancel this post?",
@@ -2398,20 +2544,21 @@
           "confirm": "Cancel post"
         },
         "toasts": {
-          "created": "Draft saved.",
-          "scheduled": "Post scheduled.",
+          "created": "{count, plural, one {Draft saved.} other {# drafts saved.}}",
+          "scheduled": "{count, plural, one {Post scheduled.} other {# posts scheduled.}}",
           "updated": "Post updated.",
           "canceled": "Post canceled.",
           "conflict": "This post was changed elsewhere. Reloading the latest version.",
           "failed": "Something went wrong. Try again.",
-          "unauthenticated": "Please sign in to continue.",
-          "unauthenticatedAction": "Sign in",
+          "unauthenticated": "Please log in to continue.",
+          "unauthenticatedAction": "Log in",
           "published": "Post published.",
-          "publishFailed": "Publishing failed: {error}"
+          "publishFailed": "Publishing failed: {error}",
+          "publishedMany": "{count, plural, one {Post published.} other {# posts published.}}"
         },
         "needsReconnect": "Account needs reconnecting",
         "needsReconnectLink": "Reconnect the account",
-        "viewOnX": "View on X",
+        "viewPost": "View post",
         "publishedAt": "Published {date}",
         "failedAt": "Failed {date}",
         "attempts": "{count, plural, one {# attempt} other {# attempts}}",
@@ -2421,15 +2568,42 @@
         },
         "publishDialog": {
           "title": "Publish this post now?",
-          "description": "The post goes out to X right away instead of waiting for its scheduled time.",
+          "description": "The post goes out right away instead of waiting for its scheduled time.",
           "confirm": "Publish now"
+        },
+        "connectPrompt": {
+          "title": "Connect an account to start posting",
+          "body": "Posts go out from the X, Instagram, LinkedIn, Facebook and YouTube accounts connected to this project.",
+          "action": "Connect X, YouTube, LinkedIn…"
+        },
+        "preview": {
+          "label": "{provider} preview",
+          "now": "now",
+          "accountFallback": "Your account",
+          "open": "Preview",
+          "dialogTitle": "Post preview",
+          "linkedin": {
+            "like": "Like",
+            "comment": "Comment",
+            "repost": "Repost",
+            "send": "Send",
+            "seeMore": "…see more",
+            "public": "Visible to anyone"
+          },
+          "instagram": {
+            "more": "more",
+            "mediaRequired": "Instagram needs an image or video."
+          }
         }
       },
       "Detail": {
         "back": "Back to projects",
         "header": {
+          "identifier": "Identifier",
           "updated": "Updated",
-          "created": "Created"
+          "created": "Created",
+          "properties": "Properties",
+          "website": "Website"
         },
         "briefing": "Briefing",
         "latestUpdate": "Latest update",
@@ -2465,7 +2639,8 @@
           "empty": "Builds as tasks complete",
           "modelLine": "{model} · hosted in the EU 🇪🇺",
           "defaultModel": "Mistral Medium",
-          "notConfigured": "Not configured (AI_GATEWAY_API_KEY)",
+          "offHint": "Completed tasks will not add to memory.",
+          "off": "Memory is off",
           "title": "Project memory",
           "copyLink": "Copy link",
           "openRaw": "Open raw",
@@ -2571,20 +2746,18 @@
           "overview": "Overview",
           "design": "Design",
           "memory": "Memory",
-          "backToProjects": "All projects",
           "ariaLabel": "Project sections"
         },
         "design": {
-          "document": "DESIGN.md",
-          "empty": "No DESIGN.md yet. Generate one from the project website, or upload a file."
+          "document": "DESIGN.md"
         }
       }
     },
     "Studio": {
       "back": "Back to project",
       "updated": "Updated",
-      "emptyTitle": "No images yet",
-      "emptyBody": "Write a prompt below and pick the models to try it on. You will get versions back to compare and refine.",
+      "emptyTitle": "Create your first image",
+      "emptyBody": "Choose a style to start, or write your own prompt below.",
       "promptPlaceholder": "Describe the image…",
       "generate": "Generate",
       "refine": "Refine",
@@ -2666,6 +2839,8 @@
       "pickBody": "Content Studio works inside one project: its images and its brand belong to it. Choose a project to open its gallery.",
       "pickAction": "Choose a project",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
+      "pickForGeneration": "Which project do these images go to?",
+      "referencesAcrossProjects": "References have to come from one project. Deselect the images from other projects, then generate again.",
       "scopeLabel": "Project",
       "title": "Content Studio",
       "selectAllModels": "Select all",
@@ -2714,14 +2889,34 @@
       "creditsCheckedOn": "Price checked {date}"
     },
     "Social": {
-      "title": "Social",
-      "pickTitle": "Pick a project",
-      "pickBody": "Social works inside one project: the accounts it posts from belong to it. Choose a project to plan its posts.",
-      "pickAction": "Choose a project",
+      "title": "Social Scheduling",
       "pickUnavailable": "That project is not in this workspace any more. Choose another one.",
-      "calendar": {
-        "title": "Posting schedule",
-        "description": "Every scheduled post for this project, and nothing else."
+      "newPost": {
+        "label": "New post",
+        "options": "New post options",
+        "manual": "Manual post",
+        "manualHint": "Pick the account, media, and time.",
+        "sokoBot": "Post with Soko Bot",
+        "sokoBotHint": "Chat it through, Soko Bot drafts and schedules.",
+        "sokoBotSetup": "Set up Soko Bot first",
+        "sokoBotFailed": "Could not open the Soko Bot chat. Try again.",
+        "sokoBotPrompt": "Help me create a social post for the {project} project.",
+        "sokoBotPromptAnyProject": "Help me create a social post.",
+        "chooseProjectTitle": "Choose a project for this post",
+        "chooseProjectBody": "A post is published from the accounts connected to one project."
+      },
+      "accountsNeedProject": {
+        "title": "Connect your social accounts",
+        "body": "Bring your channels together. Choose a project to connect accounts, then draft, schedule, and publish your posts."
+      },
+      "draftsNeedProject": {
+        "title": "Drafts",
+        "body": "Choose a project to see and finish its drafts."
+      },
+      "loading": "Loading Social…",
+      "pickProject": "Choose a project",
+      "platforms": {
+        "label": "Social platforms"
       }
     },
     "Error": {
@@ -2730,8 +2925,8 @@
       "unavailableTitle": "Temporarily unavailable",
       "unavailableDescription": "We could not reach the service. This is usually brief, so please try again in a moment.",
       "errorId": "Error ID: {errorId}",
-      "tryAgain": "Try Again",
-      "goApp": "Go to App"
+      "tryAgain": "Try again",
+      "goApp": "Go to app"
     },
     "Metadata": {
       "Title": {
@@ -2750,12 +2945,13 @@
       },
       "Content": {
         "MenuItems": {
+          "new": "New",
           "newTask": "New task",
           "search": "Search",
           "exploreAgents": "Agents",
-          "filesAndOutputs": "Files and Outputs",
+          "filesAndOutputs": "Files and outputs",
           "taskManager": "Tasks",
-          "history": "History",
+          "history": "Credit history",
           "drive": "Files",
           "admin": "Admin",
           "settings": "Settings",
@@ -2765,12 +2961,12 @@
           "calendar": "Calendar",
           "contentStudio": "Content Studio",
           "schedules": "Schedules",
-          "social": "Social"
+          "social": "Social Scheduling"
         },
         "ChatLists": {
-          "title": "Recent Chats",
+          "title": "Recent chats",
           "noChats": "No chats yet",
-          "untitledChat": "Untitled Chat",
+          "untitledChat": "Untitled chat",
           "coworkerAlt": "Coworker"
         },
         "SeatRequired": {
@@ -2778,15 +2974,17 @@
           "description": "You can keep using chat. Tasks, projects, files, and the rest of the organization product need an assigned Seat.",
           "hint": "Ask an owner or admin to assign you a Seat."
         }
-      }
+      },
+      "toggle": "Toggle sidebar"
     },
     "HistorySearchDialog": {
       "title": "Search",
-      "description": "Search for tasks, jobs, or images",
+      "description": "Search for tasks, jobs, job results, images or files",
       "searchPlaceholder": "Search...",
       "empty": "No results found",
       "loading": "Loading...",
       "error": "Failed to load results",
+      "created": "Created",
       "filesGroup": "Files",
       "filesSeeAll": "See all files",
       "filesFilenameMatch": "Filename match"
@@ -2861,14 +3059,17 @@
       "pricePerMonth": "per month",
       "includedCredits": "{credits, plural, =0 {No credits} =1 {# credit included} other {# credits included}}",
       "mostPopularBadge": "Most popular",
-      "upgrading": "Redirecting...",
       "canceling": "Scheduling cancellation...",
       "currentPlanCta": "Current plan",
       "upgradePlanCta": "Choose plan",
       "cancelSubscriptionCta": "Cancel subscription",
       "cancelsOnDate": "Cancels on {date}",
+      "personalPlanNotice": "Your personal plan: {plan}",
+      "personalPlanNoticeCancels": "Your personal plan: {plan}, cancels on {date}",
+      "switchToPersonalWorkspace": "Switch to personal workspace",
+      "switchToPersonalWorkspaceError": "Could not switch to your personal workspace. Try again.",
       "statusCancellationScheduled": "Subscription cancellation scheduled.",
-      "billingPortalTitle": "Billing Portal",
+      "billingPortalTitle": "Billing portal",
       "billingPortalDescription": "Open Stripe Billing Portal to manage your subscriptions and invoices.",
       "billingPortalDescriptionWithPlan": "You are currently on {plan}. Manage your subscriptions, billing details, and invoices in Stripe.",
       "billingPortalCta": "Open billing portal",
@@ -2880,12 +3081,12 @@
           "name": "Free",
           "description": "Getting started to work with Marketing Agents.",
           "features": {
-            "title": "Free Includes:",
+            "title": "Free includes:",
             "items": {
-              "item1": "Limited Access to 1 Agentic Coworker",
-              "item2": "Email and WhatsApp Access to Agents",
-              "item3": "Latest Generation of Claude Models",
-              "item4": "Access to 100+ Marketing Agents"
+              "item1": "Limited access to 1 agentic coworker",
+              "item2": "Email and WhatsApp access to agents",
+              "item3": "Latest generation of Claude models",
+              "item4": "Access to 100+ marketing agents"
             }
           }
         },
@@ -2897,7 +3098,7 @@
             "items": {
               "item1": "Access to our Research Coworker",
               "item2": "Ability to buy more Credits on Demand",
-              "item3": "Read & Create Office Documents",
+              "item3": "Read & create Office documents",
               "item4": "Integrate with Microsoft 365"
             }
           }
@@ -2920,8 +3121,8 @@
           "features": {
             "title": "Everything in Standard, plus:",
             "items": {
-              "item1": "Massive Amount of Credits for Agents",
-              "item2": "Custom Templates for Output Files",
+              "item1": "Massive amount of credits for agents",
+              "item2": "Custom templates for output files",
               "item3": "Early Access to new Agents & Features"
             }
           }
@@ -2940,15 +3141,15 @@
         }
       },
       "Errors": {
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "badInput": "Invalid plan selection",
         "general": "Something went wrong. Please try again."
       },
       "Error": {
-        "title": "Something Went Wrong",
+        "title": "Something went wrong",
         "message": "We encountered an issue loading subscriptions. Please try again later.",
-        "retryButton": "Try Again"
+        "retryButton": "Try again"
       }
     },
     "Admin": {
@@ -3034,6 +3235,16 @@
         },
         "Detail": {
           "noExpiry": "No expiry"
+        },
+        "ChangeCredits": {
+          "title": "Change credits per month",
+          "description": "Applies to every month not yet granted. Months already granted keep their credits.",
+          "label": "Credits / month",
+          "min": "Min {min, number}",
+          "cancel": "Cancel",
+          "submit": "Save",
+          "success": "Credits per month updated",
+          "error": "Failed to update credits per month"
         }
       },
       "Invoices": {
@@ -3043,7 +3254,6 @@
         "newGrant": "New invoice",
         "backToList": "Back to list",
         "delete": "Delete",
-        "deleting": "Deleting…",
         "deleteSuccess": "Invoice deleted",
         "deleteError": "Failed to delete invoice",
         "deleteConfirmTitle": "Delete invoice?",
@@ -3070,7 +3280,6 @@
           "expiryPlaceholder": "No expiry",
           "expiryInvalid": "Expiry must be a positive whole number of days",
           "submit": "Create invoice",
-          "submitting": "Creating invoice…",
           "createSuccess": "Invoice created",
           "createError": "Failed to create invoice",
           "pricePlaceholder": "Select a price",
@@ -3115,7 +3324,6 @@
           "status": "Status",
           "invoiceId": "Invoice ID",
           "markPaid": "Mark as paid",
-          "marking": "Granting credits…",
           "paidSuccess": "Credits granted",
           "paidError": "Failed to mark invoice as paid",
           "openInStripe": "Open in Stripe",
@@ -3178,7 +3386,6 @@
           "referenceNoteHelper": "Optional note stored on the credit bucket for internal reference.",
           "referenceNotePlaceholder": "e.g. Billing issue, goodwill gesture",
           "submit": "Grant credits",
-          "submitting": "Granting credits…",
           "grantSuccess": "Free credits granted",
           "grantError": "Failed to grant free credits"
         }
@@ -3240,6 +3447,10 @@
           "matchedChannels": {
             "title": "Matched channels",
             "description": "Create org-less matched channels and manage their roster."
+          },
+          "badgeCampaigns": {
+            "title": "Feature badges",
+            "description": "Show a New badge on a sidebar feature for existing users, for a set time."
           }
         }
       },
@@ -3306,14 +3517,13 @@
           "resolve": "Resolve",
           "reason": "Audit reason",
           "cancel": "Cancel",
-          "submitting": "Saving…",
           "refundConfirmTitle": "Refund verified payment?",
           "refundConfirmDescription": "This creates a compensating credit transaction and permanently closes the payment as refunded.",
           "resolveConfirmTitle": "Resolve pending payment?",
           "resolveConfirmDescription": "Use only for a wedged payment after its authorization-risk window has expired. This creates a compensating credit transaction.",
           "refundSuccess": "Payment refunded.",
           "resolveSuccess": "Payment resolved.",
-          "actionFailed": "Action failed. Refresh the page, sign in again, and retry."
+          "actionFailed": "Action failed. Refresh the page, log in again, and retry."
         },
         "Reasons": {
           "agent_output_quality": "Agent output quality",
@@ -3487,13 +3697,10 @@
             "title": "Platform controls",
             "description": "Manage capabilities, priority, whitelist, and archive state.",
             "save": "Save controls",
-            "saving": "Saving controls…",
             "archive": "Archive",
-            "archiving": "Archiving…",
             "archiveConfirmTitle": "Archive coworker?",
             "archiveConfirmDescription": "This archives the coworker and revokes its API keys. You can unarchive later, but API keys stay revoked.",
             "unarchive": "Unarchive",
-            "unarchiving": "Unarchiving…",
             "capabilities": {
               "label": "Capabilities",
               "chat": "Chat",
@@ -3701,6 +3908,7 @@
         },
         "Fleet": {
           "searchPlaceholder": "Search by bot, owner name, or email…",
+          "outOfCredits": "Out of credits",
           "totalCount": "{count, plural, one {# bot} other {# bots}}",
           "loadError": "Failed to load Soko Bots.",
           "empty": "No Soko Bots found.",
@@ -3714,7 +3922,8 @@
           "unnamed": "Unnamed",
           "archived": "Archived",
           "version": "Version",
-          "showDormant": "Show unused and archived ({count})"
+          "showDormant": "Show unused and archived ({count})",
+          "chat": "Chat"
         },
         "Detail": {
           "backToList": "Back to Soko Bots",
@@ -3733,7 +3942,8 @@
           "viewsNav": "Bot views",
           "views": {
             "status": "Status",
-            "advanced": "Advanced"
+            "advanced": "Advanced",
+            "chat": "Chat"
           },
           "danger": {
             "title": "Delete this Soko Bot",
@@ -3741,10 +3951,19 @@
             "unnamedBot": "this assistant",
             "confirmLabel": "Type the owner's email ({email}) to confirm",
             "delete": "Delete Soko Bot",
-            "deleting": "Deleting…",
             "deleted": "Soko Bot deleted.",
             "tombstoned": "Soko Bot deleted. {tasks} tasks and {messages} chat messages keep it on record.",
             "error": "Could not delete this Soko Bot."
+          },
+          "chat": {
+            "readOnly": "Read-only",
+            "roomsNav": "Chats",
+            "ownerRoom": "Owner",
+            "loadOlder": "Load older",
+            "noMessages": "No messages yet.",
+            "empty": "Nobody has chatted with this bot yet.",
+            "deleted": "Message deleted",
+            "loadError": "Could not load older messages."
           }
         },
         "Actions": {
@@ -3768,7 +3987,6 @@
           "reasonHint": "3–500 characters. Stored immutably with your operator id.",
           "cancel": "Cancel",
           "confirm": "Confirm",
-          "working": "Working…",
           "done": "{action} recorded.",
           "error": "Action failed.",
           "more": "More actions"
@@ -3873,7 +4091,7 @@
           "noUsage": "No usage recorded for this turn.",
           "Quality": {
             "title": "Quality",
-            "notJudged": "Not graded yet. The judge runs after a turn settles.",
+            "notJudged": "Not graded. Only lab turns are judged.",
             "howScored": "Overall is the mean of the four dimensions below, rounded — except that an honesty score of 2 or lower caps the overall at 2, so a fabricated claim cannot be averaged away.",
             "rubricUsed": "Graded against the {rubric} rubric",
             "judgeModel": "Judge model",
@@ -3933,10 +4151,10 @@
           "actionDescription": "This operator action is audited. Explain why it is needed.",
           "reasonLabel": "Reason",
           "cancel": "Cancel",
-          "working": "Working…",
           "actionDone": "Schedule action completed.",
           "actionError": "Could not complete schedule action.",
-          "noRuns": "No runs yet."
+          "noRuns": "No runs yet.",
+          "runOnce": "One-time"
         },
         "Memory": {
           "title": "Memory",
@@ -3982,7 +4200,7 @@
         },
         "Quality": {
           "title": "Quality",
-          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days.",
+          "description": "Judge scores (1–5) for real, non-lab turns across the fleet, last 30 days. Real turns are no longer judged, so only earlier scores appear; owner feedback continues.",
           "overall": "{judged} of {turns} turns judged",
           "proactive": "{sent} proactive messages, {actedOn} acted on within a day",
           "thumbs": "{up} 👍 · {down} 👎",
@@ -4000,9 +4218,10 @@
           "turns": "Turns",
           "avgScore": "Avg score",
           "realRunsByVersion": "Real usage by version",
-          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days."
+          "descriptionBot": "Judge scores (1–5) for this bot's real turns, last 30 days. Real turns are no longer judged, so only earlier scores appear."
         },
         "labLink": "Behaviour lab",
+        "evaluationsLink": "Model evaluations",
         "versionsLink": "Versions",
         "Versions": {
           "title": "Soko Bot versions",
@@ -4049,13 +4268,11 @@
             "promote": "Promote",
             "promoteTitle": "Promote this version?",
             "promoteConfirm": "This affects new bots only. Existing bots keep the version they were created on.",
-            "promoting": "Promoting…",
             "promoted": "Version promoted for new bots.",
             "promoteError": "Could not promote this version.",
             "archive": "Archive",
             "archiveTitle": "Archive this version?",
             "archiveConfirm": "It will disappear from version pickers. Bots pinned to it fall back to the built-in default when they next run.",
-            "archiving": "Archiving…",
             "archived": "Version archived.",
             "archiveError": "Could not archive this version.",
             "archiveDefaultHint": "Promote another version before archiving this default."
@@ -4083,7 +4300,6 @@
             "saveError": "Could not save this version.",
             "created": "Version created.",
             "updated": "Version updated.",
-            "saving": "Saving…",
             "create": "Create version",
             "save": "Save changes"
           },
@@ -4156,7 +4372,6 @@
           "noReason": "no reason given",
           "disable": "Disable Soko Bot",
           "enable": "Enable Soko Bot",
-          "working": "Working…",
           "reasonPlaceholder": "Reason shown to users (optional)",
           "disabled": "Soko Bot disabled.",
           "enabled": "Soko Bot enabled.",
@@ -4178,7 +4393,6 @@
           "reasonLabel": "Reason",
           "reasonPlaceholder": "Why are you moving this bot? (required, recorded in the audit log)",
           "confirm": "Move this bot",
-          "working": "Moving…",
           "done": "Moved to {version}.",
           "error": "Could not move this bot."
         },
@@ -4192,12 +4406,60 @@
           "defaultOption": "{name} (default for new bots)",
           "reasonLabel": "Reason",
           "reasonPlaceholder": "Why are you moving the fleet? (required, recorded against every bot)",
+          "notifyLabel": "Tell owners in their bot's chat",
+          "notifyHint": "Each moved bot posts one fixed message saying which version it runs now and what changes for its owner. It does not start a turn.",
+          "notifyRequired": "Required for this version: it runs outside the EU, so every moved bot tells its owner. It does not start a turn.",
           "confirm": "Move {count} bots",
           "nothingToMove": "Nothing to move for this selection.",
-          "working": "Moving…",
           "done": "Moved {moved} bots.",
           "result": "Moved {moved}. Already on this version: {alreadyOnVersion}. Could not move: {failed}.",
+          "notifiedResult": "Owners told: {notified}.",
           "error": "Could not move these bots."
+        },
+        "Evaluations": {
+          "title": "Model evaluations",
+          "description": "How candidate models compare on hand-graded cases, for the lab judge and the route classifier. Run the scripts in apps/core/scripts to add a run.",
+          "latestRun": "Latest run",
+          "inUse": "In use",
+          "empty": "No runs recorded yet.",
+          "disagreements": "{count, plural, one {# case where a judge disagreed with the grade} other {# cases where a judge disagreed with the grade}}",
+          "misses": "{count, plural, one {# message a classifier got wrong} other {# messages a classifier got wrong}}",
+          "earlierRuns": "{count, plural, one {# earlier run} other {# earlier runs}}",
+          "Judge": {
+            "title": "Lab judge",
+            "description": "Grades behaviour-lab turns. Now running on {model}. Only lab turns are judged.",
+            "model": "Model",
+            "matches": "Matches grade",
+            "steady": "Same on re-run",
+            "falseFails": "False fails",
+            "badCaught": "Bad turns caught",
+            "errors": "Errors",
+            "cost": "Per turn",
+            "time": "Median time",
+            "grade": "Graded {grade, select, pass {pass} weak {weak} fail {fail} other {uncertain}}",
+            "knownBad": "Known bad"
+          },
+          "Router": {
+            "title": "Route classifier",
+            "description": "Decides which tools a turn gets. Scored on the tools each labelled message ends up with; granting writes a message did not ask for is the unsafe mistake.",
+            "classifier": "Classifier",
+            "correct": "Correct",
+            "alwaysRight": "Right every run",
+            "overGrants": "Wrong write grants",
+            "underGrants": "Wrongly read-only",
+            "median": "Median",
+            "p90": "p90",
+            "cost": "Per 1,000",
+            "after": "After the reply: “{reply}”",
+            "want": "Expected"
+          }
+        },
+        "Avatar": {
+          "title": "Avatar",
+          "description": "Give this bot a mascot from the shared pool, as its owner would.",
+          "apply": "Set avatar",
+          "done": "Avatar updated.",
+          "error": "Could not set the avatar."
         }
       },
       "MatchedChannels": {
@@ -4226,7 +4488,6 @@
           "namePlaceholder": "e.g. Partners",
           "nameHelp": "Shown in the list. It starts from the handle; you can change it here.",
           "submit": "Create channel",
-          "submitting": "Creating…",
           "success": "Matched channel created",
           "error": "Failed to create matched channel",
           "slugTaken": "This channel slug is already taken."
@@ -4257,20 +4518,17 @@
             "title": "Add user",
             "description": "Search an existing platform user. No email invite is sent; membership is created immediately.",
             "user": "User",
-            "submit": "Add user",
-            "submitting": "Adding…"
+            "submit": "Add user"
           },
           "AddOrganization": {
             "title": "Add organization",
             "description": "Snapshot all current Members of an organization onto this channel (max 200 Members per request). Future joins are not synced.",
             "organization": "Organization",
             "helper": "Organizations you belong to appear first in search results.",
-            "submit": "Add organization members",
-            "submitting": "Adding…"
+            "submit": "Add organization members"
           },
           "Archive": {
             "button": "Archive channel",
-            "archiving": "Archiving…",
             "confirmTitle": "Archive {name}?",
             "confirmDescription": "Participants lose access immediately. You can restore this channel from the Archived tab in this hub.",
             "confirm": "Archive",
@@ -4281,7 +4539,6 @@
           "archivedBadge": "Archived — roster edits are disabled until restored.",
           "Restore": {
             "button": "Restore channel",
-            "restoring": "Restoring…",
             "confirmTitle": "Restore {name}?",
             "confirmDescription": "Clears the archive flag so the channel returns to the live hub. Existing members keep their seats and regain access on their next session refresh.",
             "confirm": "Restore",
@@ -4291,7 +4548,6 @@
           },
           "Delete": {
             "button": "Delete permanently",
-            "deleting": "Deleting…",
             "confirmTitle": "Permanently delete {name}?",
             "confirmDescription": "This cannot be undone. The channel, its memberships, and messages are removed forever. Only archived channels can be deleted.",
             "confirm": "Delete permanently",
@@ -4299,6 +4555,58 @@
             "success": "Matched channel permanently deleted",
             "error": "Failed to delete matched channel"
           }
+        }
+      },
+      "BadgeCampaigns": {
+        "title": "Feature badges",
+        "description": "A campaign puts a New badge on one sidebar feature. Users who signed up before it starts see the badge until it ends or until they open the feature.",
+        "loadFailed": "Couldn't load the campaigns. Reload to try again.",
+        "Status": {
+          "scheduled": "Scheduled",
+          "live": "Live",
+          "ended": "Ended"
+        },
+        "Table": {
+          "feature": "Feature",
+          "startsAt": "Starts",
+          "endsAt": "Ends",
+          "status": "Status",
+          "actions": "Actions",
+          "empty": "No campaigns yet."
+        },
+        "Actions": {
+          "edit": "Edit dates",
+          "endNow": "End now",
+          "delete": "Delete",
+          "startNow": "Start now"
+        },
+        "Form": {
+          "createTitle": "New campaign",
+          "editTitle": "Edit dates",
+          "feature": "Feature",
+          "featurePlaceholder": "Choose a feature",
+          "featureRequired": "Choose a feature first.",
+          "startsAt": "Starts",
+          "endsAt": "Ends",
+          "audienceHelper": "Only users who signed up before the start see the badge.",
+          "create": "Create campaign",
+          "save": "Save dates",
+          "startNow": "Start now",
+          "timeZoneHelper": "Times are in your time zone ({timeZone}).",
+          "runsFor": "Runs for",
+          "weeks": "{count, plural, one {# week} other {# weeks}}",
+          "custom": "Custom",
+          "endsOn": "Ends {date}",
+          "endsPending": "Pick a start to see when it ends."
+        },
+        "Toasts": {
+          "created": "Campaign created",
+          "updated": "Dates saved",
+          "ended": "Campaign ended",
+          "deleted": "Campaign deleted",
+          "saveFailed": "Couldn't save the campaign",
+          "deleteFailed": "Couldn't delete the campaign",
+          "started": "Campaign started"
         }
       }
     },
@@ -4339,15 +4647,15 @@
         "contactUsCta": "Contact us"
       },
       "Errors": {
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "unauthorized": "You are not authorized to access this billing area",
         "general": "Something went wrong. Please try again."
       },
       "Error": {
-        "title": "Something Went Wrong",
+        "title": "Something went wrong",
         "message": "We encountered an issue loading billing details. Please try again later.",
-        "retryButton": "Try Again"
+        "retryButton": "Try again"
       },
       "PurchaseSuccess": {
         "creditsTitle": "You're all set!",
@@ -4386,37 +4694,39 @@
       "couponCleared": "Coupon cleared for credit entry",
       "couponOrCreditsError": "Please enter either credits or a coupon code",
       "Error": {
-        "title": "Something Went Wrong",
+        "title": "Something went wrong",
         "message": "We encountered an issue processing your request. Please try again later.",
-        "retryButton": "Try Again"
+        "retryButton": "Try again"
       },
       "Cancel": {
-        "title": "Payment Cancelled",
+        "title": "Payment cancelled",
         "description": "Your payment process was cancelled. You have not been charged.",
-        "backToCredits": "Back to Credits"
+        "backToCredits": "Back to credits",
+        "close": "Close"
       },
       "Errors": {
         "invalidInput": "Please enter either a credit amount or a coupon code",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid coupon",
-        "unauthenticated": "Please sign in to continue",
-        "unauthenticatedAction": "Sign In",
+        "unauthenticated": "Please log in to continue",
+        "unauthenticatedAction": "Log in",
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
       }
     },
     "MCP": {
-      "urlLabel": "MCP Server URL",
+      "urlLabel": "MCP server URL",
       "existingKeyNote": "This hosted MCP connection uses OAuth. Your MCP client will ask you to sign in with Sokosumi when connecting.",
-      "docsLink": "View MCP Documentation",
-      "copyError": "Failed to copy URL to clipboard"
+      "docsLink": "View MCP documentation",
+      "copyError": "Failed to copy URL to clipboard",
+      "copyUrl": "Copy URL"
     },
     "Account": {
       "Name": {
         "title": "Change name",
-        "description": "Update your display name",
-        "newName": "New name",
+        "description": "Update your name and display name",
+        "displayName": "Display name",
         "currentPassword": "Current password",
         "submit": "Update name",
         "success": "Name updated successfully",
@@ -4438,10 +4748,11 @@
         "newPassword": "New password",
         "confirmPassword": "Confirm new password",
         "revokeOtherSessionsLabel": "Sign out of other devices",
-        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays signed in.",
+        "revokeOtherSessionsHelp": "Ends every other session. The device you are using now stays logged in.",
         "submit": "Update password",
         "success": "Password updated successfully",
-        "error": "Failed to update password"
+        "error": "Failed to update password",
+        "forgotPassword": "Forgot your password?"
       },
       "NewPassword": {
         "title": "Set password",
@@ -4520,7 +4831,9 @@
           "cancel": "Cancel",
           "success": "Account disconnected successfully",
           "error": "Failed to disconnect {provider}"
-        }
+        },
+        "connect": "Connect {provider}",
+        "disconnect": "Disconnect {provider}"
       },
       "LinkedAccounts": {
         "loadErrorTitle": "Could not load account details",
@@ -4709,6 +5022,7 @@
         "confirmTitle": "Are you sure?",
         "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
         "currentPassword": "Current password",
+        "confirmEmail": "Type {email} to confirm",
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
         "error": "Failed to delete account",
@@ -4752,9 +5066,9 @@
         "dependentsError": "Delete jobs and tasks in this workspace first."
       },
       "ApiKeys": {
-        "title": "API Keys",
+        "title": "API keys",
         "description": "Manage your API keys for programmatic access",
-        "apiDocsLink": "View API Documentation",
+        "apiDocsLink": "View API documentation",
         "createButton": "Create",
         "loading": "Loading API keys...",
         "noKeysFound": "Create your first API key to get started.",
@@ -4775,25 +5089,25 @@
           "deleteTooltip": "Delete API key"
         },
         "CreateDialog": {
-          "title": "Create New API Key",
+          "title": "Create new API key",
           "description": "Give your API key a descriptive name to help you identify it later.",
           "nameLabel": "Name",
           "namePlaceholder": "e.g., Production Server, Development App",
           "cancelButton": "Cancel",
-          "createButton": "Create API Key",
+          "createButton": "Create API key",
           "CreatedSuccess": {
-            "title": "New API Key Created",
+            "title": "New API key created",
             "description": "Your new API key has been created successfully.",
             "doneButton": "Done"
           }
         },
         "DeleteDialog": {
-          "title": "Delete API Key",
+          "title": "Delete API key",
           "description": "This action cannot be undone. This will permanently delete the API key and any applications using it will no longer be able to access your account.",
           "confirmLabelPrefix": "Type",
           "confirmLabelSuffix": "to confirm deletion:",
           "cancelButton": "Cancel",
-          "deleteButton": "Delete API Key"
+          "deleteButton": "Delete API key"
         },
         "Messages": {
           "loadError": "Failed to load API keys",
@@ -4817,14 +5131,13 @@
         "retry": "Retry"
       },
       "AuthorizedClients": {
-        "title": "Authorized Applications",
+        "title": "Authorized applications",
         "description": "Applications that have access to your account",
         "loading": "Loading...",
         "error": "Error: {error}",
         "noApplications": "No applications have been authorized.",
         "authorized": "Authorized: {date}",
-        "revokeAccess": "Revoke Access",
-        "revoking": "Revoking...",
+        "revokeAccess": "Revoke access",
         "confirmRevoke": "Are you sure you want to revoke access for this application?",
         "revokeSuccess": "Access revoked successfully",
         "revokeError": "Failed to revoke access",
@@ -4832,12 +5145,11 @@
       },
       "OAuthConsent": {
         "invalidRequest": {
-          "title": "Invalid OAuth Request",
-          "description": "Missing required parameters: client_id or redirect_uri"
+          "title": "Invalid OAuth request",
+          "description": "Missing required parameter: client_id"
         },
         "clientNotFound": {
-          "title": "Client Not Found",
-          "description": "The OAuth client could not be found.",
+          "title": "Client not found",
           "descriptionWithId": "The OAuth client with ID {clientId} does not exist."
         },
         "loadError": {
@@ -4845,39 +5157,42 @@
           "description": "We could not load the application details right now. Please try again.",
           "retry": "Try again"
         },
-        "title": "Authorize Application",
+        "title": "Authorize application",
         "description": "An application wants to access your account",
         "descriptionWithApi": "An application wants to access your account and call the Sokosumi API on your behalf",
         "wantsAccess": "wants to access your Sokosumi account",
         "actions": {
           "authorize": "Authorize",
-          "authorizing": "Authorizing...",
           "deny": "Deny",
-          "denying": "Denying...",
           "authorizeError": "Failed to authorize application",
-          "authorizeErrorRedirectUri": "Failed to authorize application. Please check your redirect URI.",
           "authorizeErrorGeneric": "An error occurred during authorization",
           "workspacePrepareError": "Could not prepare your workspace. Please try again.",
           "authorizeSuccess": "Application authorized successfully",
           "denyError": "Failed to deny application"
         },
         "apiAccessNotice": "Authorizing grants full API access to your account (openid and sokosumi:api). Only approve apps you trust.",
-        "offlineAccessNotice": "This app can stay signed in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
+        "offlineAccessNotice": "This app can stay logged in and get new access tokens later without asking you again (refresh tokens, up to 90 days)."
       },
       "OAuthClients": {
-        "title": "OAuth Clients",
+        "title": "OAuth clients",
         "description": "Create and manage OAuth clients for applications you build.",
-        "createButton": "Create OAuth Client",
+        "createButton": "Create OAuth client",
         "copy": "Copy",
         "copySuccess": "Copied to clipboard",
         "CreateDialog": {
-          "title": "Create New OAuth Client",
+          "title": "Create new OAuth client",
           "description": "Create a new OAuth client to allow applications to access your account.",
           "nameLabel": "Name",
           "namePlaceholder": "e.g., My Application, Production Server",
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "One URI per line. HTTPS for web apps. Native apps: http://127.0.0.1, http://localhost, http://[::1], or a reverse-domain scheme with no host (com.example.app:/callback). No fragments.",
+          "clientUriLabel": "Home page",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "Optional. HTTPS. Sokosumi's sign-in page links back here.",
+          "logoUriLabel": "Logo URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "Optional. HTTPS. A square image, shown on Sokosumi's sign-in page.",
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked (default): identity only (openid / userinfo). Checked: also allow calling the Core API as the user (sokosumi:api).",
           "includeOfflineAccessLabel": "Allow refresh tokens",
@@ -4885,13 +5200,13 @@
           "isPublicLabel": "Public client (no secret, PKCE only)",
           "isPublicHelp": "Checked: public PKCE client for native or mobile apps that cannot keep a secret. No client secret is issued; token requests use PKCE only. Unchecked (default): confidential client with a client secret.",
           "cancelButton": "Cancel",
-          "createButton": "Create OAuth Client"
+          "createButton": "Create OAuth client"
         },
         "CreatedSuccess": {
-          "title": "OAuth Client Created",
+          "title": "OAuth client created",
           "description": "Your OAuth client has been created successfully. Save these credentials securely.",
           "clientIdLabel": "Client ID",
-          "clientSecretLabel": "Client Secret",
+          "clientSecretLabel": "Client secret",
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
           "publicNote": "Public client created — no secret was issued. Use the client ID with PKCE (S256).",
           "doneButton": "Done",
@@ -4918,15 +5233,21 @@
           "rotateTooltip": "Rotate client secret"
         },
         "EditDialog": {
-          "title": "Edit OAuth Client",
+          "title": "Edit OAuth client",
           "description": "Update the name or redirect URIs for this OAuth client.",
           "nameLabel": "Name",
           "namePlaceholder": "e.g., My Application, Production Server",
           "redirectUrisLabel": "Redirect URIs",
           "redirectUrisPlaceholder": "https://example.com/callback\ncom.example.app:/oauth/callback",
           "redirectUrisHelp": "One URI per line. HTTPS for web apps. Native apps: http://127.0.0.1, http://localhost, http://[::1], or a reverse-domain scheme with no host (com.example.app:/callback). No fragments.",
+          "clientUriLabel": "Home page",
+          "clientUriPlaceholder": "https://example.com",
+          "clientUriHelp": "HTTPS. Sokosumi's sign-in page links back here. An emptied field keeps the current value.",
+          "logoUriLabel": "Logo URL",
+          "logoUriPlaceholder": "https://example.com/logo.png",
+          "logoUriHelp": "HTTPS. A square image, shown on Sokosumi's sign-in page. An emptied field keeps the current value.",
           "cancelButton": "Cancel",
-          "saveButton": "Save Changes",
+          "saveButton": "Save changes",
           "includeCoreApiLabel": "Allow Sokosumi API access",
           "includeCoreApiHelp": "Unchecked: identity only (openid). Checked: allow Core API (sokosumi:api) on authorize. Changing this updates the client's allow-list. Turning API off blocks Core access for existing tokens immediately; turning it on requires users to reauthorize for new tokens with that scope.",
           "includeOfflineAccessLabel": "Allow refresh tokens",
@@ -4936,10 +5257,10 @@
           "clientTypeConfidential": "Confidential — authenticates with a client secret. Type cannot be changed after creation."
         },
         "DeleteDialog": {
-          "title": "Delete OAuth Client",
+          "title": "Delete OAuth client",
           "description": "This action cannot be undone. Deleting \"{name}\" will permanently remove the client. Applications using these credentials will no longer be able to authenticate.",
           "cancelButton": "Cancel",
-          "deleteButton": "Delete OAuth Client"
+          "deleteButton": "Delete OAuth client"
         },
         "Messages": {
           "loadError": "Failed to load OAuth clients",
@@ -4958,18 +5279,19 @@
           "nameRequired": "Name is required",
           "nameMaxLength": "Name must be less than 100 characters",
           "redirectUrisRequired": "At least one redirect URI is required",
-          "redirectUrisInvalid": "Each redirect URI must be HTTPS, loopback HTTP (localhost / 127.0.0.1 / [::1]), or a reverse-domain app scheme such as com.example.app:/callback, with no fragment."
+          "redirectUrisInvalid": "Each redirect URI must be HTTPS, loopback HTTP (localhost / 127.0.0.1 / [::1]), or a reverse-domain app scheme such as com.example.app:/callback, with no fragment.",
+          "httpsUrlInvalid": "Enter a full HTTPS URL, such as https://example.com"
         },
         "RotateDialog": {
-          "title": "Rotate Client Secret",
+          "title": "Rotate client secret",
           "description": "This will invalidate the current secret for \"{name}\" and generate a new one. Applications using the old secret will stop working until you update them.",
           "cancelButton": "Cancel",
-          "confirmButton": "Rotate Secret"
+          "confirmButton": "Rotate secret"
         },
         "RotatedSuccess": {
-          "title": "Client Secret Rotated",
+          "title": "Client secret rotated",
           "description": "Save the new secret securely. The previous secret no longer works.",
-          "clientSecretLabel": "New Client Secret",
+          "clientSecretLabel": "New client secret",
           "clientSecretWarning": "This secret will only be shown once. Make sure to save it securely.",
           "doneButton": "Done",
           "showSecret": "Show secret",
@@ -4977,28 +5299,27 @@
         }
       },
       "OAuthCallback": {
-        "title": "OAuth Authorization Callback",
+        "title": "OAuth authorization callback",
         "description": "Exchange your authorization code for an access token",
-        "authorizationCode": "Authorization Code",
+        "authorizationCode": "Authorization code",
         "state": "State",
-        "codeVerifierLabel": "Code Verifier",
+        "codeVerifierLabel": "Code verifier",
         "codeVerifierPlaceholder": "Enter the code verifier used in the authorization request",
         "codeVerifierHelp": "The code verifier must match the code challenge used in the authorization request.",
         "noCode": "No authorization code found in the URL. Please complete the authorization flow first.",
         "actions": {
-          "exchange": "Exchange for Token",
-          "exchanging": "Exchanging...",
+          "exchange": "Exchange for token",
           "copy": "Copy"
         },
         "success": {
-          "title": "Token Exchange Successful",
+          "title": "Token exchange successful",
           "description": "Your authorization code has been successfully exchanged for an access token.",
-          "accessToken": "Access Token",
-          "refreshToken": "Refresh Token",
+          "accessToken": "Access token",
+          "refreshToken": "Refresh token",
           "expiresIn": "Expires In",
           "seconds": "seconds",
           "scope": "Scope",
-          "idToken": "ID Token",
+          "idToken": "ID token",
           "tokenExchanged": "Token exchanged successfully",
           "tokenCopied": "Access token copied to clipboard",
           "refreshTokenCopied": "Refresh token copied to clipboard",
@@ -5007,23 +5328,23 @@
           "warningRefresh": "Store the refresh token securely. It can be used to obtain new access tokens without repeating consent until it expires or is revoked."
         },
         "error": {
-          "title": "Authorization Error",
+          "title": "Authorization error",
           "description": "An error occurred during the authorization process.",
-          "errorCode": "Error Code",
-          "errorDescription": "Error Description"
+          "errorCode": "Error code",
+          "errorDescription": "Error description"
         },
         "errors": {
           "authorizationFailed": "Authorization failed",
           "missingCode": "No authorization code found in the URL",
           "missingCodeVerifier": "Please enter the code verifier",
-          "missingCredentials": "Client ID is required. Leave Client Secret empty for public clients.",
+          "missingCredentials": "Client ID is required. Leave Client secret empty for public clients.",
           "invalidIssuer": "The iss value in the URL does not match this site's authorization server. Use the callback URL returned by the authorization response without modifying query parameters.",
           "tokenExchangeFailed": "Failed to exchange authorization code for token"
         },
         "clientIdLabel": "Client ID",
-        "clientIdPlaceholder": "Enter your OAuth Client ID",
-        "clientSecretLabel": "Client Secret",
-        "clientSecretPlaceholder": "Enter your OAuth Client Secret",
+        "clientIdPlaceholder": "Enter your OAuth client ID",
+        "clientSecretLabel": "Client secret",
+        "clientSecretPlaceholder": "Enter your OAuth client secret",
         "clientSecretHelp": "Your client secret is required for confidential clients. For public clients, leave this empty."
       },
       "ProfileImage": {
@@ -5064,7 +5385,6 @@
         "websitePlaceholder": "https://example.com",
         "websiteDescription": "Masumi uses this website to generate your DESIGN.md.",
         "submit": "Save brand profile",
-        "saving": "Saving...",
         "saveSuccess": "Brand profile saved",
         "saveError": "Failed to save brand profile",
         "Schema": {
@@ -5143,7 +5463,7 @@
         "websiteLabel": "Website",
         "edit": "Edit",
         "delete": "Delete",
-        "invite": "Invite Member",
+        "invite": "Invite member",
         "bulkInvite": "Bulk invite",
         "BillingDetails": {
           "title": "Billing information",
@@ -5178,7 +5498,6 @@
           "includedCreditsPerSeat": "{credits, plural, =0 {No credits per seat} =1 {# credit per seat} other {# credits per seat}}",
           "noActivePlan": "No active plan",
           "seatsUpdatedSuccess": "Seats updated successfully.",
-          "updating": "Redirecting...",
           "currentPlanCta": "Current plan",
           "updateSeatsCta": "Update seats",
           "choosePlanCta": "Choose plan",
@@ -5306,17 +5625,17 @@
     },
     "Agents": {
       "Metadata": {
-        "title": "Agents Gallery",
+        "title": "Agents gallery",
         "description": "Explore our collection of agents."
       },
       "CoworkerGallerySection": {
         "title": "Coworker marketplace",
         "whatTheyDo": {
-          "title": "What They Do",
+          "title": "What they do",
           "description": "AI coworkers you can assign real work to. They work on their own and get it done."
         },
         "marketingExpertise": {
-          "title": "Marketing Expertise",
+          "title": "Marketing expertise",
           "description": "Trained on real campaign work - strategy, content, media planning, and brand communications."
         },
         "others": "Others",
@@ -5389,7 +5708,7 @@
           "termsAndConditions": "Terms and Conditions",
           "privacyPolicy": "Privacy Policy",
           "dpa": "Data Processing Agreement (DPA)",
-          "customerSupport": "Customer Support"
+          "customerSupport": "Customer support"
         },
         "RightSection": {
           "noExecutedJobs": "No executed jobs"
@@ -5449,7 +5768,6 @@
       "forceRegenerateLabel": "Force a fresh generation",
       "forceRegenerateDescription": "Use this when the website changed recently and the cached result may be stale.",
       "confirmGenerate": "Start generation",
-      "generating": "Generating...",
       "starting": "Starting generation...",
       "polling": "Waiting for Masumi to finish...",
       "finalizing": "Saving DESIGN.md...",
@@ -5462,7 +5780,6 @@
       "uploadTitle": "Upload markdown file",
       "uploadDescription": ".md or .markdown up to {maxSize}",
       "uploadButton": "Upload",
-      "uploading": "Uploading...",
       "uploadSuccess": "DESIGN.md uploaded",
       "uploadError": "Failed to upload DESIGN.md",
       "uploadRejected": "File is not accepted",
@@ -5474,7 +5791,6 @@
       "editTab": "Edit",
       "previewTab": "Preview",
       "editSave": "Save",
-      "editSaving": "Saving...",
       "editSaveSuccess": "DESIGN.md saved",
       "editUnavailableTitle": "DESIGN.md is not available",
       "editLoadErrorTitle": "Could not load DESIGN.md",
@@ -5512,7 +5828,6 @@
           "uploadError": "Could not process the selected image."
         },
         "saveChanges": "Save display",
-        "saving": "Saving…",
         "cancel": "Cancel",
         "validation": {
           "nameMinLength": "Name must be at least {min} characters.",
@@ -5532,8 +5847,8 @@
     },
     "Developer": {
       "tabs": {
-        "oauthClients": "OAuth Clients",
-        "apiKeys": "API Keys",
+        "oauthClients": "OAuth clients",
+        "apiKeys": "API keys",
         "coworkers": "Coworkers",
         "tasks": "Tasks",
         "vendors": "Vendors",
@@ -5637,19 +5952,19 @@
         }
       },
       "Docs": {
-        "title": "Developer Documentation",
+        "title": "Developer documentation",
         "description": "Guides and references for building on Sokosumi.",
         "links": {
           "gettingStarted": {
-            "title": "Getting Started",
+            "title": "Getting started",
             "description": "Learn how to integrate with Sokosumi."
           },
           "apiReference": {
-            "title": "API Reference",
+            "title": "API reference",
             "description": "Explore the Sokosumi OpenAPI documentation."
           },
           "mcp": {
-            "title": "MCP Documentation",
+            "title": "MCP documentation",
             "description": "Connect AI clients to Sokosumi via MCP."
           }
         }
@@ -5657,7 +5972,7 @@
     },
     "Connections": {
       "tabs": {
-        "connectedApps": "Connected Apps",
+        "connectedApps": "Connected apps",
         "mcp": "MCP"
       }
     },
@@ -5679,7 +5994,6 @@
       "Actions": {
         "more": "Message actions",
         "overflow": "More",
-        "sectionTitle": "Manage channel",
         "leave": "Leave channel",
         "archive": "Archive channel",
         "cancel": "Cancel",
@@ -5706,7 +6020,9 @@
         "mute": "Mute",
         "unmute": "Unmute",
         "roomMenu": "Chat actions for {name}",
-        "actionFailed": "Could not update this chat. Try again."
+        "actionFailed": "Could not update this chat. Try again.",
+        "archiveHint": "Hides the channel for everyone. Restore it later from Archived in the sidebar.",
+        "archiveButton": "Archive"
       },
       "Metadata": {
         "title": "Chat",
@@ -5755,15 +6071,12 @@
       "Dialog": {
         "createTitle": "Create channel",
         "createDescription": "Choose the humans and AI coworkers who should be in this channel.",
-        "editTitle": "Edit channel",
-        "editDescription": "Update the channel details and participant list.",
-        "actionsOnlyTitle": "Leave channel",
-        "actionsOnlyDescription": "Leave this channel when you no longer need it. Channel settings are managed by admins.",
+        "editTitle": "Channel settings",
         "name": "Name",
         "nameRequired": "Channel name is required.",
         "namePlaceholder": "Launch planning",
         "topic": "Topic",
-        "topicPlaceholder": "What this channel is for",
+        "topicPlaceholder": "What is this channel for?",
         "participants": "Members",
         "selectedParticipants": "{count, plural, one {# selected} other {# selected}}",
         "cannotRemoveSelf": "You can't remove yourself",
@@ -5787,6 +6100,8 @@
       },
       "composerPlaceholderWithChannel": "Message #{channel}",
       "directComposerPlaceholder": "Message {member}",
+      "readOnlyDirectNotice": "{members} left. You can still read past messages, but you can't send new ones.",
+      "readOnlyDirectNoticeUnnamed": "Everyone else left. You can still read past messages, but you can't send new ones.",
       "Draft": {
         "searchPlaceholder": "Search people or AI coworkers",
         "searchPlaceholderMore": "Add more people",
@@ -5836,6 +6151,21 @@
         "attachmentFallback": "file",
         "showFormatting": "Show formatting",
         "hideFormatting": "Hide formatting"
+      },
+      "Skills": {
+        "add": "Add a skill",
+        "limitReached": "Up to 3 skills per message",
+        "searchPlaceholder": "Search skills",
+        "listLabel": "Skills from skills.sh",
+        "loading": "Loading skills…",
+        "unavailable": "Skills could not be loaded. Try again.",
+        "noResults": "No skills found",
+        "installs": "{count} installs",
+        "added": "Added",
+        "remove": "Remove {name}",
+        "chipLabel": "Skill: {name}",
+        "previewKicker": "Skill from skills.sh, sent to the agents this message reaches",
+        "viewOnSkillsSh": "View on skills.sh"
       },
       "Reactions": {
         "add": "Add reaction",
@@ -5895,12 +6225,10 @@
         "muted": "Muted"
       },
       "loadOlder": "Load older messages",
-      "loadingOlder": "Loading older messages…",
       "jumpToLatest": "Jump to latest",
       "Boundary": {
         "missingHere": "Messages are missing here",
         "loadMissing": "Load missing messages",
-        "loadingMissing": "Loading missing messages…",
         "loadFailed": "Couldn’t load messages.",
         "retry": "Try again"
       },
@@ -5917,7 +6245,7 @@
       },
       "PinnedMessages": {
         "open": "Pinned messages",
-        "title": "Pinned Messages",
+        "title": "Pinned messages",
         "close": "Close pinned messages",
         "empty": "No pinned messages yet",
         "loading": "Loading pinned messages…",
@@ -6001,7 +6329,9 @@
         "publicHelp": "Anyone in the organization can find and join this channel.",
         "privateHelp": "Only invited members can see this channel. Organization owners and admins can still find and join it.",
         "external": "External",
-        "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members."
+        "externalHelp": "Anyone in the organization can find and join. Outsiders join only by email invite as guests — they are not organization members.",
+        "externalLocked": "Remove all guests in the members panel to make this channel public or private.",
+        "hasGuests": "Has guests"
       },
       "CreateWizard": {
         "title": "Create a channel",
@@ -6024,20 +6354,37 @@
         "addPeopleTitle": "Add people to {name}",
         "addAll": "Add all {count} members of {organization}",
         "addSpecific": "Add specific people",
-        "addSpecificHelp": "Select people and AI coworkers to add to this channel.",
-        "creating": "Creating…"
+        "addSpecificHelp": "Select people and AI coworkers to add to this channel."
       },
       "RoomRoster": {
         "open": "Members",
         "title": "Members",
         "humansTitle": "People",
+        "guestsTitle": "Guests",
         "agentsTitle": "Coworkers",
         "close": "Close members",
         "empty": "No members to show.",
         "message": "Message {name}",
         "copy": "Copy {value}",
         "copySuccess": "Copied to clipboard",
-        "copyError": "Could not copy."
+        "copyError": "Could not copy.",
+        "add": "Add members",
+        "memberActions": "More actions for {name}",
+        "remove": "Remove from channel",
+        "removeConfirmTitle": "Remove {name} from this channel?",
+        "removeConfirmDescription": "{name} will no longer see this channel or its messages.",
+        "removeSuccess": "Removed {name} from the channel.",
+        "undo": "Undo"
+      },
+      "AddMembers": {
+        "title": "Add members",
+        "description": "Add people, coworkers, and your personal assistants to {name}.",
+        "membersTab": "From your organization",
+        "guestsTab": "Invite from outside",
+        "submit": "Add",
+        "chooseSomeone": "Choose someone to add.",
+        "nobodyToAdd": "Everyone you can add is already in this channel.",
+        "success": "{count, plural, one {Added # member.} other {Added # members.}}"
       },
       "SeenBy": {
         "summary": "{count, plural, one {Seen by # person} other {Seen by # people}}",
@@ -6075,7 +6422,9 @@
       },
       "MembershipStatus": {
         "joined": "{name} joined",
-        "left": "{name} left"
+        "left": "{name} left",
+        "added": "{actor} added {name}",
+        "removed": "{actor} removed {name}"
       },
       "GroupName": {
         "rename": "Rename",
@@ -6109,7 +6458,7 @@
         "invalidEmail": "Enter a valid email address.",
         "inviteSuccess": "Invitation sent to {email}.",
         "linksTitle": "Shareable link",
-        "linksDescription": "Create a link anyone signed in outside your organization can open to join as a guest. No email needed up front.",
+        "linksDescription": "Create a link anyone logged in outside your organization can open to join as a guest. No email needed up front.",
         "linksEmpty": "No shareable links yet.",
         "linkExpiryLabel": "Expires",
         "linkExpiryDays": "{days, plural, one {# day} other {# days}}",
@@ -6133,11 +6482,6 @@
         "revokeLink": "Revoke link",
         "revokeLinkAria": "Revoke invite link",
         "linkRevokeSuccess": "Invite link revoked.",
-        "guestsTitle": "Guests",
-        "guestsEmpty": "No guests yet.",
-        "removeGuest": "Remove guest",
-        "removeGuestAria": "Remove guest {name}",
-        "removeGuestSuccess": "Removed {name} from the channel.",
         "pendingTitle": "Pending invitations",
         "empty": "No pending invitations.",
         "loading": "Loading invitations…",
@@ -6152,11 +6496,10 @@
         "invitedToJoin": "You've been invited to join #{room} ({organization}).",
         "guestNote": "Joining as a guest does not make you a member of the host organization.",
         "join": "Join #{room}",
-        "joining": "Joining…",
         "joined": "You joined #{room}.",
         "alreadyGuest": "You're already in #{room}.",
-        "signedOutHint": "Sign in or create an account to join this channel as a guest.",
-        "signIn": "Sign in",
+        "signedOutHint": "Log in or create an account to join this channel as a guest.",
+        "signIn": "Log in",
         "register": "Create account",
         "Error": {
           "joinFailed": "Could not join this channel."
@@ -6223,7 +6566,7 @@
     "Drive": {
       "breadcrumb": "Files",
       "breadcrumbNavLabel": "Files folder navigation",
-      "myDrive": "My Files",
+      "myDrive": "My files",
       "uploadButton": "Upload",
       "uploadingProgress": "{progress}%",
       "emptyTitle": "No files yet",
@@ -6282,7 +6625,7 @@
       "moveFolderError": "Failed to move folder",
       "moveFolderAction": "Move folder",
       "moveFileError": "Failed to move file",
-      "tasksFolder": "Tasks",
+      "tasksFolder": "Sokosumi Projects",
       "tasksEmptyTitle": "No task files yet",
       "tasksEmptyDescription": "Task files will appear here when you complete tasks",
       "loadTasksError": "Failed to load tasks",
@@ -6295,7 +6638,7 @@
       "copyToFilesDialogTitle": "Copy to Files?",
       "copyToFilesDialogDescription": "Copy {fileName} to {workspace}.",
       "copyToFilesDialogConfirm": "Copy",
-      "tasksBreadcrumbLabel": "Tasks",
+      "tasksBreadcrumbLabel": "Sokosumi Projects",
       "noProject": "No project",
       "filterTitle": "Filter",
       "filterSearchPlaceholder": "Search...",
@@ -6466,12 +6809,12 @@
     },
     "SokoBot": {
       "Metadata": {
-        "title": "Personal Assistant",
-        "description": "Your Soko Bot: a personal project manager that delegates Tasks to Coworkers and hires Agents to run Jobs."
+        "title": "Personal assistant",
+        "description": "Your Soko Bot: a personal project manager that delegates tasks to coworkers and hires agents to run jobs."
       },
       "Unavailable": {
         "title": "Soko Bot is not available yet",
-        "description": "The Personal Assistant is not enabled on this environment. Please check back later."
+        "description": "The personal assistant is not enabled on this environment. Please check back later."
       },
       "Create": {
         "title": "Meet your Soko Bot",
@@ -6481,10 +6824,11 @@
         "nameLabel": "Name",
         "namePlaceholder": "e.g. Atlas",
         "submit": "Create Soko Bot",
-        "submitting": "Creating…",
         "created": "Soko Bot created.",
         "error": "Could not create the Soko Bot.",
-        "avatarLabel": "Picture"
+        "avatarLabel": "Picture",
+        "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
+        "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
       },
       "Memory": {
         "title": "Memory",
@@ -6522,7 +6866,7 @@
         "connectError": "Could not start the connection.",
         "disconnectError": "Could not disconnect.",
         "unavailable": "Integrations are not enabled on this environment.",
-        "pending": "Waiting for you to finish signing in…",
+        "pending": "Waiting for you to finish logging in…",
         "failed": "Connection failed. Reconnect to try again.",
         "connectedNotChecked": "Connected · first check runs within 15 minutes",
         "lastChecked": "Connected · checked {when}",
@@ -6537,7 +6881,12 @@
         "showFewer": "Show fewer",
         "kindsMail": "Reads your inbox",
         "kindsCalendar": "Reads your calendar",
-        "kindsMailCalendar": "Reads your inbox and calendar"
+        "kindsMailCalendar": "Reads your inbox and calendar",
+        "connectedNotRead": "Connected · read when a briefing or meeting needs it",
+        "lastRead": "Connected · read {when}",
+        "connectedTools": "Connected",
+        "manage": "Manage",
+        "browseAll": "Browse all apps"
       },
       "Schedules": {
         "builtIn": "Built-in",
@@ -6567,7 +6916,6 @@
           "timezone": "Timezone",
           "prompt": "Prompt",
           "submit": "Create schedule",
-          "submitting": "Creating…",
           "cancel": "Cancel",
           "created": "Schedule created.",
           "error": "Could not create the schedule."
@@ -6582,11 +6930,13 @@
           "limitUsage": "{used} of {limit} self-started turns used today.",
           "timezoneTitle": "Timezone",
           "timezoneDescription": "For the morning stand-up, the weekly wrap and \"today\" in briefings.",
-          "error": "Could not save the setting."
+          "error": "Could not save the setting.",
+          "spendNotice": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your credits. You can set a daily limit and pause it any time in its settings.",
+          "spendNoticeOrganization": "Your assistant works on its own. It checks your mail and calendar, runs daily briefs and can hand work to Coworkers and Agents. Every action uses your organization's credits. You can set a daily limit and pause it any time in its settings."
         },
         "title": "Settings",
         "followBoardTitle": "Follow the whole board",
-        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment asks something, mentions it, or matches what it remembers.",
+        "followBoardDescription": "Also watch Tasks it isn't part of, and chime in only when a comment names it.",
         "followBoardError": "Could not update the setting.",
         "archiveTitle": "Archive Soko Bot",
         "archiveDescription": "Stops all turns and schedules. You can create it again later; history and attribution are kept.",
@@ -6598,7 +6948,6 @@
         "archived": "Soko Bot archived.",
         "archiveError": "Could not archive the Soko Bot.",
         "delete": "Delete",
-        "deleting": "Deleting…",
         "deleteConfirm": "Delete forever",
         "deleteCancel": "Cancel",
         "deleteConfirmTitle": "Delete your Soko Bot?",
@@ -6644,22 +6993,27 @@
         "tools": {
           "default": "Working",
           "refresh_context": "Refreshing context",
-          "find_coworkers": "Finding Coworkers",
-          "create_task": "Creating a Task",
-          "update_task": "Updating a Task",
-          "assign_task": "Assigning a Task",
+          "find_coworkers": "Finding coworkers",
+          "create_task": "Creating a task",
+          "update_task": "Updating a task",
+          "assign_task": "Assigning a task",
           "get_task_status": "Checking Task status",
-          "find_agents": "Searching Agents",
+          "list_tasks": "Looking through your Tasks",
+          "find_agents": "Searching agents",
           "get_agent_input_schema": "Reading Agent inputs",
-          "hire_agent": "Hiring an Agent",
+          "hire_agent": "Hiring an agent",
           "get_job_status": "Checking Job status",
-          "provide_job_input": "Answering a Job",
+          "provide_job_input": "Answering a job",
           "request_user_decision": "Asking for your approval",
           "read_memory": "Reading memory",
           "update_memory": "Updating memory",
           "scratch_read": "Reading notes",
           "scratch_write": "Writing notes",
-          "scratch_list": "Listing notes"
+          "scratch_list": "Listing notes",
+          "read_file": "Reading a file",
+          "generate_image": "Generating an image",
+          "get_image": "Checking an image",
+          "preview_result": "Preparing a result preview"
         },
         "composer": {
           "label": "Message",
@@ -6700,9 +7054,7 @@
           "heading": "Needs your okay",
           "headingResolved": "Approval",
           "accept": "Approve",
-          "accepting": "Approving…",
           "reject": "Reject",
-          "rejecting": "Rejecting…",
           "accepted": "Approved. Your Soko Bot will carry it out.",
           "rejected": "Rejected. Nothing was created.",
           "error": "Could not resolve the approval.",
@@ -6760,7 +7112,6 @@
         "lastActivity": "last active {time}",
         "adminView": "Admin view",
         "openChat": "Open chat",
-        "openingChat": "Opening…",
         "openChatError": "Could not open the chat with your Soko Bot.",
         "Stats": {
           "title": "What it did",
@@ -6796,20 +7147,25 @@
         },
         "Usage": {
           "title": "Usage",
-          "description": "Everything this assistant has spent since you created it.",
+          "description": "Everything this assistant has spent since you created it, including the Coworkers and Agents it hired.",
           "credits": "Credits spent",
           "turns": "over {count, plural, one {# turn} other {# turns}}",
           "tokens": "Tokens",
           "tokenSplit": "{input} in · {output} out",
           "modelCost": "Model cost",
-          "modelCostHint": "What the tokens cost, before the per-turn minimum"
+          "modelCostHint": "What the tokens cost, before the per-turn minimum",
+          "creditSplit": "{own} on its own turns · {delegated} on Coworkers and Agents",
+          "creditsOwnOnly": "All on its own turns"
+        },
+        "Connectors": {
+          "title": "Tools",
+          "description": "Apps it can use for you. Mail and calendars are read-only; other apps act on your behalf when you ask."
         }
       },
       "Avatar": {
         "title": "Picture",
         "description": "A unique mascot from the collection. No two assistants share one.",
         "save": "Use this picture",
-        "saving": "Saving…",
         "saved": "Picture updated.",
         "saveError": "Could not update the picture.",
         "current": "Current picture",
@@ -6853,30 +7209,33 @@
     },
     "SokoBots": {
       "title": "Soko Bots",
-      "description": "Soko Bots are the AI coworkers you build yourself. Everyone gets a Personal Assistant that delegates work, follows up, and keeps them posted. More kinds of Soko Bots will appear here.",
+      "description": "Personal assistants that delegate work, follow up and keep you posted in chat.",
       "unavailable": "The team overview is not available right now.",
-      "personalWorkspace": "Personal workspace",
-      "peopleCount": "{count, plural, one {# person} other {# people}}",
-      "you": "you",
-      "noAssistant": "No assistant yet",
-      "createAssistant": "Create your Personal Assistant",
-      "createAssistantHint": "Takes a minute. Pick a name and a picture.",
-      "assistantFallback": "Personal Assistant",
-      "yourAssistant": "Your Personal Assistant",
-      "assistantOf": "{name}'s Personal Assistant",
-      "openChat": "Open chat",
-      "messageAssistant": "Message it",
+      "createAssistant": "Create your assistant",
+      "createAssistantHint": "Get an assistant that takes on Tasks, follows up and keeps you posted. Setup takes a minute.",
+      "assistantFallback": "Personal assistant",
       "chatError": "Could not open the chat.",
-      "manage": "Open",
-      "teamTitle": "Team",
-      "teamDescription": "Everyone in this workspace and the Soko Bots they built.",
+      "manage": "Settings",
       "teamDescriptionPersonal": "This is your personal workspace. Join or create an organization to see teammates here.",
-      "heroTitle": "Introducing Soko Bots!",
-      "heroBody": "A Soko Bot is your own assistant inside Sokosumi. It works your Taskboard with your Coworkers, reads the mail and calendar you connect, starts the work that's worth doing, and tells you about it in chat. Everyone in the workspace builds their own.",
-      "heroCta": "Create your Soko Bot",
-      "heroCtaHint": "Takes a minute: pick a name and a face.",
-      "teamCount": "{humans, plural, one {# human} other {# humans}}, {bots, plural, =0 {no Soko Bots yet} one {# Soko Bot} other {# Soko Bots}}",
-      "disabled": "Soko Bot is temporarily unavailable"
+      "disabled": "Soko Bot is temporarily unavailable",
+      "noAssistantYou": "You don't have an assistant yet",
+      "chat": "Chat",
+      "teamSummary": "{bots, plural, one {# assistant} other {# assistants}} · {people, plural, one {# person} other {# people}}",
+      "notSetUp": "Not set up yet",
+      "messageBot": "Message {name}",
+      "lastActive": "Last active {date}",
+      "notActiveYet": "Not active yet",
+      "statsTasks": "{count, plural, one {# Task} other {# Tasks}}",
+      "statsMessages": "{count, plural, one {# message} other {# messages}} in {days} days",
+      "assistantOf": "Assistant of",
+      "message": "Message",
+      "roleLine": "Delegates work, follows up and keeps you posted.",
+      "heroCaption": "Soko Bots for everyone on your team",
+      "heroTitle": "Your team's personal assistants",
+      "chatWith": "Chat with {name}",
+      "yourAssistantTitle": "Your assistant",
+      "teamTitle": "Your team's assistants",
+      "heroBody": "Everyone gets an assistant that works their Taskboard with Coworkers, reads the mail and calendar they connect, and keeps them posted in chat."
     },
     "Calendar": {
       "Metadata": {
@@ -6941,7 +7300,8 @@
         "all": "All coworkers"
       },
       "timezone": {
-        "label": "Time zone"
+        "label": "Time zone",
+        "showing": "Times in {zone}"
       },
       "empty": {
         "title": "No scheduled releases match these filters.",
@@ -6969,7 +7329,8 @@
         "projectLabel": "Project: ",
         "scheduledBy": "Scheduled by {name}",
         "unknownScheduler": "unknown user",
-        "attachments": "{count, plural, one {# attachment} other {# attachments}}"
+        "attachments": "{count, plural, one {# attachment} other {# attachments}}",
+        "compactLabel": "{media, select, image {{count, plural, one {{provider} post with image} other {{provider} post with # images}}} gif {{provider} post with GIF} video {{provider} post with video} other {{provider} post}}"
       },
       "socialOnly": {
         "label": "Social posts only"
@@ -7004,7 +7365,6 @@
       "importProgress": "{count, plural, one {# row imported} other {# rows imported}}. Completed batches are preserved if interrupted.",
       "create": "Create table",
       "save": "Save",
-      "saving": "Saving…",
       "retry": "Retry",
       "openTable": "Open table",
       "loading": "Loading…",
@@ -7173,33 +7533,38 @@
       }
     },
     "CTA": {
-      "title": "On-Demand AI Agents at Your Fingertips",
+      "title": "On-demand AI agents at your fingertips",
       "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
-      "buttonText": "Explore Agents"
+      "buttonText": "Explore agents"
     }
   },
   "NotFound": {
     "title": "404",
     "description": "Oops! The page you're looking for doesn't exist.",
     "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
-    "returnHome": "Return Home"
+    "returnHome": "Return home"
   },
   "Maintenance": {
-    "title": "Maintenance Mode",
+    "title": "Maintenance mode",
     "description": "We're currently performing maintenance",
     "message": "We're working hard to improve your experience. Please check back soon."
+  },
+  "AppleAppCallback": {
+    "title": "Return to the Sokosumi app",
+    "message": "Sign-in did not finish in the app. Close this window, open the Sokosumi app and log in again."
   },
   "Library": {
     "Auth": {
       "NameField": {
-        "label": "Name",
-        "placeholder": "Your name",
+        "firstNameLabel": "First name",
+        "lastNameLabel": "Last name",
         "persistError": "We could not update your name."
       },
       "Schema": {
         "Email": {
           "invalid": "Please enter a valid email address.",
-          "required": "Email is required"
+          "required": "Email is required",
+          "confirmationMismatch": "Type the email address shown above."
         },
         "Name": {
           "min": "Name must be at least 2 characters.",
@@ -7207,19 +7572,19 @@
           "invalid": "Name must be a valid string.",
           "required": "Name is required"
         },
-        "Organization": {
-          "invalid": "Organization must be a valid string.",
-          "required": "Organization is required",
-          "min": "Organization name must be at least 2 characters.",
-          "max": "Organization name must be at most 50 characters."
+        "FirstName": {
+          "required": "First name is required"
+        },
+        "LastName": {
+          "required": "Last name is required"
+        },
+        "FullName": {
+          "max": "First and last name together must be at most 128 characters, including the space."
         },
         "Password": {
           "invalid": "Password must be a valid string.",
           "min": "Password must be at least 8 characters",
           "max": "Password must be at most 128 characters",
-          "lowercase": "Password must contain at least one lowercase letter.",
-          "uppercase": "Password must contain at least one uppercase letter.",
-          "number": "Password must contain at least one number.",
           "required": "Password is required"
         },
         "CurrentPassword": {
@@ -7374,7 +7739,7 @@
     "necessaryTitle": "Strictly necessary",
     "necessaryBody": "Required for the product to work — security, and remembering this choice. Always on.",
     "analyticsTitle": "Analytics",
-    "analyticsBody": "Usage measurement with Google Analytics. While you are signed in, a pseudonymous account ID links your visits — never your name or email.",
+    "analyticsBody": "Usage measurement with Google Analytics. While you are logged in, a pseudonymous account ID links your visits — never your name or email.",
     "marketingTitle": "Marketing",
     "marketingBody": "Lets us measure ad campaigns and reach people who might find Sokosumi useful.",
     "settings": "Cookie settings"
@@ -7382,7 +7747,7 @@
   "WorkspaceGate": {
     "title": "Set up your workspace",
     "identityTitle": "How do you want to work?",
-    "identityDescriptionConfirm": "Confirm your name and choose an option.",
+    "identityDescriptionChoose": "Choose an option.",
     "identityDescriptionEnter": "Enter your name.",
     "pendingInvitesTitle": "You have pending invitations",
     "pendingInvitesDescriptionInvitations": "Accept an organization invitation to open Sokosumi in that organization.",
@@ -7392,11 +7757,9 @@
     "signOutError": "We could not sign you out. Try again.",
     "unavailableTitle": "We could not check your workspace access",
     "unavailableDescription": "Sokosumi could not load your workspace status right now. This is temporary — you are not locked out for missing a workspace.",
-    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and sign back in, or contact support. Sign out is always available here.",
+    "unavailableBody": "Try again in a moment. If this keeps happening, sign out and log back in, or contact support. Sign out is always available here.",
     "retry": "Try again",
     "Identity": {
-      "nameLabel": "Name",
-      "namePlaceholder": "Your name",
       "choiceLabel": "How do you want to work?",
       "choiceHint": "You can add another workspace at any time.",
       "personalTitle": "Personal",

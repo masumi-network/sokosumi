@@ -33,6 +33,18 @@ struct PreparedTranscriptTests {
     #expect(prepared.overlaying(live).first?.content == "New")
   }
 
+  /// Core's reply swaps `pending:{turn}` for the server id before re-prepare lands; the row must not blink out.
+  @Test func overlayingKeepsSendWhenConfirmedRowReplacesPendingShell() async throws {
+    let shell = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: "room", content: "**Sent**", createdAt: Date(),
+                                            sender: .init(id: "human", name: "Human", email: "human@example.com", presence: .online)))
+    let prepared = try await PreparedTranscript.prepare(input([message("keep", "Old"), shell]), reusing: nil)
+    var confirmed = shell
+    confirmed.id = "server-id"
+    let rows = prepared.overlaying([message("keep", "Old"), confirmed])
+    #expect(rows.map(\.id) == ["keep", "server-id"])
+    #expect(try String(#require(prepared.document(for: confirmed)?.blocks.first).text.characters) == "Sent")
+  }
+
   @Test func cancelledPreparationCannotPublish() async {
     let task = Task {
       withUnsafeCurrentTask { $0?.cancel() }
@@ -52,6 +64,7 @@ struct PreparedTranscriptTests {
 
   private func message(_ id: String, _ content: String) -> Components.Schemas.ChatRoomMessage {
     var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room", content: content,
+                                              createdAt: Date(),
                                               sender: .init(id: "human", name: "Human", email: "human@example.com", presence: .online)))
     message.id = id
     return message

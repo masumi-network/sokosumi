@@ -1,12 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { CORE_API_ERROR_KINDS } from "@sokosumi/utils";
 
-import { conflict, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { isPrismaForeignKeyViolation } from "@/helpers/prisma";
+import { deletePersonalWorkspace } from "@/helpers/personal-workspace";
 import { ok } from "@/helpers/response";
-import { isLastWorkspace } from "@/helpers/workspace-access";
-import prisma from "@/lib/db/prisma";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { usersRoutePathUserIdSchema } from "@/routes/v1/users/user-path-access";
 import {
@@ -22,8 +18,9 @@ const params = z.object({
 const route = createRoute({
   method: "delete",
   path: "/personal-workspace",
+  deprecated: true,
   description:
-    "Delete the user's personal workspace (path `me` for the session user, or a user id the caller may access). Refused when it is the user's last workspace. Organization membership must remain.",
+    "Deprecated: use `DELETE /users/{id}/workspaces/{workspaceId}` with the personal workspace's id (ADR 0051). Delete the user's personal workspace (path `me` for the session user, or a user id the caller may access). Refused when it is the user's last workspace. Organization membership must remain.",
   tags: ["Users"],
   request: { params },
   responses: {
@@ -55,60 +52,7 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
     c.req.valid("param");
     const { resolvedUserId } = requireUserRouteContext(c.var.userRouteContext);
 
-    const workspace = await prisma.$transaction(async (tx) => {
-      const existing = await tx.workspace.findUnique({
-        where: { userId: resolvedUserId },
-      });
-
-      if (!existing) {
-        throw notFound("Personal workspace is missing", {
-          kind: CORE_API_ERROR_KINDS.PERSONAL_WORKSPACE_MISSING,
-        });
-      }
-
-      if (await isLastWorkspace(resolvedUserId, { type: "personal" }, tx)) {
-        throw conflict("Cannot delete the user's last workspace", {
-          kind: CORE_API_ERROR_KINDS.LAST_WORKSPACE,
-        });
-      }
-
-      const user = await tx.user.findUnique({
-        where: { id: resolvedUserId },
-        select: { preferredOrganizationId: true },
-      });
-      if (user?.preferredOrganizationId == null) {
-        const remainingMembership = await tx.member.findFirst({
-          where: { userId: resolvedUserId },
-          select: { organizationId: true },
-        });
-        if (remainingMembership) {
-          await tx.user.update({
-            where: { id: resolvedUserId },
-            data: {
-              preferredOrganizationId: remainingMembership.organizationId,
-            },
-          });
-        }
-      }
-
-      try {
-        await tx.workspace.delete({
-          where: { id: existing.id },
-        });
-      } catch (error) {
-        if (isPrismaForeignKeyViolation(error)) {
-          throw conflict(
-            "Cannot delete a personal workspace that still has jobs or tasks",
-            {
-              kind: CORE_API_ERROR_KINDS.WORKSPACE_HAS_DEPENDENTS,
-            },
-          );
-        }
-        throw error;
-      }
-
-      return existing;
-    });
+    const workspace = await deletePersonalWorkspace(resolvedUserId);
 
     return ok(
       c,

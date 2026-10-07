@@ -1,4 +1,5 @@
 "use client";
+import type { DataTable, TableColumn } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import type { DataTable, TableColumn } from "@/lib/clients/generated/core";
 import { dataTableService } from "@/lib/services/data-table.client";
 import { withEditableTextSize } from "@/lib/utils/editable-text-size";
 import { TABLE_TYPES } from "./table-create-dialog";
@@ -200,9 +200,10 @@ export function TableColumnDialog({
         <DialogFooter>
           <Button
             onClick={() => void handleSave()}
-            disabled={pending || reviewConflict}
+            loading={pending}
+            disabled={reviewConflict}
           >
-            {pending ? t("saving") : request ? t("retry") : t("save")}
+            {request ? t("retry") : t("save")}
           </Button>
         </DialogFooter>
       </DialogContent>

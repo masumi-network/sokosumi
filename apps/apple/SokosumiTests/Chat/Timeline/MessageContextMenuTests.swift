@@ -9,7 +9,7 @@
   import Testing
 
   /// Records every menu AppKit starts tracking, then closes it, so a posted right-click never blocks the run.
-  @MainActor private final class MenuRecorder {
+  @MainActor final class MenuRecorder {
     private(set) var menus: [NSMenu] = []
     private var observer: NSObjectProtocol?
 
@@ -43,7 +43,7 @@
   }
 
   /// "Title[action]" per item and "|" per separator.
-  @MainActor private func outline(_ menu: NSMenu?) -> [String] {
+  @MainActor func outline(_ menu: NSMenu?) -> [String] {
     menu?.items.map { item in
       item.isSeparatorItem ? "|" : "\(item.title)[\(item.action.map(NSStringFromSelector) ?? "-")]"
     } ?? []
@@ -51,6 +51,7 @@
 
   @MainActor private final class Calls {
     var quotes = 0
+    var ratings: [Bool] = []
   }
 
   /// Every item and type on a pasteboard, so a test can put back what the user had copied.
@@ -131,8 +132,10 @@
 
       /// The viewer's own message in a channel, with every action its room row passes.
       private static func fixture(editingRow: Bool = false, content: String = body,
-                                  quote: Components.Schemas.ChatRoomMessageQuote? = nil) async throws -> MessageMenuFixture {
+                                  quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+                                  sokoBotFeedback: SokoBotFeedback? = nil) async throws -> MessageMenuFixture {
         var message = chatRoomMessage(from: .init(clientTurnId: "turn", roomId: "room_1", content: content,
+                                                  createdAt: Date(),
                                                   sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
         message.id = "message_1"
         message.metadata = nil
@@ -146,7 +149,8 @@
         let row = MessageRowView(message: message, isContinuation: false, outbound: nil, onRetry: nil, onRemove: nil,
                                  onReply: {}, onQuote: { calls.quotes += 1 }, onEdit: {},
                                  isPinned: false, onTogglePin: {}, onDelete: {},
-                                 onToggleReaction: { _ in true }, editing: editing, onSendToSelf: { message })
+                                 onToggleReaction: { _ in true }, editing: editing, onSendToSelf: { message },
+                                 sokoBotFeedback: sokoBotFeedback, onSokoBotFeedback: { calls.ratings.append($0) })
         let hosted = row
           .padding(16)
           .frame(width: 520, alignment: .topLeading)
@@ -255,6 +259,32 @@
         #expect(fixture.calls.quotes == 1)
       }
 
+      /// Row 38b: a Soko Bot reply's menu leads with its thumbs, as web's hover pill does; choosing one rates the turn.
+      @Test func aSokoBotReplyOffersItsThumbsFirst() async throws {
+        let fixture = try await Self.fixture(sokoBotFeedback: SokoBotFeedback(turnId: "turn_1"))
+        defer { fixture.close() }
+        let menu = try #require(try await fixture.rightClick(at: fixture.textCenter, in: fixture.text))
+        #expect(outline(menu) == ["Useful[performMenuAction:]", "Not useful[performMenuAction:]", "|"] + Self.ownActions)
+        #expect(menu.items.prefix(2).allSatisfy { $0.isEnabled && $0.state == .off })
+        menu.performActionForItem(at: 1)
+        for _ in 0 ..< 50 where fixture.calls.ratings.isEmpty {
+          try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(fixture.calls.ratings == [false])
+      }
+
+      /// Once rated, the chosen thumb is checked and both are disabled (web locks both and fills the chosen one).
+      @Test(arguments: [true, false])
+      func aRatedTurnChecksItsThumbAndLocksBoth(useful: Bool) async throws {
+        let fixture = try await Self.fixture(sokoBotFeedback: SokoBotFeedback(turnId: "turn_1", rating: useful))
+        defer { fixture.close() }
+        let menu = try #require(try await fixture.rightClick(at: fixture.textCenter, in: fixture.text))
+        let thumbs = Array(menu.items.prefix(2))
+        #expect(thumbs.map(\.title) == ["Useful", "Not useful"])
+        #expect(thumbs.map(\.state) == (useful ? [.on, .off] : [.off, .on]))
+        #expect(thumbs.allSatisfy { !$0.isEnabled })
+      }
+
       /// The hover pill sits half on the row above. A right-click there belongs to the row showing the pill: Edit,
       /// Quote and Reply must never act on the previous message.
       @Test func rightClickOnTheHoverPillOverTheRowAboveOpensItsOwnRow() async throws {
@@ -272,7 +302,7 @@
         try #require(above.contains(onPill), "\(onPill) lies on the first row \(above).")
 
         let before = try Self.pixels(around: onPill, in: host)
-        try await Self.hover(NSPoint(x: below.midX, y: below.midY), in: fixture)
+        try await hover(NSPoint(x: below.midX, y: below.midY), in: fixture.host, window: fixture.window)
         try #require(try Self.pixels(around: onPill, in: host) != before, "The second row's pill is drawn over the first row.")
         let menu = try #require(try await fixture.rightClick(at: onPill, in: host))
         let quote = try #require(menu.items.firstIndex { $0.title == "Quote message" }, "\(outline(menu))")
@@ -285,6 +315,7 @@
       private static func twoRows(first: Calls, second: Calls) async throws -> MessageMenuFixture {
         func row(_ id: String, _ text: String, continuation: Bool, calls: Calls) -> MessageRowView {
           var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room_1", content: text,
+                                                    createdAt: Date(),
                                                     sender: .init(id: "user", name: "Ada", email: "ada@example.com", presence: .online)))
           message.id = id
           message.metadata = nil
@@ -319,29 +350,6 @@
                                   editing: workspaces.messageEditing)
       }
 
-      /// The test host is never the active app, so AppKit delivers no tracking events: enter the hosting view's
-      /// tracking areas and move to `point` by hand.
-      private static func hover(_ point: NSPoint, in fixture: MessageMenuFixture) async throws {
-        let location = fixture.host.convert(point, to: nil)
-        func trackingAreas(_ view: NSView) -> [NSTrackingArea] {
-          view.trackingAreas + view.subviews.flatMap(trackingAreas)
-        }
-        for area in trackingAreas(fixture.host) {
-          let entered = try #require(NSEvent.enterExitEvent(
-            with: .mouseEntered, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-            windowNumber: fixture.window.windowNumber, context: nil, eventNumber: 0,
-            trackingNumber: Int(bitPattern: Unmanaged.passUnretained(area).toOpaque()), userData: nil
-          ))
-          (area.owner as? NSResponder)?.mouseEntered(with: entered)
-        }
-        let moved = try #require(NSEvent.mouseEvent(
-          with: .mouseMoved, location: location, modifierFlags: [], timestamp: ProcessInfo.processInfo.systemUptime,
-          windowNumber: fixture.window.windowNumber, context: nil, eventNumber: 0, clickCount: 0, pressure: 0
-        ))
-        fixture.host.mouseMoved(with: moved)
-        try await Task.sleep(for: .milliseconds(300))
-      }
-
       /// The drawn pixels of a small square around `point`, to tell whether something now covers it.
       private static func pixels(around point: NSPoint, in host: NSView) throws -> [NSColor?] {
         let bitmap = try #require(host.bitmapImageRepForCachingDisplay(in: host.bounds))
@@ -365,6 +373,39 @@
         let menu = try await fixture.rightClick(at: fixture.textCenter, in: fixture.text)
         let actions = Set(menu?.items.compactMap { $0.action.map(NSStringFromSelector) } ?? [])
         #expect(actions.isSuperset(of: ["cut:", "copy:", "paste:"]), "\(outline(menu))")
+      }
+
+      /// Row 41: Delete message asks with web's words (`room-message-row.tsx` `AlertDialog`: title `Message.delete`,
+      /// description `Message.deleteConfirm`). The real alert the menu raises is drawn as the window's sheet, light beside dark.
+      @Test func deleteAsksWithWebsWords() async throws {
+        var columns: [[CGImage]] = []
+        for dark in [false, true] {
+          let fixture = try await Self.fixture()
+          defer { fixture.close() }
+          fixture.window.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
+          let menu = try #require(try await fixture.rightClick(at: fixture.textCenter, in: fixture.text))
+          let delete = try #require(menu.items.firstIndex { $0.title == "Delete message" })
+          menu.performActionForItem(at: delete)
+          let sheet = try await waitForView(in: fixture.host, timeoutMessage: "Delete raised no confirmation") {
+            fixture.window.attachedSheet?.contentView
+          }
+          defer { fixture.window.attachedSheet.map { fixture.window.endSheet($0) } }
+          for _ in 0 ..< 10 {
+            sheet.layoutSubtreeIfNeeded()
+            try await Task.sleep(for: .milliseconds(30))
+          }
+          let drawn = try #require(sheet.bitmapImageRepForCachingDisplay(in: sheet.bounds))
+          sheet.cacheDisplay(in: sheet.bounds, to: drawn)
+          let bitmap = try CreateChannelGuidanceTests.overWindowBackground(drawn, appearance: #require(fixture.window.appearance))
+          try columns.append([#require(bitmap.cgImage)])
+          // The alert's own text fields and buttons, read from the sheet rather than its pixels.
+          let texts = await hostedTexts(in: sheet)
+          #expect(texts.contains("Delete") && texts.contains("Cancel"), "\(texts)")
+          #expect(texts.contains("Delete this message? Others will see that it was deleted."), "\(texts)")
+          #expect(!texts.contains("Delete message?"), "\(texts)")
+        }
+        let combined = try RoomHeaderTests.stitched(columns)
+        try Attachment.record(#require(combined.representation(using: .png, properties: [:])), named: "copy-delete-confirmation.png")
       }
 
       /// The room composer is not a message row and keeps its editing menu.

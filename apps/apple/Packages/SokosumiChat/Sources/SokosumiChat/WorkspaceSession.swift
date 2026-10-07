@@ -5,16 +5,19 @@ import Foundation
 /// Portable workspace identity, access gate and selection lifecycle.
 @MainActor
 public final class WorkspaceSession: ObservableObject {
-  public struct Option: Identifiable, Hashable {
+  public struct Option: Identifiable, Hashable, Sendable {
+    /// Organization id, or `personal`: scopes saved rooms and drafts.
     public var id: String
     public var title: String
     public var workspace: WorkspaceSelection
+    /// Core's workspace id, sent when this option becomes the preference.
+    public var workspaceId: String
   }
 
   public enum Phase: Equatable {
     case idle
     case loading
-    case blocked(gate: Components.Schemas.WorkspaceGateStatus)
+    case blocked(gate: WorkspaceGate)
     case ready
     case failed(message: String)
   }
@@ -57,16 +60,11 @@ public final class WorkspaceSession: ObservableObject {
     do {
       let initial = try await service.loadInitialState(client: client)
       guard attempt == generation, !Task.isCancelled else { return nil }
-      let rooms = try await service.listRooms(client: client, organizationSlug: initial.defaultSelection.organizationSlug)
+      let rooms = try await service.listRooms(client: client, organizationSlug: initial.defaultSelection.workspace.organizationSlug)
       guard attempt == generation, !Task.isCancelled else { return nil }
       currentUser = initial.currentUser
-      options = initial.organizations.map {
-        Option(id: $0.id, title: $0.name, workspace: .organization(id: $0.id, slug: $0.slug))
-      }
-      if initial.access.hasPersonalWorkspace {
-        options.insert(Option(id: "personal", title: "Personal", workspace: .personal), at: 0)
-      }
-      selectionId = options.first { $0.workspace == initial.defaultSelection }?.id
+      options = initial.options
+      selectionId = initial.defaultSelection.id
       phase = .ready
       return rooms
     } catch {
@@ -94,8 +92,8 @@ public final class WorkspaceSession: ObservableObject {
       }
     }
     do {
-      let previous = selection?.workspace
-      let task = Task { try await service.switchWorkspace(client: client, selection: option.workspace, previous: previous) }
+      let previous = selection
+      let task = Task { try await service.switchWorkspace(client: client, to: option, previous: previous) }
       switchTask = task
       let rooms = try await withTaskCancellationHandler {
         try await task.value
@@ -118,6 +116,24 @@ public final class WorkspaceSession: ObservableObject {
   public func applyMembershipRevoked(roomId: String) {
     if isSwitching {
       revokedDuringSwitch.insert(roomId)
+    }
+  }
+}
+
+extension WorkspaceSession.Option {
+  /// Nil for an organization row without its id or slug.
+  init?(_ workspace: Components.Schemas.UserWorkspace) {
+    switch workspace.kind {
+    case .personal:
+      self.init(id: "personal", title: "Personal", workspace: .personal, workspaceId: workspace.id)
+    case .organization:
+      guard let organizationId = workspace.organizationId, let slug = workspace.slug else { return nil }
+      self.init(
+        id: organizationId,
+        title: workspace.name,
+        workspace: .organization(id: organizationId, slug: slug),
+        workspaceId: workspace.id
+      )
     }
   }
 }

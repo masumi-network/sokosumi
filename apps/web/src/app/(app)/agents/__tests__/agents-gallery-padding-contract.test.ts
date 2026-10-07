@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
+import { GALLERY_PAGE_SECTIONS_CLASS } from "@/components/agents/gallery-page-classes";
+
 const agentsDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -11,14 +13,15 @@ const agentsDir = path.resolve(
 
 /**
  * Gallery shell must not add horizontal padding on mobile — `main` already
- * has `p-4`. Desktop keeps a light `md:px-2` gutter.
+ * has `p-4`. Desktop keeps a light `md:px-2` gutter. The page and its loading
+ * shell both take the class from `gallery-page-classes`, which Soko Bots
+ * shares.
  */
 function galleryShellClass(source: string): string {
-  const match = source.match(/className="(space-y-16[^"]*)"/);
-  if (!match) {
+  if (!source.includes("className={GALLERY_PAGE_SECTIONS_CLASS}")) {
     throw new Error("No agents gallery shell className found");
   }
-  return match[1];
+  return GALLERY_PAGE_SECTIONS_CLASS;
 }
 
 function stripComments(source: string): string {

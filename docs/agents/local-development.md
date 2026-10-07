@@ -30,8 +30,9 @@ Full list is in root `package.json`. Agents typically need:
 | ---------------------- | ----------------------------- |
 | `pnpm portless:dev` | Web + Core via portless (worktree-safe named URLs) |
 | `pnpm portless:web` / `core` | One app via portless (still injects both named URLs) |
+| `pnpm portless:cmo` | CMO via portless (`cmo.sokosumi`) |
 | `pnpm portless:proxy` | Start portless HTTPS proxy on 443 |
-| `pnpm portless:url web` / `core` | Print this checkout's named HTTPS URL |
+| `pnpm portless:url web` / `core` / `cmo` | Print this checkout's named HTTPS URL |
 | `pnpm check` | Repo-wide Biome (`biome check .`) |
 | `pnpm typecheck` | Turbo typecheck |
 | `pnpm test` | Turbo tests |
@@ -50,7 +51,7 @@ Prefer the turbo entry points above over `pnpm --filter <workspace> <task>`. A f
   3. If computer-use must type the form: email into `[data-testid="auth-field-email"]`, password into `[data-testid="auth-field-currentPassword"]`, then Enter. Never print the password. **`VERIFY_SOKOSUMI_EMAIL` must be an Environment Variable** (not Runtime Secret) so the model can read which account to use — Runtime Secrets redact as `[REDACTED]` in tool output. A Runtime Secret password cannot be typed by computer-use; use the harness instead.
   4. **Never invent** random `/signup` users (`you-*@sokosumi.test`, timestamp emails, etc.) for general UI proof. If `verify_credentials_*=unset` and Alice fixtures fail (`fixture_auth=fail`), **stop and report missing secrets** — do not improvise an account. Signup is only for testing signup itself (see [`.cursor/skills/verify-sokosumi/features/sign-up.md`](../../.cursor/skills/verify-sokosumi/features/sign-up.md)).
   5. Cloud-agent fixture accounts and when they apply: [`cloud-agent-database.md`](./cloud-agent-database.md). Login recipe: [verify-sokosumi](../../.cursor/skills/verify-sokosumi/SKILL.md).
-- **OAuth / magic-link:** Google, Microsoft, and magic-link email do **not** work with placeholder credentials. Email/password signup works with no email verification and auto sign-in (`/signup`) — only when testing signup itself.
+- **OAuth / email code:** Google and Microsoft do **not** work with placeholder credentials, and no email is sent. Sign-up needs the emailed code, with or without a password ([ADR 0050](../adr/0050-password-sign-up-proves-the-address.md)). In development Core also prints every code to its console as `[email code] <address>: <code>`, so `/signup` and code sign-in work locally — sign up only when testing signup itself.
 - **Agents catalog:** on a Neon agent branch forked from production, catalog/billing data comes from the parent. On empty local Postgres, `GET /v1/agents` / `/v1/categories` may 500 until `credit_cost` has rows (admin `POST /v1/credit-costs` / `/admin` UI) — missing data, not a broken build.
 - **Realtime (Ably) is unconfigured:** `POST /api/ably/auth` proxies Core `POST /v1/realtime/ably-token`; chat pages surface a "Something went wrong" modal when Core `ABLY_SUBSCRIBE_ONLY_KEY` / `ABLY_PUBLISH_ONLY_KEY` are placeholders. Optional; unrelated to setup.
 - Lint (`pnpm check`), tests (`pnpm test`), and type checks do **not** need the DB or the servers running.

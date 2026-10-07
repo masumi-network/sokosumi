@@ -10,8 +10,6 @@ export const FILE_LABEL_NAME_MAX_GRAPHEMES = 40;
 export const FILE_LABEL_DESCRIPTION_MAX_LENGTH = 280;
 /** Confirmed tags one file may carry. */
 export const FILE_TAGS_PER_RESOURCE_MAX = 20;
-/** Suggestions shown at once, so a review stays a decision and not a list. */
-export const FILE_SUGGESTIONS_VISIBLE_MAX = 5;
 
 const graphemeSegmenter =
   typeof Intl !== "undefined" && "Segmenter" in Intl

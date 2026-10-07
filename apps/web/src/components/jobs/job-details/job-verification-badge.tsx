@@ -1,5 +1,6 @@
 "use client";
 
+import { JobType, OnChainJobStatus } from "@sokosumi/core-client";
 import {
   type InputVerificationOptions,
   isInputHashVerified,
@@ -16,7 +17,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import { JobType, OnChainJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface VerificationState {
@@ -206,7 +206,7 @@ function JobVerificationBadgeBase({
           >
             <Icon
               className={cn(
-                "h-4 w-4",
+                "size-4",
                 colorClass,
                 isPending
                   ? "animate-spin motion-reduce:animate-pulse"

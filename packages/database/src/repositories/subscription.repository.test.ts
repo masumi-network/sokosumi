@@ -39,11 +39,12 @@ describe("subscriptionRepository", () => {
     const now = new Date("2026-04-10T00:00:00.000Z");
     const tx = {
       subscription: {
+        findMany: async (args: unknown) => {
+          calls.push(args);
+          return [inPeriodRow];
+        },
         findFirst: async (args: unknown) => {
           calls.push(args);
-          if (calls.length === 1) {
-            return inPeriodRow;
-          }
           return { id: "should-not-be-used" };
         },
       },
@@ -76,11 +77,12 @@ describe("subscriptionRepository", () => {
     const now = new Date("2026-04-14T12:00:00.000Z");
     const tx = {
       subscription: {
+        findMany: async (args: unknown) => {
+          calls.push(args);
+          return [];
+        },
         findFirst: async (args: unknown) => {
           calls.push(args);
-          if (calls.length === 1) {
-            return null;
-          }
           return fallbackRow;
         },
       },
@@ -108,6 +110,7 @@ describe("subscriptionRepository", () => {
     const now = new Date("2026-04-14T12:00:00.000Z");
     const tx = {
       subscription: {
+        findMany: async () => [],
         findFirst: async () => null,
       },
     } as unknown as Prisma.TransactionClient;
@@ -120,5 +123,43 @@ describe("subscriptionRepository", () => {
       );
 
     assert.equal(result, null);
+  });
+
+  it("resolveActiveSubscriptionByReferenceId prefers a Stripe-backed row over a newer free row in the same period", async () => {
+    const freeRow = { id: "free", stripeSubscriptionId: null };
+    const paidRow = { id: "paid", stripeSubscriptionId: "sub_1" };
+    const tx = {
+      subscription: {
+        findMany: async () => [freeRow, paidRow],
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        "reference-1",
+        tx,
+        new Date("2026-04-10T00:00:00.000Z"),
+      );
+
+    assert.equal(result, paidRow);
+  });
+
+  it("resolveActiveSubscriptionByReferenceId keeps the newest row when two Stripe-backed rows share a period", async () => {
+    const newerRow = { id: "newer", stripeSubscriptionId: "sub_2" };
+    const olderRow = { id: "older", stripeSubscriptionId: "sub_1" };
+    const tx = {
+      subscription: {
+        findMany: async () => [newerRow, olderRow],
+      },
+    } as unknown as Prisma.TransactionClient;
+
+    const result =
+      await subscriptionRepository.resolveActiveSubscriptionByReferenceId(
+        "reference-1",
+        tx,
+        new Date("2026-04-10T00:00:00.000Z"),
+      );
+
+    assert.equal(result, newerRow);
   });
 });

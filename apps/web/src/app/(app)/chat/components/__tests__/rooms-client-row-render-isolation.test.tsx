@@ -1,4 +1,5 @@
 import "./rooms-client-harness";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { type ReactNode, type Ref, useImperativeHandle } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -6,7 +7,6 @@ import type { RoomComposerHandle } from "@/app/chat/components/room-composer";
 import { clearMembershipVisibleRoomsSnapshot } from "@/components/chat/membership-visible-rooms-store";
 import { clearRoomReadOverlays } from "@/components/chat/room-read-overlay";
 import { chatRoomMessageEventDataSchema } from "@/lib/ably/schema";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 import { RoomsClient } from "../rooms-client";
 import {
   editRoomMessageAction,

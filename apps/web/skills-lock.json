@@ -83,7 +83,7 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-cache-components-adoption/SKILL.md",
-      "computedHash": "038cc3bfa72a254ba8d8617321c420ebb91b0c27ce497d72387c0e216f62288c"
+      "computedHash": "825774334f00624aac9836ec4f29b8d62f1a6d5e31f81133bde0b4db17a3fa67"
     },
     "next-cache-components-optimizer": {
       "source": "vercel/next.js",
@@ -95,7 +95,7 @@
       "source": "vercel/next.js",
       "sourceType": "github",
       "skillPath": "skills/next-dev-loop/SKILL.md",
-      "computedHash": "e43467f3413baf91e75e16e931e1f9496599c695122fdd742b57eb0cc5285b02"
+      "computedHash": "8ea79dc762e3915e411a33ab3ec74ee25fdce52bc458be4dbfc43cf9616542da"
     },
     "next-partial-prefetching-adoption": {
       "source": "vercel/next.js",

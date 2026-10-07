@@ -13,6 +13,10 @@
       "path": "apps/core"
     },
     {
+      "name": "App: CMO",
+      "path": "apps/cmo"
+    },
+    {
       "name": "App: Apple",
       "path": "apps/apple"
     },
@@ -23,6 +27,10 @@
     {
       "name": "Package: Database",
       "path": "packages/database"
+    },
+    {
+      "name": "Package: Core Client",
+      "path": "packages/core-client"
     },
     {
       "name": "Package: Masumi",

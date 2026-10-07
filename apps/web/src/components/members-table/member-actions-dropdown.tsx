@@ -1,3 +1,4 @@
+import { MemberRole } from "@sokosumi/core-client";
 import { Ellipsis } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { assignOrganizationSeat } from "@/lib/actions/organization/seat-action";
-import { MemberRole } from "@/lib/clients/generated/core";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
@@ -128,7 +128,12 @@ export default function MemberActionsDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild disabled={!hasAnyAction}>
-        <Button variant="outline" size="icon" className={cn("p-2!", className)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn("p-2!", className)}
+          aria-label={t("open")}
+        >
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>

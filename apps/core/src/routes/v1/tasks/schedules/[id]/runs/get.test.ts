@@ -111,6 +111,27 @@ describe("GET /tasks/schedules/{id}/runs", () => {
     expect(body.meta.pagination.total).toBe(1);
   });
 
+  it("lists only Run now Runs when asked", async () => {
+    const schedule = seedTaskSchedule();
+    seedRun(schedule, JAN_7, {
+      state: "RELEASED",
+      releasedTaskId: "task_rule",
+    });
+    const manual = seedRun(schedule, JAN_16, {
+      state: "RELEASED",
+      manual: true,
+      releasedTaskId: "task_manual",
+    });
+    seedRun(schedule, JAN_21);
+
+    const response = await list(schedule.id, "?manual=true");
+
+    expect(await response.json()).toMatchObject({
+      data: [{ id: manual.id, manual: true, releasedTaskId: "task_manual" }],
+      meta: { pagination: { total: 1 } },
+    });
+  });
+
   it("pages with a cursor", async () => {
     const schedule = seedTaskSchedule();
     const first = seedRun(schedule, JAN_7);

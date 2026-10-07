@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node";
 import { NotificationKind, TaskStatus } from "@sokosumi/database";
+import { SETTLED_TASK_STATUSES } from "@/helpers/task-settled-statuses";
 
 import prisma from "@/lib/db/prisma";
 
@@ -123,6 +124,7 @@ export async function dispatchTaskNotification(
       case "CANCELED":
         messageKey = "Notifications.Task.canceled";
         break;
+      case "CREATED":
       default:
         return;
     }
@@ -257,11 +259,7 @@ const TASK_ASSIGNED_MESSAGE_KEY = "Notifications.Task.assigned";
 const TASK_PARTICIPANT_ADDED_MESSAGE_KEY =
   "Notifications.Task.participantAdded";
 
-const TASK_SETTLED_STATUSES = [
-  TaskStatus.COMPLETED,
-  TaskStatus.FAILED,
-  TaskStatus.CANCELED,
-];
+const TASK_SETTLED_STATUSES: TaskStatus[] = [...SETTLED_TASK_STATUSES];
 
 /**
  * Notify each user the moment an @ in Task comment activity adds them.

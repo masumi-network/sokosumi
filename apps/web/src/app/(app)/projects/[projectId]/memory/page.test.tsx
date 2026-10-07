@@ -25,6 +25,12 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
+// Stubbed: the header actions are tested on their own and read the reader's
+// Pin list through react-query.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => <div>Project actions</div>,
+}));
+
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
@@ -169,6 +175,8 @@ describe("ProjectMemoryPage", () => {
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.memory" }),
     ).toHaveAttribute("aria-current", "page");
+    // The header keeps its actions on every tab.
+    expect(screen.getByText("Project actions")).toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
     ).toBeInTheDocument();

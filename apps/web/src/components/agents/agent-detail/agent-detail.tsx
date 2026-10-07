@@ -1,4 +1,4 @@
-import type { AgentReview } from "@/lib/clients/generated/core";
+import type { AgentReview } from "@sokosumi/core-client";
 import { getAgentExampleOutputs, getAgentLegal } from "@/lib/helpers/agent";
 import type { AgentRatingStats, CoreAgentDto } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";

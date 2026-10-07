@@ -1,8 +1,8 @@
 "use client";
 
+import type { TaskTagId } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
-import type { TaskTagId } from "@/lib/clients/generated/core";
 
 interface TaskDraftTagsProps {
   tags: TaskTagId[];

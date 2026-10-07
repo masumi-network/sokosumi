@@ -17,4 +17,10 @@ export interface SokoBotVersion {
   capabilities?: readonly SokoBotCapability[];
   /** AI Gateway regional inference pin; omit for global routing. */
   inferenceRegion?: "eu" | "us";
+  /**
+   * What an owner is told, in the bot's own chat, when an administrator moves
+   * their bot onto this version. Plain words about what changes for them;
+   * omit to fall back to `summary`.
+   */
+  releaseNote?: string;
 }

@@ -1,16 +1,5 @@
 import type { NotificationKind } from "@sokosumi/database";
-import {
-  renderAccessRequestEmail,
-  renderChatDirectMessageEmail,
-  renderChatMentionEmail,
-  renderChatRoomMessageEmail,
-  renderProjectUpdateEmail,
-  renderTaskAttentionEmail,
-  renderTaskCompletedEmail,
-  renderTaskUpdateEmail,
-  type TaskAttentionReason,
-  type TaskUpdateReason,
-} from "@sokosumi/email";
+import type { TaskAttentionReason, TaskUpdateReason } from "@sokosumi/email";
 import {
   CHAT_DIRECT_MESSAGE_MESSAGE_KEY,
   CHAT_MENTION_MESSAGE_KEY,
@@ -171,6 +160,18 @@ export async function buildNotificationEmail(
   input: NotificationEmailInput,
   locale = "en",
 ): Promise<null | SendEmailInput> {
+  // Loaded on first send: React and react-email cost every module that
+  // imports this file, and most of those never render an email.
+  const {
+    renderAccessRequestEmail,
+    renderChatDirectMessageEmail,
+    renderChatMentionEmail,
+    renderChatRoomMessageEmail,
+    renderProjectUpdateEmail,
+    renderTaskAttentionEmail,
+    renderTaskCompletedEmail,
+    renderTaskUpdateEmail,
+  } = await import("@sokosumi/email");
   const actionUrl = notificationEmailLink(input);
   const shared = {
     actionUrl,

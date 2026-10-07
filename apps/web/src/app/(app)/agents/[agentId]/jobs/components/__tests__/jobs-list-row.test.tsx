@@ -1,9 +1,9 @@
+import type { JobSummary } from "@sokosumi/core-client";
+import { JobType, SokosumiJobStatus } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { JobRow } from "@/app/agents/[agentId]/jobs/components/jobs-list";
-import type { JobSummary } from "@/lib/clients/generated/core";
-import { JobType, SokosumiJobStatus } from "@/lib/clients/generated/core";
 
 vi.mock("next-intl", () => ({
   useTimeZone: () => "UTC",

@@ -1,6 +1,6 @@
+import type { Coworker, Member } from "@sokosumi/core-client";
 import { getTranslations } from "next-intl/server";
 import type { ChatComposeSokoBot } from "@/app/chat/actions";
-import type { Coworker, Member } from "@/lib/clients/generated/core";
 import { coworkerService } from "@/lib/services/coworker.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 

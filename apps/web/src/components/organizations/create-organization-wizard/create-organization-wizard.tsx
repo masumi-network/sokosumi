@@ -67,8 +67,9 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import {
-  generateOrganizationSlug,
+  createOrganizationWorkspaceAction,
   inviteOrganizationMembersBulk,
 } from "@/lib/actions/organization/action";
 import { createOrganizationInviteLink } from "@/lib/actions/organization/invite-link-action";
@@ -122,7 +123,7 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
   return (
     <div className="bg-muted flex size-24 items-center justify-center rounded-lg border transition-colors duration-200">
       {name ? (
-        <span className="text-muted-foreground text-[2.25rem] leading-none font-semibold tracking-tight">
+        <span className="text-muted-foreground text-4xl leading-none font-semibold tracking-tight">
           {name.charAt(0).toUpperCase()}
         </span>
       ) : (
@@ -135,7 +136,11 @@ function OrgInitialTile({ control }: { control: Control<DetailsFormValues> }) {
 interface CreateOrganizationWizardProps {
   open: boolean;
   onOpenChange: Dispatch<SetStateAction<boolean>>;
-  /** After the organization exists, Finish or dismiss leaves via this hook. */
+  /**
+   * After the organization exists, Finish or dismiss hands off here. The
+   * wizard stays open on its ready step until the caller navigates away, so
+   * nothing behind it shows while the app loads.
+   */
   onOrganizationReady?: (organizationId: string) => void;
 }
 
@@ -156,6 +161,7 @@ export function CreateOrganizationWizard({
   const [organizationName, setOrganizationName] = useState("");
   const [normalizedUrl, setNormalizedUrl] = useState<string | null>(null);
   const [isCreatingOrg, setIsCreatingOrg] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
 
   const [logoUrl, setLogoUrl] = useState("");
   const logoUrlRef = useRef(logoUrl);
@@ -177,6 +183,8 @@ export function CreateOrganizationWizard({
   const brandStartedRef = useRef(false);
   const linkStartedRef = useRef(false);
   const orgCreateInFlightRef = useRef(false);
+  // Lock callbacks synchronously, before React renders the pending state.
+  const leavingRef = useRef(false);
   /** Last values actually persisted, so a step-back edit can be detected. */
   const savedValuesRef = useRef<{ name: string; url: string } | null>(null);
   /**
@@ -229,6 +237,8 @@ export function CreateOrganizationWizard({
     setOrganizationName("");
     setNormalizedUrl(null);
     setIsCreatingOrg(false);
+    setIsLeaving(false);
+    leavingRef.current = false;
     setLogoUrl("");
     setIsResolvingLogo(false);
     setPendingLogoFiles([]);
@@ -372,26 +382,16 @@ export function CreateOrganizationWizard({
     orgCreateInFlightRef.current = true;
     setIsCreatingOrg(true);
     try {
-      const slugResult = await generateOrganizationSlug({
+      // Core's workspaces resource (ADR 0051) generates the slug, stores the
+      // website and makes the organization preferred.
+      const created = await createOrganizationWorkspaceAction({
         name: values.name,
-        metadata: { url },
-        logo: "",
-      });
-      if (!slugResult.ok) {
-        toast.error(t("Errors.createFailed"));
-        return null;
-      }
-
-      const metadata = buildOrganizationMetadataWithUrl(null, url);
-      const created = await authClient.organization.create({
-        slug: slugResult.value,
-        name: values.name,
-        ...(metadata && { metadata }),
+        websiteUrl: url,
       });
 
-      if (created.error || !created.data) {
-        const message = created.error?.message ?? t("Errors.createFailed");
-        if (created.error?.status === 401) {
+      if (!created.ok) {
+        const message = created.error.message ?? t("Errors.createFailed");
+        if (created.error.code === CommonErrorCode.UNAUTHENTICATED) {
           toast.error(message, {
             action: {
               label: t("Errors.unauthorizedAction"),
@@ -404,11 +404,12 @@ export function CreateOrganizationWizard({
         return null;
       }
 
-      setOrganizationId(created.data.id);
+      const { organizationId: createdId } = created.value;
+      setOrganizationId(createdId);
       setOrganizationName(values.name);
       setNormalizedUrl(url);
       savedValuesRef.current = { name: values.name, url };
-      return created.data.id;
+      return createdId;
     } catch (error) {
       console.error("Failed to create organization", error);
       toast.error(t("Errors.createFailed"));
@@ -454,7 +455,7 @@ export function CreateOrganizationWizard({
 
   // Step 3 — mint the shareable invite link once (retry via button on failure).
   const mintInviteLink = useCallback(async () => {
-    if (!organizationId) return;
+    if (!organizationId || leavingRef.current) return;
     setIsCreatingLink(true);
     setLinkFailed(false);
     try {
@@ -477,11 +478,16 @@ export function CreateOrganizationWizard({
   }, [organizationId, t]);
 
   useEffect(() => {
-    if (step === SUCCESS_STEP && organizationId && !linkStartedRef.current) {
+    if (
+      step === SUCCESS_STEP &&
+      organizationId &&
+      !isLeaving &&
+      !linkStartedRef.current
+    ) {
       linkStartedRef.current = true;
       void mintInviteLink();
     }
-  }, [step, organizationId, mintInviteLink]);
+  }, [step, organizationId, isLeaving, mintInviteLink]);
 
   const handleLogoUpload = useCallback(
     async (files: File[]) => {
@@ -524,7 +530,7 @@ export function CreateOrganizationWizard({
   }, [logoUrl, persistLogo]);
 
   const handleCopyLink = useCallback(async () => {
-    if (!inviteLink) return;
+    if (!inviteLink || leavingRef.current) return;
     try {
       await navigator.clipboard.writeText(inviteLink);
       setCopied(true);
@@ -535,7 +541,7 @@ export function CreateOrganizationWizard({
   }, [inviteLink, t]);
 
   const handleSendInvites = useCallback(async () => {
-    if (!organizationId || !emails.trim()) return;
+    if (!organizationId || !emails.trim() || leavingRef.current) return;
     setIsSendingInvites(true);
     try {
       const result = await inviteOrganizationMembersBulk({
@@ -560,35 +566,31 @@ export function CreateOrganizationWizard({
     }
   }, [organizationId, emails, t]);
 
+  /** Returns whether the wizard may close now. */
   const completeOrganization = useCallback(
-    (orgId: string) => {
+    (orgId: string): boolean => {
       if (onOrganizationReady) {
+        leavingRef.current = true;
+        setIsLeaving(true);
+        setStep(SUCCESS_STEP);
         onOrganizationReady(orgId);
-        return;
+        return false;
       }
       void handleSelectWorkspace(orgId, {
         shouldRedirectAgentJobsBasePath: false,
       });
+      return true;
     },
     [handleSelectWorkspace, onOrganizationReady],
   );
 
-  const handleFinish = useCallback(() => {
-    if (!organizationId) {
-      onOpenChange(false);
-      return;
-    }
-    completeOrganization(organizationId);
-    onOpenChange(false);
-  }, [completeOrganization, onOpenChange, organizationId]);
-
-  const isBusy = isCreatingOrg || isUploadingLogo;
+  const isBusy = isCreatingOrg || isUploadingLogo || isLeaving;
   const brandDomain = normalizedUrl ? getDomainLabel(normalizedUrl) : "";
 
   const handleRequestClose = (nextOpen: boolean) => {
-    if (isBusy) return;
-    if (!nextOpen && organizationId) {
-      completeOrganization(organizationId);
+    if (isBusy || orgCreateInFlightRef.current || leavingRef.current) return;
+    if (!nextOpen && organizationId && !completeOrganization(organizationId)) {
+      return;
     }
     onOpenChange(nextOpen);
   };
@@ -621,14 +623,14 @@ export function CreateOrganizationWizard({
               >
                 <span
                   className={cn(
-                    "bg-primary block h-full w-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
+                    "bg-primary block size-full origin-left transition-transform duration-200 ease-out motion-reduce:transition-none",
                     index <= step ? "scale-x-100" : "scale-x-0",
                   )}
                 />
               </span>
             ))}
           </div>
-          <span className="text-muted-foreground text-[0.6875rem] font-medium tracking-[0.16em] tabular-nums">
+          <span className="text-muted-foreground text-2xs font-medium tracking-[0.16em] tabular-nums">
             {String(step + 1).padStart(2, "0")} /{" "}
             {String(TOTAL_STEPS).padStart(2, "0")}
           </span>
@@ -652,10 +654,10 @@ export function CreateOrganizationWizard({
                   <div className="flex min-h-24 flex-none items-center justify-center">
                     <OrgInitialTile control={form.control} />
                   </div>
-                  <h2 className="mt-8 text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                  <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                     {t("Details.title")}
                   </h2>
-                  <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                  <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
                     {t("Details.subtitle")}
                   </p>
 
@@ -666,7 +668,7 @@ export function CreateOrganizationWizard({
                         name="name"
                         render={({ field }) => (
                           <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
-                            <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
+                            <FormLabel className="text-muted-foreground text-sm font-normal">
                               {t("Details.nameLabel")}
                             </FormLabel>
                             <FormControl
@@ -679,7 +681,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 autoFocus
                                 placeholder={t("Details.namePlaceholder")}
-                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -691,7 +693,7 @@ export function CreateOrganizationWizard({
                         name="url"
                         render={({ field }) => (
                           <FormItem className="focus-within:bg-card-background grid grid-cols-[88px_1fr] items-center gap-3 space-y-0 px-4 transition-colors">
-                            <FormLabel className="text-muted-foreground text-[0.8125rem] font-normal">
+                            <FormLabel className="text-muted-foreground text-sm font-normal">
                               {t("Details.urlLabel")}
                             </FormLabel>
                             <FormControl
@@ -704,7 +706,7 @@ export function CreateOrganizationWizard({
                               <Input
                                 inputMode="url"
                                 placeholder={t("Details.urlPlaceholder")}
-                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 text-[0.9375rem] shadow-none focus-visible:ring-0"
+                                className="placeholder:text-muted-foreground h-14 dark:bg-transparent border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
                                 {...field}
                               />
                             </FormControl>
@@ -721,13 +723,13 @@ export function CreateOrganizationWizard({
                       <p
                         id={detailsErrorId}
                         role="alert"
-                        className="text-destructive text-[0.8125rem]"
+                        className="text-destructive text-sm"
                       >
                         {form.formState.errors.name?.message ??
                           form.formState.errors.url?.message}
                       </p>
                     </div>
-                    <p className="text-muted-foreground text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-sm">
                       {t("Details.urlHint")}
                     </p>
                   </div>
@@ -755,10 +757,10 @@ export function CreateOrganizationWizard({
                     />
                   )}
                 </div>
-                <h2 className="mt-8 text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Logo.title")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
                   {isResolvingLogo
                     ? t("Logo.generating")
                     : logoUrl
@@ -791,18 +793,14 @@ export function CreateOrganizationWizard({
                           variant="outline"
                           size="lg"
                           className="h-11 px-6"
-                          disabled={isUploadingLogo}
+                          loading={isUploadingLogo}
                         >
-                          {isUploadingLogo ? (
-                            <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                          ) : (
-                            <CloudUpload className="size-4" />
-                          )}
+                          <CloudUpload className="size-4" />
                           {logoUrl ? t("Logo.replace") : t("Logo.upload")}
                         </Button>
                       </FileUploadTrigger>
                     </FileUpload>
-                    <p className="text-muted-foreground text-[0.8125rem]">
+                    <p className="text-muted-foreground text-sm">
                       {t("Logo.uploadHint")}
                     </p>
                   </div>
@@ -828,11 +826,11 @@ export function CreateOrganizationWizard({
                   )}
                 </div>
 
-                <h2 className="mt-8 text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="mt-8 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {t("Brand.title")}
                 </h2>
 
-                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-3 max-w-[46ch] text-base leading-[1.6] text-balance">
                   {brand.status === "completed"
                     ? brandDomain
                       ? t("Brand.generated", { domain: brandDomain })
@@ -847,7 +845,7 @@ export function CreateOrganizationWizard({
                       <button
                         type="button"
                         aria-label={t("Brand.title")}
-                        className="focus-visible:ring-ring ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
+                        className="focus-visible:ring-ring hit-area ml-1.5 inline-flex size-5 translate-y-[3px] items-center justify-center rounded-md outline-none focus-visible:ring-2"
                       >
                         <Info className="text-muted-foreground hover:text-foreground size-3.5 transition-colors duration-200" />
                       </button>
@@ -859,7 +857,7 @@ export function CreateOrganizationWizard({
                 </p>
 
                 {brand.status !== "completed" && (
-                  <p className="text-muted-foreground mt-3 text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-3 text-sm">
                     {brand.status === "failed"
                       ? t("Brand.failedSubtitle")
                       : t("Brand.skipHint")}
@@ -870,11 +868,9 @@ export function CreateOrganizationWizard({
                   <div className="mt-10">
                     <div className="bg-card-background text-muted-foreground mx-auto flex w-fit items-center gap-2 rounded-xl border px-3 py-2">
                       <FileText className="size-4" />
-                      <span className="font-mono text-[0.8125rem]">
-                        DESIGN.md
-                      </span>
+                      <span className="font-mono text-sm">DESIGN.md</span>
                     </div>
-                    <p className="text-muted-foreground mt-4 text-[0.8125rem]">
+                    <p className="text-muted-foreground mt-4 text-sm">
                       {t("Brand.editHint")}
                     </p>
                   </div>
@@ -913,12 +909,12 @@ export function CreateOrganizationWizard({
                     <Check className="text-primary animate-in fade-in-0 size-6 duration-200" />
                   </div>
                 </div>
-                <h2 className="mt-4 text-[1.625rem] leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-[1.875rem]">
+                <h2 className="mt-4 text-2xl leading-[1.15] font-semibold tracking-[-0.02em] text-balance sm:text-3xl">
                   {organizationName
                     ? t("Invite.title", { organization: organizationName })
                     : t("Invite.titleFallback")}
                 </h2>
-                <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-[0.9375rem] leading-[1.6] text-balance">
+                <p className="text-muted-foreground mx-auto mt-2 max-w-[46ch] text-base leading-[1.6] text-balance">
                   {t("Invite.subtitle")}
                 </p>
 
@@ -932,7 +928,7 @@ export function CreateOrganizationWizard({
                         readOnly
                         value={inviteLink ?? ""}
                         onFocus={(event) => event.currentTarget.select()}
-                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono text-[0.8125rem] shadow-none focus-visible:ring-0"
+                        className="text-muted-foreground h-auto min-w-0 flex-1 truncate dark:bg-transparent border-0 bg-transparent px-0 font-mono shadow-none focus-visible:ring-0"
                       />
                     )}
                     {linkFailed && !inviteLink ? (
@@ -941,7 +937,7 @@ export function CreateOrganizationWizard({
                         variant="ghost"
                         size="sm"
                         className="ml-auto h-9 shrink-0 transition-colors duration-200"
-                        disabled={isCreatingLink}
+                        disabled={isCreatingLink || isLeaving}
                         onClick={() => void mintInviteLink()}
                       >
                         <RotateCw className="size-4" />
@@ -955,7 +951,7 @@ export function CreateOrganizationWizard({
                         variant="ghost"
                         size="sm"
                         className="ml-auto h-9 shrink-0 transition-colors duration-200"
-                        disabled={!inviteLink || isCreatingLink}
+                        disabled={!inviteLink || isCreatingLink || isLeaving}
                         onClick={() => void handleCopyLink()}
                         aria-label={
                           copied ? t("Invite.copied") : t("Invite.copy")
@@ -972,7 +968,7 @@ export function CreateOrganizationWizard({
                       </Button>
                     )}
                   </div>
-                  <p className="text-muted-foreground mt-2 text-left text-[0.8125rem]">
+                  <p className="text-muted-foreground mt-2 text-left text-sm">
                     {t("Invite.linkHint")}
                   </p>
 
@@ -980,13 +976,14 @@ export function CreateOrganizationWizard({
 
                   <Textarea
                     rows={2}
+                    disabled={isLeaving}
                     value={emails}
                     onChange={(event) => setEmails(event.target.value)}
                     placeholder={t("Invite.emailsPlaceholder")}
-                    className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 text-[0.9375rem] shadow-none"
+                    className="bg-card-background dark:bg-card-background min-h-14 resize-none rounded-xl border px-4 py-3 shadow-none"
                   />
                   <div className="mt-2 flex items-center justify-between gap-3">
-                    <p className="text-muted-foreground text-left text-[0.8125rem]">
+                    <p className="text-muted-foreground text-left text-sm">
                       {t("Invite.emailsHint")}
                     </p>
                     <Button
@@ -994,15 +991,11 @@ export function CreateOrganizationWizard({
                       variant="outline"
                       size="sm"
                       className="h-9 shrink-0"
-                      disabled={!emails.trim() || isSendingInvites}
+                      disabled={!emails.trim() || isLeaving}
+                      loading={isSendingInvites}
                       onClick={() => void handleSendInvites()}
                     >
-                      {isSendingInvites && (
-                        <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                      )}
-                      {isSendingInvites
-                        ? t("Invite.sending")
-                        : t("Invite.sendInvites")}
+                      {t("Invite.sendInvites")}
                     </Button>
                   </div>
                 </div>
@@ -1050,12 +1043,12 @@ export function CreateOrganizationWizard({
               size="lg"
               className="h-11 px-6"
               disabled={isBusy}
+              loading={isCreatingOrg}
             >
-              {isCreatingOrg && (
-                <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-              )}
-              {isCreatingOrg ? t("Nav.creating") : t("Nav.next")}
-              {!isCreatingOrg && <ArrowRight className="size-4" />}
+              {t("Nav.next")}
+              {/* Keep the icon mounted. It is the only svg, so unmounting it
+                  drops `has-[>svg]` and the lg padding jumps while loading. */}
+              <ArrowRight className="size-4" />
             </Button>
           )}
           {step === 1 && (
@@ -1088,7 +1081,9 @@ export function CreateOrganizationWizard({
               variant="primary"
               size="lg"
               className="h-11 w-full px-6"
-              onClick={handleFinish}
+              onClick={() => handleRequestClose(false)}
+              disabled={isBusy}
+              loading={isLeaving}
             >
               {t("Nav.finish")}
             </Button>

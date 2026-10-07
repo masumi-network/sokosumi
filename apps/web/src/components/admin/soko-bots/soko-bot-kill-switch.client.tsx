@@ -1,11 +1,11 @@
 "use client";
 
+import type { SokoBotAvailability } from "@sokosumi/core-client";
 import { Power, PowerOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,7 +18,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setSokoBotAvailabilityAction } from "@/lib/actions/admin-soko-bots/action";
-import type { SokoBotAvailability } from "@/lib/clients/generated/core";
 
 /**
  * Switches the whole feature off: no turns start and no model calls are made,
@@ -73,9 +72,9 @@ export function SokoBotKillSwitch({
             })}
           </p>
         </div>
-        <Button size="sm" disabled={pending} onClick={() => toggle(false)}>
+        <Button size="sm" loading={pending} onClick={() => toggle(false)}>
           <Power aria-hidden className="size-4" />
-          {pending ? t("working") : t("enable")}
+          {t("enable")}
         </Button>
       </div>
     );
@@ -127,11 +126,11 @@ export function SokoBotKillSwitch({
             </Button>
             <Button
               variant="destructive"
-              disabled={pending}
+              loading={pending}
               onClick={() => toggle(true)}
             >
               <PowerOff aria-hidden className="size-4" />
-              {pending ? t("working") : t("disable")}
+              {t("disable")}
             </Button>
           </DialogFooter>
         </DialogContent>

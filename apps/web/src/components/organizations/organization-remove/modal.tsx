@@ -1,5 +1,9 @@
 "use client";
 
+import type {
+  OrganizationDeletionEvaluation,
+  OrganizationRecord,
+} from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { type Dispatch, type SetStateAction, useState } from "react";
 import {
@@ -9,10 +13,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type {
-  OrganizationDeletionEvaluation,
-  OrganizationRecord,
-} from "@/lib/clients/generated/core";
 
 import OrganizationRemoveForm from "./form";
 

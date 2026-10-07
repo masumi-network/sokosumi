@@ -1,7 +1,7 @@
 "use client";
 
+import type { WorkspaceCalendarSource } from "@sokosumi/core-client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import type { WorkspaceCalendarSource } from "@/lib/clients/generated/core";
 
 const SOURCE_PALETTE_CLASSES = {
   blue: "bg-chart-1",

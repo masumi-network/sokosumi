@@ -1,4 +1,8 @@
 import {
+  fetchPersonalWorkspaceAccess,
+  verifyPersonalWorkspace,
+} from "../../api/services/personal-workspace-service.js";
+import {
   createTask,
   createTaskEvent,
   fetchTask,
@@ -6,11 +10,13 @@ import {
   fetchTaskJobs,
   fetchTasks,
 } from "../../api/services/task-service.js";
+import { fetchUserIdentity } from "../../api/services/user-identity-service.js";
 import {
   type CommandContext,
   type CommandOptions,
   formatDate,
   option,
+  optionBoolean,
   optionString,
   parsePositiveInteger,
   record,
@@ -182,7 +188,24 @@ export async function runTasksCommand({
       throw new Error("--coworker-id is required for `tasks create`");
     if (!description)
       throw new Error("--description is required for `tasks create`");
-    const { task } = await createTask(
+    const personal = optionBoolean(options, "personal");
+    if (
+      personal &&
+      (option(options, "organization-slug") !== undefined ||
+        option(options, "organization-id") !== undefined ||
+        option(options, "workspace-id") !== undefined)
+    )
+      throw new Error(
+        "--personal cannot be combined with organization or Workspace flags",
+      );
+    const personalUser = personal
+      ? await fetchUserIdentity(client, signal)
+      : undefined;
+    if (personal && !(await fetchPersonalWorkspaceAccess(client, signal)))
+      throw new Error(
+        "Personal Workspace is missing. Use coworkers register --personal or connect --personal first.",
+      );
+    const { task, response } = await createTask(
       client,
       {
         coworkerId,
@@ -192,6 +215,28 @@ export async function runTasksCommand({
       },
       signal,
     );
+    if (
+      personalUser &&
+      (record(response.data).ownerId !== personalUser.id ||
+        record(response.data).organizationId !== null ||
+        record(record(response.data).workspace).organizationId !== null)
+    )
+      throw new Error(
+        `Task ${task.id ?? "(ID unavailable)"} creation did not confirm your personal Workspace. Creation may have succeeded. Inspect this Task before retrying.`,
+      );
+    if (personalUser) {
+      try {
+        await verifyPersonalWorkspace(
+          client,
+          String(record(record(response.data).workspace).id ?? ""),
+          signal,
+        );
+      } catch {
+        throw new Error(
+          `Task ${task.id ?? "(ID unavailable)"} was created, but personal Workspace ownership could not be confirmed. Inspect this Task before retrying.`,
+        );
+      }
+    }
     const id = record(task).id;
     const details =
       typeof id === "string" && id

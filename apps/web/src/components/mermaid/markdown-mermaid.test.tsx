@@ -38,6 +38,18 @@ describe("chat Mermaid Markdown integration", () => {
       "\uE000 \uE001 \uE002",
     );
   });
+  it("keeps a link whole and the diagram source unmarked when the search term matches both", () => {
+    const url = "https://a.test/path?p=1";
+    const original = "flowchart LR\ntest-->B";
+    const { container } = render(
+      <Markdown enableMermaid highlightTerm="test">
+        {`a test ${url}\n\n${fence(original)}`}
+      </Markdown>,
+    );
+    expect(container.querySelector("a")).toHaveAttribute("href", url);
+    expect(container.querySelector("figure")?.textContent).toBe(original);
+    expect(container.querySelector("p > mark")).toHaveTextContent("test");
+  });
   it("does not let a fence exposed by HTML sanitization steal another source", () => {
     const exposed = "flowchart LR\nA-->B";
     const original = "flowchart LR\nC-->D";

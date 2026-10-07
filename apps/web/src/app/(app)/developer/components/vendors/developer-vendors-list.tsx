@@ -1,9 +1,8 @@
+import type { VendorMembership } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import type { VendorMembership } from "@/lib/clients/generated/core";
 
 interface DeveloperVendorsListProps {
   adminVendors: VendorMembership[];

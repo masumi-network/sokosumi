@@ -1,9 +1,8 @@
-import { MAX_LISTED_CHAT_REACTION_REACTORS } from "@sokosumi/utils";
-
 import type {
   ChatRoomMessage,
   ChatRoomMessageReaction,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { MAX_LISTED_CHAT_REACTION_REACTORS } from "@sokosumi/utils";
 
 /** The viewer's add or remove of one emoji on one message, shown before confirm. */
 export interface PendingReaction {

@@ -1,8 +1,8 @@
 "use client";
 
+import { TaskVisibility } from "@sokosumi/core-client";
 import { Lock } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { TaskVisibility } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 interface TaskPrivateIndicatorProps {

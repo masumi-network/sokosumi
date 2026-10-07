@@ -145,7 +145,7 @@ struct PinnedMessageCard: View {
         .buttonStyle(.plain)
         .help("Go to pinned message")
       } else {
-        Text("This message is no longer available.").foregroundStyle(.secondary)
+        Text("Message could not be loaded").foregroundStyle(.secondary)
           .frame(maxWidth: .infinity, alignment: .leading)
       }
       Button("Unpin message", systemImage: "pin.slash", action: unpin)

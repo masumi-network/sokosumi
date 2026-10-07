@@ -21,7 +21,7 @@ Maintained source for verifying user-facing Sokosumi behavior. Read this index b
 
 - Start every recipe from the baseline state unless its preconditions say otherwise.
 - Prefer `data-testid` and accessible names over CSS position or coordinates.
-- Sign-in: prefer `verify-sokosumi sign-in`. Manual drive: fill email/password testids only, then `agent-browser press Enter` (do not click submit or OAuth/passkey/magic-link).
+- Sign-in: prefer `verify-sokosumi sign-in`. Manual drive: fill the email testid, `agent-browser press Enter`, switch step 2 to the password (`auth-use-password`), fill it, `press Enter` (do not click submit or OAuth/passkey).
 - Re-snapshot after navigation (`agent-browser snapshot -i`).
 - Treat Ably/chat realtime failures as environment gaps unless the feature under test is chat messaging.
 - Prefer `agent-browser`. Cloud Agent computer-use is allowed with the same rules when the CLI harness is unavailable.
@@ -49,11 +49,11 @@ Each feature file starts with an H1 title and one paragraph describing the user-
 - [Sign in](./sign-in.md) — email/password session, Welcome `/` landing, persist on `/agents`.
 - [Browse agents](./browse-agents.md) — `/agents` coworker gallery + Agent catalog (no app Hire / price).
 - [Chat landing](./chat-landing.md) — authenticated default Welcome at `/` (not Ably messaging; `/chat` is adjacent).
-- [Tasks board](./tasks-board.md) — `/tasks` task manager shell (kanban / tabs).
+- [Tasks board](./tasks-board.md) — `/tasks` task manager (Board / Calendar tabs; kanban or list).
 - [Schedules](./schedules.md) — `/schedules` task-schedule list (All / Active / Paused / Ended).
-- [Calendar](./calendar.md) — `/calendar` workspace calendar (Month / Week / Agenda).
+- [Calendar](./calendar.md) — Calendar tab on `/tasks` (`/calendar` redirects); Month / Week / Agenda. Not a sidebar row.
 - [Content Studio](./studio.md) — `/studio` image studio; project picker when no `?projectId=`.
 - [Projects](./projects.md) — `/projects` list or empty state (not a desktop sidebar row).
 - [Files](./files.md) — `/drive` Recents / Workspace / Tables (desktop main nav **Files**).
-- [History](./history.md) — `/history` unified History (task / job / image) for the signed-in user.
+- [History](./history.md) — `/history` credit history ledger (account menu / You; not a sidebar row).
 - [Sign up](./sign-up.md) — disposable account creation when fixtures are absent.

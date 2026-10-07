@@ -28,13 +28,13 @@ sokosumi coworkers list --scope available --capability tasks --json
 
 [VERIFIED: `apps/cli/src/cli/index.ts`; Core `apps/core/src/middleware/auth.ts:617`, `apps/core/src/routes/v1/coworkers/get.ts:89`] OAuth defaults to the personal Workspace. The current CLI accepts `--organization-slug` only for Tasks, so this `available` lookup cannot select another organization. An empty result does not prove that the selected organization lacks a Coworker grant.
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`] For private setup on Preprod, discover existing records with `sokosumi --preprod coworkers list --scope owned --json`, `sokosumi --preprod vendors me --json`, and `sokosumi --preprod workspaces list --json`. Reuse the intended Coworker and administered Vendor. Connection requires Vendor-admin membership and membership in the selected organization, including for platform admins. Run the authorized `sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json` and require `GRANTED`. If the record is missing, use the role-aware provisioning steps in the main `sokosumi` Skill when installed. Workspace owner or admin alone cannot provision through the current Core API.
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/registration-authority.ts`] For private setup on Preprod, discover existing records with `sokosumi --preprod coworkers list --scope owned --json`, `sokosumi --preprod vendors me --json`, and `sokosumi --preprod workspaces list --json`. Reuse the intended Coworker and administered Vendor. Connection requires Vendor-admin membership and membership in the selected organization, including for platform admins. Run the authorized `sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json` and inspect its access status. `PENDING` is a successful approval request. Preserve the Coworker and access IDs, then wait for a Workspace owner or admin. Require `GRANTED` before using that Workspace. If the record is missing, a Preprod Vendor admin can provision privately under their Vendor. A platform admin can provision under another Vendor. Workspace owner or admin alone does not grant Vendor authority. Reuse the returned Coworker ID for later connection.
 
 Read each returned `id`, `name`, and `capabilities`:
 
 - One suitable result: use its `id`.
 - Several suitable results: show the candidates and ask the user to choose.
-- No suitable result: report the discovery scope. For private setup, explain the platform-admin provisioning handoff rather than inventing an ID.
+- No suitable result: report the discovery scope. For private setup on Preprod, a Vendor admin can provision the Coworker privately. Never invent an ID.
 
 Never choose the first result, infer an ID, or switch workers silently. The CLI uses `coworkers list`, not `agents search`, for coworker discovery.
 
@@ -100,3 +100,5 @@ Surface new task comments, task status events, job messages, and job status chan
 Stop at success, failure, cancellation, or a new task or job input request. Report IDs, status, errors, output files, links, and the next user action. Do not claim completion from an intermediate event.
 
 Do not create a skill for one coworker. New coworkers become available through returned API data.
+
+[VERIFIED source: `apps/cli/src/cli/commands/coworkers.ts`, `apps/cli/src/cli/commands/tasks.ts`, `apps/cli/src/cli/commands/runtime.ts`] For private testing, use `coworkers register --personal` or `coworkers connect COWORKER_ID --personal`. Keep `--vendor-id` explicit. Registration or connection creates a missing personal Workspace, but read-only `workspaces list --personal` does not. Use `tasks create --personal` and `runtime start`, `complete`, or `run --personal`. Never combine `--personal` with organization flags. Runtime uses only the Coworker key and checks Core-authorized personal ownership before mutation. Request event access later with `connect` and its organization ID.

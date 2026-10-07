@@ -103,6 +103,8 @@ const USER_RECORD = {
   createdAt: new Date("2025-01-01T00:00:00.000Z"),
   updatedAt: new Date("2025-01-01T00:00:00.000Z"),
   name: "Ada Lovelace",
+  firstName: "Ada",
+  lastName: "Lovelace",
   email: "ada@example.com",
   emailVerified: true,
   image: null,
@@ -247,6 +249,26 @@ describe("coworker user route allowlist", () => {
     );
     expect(response.status).toBe(403);
     expect(memberFindUniqueMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects coworker with context headers on a user profile write", async () => {
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me", {
+      method: "PATCH",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ firstName: "Ada", lastName: "Lovelace" }),
+    });
+    expect(response.status).toBe(403);
+  });
+
+  it.each([
+    ["GET", "/me/workspaces"],
+    ["POST", "/me/workspaces"],
+    ["PUT", "/me/workspaces/preferred"],
+  ])("rejects coworker with context headers on %s %s", async (method, path) => {
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request(`http://localhost${path}`, { method });
+    expect(response.status).toBe(403);
   });
 
   it("rejects coworker with context headers on preferences", async () => {

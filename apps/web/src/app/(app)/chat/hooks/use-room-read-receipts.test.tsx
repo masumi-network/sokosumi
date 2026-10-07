@@ -1,15 +1,11 @@
+import type { ChatRoom, ChatRoomUserParticipant } from "@sokosumi/core-client";
 import { act, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
 import {
   type RoomReadReceipts,
   useRoomReadReceipts,
 } from "@/app/chat/hooks/use-room-read-receipts";
 import type { ChatRoomReadEventData } from "@/lib/ably/schema";
-import type {
-  ChatRoom,
-  ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
 
 const ROOM_ID = "room-1";
 const VIEWER_ID = "user-viewer";

@@ -20,6 +20,8 @@ export interface SessionUser {
   image?: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+  firstName?: string | null;
+  lastName?: string | null;
   termsAccepted: boolean;
   marketingOptIn: boolean;
   hideRoomUnreadCount?: boolean | null;

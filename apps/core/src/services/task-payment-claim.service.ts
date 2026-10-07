@@ -77,7 +77,7 @@ function getRetryAt(attemptCount: number): Date {
   return new Date(Date.now() + delayMs);
 }
 
-function parsePurchasePayload(
+export function parsePurchasePayload(
   value: Prisma.JsonValue,
 ): MasumiTaskPurchaseInput {
   return taskPurchasePayloadSchema.parse(value);

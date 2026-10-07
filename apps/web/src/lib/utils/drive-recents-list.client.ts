@@ -1,8 +1,8 @@
 "use client";
 
+import type { DriveRecentsItem } from "@sokosumi/core-client";
+import { getDriveRecents } from "@sokosumi/core-client";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import type { DriveRecentsItem } from "@/lib/clients/generated/core";
-import { getDriveRecents } from "@/lib/clients/generated/core";
 
 export const DRIVE_RECENTS_PAGE_LIMIT = 50;
 

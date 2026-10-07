@@ -1,7 +1,7 @@
 import {
   TaskStatus,
   type TaskStatus as TaskStatusType,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /** Queued is only pickable for an agent assignee with a Run at (ADR 0041). */
 export function canSelectQueuedTaskStatus(options: {

@@ -24,6 +24,12 @@ vi.mock("next-intl/server", async () => {
   };
 });
 
+// Stubbed: the header actions are tested on their own and read the reader's
+// Pin list through react-query.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => <div>Project actions</div>,
+}));
+
 vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
@@ -92,7 +98,7 @@ describe("ProjectDesignPage", () => {
     expect(screen.getByTestId("brand-card")).toBeInTheDocument();
   });
 
-  it("says there is nothing yet without calling out to fetch it", async () => {
+  it("leaves the empty state to the brand section without fetching", async () => {
     projectServiceMock.getProjectById.mockResolvedValue(
       buildProject({ designMd: null }),
     );
@@ -105,9 +111,10 @@ describe("ProjectDesignPage", () => {
     );
 
     expect(fetchDesignMdMarkdownMock).not.toHaveBeenCalled();
-    expect(
-      screen.getByText("App.Projects.Detail.design.empty"),
-    ).toBeInTheDocument();
+    // The brand section says "Not set" and offers Generate and Upload; a
+    // second empty DESIGN.md section would repeat it.
+    expect(screen.getByTestId("brand-card")).toBeInTheDocument();
+    expect(screen.queryByTestId("project-design-document")).toBeNull();
   });
 
   it("distinguishes a document that failed to load from one that does not exist", async () => {
@@ -124,9 +131,7 @@ describe("ProjectDesignPage", () => {
     expect(
       screen.getByText("App.DesignMd.editLoadErrorDescription"),
     ).toBeInTheDocument();
-    expect(
-      screen.queryByText("App.Projects.Detail.design.empty"),
-    ).not.toBeInTheDocument();
+    expect(screen.getByTestId("project-design-document")).toBeInTheDocument();
   });
 
   it("marks Design as the open tab in the shared tab strip", async () => {
@@ -143,5 +148,7 @@ describe("ProjectDesignPage", () => {
     expect(
       screen.getByRole("link", { name: "App.Projects.Detail.tabs.design" }),
     ).toHaveAttribute("aria-current", "page");
+    // The header keeps its actions on every tab.
+    expect(screen.getByText("Project actions")).toBeInTheDocument();
   });
 });

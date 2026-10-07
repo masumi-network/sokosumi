@@ -1,10 +1,10 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
 import { isValidElement, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { ChatRoomSidebarRow } from "@/components/chat/chat-room-sidebar-row";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import { makeRoom } from "./chat-room-fixtures";
 
 // This file deliberately does not mock `next-intl`. The sibling

@@ -1,8 +1,7 @@
 "use client";
 
+import type { FileResource } from "@sokosumi/core-client";
 import { useQuery } from "@tanstack/react-query";
-
-import type { FileResource } from "@/lib/clients/generated/core";
 import { driveStoreForActiveWorkspace } from "@/lib/utils/drive-file-list.client";
 import {
   EMPTY_FILE_FILTERS,

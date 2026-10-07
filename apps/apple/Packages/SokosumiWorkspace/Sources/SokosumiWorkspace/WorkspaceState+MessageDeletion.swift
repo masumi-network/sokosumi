@@ -6,7 +6,7 @@ public extension WorkspaceState {
   func deleteMessage(_ source: Components.Schemas.ChatRoomMessage, auth: AuthState) async throws {
     guard source.roomId == transcriptRoomId, source.deletedAt == nil else { return }
     guard let client = resolveClient(auth: auth) else {
-      throw ChatServiceError.unauthorized("Sign in to delete messages.")
+      throw ChatServiceError.unauthorized("Log in to delete messages.")
     }
     let generation = timeline.generation
     let parentId = source.parentMessageId

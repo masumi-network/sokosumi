@@ -99,6 +99,19 @@ function thoughtBeatSteps(bodyText: string): string[] {
     .filter((step) => step.length > 0);
 }
 
+/** Reasoning summaries mark each step's heading as **bold**; render it, not the asterisks. */
+export function ThoughtStepText({ step }: { step: string }) {
+  return step.split(/\*\*(.+?)\*\*/g).map((part, index) =>
+    index % 2 === 1 ? (
+      <strong key={`${index}:${part}`} className="text-foreground font-medium">
+        {part}
+      </strong>
+    ) : (
+      part
+    ),
+  );
+}
+
 export function CoworkerThoughtTrace({
   working,
   headerLabel,
@@ -217,7 +230,7 @@ export function CoworkerThoughtTrace({
                     key={`${index}:${step.slice(0, 24)}`}
                     className="text-muted-foreground text-xs leading-snug"
                   >
-                    {step}
+                    <ThoughtStepText step={step} />
                   </p>
                 ))}
               </div>

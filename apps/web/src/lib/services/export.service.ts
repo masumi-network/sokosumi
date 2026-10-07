@@ -1,15 +1,12 @@
 import "server-only";
 
+import { acquireExportLease, releaseExportLease } from "@sokosumi/core-client";
 import { NextResponse } from "next/server";
 import { createCoreGeneratedClient } from "@/lib/clients/core.client";
 import {
   CoreApiRequestError,
   executeCoreOperation,
 } from "@/lib/clients/core.request";
-import {
-  acquireExportLease,
-  releaseExportLease,
-} from "@/lib/clients/generated/core";
 import { ExportLimitError } from "@/lib/utils/export-operation";
 
 const CORE_EXPORT_TIMEOUT_MS = 5_000;

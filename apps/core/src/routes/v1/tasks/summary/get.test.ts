@@ -8,13 +8,10 @@ import type { WorkspaceVariables } from "@/middleware/workspace";
 
 import mountGetTasksSummary from "./get";
 
-const { sessionAggregateMock, taskCountMock, queryRawMock } = vi.hoisted(
-  () => ({
-    sessionAggregateMock: vi.fn(),
-    taskCountMock: vi.fn(),
-    queryRawMock: vi.fn(),
-  }),
-);
+const { taskCountMock, queryRawMock } = vi.hoisted(() => ({
+  taskCountMock: vi.fn(),
+  queryRawMock: vi.fn(),
+}));
 
 vi.mock("@/middleware/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/middleware/auth")>()),
@@ -47,9 +44,6 @@ vi.mock("@/middleware/workspace", async (importOriginal) => ({
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    session: {
-      aggregate: sessionAggregateMock,
-    },
     task: {
       count: taskCountMock,
     },
@@ -107,17 +101,22 @@ function createApp(
 async function parseSummary(response: Response) {
   const body = (await response.json()) as {
     data: {
-      basis: "lastVisit" | "recent";
-      lastVisitAt: string | null;
       since: string;
       completed: number;
       awaitingInput: number;
       createdByOtherHumans: number;
       workedMinutes: number;
+      previous: {
+        completed: number;
+        createdByOtherHumans: number;
+        workedMinutes: number;
+      };
     };
   };
   return body.data;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe("GET /tasks/summary", () => {
   beforeEach(() => {
@@ -131,107 +130,68 @@ describe("GET /tasks/summary", () => {
     const response = await app.request("http://localhost/summary");
 
     expect(response.status).toBe(403);
-    expect(sessionAggregateMock).not.toHaveBeenCalled();
+    expect(taskCountMock).not.toHaveBeenCalled();
   });
 
-  it("uses lastVisit basis when session activity is at least 30 minutes old", async () => {
-    const lastActivity = new Date(Date.now() - 45 * 60 * 1000);
-    sessionAggregateMock.mockResolvedValue({
-      _max: { updatedAt: lastActivity },
-    });
+  it("counts the last 24h and the 24h before it", async () => {
     taskCountMock
       .mockResolvedValueOnce(4) // completed
       .mockResolvedValueOnce(2) // awaiting
-      .mockResolvedValueOnce(3); // teammates
-    queryRawMock.mockResolvedValue([{ seconds: 47 * 60 }]);
+      .mockResolvedValueOnce(3) // teammates
+      .mockResolvedValueOnce(1) // previous completed
+      .mockResolvedValueOnce(5); // previous teammates
+    queryRawMock
+      .mockResolvedValueOnce([{ seconds: 47 * 60 }])
+      .mockResolvedValueOnce([{ seconds: 60 * 60 }]);
 
+    const before = Date.now();
     const app = createApp();
     const response = await app.request(
       "http://localhost/summary?scope=workspace",
     );
-    expect(response.status).toBe(200);
-
-    const data = await parseSummary(response);
-    expect(data.basis).toBe("lastVisit");
-    expect(data.lastVisitAt).toBe(lastActivity.toISOString());
-    expect(data.since).toBe(lastActivity.toISOString());
-    expect(data.completed).toBe(4);
-    expect(data.awaitingInput).toBe(2);
-    expect(data.createdByOtherHumans).toBe(3);
-    expect(data.workedMinutes).toBe(47);
-
-    // completed is windowed; awaiting is not
-    expect(taskCountMock).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: TaskStatus.COMPLETED,
-          updatedAt: { gte: lastActivity },
-        }),
-      }),
-    );
-    expect(taskCountMock).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        where: expect.objectContaining({
-          status: {
-            in: [
-              "GRANT_PENDING",
-              "INPUT_REQUIRED",
-              "APPROVAL_REQUIRED",
-              "AUTHENTICATION_REQUIRED",
-              "OUT_OF_CREDITS",
-            ],
-          },
-        }),
-      }),
-    );
-    expect(
-      (taskCountMock.mock.calls[1]?.[0] as { where: Record<string, unknown> })
-        .where.updatedAt,
-    ).toBeUndefined();
-  });
-
-  it("falls back to a rolling 24h window when activity is too recent", async () => {
-    const recent = new Date(Date.now() - 5 * 60 * 1000);
-    sessionAggregateMock.mockResolvedValue({
-      _max: { updatedAt: recent },
-    });
-
-    const before = Date.now();
-    const app = createApp();
-    const response = await app.request("http://localhost/summary");
     const after = Date.now();
     expect(response.status).toBe(200);
 
     const data = await parseSummary(response);
-    expect(data.basis).toBe("recent");
-    expect(data.lastVisitAt).toBe(recent.toISOString());
     const sinceMs = new Date(data.since).getTime();
-    // ~24h ago within test runtime slack
-    expect(sinceMs).toBeGreaterThanOrEqual(before - 24 * 60 * 60 * 1000 - 1000);
-    expect(sinceMs).toBeLessThanOrEqual(after - 24 * 60 * 60 * 1000 + 1000);
-  });
-
-  it("falls back to recent when the user has no sessions", async () => {
-    sessionAggregateMock.mockResolvedValue({
-      _max: { updatedAt: null },
+    expect(sinceMs).toBeGreaterThanOrEqual(before - DAY_MS - 1000);
+    expect(sinceMs).toBeLessThanOrEqual(after - DAY_MS + 1000);
+    expect(data).toMatchObject({
+      completed: 4,
+      awaitingInput: 2,
+      createdByOtherHumans: 3,
+      workedMinutes: 47,
+      previous: {
+        completed: 1,
+        createdByOtherHumans: 5,
+        workedMinutes: 60,
+      },
     });
 
-    const app = createApp();
-    const response = await app.request("http://localhost/summary");
-    expect(response.status).toBe(200);
-
-    const data = await parseSummary(response);
-    expect(data.basis).toBe("recent");
-    expect(data.lastVisitAt).toBeNull();
-    expect(data.since).toEqual(expect.any(String));
+    // completed is windowed [since, now) then [since-24h, since); awaiting is not
+    const completedWhere = (n: number) =>
+      (taskCountMock.mock.calls[n]?.[0] as { where: Record<string, unknown> })
+        .where;
+    expect(completedWhere(0)).toMatchObject({ status: TaskStatus.COMPLETED });
+    const cur = completedWhere(0).updatedAt as { gte: Date; lt: Date };
+    const prev = completedWhere(3).updatedAt as { gte: Date; lt: Date };
+    expect(cur.gte.getTime()).toBe(sinceMs);
+    expect(prev.lt.getTime()).toBe(sinceMs);
+    expect(prev.gte.getTime()).toBe(sinceMs - DAY_MS);
+    expect(completedWhere(1).status).toEqual({
+      in: [
+        "GRANT_PENDING",
+        "INPUT_REQUIRED",
+        "APPROVAL_REQUIRED",
+        "AUTHENTICATION_REQUIRED",
+        "OUT_OF_CREDITS",
+      ],
+    });
+    expect(completedWhere(1).updatedAt).toBeUndefined();
+    expect(queryRawMock).toHaveBeenCalledTimes(2);
   });
 
   it("scopes owned counts to the caller and zeroes teammates in personal workspace", async () => {
-    sessionAggregateMock.mockResolvedValue({
-      _max: { updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-    });
     taskCountMock.mockResolvedValue(1);
 
     const app = createApp(USER_AUTH_CONTEXT, PERSONAL_WORKSPACE);
@@ -240,8 +200,8 @@ describe("GET /tasks/summary", () => {
 
     const data = await parseSummary(response);
     expect(data.createdByOtherHumans).toBe(0);
-    // completed + awaiting only (no teammates query)
-    expect(taskCountMock).toHaveBeenCalledTimes(2);
+    // completed + awaiting + previous completed (no teammates queries)
+    expect(taskCountMock).toHaveBeenCalledTimes(3);
     expect(taskCountMock).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
@@ -253,9 +213,6 @@ describe("GET /tasks/summary", () => {
   });
 
   it("rounds worked seconds to whole minutes and floors at zero", async () => {
-    sessionAggregateMock.mockResolvedValue({
-      _max: { updatedAt: new Date(Date.now() - 2 * 60 * 60 * 1000) },
-    });
     queryRawMock.mockResolvedValue([{ seconds: 90.4 }]);
 
     const app = createApp();

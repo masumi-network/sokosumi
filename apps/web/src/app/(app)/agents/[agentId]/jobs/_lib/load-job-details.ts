@@ -1,10 +1,9 @@
+import type { Job } from "@sokosumi/core-client";
 import { dehydrate } from "@tanstack/react-query";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-
 import { getSession } from "@/lib/auth/auth.server";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { Job } from "@/lib/clients/generated/core";
 import { projectService } from "@/lib/services/project.service";
 import { userService } from "@/lib/services/user.service";
 import { getQueryClient } from "@/queries/get-query-client";

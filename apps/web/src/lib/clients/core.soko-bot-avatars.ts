@@ -2,7 +2,7 @@ import {
   claimMySokoBotAvatar as coreClaimMySokoBotAvatar,
   listSokoBotAvatars as coreListSokoBotAvatars,
   topUpSokoBotAvatars as coreTopUpSokoBotAvatars,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 import { executeCoreOperation, type GetCoreClient } from "./core.request";
 
 export function createSokoBotAvatarClient(getClient: GetCoreClient) {

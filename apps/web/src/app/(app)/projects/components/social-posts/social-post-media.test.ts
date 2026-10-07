@@ -1,3 +1,4 @@
+import type { DriveFile } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   buildSocialPostMediaRef,
@@ -5,7 +6,6 @@ import {
   sameSocialPostMedia,
   socialPostMediaRefFromDriveFile,
 } from "@/app/projects/components/social-posts/social-post-media";
-import type { DriveFile } from "@/lib/clients/generated/core/types.gen";
 
 const driveFile: DriveFile = {
   name: "launch.png",

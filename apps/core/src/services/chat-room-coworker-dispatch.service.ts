@@ -20,6 +20,7 @@ import {
   resolveWorkspaceIdForChatRoom,
 } from "@/routes/v1/chats/rooms/helpers";
 import { createCoworkerConversation } from "@/routes/v1/chats/stream/coworker-conversation";
+import { withMessageSkills } from "@/services/chat-message-skills.service";
 
 import {
   buildRoomMentionPrompt,
@@ -95,6 +96,7 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         select: {
           id: true,
           userId: true,
+          workspaceId: true,
           archivedAt: true,
         },
       },
@@ -234,7 +236,6 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
         mentionId,
         mention,
         userId,
-        workspaceId,
         failWithShell,
         askedByBot,
         chainDepth: mention.chainDepth,
@@ -422,9 +423,12 @@ async function runChatRoomMentionDispatch(mentionId: string): Promise<void> {
     const prompt = buildRoomMentionPrompt({
       roomName: mention.message.room.name,
       senderName,
-      content: roomMessagePromptText(
-        mention.message.content,
-        readQuoteFromMetadata(mention.message.metadata),
+      content: await withMessageSkills(
+        mention.message.id,
+        roomMessagePromptText(
+          mention.message.content,
+          readQuoteFromMetadata(mention.message.metadata),
+        ),
       ),
       isThreadReply: threadRootId != null,
       contextMessages,

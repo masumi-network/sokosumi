@@ -1,6 +1,6 @@
 import { asRecord, nullableString } from "./parse-helpers.js";
 
-export type OrganizationRole = "owner" | "admin" | "member";
+type OrganizationRole = "owner" | "admin" | "member";
 
 export interface OrganizationWorkspace {
   organizationId: string;

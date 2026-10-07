@@ -1,6 +1,6 @@
 import { asRecord, nullableString } from "./parse-helpers.js";
 
-export type VendorRole = "admin" | "developer";
+type VendorRole = "admin" | "developer";
 
 export interface Vendor {
   id: string;

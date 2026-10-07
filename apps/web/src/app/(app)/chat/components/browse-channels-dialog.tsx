@@ -1,5 +1,6 @@
 "use client";
 
+import type { DiscoverableChatRoom } from "@sokosumi/core-client";
 import { List, Loader2, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
@@ -21,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import type { DiscoverableChatRoom } from "@/lib/clients/generated/core";
 
 export function BrowseChannelsDialog({
   triggerClassName,
@@ -105,7 +105,7 @@ export function BrowseChannelsDialog({
           size="icon"
           className={
             triggerClassName ??
-            "text-muted-foreground press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:hidden"
+            "text-muted-foreground press hover:bg-sidebar-accent hover:text-sidebar-accent-foreground relative size-8 rounded-md after:absolute after:-inset-1.5 md:size-7 md:after:-inset-0.5"
           }
           aria-label={t("trigger")}
           title={t("trigger")}
@@ -173,16 +173,10 @@ export function BrowseChannelsDialog({
                       variant="outline"
                       className="h-7 shrink-0 px-2.5 text-xs"
                       disabled={joiningRoomId !== null}
+                      loading={isJoining}
                       onClick={() => handleJoin(room)}
                     >
-                      {isJoining ? (
-                        <Loader2
-                          className="size-3.5 animate-spin motion-reduce:animate-pulse"
-                          aria-hidden
-                        />
-                      ) : (
-                        t("join")
-                      )}
+                      {t("join")}
                     </Button>
                   </li>
                 );

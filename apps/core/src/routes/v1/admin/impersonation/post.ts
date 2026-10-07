@@ -3,7 +3,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { conflict, forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
-import { auth } from "@/lib/auth";
 import prisma from "@/lib/db/prisma";
 import { auditImpersonationDenied, auditImpersonationStart } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
@@ -139,6 +138,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     // Better Auth APIErrors (unknown target, admin target, session problems)
     // propagate to the error handler, which maps their status into the
     // envelope. Our checks above make them rare races, not normal paths.
+    const { auth } = await import("@/lib/auth");
     const { headers } = await auth.api.impersonateUser({
       body: { userId: target.id },
       headers: c.req.raw.headers,

@@ -110,7 +110,12 @@ async function githubJson<T>(url: string): Promise<T> {
   return (await response.json()) as T;
 }
 
-async function rawFile(owner: string, repo: string, ref: string, path: string) {
+export async function rawFile(
+  owner: string,
+  repo: string,
+  ref: string,
+  path: string,
+) {
   const response = await fetch(
     `${GITHUB_RAW}/${owner}/${repo}/${ref}/${path}`,
     {

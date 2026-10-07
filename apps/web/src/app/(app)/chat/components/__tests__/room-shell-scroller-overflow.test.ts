@@ -46,6 +46,17 @@ describe("room shell scroller overflow contract", () => {
     expect(threadPanel).toContain("CHAT_MESSAGE_LIST_CONTENT_CLASS,");
   });
 
+  // The behaviour is `transcript-viewport.webkit.test.ts`; this holds the
+  // class in the run every push gets.
+  it("content clips what hangs past it, so the scroller's scrollHeight is the list", () => {
+    expect(CHAT_MESSAGE_LIST_CONTENT_CLASS.split(/\s+/)).toContain(
+      "overflow-y-clip",
+    );
+    expect(ROOM_MESSAGE_LIST_CONTENT_CLASSNAME.split(/\s+/)).toContain(
+      "overflow-y-clip",
+    );
+  });
+
   it("content still uses min-h-full for short-transcript justify-end", () => {
     expect(ROOM_MESSAGE_LIST_CONTENT_CLASSNAME).toContain("min-h-full");
     expect(ROOM_MESSAGE_LIST_CONTENT_CLASSNAME).toContain("justify-end");

@@ -1,7 +1,7 @@
 import "server-only";
 
+import type { Coworker } from "@sokosumi/core-client";
 import { CoreApiRequestError, coreClient } from "@/lib/clients/core.client";
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 
 function sortOwnedCoworkers(coworkers: Coworker[]): Coworker[] {
   return coworkers

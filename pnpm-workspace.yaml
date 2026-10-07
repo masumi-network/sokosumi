@@ -25,15 +25,6 @@ overrides:
   # still depends on esbuild@^0.27.0, which lands 0.27.7 without this pin.
   # Patched floor is 0.28.1; pin latest 0.28.x.
   "esbuild@<0.28.2": "0.28.2"
-  # undici 7.x GHSAs (cache replay of unsafe methods GHSA-8436-99hf-9mmv, plus
-  # earlier SOCKS5 / WebSocket / header injection). @scalar/json-magic@0.15.2
-  # (via openapi-to-markdown 1.3.0) still pins 7.29.0 (vulnerable; floor 7.29.1).
-  # Do not use undici@<7.30.0 — that would also rewrite @vercel/blob's 6.x.
-  # Pin latest 7.x (7.30.0).
-  "undici@>=7.0.0 <7.30.0": "7.30.0"
-  # eve@0.68.0 still pins undici@8.9.0. GHSA-8436-99hf-9mmv covers
-  # >=8.0.0 <8.10.2. Pin latest 8.x. Selector starts at 8 so 6.x/7.x stay put.
-  "undici@>=8.0.0 <8.11.2": "8.11.2"
 
 ignoredOptionalDependencies:
   # `pdfjs-dist` declares `@napi-rs/canvas` as an optional dependency, for
@@ -54,6 +45,7 @@ allowBuilds:
   # pnpm 11+: workspace prepare scripts are blocked unless listed (strictDepBuilds).
   # These packages compile to dist/ on install; without them, Next/Turbopack cannot resolve exports.
   "@sokosumi/ai-provider": true
+  "@sokosumi/core-client": true
   "@sokosumi/email": true
   "@sokosumi/masumi": true
   "@sokosumi/net": true
@@ -88,6 +80,6 @@ publicHoistPattern:
 
 # Workaround: TypeScript 7 drops Assertion.not from Vitest 5's mapped Chai types.
 # Re-check when bumping vitest or typescript; drop the patch if tsc is clean without it.
-# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (still open on 5.0.2)
+# Upstream: https://github.com/vitest-dev/vitest/issues/11144 (still open on 5.0.3)
 patchedDependencies:
-  vitest@5.0.2: patches/vitest@5.0.2.patch
+  vitest@5.0.3: patches/vitest@5.0.3.patch

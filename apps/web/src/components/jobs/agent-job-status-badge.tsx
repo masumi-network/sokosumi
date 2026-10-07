@@ -1,7 +1,7 @@
 "use client";
 
+import { AgentJobStatus } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
-import { AgentJobStatus } from "@/lib/clients/generated/core";
 
 import { cn } from "@/lib/utils";
 
@@ -23,10 +23,7 @@ export function AgentJobStatusBadge({
   if (variant === "text") {
     return (
       <span
-        className={cn(
-          "text-muted-foreground text-[0.625rem] font-medium",
-          className,
-        )}
+        className={cn("text-muted-foreground text-2xs font-medium", className)}
       >
         {label}
       </span>
@@ -39,7 +36,7 @@ export function AgentJobStatusBadge({
         className={cn("size-1.5 shrink-0 rounded-full", dotClass)}
         aria-hidden
       />
-      <span className="text-muted-foreground text-[0.625rem] font-medium">
+      <span className="text-muted-foreground text-2xs font-medium">
         {label}
       </span>
     </div>

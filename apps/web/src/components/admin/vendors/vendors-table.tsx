@@ -1,12 +1,11 @@
 "use client";
 
+import type { Vendor } from "@sokosumi/core-client";
 import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
 import { getVendorsTableColumns } from "@/components/admin/vendors/vendors-table-columns";
 import DataTable from "@/components/data-table/data-table";
 import { Input } from "@/components/ui/input";
-import type { Vendor } from "@/lib/clients/generated/core";
 
 interface VendorsTableProps {
   vendors: Vendor[];

@@ -35,7 +35,7 @@ struct ArchivedChannelRow: View {
         .frame(width: 20)
       }
     } icon: {
-      Image(systemName: room.discoverability == ._private ? "lock" : room.discoverability == .external ? "globe" : "number")
+      Image(systemName: ChannelMark(room.discoverability).systemImage)
         .foregroundStyle(.tertiary)
         .frame(width: DirectRoomAvatarStack.faceSize, height: DirectRoomAvatarStack.faceSize)
     }

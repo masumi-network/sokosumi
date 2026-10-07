@@ -14,6 +14,7 @@ import {
   buildRoomMentionPrompt,
   loadRoomContextMessages,
   roomMessagePromptText,
+  withAttachmentNote,
 } from "./chat-room-mention-context";
 
 describe("buildRoomMentionPrompt", () => {
@@ -166,5 +167,23 @@ describe("loadRoomContextMessages", () => {
         content: "> Alice: Launch risk is the vendor.",
       },
     ]);
+  });
+});
+
+describe("withAttachmentNote", () => {
+  const url =
+    "https://abc.public.blob.vercel-storage.com/users/u-1/chats/01a0f500-0000-7000-8000-000000000001/1-sign-in-x7Yq.png";
+
+  it("names the chat attachments and how to save them", () => {
+    const content = `post this\n![1-sign-in.png](${url})`;
+    expect(withAttachmentNote(content, content)).toBe(
+      `${content}\n\nAttached to this message (save one to Files with upload_file and its link as attachmentUrl):\n- 1-sign-in.png: ${url}`,
+    );
+  });
+
+  it("leaves a message without attachments alone", () => {
+    expect(withAttachmentNote("hi [site](https://sokosumi.com)", "hi")).toBe(
+      "hi [site](https://sokosumi.com)",
+    );
   });
 });

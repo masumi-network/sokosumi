@@ -1,16 +1,16 @@
 "use client";
 
+import type {
+  ProjectContextMdMetadata,
+  ProjectMemoryModel,
+} from "@sokosumi/core-client";
 import { Check } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
+import { SECTION_MARKDOWN_HEADINGS } from "@/app/projects/components/section-markdown-headings";
 import Markdown from "@/components/markdown";
 import { Button } from "@/components/ui/button";
-import type {
-  ProjectContextMdMetadata,
-  ProjectMemoryModel,
-} from "@/lib/clients/generated/core/types.gen";
 
 import {
   ProjectMemoryHistory,
@@ -94,7 +94,9 @@ export function ProjectMemoryPanel({
                         new Date(contextMd.updatedAt),
                       ),
                     })
-                  : t("memory.empty")}
+                  : memoryEnabled
+                    ? t("memory.empty")
+                    : t("memory.off")}
               </p>
               {contextMdUpdating ? (
                 <span
@@ -105,9 +107,13 @@ export function ProjectMemoryPanel({
                 />
               ) : null}
             </div>
-            <p className="text-muted-foreground mt-0.5 text-xs">
-              {t("memory.modelLine", { model: modelLabel })}
-            </p>
+            {/* No model runs while updates are off, so with nothing recorded
+                there is no model to name. */}
+            {contextMd || memoryEnabled ? (
+              <p className="text-muted-foreground mt-0.5 text-xs">
+                {t("memory.modelLine", { model: modelLabel })}
+              </p>
+            ) : null}
             {/* Existing memory stays readable when updates are switched off —
                 the hint only explains why it will not grow. */}
             {memoryEnabled === false ? (
@@ -115,7 +121,7 @@ export function ProjectMemoryPanel({
                 className="text-muted-foreground mt-0.5 text-xs"
                 data-testid="project-memory-disabled"
               >
-                {t("memory.notConfigured")}
+                {t("memory.offHint")}
               </p>
             ) : null}
           </div>
@@ -151,12 +157,17 @@ export function ProjectMemoryPanel({
         </div>
 
         {content ? (
-          <Markdown className="text-foreground">{content}</Markdown>
-        ) : (
+          <Markdown
+            className="text-foreground"
+            components={SECTION_MARKDOWN_HEADINGS}
+          >
+            {content}
+          </Markdown>
+        ) : contextMd || memoryEnabled ? (
           <p className="text-muted-foreground motion-safe:animate-in motion-safe:fade-in-0 text-sm text-pretty duration-200">
             {contextMd ? t("errors.contextMd") : t("memory.emptyBody")}
           </p>
-        )}
+        ) : null}
       </section>
 
       {/* Nothing has been written yet means there is nothing to have a history

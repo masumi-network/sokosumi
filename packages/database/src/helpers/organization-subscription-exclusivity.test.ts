@@ -27,6 +27,7 @@ describe("organization subscription exclusivity", () => {
       endsAt: new Date("2026-02-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 
@@ -46,6 +47,7 @@ describe("organization subscription exclusivity", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 
@@ -62,6 +64,7 @@ describe("organization subscription exclusivity", () => {
       purchasedSeats: 2,
       subscriptionId: "sub-1",
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: new Date("2026-03-01T00:00:00.000Z"),
     });
 
@@ -78,6 +81,7 @@ describe("organization subscription exclusivity", () => {
       endsAt: new Date("2026-02-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 
@@ -98,6 +102,7 @@ describe("organization subscription exclusivity", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2027-06-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 
@@ -114,6 +119,7 @@ describe("organization subscription exclusivity", () => {
       endsAt: new Date("2027-01-01T00:00:00.000Z"),
       activatedAt: new Date("2026-01-01T00:00:00.000Z"),
       cancelAtPeriodEnd: false,
+      cancelAt: null,
       periodEnd: null,
     });
 

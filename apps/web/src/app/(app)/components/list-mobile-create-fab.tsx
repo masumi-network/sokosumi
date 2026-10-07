@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 export interface ListMobileCreateFabProps {
   /** Accessible name for the + control */
   ariaLabel: string;
+  /** Additional styles for the create button. */
+  className?: string;
   /** Opens the in-tree create modal (handleOpen from useCreate*Modal) */
   onOpen: () => void;
   /** Optional icon component (defaults to Plus) */
@@ -25,6 +27,7 @@ export interface ListMobileCreateFabProps {
  */
 export function ListMobileCreateFab({
   ariaLabel,
+  className,
   onOpen,
   icon: Icon = Plus,
   progress,
@@ -62,7 +65,7 @@ export function ListMobileCreateFab({
                 cx="28"
                 cy="28"
                 r="26"
-                className="stroke-background transition-all duration-300 ease-out"
+                className="stroke-background transition-[stroke-dashoffset] duration-300 ease-out"
                 strokeWidth="2"
                 fill="none"
                 strokeDasharray={`${2 * Math.PI * 26}`}
@@ -78,10 +81,11 @@ export function ListMobileCreateFab({
             onClick={onOpen}
             disabled={isUploading}
             className={cn(
-              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-all duration-300",
+              "pointer-events-auto flex size-14 items-center justify-center rounded-full shadow-lg transition-colors duration-300",
               isUploading
                 ? "bg-foreground text-background cursor-not-allowed"
                 : "bg-primary-solid text-primary-solid-foreground",
+              className,
             )}
           >
             {showProgress ? (

@@ -1,3 +1,4 @@
+import type { ChatRoomMessage, ChatRoomThread } from "@sokosumi/core-client";
 import {
   fireEvent,
   render,
@@ -6,10 +7,6 @@ import {
   within,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type {
-  ChatRoomMessage,
-  ChatRoomThread,
-} from "@/lib/clients/generated/core";
 import { ThreadListPanel } from "./thread-list-panel";
 
 const listThreadsActionMock = vi.fn();

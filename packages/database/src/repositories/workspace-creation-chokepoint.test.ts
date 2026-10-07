@@ -25,12 +25,13 @@ const repoRoot = fileURLToPath(new URL("../../../../", import.meta.url));
  * The three known creation sites, with why each is allowed.
  *
  * `workspace.repository.ts` holds two and calls `seedCuratedVocabulary`
- * directly. `personal-workspace/post.ts` is a route that does not go through
- * the repository and calls the same exported function.
+ * directly. `helpers/personal-workspace.ts` (behind both personal workspace
+ * create routes) does not go through the repository and calls the same
+ * exported function.
  */
 const ALLOWED = [
   "packages/database/src/repositories/workspace.repository.ts",
-  "apps/core/src/routes/v1/users/[id]/personal-workspace/post.ts",
+  "apps/core/src/helpers/personal-workspace.ts",
 ].sort();
 
 function filesCreatingAWorkspace(): string[] {

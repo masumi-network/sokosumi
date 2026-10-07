@@ -405,6 +405,7 @@ describe.skipIf(!databaseUrl)(
         await stageSokoBotNudges(botId, [key], new Date(), delivery.turnId);
         const input = {
           id: botId,
+          userId,
           workspaceId,
           followWholeBoard: false,
           now: new Date(),

@@ -1,3 +1,4 @@
+import type { TaskLinkRelation } from "@sokosumi/core-client";
 import type { LucideIcon } from "lucide-react";
 import {
   OctagonMinus,
@@ -6,8 +7,6 @@ import {
   SquareMousePointer,
   SquaresExclude,
 } from "lucide-react";
-
-import type { TaskLinkRelation } from "@/lib/clients/generated/core";
 
 export function getTaskLinkRelationIcon(
   relation: TaskLinkRelation,

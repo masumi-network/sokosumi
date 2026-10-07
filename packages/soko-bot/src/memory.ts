@@ -83,6 +83,13 @@ const COMMON_WEAK_SECRET_VALUES = new Set([
 ]);
 const PAYMENT_SECURITY_CODE_LABEL = /\b(?:cvv|cvc)\b/gi;
 const CARD_NUMBER_CANDIDATE = /(?:\d[ -]?){13,19}/g;
+/**
+ * A UUID's digit-only groups can pass as a Luhn-valid card number
+ * (`33559564-8375-4519-…`): about 1 in 28,000 random ids did, which blanked
+ * record ids in admin payloads and failed their response schema.
+ */
+const UUID_VALUE =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 
 export interface SokoBotMemory {
   activeGoals: string[];
@@ -137,7 +144,8 @@ function isValidCardNumber(value: string): boolean {
  * run `5-9572-30751931`, which passes Luhn. Treating that as a card blanked
  * event ids out of admin payloads and task ids out of the bot's own answers.
  */
-function containsCardNumber(value: string): boolean {
+function containsCardNumber(text: string): boolean {
+  const value = text.replace(UUID_VALUE, "x");
   for (const match of value.matchAll(CARD_NUMBER_CANDIDATE)) {
     // The pattern can swallow a trailing separator, which would push the
     // boundary check onto the following word. Trimmed by index rather than by

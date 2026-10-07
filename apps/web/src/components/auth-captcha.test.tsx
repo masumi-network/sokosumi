@@ -2,7 +2,13 @@ import type {
   TurnstileInstance,
   TurnstileProps,
 } from "@marsidev/react-turnstile";
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { track } from "@vercel/analytics";
 import { useState } from "react";
@@ -234,20 +240,20 @@ describe("useAuthCaptcha", () => {
   });
 
   it("tracks interactive challenges and their outcome", async () => {
-    render(<Consumer entry="magic-link" />);
+    render(<Consumer entry="email-code" />);
     act(() => widgetProps?.onBeforeInteractive?.());
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "interactive",
     });
     await userEvent.click(screen.getByText("Solve challenge"));
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "solved",
     });
     act(() => widgetProps?.onError?.("110200"));
     expect(track).toHaveBeenCalledWith("Security Check", {
-      entry: "magic-link",
+      entry: "email-code",
       step: "failed",
     });
     expect(track).toHaveBeenCalledTimes(3);
@@ -280,6 +286,17 @@ describe("useAuthCaptcha", () => {
     const html = renderToString(<Consumer />);
     expect(html).not.toContain("Solve challenge");
     expect(html).toContain("Submit");
+  });
+
+  it("says in the page's language that a rate-limited request should wait", () => {
+    const { result } = renderHook(() => useAuthCaptcha("email-code"));
+
+    expect(
+      result.current.getErrorMessage(
+        { status: 429 },
+        "Too many requests. Please try again later.",
+      ),
+    ).toBe("rateLimited");
   });
 
   it("preserves local development without a configured widget", async () => {

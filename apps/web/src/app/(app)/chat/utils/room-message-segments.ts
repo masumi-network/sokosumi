@@ -30,22 +30,48 @@ function isAttachmentRunGap(gap: string): boolean {
   return /^\s*$/.test(gap);
 }
 
+/**
+ * A file link becomes a card only on a line of its own (or a line of file
+ * links): in a sentence it stays a link, or "It's in your Files as [x](…)."
+ * renders a tile mid-sentence.
+ */
+function standaloneLinks(
+  content: string,
+  links: RoomMessageFileLink[],
+): RoomMessageFileLink[] {
+  return links.filter((link) => {
+    const start = content.lastIndexOf("\n", link.index - 1) + 1;
+    const newline = content.indexOf("\n", link.index + link.matchLength);
+    const end = newline === -1 ? content.length : newline;
+    let rest = "";
+    let cursor = start;
+    for (const other of links) {
+      if (other.index < start || other.index >= end) continue;
+      rest += content.slice(cursor, other.index);
+      cursor = other.index + other.matchLength;
+    }
+    rest += content.slice(cursor, end);
+    return isAttachmentRunGap(rest);
+  });
+}
+
 export function segmentRoomMessageContent(
   content: string,
 ): RoomMessageSegment[] {
-  const fileLinks: RoomMessageFileLink[] = [];
+  const candidates: RoomMessageFileLink[] = [];
   for (const match of findMarkdownLinks(content)) {
     const url = unescapeMarkdownLinkUrl(match.rawUrl);
     if (!isFileLikeUrl(url)) {
       continue;
     }
-    fileLinks.push({
+    candidates.push({
       url,
       fileName: match.text,
       index: match.index,
       matchLength: match.match.length,
     });
   }
+  const fileLinks = standaloneLinks(content, candidates);
 
   if (fileLinks.length === 0) {
     return [{ kind: "text", content, start: 0 }];
@@ -95,4 +121,9 @@ export function segmentRoomMessageContent(
   }
 
   return segments;
+}
+
+/** Whether the message ends in a row of attachments rather than text. */
+export function endsWithAttachmentRow(content: string): boolean {
+  return segmentRoomMessageContent(content).at(-1)?.kind === "files";
 }

@@ -1,3 +1,4 @@
+import type { AdminSokoBotTurn } from "@sokosumi/core-client";
 import { getFormatter, getTranslations } from "next-intl/server";
 import {
   formatDurationMs,
@@ -14,7 +15,6 @@ import {
 } from "@/components/soko-bot/soko-bot-badges";
 import { TurnActivity } from "@/components/soko-bot/turn-activity";
 import { TurnQuality } from "@/components/soko-bot/turn-quality";
-import type { AdminSokoBotTurn } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
 

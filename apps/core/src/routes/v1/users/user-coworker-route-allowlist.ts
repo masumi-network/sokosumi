@@ -12,9 +12,8 @@ type UserRouteEnv = {
 
 /**
  * GET subpaths under `/users/{id}` that agents may call for their owner
- * context. Everything else under the user tree stays session-only.
- * Patterns are path-only today because only GET handlers exist on these shapes;
- * do not mount mutating routes on the same paths without updating this gate.
+ * context. Everything else under the user tree, and every other method on
+ * these paths (such as `PATCH /users/{id}`), stays session-only.
  */
 const AGENT_ALLOWED_USER_SUBPATH_PATTERNS: ReadonlyArray<RegExp> = [
   /^\/$/,
@@ -96,7 +95,7 @@ export const agentUserRouteAllowlistMiddleware = createMiddleware<UserRouteEnv>(
     }
 
     const subpath = userRouteSubpathAfterId(c.req.path, pathUserId);
-    if (!isAgentAllowedUserSubpath(subpath)) {
+    if (c.req.method !== "GET" || !isAgentAllowedUserSubpath(subpath)) {
       throw forbidden("Agent authentication cannot access this user route");
     }
 

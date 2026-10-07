@@ -147,25 +147,7 @@ struct ChatRootView: View {
           }
         } else if let selectedRoomId = workspaces.selectedRoomId,
                   let selectedRoom = workspaces.rooms.first(where: { $0.id == selectedRoomId }) {
-          NavigationStack {
-            RoomTimelineView(roomId: selectedRoomId)
-              .navigationTitle(roomDisplayName(selectedRoom, currentUserId: workspaces.currentUserId))
-              .navigationDestination(isPresented: Binding(
-                get: { workspaces.thread.parent != nil },
-                set: { presented in
-                  if !presented {
-                    Task { @MainActor in workspaces.thread.close() }
-                  }
-                }
-              )) {
-                ReplyThreadView()
-              }
-          }
-          .task(id: workspaces.streamingThreadToOpen?.id) {
-            if let parent = workspaces.streamingThreadToOpen {
-              workspaces.openThread(parent, auth: auth)
-            }
-          }
+          RoomNavigationStack(room: selectedRoom)
         } else {
           Text("Pick a room to read it.")
             .foregroundStyle(.secondary)
@@ -173,6 +155,7 @@ struct ChatRootView: View {
             .navigationTitle(workspaces.selection?.title ?? "")
         }
       }
+      .modifier(RoomEditSheetsHost())
     }
     if let signOutError = auth.signOutError {
       Text(signOutError)
@@ -197,14 +180,12 @@ struct ChatRootView: View {
     }
   }
 
-  private func blockedMessage(for gate: Components.Schemas.WorkspaceGateStatus) -> String {
+  private func blockedMessage(for gate: WorkspaceGate) -> String {
     switch gate {
     case .pendingInvites:
       "You have pending organization invites but no workspace yet. Accept an invite on the web, then check again."
     case .identityOnboarding:
       "Your account has no workspace yet. Finish setup on the web, then check again."
-    case .ready:
-      "Unexpected state. Try again."
     }
   }
 }

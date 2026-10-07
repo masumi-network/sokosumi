@@ -1,17 +1,15 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { NotificationItem } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { type MouseEvent, useState } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { useNotifications } from "@/contexts/notification-provider";
 import {
   approveMyCoworkerAccess,
   approveOrganizationCoworkerAccess,
 } from "@/lib/actions/workspace-approval-action";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import {
   COWORKER_ACCESS_PENDING_MESSAGE_KEY,
@@ -95,7 +93,6 @@ export function CoworkerAccessNotificationActions({
       <Button
         type="button"
         size="sm"
-        disabled={loadingAction !== null}
         onPointerDown={(event) => {
           event.preventDefault();
           event.stopPropagation();
@@ -104,10 +101,8 @@ export function CoworkerAccessNotificationActions({
           event.stopPropagation();
         }}
         onClick={(event) => void handleAccept(event)}
+        loading={loadingAction === "accept"}
       >
-        {loadingAction === "accept" ? (
-          <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-        ) : null}
         {t("accept")}
       </Button>
     </div>

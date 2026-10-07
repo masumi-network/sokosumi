@@ -28,15 +28,15 @@ private func room(
   updatedAt: Date = baseDate
 ) -> Components.Schemas.ChatRoom {
   .init(
-    id: id, name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false,
+    id: id, name: name, kind: .channel, isSelfDirect: false, isGroupDirect: false, isReadOnly: false,
     discoverability: ._public, createdByUserId: "user_1", createdAt: baseDate, updatedAt: updatedAt,
     unreadCount: 0, threadUnreadCount: listed.reduce(0) { $0 + $1.replies }, unreadThreadCount: unreadThreads,
     unreadThreadMentionCount: threadMentions,
     unreadThreads: listed.map { .init(parentMessageId: $0.parent, firstUnreadReplyId: "\($0.parent)-reply",
                                       parentContent: "Parent", unreadReplyCount: $0.replies, unreadMentionCount: $0.mentions) },
-    unreadMentionCount: 0, mutedAt: muted ? baseDate : nil, markedUnread: false, myAccess: .member,
+    unreadMentionCount: 0, mutedAt: muted ? baseDate : nil, markedUnread: false, myAccess: .init(value1: .member, value2: "member"),
     userMembers: [.init(id: adaId, name: "Ada Lovelace", email: "ada@example.com", presence: .online)],
-    coworkerMembers: [], sokoBotMembers: []
+    formerUserMembers: [], coworkerMembers: [], sokoBotMembers: []
   )
 }
 

@@ -1,20 +1,14 @@
 "use client";
 
+import type { Job } from "@sokosumi/core-client";
 import {
   type InputSchemaSchemaType,
   normalizeAndValidateInputSchema,
 } from "@sokosumi/masumi/schemas";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowLeft,
-  ArrowRight,
-  Command,
-  CornerDownLeft,
-  Loader2,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, Command, CornerDownLeft } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useMemo } from "react";
-
 import { JobInputsFlatForm } from "@/components/job-input/job-inputs-flat-form";
 import type { FormFooterProps } from "@/components/job-input/job-inputs-form-builder";
 import { JobInputsGroupedForm } from "@/components/job-input/job-inputs-grouped-form";
@@ -22,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { useInputs } from "@/hooks/use-inputs";
 import { useOSDetection } from "@/hooks/use-os-detection";
 import { useProvideJobInput } from "@/hooks/use-provide-job-input";
-import type { Job } from "@/lib/clients/generated/core";
 import { flattenInputs } from "@/lib/schemas/job";
 import { getReadonlyNoneInputValues } from "@/lib/utils/job-input-transformers";
 import { getJobQueryKey } from "@/queries/jobs";
@@ -142,15 +135,11 @@ function ProvideInputForm({
           <div className="flex items-center gap-2">
             <Button
               type="submit"
-              disabled={isSubmitting || formIsSubmitting || !isValid}
+              disabled={!isValid}
+              loading={isSubmitting || formIsSubmitting}
               className="items-center justify-between gap-1"
             >
-              <div className="flex items-center gap-1">
-                {(isSubmitting || formIsSubmitting) && (
-                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                )}
-                {t("submit")}
-              </div>
+              <div className="flex items-center gap-1">{t("submit")}</div>
               {!isMobile && (
                 <div className="flex items-center gap-1">
                   {os === "MacOS" ? <Command /> : tForm("ctrl")}
@@ -195,15 +184,11 @@ function ProvideInputForm({
             {isLast ? (
               <Button
                 type="submit"
-                disabled={isSubmitting || formIsSubmitting || !isValid}
+                disabled={!isValid}
+                loading={isSubmitting || formIsSubmitting}
                 className="items-center justify-between gap-1"
               >
-                <div className="flex items-center gap-1">
-                  {(isSubmitting || formIsSubmitting) && (
-                    <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                  )}
-                  {t("submit")}
-                </div>
+                <div className="flex items-center gap-1">{t("submit")}</div>
                 {!isMobile && (
                   <div className="flex items-center gap-1">
                     {os === "MacOS" ? <Command /> : tForm("ctrl")}
@@ -212,10 +197,11 @@ function ProvideInputForm({
                 )}
               </Button>
             ) : (
-              <Button type="submit" disabled={formIsSubmitting || !isValid}>
-                {formIsSubmitting && (
-                  <Loader2 className="size-4 animate-spin motion-reduce:animate-pulse" />
-                )}
+              <Button
+                type="submit"
+                disabled={!isValid}
+                loading={formIsSubmitting}
+              >
                 {tForm("next")}
                 <ArrowRight className="size-4" />
               </Button>

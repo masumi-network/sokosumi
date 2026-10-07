@@ -44,7 +44,7 @@ export default function AuthBackground() {
       className="relative hidden h-full w-1/2 lg:block"
       aria-labelledby="auth-aside-title"
     >
-      <div className="relative h-full w-full">
+      <div className="relative size-full">
         <Image
           alt=""
           src={backgroundImage}

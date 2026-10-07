@@ -2,7 +2,6 @@ import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import Header from "@/app/agents/[agentId]/jobs/components/header";
 import { createMockCoreAgent } from "@/lib/helpers/__tests__/fixtures/core-agent";
-import type { AgentRatingStats } from "@/lib/types/core-dto";
 
 vi.mock("next-intl", () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -28,7 +27,6 @@ describe("Header", () => {
     render(
       <Header
         agent={agent}
-        ratingStats={{ total: 0, average: null } satisfies AgentRatingStats}
         canRate={false}
         existingRating={null}
         detailActions={<div data-testid="detail-actions" />}
@@ -41,14 +39,7 @@ describe("Header", () => {
   it("does not render create-job / hire or price controls (SOK-805 / SOK-922)", () => {
     const agent = createMockCoreAgent({ id: "agent-1", credits: 1 });
 
-    render(
-      <Header
-        agent={agent}
-        ratingStats={{ total: 0, average: null } satisfies AgentRatingStats}
-        canRate={false}
-        existingRating={null}
-      />,
-    );
+    render(<Header agent={agent} canRate={false} existingRating={null} />);
 
     // Header still renders navigational chrome without hire/create-job/price.
     expect(screen.getByText("back")).toBeInTheDocument();

@@ -25,18 +25,24 @@ written into each new VM) talks to Core over
   that turn's paths, so no process in the VM holds it.
 - **Models.** The runner points the AI SDK gateway provider at Core. Core
   checks the model is the turn's version model, forwards only the Gateway
-  protocol headers, replaces the provider options with the EU policy, adds the
-  Gateway key, meters the step itself, and then checks the reported region.
+  protocol headers, replaces the provider options with the model policy's
+  (EU pinning, or zero retention for an owner-approved global agent model
+  such as GPT-6 Luna), adds the Gateway key, meters the step itself, and
+  then checks the reported region.
 - **Sokosumi tools.** Executed by Core exactly as before: grants, receipts,
   idempotency, lease and deadline checks.
 - **Sandbox tools** are capabilities like any other. Owner routes carry them;
   the teammate and bot-to-bot ceilings and every turn Core composes itself
-  (mail, task-board and delegation events, built-in rhythms) do not.
+  (mail, task-board and delegation events, built-in rhythms) do not. Each
+  call is recorded as a tool-call row without an actor bot (never a receipt)
+  holding its clipped output and citable sources.
 - **Untrusted input.** Before any sandbox tool other than the plan runs, and
   when the Gateway reports a web search, Core records that the turn read
   untrusted input. From then on it refuses hiring, job input, integration
-  actions, uploads, chat posts, task comments and assignments, and schedule
-  changes; the bot proposes them with `request_user_decision` instead.
+  actions, uploads, image generation, chat posts, task comments and
+  assignments, and schedule changes; the bot says what it would do and asks
+  the owner in chat, and the reply starts a new turn that can act. (Owner
+  approval cards were removed on 2026-09-30.)
 - **Network.** Open internet; IPv4 private and link-local ranges denied.
 
 Known limits:
@@ -44,7 +50,10 @@ Known limits:
 - The sandbox firewall accepts IPv4 CIDRs only, so IPv6 private ranges are not
   denied.
 - Web search runs on Perplexity through the AI Gateway, outside the EU, as the
-  Jev route classifier does. Queries are the model's search terms.
+  Jev route classifier does. Queries are the model's search terms. That one
+  call keeps no prompt training but drops zero retention, which Perplexity does
+  not offer; Core recognizes it by its exact shape (the forced search tool and
+  a single "Search the web for:" message).
 
 The in-process runtime remains for preview evaluation runs (their per-call
 ledger lives in Core) and as `SOKO_BOT_RUNTIME_ADAPTER=in-process`, which local

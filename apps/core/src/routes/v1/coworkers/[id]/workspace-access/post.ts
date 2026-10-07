@@ -1,11 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
-
 import {
   notifyWorkspaceApproversOfPendingCoworkerAccess,
   resolveCoworkerAccessTargetWorkspaceId,
   toCoworkerWorkspaceAccessApiShape,
-  upsertCoworkerWorkspaceAccess,
 } from "@/helpers/coworker-workspace-access";
+import { upsertCoworkerWorkspaceAccess } from "@/helpers/coworker-workspace-access-grant";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { created } from "@/helpers/response";
 import prisma from "@/lib/db/prisma";
@@ -23,7 +22,7 @@ const route = createRoute({
   path: "/{id}/workspace-access",
   operationId: "createCoworkerWorkspaceAccess",
   description:
-    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (member workspace) grant immediately; vendor admin foreign workspace creates PENDING. Body: exactly one of workspaceId, userId, organizationId, email (personal workspace), or organizationSlug (org workspace).",
+    "Propose or directly grant coworker workspace access. Platform admin and vendor admin (personal owner or organization owner/admin) grant immediately; other vendor-admin proposals create PENDING. Body: exactly one of workspaceId, userId, organizationId, email (personal workspace), or organizationSlug (org workspace).",
   tags: ["Coworkers"],
   request: {
     params: paramsSchema,

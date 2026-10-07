@@ -9,7 +9,7 @@
 
 [VERIFIED] The current OAuth flow starts a callback server on `127.0.0.1:53682`, opens the system browser, and waits for the callback on that same machine. It does not return a device login URL to a remote agent. [OAuth code](../../src/auth/oauth.ts#L274) · [Callback server](../../src/auth/oauth.ts#L335) · [Browser login](../../src/auth/oauth.ts#L450)
 
-[VERIFIED] The documented Skill installer adds Skill files. The CLI package has `"private": true`, and the README says npm publication is disabled. A Skill install does not install the CLI binary. [Distribution](../../skills/sokosumi/references/distribution.md#L16) · [Package](../../package.json#L2) · [README](../../README.md)
+[CORRECTION, VERIFIED: `apps/cli/package.json`, 2026-09-30] The earlier private-package statement is obsolete. The manifest names `@masumi_network/sokosumi`, sets public npm access, and includes `dist` and `skills`. A Skill install still does not install the CLI executable. The published version was not checked for this update. [Distribution](../../skills/sokosumi/references/distribution.md) · [Package](../../package.json) · [README](../../README.md)
 
 [VERIFIED: source] CLI registration sends the selected organization ID to Core's Workspace access route after Coworker creation. Core still requires platform admin auth to create the Coworker. [CLI registration](../../src/cli/commands/coworkers.ts) · [Core route](../../../core/src/routes/v1/coworkers/post.ts)
 
@@ -61,7 +61,7 @@
 
 [PROPOSED] If the owner has no workspace, open the Sokosumi Web workspace screen and resume setup after the owner creates or joins one. Keep workspace creation in Web until Core has an approved CLI route for it.
 
-[VERIFIED] `npx skills add https://github.com/masumi-network/sokosumi --skill sokosumi` installs the Skill files from the repository. It does not install the CLI executable. The CLI package is private and its public install path is open. [Skill distribution](../../skills/sokosumi/references/distribution.md#L1) · [Package](../../package.json#L2)
+[CORRECTION, VERIFIED: distribution guide and package manifest, 2026-09-30] Repository Skill discovery uses `npx skills add https://github.com/masumi-network/sokosumi --full-depth --skill sokosumi`. It installs Skill files only. The package is configured for public npm distribution. Check the installed executable's capabilities before using runtime or receipt commands. [Skill distribution](../../skills/sokosumi/references/distribution.md) · [Package](../../package.json)
 
 [OPEN] A remote cloud runtime needs an owner approval URL and a safe runtime-key handoff. The current OAuth flow uses a callback on the same machine. This ADR does not define a device grant or credential-delivery endpoint.
 

@@ -34,6 +34,9 @@ const {
     return {
       ...t,
       visibility: (t.visibility as string | undefined) ?? "PUBLIC",
+      priority: (t.priority as string | undefined) ?? "NONE",
+      number: (t.number as number | null | undefined) ?? null,
+      identifier: (t.identifier as string | null | undefined) ?? null,
       grantResumeStatus:
         status === TaskStatus.GRANT_PENDING
           ? ((t.grantResumeStatus as string | null) ?? TaskStatus.DRAFT)

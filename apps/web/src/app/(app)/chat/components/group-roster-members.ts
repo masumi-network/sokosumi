@@ -3,6 +3,8 @@ import type { RoomReadReceipts } from "@/app/chat/hooks/use-room-read-receipts";
 import { orderRosterByReadRecency } from "./order-roster-by-read-recency";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
 
+const NO_GUESTS: ReadonlySet<string> = new Set();
+
 export interface RosterGroups {
   /**
    * Roster humans the panel lists first: the viewer, then everyone with a
@@ -12,13 +14,18 @@ export interface RosterGroups {
   people: ChatParticipantHoverProfile[];
   /** Roster humans who have never opened the room, in the order given. */
   neverRead: ChatParticipantHoverProfile[];
+  /**
+   * External guests, in the order given (the viewer first when they are one).
+   * Their own section: they are in this channel only, not the organization.
+   */
+  guests: ChatParticipantHoverProfile[];
   /** Coworkers and Soko Bots, in the order they arrived in. */
   agents: ChatParticipantHoverProfile[];
 }
 
 /**
  * The roster in the order a reader scans it: people who have read, people who
- * have not, then machines.
+ * have not, guests, then machines.
  *
  * Members already arrive grouped by kind — `getRoomParticipantPreviews`
  * returns humans, then Coworkers, then Soko Bots — but nothing said so, and at
@@ -45,15 +52,25 @@ export function groupRosterMembers(
   participants: readonly ChatParticipantHoverProfile[],
   currentUserId: string,
   receipts: Pick<RoomReadReceipts, "readStateFor">,
+  guestIds: ReadonlySet<string> = NO_GUESTS,
 ): RosterGroups {
   const withMark: ChatParticipantHoverProfile[] = [];
   const neverRead: ChatParticipantHoverProfile[] = [];
+  const guests: ChatParticipantHoverProfile[] = [];
   const agents: ChatParticipantHoverProfile[] = [];
   let viewer: ChatParticipantHoverProfile | null = null;
 
   for (const participant of participants) {
     if (participant.kind !== "human") {
       agents.push(participant);
+      continue;
+    }
+    if (guestIds.has(participant.id)) {
+      if (participant.id === currentUserId) {
+        guests.unshift(participant);
+      } else {
+        guests.push(participant);
+      }
       continue;
     }
     if (participant.id === currentUserId) {
@@ -71,6 +88,7 @@ export function groupRosterMembers(
   return {
     people: viewer ? [viewer, ...byReadRecency] : byReadRecency,
     neverRead,
+    guests,
     agents,
   };
 }

@@ -62,6 +62,19 @@ function getDayDifferenceFromNow(dateObj: Date, now: Date): number {
   return Math.round((targetDate.getTime() - currentDate.getTime()) / DAY_IN_MS);
 }
 
+/** "September 2026", in the reader's locale and time zone. */
+export function formatMonthYear(
+  date: string | Date,
+  locale: string,
+  timeZone: string,
+): string {
+  return new Intl.DateTimeFormat(locale, {
+    month: "long",
+    year: "numeric",
+    timeZone,
+  }).format(new Date(date));
+}
+
 export function formatShortDate(
   date: string | Date,
   locale: string,
@@ -73,6 +86,34 @@ export function formatShortDate(
       return "—";
     }
     return new Intl.DateTimeFormat(locale, {
+      month: "short",
+      day: "numeric",
+      timeZone,
+    }).format(dateObj);
+  } catch {
+    return "—";
+  }
+}
+
+/**
+ * A date that stays unambiguous years later.
+ *
+ * `formatShortDate` drops the year, which is fine beside a task that was
+ * created this quarter and wrong in a credit ledger that goes back to 2025:
+ * "Feb 19" alone does not say which February.
+ */
+export function formatDateWithYear(
+  date: string | Date,
+  locale: string,
+  timeZone: string,
+): string {
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) {
+      return "—";
+    }
+    return new Intl.DateTimeFormat(locale, {
+      year: "numeric",
       month: "short",
       day: "numeric",
       timeZone,

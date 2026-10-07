@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fetchMock = vi.fn();
 const headersMock = vi.fn();
@@ -64,6 +64,149 @@ describe("auth.server", () => {
       };
     });
     vi.stubGlobal("fetch", fetchMock);
+  });
+
+  describe("OAuth request Core HTTP reads", () => {
+    const NOW = Date.parse("2026-09-30T10:00:00Z");
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it.each([
+      {
+        expired: true,
+        signedIn: false,
+        clientStatus: 200,
+        sessionStatus: 200,
+        named: false,
+      },
+      {
+        expired: true,
+        signedIn: true,
+        clientStatus: 200,
+        sessionStatus: 200,
+        named: true,
+      },
+      {
+        expired: true,
+        signedIn: true,
+        clientStatus: 404,
+        sessionStatus: 200,
+        named: false,
+      },
+      {
+        expired: true,
+        signedIn: true,
+        clientStatus: 503,
+        sessionStatus: 200,
+        named: false,
+      },
+      {
+        expired: true,
+        signedIn: true,
+        clientStatus: 200,
+        sessionStatus: 401,
+        named: false,
+      },
+      {
+        expired: true,
+        signedIn: true,
+        clientStatus: 200,
+        sessionStatus: 503,
+        named: false,
+      },
+      {
+        expired: false,
+        signedIn: false,
+        clientStatus: 200,
+        sessionStatus: 200,
+        named: true,
+      },
+      {
+        expired: false,
+        signedIn: true,
+        clientStatus: 200,
+        sessionStatus: 200,
+        named: true,
+      },
+      {
+        expired: false,
+        signedIn: false,
+        clientStatus: 401,
+        sessionStatus: 200,
+        named: false,
+      },
+    ])(
+      "uses the correct authenticated GET or verified prelogin POST (%o)",
+      async ({ expired, signedIn, clientStatus, sessionStatus, named }) => {
+        headersMock.mockResolvedValue(
+          new Headers({
+            host: "localhost:3000",
+            ...(signedIn ? { cookie: SESSION_COOKIE } : {}),
+          }),
+        );
+        fetchMock.mockImplementation(async (input: string | URL) => {
+          const url = new URL(input);
+          const sessionRead = url.pathname === "/auth/get-session";
+          return Response.json(
+            sessionRead
+              ? {
+                  session: {
+                    id: "session-1",
+                    createdAt: new Date(NOW - 3600_000).toISOString(),
+                  },
+                  user: { id: "user-1" },
+                }
+              : { client_name: "CMO", client_uri: "https://cmo.xyz" },
+            {
+              status: sessionRead ? sessionStatus : clientStatus,
+            },
+          );
+        });
+        const { readOAuthRequest } = await import("./oauth-request.server");
+        const result = await readOAuthRequest(
+          Promise.resolve({
+            client_id: "cmo",
+            exp: String(NOW / 1000 + (expired ? -60 : 600)),
+            sig: "fixture-signature",
+          }),
+        );
+
+        expect(result?.hasExpired).toBe(expired);
+        expect(result?.client?.name).toBe(named ? "CMO" : undefined);
+        expect(result?.canHandBack).toBe(!expired && signedIn);
+        const requests = fetchMock.mock.calls.map(([input, init]) => ({
+          url: new URL(input),
+          init,
+        }));
+        expect(
+          requests.filter(({ url }) => url.pathname === "/auth/get-session"),
+        ).toHaveLength(signedIn ? 1 : 0);
+        expect(
+          requests.filter(
+            ({ url }) => url.pathname === "/auth/oauth2/public-client",
+          ),
+        ).toHaveLength(expired && signedIn && sessionStatus === 200 ? 1 : 0);
+        expect(
+          requests.filter(
+            ({ url }) => url.pathname === "/auth/oauth2/public-client-prelogin",
+          ),
+        ).toHaveLength(expired ? 0 : 1);
+        for (const { url, init } of requests) {
+          expect(url.origin).toBe("http://localhost:8787");
+          expect(init.cache).toBe("no-store");
+          expect(new Headers(init.headers).get("cookie")).toBe(
+            signedIn ? SESSION_COOKIE : null,
+          );
+          expect(init.method ?? "GET").toBe(
+            url.pathname.endsWith("-prelogin") ? "POST" : "GET",
+          );
+        }
+      },
+    );
   });
 
   it("uses headers then fetch for getSession", async () => {

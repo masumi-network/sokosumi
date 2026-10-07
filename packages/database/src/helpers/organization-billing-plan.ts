@@ -25,6 +25,7 @@ export type OrganizationBillingPlan =
       endsAt: Date;
       activatedAt: Date;
       cancelAtPeriodEnd: false;
+      cancelAt: null;
       periodEnd: null;
     }
   | {
@@ -33,6 +34,7 @@ export type OrganizationBillingPlan =
       purchasedSeats: number;
       subscriptionId: string | null;
       cancelAtPeriodEnd: boolean;
+      cancelAt: Date | null;
       periodEnd: Date | null;
     };
 
@@ -100,6 +102,7 @@ export async function resolveOrganizationBillingPlanWithActiveSubscription(
         ),
         activatedAt: activeContract.activatedAt,
         cancelAtPeriodEnd: false,
+        cancelAt: null,
         periodEnd: null,
       },
       activeSubscription: null,
@@ -127,6 +130,7 @@ export async function resolveOrganizationBillingPlanWithActiveSubscription(
       purchasedSeats,
       subscriptionId: subscription?.id ?? null,
       cancelAtPeriodEnd: subscription?.cancelAtPeriodEnd ?? false,
+      cancelAt: subscription?.cancelAt ?? null,
       periodEnd: subscription?.periodEnd ?? null,
     },
     activeSubscription: subscription,

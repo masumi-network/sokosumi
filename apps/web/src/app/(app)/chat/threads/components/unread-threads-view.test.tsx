@@ -1,3 +1,4 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import { NextIntlClientProvider } from "next-intl";
@@ -5,7 +6,6 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import messages from "@/../messages/en.json";
 import { makeRoom } from "@/components/chat/__tests__/chat-room-fixtures";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 import type { ChatUnreadThreadsPage } from "@/lib/services/chat-room.service";
 
 import { UnreadThreadsView } from "./unread-threads-view";

@@ -2,6 +2,7 @@ import { Channel, type TaskStatus } from "@sokosumi/database";
 
 import prisma from "@/lib/db/prisma";
 import { serializableTransaction } from "@/lib/db/transaction";
+import { SYSTEM_TURN_ROUTES } from "@/lib/soko-bot/system-routes";
 import { sokoBotControlPlane } from "@/services/soko-bot-control-plane.service";
 import { buildEventMessage } from "@/services/soko-bot-events-sync.service";
 
@@ -53,7 +54,8 @@ export async function simulateSokoBotTaskEvent(input: {
       select: { id: true, name: true, status: true },
     });
     if (!task) throw new SokoBotLabError("Task not found");
-    await tx.taskEvent.create({
+    const event = await tx.taskEvent.create({
+      select: { id: true, createdAt: true },
       data: {
         taskId: task.id,
         status: input.status,
@@ -88,6 +90,8 @@ export async function simulateSokoBotTaskEvent(input: {
       name: updated.name,
       status: updated.status,
       delegationId: delegation.id,
+      eventId: event.id,
+      eventAt: event.createdAt,
     };
   }, "Soko Bot lab event collided with another action");
 
@@ -115,6 +119,19 @@ export async function simulateSokoBotTaskEvent(input: {
         },
       ]),
       source: "EVENT",
+      presetRoute: SYSTEM_TURN_ROUTES.events,
+      // The same authority the events cron grants over the event's Task.
+      eventBatch: [
+        {
+          eventId: simulated.eventId,
+          entityId: simulated.taskId,
+          purpose: "TASK_EVENT",
+          status: simulated.status,
+          designatedHandlerBotId: bot.id,
+          delegationEventAt: simulated.eventAt,
+          delegationIds: [simulated.delegationId],
+        },
+      ],
     });
   } catch (error) {
     await prisma.sokoBotDelegation

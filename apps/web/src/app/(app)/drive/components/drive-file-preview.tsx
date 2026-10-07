@@ -46,11 +46,11 @@ const TEXT_TYPES = new Set([
  * exists to show them.
  *
  * For `.md`, rendering *is* the faithful view. Note for whoever changes
- * either side: the safety of that path depends on `sanitizeMarkdown`
- * inside `<Markdown>` — a tight tag allowlist and no `on*` attributes —
- * because this content is reader-supplied and is parsed into our own
- * origin rather than served under the content route's
- * `sandbox; default-src 'none'`.
+ * either side: the safety of that path depends on `markdownHastSchema`
+ * inside `<Markdown>` — a tight tag allowlist and no `on*` attributes,
+ * applied to the parsed tree — because this content is reader-supplied
+ * and is parsed into our own origin rather than served under the content
+ * route's `sandbox; default-src 'none'`.
  */
 const MARKDOWN_TYPE = "text/markdown";
 

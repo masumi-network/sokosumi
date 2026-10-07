@@ -1,16 +1,16 @@
 "use client";
 
-import type { ChannelLinkTarget } from "@sokosumi/utils";
-import { Loader2, Pin, PinOff, X } from "lucide-react";
-import { useEffect, useState } from "react";
-import { listPinnedMessagesAction } from "@/app/chat/actions";
-import { Button } from "@/components/ui/button";
 import type {
   ChatRoomCoworkerParticipant,
   ChatRoomPinnedMessageListItem,
   ChatRoomSokoBotParticipant,
   ChatRoomUserParticipant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import type { ChannelLinkTarget } from "@sokosumi/utils";
+import { Loader2, Pin, PinOff, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { listPinnedMessagesAction } from "@/app/chat/actions";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 import type { ChatParticipantHoverProfile } from "./room-helpers";
@@ -69,7 +69,7 @@ export function PinnedMessagesHeaderButton({
       aria-label={openLabel}
       aria-expanded={isOpen}
       data-testid="pinned-messages-trigger"
-      className="size-8"
+      className="size-10 md:size-8"
       onClick={onToggle}
     >
       <Pin className="size-4" />
@@ -199,7 +199,7 @@ export function PinnedMessagesPanel({
               type="button"
               variant="ghost"
               size="icon"
-              className="text-muted-foreground relative z-[1] size-8 shrink-0"
+              className="text-muted-foreground relative z-[1] size-10 md:size-8 shrink-0"
               aria-label={labels.unpin}
               onClick={() => {
                 void (async () => {

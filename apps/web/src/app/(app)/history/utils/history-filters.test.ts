@@ -5,311 +5,156 @@ import {
   getDefaultHistoryScope,
   getHistoryFiltersFromSearchParams,
   getHistoryFiltersResetKey,
-  getHistoryStatusOptionsForType,
   HISTORY_SEARCH_MAX_LENGTH,
-  isHistoryStatusAllowedForType,
+  HISTORY_TYPE_VALUES,
   parseHistoryFilters,
   resolveHistoryApiTypes,
   sanitizeHistoryProjectIdInput,
   sanitizeHistoryScopeInput,
   sanitizeHistorySearchInput,
-  sanitizeHistoryStatusForType,
-  sanitizeHistoryStatusInput,
   sanitizeHistoryTypeInput,
 } from "@/app/history/utils/history-filters";
-import { SokosumiJobStatus, TaskStatus } from "@/lib/clients/generated/core";
 
 const PROJECT_ID = "33333333-3333-4333-8333-333333333333";
 const projectOptions = [{ id: PROJECT_ID, name: "Research" }] as const;
 
 describe("history-filters", () => {
-  it("defaults to owned scope when an organization is active", () => {
+  it("defaults to owned scope in both personal and organization context", () => {
     expect(getDefaultHistoryScope("org-1")).toBe("owned");
+    expect(getDefaultHistoryScope(null)).toBe("owned");
     expect(parseHistoryFilters({}, "org-1")).toEqual({
       q: null,
       scope: "owned",
       type: null,
-      status: null,
       projectId: null,
     });
   });
 
-  it("defaults to owned scope in personal context", () => {
-    expect(getDefaultHistoryScope(null)).toBe("owned");
-    expect(parseHistoryFilters({}, null)).toEqual({
-      q: null,
-      scope: "owned",
-      type: null,
-      status: null,
-      projectId: null,
-    });
+  it("covers every consumption source the ledger can return", () => {
+    expect([...HISTORY_TYPE_VALUES]).toEqual([
+      "job",
+      "image",
+      "task",
+      "coworker",
+      "sokoBot",
+      "topUp",
+      "unattributed",
+    ]);
+    expect(resolveHistoryApiTypes(null)).toEqual([...HISTORY_TYPE_VALUES]);
+    expect(resolveHistoryApiTypes("unattributed")).toEqual(["unattributed"]);
   });
 
-  it("coerces workspace scope back to owned in personal context", () => {
-    expect(parseHistoryFilters({ scope: "workspace" }, null)).toEqual({
-      q: null,
-      scope: "owned",
-      type: null,
-      status: null,
-      projectId: null,
-    });
+  it("rejects a source value the ledger does not have", () => {
+    expect(sanitizeHistoryTypeInput("job")).toBe("job");
+    expect(sanitizeHistoryTypeInput("sokoBot")).toBe("sokoBot");
+    // The old feed's kinds that are not consumption sources.
+    expect(sanitizeHistoryTypeInput("conversation")).toBeNull();
+    expect(sanitizeHistoryTypeInput("archived")).toBeNull();
+    expect(sanitizeHistoryTypeInput(42)).toBeNull();
   });
 
-  describe("sanitizeHistorySearchInput", () => {
-    it("trims empty input and caps q at the API limit", () => {
-      expect(sanitizeHistorySearchInput(undefined)).toBeNull();
-      expect(sanitizeHistorySearchInput("   ")).toBeNull();
-      expect(sanitizeHistorySearchInput("  onboarding  ")).toBe("onboarding");
-      expect(sanitizeHistorySearchInput("x".repeat(250))).toHaveLength(
-        HISTORY_SEARCH_MAX_LENGTH,
-      );
-    });
+  it("falls back to the default scope for an unknown or unavailable scope", () => {
+    expect(sanitizeHistoryScopeInput("workspace", "org-1")).toBe("workspace");
+    expect(sanitizeHistoryScopeInput("nonsense", "org-1")).toBe("owned");
+    // Without an organization there is no workspace to widen to.
+    expect(sanitizeHistoryScopeInput("workspace", null)).toBe("owned");
   });
 
-  describe("sanitizeHistoryScopeInput", () => {
-    it("returns default scope for non-strings and unknown labels", () => {
-      expect(sanitizeHistoryScopeInput(undefined, "org-1")).toBe("owned");
-      expect(sanitizeHistoryScopeInput(123, "org-1")).toBe("owned");
-      expect(sanitizeHistoryScopeInput("not-a-scope", "org-1")).toBe("owned");
-      expect(sanitizeHistoryScopeInput("", "org-1")).toBe("owned");
-    });
-
-    it("allows workspace only when an organization is active", () => {
-      expect(sanitizeHistoryScopeInput("workspace", "org-1")).toBe("workspace");
-      expect(sanitizeHistoryScopeInput("workspace", null)).toBe("owned");
-    });
-  });
-
-  describe("sanitizeHistoryTypeInput", () => {
-    it("accepts history types and drops unknown labels", () => {
-      expect(sanitizeHistoryTypeInput("task")).toBe("task");
-      expect(sanitizeHistoryTypeInput(" job ")).toBe("job");
-      expect(sanitizeHistoryTypeInput("conversation")).toBeNull();
-      expect(sanitizeHistoryTypeInput("project")).toBeNull();
-      expect(sanitizeHistoryTypeInput(null)).toBeNull();
-    });
-  });
-
-  describe("sanitizeHistoryStatusInput", () => {
-    it("accepts archived, task statuses, and job-only statuses", () => {
-      expect(sanitizeHistoryStatusInput("active")).toBeNull();
-      expect(sanitizeHistoryStatusInput(" archived ")).toBe("archived");
-      expect(sanitizeHistoryStatusInput(TaskStatus.READY)).toBe(
-        TaskStatus.READY,
-      );
-      expect(
-        sanitizeHistoryStatusInput(SokosumiJobStatus.PAYMENT_PENDING),
-      ).toBe(SokosumiJobStatus.PAYMENT_PENDING);
-      expect(
-        sanitizeHistoryStatusInput(SokosumiJobStatus.COMPLETED),
-      ).toBeNull();
-      expect(sanitizeHistoryStatusInput(TaskStatus.COMPLETED)).toBe(
-        TaskStatus.COMPLETED,
-      );
-      expect(sanitizeHistoryStatusInput("not-a-status")).toBeNull();
-      expect(sanitizeHistoryStatusInput(null)).toBeNull();
-    });
-  });
-
-  describe("sanitizeHistoryProjectIdInput", () => {
-    it("accepts UUID strings and drops invalid values", () => {
-      expect(sanitizeHistoryProjectIdInput(` ${PROJECT_ID} `)).toBe(PROJECT_ID);
-      expect(sanitizeHistoryProjectIdInput("not-a-uuid")).toBeNull();
-      expect(sanitizeHistoryProjectIdInput("null")).toBeNull();
-      expect(sanitizeHistoryProjectIdInput(null)).toBeNull();
-    });
-  });
-
-  it("uses the first value when a filter key is repeated", () => {
+  it("trims and caps the search input", () => {
+    expect(sanitizeHistorySearchInput("  onboarding  ")).toBe("onboarding");
+    expect(sanitizeHistorySearchInput("   ")).toBeNull();
+    expect(sanitizeHistorySearchInput(null)).toBeNull();
     expect(
-      parseHistoryFilters(
+      sanitizeHistorySearchInput("x".repeat(HISTORY_SEARCH_MAX_LENGTH + 10)),
+    ).toHaveLength(HISTORY_SEARCH_MAX_LENGTH);
+  });
+
+  it("accepts only a UUID as a project filter", () => {
+    expect(sanitizeHistoryProjectIdInput(PROJECT_ID)).toBe(PROJECT_ID);
+    expect(sanitizeHistoryProjectIdInput("not-a-uuid")).toBeNull();
+  });
+
+  it("drops a project the caller cannot see", () => {
+    expect(
+      applyHistoryProjectAllowlist(
+        { q: null, scope: "owned", type: null, projectId: PROJECT_ID },
+        projectOptions,
+      ).projectId,
+    ).toBe(PROJECT_ID);
+    expect(
+      applyHistoryProjectAllowlist(
         {
-          q: ["first", "second"],
-          scope: ["workspace", "owned"],
-          type: ["task", "job"],
-          status: ["active", TaskStatus.READY],
-          projectId: [PROJECT_ID, "44444444-4444-4444-8444-444444444444"],
+          q: null,
+          scope: "owned",
+          type: null,
+          projectId: "44444444-4444-4444-8444-444444444444",
         },
-        "org-1",
-      ),
-    ).toEqual({
-      q: "first",
+        projectOptions,
+      ).projectId,
+    ).toBeNull();
+  });
+
+  it("reads filters back out of search params", () => {
+    const filters = getHistoryFiltersFromSearchParams(
+      new URLSearchParams({
+        q: "poster",
+        scope: "workspace",
+        type: "image",
+        projectId: PROJECT_ID,
+      }),
+      "org-1",
+      projectOptions,
+    );
+
+    expect(filters).toEqual({
+      q: "poster",
       scope: "workspace",
-      type: "task",
-      status: null,
+      type: "image",
       projectId: PROJECT_ID,
     });
   });
 
-  it("drops statuses not allowed for the selected history kind", () => {
-    expect(
-      parseHistoryFilters({ type: "task", status: "active" }, "org-1"),
-    ).toEqual({
-      q: null,
-      scope: "owned",
-      type: "task",
-      status: null,
-      projectId: null,
-    });
+  it("omits the default scope and empty filters from the query string", () => {
+    const params = buildHistoryFiltersSearchParams(
+      new URLSearchParams(),
+      { q: null, scope: "owned", type: null, projectId: null },
+      "org-1",
+    );
 
-    expect(
-      parseHistoryFilters({ type: "job", status: "archived" }, "org-1"),
-    ).toEqual({
-      q: null,
-      scope: "owned",
-      type: "job",
-      status: null,
-      projectId: null,
-    });
+    expect(params.toString()).toBe("");
   });
 
-  describe("getHistoryStatusOptionsForType", () => {
-    it("scopes status options to the selected history kind", () => {
-      expect(getHistoryStatusOptionsForType("task")).toContain("archived");
-      expect(getHistoryStatusOptionsForType("task")).not.toContain("active");
-      expect(getHistoryStatusOptionsForType("job")).toContain(
-        SokosumiJobStatus.PAYMENT_PENDING,
-      );
-      expect(getHistoryStatusOptionsForType("job")).not.toContain("archived");
-      expect(getHistoryStatusOptionsForType(null)).toContain("archived");
-      expect(getHistoryStatusOptionsForType(null)).not.toContain("active");
-    });
-  });
-
-  describe("resolveHistoryApiTypes", () => {
-    it("returns every kind when no type filter is selected", () => {
-      // Matches Core's unfiltered feed, which is TASK, JOB and IMAGE. Asking
-      // for a subset here would hide generated images from a reader who has
-      // not filtered anything.
-      expect(resolveHistoryApiTypes(null)).toEqual(["task", "job", "image"]);
-    });
-
-    it("returns a single type when filtered", () => {
-      expect(resolveHistoryApiTypes("task")).toEqual(["task"]);
-    });
-  });
-
-  describe("sanitizeHistoryStatusForType", () => {
-    it("keeps compatible statuses and drops incompatible ones", () => {
-      expect(sanitizeHistoryStatusForType("archived", "job")).toBeNull();
-      expect(sanitizeHistoryStatusForType(TaskStatus.READY, "task")).toBe(
-        TaskStatus.READY,
-      );
-      expect(isHistoryStatusAllowedForType(TaskStatus.READY, "job")).toBe(
-        false,
-      );
-    });
-  });
-
-  describe("applyHistoryProjectAllowlist", () => {
-    it("clears projectId when it is not in the allowlist", () => {
-      expect(
-        applyHistoryProjectAllowlist(
-          {
-            q: null,
-            scope: "workspace",
-            type: null,
-            status: null,
-            projectId: PROJECT_ID,
-          },
-          [{ id: "44444444-4444-4444-8444-444444444444", name: "Other" }],
-        ).projectId,
-      ).toBeNull();
-    });
-  });
-
-  it("maps URL search params to filters with project allowlist", () => {
-    const params = new URLSearchParams({
-      q: "research",
-      scope: "owned",
-      type: "job",
-      status: TaskStatus.COMPLETED,
-      projectId: PROJECT_ID,
-    });
-
-    expect(
-      getHistoryFiltersFromSearchParams(params, "org-1", projectOptions),
-    ).toEqual({
-      q: "research",
-      scope: "owned",
-      type: "job",
-      status: TaskStatus.COMPLETED,
-      projectId: PROJECT_ID,
-    });
-
-    expect(
-      getHistoryFiltersFromSearchParams(params, "org-1", [
-        { id: "44444444-4444-4444-8444-444444444444", name: "Other" },
-      ]),
-    ).toEqual({
-      q: "research",
-      scope: "owned",
-      type: "job",
-      status: TaskStatus.COMPLETED,
-      projectId: null,
-    });
-  });
-
-  it("builds URL params without losing unrelated query state", () => {
-    const currentSearchParams = new URLSearchParams({
-      create: "true",
-    });
-
-    const nextSearchParams = buildHistoryFiltersSearchParams(
-      currentSearchParams,
+  it("writes non-default filters to the query string", () => {
+    const params = buildHistoryFiltersSearchParams(
+      new URLSearchParams(),
       {
-        q: "research",
-        scope: "owned",
-        type: "task",
-        status: TaskStatus.READY,
+        q: "poster",
+        scope: "workspace",
+        type: "unattributed",
         projectId: PROJECT_ID,
       },
       "org-1",
     );
 
-    expect(nextSearchParams.toString()).toBe(
-      "create=true&q=research&type=task&status=READY&projectId=33333333-3333-4333-8333-333333333333",
-    );
+    expect(params.get("q")).toBe("poster");
+    expect(params.get("scope")).toBe("workspace");
+    expect(params.get("type")).toBe("unattributed");
+    expect(params.get("projectId")).toBe(PROJECT_ID);
   });
 
-  it("removes default filters from the query string", () => {
-    const currentSearchParams = new URLSearchParams({
-      q: "research",
-      scope: "owned",
-      type: "task",
-      status: TaskStatus.READY,
-      projectId: PROJECT_ID,
-    });
+  it("changes the reset key when any filter changes", () => {
+    const base = {
+      q: null,
+      scope: "owned" as const,
+      type: null,
+      projectId: null,
+    };
+    const key = getHistoryFiltersResetKey(base, "org-1");
 
-    const nextSearchParams = buildHistoryFiltersSearchParams(
-      currentSearchParams,
-      {
-        q: null,
-        scope: "owned",
-        type: null,
-        status: null,
-        projectId: null,
-      },
-      "org-1",
-    );
-
-    expect(nextSearchParams.toString()).toBe("");
-  });
-
-  it("derives stable reset keys", () => {
+    expect(getHistoryFiltersResetKey(base, "org-1")).toBe(key);
     expect(
-      getHistoryFiltersResetKey(
-        {
-          q: "research",
-          scope: "workspace",
-          type: "job",
-          status: "archived",
-          projectId: PROJECT_ID,
-        },
-        "org-1",
-      ),
-    ).toBe(
-      "org-1:research:workspace:job:archived:33333333-3333-4333-8333-333333333333",
-    );
+      getHistoryFiltersResetKey({ ...base, type: "job" }, "org-1"),
+    ).not.toBe(key);
+    expect(getHistoryFiltersResetKey(base, null)).not.toBe(key);
   });
 });

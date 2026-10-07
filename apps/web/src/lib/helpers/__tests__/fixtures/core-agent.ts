@@ -1,4 +1,4 @@
-import type { AgentDetail } from "@/lib/clients/generated/core";
+import type { AgentDetail } from "@sokosumi/core-client";
 import type { CoreAgentDto } from "@/lib/types/core-dto";
 
 export function createMockCoreAgent(

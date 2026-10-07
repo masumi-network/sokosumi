@@ -12,7 +12,9 @@ compatibility: "Portable repo skill. The required artifact is SKILL.md."
 
 ## Load the Skill and CLI
 
-[VERIFIED: `apps/cli/package.json`] The private package in `apps/cli` builds the `sokosumi` executable. Skill installation and CLI installation are separate. Build this checkout from the repository root with Node.js 24 and its dependencies:
+[CORRECTION, VERIFIED: `apps/cli/package.json`] The earlier private-package description was stale.
+The manifest defines `@masumi_network/sokosumi` version `1.0.2` with public npm access. It requires Node.js 24 and packages `dist` and `skills`.
+Skill installation and CLI installation are separate. Build this checkout from the repository root with its dependencies:
 
 ```bash
 pnpm build --filter=@masumi_network/sokosumi --cache=local:w
@@ -20,6 +22,10 @@ node apps/cli/dist/bin/sokosumi.js --help
 ```
 
 Configure the host's command tool with that executable's path. Examples below use `sokosumi` as its short name. Load this checkout's `apps/cli/skills/sokosumi/SKILL.md` through the host's existing Skill loader. Keep `references` beside it.
+
+[VERIFIED: `apps/cli/src/cli/commands/skills.ts`] For an installed CLI, run `sokosumi skills path` to locate its bundled Skills.
+Load `sokosumi/SKILL.md` from that directory. `sokosumi skills --json` lists each Skill and its path.
+[VERIFIED: local documentation audit, 2026-09-30] This audit did not verify registry publication or host installation.
 
 [REPORTED: existing distribution instructions] The repository install command is:
 
@@ -56,14 +62,14 @@ sokosumi --preprod coworkers list --scope owned --json
 
 Use returned IDs. Select the intended organization Workspace, Vendor, and existing Coworker. Ask only for a missing name or a choice between suitable records. Reuse an existing administered Vendor. Propose `vendors create --name NAME --slug SLUG` only when discovery finds no suitable one and the user wants a new Vendor.
 
-[VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/organization-workspace.ts`] The current connection command requires an organization Workspace in the caller's memberships. A personal Workspace is not accepted by this path. If no suitable organization exists, use Web to create or join one, then repeat discovery. Do not choose a shared Workspace by default.
+[VERIFIED: `apps/cli/src/cli/registration-authority.ts`, `apps/cli/src/api/models/organization-workspace.ts`] Choose `--personal` for private setup. `workspaces list --personal --json` checks personal Workspace existence without creating it. `coworkers register --personal` or `connect --personal` creates a missing personal Workspace through the authenticated user endpoint, then requests access for that user. For an organization, choose its organization ID from memberships. Never combine personal and organization selectors.
 
 [VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`; Core `apps/core/src/routes/v1/coworkers/post.ts`, `apps/core/src/helpers/coworker-workspace-access.ts`]
 
 | Evidence | What it allows in this CLI |
 | --- | --- |
 | `user.platformRole` includes the exact `admin` role | Platform-admin provisioning and `admin` commands, subject to Core authorization |
-| Selected Vendor membership has `role: "admin"` | The Vendor check required by `coworkers connect` |
+| Selected Vendor membership has `role: "admin"` | Provisioning a private Coworker on Preprod and the Vendor check for `coworkers connect` |
 | Selected organization appears in `workspaces list` | The Workspace membership check required by `coworkers connect` |
 | Organization role is `owner` or `admin` | Organization authority; it does not replace platform or Vendor authority |
 
@@ -73,17 +79,17 @@ Use returned IDs. Select the intended organization Workspace, Vendor, and existi
 
 ## Set up private Workspace use
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] A Coworker record identifies an agent in Sokosumi. Reuse the matching record when it exists. If a record is missing, a signed-in platform admin can provision one under the chosen Vendor:
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] A Coworker record identifies an agent in Sokosumi. Reuse the matching record when it exists. On Preprod, a Vendor admin can provision a private Coworker under that Vendor. A platform admin can provision under another Vendor. Provisioning does not require Workspace membership:
 
 ```bash
 sokosumi --preprod coworkers provision --vendor-id VENDOR_ID --name "COWORKER_NAME" --capability tasks --json
 ```
 
-If the current user lacks platform authority, prepare that command and the non-secret Vendor ID and name for a platform admin. Keep the user's selected records when switching accounts. Do not request an admin token or send a handoff message without authorization.
+If the current user lacks both Vendor admin and platform admin authority, stop before creation. Check `vendors me`. Do not request an admin token or send a handoff message without authorization.
 
-[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] Provisioning checks live platform role and verifies the returned Vendor and `isWhitelisted: false`. Keep `handoff.coworkerId` and `handoff.vendorId`. Provisioning does not grant Workspace access or assign the Coworker to a person by email. Vendor admins can manage their Vendor's Coworkers.
+[VERIFIED: `apps/cli/src/cli/commands/coworkers.ts`] Provisioning checks live platform role or administered Vendor membership. It verifies the returned Vendor and `isWhitelisted: false`. Keep `handoff.coworkerId` and `handoff.vendorId`. Provisioning does not grant Workspace access or assign the Coworker to a person by email. Vendor admins can manage their Vendor's Coworkers.
 
-With the required Vendor and organization memberships, connect the record:
+With the required Vendor and organization memberships, request access for the existing record. `PENDING` means a Workspace owner or admin must approve it. The command returns the Coworker and access IDs without creating a replacement. Only `GRANTED` confirms Workspace availability:
 
 ```bash
 sokosumi --preprod coworkers connect COWORKER_ID --vendor-id VENDOR_ID --workspace-id ORGANIZATION_ID --json
@@ -115,8 +121,23 @@ Require `GRANTED` before reporting connection success. Preserve the Coworker ID 
    ```
 
 5. Report completion only after `COMPLETED` and a confirmed event ID. On failure, stop for operator inspection before any retry.
+6. When the operator asks whether the seller was paid, read the receipt:
+
+   ```bash
+   sokosumi runtime receipt TASK_ID --coworker-id COWORKER_ID --json
+   ```
+
+   Report payment only when `settled` is `true`, and quote its `txHash` when present. A settled receipt can still have a null `txHash`. `settled: false` means not paid yet. An error means unknown, not unpaid.
 
 [VERIFIED: `apps/cli/src/coworker/runtime-task.ts`, `apps/cli/src/api/http-client.ts`] Runtime calls use only the Coworker credential on Preprod. Start and completion check the assigned Coworker, organization, and Task status. Run one executor per Task. This flow does not create a worker lease, poll for automatic work, or install an agent host. An MCP-only host needs a separate transport adapter.
+
+[VERIFIED: merged commit `c2271e441`, PR #5342; `apps/cli/src/cli/commands/runtime.ts`, `apps/cli/src/coworker/runtime-task.ts`]
+Receipt support is merged. It reads Core with GET. Start and completion do not submit `masumiPayment` or create an MPS claim.
+[VERIFIED: planning briefs in repository `apps/cli/docs/mps-payment-stack/`]
+Seller setup, customer approval, paid execution, and payment recovery remain planned.
+The planning drafts contain no payment implementation. Do not infer payment capability from the installed Skill or Task completion.
+
+[CORRECTION, REPORTED: user decisions, 2026-09-30] The first flow will use an existing developer-managed MPS seller. Self-service CLI setup will store its scoped credential encrypted in Core. The Task billing owner will approve each fixed quote. Organization approval will require membership and applicable Seat eligibility in the original billing organization. Implementation is pending. Live seller proof is pending.
 
 ## Create and inspect organization Tasks
 
@@ -164,3 +185,20 @@ sokosumi jobs input JOB_ID --event-id EVENT_ID --input-file ./answer.json --json
 The main workflow is self-contained. Use `coworker`, `tasks`, `jobs`, `agents`, or `watch` only when that focused Skill is installed. Installing this Skill does not establish their presence. `watch` is a Skill, not a CLI command.
 
 [REPORTED: user product direction, 2026-09-27] Framework adapters are optional. Private Workspace setup comes before the developer distribution flow and global listing. Payment submission and global approval remain separate work. Do not invent commands for them or claim seller receipt from Task completion.
+
+[CORRECTION, VERIFIED source: `apps/cli/src/cli/commands/coworkers.ts`] Earlier instructions required a platform admin for all provisioning. Preprod now permits private provisioning by the selected Vendor admin. Organization members can request access with `register` or `connect`. A `PENDING` result is a successful approval request, not Workspace availability. Preserve the returned Coworker ID. Repeat `connect` after approval, never `register`. Runtime key creation remains an explicit separate command or `register --create-api-key`.
+
+## Personal Workspace test
+
+[VERIFIED source: `apps/cli/src/cli/coworker-workspace-target.ts`, `apps/cli/src/api/services/personal-workspace-service.ts`, `apps/cli/src/cli/commands/runtime.ts`] Explicit personal setup creates a missing personal Workspace. Read-only listing never creates one. Runtime derives the owner and Workspace from the assigned Task, then asks Core to authorize the personal Workspace using the Coworker key. Developer credentials never authorize runtime calls.
+
+```sh
+sokosumi --preprod workspaces list --personal --json
+sokosumi --preprod coworkers register --personal --vendor-id VENDOR_ID --name COWORKER_NAME --capability tasks --json
+sokosumi --preprod coworkers connect COWORKER_ID --personal --vendor-id VENDOR_ID --json
+sokosumi --preprod tasks create --personal --coworker-id COWORKER_ID --description DESCRIPTION --status READY --json
+sokosumi --preprod runtime start TASK_ID --personal --coworker-id COWORKER_ID --json
+sokosumi --preprod runtime complete TASK_ID --personal --coworker-id COWORKER_ID --result-file RESULT_FILE --json
+```
+
+[VERIFIED source: `apps/cli/src/coworker/runtime-task.ts`] Runtime `grant_required` means the Task owner's Workspace must approve the Vendor request. `grant_denied` or `grant_revoked` requires a Workspace owner or admin to resolve that state. Keep the Task and Coworker IDs. Do not recreate them to bypass an access decision. Personal credits are separate from event credits. Open billing in Sokosumi Web for the selected Workspace.

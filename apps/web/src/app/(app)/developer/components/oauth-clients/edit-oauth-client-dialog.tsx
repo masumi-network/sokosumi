@@ -5,7 +5,6 @@ import {
   hasCoreApiOAuthScope,
   hasOfflineAccessOAuthScope,
 } from "@sokosumi/utils";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -63,6 +62,8 @@ export function EditOAuthClientDialog({
       form.reset({
         name: client.client_name ?? "",
         redirectUris: (client.redirect_uris ?? []).join("\n"),
+        clientUri: client.client_uri ?? "",
+        logoUri: client.logo_uri ?? "",
         includeCoreApi: hasCoreApiOAuthScope(client.scope),
         includeOfflineAccess: hasOfflineAccessOAuthScope(client.scope),
       });
@@ -80,6 +81,8 @@ export function EditOAuthClientDialog({
       clientId: client.client_id,
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      clientUri: values.clientUri,
+      logoUri: values.logoUri,
       includeCoreApi: values.includeCoreApi,
       includeOfflineAccess: values.includeOfflineAccess,
     });
@@ -100,7 +103,7 @@ export function EditOAuthClientDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
+      <DialogContent className="app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain">
         <DialogHeader>
           <DialogTitle>{t("EditDialog.title")}</DialogTitle>
           <DialogDescription>{t("EditDialog.description")}</DialogDescription>
@@ -162,6 +165,48 @@ export function EditOAuthClientDialog({
                     <p className="text-muted-foreground text-xs">
                       {t("EditDialog.redirectUrisHelp")}
                     </p>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="clientUri"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("EditDialog.clientUriLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="url"
+                        placeholder={t("EditDialog.clientUriPlaceholder")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("EditDialog.clientUriHelp")}
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="logoUri"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("EditDialog.logoUriLabel")}</FormLabel>
+                    <FormControl>
+                      <Input
+                        inputMode="url"
+                        placeholder={t("EditDialog.logoUriPlaceholder")}
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormDescription>
+                      {t("EditDialog.logoUriHelp")}
+                    </FormDescription>
                     <FormMessage />
                   </FormItem>
                 )}
@@ -234,10 +279,7 @@ export function EditOAuthClientDialog({
                 >
                   {t("EditDialog.cancelButton")}
                 </Button>
-                <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                  ) : null}
+                <Button type="submit" loading={isSubmitting}>
                   {t("EditDialog.saveButton")}
                 </Button>
               </DialogFooter>

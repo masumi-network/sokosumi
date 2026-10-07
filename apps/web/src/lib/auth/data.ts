@@ -1,3 +1,7 @@
+import {
+  isFirstAndLastNameWithinLimit,
+  USER_NAME_MAX_LENGTH,
+} from "@sokosumi/utils";
 import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -7,15 +11,47 @@ export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     .string({ error: t?.("Name.invalid") })
     .min(1, { error: t?.("Name.required") })
     .min(2, { error: t?.("Name.min") })
-    .max(128, {
+    .max(USER_NAME_MAX_LENGTH, {
       error: t?.("Name.max"),
     });
 
+const firstNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+  z
+    .string({ error: t?.("FirstName.required") })
+    .trim()
+    .min(1, { error: t?.("FirstName.required") });
+
+const lastNameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
+  z
+    .string({ error: t?.("LastName.required") })
+    .trim()
+    .min(1, { error: t?.("LastName.required") });
+
+export const firstAndLastNameSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z
+    .object({
+      firstName: firstNameSchema(t),
+      lastName: lastNameSchema(t),
+    })
+    .refine(
+      ({ firstName, lastName }) =>
+        isFirstAndLastNameWithinLimit(firstName, lastName),
+      {
+        path: ["lastName"],
+        error: t?.("FullName.max"),
+      },
+    );
+
 export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
-    .email({ error: t?.("Email.invalid") })
-    .min(1, { error: t?.("Email.required") });
+    .string({ error: t?.("Email.invalid") })
+    .trim()
+    .min(1, { error: t?.("Email.required") })
+    .pipe(z.email({ error: t?.("Email.invalid") }));
 
+// Length only, matching what Core enforces.
 export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ error: t?.("Password.invalid") })
@@ -25,15 +61,6 @@ export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     })
     .max(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH, {
       error: t?.("Password.max"),
-    })
-    .refine((value) => /^(?=.*[a-z])/.test(value), {
-      error: t?.("Password.lowercase"),
-    })
-    .refine((value) => /^(?=.*[A-Z])/.test(value), {
-      error: t?.("Password.uppercase"),
-    })
-    .refine((value) => /^(?=.*\d)/.test(value), {
-      error: t?.("Password.number"),
     });
 
 export const confirmPasswordSchema = (

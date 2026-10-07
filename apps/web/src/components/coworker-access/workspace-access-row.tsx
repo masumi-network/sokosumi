@@ -1,12 +1,10 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import type { CoworkerWorkspaceAccess } from "@/lib/clients/generated/core";
 import { workspaceApprovalStatusMessageKey } from "@/lib/utils/workspace-approval";
 
 interface WorkspaceAccessRowProps {
@@ -76,14 +74,11 @@ export function WorkspaceAccessRow({
             size="sm"
             variant="outline"
             className="h-7 px-2.5"
-            disabled={isRevoking}
             onClick={() => {
               void handleRevoke();
             }}
+            loading={isRevoking}
           >
-            {isRevoking ? (
-              <Loader2 className="size-3.5 animate-spin motion-reduce:animate-pulse" />
-            ) : null}
             {t("revoke")}
           </Button>
         ) : null}

@@ -10,6 +10,7 @@ import {
   type CoworkerWorkspaceAccess,
   parseCoworkerWorkspaceAccessResponse,
 } from "../models/coworker-workspace-access.js";
+import { listResponse, requireId } from "../models/parse-helpers.js";
 
 const COWORKERS_PATH = "/v1/coworkers";
 
@@ -25,9 +26,9 @@ export interface CoworkerApiKeyData {
   expiresAt?: string | null;
 }
 
-export interface CoworkerWorkspaceAccessTarget {
-  organizationId: string;
-}
+export type CoworkerWorkspaceAccessTarget =
+  | { organizationId: string; userId?: never }
+  | { userId: string; organizationId?: never };
 
 function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   const params = new URLSearchParams();
@@ -45,21 +46,12 @@ function pathWithQuery(options: FetchCoworkersOptions = {}): string {
   return query ? `${COWORKERS_PATH}?${query}` : COWORKERS_PATH;
 }
 
-function parseList(response: ApiResponse<unknown>): ApiResponse<unknown[]> {
-  const data = Array.isArray(response.data) ? response.data : [];
-  return { ...response, data };
-}
-
-function requireId(id: string, name: string): void {
-  if (!id) throw new Error(`${name} is required`);
-}
-
 export async function fetchCoworkers(
   client: CoreHttpClient,
   options: FetchCoworkersOptions = {},
   signal?: AbortSignal,
 ): Promise<{ response: ApiResponse<unknown[]>; coworkers: Coworker[] }> {
-  const response = parseList(
+  const response = listResponse(
     parseApiResponse(await client.get<unknown>(pathWithQuery(options), signal)),
   );
   return { response, coworkers: response.data.map(parseCoworker) };
@@ -160,12 +152,19 @@ export async function grantCoworkerWorkspaceAccess(
   access: CoworkerWorkspaceAccess;
 }> {
   requireId(coworkerId, "coworkerId");
-  if (!target.organizationId.trim())
-    throw new Error("organizationId is required");
+  const key = target.userId !== undefined ? "userId" : "organizationId";
+  const value = target[key]?.trim();
+  if (
+    !value ||
+    (target.userId !== undefined && target.organizationId !== undefined)
+  )
+    throw new Error(
+      `${key} is required and only one Workspace target is allowed`,
+    );
   const parsed = parseCoworkerWorkspaceAccessResponse(
     await client.post<unknown>(
       `${COWORKERS_PATH}/${encodeURIComponent(coworkerId)}/workspace-access`,
-      { organizationId: target.organizationId.trim() },
+      { [key]: value },
       signal,
     ),
   );

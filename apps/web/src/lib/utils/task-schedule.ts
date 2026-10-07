@@ -1,11 +1,11 @@
-import { isValidTimezone } from "@sokosumi/utils";
-import { CronExpressionParser as cronParser } from "cron-parser";
 import type {
   TaskSchedule,
   TaskScheduleRule,
   TaskScheduleRuleReplacement,
-} from "@/lib/clients/generated/core/types.gen";
-import { DOW, parseCron } from "@/lib/schedules/cron";
+} from "@sokosumi/core-client";
+import { isTaskScheduleCronShape, isValidTimezone } from "@sokosumi/utils";
+import { CronExpressionParser as cronParser } from "cron-parser";
+import { parseCron } from "@/lib/schedules/cron";
 import {
   endOfLocalDateInTimezone,
   parseDateTimeLocalParts,
@@ -23,14 +23,6 @@ function pad2(value: number): string {
 
 export function formatDateTimeLocalInput(date: Date): string {
   return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}T${pad2(date.getHours())}:${pad2(date.getMinutes())}`;
-}
-
-export function parseDateTimeLocalInput(
-  value: string | undefined,
-): Date | null {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
 function derivePresetFromCron(cron: string): {
@@ -396,6 +388,7 @@ export function schedulableRunAtLocalIso(
 }
 
 export function isValidCronExpression(expr: string, timezone: string): boolean {
+  if (!isTaskScheduleCronShape(expr)) return false;
   try {
     cronParser.parse(expr, { tz: timezone });
     return true;
@@ -451,5 +444,3 @@ export function hasTaskScheduleChanged(
   const currentSchedule = parseTaskScheduleSelection(current);
   return !areParsedSchedulesEqual(originalSchedule, currentSchedule);
 }
-
-export { DOW };

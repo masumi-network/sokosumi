@@ -1,11 +1,10 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import type { Coworker, CoworkerWorkspaceAccess } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { type FormEvent, useState } from "react";
 import { toast } from "sonner";
-
 import { CoworkerEarlyAccessForm } from "@/components/admin/coworkers/coworker-early-access-form";
 import { CoworkerDisplayForm } from "@/components/coworkers/coworker-display-form";
 import {
@@ -40,10 +39,6 @@ import {
   updateAdminCoworkerWhitelistAction,
 } from "@/lib/actions/admin-coworkers/action";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type {
-  Coworker,
-  CoworkerWorkspaceAccess,
-} from "@/lib/clients/generated/core/types.gen";
 import {
   ADMIN_COWORKER_CAPABILITIES,
   type AdminCoworkerCapability,
@@ -372,15 +367,12 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
             </div>
 
             <div className="flex flex-wrap gap-3">
-              <Button type="submit" disabled={isBusy}>
-                {isSavingControls ? (
-                  <>
-                    <Loader2 className="mr-2 size-4 animate-spin" />
-                    {t("controls.saving")}
-                  </>
-                ) : (
-                  t("controls.save")
-                )}
+              <Button
+                type="submit"
+                disabled={isBusy}
+                loading={isSavingControls}
+              >
+                {t("controls.save")}
               </Button>
 
               {archived ? (
@@ -388,16 +380,10 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                   type="button"
                   variant="outline"
                   disabled={isBusy}
+                  loading={isUnarchiving}
                   onClick={handleUnarchive}
                 >
-                  {isUnarchiving ? (
-                    <>
-                      <Loader2 className="mr-2 size-4 animate-spin" />
-                      {t("controls.unarchiving")}
-                    </>
-                  ) : (
-                    t("controls.unarchive")
-                  )}
+                  {t("controls.unarchive")}
                 </Button>
               ) : (
                 <AlertDialog>
@@ -425,17 +411,10 @@ export function CoworkerForm({ coworker, accessRows = [] }: CoworkerFormProps) {
                       </AlertDialogCancel>
                       <AlertDialogAction
                         onClick={handleArchive}
-                        disabled={isArchiving}
+                        loading={isArchiving}
                         className="bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                       >
-                        {isArchiving ? (
-                          <>
-                            <Loader2 className="mr-2 size-4 animate-spin" />
-                            {t("controls.archiving")}
-                          </>
-                        ) : (
-                          t("controls.archive")
-                        )}
+                        {t("controls.archive")}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>

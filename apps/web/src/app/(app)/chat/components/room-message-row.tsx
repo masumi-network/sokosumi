@@ -1,5 +1,14 @@
 "use client";
 
+import type {
+  ChatRoomCoworkerParticipant,
+  ChatRoomMessage,
+  ChatRoomMessageQuote,
+  ChatRoomMessageQuoteAttachment,
+  ChatRoomMessageReaction,
+  ChatRoomMessageUnfurl,
+  ChatRoomSokoBotParticipant,
+} from "@sokosumi/core-client";
 import {
   type ChannelLinkTarget,
   getExtensionFromUrl,
@@ -66,6 +75,7 @@ import {
 import { isOutboundSentTickActive } from "@/app/chat/utils/outbound-sent-tick";
 import { resolveQuickReactions } from "@/app/chat/utils/quick-reactions";
 import {
+  endsWithAttachmentRow,
   type RoomMessageFilesSegment,
   type RoomMessageSegment,
   segmentRoomMessageContent,
@@ -73,6 +83,12 @@ import {
 import { AuroraOrb } from "@/components/aurora-orb";
 import type { ComposerChannelOption } from "@/components/chat/composer-suggestions";
 import { EmojiPicker } from "@/components/chat/emoji-picker";
+import {
+  ProjectSelectionMessage,
+  readProjectSelectionReply,
+} from "@/components/chat/project-selection-message";
+import { ResultPreviews } from "@/components/chat/result-previews";
+import { MessageSkillChips } from "@/components/chat/skill-chip";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -116,15 +132,6 @@ import {
   useFrequentlyUsedEmojis,
 } from "@/hooks/use-frequently-used-emojis";
 import { useRememberedImageSize } from "@/hooks/use-remembered-image-size";
-import type {
-  ChatRoomCoworkerParticipant,
-  ChatRoomMessage,
-  ChatRoomMessageQuote,
-  ChatRoomMessageQuoteAttachment,
-  ChatRoomMessageReaction,
-  ChatRoomMessageUnfurl,
-  ChatRoomSokoBotParticipant,
-} from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { devicePrefersHover } from "@/lib/utils/device-prefers-hover";
 import { getEmojiShortcodeName } from "@/lib/utils/emoji-shortcodes";
@@ -150,7 +157,9 @@ import { RoomMessageMarkdown } from "./room-mention-markdown";
 import { SokoBotChainBadge } from "./soko-bot-chain-badge";
 import {
   hasSokoBotMessageFooter,
+  SokoBotFeedbackButtons,
   SokoBotMessageFooter,
+  SokoBotSourceLabel,
 } from "./soko-bot-message-footer";
 
 type RoomMessageQuoteSnapshot = Exclude<ChatRoomMessageQuote, null>;
@@ -538,7 +547,7 @@ function MessageUnfurlCard({
         data-testid="room-message-unfurl"
       >
         {siteLabel ? (
-          <div className="text-muted-foreground truncate text-[0.6875rem] font-medium">
+          <div className="text-muted-foreground truncate text-2xs font-medium">
             {siteLabel}
           </div>
         ) : null}
@@ -565,7 +574,7 @@ function MessageUnfurlCard({
           type="button"
           variant="secondary"
           size="icon"
-          className="border-border absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
+          className="border-border hit-area absolute top-0 right-0 z-10 size-6 translate-x-1/2 -translate-y-1/2 rounded-full border opacity-100 [@media(hover:hover)]:pointer-events-none [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-focus-within/unfurl:pointer-events-auto [@media(hover:hover)]:group-focus-within/unfurl:opacity-100 [@media(hover:hover)]:group-hover/unfurl:pointer-events-auto [@media(hover:hover)]:group-hover/unfurl:opacity-100"
           aria-label={t("remove", { title: unfurl.title })}
           onClick={(event) => {
             event.preventDefault();
@@ -824,6 +833,15 @@ function ChannelMessageBody({
   const { expanded, toggleExpanded, overflows, contentRef } =
     useClampedOverflow({ cacheKey: `body:${messageId}`, resetKey: content });
 
+  const selectedProject = readProjectSelectionReply(content);
+  if (selectedProject)
+    return (
+      <div data-testid="room-message-body">
+        <ProjectSelectionMessage project={selectedProject} />
+        {trailing}
+      </div>
+    );
+
   // Skip Markdown/prose for jumbo — prose-sm would crush the large font size.
   if (isJumboEmoji) {
     return (
@@ -993,7 +1011,8 @@ function MessageActionControls({
 }: {
   message: ChatRoomMessage;
   quickReactions: readonly string[];
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1031,56 +1050,62 @@ function MessageActionControls({
 
   return (
     <>
-      {quickReactions.map((emoji) => {
-        const shortcode = getEmojiShortcodeName(emoji);
-        const reacted = reactedEmojis.has(emoji);
+      {onToggleReaction ? (
+        <>
+          {quickReactions.map((emoji) => {
+            const shortcode = getEmojiShortcodeName(emoji);
+            const reacted = reactedEmojis.has(emoji);
 
-        return (
-          <Button
-            key={emoji}
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={cn(
-              "group/quick-reaction size-9 rounded-full text-sm sm:size-7",
-              reacted && "bg-primary-quinary hover:bg-primary-quaternary",
-            )}
-            title={
-              shortcode ? `:${shortcode}:` : t("Reactions.toggle", { emoji })
-            }
-            aria-label={t("Reactions.toggle", { emoji })}
-            aria-pressed={reacted}
-            onClick={() => {
+            return (
+              <Button
+                key={emoji}
+                type="button"
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "group/quick-reaction size-10 rounded-full text-sm md:size-8",
+                  reacted && "bg-primary-quinary hover:bg-primary-quaternary",
+                )}
+                title={
+                  shortcode
+                    ? `:${shortcode}:`
+                    : t("Reactions.toggle", { emoji })
+                }
+                aria-label={t("Reactions.toggle", { emoji })}
+                aria-pressed={reacted}
+                onClick={() => {
+                  onToggleReaction(message, emoji);
+                  onAfterAction?.();
+                }}
+              >
+                {/* Only the glyph grows, so the hover circle keeps its size. */}
+                <span
+                  aria-hidden
+                  className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
+                >
+                  {emoji}
+                </span>
+              </Button>
+            );
+          })}
+          <EmojiPicker
+            title={t("Reactions.add")}
+            ariaLabel={t("Reactions.add")}
+            align="end"
+            triggerClassName="size-10 rounded-full md:size-8"
+            onPick={(emoji) => {
               onToggleReaction(message, emoji);
               onAfterAction?.();
             }}
-          >
-            {/* Only the glyph grows, so the hover circle keeps its size. */}
-            <span
-              aria-hidden
-              className="transition-transform duration-100 ease-out motion-safe:group-hover/quick-reaction:scale-115"
-            >
-              {emoji}
-            </span>
-          </Button>
-        );
-      })}
-      <EmojiPicker
-        title={t("Reactions.add")}
-        ariaLabel={t("Reactions.add")}
-        align="end"
-        triggerClassName="size-9 rounded-full sm:size-7"
-        onPick={(emoji) => {
-          onToggleReaction(message, emoji);
-          onAfterAction?.();
-        }}
-      />
+          />
+        </>
+      ) : null}
       {showEditButton && onEdit ? (
         <Button
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Edit.action")}
           aria-label={t("Edit.action")}
           onClick={() => {
@@ -1096,7 +1121,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Quote.action")}
           aria-label={t("Quote.action")}
           onClick={() => {
@@ -1112,7 +1137,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")}
           aria-label={
             isPinned ? t("PinnedMessages.unpin") : t("PinnedMessages.pin")
@@ -1134,7 +1159,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Copy.action")}
           aria-label={t("Copy.action")}
           onClick={() => {
@@ -1150,7 +1175,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="size-9 rounded-full sm:size-7"
+          className="size-10 rounded-full md:size-8"
           title={t("Thread.open")}
           aria-label={t("Thread.open")}
           onClick={() => {
@@ -1166,7 +1191,7 @@ function MessageActionControls({
           type="button"
           variant="ghost"
           size="icon"
-          className="text-destructive hover:text-destructive size-9 rounded-full sm:size-7"
+          className="text-destructive hover:text-destructive size-10 rounded-full md:size-8"
           title={t("Message.delete")}
           aria-label={t("Message.delete")}
           onClick={() => {
@@ -1184,7 +1209,7 @@ function MessageActionControls({
               type="button"
               variant="ghost"
               size="icon"
-              className="size-9 rounded-full sm:size-7"
+              className="size-10 rounded-full md:size-8"
               title={t("Actions.overflow")}
               aria-label={t("Actions.overflow")}
             >
@@ -1313,7 +1338,7 @@ function MessageActions({
   isContinuation,
 }: {
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1372,6 +1397,10 @@ function MessageActions({
       }}
     >
       <SokoBotChainBadge metadata={message.metadata} />
+      <SokoBotFeedbackButtons
+        metadata={message.metadata}
+        buttonClassName="size-10 rounded-full md:size-8"
+      />
       <MessageActionControls
         message={message}
         quickReactions={heldQuickReactions ?? liveQuickReactions}
@@ -1549,7 +1578,7 @@ function TouchMessageActionsSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -1624,39 +1653,47 @@ function TouchMessageActionsSheet({
           </SheetDescription>
         </SheetHeader>
         <div className="flex flex-wrap items-center justify-center gap-2 px-4 pb-4">
-          {quickReactions.map((emoji) => (
-            <Button
-              key={emoji}
-              type="button"
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "size-11 rounded-full text-xl",
-                reactedEmojis.has(emoji) &&
-                  "bg-primary-quinary hover:bg-primary-quaternary",
-              )}
-              aria-label={t("Reactions.toggle", { emoji })}
-              aria-pressed={reactedEmojis.has(emoji)}
-              onClick={() => {
-                runAndClose(() => {
-                  onToggleReaction(message, emoji);
-                });
-              }}
-            >
-              <span aria-hidden>{emoji}</span>
-            </Button>
-          ))}
-          <EmojiPicker
-            title={t("Reactions.add")}
-            ariaLabel={t("Reactions.add")}
-            align="center"
-            triggerClassName="size-11 rounded-full"
-            portalContainer={portalHost}
-            onPick={(emoji) => {
-              runAndClose(() => {
-                onToggleReaction(message, emoji);
-              });
-            }}
+          {onToggleReaction ? (
+            <>
+              {quickReactions.map((emoji) => (
+                <Button
+                  key={emoji}
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "size-11 rounded-full text-xl",
+                    reactedEmojis.has(emoji) &&
+                      "bg-primary-quinary hover:bg-primary-quaternary",
+                  )}
+                  aria-label={t("Reactions.toggle", { emoji })}
+                  aria-pressed={reactedEmojis.has(emoji)}
+                  onClick={() => {
+                    runAndClose(() => {
+                      onToggleReaction(message, emoji);
+                    });
+                  }}
+                >
+                  <span aria-hidden>{emoji}</span>
+                </Button>
+              ))}
+              <EmojiPicker
+                title={t("Reactions.add")}
+                ariaLabel={t("Reactions.add")}
+                align="center"
+                triggerClassName="size-11 rounded-full"
+                portalContainer={portalHost}
+                onPick={(emoji) => {
+                  runAndClose(() => {
+                    onToggleReaction(message, emoji);
+                  });
+                }}
+              />
+            </>
+          ) : null}
+          <SokoBotFeedbackButtons
+            metadata={message.metadata}
+            buttonClassName="size-11 rounded-full"
           />
         </div>
         {whoReactedRows.length > 0 ? (
@@ -2195,7 +2232,7 @@ function ThreadReplyBar({
                   // apart; any thicker reads as a halo on the tinted bar.
                   className="ring-background size-4 ring-1"
                   // Grey like the read-receipt faces, not the bar's link blue.
-                  fallbackClassName="bg-muted text-muted-foreground text-[0.5rem]"
+                  fallbackClassName="bg-muted text-muted-foreground text-2xs"
                   monogram
                 />
               </span>
@@ -2229,7 +2266,7 @@ function MessageMetaFooter({
   isDeleted,
 }: {
   message: ChatRoomMessage;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   showThreadButton: boolean;
   isDeleted: boolean;
@@ -2249,9 +2286,17 @@ function MessageMetaFooter({
                 <TooltipTrigger asChild>
                   <button
                     type="button"
-                    onClick={() => onToggleReaction(message, reaction.emoji)}
+                    onClick={
+                      onToggleReaction
+                        ? () => onToggleReaction(message, reaction.emoji)
+                        : undefined
+                    }
+                    // Still shows who reacted; a read-only Direct takes no
+                    // new reactions.
+                    aria-disabled={onToggleReaction ? undefined : true}
                     className={cn(
-                      "border-border bg-background press hover:bg-muted inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      "border-border bg-background inline-flex h-8 items-center gap-1 rounded-full border px-2.5 text-xs font-medium transition-colors sm:h-7 sm:px-2",
+                      onToggleReaction && "press hover:bg-muted",
                       reaction.reactedByCurrentUser &&
                         "border-primary-tertiary bg-primary-quinary text-primary",
                     )}
@@ -2322,6 +2367,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isPinned = false,
   isContinuation = false,
   isFirstOfDay = false,
+  newestEndsInAttachment = false,
   seenBy,
 }: {
   message: ChatRoomMessage;
@@ -2336,7 +2382,8 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   canOpenHumanDirect?: boolean;
   onOpenDirectMessage?: (profile: ChatParticipantHoverProfile) => void;
   openingDirectParticipantKey?: string | null;
-  onToggleReaction: (message: ChatRoomMessage, emoji: string) => void;
+  /** Absent where the reader cannot react (a read-only Direct). */
+  onToggleReaction?: (message: ChatRoomMessage, emoji: string) => void;
   onOpenThread?: (message: ChatRoomMessage) => void;
   onQuote?: (message: ChatRoomMessage) => void;
   onPin?: (message: ChatRoomMessage) => void;
@@ -2369,6 +2416,14 @@ export const ChatMessageRow = memo(function ChatMessageRow({
   isContinuation?: boolean;
   /** First message of a calendar day after a day separator; omit top margin because separator already provides rhythm. */
   isFirstOfDay?: boolean;
+  /**
+   * This is the newest message in the transcript, the one the Seen by faces
+   * land on, and its body ends in attachments. Known before the read state
+   * loads, so the room kept for the faces is there from the first paint and
+   * nothing moves when they arrive. Text rows never get it, so a new message
+   * re-renders only the row that loses it.
+   */
+  newestEndsInAttachment?: boolean;
   /**
    * Seen by faces, pinned to the bottom-right of the message column. Newest
    * message only.
@@ -2468,17 +2523,29 @@ export const ChatMessageRow = memo(function ChatMessageRow({
     !isOutboundLocal &&
     message.threadReplyCount > 0 &&
     onOpenThread != null;
-  const hasUnfurlRow = !isDeleted && (message.unfurls ?? []).length > 0;
+  const hasUnfurlRow =
+    !isDeleted &&
+    ((message.unfurls ?? []).length > 0 ||
+      (message.skills ?? []).length > 0 ||
+      (message.resultPreviews ?? []).length > 0);
   const hasSokoBotFooter =
     !isDeleted && hasSokoBotMessageFooter(message.metadata);
-  const bodyEndsTheRow =
-    seenBy != null &&
+  const contentEndsTheRow =
     !isEditing &&
     !hasReactionRow &&
     !hasThreadLink &&
     !hasUnfurlRow &&
     !hasSokoBotFooter &&
     outboundStatus !== "failed";
+  // An attachment row is a block: the inline reserve after it has no line to
+  // share and opens one of its own, a line height the row gained only when
+  // the faces arrived. The newest row instead keeps the few pixels the faces
+  // overhang the attachment's own margin, from the first paint.
+  const attachmentEndsTheRow =
+    contentEndsTheRow && !isDeleted && endsWithAttachmentRow(message.content);
+  const bodyEndsTheRow =
+    seenBy != null && contentEndsTheRow && !attachmentEndsTheRow;
+  const keepsSeenByCornerClear = newestEndsInAttachment && attachmentEndsTheRow;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   // Neither overlay is mounted until first opened. A closed Radix dialog
@@ -2557,21 +2624,23 @@ export const ChatMessageRow = memo(function ChatMessageRow({
 
   // Every reaction path in the row (pill, sheet, picker, existing chips) lands
   // here, so adding one teaches the quick reactions. Removing one does not.
-  function handleToggleReaction(target: ChatRoomMessage, emoji: string) {
-    if (!readerReactedEmojis(target).has(emoji)) {
-      if (recordedUsesRef.current?.reactions !== target.reactions) {
-        recordedUsesRef.current = {
-          reactions: target.reactions,
-          emojis: new Set(),
-        };
+  const handleToggleReaction = onToggleReaction
+    ? (target: ChatRoomMessage, emoji: string) => {
+        if (!readerReactedEmojis(target).has(emoji)) {
+          if (recordedUsesRef.current?.reactions !== target.reactions) {
+            recordedUsesRef.current = {
+              reactions: target.reactions,
+              emojis: new Set(),
+            };
+          }
+          if (!recordedUsesRef.current.emojis.has(emoji)) {
+            recordedUsesRef.current.emojis.add(emoji);
+            recordEmojiUse(emoji);
+          }
+        }
+        onToggleReaction(target, emoji);
       }
-      if (!recordedUsesRef.current.emojis.has(emoji)) {
-        recordedUsesRef.current.emojis.add(emoji);
-        recordEmojiUse(emoji);
-      }
-    }
-    onToggleReaction(target, emoji);
-  }
+    : undefined;
 
   return (
     <article
@@ -2699,7 +2768,12 @@ export const ChatMessageRow = memo(function ChatMessageRow({
             {showPinned ? <MessagePinnedLabel /> : null}
           </div>
         )}
-        <div className="text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm">
+        <div
+          className={cn(
+            "text-foreground min-w-0 max-w-full wrap-anywhere [word-break:break-word] text-base leading-6 md:text-sm",
+            keepsSeenByCornerClear && "pb-3",
+          )}
+        >
           {isDeleted ? (
             <p className="text-muted-foreground italic">
               {tChannels("Message.deleted")}
@@ -2766,6 +2840,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                 />
               ) : (
                 <>
+                  <SokoBotSourceLabel metadata={message.metadata} />
                   {thoughtView?.disclosure ? (
                     <div className="mb-1">
                       <CoworkerThoughtTrace
@@ -2823,6 +2898,7 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                       }
                     />
                   )}
+                  <MessageSkillChips skills={message.skills} />
                   <MessageUnfurlList
                     unfurls={message.unfurls}
                     canRemove={canRemoveUnfurl}
@@ -2832,7 +2908,22 @@ export const ChatMessageRow = memo(function ChatMessageRow({
                         : undefined
                     }
                   />
-                  <SokoBotMessageFooter metadata={message.metadata} />
+                  <ResultPreviews
+                    descriptors={message.resultPreviews ?? []}
+                    source={{ roomId: message.roomId, messageId: message.id }}
+                    renderFooter={(results) => (
+                      <SokoBotMessageFooter
+                        metadata={message.metadata}
+                        previewedTaskIds={results.flatMap((result) =>
+                          result.state === "available" &&
+                          result.kind === "task" &&
+                          result.task
+                            ? [result.task.id]
+                            : [],
+                        )}
+                      />
+                    )}
+                  />
                 </>
               )}
             </>
@@ -2861,7 +2952,17 @@ export const ChatMessageRow = memo(function ChatMessageRow({
           `end-2` is the action pill's own edge, so the two share a vertical
           line and the faces land in the same corner on every row. */}
       {seenBy ? (
-        <div className="absolute end-2 bottom-1 z-10">{seenBy}</div>
+        <div
+          className={cn(
+            "absolute end-2 bottom-1 z-10",
+            // The usual 44px mobile target reaches up onto a wide picture.
+            // Keep its top inside the reserved corner; the compact target
+            // still clears 24px after the transcript's bottom padding clips it.
+            keepsSeenByCornerClear && "[&_button]:after:-top-0.5",
+          )}
+        >
+          {seenBy}
+        </div>
       ) : null}
       {showActions ? (
         <>

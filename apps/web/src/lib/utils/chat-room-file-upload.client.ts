@@ -1,11 +1,11 @@
 "use client";
 
+import type { BlobFile } from "@sokosumi/core-client";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import {
   CoreApiRequestError,
   coreClient,
 } from "@/lib/clients/core.browser.client";
-import type { BlobFile } from "@/lib/clients/generated/core";
 import {
   type UploadUserFileDirectOptions,
   UserFileUploadError,
@@ -28,7 +28,7 @@ function toChatRoomFileUploadError(error: unknown): UserFileUploadError {
     if (error.status === 401 || error.status === 403) {
       return new UserFileUploadError(
         "unauthorized",
-        "You need to sign in before uploading files.",
+        "You need to log in before uploading files.",
       );
     }
 

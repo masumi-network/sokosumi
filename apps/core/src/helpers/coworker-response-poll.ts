@@ -1,3 +1,7 @@
+import { ssrfSafeFetch } from "@sokosumi/net";
+
+const MAX_COWORKER_RETRIEVE_RESPONSE_BYTES = 16 * 1024 * 1024;
+
 export const DEFAULT_POLL_MAX_ATTEMPTS = 5;
 export const DEFAULT_POLL_BASE_DELAY_MS = 500;
 export const DEFAULT_POLL_MAX_DELAY_MS = 5_000;
@@ -38,6 +42,7 @@ function buildCoworkerRetrieveHeaders(params: {
   coworkerSlug: string;
 }): Record<string, string> {
   const headers: Record<string, string> = {
+    "Accept-Encoding": "identity",
     "X-Sokosumi-User-Id": params.userId,
     "X-Coworker-Slug": params.coworkerSlug,
   };
@@ -109,7 +114,6 @@ export function coworkerResponseText(payload: unknown): string | null {
 export async function retrieveCoworkerResponse(
   params: PollCoworkerResponseStatusParams,
 ): Promise<{ result: CoworkerResponsePollStatus; text: string | null }> {
-  const fetchFn = params.fetchFn ?? fetch;
   const base = params.responsesApiBaseUrl.replace(/\/$/, "");
   const url = `${base}/responses/${encodeURIComponent(params.responseId)}`;
   const failed = (cause: unknown) => ({
@@ -119,7 +123,7 @@ export async function retrieveCoworkerResponse(
 
   let response: Response;
   try {
-    response = await fetchFn(url, {
+    const init = {
       method: "GET",
       headers: buildCoworkerRetrieveHeaders({
         userId: params.userId,
@@ -127,7 +131,11 @@ export async function retrieveCoworkerResponse(
         coworkerSlug: params.coworkerSlug,
       }),
       signal: AbortSignal.timeout(15_000),
-    });
+      maxResponseBytes: MAX_COWORKER_RETRIEVE_RESPONSE_BYTES,
+    };
+    response = params.fetchFn
+      ? await params.fetchFn(url, init)
+      : await ssrfSafeFetch(url, init);
   } catch (error) {
     return failed(error);
   }

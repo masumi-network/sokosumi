@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -28,6 +27,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 import { ClientSecretField } from "./client-secret-field";
 import type {
@@ -79,6 +79,8 @@ export function CreateOAuthClientDialog({
     const result = await createClient({
       name: values.name,
       redirectUris: parseRedirectUris(values.redirectUris),
+      clientUri: values.clientUri,
+      logoUri: values.logoUri,
       includeCoreApi: values.includeCoreApi,
       includeOfflineAccess: values.includeOfflineAccess,
       isPublic: values.isPublic,
@@ -143,7 +145,10 @@ export function CreateOAuthClientDialog({
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        className={showingCredentials ? "[&>button]:hidden" : undefined}
+        className={cn(
+          "app-scrollbar max-h-[90dvh] overflow-y-auto overscroll-contain",
+          showingCredentials && "[&>button]:hidden",
+        )}
         onEscapeKeyDown={(event) => {
           if (showingCredentials) {
             event.preventDefault();
@@ -272,6 +277,48 @@ export function CreateOAuthClientDialog({
 
                 <FormField
                   control={form.control}
+                  name="clientUri"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("CreateDialog.clientUriLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          inputMode="url"
+                          placeholder={t("CreateDialog.clientUriPlaceholder")}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("CreateDialog.clientUriHelp")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="logoUri"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>{t("CreateDialog.logoUriLabel")}</FormLabel>
+                      <FormControl>
+                        <Input
+                          inputMode="url"
+                          placeholder={t("CreateDialog.logoUriPlaceholder")}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        {t("CreateDialog.logoUriHelp")}
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
                   name="includeCoreApi"
                   render={({ field }) => (
                     <FormItem>
@@ -366,10 +413,7 @@ export function CreateOAuthClientDialog({
                   >
                     {t("CreateDialog.cancelButton")}
                   </Button>
-                  <Button type="submit" disabled={isSubmitting}>
-                    {isSubmitting ? (
-                      <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
-                    ) : null}
+                  <Button type="submit" loading={isSubmitting}>
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>

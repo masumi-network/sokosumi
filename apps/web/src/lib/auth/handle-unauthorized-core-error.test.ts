@@ -18,84 +18,8 @@ vi.mock("next/headers", () => ({
   headers: headersMock,
 }));
 
-import {
-  isUnauthorizedCoreApiError,
-  redirectIfUnauthorizedCoreError,
-  withUnauthorizedCoreRedirect,
-} from "@/lib/auth/handle-unauthorized-core-error";
+import { withUnauthorizedCoreRedirect } from "@/lib/auth/handle-unauthorized-core-error";
 import { CoreApiRequestError } from "@/lib/clients/core.request";
-
-describe("isUnauthorizedCoreApiError", () => {
-  it("matches Core 401 responses", () => {
-    expect(
-      isUnauthorizedCoreApiError(
-        new CoreApiRequestError("Unauthorized", { status: 401 }),
-      ),
-    ).toBe(true);
-  });
-
-  it("matches expired session messages", () => {
-    expect(
-      isUnauthorizedCoreApiError(
-        new CoreApiRequestError("Invalid, expired or missing session", {
-          status: 400,
-        }),
-      ),
-    ).toBe(true);
-  });
-
-  it("ignores unrelated Core errors", () => {
-    expect(
-      isUnauthorizedCoreApiError(
-        new CoreApiRequestError("Not found", { status: 404 }),
-      ),
-    ).toBe(false);
-  });
-
-  it("does not treat business 403 permission errors as unauthorized", () => {
-    expect(
-      isUnauthorizedCoreApiError(
-        new CoreApiRequestError(
-          "Only an organization owner or admin can update channel settings.",
-          { status: 403 },
-        ),
-      ),
-    ).toBe(false);
-  });
-});
-
-describe("redirectIfUnauthorizedCoreError", () => {
-  beforeEach(() => {
-    redirectMock.mockClear();
-    headersMock.mockResolvedValue(
-      new Headers({
-        "x-pathname": "/tasks",
-        "x-search-params": "?scope=owned",
-      }),
-    );
-  });
-
-  it("redirects to signin for unauthorized Core errors", async () => {
-    await expect(
-      redirectIfUnauthorizedCoreError(
-        new CoreApiRequestError("Invalid, expired or missing session", {
-          status: 401,
-        }),
-      ),
-    ).rejects.toThrow("REDIRECT:/signin?returnUrl=%2Ftasks%3Fscope%3Downed");
-
-    expect(redirectMock).toHaveBeenCalledWith(
-      "/signin?returnUrl=%2Ftasks%3Fscope%3Downed",
-    );
-  });
-
-  it("rethrows unrelated errors", async () => {
-    const error = new Error("boom");
-
-    await expect(redirectIfUnauthorizedCoreError(error)).rejects.toBe(error);
-    expect(redirectMock).not.toHaveBeenCalled();
-  });
-});
 
 describe("withUnauthorizedCoreRedirect", () => {
   beforeEach(() => {
@@ -114,6 +38,21 @@ describe("withUnauthorizedCoreRedirect", () => {
         Promise.reject(
           new CoreApiRequestError("Invalid, expired or missing session", {
             status: 401,
+          }),
+        ),
+    });
+
+    await expect(client.getTask("task-id")).rejects.toThrow(
+      "REDIRECT:/signin?returnUrl=%2Ftasks%2Fexample",
+    );
+  });
+
+  it("redirects on an expired session message without a 401", async () => {
+    const client = withUnauthorizedCoreRedirect({
+      getTask: (_taskId: string) =>
+        Promise.reject(
+          new CoreApiRequestError("Invalid, expired or missing session", {
+            status: 400,
           }),
         ),
     });

@@ -3,6 +3,7 @@ import { createMiddleware } from "hono/factory";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { requireAdminAuthContext } from "@/middleware/auth";
 import agentsRouter from "./agents/index.js";
+import badgeCampaignsRouter from "./badge-campaigns/index.js";
 import creditsRouter from "./credits/index.js";
 import invoicesRouter from "./invoices/index.js";
 import matchedChannelsRouter from "./matched-channels/index.js";
@@ -28,6 +29,7 @@ const app = new OpenAPIHonoWithAuth();
 
 app.use("*", requireAdmin);
 app.route("/agents", agentsRouter);
+app.route("/badge-campaigns", badgeCampaignsRouter);
 app.route("/search", searchRouter);
 app.route("/soko-bots", sokoBotsRouter);
 app.route("/users", usersRouter);

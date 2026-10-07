@@ -2,19 +2,18 @@ import CoreAPI
 import SokosumiChat
 import SwiftUI
 
-/// Coordinator hooks for the guest section; `EditChannelSheet` fills them from `WorkspaceState`.
+/// Coordinator hooks for the guest section; `AddChannelMembersSheet` fills them from `WorkspaceState`.
 struct GuestAccessActions {
   let load: () async throws -> GuestAccessSnapshot
   let invite: (String) async throws -> Components.Schemas.ChatRoomInvitation
   let revokeInvitation: (String) async throws -> Void
   let createLink: (GuestInviteLinkOptions) async throws -> Components.Schemas.ChatRoomGuestInviteLink
   let revokeLink: (String) async throws -> Void
-  let removeGuest: (String) async throws -> Bool
 }
 
-/// Web `guest-invite-section.tsx` inside the channel settings dialog: invite by email with the pending list, shareable
-/// links with expiry and max-uses presets, and the current guests. Rows act one at a time; Core's messages show inline
-/// where web toasts them, and the clipboard is the only app-side concern.
+/// Web `guest-invite-section.tsx` in the Add picker's Invite from outside tab: invite by email with the pending list and
+/// shareable links with expiry and max-uses presets. Current Guests sit in the members panel. Rows act one at a time;
+/// Core's messages show inline where web toasts them, and the clipboard is the only app-side concern.
 struct GuestAccessSection: View {
   let actions: GuestAccessActions
   @StateObject private var model: GuestAccess
@@ -28,14 +27,12 @@ struct GuestAccessSection: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 12) {
-      Divider()
       VStack(alignment: .leading, spacing: 4) {
         Label("Invite guests", systemImage: "person.badge.plus").font(.headline)
         Text("Guests join this channel only and do not become organization members.").font(.caption).foregroundStyle(.secondary)
       }
       emailInvite
       shareableLinks
-      guests
       if let error = model.errorMessage {
         Text(error).font(.callout).foregroundStyle(.red)
       }
@@ -92,7 +89,7 @@ struct GuestAccessSection: View {
     GroupBox {
       VStack(alignment: .leading, spacing: 8) {
         Label("Shareable link", systemImage: "link").fontWeight(.medium)
-        Text("Create a link anyone signed in outside your organization can open to join as a guest. No email needed up front.")
+        Text("Create a link anyone logged in outside your organization can open to join as a guest. No email needed up front.")
           .font(.caption).foregroundStyle(.secondary)
         HStack {
           Picker("Expires", selection: $model.linkOptions.expiresInDays) {
@@ -144,28 +141,6 @@ struct GuestAccessSection: View {
         }
       }
       Text("\(expiry(of: link)) · \(link.usageSummary)").font(.caption).foregroundStyle(.secondary)
-    }
-  }
-
-  private var guests: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      caption("Guests")
-      if model.guests.isEmpty {
-        Text("No guests yet.").foregroundStyle(.secondary)
-      } else {
-        ForEach(model.guests, id: \.id) { guest in
-          let name = guest.name.trimmingCharacters(in: .whitespacesAndNewlines)
-          let label = name.isEmpty ? guest.email : name
-          HStack(spacing: 4) {
-            Text("\(Text(verbatim: label))\(Text(verbatim: name.isEmpty ? "" : " (\(guest.email))").foregroundStyle(.secondary))")
-              .lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 0)
-            revokeButton(busy: model.removingGuestId == guest.id, help: "Remove guest", label: "Remove guest \(label)") {
-              Task { await model.removeGuest(guest.id, using: actions.removeGuest) }
-            }
-          }
-        }
-      }
     }
   }
 

@@ -8,7 +8,9 @@ import {
   SOKO_BOT_TOOL_INPUT_SCHEMAS,
   sokoBotArchiveTaskInputSchema,
   sokoBotCreateTaskInputSchema,
-  sokoBotDecisionInputSchema,
+  sokoBotListTasksInputSchema,
+  sokoBotReplyToTaskInputSchema,
+  sokoBotUpdateAssignedTaskInputSchema,
   sokoBotUpdateTaskInputSchema,
 } from "../index.js";
 
@@ -20,6 +22,36 @@ describe("Soko Bot tool contracts", () => {
     expect(Object.keys(SOKO_BOT_TOOL_DESCRIPTIONS).sort()).toEqual(
       [...SOKO_BOT_CAPABILITIES].sort(),
     );
+  });
+
+  it("cannot set or filter by the event-only CREATED status", () => {
+    expect(
+      sokoBotCreateTaskInputSchema.safeParse({ name: "x", status: "CREATED" })
+        .success,
+    ).toBe(false);
+    expect(
+      sokoBotUpdateTaskInputSchema.safeParse({
+        taskId: "t",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotReplyToTaskInputSchema.safeParse({
+        taskId: "t",
+        comment: "c",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotUpdateAssignedTaskInputSchema.safeParse({
+        taskId: "t",
+        comment: "c",
+        status: "CREATED",
+      }).success,
+    ).toBe(false);
+    expect(
+      sokoBotListTasksInputSchema.safeParse({ status: "CREATED" }).success,
+    ).toBe(false);
   });
 
   it("normalizes task input at shared Eve/Core boundary", () => {
@@ -63,13 +95,6 @@ describe("Soko Bot tool contracts", () => {
   it("restricts decision requests to supported mutation targets", () => {
     expect(isSokoBotDecisionTarget("hire_agent")).toBe(true);
     expect(isSokoBotDecisionTarget("clarify_scope")).toBe(false);
-    expect(() =>
-      sokoBotDecisionInputSchema.parse({
-        toolName: "clarify_scope",
-        reason: "Need input",
-        proposal: {},
-      }),
-    ).toThrow();
   });
 
   it("converts write_table_rows to an object schema without an intersection root", () => {

@@ -1,11 +1,13 @@
 import "server-only";
 
+import {
+  postUsersByIdSignUpConversion,
+  postUsersByIdUtmAttribution,
+} from "@sokosumi/core-client";
+import { createClient } from "@sokosumi/core-client/client";
 import type { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 import type { z } from "zod";
-
-import { postUsersByIdUtmAttribution } from "@/lib/clients/generated/core";
-import { createClient } from "@/lib/clients/generated/core/client";
 import { buildCalendarClientVersionHeaders } from "@/lib/clients/utils/calendar-client-version-headers";
 import { getServerCoreApiBaseUrl } from "@/lib/clients/utils/core-api-base-url";
 import { UTM_COOKIE_NAME, utmDataSchema } from "@/lib/utils/utm";
@@ -41,6 +43,36 @@ export const utmService = (() => {
   }
 
   return {
+    /** Claims the social conversion and writes its UTM attribution atomically in Core. */
+    async claimSignUpConversion() {
+      const cookieStore = await cookies();
+      const utmAttribution = getUTMDataFromCookie(cookieStore);
+      const client = createClient({
+        baseUrl: getServerCoreApiBaseUrl(),
+        headers: {
+          ...buildCalendarClientVersionHeaders(),
+          cookie: cookieStore.toString(),
+        },
+      });
+      const { data } = await postUsersByIdSignUpConversion({
+        client,
+        path: { id: "me" },
+        body: utmAttribution
+          ? {
+              utmAttribution: {
+                ...utmAttribution,
+                capturedAt: new Date(utmAttribution.capturedAt),
+              },
+            }
+          : {},
+        cache: "no-store",
+        signal: AbortSignal.timeout(5_000),
+        throwOnError: true,
+      });
+      // Failed writes retain the cookie and pending marker for a later page.
+      if (data.data.provider) cookieStore.delete(UTM_COOKIE_NAME);
+      return data.data.provider;
+    },
     /**
      * Handles the conversion of UTM data for the current session user.
      *

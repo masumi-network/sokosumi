@@ -1,9 +1,17 @@
 "use server";
 
+import type {
+  AdminSokoBotDetail,
+  AdminSokoBotList,
+  AdminSokoBotVersionMigrationResult,
+  ChatRoomMessage,
+  SokoBotAvailability,
+  SokoBotDeletionResult,
+  SokoBotVersionDetail,
+} from "@sokosumi/core-client";
 import { err, ok } from "neverthrow";
 import { revalidatePath } from "next/cache";
 import * as z from "zod";
-
 import {
   type ActionResultDto,
   toActionResult,
@@ -13,14 +21,6 @@ import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
 import { assertAdminSession } from "@/lib/auth/admin-access";
 import { isAdminAccessRequiredError } from "@/lib/auth/errors";
 import { toCoreApiActionError } from "@/lib/clients/core.client";
-import type {
-  AdminSokoBotDetail,
-  AdminSokoBotList,
-  AdminSokoBotVersionMigrationResult,
-  SokoBotAvailability,
-  SokoBotDeletionResult,
-  SokoBotVersionDetail,
-} from "@/lib/clients/generated/core";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 import {
   ADMIN_SOKO_BOT_ACTIONS,
@@ -95,6 +95,7 @@ const migrateVersionsSchema = z.object({
   fromVersionId: versionSlugSchema.optional(),
   toVersionId: versionSlugSchema,
   reason: z.string().trim().min(3).max(500),
+  notifyOwners: z.boolean().optional(),
 });
 
 function mapError(error: unknown): ActionError {
@@ -122,6 +123,48 @@ export const listAdminSokoBotsAction = withSession<
       );
     }
     return toActionResult(ok(await adminSokoBotService.list(parsed.data)));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
+
+const chatPageSchema = z.object({
+  sokoBotId: z.string().trim().min(1),
+  roomId: z.string().trim().min(1),
+  cursor: z.string().trim().min(1),
+});
+
+interface ChatPageParams extends AuthenticatedRequest {
+  sokoBotId: string;
+  roomId: string;
+  cursor: string;
+}
+
+/** An older page of a bot's chat for the read-only admin transcript. */
+export const loadAdminSokoBotChatPageAction = withSession<
+  ChatPageParams,
+  ActionResultDto<
+    { messages: ChatRoomMessage[]; nextCursor: string | null },
+    ActionError
+  >
+>(async ({ session, sokoBotId, roomId, cursor }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = chatPageSchema.safeParse({ sokoBotId, roomId, cursor });
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    return toActionResult(
+      ok(
+        await adminSokoBotService.listChatMessages(
+          parsed.data.sokoBotId,
+          parsed.data.roomId,
+          parsed.data.cursor,
+        ),
+      ),
+    );
   } catch (error) {
     return toActionResult(err(mapError(error)));
   }
@@ -167,6 +210,33 @@ export const performAdminSokoBotAction = withSession<
 interface DeleteBotParams extends AuthenticatedRequest {
   input: unknown;
 }
+
+const setAvatarSchema = z.object({
+  sokoBotId: z.string().uuid(),
+  avatarId: z.string().uuid(),
+});
+
+/** Gives another user's bot a mascot from the shared pool. */
+export const setAdminSokoBotAvatarAction = withSession<
+  DeleteBotParams,
+  ActionResultDto<{ avatarImageUrl: string }, ActionError>
+>(async ({ session, input }) => {
+  try {
+    assertAdminSession(session);
+    const parsed = setAvatarSchema.safeParse(input);
+    if (!parsed.success) {
+      return toActionResult(
+        err({ code: CommonErrorCode.BAD_INPUT, message: "Invalid input" }),
+      );
+    }
+    const { sokoBotId, avatarId } = parsed.data;
+    const result = await adminSokoBotService.setAvatar(sokoBotId, avatarId);
+    revalidatePath(`${ADMIN_SOKO_BOTS_ROUTE}/${sokoBotId}`);
+    return toActionResult(ok(result));
+  } catch (error) {
+    return toActionResult(err(mapError(error)));
+  }
+});
 
 const deleteBotSchema = z.object({ sokoBotId: z.string().uuid() });
 

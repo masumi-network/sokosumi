@@ -1,7 +1,7 @@
+import type { AdminUserOption } from "@sokosumi/core-client";
 import type { ActionResultDto } from "@/lib/actions/action-result";
 import type { ActionError } from "@/lib/actions/errors/action-error";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { AdminUserOption } from "@/lib/clients/generated/core";
 
 /** The impersonated (start) or restored admin (stop) user: a Core DTO. */
 export type ImpersonationUser = AdminUserOption;

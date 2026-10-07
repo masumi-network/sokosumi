@@ -31,6 +31,24 @@ vi.mock("../config/env.js", () => ({
 
 import { initSentry } from "./sentry";
 
+function resolveIntegrations(
+  extraDefaults: Array<{ name: string }> = [],
+): Array<{ name: string }> {
+  initSentry();
+  const options = initMock.mock.calls[0]?.[0];
+  const integrations = options.integrations;
+  if (typeof integrations !== "function") {
+    throw new Error("expected initSentry to pass an integrations callback");
+  }
+  return integrations([
+    { name: "Http" },
+    { name: "RequestData" },
+    { name: "Hono" },
+    { name: "Dedupe" },
+    ...extraDefaults,
+  ]);
+}
+
 describe("initSentry", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,10 +84,12 @@ describe("initSentry", () => {
   });
 
   it("stops the RequestData integration attaching the raw url, headers and cookies", () => {
-    initSentry();
-
     // The defaults attach `event.request.url`. Paths carry capability tokens
     // and the headers carry Authorization, so all of it has to be turned off.
+    // The integrations callback only builds Http/RequestData when Sentry
+    // (or this test) invokes it.
+    const names = resolveIntegrations().map((integration) => integration.name);
+
     expect(requestDataIntegrationMock).toHaveBeenCalledWith({
       include: {
         url: false,
@@ -78,23 +98,36 @@ describe("initSentry", () => {
         cookies: false,
       },
     });
-
-    const options = initMock.mock.calls[0]?.[0];
-    expect(options.integrations).toContainEqual({ name: "RequestData" });
+    expect(names).toContain("RequestData");
+    expect(names).not.toContain("Hono");
+    expect(names).not.toContain("Dedupe");
   });
 
   it("drops the auto server span, whose name and url attributes are the raw path", () => {
-    initSentry();
-
     // The span is built from the node request before any middleware runs, so
     // no scope write can redact it, and beforeSend never sees a transaction
     // event. sentryMiddleware opens a replacement span named after the route
     // template. Outgoing spans and sessions are unaffected by this option.
+    const names = resolveIntegrations().map((integration) => integration.name);
+
     expect(httpIntegrationMock).toHaveBeenCalledWith({
       disableIncomingRequestSpans: true,
     });
+    expect(names).toContain("Http");
+    expect(names).not.toContain("Hono");
+    expect(names).not.toContain("Dedupe");
+  });
 
-    const options = initMock.mock.calls[0]?.[0];
-    expect(options.integrations).toContainEqual({ name: "Http" });
+  it("keeps sentryMiddleware as the incoming-span owner by dropping 11.2 Hono auto-instrumentation", () => {
+    const names = resolveIntegrations([{ name: "Console" }]).map(
+      (integration) => integration.name,
+    );
+
+    expect(names).toContain("Console");
+    expect(names).toContain("Http");
+    expect(names).toContain("RequestData");
+    expect(names).toContain("ProfilingNode");
+    expect(names).not.toContain("Hono");
+    expect(names).not.toContain("Dedupe");
   });
 });

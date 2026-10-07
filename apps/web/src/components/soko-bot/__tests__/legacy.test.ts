@@ -1,6 +1,5 @@
+import type { SokoBotLegacyMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
-import type { SokoBotLegacyMessage } from "@/lib/clients/generated/core";
 
 import {
   legacyHistoryRange,

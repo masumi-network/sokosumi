@@ -36,6 +36,9 @@ export async function generateMetadata(): Promise<Metadata> {
  * workspace page reads — so the sidebar's project switcher moves the studio
  * between projects without the studio knowing anything about the switcher, and
  * `ProjectScopeGuard` clears a project this workspace can no longer see.
+ *
+ * With no project it offers curated styles. Generation asks which project
+ * it goes to; existing images are loaded only for a selected project.
  */
 export default async function StudioPage({ searchParams }: StudioPageProps) {
   await connection();
@@ -44,18 +47,12 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   const t = await getTranslations("App.Studio");
   const projectId = query.projectId?.trim();
 
-  if (!projectId) {
-    return (
-      <StudioPageShell title={t("title")}>
-        <StudioProjectPicker />
-      </StudioPageShell>
-    );
-  }
-
-  const project = await projectService.getProjectById(projectId);
+  const project = projectId
+    ? await projectService.getProjectById(projectId)
+    : null;
   // Not `notFound()`: the id came from a switchable scope, not from the path,
   // so the repair is to pick another project rather than to leave the page.
-  if (!project) {
+  if (projectId && !project) {
     return (
       <StudioPageShell title={t("title")}>
         <StudioProjectPicker notice={t("pickUnavailable")} />
@@ -66,8 +63,11 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
   // In parallel, and the catalog only once per render: it is ~158KB and it is
   // deliberately no longer part of the state payload the open studio refetches
   // every three seconds.
+  const scopeId = project?.id ?? null;
   const [state, catalog] = await Promise.all([
-    loadStudioState(project.id, query.v),
+    scopeId
+      ? loadStudioState(scopeId, query.v)
+      : Promise.resolve({ assets: [], jobs: [], nextCursor: null }),
     imageStudioService.getCatalog(),
   ]);
 
@@ -85,9 +85,9 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
         // Remounted per project, so no filter, selection, draft prompt or
         // queued request from the previous one can survive the switch. The
         // state hook resets on its own too; see `useStudioState`.
-        key={project.id}
+        key={scopeId ?? "workspace"}
         labels={buildStudioLabels(t)}
-        projectId={project.id}
+        projectId={scopeId}
       />
     </StudioPageShell>
   );
@@ -105,15 +105,17 @@ export default async function StudioPage({ searchParams }: StudioPageProps) {
  * an error boundary, which is a hard way to learn that a bookmark went stale.
  */
 async function loadStudioState(projectId: string, assetId: string | undefined) {
-  if (!assetId) return imageStudioService.getState(projectId, {});
+  const load = (query: { assetId?: string }) =>
+    imageStudioService.getState(projectId, query);
+  if (!assetId) return load({});
 
   try {
-    return await imageStudioService.getState(projectId, { assetId });
+    return await load({ assetId });
   } catch (error) {
     console.warn("Image studio: ignoring an unusable selection from the URL", {
       projectId,
       error,
     });
-    return imageStudioService.getState(projectId, {});
+    return load({});
   }
 }

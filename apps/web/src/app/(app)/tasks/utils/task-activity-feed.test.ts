@@ -1,3 +1,5 @@
+import type { TaskEvent } from "@sokosumi/core-client";
+import { Channel, TaskStatus } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import {
   buildTaskActivityFeedItems,
@@ -8,8 +10,6 @@ import {
   sortTaskEventsAscending,
   TASK_ACTIVITY_VISIBLE_COMMENT_LIMIT,
 } from "@/app/tasks/utils/task-activity-feed";
-import { Channel, TaskStatus } from "@/lib/clients/generated/core";
-import type { TaskEvent } from "@/lib/clients/generated/core/types.gen";
 
 function event(
   id: string,

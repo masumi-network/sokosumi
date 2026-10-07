@@ -8,6 +8,8 @@ import {
 
 import { LIMITS } from "@/config/constants";
 import { dateTimeSchema } from "@/helpers/datetime";
+import { taskStatusSchema } from "@/schemas/domain-enums.schema";
+import { socialPostProviderSchema } from "@/schemas/social-post.schema";
 
 const workspaceCalendarQueryObjectSchema = z.object({
   from: z.iso.datetime().openapi({
@@ -50,7 +52,7 @@ const workspaceCalendarQueryObjectSchema = z.object({
       "Only items with this non-Project Calendar source in the current workspace",
     example: "workspace:11111111-1111-7111-8111-111111111111",
   }),
-  status: z.enum(TaskStatus).optional().openapi({
+  status: taskStatusSchema.optional().openapi({
     description:
       "Only items whose Task has this status. Planned Runs have no Task yet, so they drop out; RUN_AT Tasks are QUEUED.",
     example: TaskStatus.READY,
@@ -123,7 +125,7 @@ export const workspaceCalendarItemSchema = z
       description: "Name of the Task the Run created, or of the one it creates",
       example: "Prepare release notes",
     }),
-    taskStatus: z.enum(TaskStatus).nullable().openapi({
+    taskStatus: z.union([taskStatusSchema, z.null()]).openapi({
       description:
         "Status of the Task the Run created, or QUEUED for RUN_AT; null while a Run is planned",
       example: "READY",
@@ -210,6 +212,7 @@ export const socialPostCalendarItemSchema = z
     kind: z.literal("socialPost"),
     id: z.string(),
     postId: z.uuid(),
+    provider: socialPostProviderSchema,
     text: z.string(),
     status: z.enum(SocialPostStatus),
     externalHandle: z.string().nullable(),
@@ -217,6 +220,15 @@ export const socialPostCalendarItemSchema = z
     scheduledByName: z.string().nullable(),
     scheduledByImage: z.string().nullable(),
     attachmentCount: z.number().int().nonnegative(),
+    previewMedia: z
+      .object({
+        fileUrl: z.string(),
+        kind: z.enum(["image", "gif", "video"]),
+      })
+      .nullable()
+      .openapi({
+        description: "The post's first attachment, for a thumbnail.",
+      }),
     scheduledAt: dateTimeSchema,
     sourceId: z.string(),
     sourceProjectId: z.uuid(),

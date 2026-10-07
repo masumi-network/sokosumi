@@ -5,7 +5,7 @@ import Foundation
 public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Components.Schemas.ChatRoomMessageQuote? {
   guard canQuoteMessage(message) else { return nil }
   func paragraphs(_ blocks: [MessageMarkdownBlock]) -> [[MessageAttachmentSegment]] {
-    blocks.flatMap { [MessageAttachmentSegment.split($0.text)] + paragraphs($0.children) }
+    blocks.flatMap { [MessageAttachmentSegment.split($0.text, linksAreAttachments: true)] + paragraphs($0.children) }
   }
   let content = message.content.replacingOccurrences(of: #"```[\s\S]*?```"#, with: " ", options: .regularExpression)
   let parts = paragraphs(MessageMarkdown(content).blocks)
@@ -28,12 +28,12 @@ public func messageQuote(from message: Components.Schemas.ChatRoomMessage) -> Co
                                                   mediaKind: $0.kind == .image ? .image : .file) })
 }
 
-/// A coworker shell that is still thinking has no actions, like web's
+/// A mention shell that is still thinking has no actions, like web's
 /// `showActions`; a failed shell keeps quote/pin/reactions.
 public func canQuoteMessage(_ message: Components.Schemas.ChatRoomMessage) -> Bool {
   message.deletedAt == nil && !isOutboundLocalMessage(message)
     && !message.id.hasPrefix("stream:") && !isRoomStatusMessage(message)
-    && CoworkerMentionShell(message: message)?.isThinking != true
+    && MentionThoughtShell(message: message)?.isThinking != true
 }
 
 /// Message link of a quote sent to yourself from another room. Same-room quotes scroll the transcript instead.

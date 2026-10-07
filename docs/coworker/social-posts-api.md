@@ -11,17 +11,32 @@ Authenticate with a Coworker API key and `X-Context-User-Id` plus `X-Context-Org
 
 Core records the Coworker as creator independently of the contextual human. `scheduledByUserId` is the human on whose behalf scheduling occurred; `scheduledByCoworkerId` identifies the delegating Coworker. Editing scheduled content also updates scheduler attribution. Human rescheduling, editing scheduled content, or Publish now takes over scheduling responsibility.
 
-Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting X. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
+Before a delayed provider call, Core rechecks that the contextual user is active, Coworker capability, delegated-user access, beta eligibility, and current workspace membership. Revoked access fails the post without contacting the provider. Lease recovery of an already confirmed publication remains idempotent. A human can reschedule or publish a failed post explicitly.
 
 Connecting, reconnecting, replacing, disconnecting accounts, OAuth completion, and Publish now/Retry remain interactive-human actions on these REST routes. Coworker post responses set `canPublishNow` to false. Calendar's Social feed remains interactive-human-only in this layer.
 
 ## Soko Bot runtime tools
 
-Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Publishing and scheduling support X only; account listing covers all connected providers.
+Soko Bot uses its authenticated turn runtime, not Coworker credentials or these REST routes. The owner can ask it to list Project accounts (`list_project_social_accounts`), list/read posts (`list_social_posts`, `get_social_post`), or create, update, schedule, cancel, and immediately publish posts (`create_social_post`, `update_social_post`, `schedule_social_post`, `cancel_social_post`, `publish_social_post`). Publishing and scheduling work on every connected provider; the account's platform decides the rules (see Provider publishing rules).
 
 Core derives the user and workspace from the active turn and rechecks owner activity, workspace membership, organization seat, and Social beta eligibility. Teammate and bot-to-bot turns do not receive these tools. Mutations use revisions and action receipts; uncertain publication requires reconciliation rather than automatic retry. Social mutations after web or shell use require a fresh owner message. Account OAuth remains in Project → Social.
 
 Bot-created posts identify the bot as creator. Scheduling runs under the owner's user identity and existing delayed-publish eligibility checks. The owner authorizes publication by requesting scheduling or immediate publishing; drafting alone does not authorize either.
+
+## Provider publishing rules
+
+Each provider publishes through its own Composio tool sequence; the post's provider comes from the chosen active connection.
+
+| Provider | Text | Media | Notes |
+| --- | --- | --- | --- |
+| X | ≤280 | 4 images / 1 GIF / 1 video | Publishing already works. |
+| LinkedIn | ≤3000, required | ≤4 images or 1 video | Person author only. |
+| Facebook | ≤63206 | ≤4 images or 1 video | Posts to the connection's single managed Page. |
+| Instagram | ≤2200 | 1 image (JPEG) or 1 video, required | Business/Creator account linked to a Page. |
+| TikTok | ≤2200 | 1 video, required | Privacy level is chosen at publish time and recorded on the attempt; unaudited apps post `SELF_ONLY`. |
+| YouTube | description ≤5000, title derived from the text | 1 video, required | Publishes public with an empty tag list and a default category. |
+
+Kinds never mix: a post carries images or one GIF or one video. Each provider's Composio auth config needs its publishing scope before a post can go out: LinkedIn `w_member_social`; Facebook `pages_show_list`, `pages_manage_posts`, `pages_read_engagement`; Instagram `instagram_business_content_publish`; TikTok `video.publish`; YouTube `https://www.googleapis.com/auth/youtube.upload`. Until then the connection works for identity and publishing fails with a clear permission error.
 
 ## Deployment
 

@@ -1,6 +1,5 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { resolveIpfsOrHttpUrl } from "@sokosumi/utils";
-
-import type { Coworker } from "@/lib/clients/generated/core/types.gen";
 import type { CoworkerDisplayPatchBody } from "@/lib/services/coworker-display.service";
 
 export function toFieldValue(value: string | null | undefined): string {

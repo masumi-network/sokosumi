@@ -1,8 +1,8 @@
 "use client";
 
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { type RefObject, useRef } from "react";
 import { toast } from "sonner";
-
 import {
   getRoomThreadAction,
   listRoomMessagesAction,
@@ -23,7 +23,6 @@ import {
   type RoomTranscriptPage,
 } from "@/app/chat/utils/room-transcript-ranges";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes/common";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 /** Bounded so a busy room cannot retry an around-read forever. */
 export const TRANSCRIPT_SNAPSHOT_RETRIES = 5;

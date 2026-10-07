@@ -1,5 +1,7 @@
 "use client";
 
+import type { JobSummary } from "@sokosumi/core-client";
+import { SokosumiJobStatus } from "@sokosumi/core-client";
 import { makeAgentJobsChannelName } from "@sokosumi/utils";
 import { ChannelProvider, useChannel } from "ably/react";
 import { useParams, useRouter } from "next/navigation";
@@ -10,10 +12,7 @@ import { loadMoreOwnedAgentJobs } from "@/app/agents/[agentId]/jobs/actions";
 import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Button } from "@/components/ui/button";
 import LazyAblyProvider from "@/contexts/lazy-ably-provider";
-
 import { jobStatusDataSchema } from "@/lib/ably/schema";
-import type { JobSummary } from "@/lib/clients/generated/core";
-import { SokosumiJobStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
 
@@ -230,7 +229,7 @@ export function JobsList({
           />
         </ChannelProvider>
       </LazyAblyProvider>
-      <aside className="@4xl/jobs-panes:border-border flex h-full min-h-0 w-full flex-col py-4 @4xl/jobs-panes:border-r">
+      <aside className="@4xl/jobs-panes:border-border flex size-full min-h-0 flex-col py-4 @4xl/jobs-panes:border-r">
         <JobsSearch
           jobs={localJobs}
           hasMoreHistory={Boolean(nextCursor)}
@@ -269,10 +268,10 @@ export function JobsList({
                 variant="outline"
                 size="sm"
                 className="text-muted-foreground hover:text-foreground w-full text-xs"
-                disabled={isLoadingMore}
+                loading={isLoadingMore}
                 onClick={handleLoadMore}
               >
-                {isLoadingMore ? t("loading") : t("loadMore")}
+                {t("loadMore")}
               </Button>
             </div>
           ) : null}

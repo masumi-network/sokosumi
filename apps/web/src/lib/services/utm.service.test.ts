@@ -10,13 +10,13 @@ vi.mock("next/headers", () => ({
 }));
 
 const postUsersByIdUtmAttributionMock = vi.fn();
-vi.mock("@/lib/clients/generated/core", () => ({
+vi.mock("@sokosumi/core-client", () => ({
   postUsersByIdUtmAttribution: (...args: unknown[]) =>
     postUsersByIdUtmAttributionMock(...args),
 }));
 
 const createClientMock = vi.fn();
-vi.mock("@/lib/clients/generated/core/client", () => ({
+vi.mock("@sokosumi/core-client/client", () => ({
   createClient: (...args: unknown[]) => createClientMock(...args),
 }));
 

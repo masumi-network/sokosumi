@@ -1,9 +1,9 @@
+import type { ChatRoomCoworkerParticipant } from "@sokosumi/core-client";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { REGRESSION } from "@/components/mermaid/__tests__/regression";
-import type { ChatRoomCoworkerParticipant } from "@/lib/clients/generated/core";
 import { RoomMessageMarkdown } from "./room-mention-markdown";
 
 vi.mock("next-intl", () => ({

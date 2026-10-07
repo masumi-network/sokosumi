@@ -1,5 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { TASK_DETAIL_SHELL_CLASS } from "@/app/tasks/constants";
 
 const { projectServiceMock, notFoundMock } = vi.hoisted(() => ({
   projectServiceMock: {
@@ -31,14 +32,15 @@ vi.mock("@/lib/services/project.service", () => ({
   projectService: projectServiceMock,
 }));
 
-vi.mock("@/app/projects/components/project-detail-actions", () => ({
-  ProjectDetailActions: () => <div>Project actions</div>,
-}));
-
-// Stubbed like its sibling above: it reads the reader's Pin list through
-// react-query, and this file is about the page, not about Pin state.
-vi.mock("@/app/projects/components/project-detail-pin-button", () => ({
-  ProjectDetailPinButton: () => <div>Pin project</div>,
+// Stubbed: the pin reads the reader's Pin list through react-query, and this
+// file is about the page, not about Pin state.
+vi.mock("@/app/projects/components/project-header-actions", () => ({
+  ProjectHeaderActions: () => (
+    <div>
+      <div>Pin project</div>
+      <div>Project actions</div>
+    </div>
+  ),
 }));
 
 vi.mock("@/app/projects/components/project-close-status", () => ({
@@ -119,9 +121,11 @@ describe("ProjectDetailPage", () => {
     expect(notFoundMock).not.toHaveBeenCalled();
 
     const { container } = render(html);
-    expect(container.firstChild).toHaveClass("w-full", "min-w-0");
-    expect(container.firstChild).not.toHaveClass("max-w-6xl");
-    expect(container.firstChild).not.toHaveClass("mx-auto");
+    // The task detail shell: same width and gutter as a task page.
+    const shell = container.firstChild as HTMLElement;
+    for (const cls of TASK_DETAIL_SHELL_CLASS.split(/\s+/)) {
+      expect(shell.classList).toContain(cls);
+    }
     expect(container.firstChild).not.toHaveClass("-mx-4");
     expect(
       screen.getByRole("heading", { name: "Launch plan" }),
@@ -159,10 +163,15 @@ describe("ProjectDetailPage", () => {
       expect(container.querySelector(`a[href="${href}"]`)).toBeNull();
     }
 
-    // The grid and its aside are gone with the things that filled them: what
-    // is left reads top to bottom in one capped column.
-    expect(container.querySelector("aside")).toBeNull();
-    expect(container.querySelector('[class*="xl:grid-cols-"]')).toBeNull();
+    // The one aside is the Properties rail; the sections read top to bottom
+    // in one capped column.
+    const asides = container.querySelectorAll("aside");
+    expect(asides).toHaveLength(1);
+    expect(
+      asides[0]?.contains(
+        screen.getByText("App.Projects.Detail.header.properties"),
+      ),
+    ).toBe(true);
     const column = screen.getByTestId("project-briefing").closest(".space-y-8");
     expect(column?.className).toContain("max-w-3xl");
     expect(column?.contains(screen.getByTestId("brand-card"))).toBe(true);

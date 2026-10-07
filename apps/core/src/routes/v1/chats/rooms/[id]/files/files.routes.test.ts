@@ -120,6 +120,7 @@ function createSokoBotApp(sokoBotId = SOKO_BOT_ID) {
 describe("POST /chats/rooms/{id}/files", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    roomFindFirstMock.mockReset();
     getEnvMock.mockReturnValue({
       BLOB_READ_WRITE_TOKEN: "blob-token",
     } as ReturnType<typeof getEnvMock>);
@@ -130,7 +131,11 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({
       id: ROOM_ID,
       organizationId: null,
-      userMembers: [{ access: "member" }],
+      kind: "channel",
+      directKey: null,
+      userMembers: [{ userId: USER_ID, access: "member" }],
+      coworkerMembers: [],
+      sokoBotMembers: [],
     });
 
     const app = createUserApp();
@@ -195,6 +200,98 @@ describe("POST /chats/rooms/{id}/files", () => {
       "blob-token",
     );
   });
+
+  it("refuses an upload grant after the last Direct peer leaves", async () => {
+    roomFindFirstMock.mockResolvedValueOnce({
+      id: ROOM_ID,
+      organizationId: null,
+      kind: "direct",
+      directKey: `${USER_ID}:former-peer`,
+      userMembers: [{ userId: USER_ID, access: "member" }],
+      coworkerMembers: [],
+      sokoBotMembers: [],
+    });
+
+    const response = await createUserApp().request(`/${ROOM_ID}/files`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        filename: "report.pdf",
+        contentType: "application/pdf",
+        size: 11,
+      }),
+    });
+
+    expect(response.status).toBe(403);
+    expect(createChatRoomFileUploadSessionMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    {
+      label: "Self Direct",
+      directKey: `direct:self:${USER_ID}`,
+      peers: [],
+      coworkers: [],
+      bots: [],
+    },
+    {
+      label: "human Direct",
+      directKey: `${USER_ID}:peer`,
+      peers: ["peer"],
+      coworkers: [],
+      bots: [],
+    },
+    {
+      label: "group with a remaining human",
+      directKey: `direct:v2:user:${USER_ID}:user:peer:user:former-peer`,
+      peers: ["peer"],
+      coworkers: [],
+      bots: [],
+    },
+    {
+      label: "group with a remaining coworker",
+      directKey: `direct:v2:coworker:${COWORKER_ID}:user:${USER_ID}:user:former-peer`,
+      peers: [],
+      coworkers: [{ coworker: { id: COWORKER_ID } }],
+      bots: [],
+    },
+    {
+      label: "group with a remaining Soko Bot",
+      directKey: `direct:v2:sokoBot:${SOKO_BOT_ID}:user:${USER_ID}:user:former-peer`,
+      peers: [],
+      coworkers: [],
+      bots: [{ sokoBot: { id: SOKO_BOT_ID } }],
+    },
+  ])(
+    "keeps uploads available in $label",
+    async ({ directKey, peers, coworkers, bots }) => {
+      roomFindFirstMock.mockResolvedValueOnce({
+        id: ROOM_ID,
+        organizationId: null,
+        kind: "direct",
+        directKey,
+        userMembers: [USER_ID, ...peers].map((userId) => ({
+          userId,
+          access: "member",
+        })),
+        coworkerMembers: coworkers,
+        sokoBotMembers: bots,
+      });
+
+      const response = await createUserApp().request(`/${ROOM_ID}/files`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          filename: "report.pdf",
+          contentType: "application/pdf",
+          size: 11,
+        }),
+      });
+
+      expect(response.status).toBe(201);
+      expect(createChatRoomFileUploadSessionMock).toHaveBeenCalledOnce();
+    },
+  );
 
   it("mints a soko bot-owned room chat grant", async () => {
     roomFindFirstMock.mockResolvedValueOnce({ id: ROOM_ID });
@@ -332,7 +429,11 @@ describe("POST /chats/rooms/{id}/files", () => {
     roomFindFirstMock.mockResolvedValueOnce({
       id: ROOM_ID,
       organizationId: null,
-      userMembers: [{ access: "member" }],
+      kind: "channel",
+      directKey: null,
+      userMembers: [{ userId: USER_ID, access: "member" }],
+      coworkerMembers: [],
+      sokoBotMembers: [],
     });
     getEnvMock.mockReturnValue({
       BLOB_READ_WRITE_TOKEN: "blob-token",

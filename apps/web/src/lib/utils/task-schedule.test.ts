@@ -4,6 +4,7 @@ import { zonedDateTimeLocalToUtc } from "@/lib/schedules/zoned-datetime";
 import { TaskScheduleEndsMode } from "@/lib/types/task-schedule";
 import {
   hasTaskScheduleChanged,
+  isValidCronExpression,
   parseTaskScheduleSelection,
   schedulableRunAtLocalIso,
   taskScheduleRuleToSelection,
@@ -279,4 +280,30 @@ describe("hasTaskScheduleChanged", () => {
       hasTaskScheduleChanged(original, { ...original, cron: "0 10 * * *" }),
     ).toBe(true);
   });
+});
+
+describe("isValidCronExpression", () => {
+  it.each([
+    "0 9 * * MON-FRI",
+    "30 8 1,15 JAN,JUL *",
+    "0 17 * * 5L",
+    "0 9 * * 1#1",
+    "0 0 L * *",
+    "0 9 ? * thu",
+    " 0\t9 * * THU ",
+  ])("accepts supported five-field syntax %s", (expr) =>
+    expect(isValidCronExpression(expr, "Europe/Berlin")).toBe(true),
+  );
+  it.each([
+    "0 0 9 * * 1",
+    "@weekly",
+    "H 9 * * 1",
+    "0,h 9 * * *",
+    "*/H * * * *",
+    "0 1-H * * *",
+    "99 9 * * *",
+    "0 9 * * 1#6",
+  ])("rejects invalid shape or semantics %s", (expr) =>
+    expect(isValidCronExpression(expr, "Europe/Berlin")).toBe(false),
+  );
 });

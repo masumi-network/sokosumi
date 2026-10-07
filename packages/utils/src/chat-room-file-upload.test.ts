@@ -8,9 +8,11 @@ import {
   buildUserChatRoomFilePathname,
   buildUserChatRoomFilePrefix,
   CHAT_ROOM_FILE_MAX_SIZE_BYTES,
+  chatRoomFileLinks,
   isOwnedCoworkerChatRoomFileUrl,
   isOwnedSokoBotChatRoomFileUrl,
   isOwnedUserChatRoomFileUrl,
+  parseChatRoomFileUrl,
 } from "./chat-room-file-upload.js";
 
 describe("chat room file upload helpers", () => {
@@ -109,5 +111,45 @@ describe("chat room file upload helpers", () => {
         "room_abc",
       ),
     ).toBe(false);
+  });
+});
+
+describe("chat attachment links", () => {
+  const roomId = "01a0f500-0000-7000-8000-000000000001";
+  const url = `https://abc.public.blob.vercel-storage.com/users/u-1/chats/${roomId}/1-sign-in-x7Yq.png`;
+
+  it("reads the room from a chat attachment URL", () => {
+    expect(parseChatRoomFileUrl(url)).toEqual({
+      roomId,
+      fileName: "1-sign-in-x7Yq.png",
+    });
+    expect(
+      parseChatRoomFileUrl(
+        `https://abc.public.blob.vercel-storage.com/soko-bots/b-1/chats/${roomId}/a.pdf`,
+      ),
+    ).toMatchObject({ roomId });
+  });
+
+  it("ignores other hosts, Drive files and plain http", () => {
+    expect(
+      parseChatRoomFileUrl(
+        `https://evil.example/users/u-1/chats/${roomId}/a.png`,
+      ),
+    ).toBeNull();
+    expect(
+      parseChatRoomFileUrl(
+        "https://abc.public.blob.vercel-storage.com/drive/users/u-1/a.png",
+      ),
+    ).toBeNull();
+    expect(parseChatRoomFileUrl(url.replace("https:", "http:"))).toBeNull();
+    expect(parseChatRoomFileUrl("not a url")).toBeNull();
+  });
+
+  it("lists attachments linked in a message once each, with their names", () => {
+    const content = `Post these\n![1-sign-in.png](${url})[2-chat.png](${url.replace("1-sign-in", "2-chat")})\n[again](${url}) [site](https://sokosumi.com)`;
+    expect(chatRoomFileLinks(content)).toEqual([
+      { name: "1-sign-in.png", url },
+      { name: "2-chat.png", url: url.replace("1-sign-in", "2-chat") },
+    ]);
   });
 });

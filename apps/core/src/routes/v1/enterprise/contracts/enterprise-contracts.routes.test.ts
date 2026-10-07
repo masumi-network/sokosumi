@@ -1,4 +1,7 @@
-import { EnterpriseContractStatus } from "@sokosumi/database";
+import {
+  EnterpriseContractPeriodStatus,
+  EnterpriseContractStatus,
+} from "@sokosumi/database";
 import {
   EnterpriseContractActivationError,
   EnterpriseContractLifecycleError,
@@ -36,8 +39,10 @@ const {
   organizationFindUniqueMock,
   enterpriseContractFindManyMock,
   enterpriseContractFindUniqueMock,
+  txContractFindUniqueMock,
   enterpriseContractCreateMock,
   enterpriseContractUpdateMock,
+  enterpriseContractPeriodUpdateManyMock,
   prismaTransactionMock,
   activateEnterpriseContractMock,
   cancelEnterpriseContractMock,
@@ -46,8 +51,10 @@ const {
   organizationFindUniqueMock: vi.fn(),
   enterpriseContractFindManyMock: vi.fn(),
   enterpriseContractFindUniqueMock: vi.fn(),
+  txContractFindUniqueMock: vi.fn(),
   enterpriseContractCreateMock: vi.fn(),
   enterpriseContractUpdateMock: vi.fn(),
+  enterpriseContractPeriodUpdateManyMock: vi.fn(),
   prismaTransactionMock: vi.fn(),
   activateEnterpriseContractMock: vi.fn(),
   cancelEnterpriseContractMock: vi.fn(),
@@ -170,8 +177,19 @@ describe("enterprise contract admin routes", () => {
     });
     enterpriseContractFindManyMock.mockResolvedValue([]);
     enterpriseContractFindUniqueMock.mockResolvedValue(null);
+    txContractFindUniqueMock.mockImplementation(
+      enterpriseContractFindUniqueMock,
+    );
     prismaTransactionMock.mockImplementation(async (callback) => {
-      return await callback({});
+      return await callback({
+        enterpriseContract: {
+          findUnique: txContractFindUniqueMock,
+          update: enterpriseContractUpdateMock,
+        },
+        enterpriseContractPeriod: {
+          updateMany: enterpriseContractPeriodUpdateManyMock,
+        },
+      });
     });
     activateEnterpriseContractMock.mockResolvedValue({
       contractId: CONTRACT_ID,
@@ -364,6 +382,172 @@ describe("enterprise contract admin routes", () => {
   });
 
   describe("PATCH /{id}", () => {
+    it.each([
+      {},
+      { creditsPerMonth: 100_000, periods: 1 },
+      { creditsPerMonth: 100_000, oneTimeCredits: 0 },
+      { creditsPerMonth: 100_000, oneTimeCredits: null },
+      { creditsPerMonth: 100_000, oneTimeExpiresAt: null },
+      { creditsPerMonth: 100_000, paymentReference: null },
+      { creditsPerMonth: 100_000, notes: "" },
+      { creditsPerMonth: 100_000, externalReference: null },
+    ])("rejects forbidden active payload %j without writes", async (body) => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      const response = await createContractsApp().request(
+        `http://localhost/${CONTRACT_ID}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        },
+      );
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+      expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("keeps draft updates and nullable clearing on the existing path", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord(),
+      );
+      enterpriseContractUpdateMock.mockResolvedValue(createContractRecord());
+      const response = await createContractsApp().request(
+        `http://localhost/${CONTRACT_ID}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creditsPerMonth: 60_000,
+            periods: 3,
+            seats: 5,
+            oneTimeCredits: null,
+            oneTimeExpiresAt: null,
+            paymentReference: null,
+            notes: "",
+            externalReference: null,
+          }),
+        },
+      );
+      expect(response.status).toBe(200);
+      expect(enterpriseContractUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: {
+            centsPerMonth: 600_000_000_000_000n,
+            periodCount: 3,
+            seats: 5,
+            oneTimeCents: null,
+            oneTimeExpiresAt: null,
+            paymentReference: null,
+            notes: "",
+            externalReference: null,
+          },
+        }),
+      );
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+      expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects a non-admin monthly credit update before reading or writing", async () => {
+      const response = await createContractsApp({ role: "user" }).request(
+        `http://localhost/${CONTRACT_ID}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ creditsPerMonth: 100_000 }),
+        },
+      );
+      expect(response.status).toBe(403);
+      expect(enterpriseContractFindUniqueMock).not.toHaveBeenCalled();
+      expect(prismaTransactionMock).not.toHaveBeenCalled();
+    });
+
+    it("rechecks status when a credit transaction loses a serialization race", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      txContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.canceled }),
+      );
+      prismaTransactionMock.mockRejectedValueOnce(
+        Object.assign(new Error("Concurrent cancellation"), { code: "P2034" }),
+      );
+      vi.useFakeTimers();
+      try {
+        const pending = createContractsApp().request(
+          `http://localhost/${CONTRACT_ID}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ creditsPerMonth: 100_000 }),
+          },
+        );
+        await vi.runAllTimersAsync();
+        const response = await pending;
+        expect(response.status).toBe(409);
+        expect(prismaTransactionMock).toHaveBeenCalledTimes(2);
+        expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+        expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("rejects an active contract payload containing an unknown field without writes", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      enterpriseContractUpdateMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      const response = await createContractsApp().request(
+        `http://localhost/${CONTRACT_ID}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            creditsPerMonth: 100_000,
+            organizationSlug: "other-org",
+          }),
+        },
+      );
+
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+      expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      EnterpriseContractStatus.canceled,
+      EnterpriseContractStatus.completed,
+    ])(
+      "rejects a contract that becomes %s before the credit transaction starts",
+      async (status) => {
+        enterpriseContractFindUniqueMock.mockResolvedValue(
+          createContractRecord({ status: EnterpriseContractStatus.active }),
+        );
+        txContractFindUniqueMock.mockResolvedValue(
+          createContractRecord({ status }),
+        );
+        enterpriseContractUpdateMock.mockResolvedValue(
+          createContractRecord({ status }),
+        );
+        const response = await createContractsApp().request(
+          `http://localhost/${CONTRACT_ID}`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ creditsPerMonth: 100_000 }),
+          },
+        );
+
+        expect(response.status).toBe(409);
+        expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+        expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+      },
+    );
+
     it("returns 409 when updating a non-draft contract", async () => {
       enterpriseContractFindUniqueMock.mockResolvedValue(
         createContractRecord({ status: EnterpriseContractStatus.active }),
@@ -374,6 +558,86 @@ describe("enterprise contract admin routes", () => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ seats: 20 }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+    });
+
+    it("changes credits per month on an active contract and its ungranted periods", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      enterpriseContractUpdateMock.mockResolvedValue(
+        createContractRecord({
+          status: EnterpriseContractStatus.active,
+          centsPerMonth: convertCreditsToCents(100_000),
+        }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000 }),
+      });
+
+      const body = (await response.json()) as {
+        data: { creditsPerMonth: number };
+      };
+
+      expect(response.status).toBe(200);
+      expect(body.data.creditsPerMonth).toBe(100_000);
+      expect(prismaTransactionMock.mock.calls[0]?.[1]).toEqual({
+        isolationLevel: "Serializable",
+      });
+      expect(enterpriseContractUpdateMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: CONTRACT_ID },
+          data: { centsPerMonth: convertCreditsToCents(100_000) },
+        }),
+      );
+      expect(enterpriseContractPeriodUpdateManyMock).toHaveBeenCalledWith({
+        where: {
+          contractId: CONTRACT_ID,
+          status: EnterpriseContractPeriodStatus.scheduled,
+        },
+        data: { centsToGrant: convertCreditsToCents(100_000) },
+      });
+      // Cancellation and the scheduler lock periods before the contract; the
+      // same order here keeps a concurrent cancel from deadlocking.
+      expect(
+        enterpriseContractPeriodUpdateManyMock.mock.invocationCallOrder[0],
+      ).toBeLessThan(enterpriseContractUpdateMock.mock.invocationCallOrder[0]);
+    });
+
+    it("returns 409 when an active contract update changes more than credits per month", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.active }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000, seats: 20 }),
+      });
+
+      expect(response.status).toBe(409);
+      expect(enterpriseContractUpdateMock).not.toHaveBeenCalled();
+      expect(enterpriseContractPeriodUpdateManyMock).not.toHaveBeenCalled();
+    });
+
+    it("returns 409 when updating a canceled contract", async () => {
+      enterpriseContractFindUniqueMock.mockResolvedValue(
+        createContractRecord({ status: EnterpriseContractStatus.canceled }),
+      );
+      const app = createContractsApp();
+
+      const response = await app.request(`http://localhost/${CONTRACT_ID}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ creditsPerMonth: 100_000 }),
       });
 
       expect(response.status).toBe(409);

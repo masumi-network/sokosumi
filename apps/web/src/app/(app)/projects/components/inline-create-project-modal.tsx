@@ -1,6 +1,6 @@
 "use client";
 
-import type { Project } from "@/lib/clients/generated/core/types.gen";
+import type { Project } from "@sokosumi/core-client";
 
 import { CreateProjectWizard } from "./create-project-wizard";
 import type { ProjectCreationSource } from "./project-form";

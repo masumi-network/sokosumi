@@ -141,14 +141,6 @@ export function classifyExtraction(input: {
   return "unsupported-unknown";
 }
 
-export function extractionStateForTreatment(
-  treatment: ExtractionTreatment,
-): FileExtractionState {
-  return treatment === "text" || treatment === "ooxml" || treatment === "pdf"
-    ? FileExtractionState.INDEXED
-    : FileExtractionState.UNSUPPORTED;
-}
-
 /** A short, honest reason shown next to a "Filename only" state. */
 export function extractionReasonForTreatment(
   treatment: ExtractionTreatment,
@@ -236,6 +228,39 @@ export function chunkExtractedText(text: string): ExtractedChunk[] {
   }
 
   return chunks;
+}
+
+/**
+ * Stored chunks back into running text. Neighbouring chunks overlap by up to
+ * `FILE_CHUNK_OVERLAP_CHARS` so a search hit keeps its context, which means
+ * joining them as they are repeats that span at every seam. Each chunk is
+ * trimmed, so the overlap is found by content rather than by offset.
+ */
+export function joinExtractedChunks(
+  chunks: readonly { text: string }[],
+): string {
+  let joined = "";
+  for (const { text } of chunks) {
+    if (!joined) {
+      joined = text;
+      continue;
+    }
+    const window = FILE_CHUNK_OVERLAP_CHARS + 40;
+    const tail = joined.slice(-Math.min(window, joined.length));
+    let overlap = 0;
+    for (
+      let length = Math.min(tail.length, text.length);
+      length >= 20;
+      length--
+    ) {
+      if (tail.endsWith(text.slice(0, length))) {
+        overlap = length;
+        break;
+      }
+    }
+    joined += overlap > 0 ? text.slice(overlap) : `\n\n${text}`;
+  }
+  return joined;
 }
 
 /**

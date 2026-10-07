@@ -39,10 +39,6 @@ vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 vi.mock("@/services/soko-bot-availability.service", () => ({
   getSokoBotAvailability: vi.fn().mockResolvedValue({ disabled: true }),
 }));
-vi.mock("@/services/soko-bot-lab-judge.service", () => ({
-  judgeTurnQuality: vi.fn(),
-  reportFailedTurnJudge: vi.fn(),
-}));
 vi.mock("@/services/soko-bot-billing.service", () => ({
   recordSokoBotTurnUsage: vi.fn().mockResolvedValue({ shortfall: false }),
   requireSokoBotTurnFunding: vi.fn(),
@@ -50,6 +46,7 @@ vi.mock("@/services/soko-bot-billing.service", () => ({
 vi.mock("@/services/soko-bot-outcome.service", () => ({
   assessSokoBotIntentOutcome: vi.fn(),
   invalidateSokoBotIntentOutcomes: vi.fn(),
+  sokoBotOutcomeNote: vi.fn().mockReturnValue(null),
   sokoBotOutcomeSummary: vi.fn().mockReturnValue(null),
 }));
 vi.mock("@/services/soko-bot-delivery.service", () => ({

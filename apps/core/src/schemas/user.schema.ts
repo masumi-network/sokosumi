@@ -1,10 +1,12 @@
 import { z } from "@hono/zod-openapi";
 import {
+  isFirstAndLastNameWithinLimit,
   NOTIFICATION_CATEGORIES,
   NOTIFICATION_CHANNELS,
 } from "@sokosumi/utils";
 
 import { dateTimeSchema } from "@/helpers/datetime";
+import { SOCIAL_PROVIDER_IDS } from "@/lib/auth-social-providers";
 import { subscriptionSchema } from "@/schemas/subscription.schema";
 
 const creditBucketBreakdownItemSchema = z
@@ -114,6 +116,16 @@ export const userSchema = z
     createdAt: dateTimeSchema,
     updatedAt: dateTimeSchema,
     name: z.string().openapi({ example: "John Doe" }),
+    firstName: z.string().nullable().openapi({
+      description:
+        "Null when never given: older accounts, or one an email code created without names",
+      example: "John",
+    }),
+    lastName: z.string().nullable().openapi({
+      description:
+        "Null when never given: older accounts, or one an email code created without names",
+      example: "Doe",
+    }),
     email: z.email().openapi({ example: "john.doe@example.com" }),
     emailVerified: z.boolean().openapi({ example: true }),
     image: z
@@ -239,6 +251,22 @@ export const utmAttributionResponseSchema = z
   })
   .openapi("UtmAttributionResponse");
 
+export const signUpConversionResponseSchema = z
+  .object({
+    provider: z.enum(SOCIAL_PROVIDER_IDS).nullable().openapi({
+      description:
+        "The social provider the user just signed up with, answered to the first claim only. Null when there is no uncounted social sign-up.",
+      example: "google",
+    }),
+  })
+  .openapi("SignUpConversionResponse");
+
+export const signUpConversionRequestSchema = z
+  .object({
+    utmAttribution: utmAttributionRequestSchema.optional(),
+  })
+  .openapi("SignUpConversionRequest");
+
 const creditWalletScopeSchema = z.enum(["organization", "personal"]).openapi({
   description:
     "Which credit wallet this payload is for: the user's personal credits, or the organization credit pool",
@@ -270,3 +298,15 @@ export const creditsResponseSchema = z.object({
       "Deprecated: prefer `spendable`, top-level `subscription`, and `extra.credits`. `total` equals `spendable`; `buffer` is extra remaining with the enterprise pool stripped.",
   }),
 });
+
+export const updateUserNameSchema = z
+  .object({
+    firstName: z.string().trim().min(1).openapi({ example: "Ada" }),
+    lastName: z.string().trim().min(1).openapi({ example: "Lovelace" }),
+  })
+  .refine(
+    ({ firstName, lastName }) =>
+      isFirstAndLastNameWithinLimit(firstName, lastName),
+    { path: ["lastName"], error: "First and last name are too long" },
+  )
+  .openapi("UpdateUserName");

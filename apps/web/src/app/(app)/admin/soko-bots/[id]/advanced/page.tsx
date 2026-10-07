@@ -6,9 +6,11 @@ import { AdminDecisionsPanel } from "@/components/admin/soko-bots/admin-decision
 import { AdminLegacyHistoryPanel } from "@/components/admin/soko-bots/admin-legacy-history-panel";
 import { AdminMemoryPanel } from "@/components/admin/soko-bots/admin-memory-panel";
 import { AdminSchedulesPanel } from "@/components/admin/soko-bots/admin-schedules-panel";
+import { AdminSokoBotAvatar } from "@/components/admin/soko-bots/admin-soko-bot-avatar.client";
 import { AdminSokoBotDangerZone } from "@/components/admin/soko-bots/admin-soko-bot-danger-zone.client";
 import { AdminSokoBotHeader } from "@/components/admin/soko-bots/admin-soko-bot-header";
 import { AdminSokoBotVersion } from "@/components/admin/soko-bots/admin-soko-bot-version.client";
+import { ClientMessageBoundary } from "@/i18n/client-message-boundary";
 import { adminSokoBotService } from "@/lib/services/admin-soko-bot.service";
 
 export const instant = false;
@@ -45,6 +47,15 @@ export default async function AdminSokoBotAdvancedPage({
           }))}
           defaultVersionId={versionList.defaultVersionId}
         />
+        {/* The picker reads the owner console's copy, which the admin bag leaves out. */}
+        <ClientMessageBoundary
+          paths={["App.Admin.SokoBots.Avatar", "App.SokoBot.Avatar"]}
+        >
+          <AdminSokoBotAvatar
+            sokoBotId={bot.id}
+            currentImageUrl={bot.avatarImageUrl ?? null}
+          />
+        </ClientMessageBoundary>
         <AdminDecisionsPanel decisions={bot.pendingDecisions ?? []} />
         <AdminSchedulesPanel sokoBotId={bot.id} schedules={bot.schedules} />
         <AdminMemoryPanel bot={bot} />

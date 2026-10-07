@@ -6,6 +6,7 @@ import {
   ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME,
   ROOM_COMPOSER_TEXTAREA_CLASSNAME,
   RoomComposerEmojiPicker,
+  RoomMessageComposer,
 } from "./room-message-composer";
 
 vi.mock("next-intl", () => ({
@@ -86,5 +87,33 @@ describe("RoomComposerEmojiPicker", () => {
         window.localStorage.getItem("sokosumi.emoji-picker.recent.v1") ?? "[]",
       ),
     ).toEqual(["😂"]);
+  });
+});
+
+describe("RoomMessageComposer docked content", () => {
+  it("keeps the typing row ahead of the tray and the tray touching the card", () => {
+    const { container } = render(
+      <RoomMessageComposer
+        typingLine={<p data-testid="typing">Someone is typing</p>}
+        aboveCard={<section data-testid="tray">Connect providers</section>}
+        attachments={[]}
+        onRemoveAttachment={() => {}}
+        removeAttachmentLabel={() => "Remove"}
+        onSubmit={(event) => event.preventDefault()}
+        isSending={false}
+        sendDisabled={false}
+        sendAriaLabel="Send"
+      >
+        <textarea aria-label="Message" />
+      </RoomMessageComposer>,
+    );
+
+    const tray = screen.getByTestId("tray");
+    expect(screen.getByTestId("typing").nextElementSibling).toBe(tray);
+    expect(
+      tray.nextElementSibling?.querySelector(
+        "[data-room-composer-mention-anchor]",
+      ),
+    ).toBe(container.querySelector("[data-room-composer-mention-anchor]"));
   });
 });

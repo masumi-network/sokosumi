@@ -18,8 +18,9 @@ const params = z.object({
 const route = createRoute({
   method: "put",
   path: "/preferred-organization",
+  deprecated: true,
   description:
-    'Set the user\'s preferred organization workspace (path `me` for the session user, or a user id the caller may access). Send `{"organizationId":null}` to switch to personal — refused when the personal workspace is missing. Omitting the key (`{}`) is 422, not a personal switch. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.',
+    'Deprecated: use `PUT /users/{id}/workspaces/preferred` (ADR 0051). Set the user\'s preferred organization workspace (path `me` for the session user, or a user id the caller may access). Send `{"organizationId":null}` to switch to personal — refused when the personal workspace is missing. Omitting the key (`{}`) is 422, not a personal switch. Setting an organization requires the user to be a member of it; the membership check and the write happen in one transaction.',
   tags: ["Users"],
   request: {
     params,

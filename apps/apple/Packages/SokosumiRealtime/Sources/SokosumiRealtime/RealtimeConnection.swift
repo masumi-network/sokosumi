@@ -27,8 +27,12 @@ public protocol RealtimeConnection: AnyObject, Sendable {
   )
   /// Retargets future token mints (workspace switch). Does not remint.
   func setOrganizationSlug(_ slug: String?)
-  /// Observes the selected room health. Nil removes that observation.
+  /// Observes the selected room's health and subscribes its typing channel once the token
+  /// grants it (ADR 0033). Nil removes both.
   func watchRoom(_ roomId: String?)
+  /// Tells the watched room this client started or stopped typing. Dropped unless `roomId` is
+  /// the watched room and its token grants `publish`; the coordinator throttles.
+  func publishTyping(_ state: ChatTypingState, roomId: String)
   func setMembershipRooms(_ roomIds: Set<String>)
   func refreshMembership()
   /// Enters org presence for the active organization once its token grant is

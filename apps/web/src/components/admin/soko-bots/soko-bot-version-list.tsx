@@ -1,6 +1,6 @@
+import type { SokoBotVersionDetail } from "@sokosumi/core-client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
-
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,7 +11,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { SokoBotVersionDetail } from "@/lib/clients/generated/core";
 import { ADMIN_SOKO_BOT_VERSIONS_ROUTE } from "@/lib/soko-bot/constants";
 
 interface SokoBotVersionListProps {

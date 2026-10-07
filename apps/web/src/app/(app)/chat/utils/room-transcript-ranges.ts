@@ -1,4 +1,4 @@
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 
 import { mergeRoomMessages } from "./merge-room-messages";
 import { isOutboundLocalMessage } from "./outbound-room-message";

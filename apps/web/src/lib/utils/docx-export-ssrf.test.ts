@@ -1,9 +1,6 @@
+import { acquireExportLease, releaseExportLease } from "@sokosumi/core-client";
+import { createClient } from "@sokosumi/core-client/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  acquireExportLease,
-  releaseExportLease,
-} from "@/lib/clients/generated/core";
-import { createClient } from "@/lib/clients/generated/core/client";
 
 const { ssrfSafeFetchMock } = vi.hoisted(() => ({
   ssrfSafeFetchMock: vi.fn(),

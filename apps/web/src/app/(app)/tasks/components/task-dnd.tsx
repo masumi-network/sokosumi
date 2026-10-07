@@ -7,12 +7,12 @@ import {
   useDraggable,
   useDroppable,
 } from "@dnd-kit/core";
+import { TaskStatus } from "@sokosumi/core-client";
 import { type CSSProperties, type ReactNode, useRef } from "react";
 import type {
   KanbanColumnId,
   TaskWithCoworker,
 } from "@/app/tasks/types/task-board";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { cn } from "@/lib/utils";
 
 /** Columns whose tasks can be dragged. */

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { discardRetiredAblyRealtimeClient } = vi.hoisted(() => ({
   discardRetiredAblyRealtimeClient: vi.fn(),
@@ -9,110 +9,213 @@ vi.mock("@/lib/ably/realtime-singleton.client", () => ({
 }));
 
 import {
-  buildAuthCallbackUrl,
-  buildOAuthConsentReturnUrlFromSearchParams,
-  buildSignedOAuthConsentQueryFromSearchParams,
-  buildSignUpUrlFromSignIn,
+  buildAuthPageUrl,
+  buildSignedOAuthQueryFromSearchParams,
+  buildSocialCallbackUrls,
   createAuthSessionGetter,
   getAbsoluteAuthRedirectUrl,
   getAbsoluteRedirectUrlForOrigin,
-  normalizeAuthReturnUrl,
+  oauthRequestAsksForNewAccount,
+  oauthRequestExpiresSoon,
+  oauthRequestHasExpired,
+  readAuthReturnUrl,
+  sanitizeAuthRedirectPath,
   waitForAuthSession,
 } from "@/lib/auth/auth.utils";
 
-describe("buildSignedOAuthConsentQueryFromSearchParams", () => {
+describe("buildSignedOAuthQueryFromSearchParams", () => {
   it("repairs base64 plus characters and keeps only signed parameters", () => {
     const params = new URLSearchParams(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&debug=unsigned&sig=abc+def%2Fghi%3D",
     );
 
-    expect(buildSignedOAuthConsentQueryFromSearchParams(params)).toBe(
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
       "client_id=client_1&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=abc%2Bdef%2Fghi%3D",
+    );
+  });
+
+  it("leaves out the error a failed sign-in brought back", () => {
+    const params = new URLSearchParams(
+      "client_id=client_1&exp=1772367377&sig=abc&error=access_denied&error_description=denied",
+    );
+
+    expect(buildSignedOAuthQueryFromSearchParams(params)).toBe(
+      "client_id=client_1&exp=1772367377&sig=abc",
     );
   });
 
   it("returns undefined for an unsigned query", () => {
     expect(
-      buildSignedOAuthConsentQueryFromSearchParams(
+      buildSignedOAuthQueryFromSearchParams(
         new URLSearchParams("client_id=client_1"),
       ),
     ).toBeUndefined();
   });
 });
 
-describe("buildAuthCallbackUrl", () => {
+describe("oauthRequestAsksForNewAccount", () => {
+  it.each([
+    ["create", true],
+    ["consent create", true],
+    ["login", false],
+    ["created", false],
+  ])("reads prompt=%s as %s", (prompt, expected) => {
+    expect(
+      oauthRequestAsksForNewAccount(`client_id=cmo&prompt=${prompt}`),
+    ).toBe(expected);
+  });
+
+  it("finds no request for a new account without a prompt", () => {
+    expect(oauthRequestAsksForNewAccount("client_id=cmo")).toBe(false);
+  });
+});
+
+describe("oauthRequestExpiresSoon", () => {
+  // `exp` is in seconds: 2026-09-30T10:10:00Z.
+  const QUERY = `client_id=cmo&exp=${Date.parse("2026-09-30T10:10:00Z") / 1000}`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["with five minutes left", "2026-09-30T10:05:00Z", false],
+    ["with exactly two minutes left", "2026-09-30T10:08:00Z", true],
+    ["with one minute left", "2026-09-30T10:09:00Z", true],
+    ["after it expired", "2026-09-30T10:11:00Z", true],
+  ])("reads a request %s as %s", (_when, now, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(now));
+
+    expect(oauthRequestExpiresSoon(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    ["no", "client_id=cmo"],
+    ["an unreadable", "client_id=cmo&exp=soon"],
+  ])("treats a request with %s expiry as expiring", (_kind, query) => {
+    expect(oauthRequestExpiresSoon(query)).toBe(true);
+  });
+});
+
+describe("oauthRequestHasExpired", () => {
+  const EXPIRES_AT = Date.parse("2026-09-30T10:10:00Z");
+  const QUERY = `client_id=cmo&exp=${EXPIRES_AT / 1000}&sig=signed-value`;
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each([
+    ["before expiry", -1, false],
+    ["at expiry", 0, false],
+    ["inside the margin", 29_999, false],
+    ["at the margin", 30_000, false],
+    ["beyond the margin", 30_001, true],
+  ])("reads a request %s", (_when, elapsed, expected) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + elapsed });
+    expect(oauthRequestHasExpired(QUERY)).toBe(expected);
+  });
+
+  it.each([
+    "",
+    "exp=",
+    "exp=soon",
+    "exp=NaN",
+    "exp=Infinity",
+    "exp=-Infinity",
+    "exp=0",
+    "exp=-1",
+    "exp=1.5",
+    "exp=1e3",
+    "exp=0x10",
+    "exp=01",
+    "exp=+1",
+    "exp=9007199254740993",
+    "exp=8640000000001",
+    "exp=1&exp=9999999999",
+    "exp=9999999999&exp=1",
+  ])("leaves malformed expiry to Core (%s)", (expiry) => {
+    vi.useFakeTimers({ toFake: ["Date"], now: EXPIRES_AT + 60_000 });
+    expect(
+      oauthRequestHasExpired(`client_id=cmo&${expiry}&sig=signed-value`),
+    ).toBe(false);
+  });
+});
+
+describe("buildSocialCallbackUrls", () => {
+  function stubLocation(href: string) {
+    vi.stubGlobal("window", {
+      location: { href, origin: new URL(href).origin },
+    });
+  }
+
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
-  it("anchors the callback to the current web origin so Core redirects back to the web app", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
+  it("anchors the callbacks to the current web origin so Core redirects back to the web app", () => {
+    stubLocation("https://preprod.sokosumi.com/signin");
 
-    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google",
-    );
+    expect(buildSocialCallbackUrls("google", undefined)).toEqual({
+      callbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=google",
+      newUserCallbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signup?provider=google",
+      errorCallbackURL: "https://preprod.sokosumi.com/signin",
+    });
   });
 
   it("includes the returnUrl when provided", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
+    stubLocation("https://preprod.sokosumi.com/signup");
+
+    expect(buildSocialCallbackUrls("microsoft", "/chat")).toMatchObject({
+      callbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=microsoft&returnUrl=%2Fchat",
+      newUserCallbackURL:
+        "https://preprod.sokosumi.com/auth/callback/signup?provider=microsoft&returnUrl=%2Fchat",
     });
+  });
 
-    expect(
-      buildAuthCallbackUrl("/auth/callback/signup", "microsoft", "/chat"),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signup?provider=microsoft&returnUrl=%2Fchat",
+  it.each(["https://evil.example/attack", "//evil.com"])(
+    "sanitizes the returnUrl %s to fallback",
+    (returnUrl) => {
+      stubLocation("https://preprod.sokosumi.com/signin");
+
+      expect(buildSocialCallbackUrls("google", returnUrl).callbackURL).toBe(
+        "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+      );
+    },
+  );
+
+  it("returns a failed sign-in to the page it started on", () => {
+    stubLocation(
+      "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat#methods",
+    );
+
+    expect(buildSocialCallbackUrls("google", "/chat").errorCallbackURL).toBe(
+      "https://preprod.sokosumi.com/signin?returnUrl=%2Fchat",
     );
   });
 
-  it("sanitizes external returnUrl to fallback", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
+  it("drops the error of an earlier attempt", () => {
+    stubLocation(
+      "https://preprod.sokosumi.com/signup?error=access_denied&error_description=denied&client_id=cmo",
+    );
 
-    expect(
-      buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        "google",
-        "https://evil.example/attack",
-      ),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
+    expect(buildSocialCallbackUrls("google", undefined).errorCallbackURL).toBe(
+      "https://preprod.sokosumi.com/signup?client_id=cmo",
     );
   });
 
-  it("rejects a protocol-relative returnUrl to fallback", () => {
-    vi.stubGlobal("window", {
-      location: { origin: "https://preprod.sokosumi.com" },
-    });
+  it("returns to another page with the same query when asked", () => {
+    stubLocation(
+      "https://preprod.sokosumi.com/auth/google?returnUrl=%2Fchat&error=access_denied",
+    );
 
     expect(
-      buildAuthCallbackUrl("/auth/callback/signin", "google", "//evil.com"),
-    ).toBe(
-      "https://preprod.sokosumi.com/auth/callback/signin?provider=google&returnUrl=%2F",
-    );
-  });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(buildAuthCallbackUrl("/auth/callback/signin", "google")).toBe(
-      "/auth/callback/signin?provider=google",
-    );
-  });
-
-  it("sanitizes external returnUrl to fallback during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      buildAuthCallbackUrl(
-        "/auth/callback/signin",
-        "google",
-        "https://evil.example/attack",
-      ),
-    ).toBe("/auth/callback/signin?provider=google&returnUrl=%2F");
+      buildSocialCallbackUrls("google", "/chat", "/signup").errorCallbackURL,
+    ).toBe("https://preprod.sokosumi.com/signup?returnUrl=%2Fchat");
   });
 });
 
@@ -150,26 +253,6 @@ describe("getAbsoluteAuthRedirectUrl", () => {
       getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
     ).toBe("https://preprod.sokosumi.com/chat");
   });
-
-  it("falls back to a relative path when window is unavailable (SSR)", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("/chat", "/")).toBe("/chat");
-  });
-
-  it("sanitizes an external returnUrl to fallback during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(
-      getAbsoluteAuthRedirectUrl("https://evil.example/attack", "/chat"),
-    ).toBe("/chat");
-  });
-
-  it("rejects a protocol-relative returnUrl during SSR", () => {
-    vi.stubGlobal("window", undefined);
-
-    expect(getAbsoluteAuthRedirectUrl("//evil.com", "/chat")).toBe("/chat");
-  });
 });
 
 describe("getAbsoluteRedirectUrlForOrigin", () => {
@@ -184,6 +267,15 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
     );
   });
 
+  it("keeps a full URL on the provided origin, not the page's", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "https://preprod.sokosumi.com/jobs#latest",
+      ),
+    ).toBe("https://preprod.sokosumi.com/jobs#latest");
+  });
+
   it("rejects external returnUrl values", () => {
     expect(
       getAbsoluteRedirectUrlForOrigin(
@@ -193,23 +285,56 @@ describe("getAbsoluteRedirectUrlForOrigin", () => {
       ),
     ).toBe("https://preprod.sokosumi.com/billing");
   });
+
+  it.each([
+    "/.//evil.example",
+    "/foo/..//evil.example",
+    "https://preprod.sokosumi.com/.//evil.example",
+  ])("rejects a path that parses as another host: %s", (returnUrl) => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        returnUrl,
+        "/billing",
+      ),
+    ).toBe("https://preprod.sokosumi.com/billing");
+  });
+
+  it("keeps a collapsed same-origin dot segment", () => {
+    expect(
+      getAbsoluteRedirectUrlForOrigin(
+        "https://preprod.sokosumi.com",
+        "/foo/../chat?x=1#y",
+      ),
+    ).toBe("https://preprod.sokosumi.com/chat?x=1#y");
+  });
 });
 
-describe("normalizeAuthReturnUrl", () => {
+describe("sanitizeAuthRedirectPath", () => {
   afterEach(() => {
     vi.unstubAllGlobals();
   });
 
   it("returns / when returnUrl is missing", () => {
-    expect(normalizeAuthReturnUrl(undefined)).toBe("/");
+    expect(sanitizeAuthRedirectPath(undefined)).toBe("/");
   });
 
   it("returns / when returnUrl is root", () => {
-    expect(normalizeAuthReturnUrl("/")).toBe("/");
+    expect(sanitizeAuthRedirectPath("/")).toBe("/");
+  });
+
+  it.each([
+    ["\u00A0/chat", "/chat"],
+    ["\u00A0https://evil.example/attack", "/"],
+    ["\u00A0", "/"],
+  ])("trims Unicode spaces from %j", (returnUrl, expected) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
   });
 
   it("returns safe non-root relative returnUrl", () => {
-    expect(normalizeAuthReturnUrl("/accept-invitation/invite_123")).toBe(
+    expect(sanitizeAuthRedirectPath("/accept-invitation/invite_123")).toBe(
       "/accept-invitation/invite_123",
     );
   });
@@ -219,7 +344,7 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(sanitizeAuthRedirectPath("https://evil.example/attack")).toBe("/");
   });
 
   it("returns / for unsupported protocols", () => {
@@ -227,181 +352,283 @@ describe("normalizeAuthReturnUrl", () => {
       location: { origin: "https://preprod.sokosumi.com" },
     });
 
-    expect(normalizeAuthReturnUrl("javascript:alert('x')")).toBe("/");
+    expect(sanitizeAuthRedirectPath("javascript:alert('x')")).toBe("/");
   });
 
-  it("returns / for external returnUrl during SSR", () => {
+  it.each([
+    ["https://localhost.invalid/phish", "/phish"],
+    ["//localhost.invalid/phish", "/phish"],
+  ])(
+    "drops the SSR placeholder origin from a returnUrl: %s",
+    (returnUrl, expected) => {
+      vi.stubGlobal("window", undefined);
+
+      expect(sanitizeAuthRedirectPath(returnUrl)).toBe(expected);
+    },
+  );
+
+  it("roots a fragment-only returnUrl so it leaves the current page", () => {
     vi.stubGlobal("window", undefined);
 
-    expect(normalizeAuthReturnUrl("https://evil.example/attack")).toBe("/");
+    expect(sanitizeAuthRedirectPath("#details")).toBe("/#details");
+  });
+
+  it("keeps an internal path with its query and fragment", () => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath("/chat?filter=unread#details")).toBe(
+      "/chat?filter=unread#details",
+    );
+  });
+
+  it.each([
+    "https://evil.example/attack",
+    "//evil.example/attack",
+    "/\\evil.example/attack",
+    "/.//evil.example",
+    "/foo/..//evil.example",
+    "javascript:alert('x')",
+  ])("returns / for an off-site returnUrl during SSR: %s", (returnUrl) => {
+    vi.stubGlobal("window", undefined);
+
+    expect(sanitizeAuthRedirectPath(returnUrl)).toBe("/");
   });
 });
 
-describe("buildSignUpUrlFromSignIn", () => {
+describe("buildAuthPageUrl for sign-up", () => {
   it("returns bare signup path when no params are provided", () => {
-    expect(buildSignUpUrlFromSignIn({})).toBe("/signup");
+    expect(buildAuthPageUrl("/signup", {})).toBe("/signup");
   });
 
-  it("preserves returnUrl and email in signup link", () => {
+  it("preserves returnUrl in signup link", () => {
     expect(
-      buildSignUpUrlFromSignIn({
+      buildAuthPageUrl("/signup", {
         returnUrl: "/accept-invitation/invite_123?foo=bar",
-        email: "user@example.com",
+      }),
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar");
+  });
+
+  it("carries the OAuth request as the sign-up page's own query", () => {
+    expect(
+      buildAuthPageUrl("/signup", {
+        oauthQuery: "client_id=client_1&exp=1772367377&sig=signed",
+        returnUrl: "/agents",
       }),
     ).toBe(
-      "/signup?returnUrl=%2Faccept-invitation%2Finvite_123%3Ffoo%3Dbar&email=user%40example.com",
+      "/signup?client_id=client_1&exp=1772367377&sig=signed&returnUrl=%2Fagents",
     );
   });
 });
 
-describe("buildOAuthConsentReturnUrlFromSearchParams", () => {
-  it("builds a consent return URL from URLSearchParams", () => {
+describe("buildAuthPageUrl for sign-up with an invitation", () => {
+  // Sign-up looks the address up and locks it; the URL reaches logs.
+  it("keeps the invitation without its address", () => {
+    expect(
+      buildAuthPageUrl("/signup", {
+        returnUrl: "/accept-invitation/inv_1",
+        invitationId: "inv_1",
+      }),
+    ).toBe("/signup?returnUrl=%2Faccept-invitation%2Finv_1&invitationId=inv_1");
+  });
+});
+
+describe("buildAuthPageUrl for sign-in", () => {
+  it("returns bare signin path without an OAuth request or returnUrl", () => {
+    expect(buildAuthPageUrl("/signin", {})).toBe("/signin");
+  });
+
+  it("carries the OAuth request as the sign-in page's own query", () => {
+    expect(
+      buildAuthPageUrl("/signin", {
+        oauthQuery:
+          "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+      }),
+    ).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    );
+  });
+});
+
+describe("readAuthReturnUrl", () => {
+  const oauthQuery = "client_id=cmo&exp=1772367377&sig=signed-value";
+
+  it("prefers the page's returnUrl", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=%2Fjobs`)),
+    ).toBe("/jobs");
+  });
+
+  // `readAuthPageContext` treats an empty returnUrl as absent too, so the
+  // page's Register link and its sign-in agree on where the person goes.
+  it("resumes the OAuth request when the returnUrl is empty", () => {
+    expect(
+      readAuthReturnUrl(new URLSearchParams(`${oauthQuery}&returnUrl=`)),
+    ).toBe(`/signin?${oauthQuery}`);
+  });
+
+  it.each<Record<string, string>>([
+    { prompt: "login" },
+    { prompt: "login consent" },
+    { max_age: "300" },
+    { max_age: "0" },
+  ])("resumes explicit reauthentication at consent (%o)", (extra) => {
     const params = new URLSearchParams({
       client_id: "client_1",
-      redirect_uri: "https://example.com/callback",
-      code_challenge: "challenge_1",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
+      exp: "1772367377",
+      ba_iat: "1772366777000",
+      sig: "signed-value",
+      ...extra,
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&scope=openid&state=state_1&response_type=code",
+    expect(readAuthReturnUrl(params)).toBe(
+      `/oauth/consent?${params.toString()}`,
     );
   });
 
-  it("returns undefined when required params are missing", () => {
+  it("keeps create requests on the sign-in hand-back path", () => {
     const params = new URLSearchParams({
-      client_id: "client_1",
-      redirect_uri: "https://example.com/callback",
+      client_id: "cmo",
+      exp: "1772367377",
+      sig: "signed-value",
+      prompt: "create",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBeUndefined();
+    expect(readAuthReturnUrl(params)).toBe(`/signin?${params.toString()}`);
   });
 
-  it("preserves signed oauth query and filters app-only params", () => {
+  it("ignores unsigned reauthentication parameters", () => {
+    const params = new URLSearchParams(
+      "client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value&prompt=login&max_age=0",
+    );
+
+    expect(readAuthReturnUrl(params)).toBe(
+      "/signin?client_id=cmo&exp=1772367377&ba_param=ba_param&ba_param=client_id&ba_param=exp&sig=signed-value",
+    );
+  });
+
+  it("returns undefined without a signed OAuth request", () => {
     const params = new URLSearchParams({
       client_id: "client_1",
       redirect_uri: "https://example.com/callback",
       code_challenge: "challenge_1",
-      code_challenge_method: "S256",
-      scope: "openid",
-      state: "state_1",
-      response_type: "code",
+    });
+
+    expect(readAuthReturnUrl(params)).toBeUndefined();
+  });
+
+  it("points at the sign-in page with the signed request and no app-only params", () => {
+    const params = new URLSearchParams({
+      client_id: "client_1",
+      redirect_uri: "https://example.com/callback",
+      code_challenge: "challenge_1",
       exp: "1772367377",
       sig: "signed-value",
-      returnUrl: "/oauth/consent?foo=bar",
       email: "user@example.com",
     });
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&code_challenge_method=S256&scope=openid&state=state_1&response_type=code&exp=1772367377&sig=signed-value",
+    expect(readAuthReturnUrl(params)).toBe(
+      "/signin?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=signed-value",
     );
   });
 
   it("repairs a base64 signature whose encoded plus was decoded as a space", () => {
     const params = new URLSearchParams(
-      "client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
+      "client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB+vbGZAR42ECbHJf8K%2F24s%3D",
     );
 
-    expect(buildOAuthConsentReturnUrlFromSearchParams(params)).toBe(
-      "/oauth/consent?client_id=client_1&redirect_uri=https%3A%2F%2Fexample.com%2Fcallback&code_challenge=challenge_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
+    expect(readAuthReturnUrl(params)).toBe(
+      "/signin?client_id=client_1&exp=1772367377&sig=mVXxByc5E32WEKh8YvwTBB%2BvbGZAR42ECbHJf8K%2F24s%3D",
     );
   });
 });
 
 describe("waitForAuthSession", () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Runs the wait to its end, through every timer it sets. */
+  async function settle<T>(wait: Promise<T>): Promise<T> {
+    await vi.runAllTimersAsync();
+    return wait;
+  }
+
   /**
    * Every sign-in path waits here and then navigates with `router.replace`, so
    * the document survives and a client the Ably singleton retired for a lost
    * session would survive with it. This is the one seam all four paths share.
    */
   it("discards a retired Ably client, because a sign-in just happened", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     // Every test in this block calls the seam, and nothing clears the
     // module-scoped mock, so the count would otherwise depend on test order.
     discardRetiredAblyRealtimeClient.mockClear();
 
-    await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
-      logWarning: vi.fn(),
-    });
+    await settle(
+      waitForAuthSession({
+        context: "login",
+        getSession: vi.fn().mockResolvedValue({ userId: "user_1" }),
+        logWarning: vi.fn(),
+      }),
+    );
     // The import is dynamic and deliberately not awaited, so let it settle.
+    vi.useRealTimers();
     await vi.waitFor(() => {
       expect(discardRetiredAblyRealtimeClient).toHaveBeenCalledOnce();
     });
   });
 
-  it("returns early when session is available after initial wait", async () => {
-    const waitForMs = vi.fn(async () => undefined);
+  it("asks once the cookie has had a moment, and returns the session", async () => {
     const getSession = vi.fn().mockResolvedValue({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
+    const wait = waitForAuthSession({
       context: "login",
-      waitForMs,
       getSession,
       logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
     });
+    await vi.advanceTimersByTimeAsync(199);
+    expect(getSession).not.toHaveBeenCalled();
 
-    expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(1);
-    expect(waitForMs).toHaveBeenCalledWith(10);
+    await expect(settle(wait)).resolves.toEqual({ userId: "user_1" });
     expect(getSession).toHaveBeenCalledTimes(1);
     expect(logWarning).not.toHaveBeenCalled();
   });
 
   it("retries once and logs waiting warning when first session check fails", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi
       .fn()
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({ userId: "user_1" });
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "signup",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "signup", getSession, logWarning }),
+    );
 
     expect(session).toEqual({ userId: "user_1" });
-    expect(waitForMs).toHaveBeenCalledTimes(2);
-    expect(waitForMs).toHaveBeenNthCalledWith(1, 10);
-    expect(waitForMs).toHaveBeenNthCalledWith(2, 20);
     expect(getSession).toHaveBeenCalledTimes(2);
-    expect(logWarning).toHaveBeenCalledTimes(1);
-    expect(logWarning).toHaveBeenCalledWith(
-      "Session not established after signup, waiting for 20ms",
+    expect(logWarning).toHaveBeenCalledExactlyOnceWith(
+      "Session not established after signup, waiting for 500ms",
     );
   });
 
   it("logs second warning when session is still unavailable after retry", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn().mockResolvedValue(null);
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 10,
-      retryDelayMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(logWarning).toHaveBeenCalledTimes(2);
     expect(logWarning).toHaveBeenNthCalledWith(
       1,
-      "Session not established after login, waiting for 20ms",
+      "Session not established after login, waiting for 500ms",
     );
     expect(logWarning).toHaveBeenNthCalledWith(
       2,
@@ -410,19 +637,12 @@ describe("waitForAuthSession", () => {
   });
 
   it("treats a hung getSession as missing and continues", async () => {
-    const waitForMs = vi.fn(async () => undefined);
     const getSession = vi.fn(() => new Promise(() => {}));
     const logWarning = vi.fn();
 
-    const session = await waitForAuthSession({
-      context: "login",
-      waitForMs,
-      getSession,
-      logWarning,
-      initialDelayMs: 0,
-      retryDelayMs: 0,
-      sessionTimeoutMs: 20,
-    });
+    const session = await settle(
+      waitForAuthSession({ context: "login", getSession, logWarning }),
+    );
 
     expect(session).toBeNull();
     expect(getSession).toHaveBeenCalledTimes(2);
@@ -450,4 +670,33 @@ describe("createAuthSessionGetter", () => {
 
     await expect(getSession()).resolves.toBeNull();
   });
+});
+
+describe("auth page URL round trips", () => {
+  it.each(["/signup", "/signin"] as const)(
+    "preserves signed multi-value OAuth parameters and an escaped return URL on %s",
+    (path) => {
+      const oauthQuery =
+        "client_id=cmo&exp=1772367377&sig=abc%2Bdef%2Fghi%3D&scope=openid+email&ba_param=scope&ba_param=client_id";
+      const returnUrl =
+        "/accept-invitation/inv_1?next=%2Ftasks%3Fq%3Da%2Bb&tag=one&tag=two+words&literal=a+b#details";
+      const url = new URL(
+        buildAuthPageUrl(path, {
+          oauthQuery,
+          returnUrl,
+          invitationId: "inv_1",
+        }),
+        "https://sokosumi.test",
+      );
+      expect(url.searchParams.get("returnUrl")).toBe(returnUrl);
+      expect(url.searchParams.get("sig")).toBe("abc+def/ghi=");
+      expect(url.searchParams.getAll("ba_param")).toEqual([
+        "scope",
+        "client_id",
+      ]);
+      expect(url.searchParams.get("scope")).toBe("openid email");
+      expect(url.searchParams.has("email")).toBe(false);
+      expect(url.searchParams.get("invitationId")).toBe("inv_1");
+    },
+  );
 });

@@ -17,9 +17,9 @@ export interface ResetPasswordEmailProps extends LocalizedEmailProps {
   resetLink: string;
 }
 
-export interface MagicLinkEmailProps extends LocalizedEmailProps {
-  magicLink: string;
-  name?: string;
+export interface EmailCodeEmailProps extends LocalizedEmailProps {
+  code: string;
+  expiresInMinutes: number;
 }
 
 export interface OrganizationInvitationEmailProps extends LocalizedEmailProps {

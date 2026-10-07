@@ -1,8 +1,7 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode, Ref } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import type { RoomComposerHandle } from "../room-composer";
 import { ThreadPanel } from "../thread-panel";

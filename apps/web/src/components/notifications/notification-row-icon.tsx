@@ -1,4 +1,4 @@
-import type { NotificationItem } from "@/lib/clients/generated/core";
+import type { NotificationItem } from "@sokosumi/core-client";
 import { cn } from "@/lib/utils";
 import { getNotificationIcon } from "@/lib/utils/notification-icon";
 

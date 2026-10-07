@@ -1,7 +1,6 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
-
 import { coreClient } from "@/lib/clients/core.browser.client";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 import { resolveAccountName } from "@/lib/utils/account-name";
 import { getNotificationHref } from "@/lib/utils/notification-href";
 import { getWorkspaceOrganizationId } from "@/lib/utils/workspace-organization.client";

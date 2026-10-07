@@ -1,5 +1,6 @@
 "use client";
 
+import type { Job, MemberWithOrganization } from "@sokosumi/core-client";
 import { ArrowLeftRight, List, Pencil, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -20,7 +21,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { Job, MemberWithOrganization } from "@/lib/clients/generated/core";
 import { getAgentLegal, getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 import { useLocalizedDateTime } from "@/lib/utils/datetime.client";
@@ -280,7 +280,7 @@ function JobDetailsTopBarActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={() => setIsMoveOpen(true)}
             title={tActions("moveToWorkspace")}
             aria-label={tActions("moveToWorkspace")}
@@ -296,7 +296,7 @@ function JobDetailsTopBarActions({
                   type="button"
                   variant="ghost"
                   size="icon"
-                  className="size-8 md:size-7"
+                  className="size-10 md:size-8"
                   title={tActions("moveToWorkspace")}
                   aria-label={tActions("moveToWorkspace")}
                   disabled
@@ -315,7 +315,7 @@ function JobDetailsTopBarActions({
             type="button"
             variant="ghost"
             size="icon"
-            className="size-8 md:size-7"
+            className="size-10 md:size-8"
             onClick={onEdit}
             title={tName("edit")}
             aria-label={tName("edit")}
@@ -328,7 +328,7 @@ function JobDetailsTopBarActions({
           job={job}
           variant="ghost"
           size="icon"
-          className="size-8 text-foreground md:size-7"
+          className="size-10 md:size-8 text-foreground"
         />
       </div>
       {canMoveStandaloneJob && personalWorkspaceLabel ? (
@@ -461,7 +461,7 @@ function JobDetailsContent({
                 {actor.imageUrl ? (
                   <AvatarImage src={actor.imageUrl} alt={actor.name} />
                 ) : null}
-                <AvatarFallback className="bg-muted text-[0.625rem]">
+                <AvatarFallback className="bg-muted text-2xs">
                   {getInitials(actor.name)}
                 </AvatarFallback>
               </Avatar>

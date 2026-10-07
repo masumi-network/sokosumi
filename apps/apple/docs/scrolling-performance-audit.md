@@ -196,7 +196,7 @@ There were **4,256 main-thread samples / 4,256 ms of sample weight in 5,000 ms: 
 
 Inclusive stacks overlap; do not add these percentages. The supplemental stack analysis uses at most 128 frames per sample. The expert skill's Time Profiler analysis reports zero detected hangs in this short window; hitches and SwiftUI lanes are **unavailable**, not zero.
 
-The source explains the avoidable retry work: `WorkspaceState.canRetryMention` passes `mentionRetrySources` as an eagerly evaluated argument. That property concatenates the transcript, thread parent and replies **before** `CoworkerMentionShell.canRetry` rejects an ordinary message. The negative-case benchmark calls the real method 2,100 times per count, in 21 batches of 100. Its comparison checks for a failed shell with a source ID before calling that same method. Both paths deny every ordinary-message case:
+The source explains the avoidable retry work: `WorkspaceState.canRetryMention` passes `mentionRetrySources` as an eagerly evaluated argument. That property concatenates the transcript, thread parent and replies **before** `MentionThoughtShell.canRetry` rejects an ordinary message. The negative-case benchmark calls the real method 2,100 times per count, in 21 batches of 100. Its comparison checks for a failed shell with a source ID before calling that same method. Both paths deny every ordinary-message case:
 
 | Loaded messages | Existing check, median ms/call | Reject ordinary message first, ms/call |
 | --- | ---: | ---: |
@@ -204,7 +204,7 @@ The source explains the avoidable retry work: `WorkspaceState.canRetryMention` p
 | 500 | 0.032160 | 0.000087 |
 | 2,000 | 0.126915 | 0.000082 |
 
-Use the existing `CoworkerMentionShell` predicate in the shared `WorkspaceState.canRetryMention` seam. Do not add another renderer or implement a new permission path. This is the smallest measured waste to remove, with the benefit limited to that work until a future UI benchmark proves more.
+Use the existing `MentionThoughtShell` predicate in the shared `WorkspaceState.canRetryMention` seam. Do not add another renderer or implement a new permission path. This is the smallest measured waste to remove, with the benefit limited to that work until a future UI benchmark proves more.
 
 `preparedMessages` is a second measured contributor. During the plain-text top sweep it ran **404 / 404 / 388 times**, spending **11.46 / 103.51 / 366.61 ms** at 50 / 500 / 2,000 messages. That is four calls for each of **101 / 101 / 97** room-body evaluations. Unlike detached `prepare`, this dictionary/map work happens while scrolling on the main actor. Reusing that projection when message/reaction inputs have not changed is a later candidate; this session does not prescribe or ship its state-lifetime design.
 

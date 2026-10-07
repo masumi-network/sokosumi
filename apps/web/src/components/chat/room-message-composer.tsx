@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Loader2 } from "lucide-react";
+import { ArrowUp } from "lucide-react";
 import {
   type FormEvent,
   type MouseEvent,
@@ -41,7 +41,7 @@ export const ROOM_COMPOSER_EDITOR_PLACEHOLDER_CLASSNAME =
   "empty:before:pointer-events-none empty:before:block empty:before:max-w-full empty:before:overflow-clip empty:before:text-ellipsis empty:before:whitespace-nowrap empty:before:text-muted-foreground empty:before:content-[attr(data-placeholder)]";
 
 export const ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME =
-  "size-9 rounded-full sm:size-8";
+  "size-10 rounded-full md:size-8";
 
 export const ROOM_COMPOSER_MENTION_ANCHOR_ATTR =
   "data-room-composer-mention-anchor";
@@ -71,6 +71,8 @@ interface RoomMessageComposerProps {
    * region rather than two announcing the same thing.
    */
   typingLine?: ReactNode;
+  /** Docked content between the typing row and the composer card. */
+  aboveCard?: ReactNode;
   isSending: boolean;
   sendDisabled: boolean;
   sendAriaLabel: string;
@@ -117,6 +119,7 @@ export function RoomMessageComposer({
   toolbarStart,
   aboveEditor,
   typingLine,
+  aboveCard,
   isSending,
   sendDisabled,
   sendAriaLabel,
@@ -144,6 +147,7 @@ export function RoomMessageComposer({
       onSubmit={onSubmit}
     >
       {typingLine}
+      {aboveCard}
       <div className="w-full">
         {/* scroll-margin on the shell, not the overflow:auto editor. Chromium
             uses editor scroll-margin during mouse selection and jumps long drafts. */}
@@ -272,19 +276,13 @@ function RoomComposerSendButton({
       size="icon"
       className={ROOM_COMPOSER_TOOL_BUTTON_CLASSNAME}
       disabled={sendBlocked}
+      loading={isSending}
       aria-label={ariaLabel}
       data-testid={testId}
       onPointerDown={handleSendPointerDown}
       onClick={handleSendClick}
     >
-      {isSending ? (
-        <Loader2
-          className="size-4 animate-spin motion-reduce:animate-pulse"
-          aria-hidden
-        />
-      ) : (
-        <ArrowUp className="size-4" aria-hidden />
-      )}
+      <ArrowUp className="size-4" aria-hidden />
     </Button>
   );
 }

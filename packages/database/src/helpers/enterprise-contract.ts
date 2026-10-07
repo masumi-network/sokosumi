@@ -1,5 +1,3 @@
-import { convertCreditsToCents } from "@sokosumi/utils";
-
 import { EnterpriseContractStatus } from "../generated/prisma/client.js";
 import { getNextMonthlyPeriodEnd } from "./subscription.js";
 
@@ -36,10 +34,6 @@ export function validateEnterprisePeriodCount(periodCount: number): void {
       `Enterprise contracts require at least ${MIN_ENTERPRISE_PERIOD_COUNT} period`,
     );
   }
-}
-
-export function minEnterpriseCentsPerMonth(): bigint {
-  return convertCreditsToCents(MIN_ENTERPRISE_CREDITS_PER_MONTH);
 }
 
 function periodEndBeforeNextStart(nextPeriodStart: Date): Date {

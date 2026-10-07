@@ -57,6 +57,8 @@ interface TaskFormModalProps {
   cancelLabel: string;
   children: React.ReactNode;
   isDismissDisabled?: boolean;
+  onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function TaskFormModal({
@@ -66,6 +68,8 @@ export function TaskFormModal({
   cancelLabel,
   children,
   isDismissDisabled = false,
+  onOpenAutoFocus,
+  onCloseAutoFocus,
 }: TaskFormModalProps) {
   const [headerStart, setHeaderStart] = useState<React.ReactNode>(null);
   const registerHeaderStart = useCallback((content: React.ReactNode) => {
@@ -91,6 +95,8 @@ export function TaskFormModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
         className="w-svw max-w-6xl! border-none bg-transparent p-0 shadow-none focus:ring-0 focus:outline-none md:w-[92vw] [&>button]:hidden"
+        onOpenAutoFocus={onOpenAutoFocus}
+        onCloseAutoFocus={onCloseAutoFocus}
         onPointerDownOutside={(event) => {
           if (isTaskFormPortalEventTarget(event.detail.originalEvent.target)) {
             event.preventDefault();
@@ -110,7 +116,7 @@ export function TaskFormModal({
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <TaskFormModalHeaderContext value={headerContextValue}>
-          <div className="bg-background flex h-dvh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90dvh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-2xl">
+          <div className="bg-background flex h-dvh w-svw flex-col overflow-hidden rounded-none md:h-[min(760px,90dvh)] md:w-auto md:rounded-xl md:border md:border-border md:shadow-lg">
             <div className="grid shrink-0 grid-cols-[1fr_auto_1fr] items-center px-6 py-3 md:px-8">
               <div className="justify-self-start">{headerStart}</div>
               <h3 className="text-base font-semibold">{title}</h3>

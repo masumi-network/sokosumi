@@ -1,11 +1,11 @@
 "use client";
 
-import { CircleCheck, CircleX, Clock3, LoaderCircle } from "lucide-react";
+import type { ProjectCloseStatus } from "@sokosumi/core-client";
+import { CircleCheck, CircleX, Clock3 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import {
   AlertDialog,
   AlertDialogAction,
@@ -24,7 +24,6 @@ import {
   cancelProjectCloseOwedWork,
   retryProjectClose,
 } from "@/lib/actions/project/action";
-import type { ProjectCloseStatus } from "@/lib/clients/generated/core";
 
 interface ProjectCloseStatusProps {
   status: ProjectCloseStatus;
@@ -296,18 +295,12 @@ export function ProjectCloseStatusCard({ status }: ProjectCloseStatusProps) {
                   ? "bg-semantic-destructive-solid text-destructive-foreground hover:bg-destructive-hover"
                   : undefined
               }
-              disabled={isPending}
+              loading={isPending}
               onClick={(event) => {
                 event.preventDefault();
                 handleRecovery();
               }}
             >
-              {isPending ? (
-                <LoaderCircle
-                  className="size-4 animate-spin motion-reduce:animate-none"
-                  aria-hidden
-                />
-              ) : null}
               {recoveryAction === "cancelOwed"
                 ? t("recovery.cancelOwedAction")
                 : t("recovery.retryAction")}

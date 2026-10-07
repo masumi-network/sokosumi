@@ -1,3 +1,5 @@
+import type { PendingInvitation } from "@sokosumi/core-client";
+import { MemberRole } from "@sokosumi/core-client";
 import { Ellipsis, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -11,8 +13,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
-import type { PendingInvitation } from "@/lib/clients/generated/core";
-import { MemberRole } from "@/lib/clients/generated/core";
 import type { OrganizationMembershipSelf } from "@/lib/types/core-dto";
 import { cn } from "@/lib/utils";
 
@@ -86,6 +86,7 @@ export default function InvitationActionsDropdown({
           size="icon"
           className={cn("p-2!", className)}
           onClick={() => setOpen(true)}
+          aria-label={t("open")}
         >
           <Ellipsis />
         </Button>
@@ -93,7 +94,7 @@ export default function InvitationActionsDropdown({
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={handleResend} disabled={loading}>
           {loading && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin motion-reduce:animate-pulse" />
+            <Loader2 className="mr-2 size-4 animate-spin motion-reduce:animate-pulse" />
           )}
           {t("resend")}
         </DropdownMenuItem>

@@ -81,6 +81,19 @@ struct MessagePresentationTests {
     #expect(membershipStatusText(messages[3]) == nil)
   }
 
+  /// SOK-1258: a roster change made by someone else names who acted; leaving yourself still reads "{name} left".
+  @Test func membershipStatusRowNamesTheActor() async throws {
+    let actor = "\"actor\":{\"id\":\"user_1\",\"name\":\"Andreas\"}"
+    let messages = try await fetchTestMessages([
+      testMessageJSON(id: "550e8400-e29b-41d4-a716-446655440209", content: "", sender: senderAda(),
+                      membership: "{\"action\":\"joined\",\"subject\":{\"type\":\"user\",\"id\":\"user_3\",\"name\":\"Maya\"},\(actor)}"),
+      testMessageJSON(id: "550e8400-e29b-41d4-a716-44665544020a", content: "", sender: senderAda(),
+                      membership: "{\"action\":\"left\",\"subject\":{\"type\":\"user\",\"id\":\"user_4\",\"name\":\"Francis\"},\(actor)}")
+    ])
+    #expect(membershipStatusText(messages[0]) == "Andreas added Maya")
+    #expect(membershipStatusText(messages[1]) == "Andreas removed Francis")
+  }
+
   @Test func groupNameChangeRowsAreStatusRows() async throws {
     let unknown = "{\"type\":\"unknown\"}"
     let messages = try await fetchTestMessages([

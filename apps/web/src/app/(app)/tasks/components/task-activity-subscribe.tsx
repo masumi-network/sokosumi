@@ -1,10 +1,10 @@
 "use client";
 
+import type { TaskParticipant } from "@sokosumi/core-client";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { AssigneeAvatar } from "@/app/tasks/components/assignee-avatar";
 import { READ_RECEIPT_FACE_CAP } from "@/components/chat/read-receipt-faces";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,6 @@ import {
   removeTaskParticipant,
   subscribeTaskParticipant,
 } from "@/lib/actions/task/action";
-import type { TaskParticipant } from "@/lib/clients/generated/core/types.gen";
 import { cn } from "@/lib/utils";
 
 export interface TaskActivitySubscribeControlProps {
@@ -156,7 +155,7 @@ export function TaskActivitySubscribeControl({
                 {remainingCount > 0 ? (
                   <span
                     data-testid="task-subscribe-face-remainder"
-                    className="bg-muted text-muted-foreground ring-background relative inline-flex size-5 items-center justify-center rounded-full text-[0.625rem] font-medium tabular-nums ring-2"
+                    className="bg-muted text-muted-foreground ring-background relative inline-flex size-5 items-center justify-center rounded-full text-2xs font-medium tabular-nums ring-2"
                     style={{ zIndex: 0 }}
                     aria-hidden
                   >

@@ -1,5 +1,7 @@
 import "server-only";
 
+import type { Coworker } from "@sokosumi/core-client";
+import { TaskStatus } from "@sokosumi/core-client";
 import type { TaskWithCoworker } from "@/app/tasks/types/task-board";
 import { resolveMentionedAgentsById } from "@/app/tasks/utils/mentioned-agents";
 import { mapTaskToTaskWithCoworker } from "@/app/tasks/utils/task-view-model";
@@ -7,8 +9,6 @@ import type {
   TasksScope,
   TasksVisibilityFilter,
 } from "@/app/tasks/utils/tasks-filters";
-import type { Coworker } from "@/lib/clients/generated/core";
-import { TaskStatus } from "@/lib/clients/generated/core";
 import { taskService } from "@/lib/services/task.service";
 
 type ListCursor = string | null;

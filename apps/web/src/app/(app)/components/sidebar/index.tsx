@@ -1,3 +1,4 @@
+import type { GetUsersByIdCreditsResponse } from "@sokosumi/core-client";
 import { type ReactNode, Suspense } from "react";
 import { resolveLowCreditsBillingPath } from "@/app/components/account-notice-state";
 import { SidebarProjectScope } from "@/app/components/project-scope/sidebar-project-scope";
@@ -8,7 +9,6 @@ import {
   SidebarHeader,
   SidebarSeparator,
 } from "@/components/ui/sidebar";
-import type { GetUsersByIdCreditsResponse } from "@/lib/clients/generated/core";
 import type { CreditUsage } from "@/lib/types/credit";
 
 import type { CreditWalletScope } from "./components/account-summary-types";
@@ -88,14 +88,12 @@ interface SidebarProps {
   accountFooter: ReactNode;
   chatList: ReactNode;
   socialMenuEnabled: boolean;
-  sokoBotMenuEnabled: boolean;
 }
 
 export default function Sidebar({
   accountFooter,
   chatList,
   socialMenuEnabled,
-  sokoBotMenuEnabled,
 }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
@@ -104,7 +102,7 @@ export default function Sidebar({
         hairline is one continuous rule across the sidebar/content seam.
       */}
       <SidebarHeader className="border-sidebar-border h-16 border-b p-0">
-        <div className="flex h-full w-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
+        <div className="flex size-full items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:justify-center">
           <SidebarLogo />
           <CustomTrigger className="group-data-[collapsible=icon]:hidden shrink-0" />
         </div>
@@ -115,8 +113,8 @@ export default function Sidebar({
           <Suspense fallback={null}>
             <SidebarProjectScope />
           </Suspense>
-          <PersonalAssistantNav enabled={sokoBotMenuEnabled} />
-          {sokoBotMenuEnabled ? <SidebarSeparator className="-mt-px" /> : null}
+          <PersonalAssistantNav />
+          <SidebarSeparator className="-mt-px" />
           <MenuItems socialMenuEnabled={socialMenuEnabled} />
           <SidebarSeparator />
           {chatList}

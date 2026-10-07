@@ -1,13 +1,12 @@
 "use client";
 
+import type { SokoBotAvatar } from "@sokosumi/core-client";
 import { Check, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import { topUpSokoBotAvatarsAction } from "@/lib/actions/soko-bot/action";
-import type { SokoBotAvatar } from "@/lib/clients/generated/core";
 import { SOKO_BOT_AVATAR_RATE_LIMITED_ERROR_CODE } from "@/lib/soko-bot/constants";
 import { cn } from "@/lib/utils";
 
@@ -115,16 +114,10 @@ export function AvatarPicker({
           type="button"
           variant="ghost"
           size="sm"
-          disabled={isPending}
+          loading={isPending}
           onClick={() => load(seen)}
         >
-          <RefreshCw
-            aria-hidden
-            className={cn(
-              "size-3.5",
-              isPending && "animate-spin motion-reduce:animate-pulse",
-            )}
-          />
+          <RefreshCw aria-hidden className="size-3.5" />
           {t("showOthers")}
         </Button>
       </div>
@@ -150,7 +143,7 @@ function AvatarTile({
       aria-pressed={selected}
       aria-label={label}
       className={cn(
-        "group relative aspect-square overflow-hidden rounded-xl border transition-all",
+        "group relative aspect-square overflow-hidden rounded-xl border transition-colors",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
         selected
           ? "border-primary ring-ring-halo ring-2"

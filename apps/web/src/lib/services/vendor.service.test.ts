@@ -13,7 +13,7 @@ vi.mock("@/lib/clients/core.client", () => ({
   },
 }));
 
-import { VendorMemberRole } from "@/lib/clients/generated/core";
+import { VendorMemberRole } from "@sokosumi/core-client";
 import { vendorService } from "./vendor.service";
 
 const adminVendor = {

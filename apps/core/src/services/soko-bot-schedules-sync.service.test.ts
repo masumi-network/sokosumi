@@ -52,7 +52,11 @@ vi.mock("@/lib/db/prisma", () => ({
       updateMany: runUpdateManyMock,
     },
     sokoBotTurn: { findUnique: turnFindUniqueMock },
+    sokoBot: { findUnique: botFindUniqueMock },
   },
+}));
+const { botFindUniqueMock } = vi.hoisted(() => ({
+  botFindUniqueMock: vi.fn(),
 }));
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
   SokoBotBusyError: class SokoBotBusyError extends Error {},
@@ -72,6 +76,7 @@ import {
   SokoBotNoDestinationError,
   SokoBotRetryableStartError,
 } from "@/services/soko-bot-control-plane.service";
+import { buildSystemBeatMessage } from "@/services/soko-bot-proactive.service";
 import {
   MAX_CONSECUTIVE_SCHEDULE_FAILURES,
   SokoBotSchedulesSyncService,
@@ -204,6 +209,37 @@ describe("SokoBotSchedulesSyncService", () => {
       },
       data: { status: "RUNNING" },
     });
+  });
+
+  it("completes a quiet built-in rhythm without starting a turn", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      sokoBotId: "bot_1",
+      systemKey: "meeting-prep",
+    });
+    botFindUniqueMock.mockResolvedValue({
+      id: "bot_1",
+      userId: "user_1",
+      workspaceId: dueSchedule.workspaceId,
+      ingestTimezone: "UTC",
+      followWholeBoard: true,
+    });
+    vi.mocked(buildSystemBeatMessage).mockResolvedValue({
+      message: "Meeting prep.",
+      nudgeKeys: [],
+      skip: true,
+    });
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(startTurnMock).not.toHaveBeenCalled();
+    expect(proactiveGateMock).not.toHaveBeenCalled();
+    expect(result.completed).toBe(1);
+    expect(vi.mocked(buildSystemBeatMessage).mock.calls[0]?.[0].now).toEqual(
+      scheduledFor,
+    );
   });
 
   it("snapshots the occurrence prompt when claiming a due schedule", async () => {
@@ -415,6 +451,25 @@ describe("SokoBotSchedulesSyncService", () => {
       );
     },
   );
+
+  it("spends a one-time schedule on its claim instead of computing a next run", async () => {
+    dueScheduleFindFirstMock.mockResolvedValue({
+      ...dueSchedule,
+      runOnce: true,
+    });
+
+    const result = await new SokoBotSchedulesSyncService().syncDueSchedules({
+      shouldContinue: continueFor(1),
+    });
+
+    expect(result.claimed).toBe(1);
+    expect(computeNextRunMock).not.toHaveBeenCalled();
+    expect(scheduleUpdateManyMock).toHaveBeenCalledWith({
+      where: { id: dueSchedule.id, enabled: true, nextRunAt: scheduledFor },
+      data: { enabled: false, lastRunAt: scheduledFor },
+    });
+    expect(startTurnMock).toHaveBeenCalledTimes(1);
+  });
 
   it("advances an overdue schedule from now instead of replaying missed ticks", async () => {
     const now = new Date("2026-08-18T15:30:00.000Z");

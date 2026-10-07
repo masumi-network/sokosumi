@@ -32,7 +32,7 @@ private final class TestBrowser: OAuthBrowser {
     let url = try #require(openedURL)
     let query = try #require(URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems)
     let expectedState = try #require(query.first { $0.name == "state" }?.value)
-    let callback = try #require(URL(string: "com.sokosumi.app:/auth?code=c&state=\(state ?? expectedState)"))
+    let callback = try #require(URL(string: "https://app.sokosumi.com/auth/apple/callback?code=c&state=\(state ?? expectedState)"))
     pending?.resume(returning: callback)
     pending = nil
   }
@@ -64,7 +64,7 @@ struct AuthStateTests {
 
   @Test func restoreUsesStoredSessionWithoutOpeningBrowser() throws {
     let store = InMemoryTokenStore()
-    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast, scope: nil))
+    try store.save(OAuthTokens(accessToken: "expired", refreshToken: "refresh", expiresAt: .distantPast))
     let browser = TestBrowser()
     let state = try makeState(store: store, browser: browser)
     #expect(state.isSignedIn)
@@ -169,12 +169,12 @@ struct AuthStateTests {
     try browser.complete()
     await operation.value
     #expect(!state.isSignedIn)
-    #expect(state.status == .signedOut(message: "Signed in, but your session could not be saved on this device. Try again."))
+    #expect(state.status == .signedOut(message: "Logged in, but your session could not be saved on this device. Try again."))
   }
 
   @Test func failedSignOutDoesNotClaimTokensAreGone() async throws {
     let store = FailingClearStore()
-    store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture, scope: nil))
+    store.save(OAuthTokens(accessToken: "access", refreshToken: "refresh", expiresAt: .distantFuture))
     let state = try makeState(store: store, browser: TestBrowser())
     await state.signOut().value
     #expect(state.isSignedIn)

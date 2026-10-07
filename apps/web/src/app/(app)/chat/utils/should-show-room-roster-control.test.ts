@@ -1,6 +1,6 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
 import { shouldShowRoomRosterControl } from "@/app/chat/utils/should-show-room-roster-control";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 type RosterRoom = Pick<ChatRoom, "kind" | "userMembers" | "coworkerMembers">;
 

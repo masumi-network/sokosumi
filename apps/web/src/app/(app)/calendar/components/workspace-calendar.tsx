@@ -7,6 +7,13 @@ import classicTheme from "@fullcalendar/react/themes/classic";
 import "@fullcalendar/react/skeleton.css";
 import "@fullcalendar/react/themes/classic/theme.css";
 import "@fullcalendar/react/themes/classic/palette.css";
+import {
+  TaskStatus,
+  type TaskStatus as TaskStatusValue,
+  type WorkspaceCalendarEntry,
+  type WorkspaceCalendarItem,
+  type WorkspaceCalendarSource,
+} from "@sokosumi/core-client";
 import { isValidTimezone } from "@sokosumi/utils";
 import {
   addDays,
@@ -82,13 +89,6 @@ import { useMountEffect } from "@/hooks/use-mount-effect";
 import { CalendarRealtimeBridge } from "@/lib/ably/calendar-realtime-bridge";
 import { coreClient } from "@/lib/clients/core.browser.client";
 import {
-  TaskStatus,
-  type TaskStatus as TaskStatusValue,
-  type WorkspaceCalendarEntry,
-  type WorkspaceCalendarItem,
-  type WorkspaceCalendarSource,
-} from "@/lib/clients/generated/core";
-import {
   getDefaultTimezone,
   getTimezoneOptions,
 } from "@/lib/schedules/timezones";
@@ -107,6 +107,9 @@ import { SourceMarker } from "./source-marker";
 
 const CALENDAR_VIEWS = ["month", "week", "agenda"] as const;
 type CalendarView = (typeof CALENDAR_VIEWS)[number];
+// Social lists its drafts and failures in tabs of its own, and the month grid
+// already shows what is coming up, so its calendar has no agenda list.
+const SOCIAL_CALENDAR_VIEWS = ["month", "week"] as const;
 const CALENDAR_STATUSES = Object.values(TaskStatus);
 
 function isCalendarStatus(value: string | null): value is TaskStatusValue {
@@ -477,6 +480,7 @@ function CalendarView({
   onDateClick,
   runHandlers,
   socialOnly,
+  socialPostVariant,
   sources,
   timeZone,
   view,
@@ -488,11 +492,37 @@ function CalendarView({
   onDateClick: (date: Date) => void;
   runHandlers: RunHandlers;
   socialOnly: boolean;
+  /** Social's own calendar previews posts; the workspace Calendar lists them. */
+  socialPostVariant: "compact" | "preview";
   sources: WorkspaceCalendarSource[];
   timeZone: string;
   view: CalendarView;
 }) {
   const router = useRouter();
+  const isMobile = useIsMobile();
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const [mobileHeight, setMobileHeight] = useState<number | null>(null);
+  const fillMobileSpace = isMobile && socialPostVariant === "preview";
+  useEffect(() => {
+    if (!fillMobileSpace || !calendarRef.current) return;
+    const element = calendarRef.current;
+    const measure = () => {
+      setMobileHeight(
+        Math.max(
+          320,
+          window.innerHeight - element.getBoundingClientRect().top - 24,
+        ),
+      );
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element.parentElement ?? element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [fillMobileSpace]);
   const formatDate = useFormatter().dateTime;
   const t = useTranslations("App.Calendar");
   const reportRunChangeFailure = useReportRunChangeFailure();
@@ -581,7 +611,11 @@ function CalendarView({
               {dayItems.map((item) => (
                 <li key={item.id}>
                   {item.kind === "socialPost" ? (
-                    <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                    <SocialPostCalendarEvent
+                      item={item}
+                      timeZone={timeZone}
+                      variant={socialPostVariant}
+                    />
                   ) : (
                     <CalendarEvent
                       item={item}
@@ -608,6 +642,7 @@ function CalendarView({
     <>
       <div
         className="app-scrollbar workspace-calendar-theme overflow-x-auto rounded-xl bg-card-background"
+        ref={calendarRef}
         data-can-create={canCreate ? "true" : undefined}
         data-view={view}
         data-testid={`calendar-${view}`}
@@ -633,7 +668,7 @@ function CalendarView({
           }))}
           timeZone={timeZone}
           headerToolbar={false}
-          height="auto"
+          height={fillMobileSpace && mobileHeight ? mobileHeight : "auto"}
           // Timed events default to "list-item" (dot + time + title); the card
           // already carries the time, so the dot was the only leftover. Block
           // mode paints the theme's event blue behind the card; the card is
@@ -657,7 +692,11 @@ function CalendarView({
             const start = eventInfo.event.start;
             if (item.kind === "socialPost")
               return (
-                <SocialPostCalendarEvent item={item} timeZone={timeZone} />
+                <SocialPostCalendarEvent
+                  item={item}
+                  timeZone={timeZone}
+                  variant={socialPostVariant}
+                />
               );
             return (
               <CalendarEvent
@@ -769,7 +808,22 @@ export function WorkspaceCalendar({
     : getDefaultTimezone();
   const isMobile = useIsMobile();
   // Phones open on the agenda list; a seven-column grid is a desktop default.
-  const view = state.view ?? (isMobile ? "agenda" : "week");
+  // Social plans a feed a month at a time, so its own calendar opens on the
+  // month, and on the week on a phone, where a month of posts is too small to
+  // read; the workspace calendar plans the week's runs.
+  const views: readonly CalendarView[] = socialPostsOnly
+    ? SOCIAL_CALENDAR_VIEWS
+    : CALENDAR_VIEWS;
+  const view =
+    state.view && views.includes(state.view)
+      ? state.view
+      : socialPostsOnly
+        ? isMobile
+          ? "week"
+          : "month"
+        : isMobile
+          ? "agenda"
+          : "week";
   const selectedProjectId = lockedProjectId ? null : state.projectId;
   const selectedSourceId = lockedProjectId
     ? null
@@ -809,10 +863,10 @@ export function WorkspaceCalendar({
   });
 
   useEffect(() => {
-    if (isMobile && state.view === null) {
+    if (isMobile && state.view === null && !socialPostsOnly) {
       void setState({ view: "agenda" }, { shallow: false });
     }
-  }, [isMobile, state.view, setState]);
+  }, [isMobile, state.view, setState, socialPostsOnly]);
 
   const latestCalendarDate = latestDate
     ? parseCalendarDate(latestDate, initialDate)
@@ -1109,7 +1163,7 @@ export function WorkspaceCalendar({
           },
         ]
       : []),
-    ...(!lockedProjectId
+    ...(!lockedProjectId && !socialPostsOnly
       ? [
           {
             id: "source",
@@ -1158,9 +1212,14 @@ export function WorkspaceCalendar({
           onInvalidated={handleCalendarInvalidated}
         />
       ) : null}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         {view === "month" || view === "week" ? (
-          <div className="flex items-center gap-1 max-sm:w-full">
+          <div
+            className={cn(
+              "flex items-center gap-1 max-sm:w-full",
+              socialPostsOnly && "max-md:order-2 max-md:w-full",
+            )}
+          >
             <Button
               aria-label={t("previous")}
               size="icon"
@@ -1169,7 +1228,15 @@ export function WorkspaceCalendar({
             >
               <ChevronLeft aria-hidden />
             </Button>
-            <span className="min-w-40 flex-1 text-center text-sm font-medium md:flex-none">
+            {/* On a phone the period leads, left-aligned, with both arrows
+                together at the end of the row. */}
+            <span
+              className={cn(
+                "min-w-40 flex-1 text-center text-sm font-medium max-sm:order-first max-sm:min-w-0 max-sm:text-start md:flex-none",
+                socialPostsOnly &&
+                  "max-md:order-first max-md:min-w-0 max-md:text-start",
+              )}
+            >
               {getRangeLabel(formatDate, date, view)}
             </span>
             <Button
@@ -1183,15 +1250,31 @@ export function WorkspaceCalendar({
             </Button>
           </div>
         ) : null}
+        {socialPostsOnly ? (
+          // A post goes out at one instant; say which zone the grid reads it
+          // in, since the zone picker sits behind the filters. On a phone it
+          // goes under the controls rather than between their two rows.
+          <span
+            className="text-muted-foreground inline-flex items-center gap-1 text-xs max-md:order-last max-md:w-full"
+            data-testid="calendar-timezone"
+          >
+            <Clock3 className="size-3.5" aria-hidden />
+            {t("timezone.showing", { zone: timeZone.replaceAll("_", " ") })}
+          </span>
+        ) : null}
 
-        <div className="ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full">
+        <div
+          className={cn(
+            "ms-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-2 max-sm:w-full max-sm:justify-between",
+            socialPostsOnly &&
+              "max-md:order-1 max-md:w-full max-md:justify-between",
+          )}
+        >
           <Tabs
             className="min-w-0 max-w-full"
             value={view}
             onValueChange={(value) => {
-              const nextView = CALENDAR_VIEWS.find(
-                (candidate) => candidate === value,
-              );
+              const nextView = views.find((candidate) => candidate === value);
               if (nextView) {
                 handleViewChange(nextView);
               }
@@ -1200,11 +1283,11 @@ export function WorkspaceCalendar({
             <TabsList
               className={cn(
                 SEGMENTED_TABS_LIST_CLASS_NAME,
-                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:w-full max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
+                "app-scrollbar h-auto max-w-full w-fit flex-wrap max-sm:flex-nowrap max-sm:justify-start max-sm:gap-0 max-sm:overflow-x-auto",
               )}
               data-testid="calendar-views"
             >
-              {CALENDAR_VIEWS.map((calendarView) => (
+              {views.map((calendarView) => (
                 <TabsTrigger
                   className={cn(
                     SEGMENTED_TAB_TRIGGER_CLASS_NAME,
@@ -1293,6 +1376,7 @@ export function WorkspaceCalendar({
           onDateClick={handleDateClick}
           runHandlers={runHandlers}
           socialOnly={socialOnly}
+          socialPostVariant={socialPostsOnly ? "preview" : "compact"}
           sources={sources}
           timeZone={timeZone}
           view={view}

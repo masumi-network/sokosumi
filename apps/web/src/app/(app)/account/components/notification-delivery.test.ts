@@ -1,11 +1,10 @@
-import { NOTIFICATION_EMAIL_CATEGORIES } from "@sokosumi/utils";
-import { describe, expect, it } from "vitest";
-
 // The generated index re-exports types only, and this needs the category list
 // at runtime. Deep into the generated output on purpose: it is still what Core
 // emitted, and a list retyped here would pass while Core and this page
 // disagreed.
-import { NotificationPreferenceSchema } from "@/lib/clients/generated/core/schemas.gen";
+import { NotificationPreferenceSchema } from "@sokosumi/core-client/schemas";
+import { NOTIFICATION_EMAIL_CATEGORIES } from "@sokosumi/utils";
+import { describe, expect, it } from "vitest";
 
 import {
   categoryChannels,

@@ -160,7 +160,11 @@ export async function downloadBlob(
   const response = await fetch(metadata.url, {
     signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS),
   });
-  if (!response.ok) return null;
+  // `head` found the blob, so a failed download is transient: a pathname
+  // written again after a delete answers 404 for a few seconds. Thrown, the
+  // job retries instead of recording the file as unreadable for good.
+  if (!response.ok)
+    throw new Error(`Blob download failed with status ${response.status}`);
 
   return new Uint8Array(await response.arrayBuffer());
 }

@@ -6,7 +6,7 @@ import { ProjectEditModal } from "@/app/projects/components/project-edit-modal";
 import { projectService } from "@/lib/services/project.service";
 
 export const metadata: Metadata = {
-  title: "Edit Project",
+  title: "Edit project",
 };
 
 export default async function EditProjectPage({
@@ -38,6 +38,7 @@ export default async function EditProjectPage({
       }}
       initialValues={{
         name: project.name,
+        identifier: project.identifier,
         briefing: project.briefing ?? "",
         websiteUrl: project.websiteUrl,
       }}

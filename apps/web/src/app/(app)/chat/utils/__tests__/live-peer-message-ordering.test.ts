@@ -1,7 +1,6 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { describe, expect, it } from "vitest";
-
 import { appendMessage } from "@/app/chat/components/room-helpers";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import { mergeRoomMessages } from "../merge-room-messages";
 

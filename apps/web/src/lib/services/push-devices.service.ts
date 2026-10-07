@@ -1,11 +1,11 @@
-import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 import type {
   PushDevice,
   PushDeviceActivation,
   PushDeviceActivationRequest,
   PushDeviceBrowserUpdate,
   PushDeviceSubscriptionRequest,
-} from "@/lib/clients/generated/core/types.gen";
+} from "@sokosumi/core-client";
+import { notificationsBrowserClient } from "@/lib/clients/core.notifications.browser.client";
 
 export async function listPushDevices(): Promise<PushDevice[]> {
   const response = await notificationsBrowserClient.getPushDevices();

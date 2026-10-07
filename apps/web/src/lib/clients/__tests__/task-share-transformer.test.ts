@@ -1,10 +1,9 @@
-import { describe, expect, it } from "vitest";
-
 import {
   getAdminTaskResponseTransformer,
   getTasksByIdResponseTransformer,
   getTasksResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
+import { describe, expect, it } from "vitest";
 
 /**
  * Exercises the real generated response transformers on a `share: null` task.

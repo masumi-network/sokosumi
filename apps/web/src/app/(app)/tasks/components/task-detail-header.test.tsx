@@ -1,7 +1,27 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 
 import { TaskDetailHeader } from "@/app/tasks/components/task-detail-header";
+
+vi.mock("@/components/ui/tooltip", () => ({
+  Tooltip: ({ children }: { children: ReactNode }) => <>{children}</>,
+  TooltipContent: ({ children }: { children: ReactNode }) => (
+    <div data-testid="tooltip-content">{children}</div>
+  ),
+  TooltipTrigger: ({ children }: { children: ReactNode }) => <>{children}</>,
+}));
+
+const toastSuccessMock = vi.fn();
+const toastErrorMock = vi.fn();
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: (...args: unknown[]) => toastSuccessMock(...args),
+    error: (...args: unknown[]) => toastErrorMock(...args),
+  },
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tasks/task-1",
@@ -45,5 +65,95 @@ describe("TaskDetailHeader", () => {
     expect(
       screen.getByRole("heading", { name: "Task Name: Weekly" }),
     ).toBeInTheDocument();
+  });
+
+  describe("task identifier", () => {
+    const identifierLabels = {
+      copy: "Copy task ID",
+      copied: "Copied SOK-12",
+      copyError: "Could not copy",
+    };
+
+    it("shows the identifier as quiet text above the title", () => {
+      render(
+        <TaskDetailHeader
+          taskName="Fix login"
+          identifier="SOK-12"
+          identifierLabels={identifierLabels}
+          backLabel="Back"
+        />,
+      );
+
+      const identifier = screen.getByRole("button", {
+        name: "Copy task ID: SOK-12",
+      });
+      expect(identifier).toHaveTextContent("SOK-12");
+      expect(identifier).toHaveClass(
+        "text-muted-foreground",
+        "tabular-nums",
+        "inline-flex",
+        "items-center",
+      );
+      expect(identifier.querySelector("svg.lucide-copy")).toBeInTheDocument();
+      expect(screen.getByTestId("tooltip-content")).toHaveTextContent(
+        "Copy task ID",
+      );
+    });
+
+    it("copies the identifier and confirms with a toast", async () => {
+      const user = userEvent.setup();
+      const writeText = vi
+        .spyOn(navigator.clipboard, "writeText")
+        .mockResolvedValue();
+      render(
+        <TaskDetailHeader
+          taskName="Fix login"
+          identifier="SOK-12"
+          identifierLabels={identifierLabels}
+          backLabel="Back"
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /SOK-12/ }));
+
+      await waitFor(() => expect(writeText).toHaveBeenCalledWith("SOK-12"));
+      expect(toastSuccessMock).toHaveBeenCalledWith("Copied SOK-12");
+    });
+
+    it("reports a clipboard failure", async () => {
+      const user = userEvent.setup();
+      vi.spyOn(navigator.clipboard, "writeText").mockRejectedValue(
+        new Error("denied"),
+      );
+      render(
+        <TaskDetailHeader
+          taskName="Fix login"
+          identifier="SOK-12"
+          identifierLabels={identifierLabels}
+          backLabel="Back"
+        />,
+      );
+
+      await user.click(screen.getByRole("button", { name: /SOK-12/ }));
+
+      await waitFor(() =>
+        expect(toastErrorMock).toHaveBeenCalledWith("Could not copy"),
+      );
+    });
+
+    it("renders no identifier for a task without a project", () => {
+      render(
+        <TaskDetailHeader
+          taskName="Loose task"
+          identifier={null}
+          identifierLabels={identifierLabels}
+          backLabel="Back"
+        />,
+      );
+
+      expect(
+        screen.queryByRole("button", { name: /Copy task ID/ }),
+      ).not.toBeInTheDocument();
+    });
   });
 });

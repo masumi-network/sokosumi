@@ -1,11 +1,8 @@
 "use client";
 
+import { postDriveFiles, postDriveFilesFinalize } from "@sokosumi/core-client";
 import { resolveUserUploadContentType } from "@sokosumi/utils";
 import { getBrowserCoreClient } from "@/lib/clients/core.browser.client";
-import {
-  postDriveFiles,
-  postDriveFilesFinalize,
-} from "@/lib/clients/generated/core";
 import type { DriveWorkspaceStore } from "@/lib/utils/drive-file-list.client";
 
 export type DriveFileUploadErrorCode = "duplicate" | "internal";

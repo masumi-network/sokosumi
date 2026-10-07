@@ -1,8 +1,8 @@
 "use client";
 
+import type { WorkspaceLabel } from "@sokosumi/core-client";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-
 import { Button } from "@/components/ui/button";
 import {
   Command,
@@ -17,7 +17,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import type { WorkspaceLabel } from "@/lib/clients/generated/core";
 
 /**
  * Setting a category on a selection, with every category reachable.

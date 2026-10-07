@@ -1,6 +1,8 @@
 model User {
   id            String    @id @default(uuid(7))
   name          String
+  firstName     String?
+  lastName      String?
   email         String
   emailVerified Boolean
   image         String?
@@ -107,6 +109,8 @@ model User {
   chatRoomGuestInvitationsAccepted ChatRoomGuestInvitation[] @relation("ChatRoomGuestInvitationAcceptedBy")
   chatRoomGuestInviteLinksCreated  ChatRoomGuestInviteLink[] @relation("ChatRoomGuestInviteLinkCreator")
   noticeAcknowledgments            NoticeAcknowledgment[]
+  badgeCampaignsCreated            BadgeCampaign[]           @relation("BadgeCampaignCreatedBy")
+  badgeCampaignsSeen               BadgeCampaignSeen[]
   projectStars                     ProjectStar[]
 
   imageSessions ProjectImageSession[] @relation("ProjectImageSessionCreator")

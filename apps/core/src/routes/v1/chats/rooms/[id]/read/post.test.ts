@@ -22,6 +22,8 @@ const {
   memberFindUniqueMock,
   readStateUpsertMock,
   notificationUpdateManyAndReturnMock,
+  notificationFindManyMock,
+  messageFindManyMock,
   publishClearedNotificationsMock,
   publishChatRoomReadRealtimeMock,
   cancelNotificationEmailsMock,
@@ -38,6 +40,8 @@ const {
   memberFindUniqueMock: vi.fn(),
   readStateUpsertMock: vi.fn(),
   notificationUpdateManyAndReturnMock: vi.fn(),
+  notificationFindManyMock: vi.fn(),
+  messageFindManyMock: vi.fn(),
   publishClearedNotificationsMock: vi.fn(),
   publishChatRoomReadRealtimeMock: vi.fn(),
   cancelNotificationEmailsMock: vi.fn(),
@@ -90,6 +94,8 @@ const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const USER_ID = "user_123";
 const ORG_ID = "org_1";
 
+const threadReadFindManyMock = vi.fn();
+
 const tx = {
   chatRoom: { findFirst: roomFindFirstMock },
   organization: { findUnique: organizationFindUniqueMock },
@@ -97,8 +103,13 @@ const tx = {
   chatRoomReadState: { upsert: readStateUpsertMock },
   notification: {
     updateManyAndReturn: notificationUpdateManyAndReturnMock,
+    findMany: notificationFindManyMock,
   },
+  chatRoomMessage: { findMany: messageFindManyMock },
+  chatRoomUserMention: { findMany: vi.fn().mockResolvedValue([]) },
+  chatRoomMention: { findMany: vi.fn().mockResolvedValue([]) },
   chatRoomThreadReadState: {
+    findMany: threadReadFindManyMock,
     upsert: threadReadUpsertMock,
     updateMany: threadReadUpdateManyMock,
     deleteMany: threadReadDeleteManyMock,
@@ -165,6 +176,33 @@ function mockUnreadCounts(
   answerRoomUnreadReads(queryRawUnsafeMock, rows, threads);
 }
 
+/**
+ * Answers the Thread-reply read with `replies`, and says the reader wrote
+ * every parent, so each Thread counts as Participated.
+ */
+function answerThreadReplies(
+  replies: Array<{
+    id: string;
+    roomId: string;
+    parentMessageId: string;
+    createdAt: Date;
+  }>,
+) {
+  messageFindManyMock.mockImplementation(async ({ where }) => {
+    if (where.parentMessageId?.not === null) {
+      return replies;
+    }
+    if (where.id) {
+      // The reader wrote every parent: a Thread they Participate in.
+      return replies.map((reply) => ({
+        id: reply.parentMessageId,
+        senderUserId: USER_ID,
+      }));
+    }
+    return [];
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   prismaTransactionMock.mockImplementation(async (cb) => cb(tx));
@@ -173,11 +211,14 @@ beforeEach(() => {
   memberFindUniqueMock.mockResolvedValue({ role: MemberRole.MEMBER });
   readStateUpsertMock.mockResolvedValue({});
   notificationUpdateManyAndReturnMock.mockResolvedValue([]);
+  notificationFindManyMock.mockResolvedValue([]);
+  messageFindManyMock.mockResolvedValue([]);
   membershipFindManyMock.mockResolvedValue([]);
   readStateFindManyMock.mockResolvedValue([]);
   publishChatRoomReadRealtimeMock.mockResolvedValue(undefined);
   // Dual-baseline unread: room mark-read leaves unlooked thread replies.
   queryRawUnsafeMock.mockResolvedValue([]);
+  threadReadFindManyMock.mockReset().mockResolvedValue([]);
 });
 
 describe("POST /chats/rooms/{id}/read", () => {
@@ -231,6 +272,93 @@ describe("POST /chats/rooms/{id}/read", () => {
     expect(threadReadUpsertMock).not.toHaveBeenCalled();
     expect(threadReadUpdateManyMock).not.toHaveBeenCalled();
     expect(threadReadDeleteManyMock).not.toHaveBeenCalled();
+  });
+
+  /**
+   * SOK-1217. A Thread is read by a Look, not by Room last-read. Clearing a
+   * Thread reply's row here marked it read while the Thread stayed unread, so
+   * the follow-up sync never reminded the reader about it.
+   */
+  it("leaves the rows for Thread replies unread", async () => {
+    notificationFindManyMock.mockResolvedValue([
+      { id: "n-top", referenceId: ROOM_ID, eventId: "msg-top" },
+      { id: "n-reply", referenceId: ROOM_ID, eventId: "msg-reply" },
+    ]);
+    answerThreadReplies([
+      {
+        id: "msg-reply",
+        roomId: ROOM_ID,
+        parentMessageId: "msg-parent",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      },
+    ]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          userId: USER_ID,
+          kind: NotificationKind.CHAT,
+          referenceId: ROOM_ID,
+          isRead: false,
+          id: { notIn: ["n-reply"] },
+        },
+      }),
+    );
+  });
+
+  /**
+   * SOK-1217. The row can be written after the reader's Look already covered
+   * the reply. Room last-read clears it then, or it would wait for the next
+   * Look and send a reminder about a reply the reader has seen.
+   */
+  it("clears the Thread-reply rows a Look already covers", async () => {
+    const replyAt = new Date("2026-01-01T00:00:00.000Z");
+    notificationFindManyMock.mockResolvedValue([
+      { id: "n-looked", referenceId: ROOM_ID, eventId: "msg-looked" },
+      { id: "n-unlooked", referenceId: ROOM_ID, eventId: "msg-unlooked" },
+    ]);
+    answerThreadReplies([
+      {
+        id: "msg-looked",
+        roomId: ROOM_ID,
+        parentMessageId: "parent-looked",
+        createdAt: replyAt,
+      },
+      {
+        id: "msg-unlooked",
+        roomId: ROOM_ID,
+        parentMessageId: "parent-unlooked",
+        createdAt: replyAt,
+      },
+    ]);
+    threadReadFindManyMock.mockResolvedValue([
+      { parentMessageId: "parent-looked", lastReadAt: replyAt },
+    ]);
+    const lookedRow = { id: "n-looked", emailId: null, emailScheduledAt: null };
+    notificationUpdateManyAndReturnMock
+      .mockResolvedValueOnce([lookedRow])
+      .mockResolvedValueOnce([]);
+
+    const response = await createApp(userAuthContext).request(
+      `/${ROOM_ID}/read`,
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(notificationUpdateManyAndReturnMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: { in: ["n-looked"] }, userId: USER_ID, isRead: false },
+      }),
+    );
+    expect(publishClearedNotificationsMock).toHaveBeenCalledWith(["n-looked"]);
+    expect(cancelNotificationEmailsMock).toHaveBeenCalledWith([lookedRow]);
   });
 
   /**

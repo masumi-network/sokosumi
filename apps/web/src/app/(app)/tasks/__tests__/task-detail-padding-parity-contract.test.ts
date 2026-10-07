@@ -21,7 +21,7 @@ describe("task detail padding parity contract", () => {
 
     expect(loading).toContain("TASK_DETAIL_SHELL_CLASS");
     expect(view).toContain("TASK_DETAIL_SHELL_CLASS");
-    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-6xl");
+    expect(TASK_DETAIL_SHELL_CLASS).toContain("max-w-[80rem]");
     expect(TASK_DETAIL_SHELL_CLASS).toContain("pb-8");
     expect(TASK_DETAIL_SHELL_CLASS).toContain("md:px-4");
     expect(TASK_DETAIL_SHELL_CLASS.split(/\s+/)).not.toContain("px-2");

@@ -9,7 +9,7 @@ import type {
   SokoBotTurn,
   SokoBotTurnRoute,
   SokoBotTurnStatus,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
 
 /**
  * JSON-safe projection of the Soko Bot chat surface. The server page renders
@@ -76,6 +76,7 @@ export interface ChatDelegation {
 }
 
 export interface ChatTurn {
+  resultPreviews?: SokoBotTurn["resultPreviews"];
   id: string;
   source: SokoBotTurn["source"];
   status: SokoBotTurnStatus;
@@ -226,6 +227,7 @@ function toDelegation(delegation: SokoBotDelegation): ChatDelegation {
 function toChatTurn(turn: SokoBotTurn): ChatTurn {
   return {
     id: turn.id,
+    resultPreviews: turn.resultPreviews,
     source: turn.source,
     status: turn.status,
     route: turn.route,

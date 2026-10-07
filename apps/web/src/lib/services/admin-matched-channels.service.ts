@@ -1,6 +1,5 @@
 import "server-only";
 
-import { coreClient } from "@/lib/clients/core.client";
 import type {
   AdminAddMatchedChannelFromOrganizationResult,
   AdminArchivedMatchedChannel,
@@ -9,7 +8,8 @@ import type {
   AdminMatchedChannelOption,
   AdminMatchedChannelParticipant,
   AdminRemoveMatchedChannelParticipant,
-} from "@/lib/clients/generated/core";
+} from "@sokosumi/core-client";
+import { coreClient } from "@/lib/clients/core.client";
 
 export type {
   AdminAddMatchedChannelFromOrganizationResult,

@@ -1,5 +1,6 @@
 import { closeSync, openSync, readSync } from "node:fs";
 import { createCoworkerHttpClient } from "../../api/http-client.js";
+import { verifyPersonalWorkspace } from "../../api/services/personal-workspace-service.js";
 import type { CredentialStore } from "../../auth/secure-store.js";
 import {
   executeHermesTask,
@@ -39,6 +40,7 @@ const COMMON_OPTIONS = new Set([
   "api-key-stdin",
   "coworker-id",
   "organization-id",
+  "personal",
 ]);
 const RUN_OPTIONS = new Set([
   "provider",
@@ -151,12 +153,12 @@ export async function runRuntimeCommand({
 }): Promise<void> {
   const [, command, taskId, ...rest] = positionals;
   if (
-    !["start", "complete", "run", "key-import"].includes(command) ||
+    !["start", "complete", "run", "key-import", "receipt"].includes(command) ||
     (command === "key-import" ? taskId !== undefined : !taskId) ||
     rest.length
   ) {
     throw new Error(
-      "Use runtime start, complete, or run with TASK_ID; key-import takes no Task ID",
+      "Use runtime start, complete, run, or receipt with TASK_ID; key-import takes no Task ID",
     );
   }
   const commandOptions =
@@ -168,10 +170,13 @@ export async function runRuntimeCommand({
   for (const name of Object.keys(options)) {
     if (
       (!COMMON_OPTIONS.has(name) && !commandOptions.has(name)) ||
-      (command === "key-import" && name === "organization-id")
+      (["key-import", "receipt"].includes(command) &&
+        name === "organization-id")
     ) {
       throw new Error(
-        `runtime ${command} does not accept --${name}; runtime uses Preprod only`,
+        command === "receipt" && name === "organization-id"
+          ? "runtime receipt does not accept --organization-id; the Task ID selects the Task"
+          : `runtime ${command} does not accept --${name}; runtime uses Preprod only`,
       );
     }
   }
@@ -181,8 +186,20 @@ export async function runRuntimeCommand({
     );
   }
   const coworkerId = requiredOption(options, "coworker-id");
-  const organizationId =
-    command === "key-import" ? "" : requiredOption(options, "organization-id");
+  const personal = options.personal === true;
+  if (
+    personal &&
+    (!["start", "complete", "run"].includes(command) ||
+      options["organization-id"] !== undefined)
+  )
+    throw new Error(
+      "--personal supports runtime start/complete/run and cannot be combined with --organization-id",
+    );
+  const organizationId = personal
+    ? null
+    : ["key-import", "receipt"].includes(command)
+      ? ""
+      : requiredOption(options, "organization-id");
   const controller = new AbortController();
   const abort = () => controller.abort();
   process.once("SIGINT", abort);
@@ -251,6 +268,26 @@ export async function runRuntimeCommand({
       return text;
     };
     if (resultText !== undefined) rejectCredentialInResult(resultText);
+    if (command === "receipt") {
+      const response = record(
+        await client.get(
+          `/v1/tasks/${encodeURIComponent(taskId)}/receipt`,
+          signal,
+        ),
+      );
+      const receipt = record(response.data);
+      const safe = redactSensitive(receipt, [apiKey]);
+      if (options.json) {
+        writeJson(stdout, safe);
+      } else {
+        const message =
+          receipt.settled === true
+            ? `Seller receipt confirmed. onChainState=${String(receipt.onChainState ?? "unknown")}. txHash=${String(receipt.txHash ?? "unknown")}\n`
+            : `Seller receipt not settled. onChainState=${String(receipt.onChainState ?? "unknown")}.\n`;
+        stdout.write(redactErrorMessage(message, [apiKey]));
+      }
+      return;
+    }
     if (command === "key-import") {
       const response = record(await client.get("/v1/coworkers/me", signal));
       const coworker = record(response.data);
@@ -279,7 +316,24 @@ export async function runRuntimeCommand({
         );
       return;
     }
-    const context = { client, coworkerId, organizationId, taskId, signal };
+    const authorizePersonalWorkspace = personal
+      ? async (ownerId: string, workspaceId: string) => {
+          const scopedClient = createCoworkerHttpClient({
+            apiKey: apiKey!,
+            fetchImpl: dependencies.fetchImpl,
+            contextUserId: ownerId,
+          });
+          await verifyPersonalWorkspace(scopedClient, workspaceId, signal);
+        }
+      : undefined;
+    const context = {
+      client,
+      coworkerId,
+      organizationId,
+      taskId,
+      signal,
+      authorizePersonalWorkspace,
+    };
     if (command === "start") {
       const task = await startRuntimeTask(context);
       if (options.json) writeJson(stdout, redactSensitive(task, [apiKey]));

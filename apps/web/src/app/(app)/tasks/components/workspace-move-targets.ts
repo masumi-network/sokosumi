@@ -1,4 +1,4 @@
-import type { MemberWithOrganization } from "@/lib/clients/generated/core";
+import type { MemberWithOrganization } from "@sokosumi/core-client";
 
 export interface WorkspaceMoveTargetBase {
   id: string;

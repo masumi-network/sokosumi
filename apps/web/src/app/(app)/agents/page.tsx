@@ -10,6 +10,10 @@ import {
 import { getCoworkerOptions } from "@/app/tasks/utils/coworker-options";
 import { AgentsNotAvailable, AgentsSkeleton } from "@/components/agents/agents";
 import { CoworkerGallerySection } from "@/components/agents/coworker-gallery-section";
+import {
+  GALLERY_PAGE_SECTIONS_CLASS,
+  GALLERY_SECTION_HEADLINE_CLASS,
+} from "@/components/agents/gallery-page-classes";
 import { Skeleton } from "@/components/ui/skeleton";
 import { mapAgentListItemToCatalogBrowseAgent } from "@/lib/agents/catalog-browse-agent";
 import { mapCoreCategoriesToCategories } from "@/lib/agents/core-dto-mappers";
@@ -118,7 +122,7 @@ async function AllAgentsTier() {
   return (
     <section className="space-y-8">
       <div className="space-y-2">
-        <h2 className="text-foreground text-xl font-light md:text-2xl text-balance tracking-tight">
+        <h2 className={GALLERY_SECTION_HEADLINE_CLASS}>
           {t("allAgentsTitle")}
         </h2>
         <p className="text-muted-foreground text-sm md:text-base">
@@ -137,7 +141,7 @@ async function AllAgentsTier() {
 export default function GalleryPage() {
   return (
     <div className="w-full">
-      <div className="space-y-16 pb-8 md:space-y-24 md:px-2">
+      <div className={GALLERY_PAGE_SECTIONS_CLASS}>
         <Suspense fallback={<CoworkersTierFallback />}>
           <CoworkersTier />
         </Suspense>

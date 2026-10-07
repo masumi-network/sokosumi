@@ -1,5 +1,6 @@
 "use client";
 
+import type { ChatRoom } from "@sokosumi/core-client";
 import {
   useCallback,
   useEffect,
@@ -30,7 +31,6 @@ import {
 import { useChatRefreshScheduler } from "@/components/chat/use-chat-refresh-scheduler";
 import { useAblyConnectionHealthy } from "@/lib/ably/ably-connection-health-store";
 import { useSession } from "@/lib/auth/auth.client";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 /** Poll cadence while the Ably connection is unavailable. */
 const LIVE_CHAT_ROOMS_FALLBACK_MS = 15_000;

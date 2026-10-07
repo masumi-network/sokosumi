@@ -1,11 +1,10 @@
 "use client";
 
+import type { Notice } from "@sokosumi/core-client";
 import { useEffect } from "react";
-
 import type { AccountNotice } from "@/app/components/account-notice-state";
 import { useNoticeDialogHydration } from "@/app/components/notice-dialog-context";
 import { useAccountNoticeHydration } from "@/contexts/account-notice-provider";
-import type { Notice } from "@/lib/clients/generated/core";
 
 interface AccountNoticeHydratorProps {
   accountNotice: AccountNotice | null;

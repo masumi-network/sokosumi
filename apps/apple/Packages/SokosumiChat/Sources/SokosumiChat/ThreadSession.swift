@@ -9,8 +9,10 @@ public final class ThreadSession: ObservableObject {
   public typealias Message = Components.Schemas.ChatRoomMessage
 
   public struct JumpTarget: Equatable, Sendable {
-    public let messageId: String
     public let requestId = UUID()
+    public let messageId: String
+    /// Nil until the prepared reply is ready to land. Its hold must not consume a pending jump.
+    public fileprivate(set) var mark: JumpMark?
   }
 
   @Published public private(set) var jumpTarget: JumpTarget?
@@ -54,6 +56,30 @@ public final class ThreadSession: ObservableObject {
   public func requestJump(to messageId: String) {
     guard timeline.messages.contains(where: { $0.id == messageId }) else { return }
     jumpTarget = JumpTarget(messageId: messageId)
+  }
+
+  /// Start the hold only after the view has issued the scroll to the prepared row. A late acknowledgement
+  /// cannot mark a replacement request, and another layout pass cannot restart an existing hold.
+  public func landJump(_ requestId: UUID) {
+    guard let target = jumpTarget, target.requestId == requestId, target.mark == nil else { return }
+    jumpTarget?.mark = JumpMark(messageId: target.messageId, landedAt: now())
+  }
+
+  /// A reader scroll in the thread (web `fadeOutHighlight`): the mark fades out, or ends outright outside its
+  /// full-strength stretch. The room transcript's mark is its own.
+  public func readerScrolled() {
+    guard let target = jumpTarget, let currentMark = target.mark else { return }
+    guard let mark = currentMark.readerScrolled(at: now()) else { return clearJump() }
+    if mark != target.mark {
+      jumpTarget?.mark = mark
+    }
+  }
+
+  /// Drop the jump once its mark has run out (web `landOn`'s timer).
+  public func endJumpIfMarkEnded() {
+    if jumpTarget?.mark?.stage(at: now()) == .ended {
+      clearJump()
+    }
   }
 
   public func clearJump() {

@@ -1,16 +1,15 @@
 "use client";
 
+import type { EnterpriseContractPreview } from "@sokosumi/core-client";
 import { useFormatter } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
-
 import { ContractPeriodsTable } from "@/components/admin/enterprise-contracts/contract-periods-table";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { previewEnterpriseContractPeriodsAction } from "@/lib/actions/enterprise-contract/action";
-import type { EnterpriseContractPreview } from "@/lib/clients/generated/core/types.gen";
 
 interface PreviewSchedulePanelProps {
   contractId: string;

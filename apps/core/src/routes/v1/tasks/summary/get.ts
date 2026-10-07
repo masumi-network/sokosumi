@@ -13,11 +13,8 @@ import {
   taskSummaryResponseSchema,
 } from "@/schemas/task.schema";
 
-/** Below this, "since your last activity" covers nothing worth reporting. */
-const MIN_MEANINGFUL_WINDOW_MS = 30 * 60 * 1000;
-
-/** Rolling fallback window when the last session activity was only moments ago. */
-const RECENT_WINDOW_MS = 24 * 60 * 60 * 1000;
+/** The one reporting window. The 24h before it is the trend baseline. */
+const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 const query = z.object({
   scope: z
@@ -34,7 +31,7 @@ const route = createRoute({
   method: "get",
   path: "/summary",
   description:
-    "Counts for the /chat landing: how much finished while the user was away, how much is blocked on them, and how much their human teammates added. The window starts at the caller's most recent session activity (`max(Session.updatedAt)`), the same signal admin member last-seen uses. When that timestamp is missing or under 30 minutes old, a rolling 24h fallback is used (`basis: recent`) so a reload cannot blank the summary. Interactive session users only — not coworker tokens.",
+    "Counts for the /chat landing over the last 24h, plus the 24h before it (`previous`) for a trend arrow. `awaitingInput` is point-in-time and has no previous value. Interactive session users only — not coworker tokens.",
   tags: ["Tasks"],
   request: { query },
   responses: {
@@ -43,13 +40,16 @@ const route = createRoute({
       "Task activity summary for the active workspace",
       {
         data: {
-          basis: "lastVisit",
-          lastVisitAt: "2026-08-10T09:00:00.000Z",
-          since: "2026-08-10T09:00:00.000Z",
+          since: "2026-08-10T12:00:00.000Z",
           completed: 4,
           awaitingInput: 2,
           createdByOtherHumans: 3,
           workedMinutes: 47,
+          previous: {
+            completed: 3,
+            createdByOtherHumans: 5,
+            workedMinutes: 60,
+          },
         },
         meta: {
           timestamp: "2026-08-11T12:00:00.000Z",
@@ -71,36 +71,16 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const workspaceContext = requireWorkspaceContext(c.var.workspaceContext);
     const { scope } = c.req.valid("query");
 
-    // Same derivation as org-member last-seen: most recent Session.updatedAt.
-    // Not every click — Better Auth refreshes the row on a throttle / cache —
-    // but it is durable product activity without a separate stamp column.
-    const lastSession = await prisma.session.aggregate({
-      where: { userId: userContext.userId },
-      _max: { updatedAt: true },
-    });
-    const lastActivityAt = lastSession._max.updatedAt ?? null;
-
-    // Activity recorded seconds ago produces a window nothing can fall into, so
-    // the page would blank on reload. Fall back to a rolling day and report
-    // `basis: recent` so the caption matches.
-    const elapsedMs = lastActivityAt
-      ? Date.now() - lastActivityAt.getTime()
-      : null;
-    const useLastActivity =
-      lastActivityAt !== null &&
-      elapsedMs !== null &&
-      elapsedMs >= MIN_MEANINGFUL_WINDOW_MS;
-    const basis = useLastActivity ? "lastVisit" : "recent";
-    const sinceDate = useLastActivity
-      ? lastActivityAt
-      : new Date(Date.now() - RECENT_WINDOW_MS);
-    const workspaceWhere = {
+    const now = new Date();
+    const sinceDate = new Date(now.getTime() - WINDOW_MS);
+    const prevStart = new Date(now.getTime() - 2 * WINDOW_MS);
+    const base = {
       archivedAt: null,
       workspaceId: workspaceContext.workspaceId,
+      ...(scope === "owned" ? { ownerId: userContext.userId } : {}),
+      ...buildHumanTaskVisibilityWhere(userContext.userId),
     };
-    const ownerWhere = scope === "owned" ? { ownerId: userContext.userId } : {};
-    const visibilityWhere = buildHumanTaskVisibilityWhere(userContext.userId);
-    const withinWindow = { updatedAt: { gte: sinceDate } };
+    const range = (from: Date, to: Date) => ({ gte: from, lt: to });
 
     // Time in progress, reconstructed from status-transition events: each
     // RUNNING event is paired with whatever event superseded it. There is no
@@ -120,52 +100,40 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       )
     `;
 
-    const [completed, awaitingInput, createdByOtherHumans, workedRows] =
-      await Promise.all([
-        prisma.task.count({
-          where: {
-            ...workspaceWhere,
-            ...ownerWhere,
-            ...visibilityWhere,
-            status: TaskStatus.COMPLETED,
-            // Task has no completedAt column, so the last write stands in for the
-            // completion time. A COMPLETED task is terminal, so in practice its
-            // final update is the completion itself.
-            ...withinWindow,
-          },
-        }),
-        prisma.task.count({
-          where: {
-            ...workspaceWhere,
-            ...ownerWhere,
-            ...visibilityWhere,
-            // Point-in-time: "waiting on you right now", so the window does not
-            // apply. Something blocked since last month still needs answering.
-            status: { in: [...TASK_AWAITING_INPUT_STATUSES] },
-          },
-        }),
-        // Only an organization workspace has other humans in it.
-        workspaceContext.organizationId
-          ? prisma.task.count({
-              where: {
-                ...workspaceWhere,
-                // Honour `scope` like every other counter here. Under `owned`
-                // this narrows to "tasks I own that a teammate created";
-                // under `workspace` it is a no-op.
-                ...ownerWhere,
-                ...visibilityWhere,
-                creatorUserId: { not: userContext.userId },
-                NOT: { creatorUserId: null },
-                createdAt: { gte: sinceDate },
-              },
-            })
-          : Promise.resolve(0),
-        prisma.$queryRaw<{ seconds: number | null }[]>`
+    // Task has no completedAt column, so the last write stands in for the
+    // completion time. A COMPLETED task is terminal, so in practice its final
+    // update is the completion itself.
+    const completedIn = (from: Date, to: Date) =>
+      prisma.task.count({
+        where: {
+          ...base,
+          status: TaskStatus.COMPLETED,
+          updatedAt: range(from, to),
+        },
+      });
+
+    // Only an organization workspace has other humans in it. Honours `scope`
+    // via `base`: under `owned` this is "tasks I own that a teammate created".
+    const byOthersIn = (from: Date, to: Date) =>
+      workspaceContext.organizationId
+        ? prisma.task.count({
+            where: {
+              ...base,
+              creatorUserId: { not: userContext.userId },
+              NOT: { creatorUserId: null },
+              createdAt: range(from, to),
+            },
+          })
+        : Promise.resolve(0);
+
+    // Minutes in RUNNING within [from, to), clipped to those bounds.
+    const workedMinutesIn = async (from: Date, to: Date) => {
+      const rows = await prisma.$queryRaw<{ seconds: number | null }[]>`
         SELECT COALESCE(
                  SUM(
                    EXTRACT(EPOCH FROM (
-                     COALESCE(s.next_at, now())
-                     - GREATEST(s.started_at, ${sinceDate})
+                     LEAST(COALESCE(s.next_at, now()), ${to})
+                     - GREATEST(s.started_at, ${from})
                    ))
                  ),
                  0
@@ -188,7 +156,8 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               -- written with a NULL status, and letting one win the LEAD cut
               -- every run short at its first comment.
               AND e.status IS NOT NULL
-              AND e."createdAt" >= ${sinceDate}
+              AND e."createdAt" >= ${from}
+              AND e."createdAt" < ${to}
             UNION ALL
             -- Plus the last transition before the window — the only earlier
             -- event that can still be in force at the window start, and so the
@@ -198,7 +167,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
               FROM "taskEvent" e
               WHERE e."taskId" = t.id
                 AND e.status IS NOT NULL
-                AND e."createdAt" < ${sinceDate}
+                AND e."createdAt" < ${from}
               ORDER BY e."createdAt" DESC
               LIMIT 1
             )
@@ -212,38 +181,67 @@ export default function mount(app: OpenAPIHonoWithAuth) {
             -- inside the window. Avoids lateral work over the full archive.
             AND (
               t.status = ${TaskStatus.RUNNING}::"TaskStatus"
-              OR t."updatedAt" >= ${sinceDate}
+              OR t."updatedAt" >= ${from}
               OR EXISTS (
                 SELECT 1
                 FROM "taskEvent" e
                 WHERE e."taskId" = t.id
                   AND e.status IS NOT NULL
-                  AND e."createdAt" >= ${sinceDate}
+                  AND e."createdAt" >= ${from}
+                  AND e."createdAt" < ${to}
               )
             )
         ) s
         -- Overlap, not containment: a run that began before the window still
-        -- did work inside it, and GREATEST clips the part that predates the
-        -- window so no run can report more minutes than the window holds.
-        -- COALESCE keeps a still-open run counting up to now.
+        -- did work inside it, and GREATEST/LEAST clip the parts outside so no
+        -- run can report more minutes than the window holds. COALESCE keeps a
+        -- still-open run counting up to now.
         WHERE s.status = ${TaskStatus.RUNNING}::"TaskStatus"
-          AND COALESCE(s.next_at, now()) > ${sinceDate}
-      `,
-      ]);
+          AND s.started_at < ${to}
+          AND COALESCE(s.next_at, now()) > ${from}
+      `;
+      return Math.max(0, Math.round(Number(rows[0]?.seconds ?? 0) / 60));
+    };
 
-    const workedSeconds = Number(workedRows[0]?.seconds ?? 0);
+    const [
+      completed,
+      awaitingInput,
+      createdByOtherHumans,
+      workedMinutes,
+      previousCompleted,
+      previousCreatedByOtherHumans,
+      previousWorkedMinutes,
+    ] = await Promise.all([
+      completedIn(sinceDate, now),
+      prisma.task.count({
+        where: {
+          ...base,
+          // Point-in-time: "waiting on you right now", so the window does not
+          // apply. Something blocked since last month still needs answering.
+          // No previous value: past backlog is not derivable without history.
+          status: { in: [...TASK_AWAITING_INPUT_STATUSES] },
+        },
+      }),
+      byOthersIn(sinceDate, now),
+      workedMinutesIn(sinceDate, now),
+      completedIn(prevStart, sinceDate),
+      byOthersIn(prevStart, sinceDate),
+      workedMinutesIn(prevStart, sinceDate),
+    ]);
 
     return ok(
       c,
       taskSummaryResponseSchema.parse({
-        basis,
-        // Echo the session-derived activity cursor (null only if no sessions).
-        lastVisitAt: lastActivityAt,
         since: sinceDate,
         completed,
         awaitingInput,
         createdByOtherHumans,
-        workedMinutes: Math.max(0, Math.round(workedSeconds / 60)),
+        workedMinutes,
+        previous: {
+          completed: previousCompleted,
+          createdByOtherHumans: previousCreatedByOtherHumans,
+          workedMinutes: previousWorkedMinutes,
+        },
       }),
     );
   });

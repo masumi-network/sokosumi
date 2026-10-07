@@ -1,9 +1,8 @@
-import { describe, expect, it } from "vitest";
-
 import {
   getAdminSokoBotResponseTransformer,
   performAdminSokoBotActionResponseTransformer,
-} from "@/lib/clients/generated/core/transformers.gen";
+} from "@sokosumi/core-client/transformers";
+import { describe, expect, it } from "vitest";
 
 /**
  * Admin detail returns `runtimeHealth: null` when the bot has no Eve session

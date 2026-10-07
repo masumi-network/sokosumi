@@ -1,4 +1,5 @@
 import CoreAPI
+import Foundation
 @testable import SokosumiChat
 import Testing
 
@@ -9,6 +10,7 @@ private let bobThumbs = Reaction(emoji: "👍", count: 1, reactedByCurrentUser: 
 
 private func message(_ id: String = "m1", _ reactions: [Reaction] = []) -> Components.Schemas.ChatRoomMessage {
   var message = chatRoomMessage(from: .init(clientTurnId: id, roomId: "room", content: "Hello",
+                                            createdAt: Date(),
                                             sender: .init(id: "user-2", name: "Bob", email: "bob@example.com", presence: .online)))
   message.id = id
   message.reactions = reactions

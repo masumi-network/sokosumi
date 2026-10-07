@@ -3,7 +3,6 @@ import { createRoute } from "@hono/zod-openapi";
 import { badRequest } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { auth } from "@/lib/auth";
 import { auditImpersonationDenied, auditImpersonationStop } from "@/lib/evlog";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import { denialAuditActor, requireUserAuthContext } from "@/middleware/auth";
@@ -65,6 +64,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw badRequest("Not currently impersonating a user");
     }
 
+    const { auth } = await import("@/lib/auth");
     const { headers, response } = await auth.api.stopImpersonating({
       headers: c.req.raw.headers,
       returnHeaders: true,

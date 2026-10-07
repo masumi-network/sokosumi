@@ -1,6 +1,6 @@
+import type { ChatRoom } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-
 import {
   clearMembershipVisibleRoomsSnapshot,
   publishMembershipVisibleRooms,
@@ -13,7 +13,6 @@ import {
   clearRoomReadOverlays,
   rememberRoomRead,
 } from "@/components/chat/room-read-overlay";
-import type { ChatRoom } from "@/lib/clients/generated/core";
 
 vi.mock(
   "@/app/components/sidebar/components/personal-assistant-nav.client",

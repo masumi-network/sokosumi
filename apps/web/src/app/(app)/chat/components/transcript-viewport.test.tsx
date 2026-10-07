@@ -1,3 +1,4 @@
+import type { ChatRoomMessage } from "@sokosumi/core-client";
 import { act, fireEvent, render } from "@testing-library/react";
 import { createRef, useState } from "react";
 import {
@@ -10,7 +11,6 @@ import {
   it,
   vi,
 } from "vitest";
-
 import {
   CHAT_MESSAGE_LIST_ATTRIBUTE,
   CHAT_MESSAGE_LIST_ROOM,
@@ -21,7 +21,6 @@ import {
   outboundLocalMessageId,
 } from "@/app/chat/utils/outbound-room-message";
 import type { RoomTranscriptRenderRow } from "@/app/chat/utils/room-transcript-ranges";
-import type { ChatRoomMessage } from "@/lib/clients/generated/core";
 
 import {
   rowHoldAfterRowsChange,

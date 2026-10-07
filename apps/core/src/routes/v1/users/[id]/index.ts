@@ -4,6 +4,8 @@ import {
   type UserRouteVariables,
   usersPathUserContextMiddleware,
 } from "../user-route-context.js";
+import mountPostUserBadgeCampaignSeen from "./badge-campaigns/[campaignId]/seen/post.js";
+import mountGetUserBadgeCampaigns from "./badge-campaigns/get.js";
 import mountGetUserBillingDetails from "./billing-details/get.js";
 import mountApproveUserCoworkerAccess from "./coworker-access/[accessId]/approve/post.js";
 import mountDenyUserCoworkerAccess from "./coworker-access/[accessId]/deny/post.js";
@@ -22,6 +24,7 @@ import mountDeleteUserOauthConsent from "./oauth-consents/[consentId]/delete.js"
 import mountGetUserOrganizationCredits from "./organizations/[organizationId]/credits/get.js";
 import mountGetUserOrganizationMember from "./organizations/[organizationId]/member/get.js";
 import mountGetUserOrganizations from "./organizations/get.js";
+import mountPatchUser from "./patch.js";
 import mountGetUserPendingOrganizationInvitations from "./pending-organization-invitations/get.js";
 import mountDeleteUserPersonalWorkspace from "./personal-workspace/delete.js";
 import mountPostUserPersonalWorkspace from "./personal-workspace/post.js";
@@ -29,6 +32,7 @@ import mountGetUserPreferences from "./preferences/get.js";
 import mountPatchUserPreferences from "./preferences/patch.js";
 import mountGetUserPreferredOrganization from "./preferred-organization/get.js";
 import mountPutUserPreferredOrganization from "./preferred-organization/put.js";
+import mountPostUserSignUpConversion from "./sign-up-conversion/post.js";
 import mountGetUserStripeCustomer from "./stripe-customer/get.js";
 import mountPostUserStripeCustomer from "./stripe-customer/post.js";
 import mountGetUserSubscription from "./subscription/get.js";
@@ -39,6 +43,10 @@ import mountRevokeUserVendorGrant from "./vendor-grants/[grantId]/revoke/post.js
 import mountGetUserVendorGrants from "./vendor-grants/get.js";
 import mountPostUserVendorGrants from "./vendor-grants/post.js";
 import mountGetUserWorkspaceAccess from "./workspace-access/get.js";
+import mountDeleteUserWorkspace from "./workspaces/[workspaceId]/delete.js";
+import mountGetUserWorkspaces from "./workspaces/get.js";
+import mountPostUserWorkspaces from "./workspaces/post.js";
+import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
@@ -60,12 +68,19 @@ mountPostUserPersonalWorkspace(app);
 mountDeleteUserPersonalWorkspace(app);
 mountDeleteUserOauthConsent(app);
 mountGetUserWorkspaceAccess(app);
+mountGetUserWorkspaces(app);
+mountPostUserWorkspaces(app);
+mountPutUserPreferredWorkspace(app);
+mountDeleteUserWorkspace(app);
 mountGetUserPendingOrganizationInvitations(app);
 mountGetUserPendingNotices(app);
 mountPostUserNoticeAcknowledge(app);
+mountGetUserBadgeCampaigns(app);
+mountPostUserBadgeCampaignSeen(app);
 mountGetUserFiles(app);
 mountPostUserFiles(app);
 mountPostUserUtmAttribution(app);
+mountPostUserSignUpConversion(app);
 mountGetUserCoworkerAccess(app);
 mountApproveUserCoworkerAccess(app);
 mountDenyUserCoworkerAccess(app);
@@ -80,5 +95,6 @@ mountPostUserStripeCustomer(app);
 mountGetUserBillingDetails(app);
 mountGetUserSubscription(app);
 mountGetUserById(app);
+mountPatchUser(app);
 
 export default app;

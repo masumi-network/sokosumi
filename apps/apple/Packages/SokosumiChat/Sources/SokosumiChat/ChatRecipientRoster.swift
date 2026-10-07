@@ -26,13 +26,25 @@ public struct ChatRecipientSection: Identifiable, Equatable, Sendable {
   public let targets: [ChatRecipientTarget]
 }
 
+public extension ChatRecipientTarget {
+  /// Web's Message yourself entry (`create-direct-dialog.tsx`:53-64): the reader's own id, named for what it does,
+  /// with "You · {name}" under it and the reader's avatar. Choosing it opens the reader's Self Direct.
+  static func messageYourself(userId: String, name: String, imageURL: String?) -> ChatRecipientTarget {
+    .init(id: .human(userId), name: "Message yourself", detail: "You · \(name)", imageURL: imageURL)
+  }
+}
+
 public struct ChatRecipientRoster: Equatable, Sendable {
   public let targets: [ChatRecipientTarget]
   public let membersLoadFailed: Bool
+  /// Nobody but the reader could be loaded, so Message yourself is the one target (web's catch in
+  /// `loadChatComposeRosterAction`).
+  public let recipientsLoadFailed: Bool
 
-  public init(targets: [ChatRecipientTarget], membersLoadFailed: Bool = false) {
+  public init(targets: [ChatRecipientTarget], membersLoadFailed: Bool = false, recipientsLoadFailed: Bool = false) {
     self.targets = targets
     self.membersLoadFailed = membersLoadFailed
+    self.recipientsLoadFailed = recipientsLoadFailed
   }
 
   public func sections(query: String, excluding: Set<DirectRecipient> = []) -> [ChatRecipientSection] {
@@ -57,9 +69,23 @@ public struct ChatRecipientRoster: Equatable, Sendable {
 }
 
 public extension ChatService {
-  func directRecipients(client: Client, currentUserId: String, organizationId: String?, organizationSlug: String?) async throws -> ChatRecipientRoster {
-    let roster = try await chatRecipients(client: client, organizationId: organizationId, organizationSlug: organizationSlug)
-    return .init(targets: roster.targets.filter { $0.id != .human(currentUserId) }, membersLoadFailed: roster.membersLoadFailed)
+  /// The New chat roster: Message yourself first (nil without a signed-in reader), then everyone else but the reader.
+  func directRecipients(
+    client: Client, yourself: ChatRecipientTarget?, organizationId: String?, organizationSlug: String?
+  ) async throws -> ChatRecipientRoster {
+    let roster: ChatRecipientRoster
+    do {
+      roster = try await chatRecipients(client: client, organizationId: organizationId, organizationSlug: organizationSlug)
+    } catch {
+      // Web keeps Message yourself whatever else fails; a 401 still ends the session and a cancel stays one.
+      guard let yourself, !(error is CancellationError), !Task.isCancelled else { throw error }
+      if case ChatServiceError.unauthorized = error {
+        throw error
+      }
+      return .init(targets: [yourself], membersLoadFailed: true, recipientsLoadFailed: true)
+    }
+    let others = roster.targets.filter { $0.id != yourself?.id }
+    return .init(targets: (yourself.map { [$0] } ?? []) + others, membersLoadFailed: roster.membersLoadFailed)
   }
 
   func chatRecipients(client: Client, organizationId: String?, organizationSlug: String?) async throws -> ChatRecipientRoster {

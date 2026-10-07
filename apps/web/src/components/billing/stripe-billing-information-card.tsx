@@ -1,6 +1,6 @@
+import type { StripeCustomerBillingDetails } from "@sokosumi/core-client";
 import { getLocale, getTranslations } from "next-intl/server";
 import type { ReactNode } from "react";
-
 import {
   StripeBillingInformationFields,
   type StripeBillingInformationTranslationNamespace,
@@ -13,7 +13,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { buildStripeBillingInformationFieldsProps } from "@/lib/billing/build-stripe-billing-information-fields-props";
-import type { StripeCustomerBillingDetails } from "@/lib/clients/generated/core";
 
 export interface StripeBillingInformationCardProps {
   billingDetails: StripeCustomerBillingDetails;

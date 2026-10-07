@@ -1,11 +1,11 @@
 "use client";
 
+import type { SokoBotStatus } from "@sokosumi/core-client";
 import { MoreHorizontal } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { Fragment, useId, useState, useTransition } from "react";
 import { toast } from "sonner";
-
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -25,7 +25,6 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { performAdminSokoBotAction } from "@/lib/actions/admin-soko-bots/action";
-import type { SokoBotStatus } from "@/lib/clients/generated/core";
 import type { AdminSokoBotActionKind } from "@/lib/soko-bot/constants";
 import { newOperationId } from "@/lib/soko-bot/operation-id";
 
@@ -199,9 +198,10 @@ export function AdminSokoBotActions({
                   : "default"
               }
               onClick={confirm}
-              disabled={isPending || reason.trim().length < 3}
+              loading={isPending}
+              disabled={reason.trim().length < 3}
             >
-              {isPending ? t("working") : t("confirm")}
+              {t("confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

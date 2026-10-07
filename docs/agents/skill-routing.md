@@ -5,7 +5,7 @@ Commands and backticked paths are relative to the repository root unless stated 
 
 ## Agent skills
 
-First-party sources in `skills/` are only `linear-requirement` and `translations`. `.agents/skills/<name>` is a symlink to that tree for those two (`.claude/skills` already symlinks to `.agents`). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
+First-party sources in `skills/` are only `linear-requirement`, `steward`, and `translations`. `.agents/skills/<name>` is a symlink to that tree for those three (each `.claude/skills/<name>` is a symlink to `.agents/skills/<name>`, so a new skill needs its own link). Other named flows live under `.agents/skills/`. For app work, resolve `apps/<app>/.agents/skills/<name>/` first, then `.agents/skills/<name>/`, then `skills/<name>/`. Read an app skill by path when it is absent from a root-started session’s catalog. Third-party installs live only under `.agents/skills/` — at the repo root for shared skills, or under `apps/<app>/.agents/skills/` (with `apps/<app>/skills-lock.json` beside it) when the skill is scoped to one app, mirroring `apps/core/.agents/skills/`. Web UI implement/review: follow [`apps/web/AGENTS.md`](../../apps/web/AGENTS.md) and the Jakub skills under [`apps/web/.agents/skills/better-ui/`](../../apps/web/.agents/skills/better-ui/) (and siblings `better-typography`, `better-colors`, `better-accessibility`, `better-layout`, `better-writing`, `better-interface`, `interface-review`, `explain-interface`, `variant`, `break`).
 
 ### Manage installations with the skills CLI
 
@@ -33,6 +33,10 @@ App Router skills live under `apps/web/.agents/skills/`. They register only once
 ### Evlog (Core only)
 
 Core HTTP logging uses evlog. Conventions live in [`apps/core/AGENTS.md`](../../apps/core/AGENTS.md) (the `<!-- evlog:start -->` block plus Sokosumi constraints). Skills are under `apps/core/.agents/skills/` (`review-logging-patterns`, `build-audit-logs`, `analyze-logs`). Do not add `evlog/next` to Web. Do not run `evlog agents` at the repo root.
+
+### Sentry (errors)
+
+Web (`@sentry/nextjs`, `apps/web/sentry.*.config.ts`) and Core (`apps/core/src/lib/sentry.ts`, plus evlog's Sentry Logs drain) report to Sentry org `masumi`; Web's project is `sokosumi`. Query it through the Sentry MCP connector when the session has one, otherwise [`.agents/skills/sentry-cli/`](../../.agents/skills/sentry-cli/). Both stay silent without a DSN, so local and cloud-agent runs report nothing.
 
 ### Apple (apps/apple only)
 

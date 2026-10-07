@@ -60,6 +60,11 @@ vi.mock("@/lib/ably/publish", () => ({
   publishChatMembershipRevoked: publishChatMembershipRevokedMock,
 }));
 
+vi.mock("@/helpers/chat-room-mention-status", () => ({
+  failOpenChatRoomMentions: vi.fn(async () => []),
+  publishChatRoomMentionStatuses: vi.fn(async () => undefined),
+}));
+
 const ROOM_ID = "550e8400-e29b-41d4-a716-446655440000";
 const SELF_ID = "user_self";
 const OTHER_ID = "user_other";
@@ -403,4 +408,19 @@ describe("DELETE /chats/rooms/{id}/members/me", () => {
     expect(userMemberDeleteManyMock).not.toHaveBeenCalled();
     expect(readStateDeleteManyMock).not.toHaveBeenCalled();
   });
+});
+
+it("removes owned bots added while the leave waited for the room lock", async () => {
+  const botId = "01960001-0001-7001-8001-000000000001";
+  roomFindFirstMock.mockResolvedValueOnce(room()).mockResolvedValue({
+    ...room(),
+    sokoBotMembers: [
+      { sokoBot: { id: botId, userId: SELF_ID, name: "New bot" } },
+    ],
+  });
+  expect((await leave()).status).toBe(200);
+  expect(sokoBotMemberDeleteManyMock).toHaveBeenCalledWith({
+    where: { roomId: ROOM_ID, sokoBotId: { in: [botId] } },
+  });
+  expect(roomFindFirstMock).toHaveBeenCalledTimes(2);
 });

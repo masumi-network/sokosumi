@@ -1,8 +1,7 @@
+import type { NotificationItem } from "@sokosumi/core-client";
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-
 import { NotificationRowIcon } from "@/components/notifications/notification-row-icon";
-import type { NotificationItem } from "@/lib/clients/generated/core";
 
 function notification(isRead: boolean): NotificationItem {
   return {

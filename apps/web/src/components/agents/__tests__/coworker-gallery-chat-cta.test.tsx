@@ -1,8 +1,7 @@
+import type { Coworker } from "@sokosumi/core-client";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-import type { Coworker } from "@/lib/clients/generated/core";
 
 const openCoworkerRoomMock = vi.fn();
 const handleOpenWithMock = vi.fn();
@@ -30,7 +29,6 @@ vi.mock("next-intl", () => ({
         if (key === "cta.button") {
           return `Chat with ${values?.name ?? ""}`;
         }
-        if (key === "cta.opening") return "Opening chat…";
         if (key === "cta.error") return "Could not open the chat.";
         return key;
       },
