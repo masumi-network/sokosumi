@@ -4,6 +4,7 @@ import {
   CoreApiRequestError,
   executeCoreOperation,
   executeCoreOperationWithResponse,
+  toCoreApiActionError,
 } from "@/lib/clients/core.request";
 import { CORE_REQUEST_ID_HEADER } from "@/lib/clients/utils/core-request-id";
 
@@ -170,6 +171,29 @@ describe("executeCoreOperationWithResponse", () => {
       message: "already impersonating",
       status: 409,
       requestId: "req_1",
+    });
+  });
+});
+
+describe("toCoreApiActionError", () => {
+  it("keeps the error kind when it rewrites a 503's message", async () => {
+    const error = await executeCoreOperation(
+      async () => ({}) as never,
+      async () => ({
+        error: {
+          error: "ServiceUnavailable",
+          message: "Ads integrations are not configured on this server.",
+          kind: "integration_not_configured",
+        },
+        response: new Response(null, { status: 503 }),
+      }),
+      "fallback",
+    ).catch((caught: unknown) => caught);
+
+    expect(toCoreApiActionError(error)).toEqual({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "The service is currently unavailable.",
+      kind: "integration_not_configured",
     });
   });
 });

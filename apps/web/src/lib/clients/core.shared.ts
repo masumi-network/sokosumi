@@ -20,6 +20,8 @@ import type {
   CreateTaskScheduleRequest,
   CreateTaskScheduleRunRequest,
   DeleteJobsByIdShareError,
+  DeleteProjectsByIdAdsAccountsByAccountIdData,
+  DeleteProjectsByIdAdsConnectionsByAdConnectionIdData,
   DeleteProjectsByIdJobsByJobIdData,
   DeleteProjectsByIdSocialConnectionsByConnectionIdData,
   DeleteProjectsByIdTasksByTaskIdData,
@@ -87,6 +89,9 @@ import type {
   PostOrganizationsByIdFilesCleanupData,
   PostOrganizationsByIdFilesData,
   PostOrganizationsByIdInviteLinksData,
+  PostProjectsByIdAdsAccountsData,
+  PostProjectsByIdAdsConnectionsFinalizeData,
+  PostProjectsByIdAdsConnectionsInitiateData,
   PostProjectsByIdCloseCancelOwedData,
   PostProjectsByIdCloseData,
   PostProjectsByIdCloseRetryData,
@@ -173,6 +178,8 @@ import {
   deleteMySokoBotSchedule as coreDeleteMySokoBotSchedule,
   deleteOrganizationsByIdInviteLinksByToken as coreDeleteOrganizationsByIdInviteLinksByToken,
   deleteOrganizationsByIdMembersByMemberIdSeat as coreDeleteOrganizationsByIdMembersByMemberIdSeat,
+  deleteProjectsByIdAdsAccountsByAccountId as coreDeleteProjectsByIdAdsAccountsByAccountId,
+  deleteProjectsByIdAdsConnectionsByAdConnectionId as coreDeleteProjectsByIdAdsConnectionsByAdConnectionId,
   deleteProjectsByIdDesignMd as coreDeleteProjectsByIdDesignMd,
   deleteProjectsByIdJobsByJobId as coreDeleteProjectsByIdJobsByJobId,
   deleteProjectsByIdSocialConnectionsByConnectionId as coreDeleteProjectsByIdSocialConnectionsByConnectionId,
@@ -263,6 +270,7 @@ import {
   getOrganizationsByIdVendorGrants as coreGetOrganizationsByIdVendorGrants,
   getProjects as coreGetProjects,
   getProjectsById as coreGetProjectsById,
+  getProjectsByIdAdsAccounts as coreGetProjectsByIdAdsAccounts,
   getProjectsByIdCalendar as coreGetProjectsByIdCalendar,
   getProjectsByIdClose as coreGetProjectsByIdClose,
   getProjectsByIdContextMd as coreGetProjectsByIdContextMd,
@@ -404,6 +412,9 @@ import {
   postOrganizationsByIdVendorGrantsByGrantIdDeny as corePostOrganizationsByIdVendorGrantsByGrantIdDeny,
   postOrganizationsByIdVendorGrantsByGrantIdRevoke as corePostOrganizationsByIdVendorGrantsByGrantIdRevoke,
   postProjects as corePostProjects,
+  postProjectsByIdAdsAccounts as corePostProjectsByIdAdsAccounts,
+  postProjectsByIdAdsConnectionsFinalize as corePostProjectsByIdAdsConnectionsFinalize,
+  postProjectsByIdAdsConnectionsInitiate as corePostProjectsByIdAdsConnectionsInitiate,
   postProjectsByIdClose as corePostProjectsByIdClose,
   postProjectsByIdCloseCancelOwed as corePostProjectsByIdCloseCancelOwed,
   postProjectsByIdCloseRetry as corePostProjectsByIdCloseRetry,
@@ -3404,6 +3415,89 @@ export function createCoreClient(getClient: GetCoreClient) {
     );
   }
 
+  async function getProjectsByIdAdsAccounts(id: string) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreGetProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          cache: "no-store",
+        }),
+      "Failed to fetch Project ad accounts",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsInitiate(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsInitiateData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsInitiate({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to initiate Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsConnectionsFinalize(
+    id: string,
+    body: PostProjectsByIdAdsConnectionsFinalizeData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsConnectionsFinalize({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to finalize Project ad connection",
+    );
+  }
+
+  async function postProjectsByIdAdsAccounts(
+    id: string,
+    body: PostProjectsByIdAdsAccountsData["body"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        corePostProjectsByIdAdsAccounts({
+          client,
+          path: { id },
+          body,
+        }),
+      "Failed to attach Project ad accounts",
+    );
+  }
+
+  async function deleteProjectsByIdAdsAccountsByAccountId(
+    path: DeleteProjectsByIdAdsAccountsByAccountIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsAccountsByAccountId({ client, path }),
+      "Failed to disconnect Project ad account",
+    );
+  }
+
+  async function deleteProjectsByIdAdsConnectionsByAdConnectionId(
+    path: DeleteProjectsByIdAdsConnectionsByAdConnectionIdData["path"],
+  ) {
+    return executeCoreOperation(
+      getClient,
+      (client) =>
+        coreDeleteProjectsByIdAdsConnectionsByAdConnectionId({ client, path }),
+      "Failed to discard Project ad connection",
+    );
+  }
+
   async function postProjectsByIdSocialConnectionsInitiate(
     id: string,
     body: NonNullable<PostProjectsByIdSocialConnectionsInitiateData["body"]>,
@@ -5857,6 +5951,8 @@ export function createCoreClient(getClient: GetCoreClient) {
     createTaskEvent,
     deleteJobShare,
     deleteProjectsByIdDesignMd,
+    deleteProjectsByIdAdsAccountsByAccountId,
+    deleteProjectsByIdAdsConnectionsByAdConnectionId,
     deleteProjectsByIdJobsByJobId,
     deleteProjectsByIdSocialConnectionsByConnectionId,
     deleteProjectsByIdTasksByTaskId,
@@ -6068,6 +6164,7 @@ export function createCoreClient(getClient: GetCoreClient) {
     getProjectsByIdClose,
     getProjectsByIdContextMd,
     getProjectsByIdNeedsAttention,
+    getProjectsByIdAdsAccounts,
     getProjectsByIdSocialConnections,
     getImageStudioCatalog,
     getProjectsByIdImageStudio,
@@ -6094,6 +6191,9 @@ export function createCoreClient(getClient: GetCoreClient) {
     postProjectsByIdCloseCancelOwed,
     postProjectsByIdCloseRetry,
     postProjectsByIdJobs,
+    postProjectsByIdAdsAccounts,
+    postProjectsByIdAdsConnectionsFinalize,
+    postProjectsByIdAdsConnectionsInitiate,
     postProjectsByIdSocialConnectionsFinalize,
     postProjectsByIdSocialConnectionsInitiate,
     postProjectsByIdTasks,
