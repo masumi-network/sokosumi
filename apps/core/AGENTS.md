@@ -346,7 +346,7 @@ Environment variables required by Vitest (or by code under test) must be set in 
 - Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
 - Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 - Use `c.var.user` for direct user access, or `c.get("auth")` for full auth context
-- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, and `/organizations/{id}/credits` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Mounting a new user route for agents means extending that allowlist
+- Coworker and Soko Bot tokens may only `GET` `/users/{id}`, its `/credits`, `/organizations`, and `/organizations/{id}/credits` (`src/routes/v1/users/user-coworker-route-allowlist.ts`); every other `/users` route answers them 403. Coworkers see only organizations whose workspace their vendor may act in (`filterAuthorizedOrganizationIds`). Mounting a new user route for agents means extending that allowlist
 
 ### Error Handling
 

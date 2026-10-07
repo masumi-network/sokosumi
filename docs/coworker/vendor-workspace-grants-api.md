@@ -120,6 +120,38 @@ user-scoped act-as-user. Handlers pick a shared helper — do not branch on
 See `apps/core/AGENTS.md` (Handler actor menu) and
 `apps/core/src/helpers/coworker-user-context-binding.ts`.
 
+Without `X-Context-Organization-Id`, the context is the user's personal
+workspace. A user who has only organization workspaces has none, so
+user-scoped routes answer **400** `context_organization_required`: send the
+organization header.
+
+### User routes (`/v1/users/{id}/*`)
+
+Coworkers (with `X-Context-User-Id`) may call only these `GET` routes, for
+their context user (`me` or the matching id). Every other method and subpath
+answers **403** (`agentUserRouteAllowlistMiddleware`).
+
+| Route | Returns |
+| --- | --- |
+| `GET /v1/users/{id}` | Profile |
+| `GET /v1/users/{id}/credits` | Credits for the context workspace |
+| `GET /v1/users/{id}/organizations` | The user's organizations whose workspace the vendor may act in |
+| `GET /v1/users/{id}/organizations/{organizationId}/credits` | Credits in one of those organizations; any other answers **403** |
+
+"May act in" is the binding rule above: never on a **DENIED** or **REVOKED**
+grant, always on **GRANTED**, otherwise when a baseline task exists in that
+workspace. Binding to one workspace does not reveal the user's other
+organizations.
+
+**Workspace discovery goes through OAuth.** `GET /v1/users/{id}/workspaces`
+is not on the coworker list, and a coworker cannot bind to a user who has no
+personal workspace without already knowing an organization. An integration
+learns the user's workspaces from the user: an OAuth access token with
+`sokosumi:api` calls `GET /v1/users/me/workspaces` (the workspaces, which one
+is `preferred`, and pending invitations). A token without that scope gets
+**403** `insufficient_scope` with
+`WWW-Authenticate: Bearer error="insufficient_scope", scope="sokosumi:api"`.
+
 **Grant admin routes** (`/v1/organizations/{id}/vendor-grants/*`,
 `/v1/users/{id}/vendor-grants/*`) return **403** for coworker auth (bare or
 with context headers). Session users or Soko Bot with workspace

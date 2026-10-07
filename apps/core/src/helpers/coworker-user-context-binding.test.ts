@@ -6,6 +6,7 @@ import { TEST_VENDOR_ID } from "@/test-fixtures/vendor.js";
 
 import {
   assertCoworkerUserContextBinding,
+  filterAuthorizedOrganizationIds,
   requireAuthorizedUserContext,
 } from "./coworker-user-context-binding";
 
@@ -15,7 +16,13 @@ const {
   isGrantDeniedOrRevokedMock,
   throwGrantAccessErrorMock,
   taskFindFirstMock,
+  taskFindManyMock,
+  workspaceFindManyMock,
+  vendorGrantFindManyMock,
 } = vi.hoisted(() => ({
+  taskFindManyMock: vi.fn(),
+  workspaceFindManyMock: vi.fn(),
+  vendorGrantFindManyMock: vi.fn(),
   resolveWorkspaceForContextMock: vi.fn(),
   getWorkspaceGrantMock: vi.fn(),
   isGrantDeniedOrRevokedMock: vi.fn(),
@@ -47,6 +54,13 @@ vi.mock("@/lib/db/prisma", () => ({
   default: {
     task: {
       findFirst: (...args: unknown[]) => taskFindFirstMock(...args),
+      findMany: (...args: unknown[]) => taskFindManyMock(...args),
+    },
+    workspace: {
+      findMany: (...args: unknown[]) => workspaceFindManyMock(...args),
+    },
+    vendorGrant: {
+      findMany: (...args: unknown[]) => vendorGrantFindManyMock(...args),
     },
   },
 }));
@@ -215,7 +229,7 @@ describe("assertCoworkerUserContextBinding", () => {
     );
   });
 
-  it("404s when personal workspace is missing", async () => {
+  it("asks for X-Context-Organization-Id when the context user has no personal workspace", async () => {
     const { PersonalWorkspaceMissingError } = await import(
       "@sokosumi/database/repositories"
     );
@@ -228,7 +242,10 @@ describe("assertCoworkerUserContextBinding", () => {
         userId: "user_1",
         organizationId: null,
       }),
-    ).rejects.toMatchObject({ status: 404 });
+    ).rejects.toMatchObject({
+      status: 400,
+      cause: { kind: "context_organization_required" },
+    });
     expect(getWorkspaceGrantMock).not.toHaveBeenCalled();
   });
 });
@@ -278,5 +295,61 @@ describe("requireAuthorizedUserContext", () => {
       userId: "user_1",
       organizationId: null,
     });
+  });
+});
+
+describe("filterAuthorizedOrganizationIds", () => {
+  beforeEach(() => {
+    workspaceFindManyMock.mockReset();
+    vendorGrantFindManyMock.mockReset();
+    taskFindManyMock.mockReset();
+    isGrantDeniedOrRevokedMock.mockImplementation(
+      (status: VendorGrantStatus) =>
+        status === VendorGrantStatus.DENIED ||
+        status === VendorGrantStatus.REVOKED,
+    );
+  });
+
+  it("returns every organization for a session user", async () => {
+    const result = await filterAuthorizedOrganizationIds(
+      {
+        actor: "user",
+        userId: "user_1",
+        organizationId: null,
+        role: "user",
+      },
+      "user_1",
+      ["org_a", "org_b"],
+    );
+
+    expect([...result]).toEqual(["org_a", "org_b"]);
+    expect(workspaceFindManyMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps only organizations whose workspace the coworker's vendor may act in", async () => {
+    workspaceFindManyMock.mockResolvedValue([
+      { id: "ws_granted", organizationId: "org_granted" },
+      { id: "ws_task", organizationId: "org_task" },
+      { id: "ws_none", organizationId: "org_none" },
+      { id: "ws_denied", organizationId: "org_denied" },
+      { id: "ws_pending", organizationId: "org_pending" },
+    ]);
+    vendorGrantFindManyMock.mockResolvedValue([
+      { workspaceId: "ws_granted", status: VendorGrantStatus.GRANTED },
+      { workspaceId: "ws_denied", status: VendorGrantStatus.DENIED },
+      { workspaceId: "ws_pending", status: VendorGrantStatus.PENDING },
+    ]);
+    taskFindManyMock.mockResolvedValue([
+      { workspaceId: "ws_task" },
+      { workspaceId: "ws_denied" },
+    ]);
+
+    const result = await filterAuthorizedOrganizationIds(
+      coworkerAuth,
+      "user_1",
+      ["org_granted", "org_task", "org_none", "org_denied", "org_pending"],
+    );
+
+    expect([...result].sort()).toEqual(["org_granted", "org_task"]);
   });
 });

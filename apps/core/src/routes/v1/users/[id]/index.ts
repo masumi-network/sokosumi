@@ -51,8 +51,10 @@ import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
-app.use("*", usersPathUserContextMiddleware);
+// The allowlist runs first: an agent on a route it may not call gets 403
+// before any context-workspace error that would only send it elsewhere.
 app.use("*", agentUserRouteAllowlistMiddleware);
+app.use("*", usersPathUserContextMiddleware);
 
 mountGetUserCredits(app);
 mountGetUserDeletion(app);

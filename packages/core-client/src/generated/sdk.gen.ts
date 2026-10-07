@@ -2221,7 +2221,7 @@ export const getUsersByIdMembers = <ThrowOnError extends boolean = false>(option
 });
 
 /**
- * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`.
+ * Get organizations for a user: path `me` for the session user, or a user id when the caller may access that user's data. Session user or coworker with matching authorized `X-Context-User-Id`. A coworker sees only the organizations whose workspace its vendor may act in (granted, or a task it or a same-vendor coworker is assigned).
  */
 export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsResponses, GetUsersByIdOrganizationsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsResponseTransformer,
@@ -2230,7 +2230,7 @@ export const getUsersByIdOrganizations = <ThrowOnError extends boolean = false>(
 });
 
 /**
- * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`.
+ * Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`. A coworker also needs its vendor to be able to act in that organization's workspace (granted, or an assigned task), otherwise 403.
  */
 export const getUsersByIdOrganizationsByOrganizationIdCredits = <ThrowOnError extends boolean = false>(options: Options<GetUsersByIdOrganizationsByOrganizationIdCreditsData, ThrowOnError>): RequestResult<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError> => (options.client ?? client).get<GetUsersByIdOrganizationsByOrganizationIdCreditsResponses, GetUsersByIdOrganizationsByOrganizationIdCreditsErrors, ThrowOnError>({
     responseTransformer: getUsersByIdOrganizationsByOrganizationIdCreditsResponseTransformer,

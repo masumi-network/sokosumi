@@ -33,7 +33,9 @@ const {
   prismaTransactionMock,
   txUserFindUniqueMock,
   assertCoworkerUserContextBindingMock,
+  filterAuthorizedOrganizationIdsMock,
 } = vi.hoisted(() => ({
+  filterAuthorizedOrganizationIdsMock: vi.fn(),
   userFindUniqueMock: vi.fn(),
   buildCreditsPayloadMock: vi.fn(),
   memberFindManyMock: vi.fn(),
@@ -61,6 +63,8 @@ vi.mock("@/helpers/coworker-user-context-binding", () => ({
   assertCoworkerUserContextBinding: (...args: unknown[]) =>
     assertCoworkerUserContextBindingMock(...args),
   requireAuthorizedUserContext: vi.fn(),
+  filterAuthorizedOrganizationIds: (...args: unknown[]) =>
+    filterAuthorizedOrganizationIdsMock(...args),
 }));
 
 vi.mock("@/helpers/subscription", () => ({
@@ -156,8 +160,8 @@ function createUserRouteApp(
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
   userByIdApp.use("*", agentUserRouteAllowlistMiddleware);
+  userByIdApp.use("*", usersPathUserContextMiddleware);
   mountGetUserById(userByIdApp);
   mountGetUserCredits(userByIdApp);
   mountGetUserOrganizations(userByIdApp);
@@ -172,6 +176,10 @@ describe("coworker user route allowlist", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     assertCoworkerUserContextBindingMock.mockResolvedValue(undefined);
+    filterAuthorizedOrganizationIdsMock.mockImplementation(
+      async (_auth: unknown, _userId: string, organizationIds: string[]) =>
+        new Set(organizationIds),
+    );
     userFindUniqueMock.mockResolvedValue(USER_RECORD);
     buildCreditsPayloadMock.mockResolvedValue(CREDITS_PAYLOAD);
     resolveMemberOrganizationByIdMock.mockResolvedValue({
@@ -240,6 +248,49 @@ describe("coworker user route allowlist", () => {
     expect(response.status).toBe(200);
     expect(resolveMemberOrganizationByIdMock).toHaveBeenCalled();
     expect(buildCreditsPayloadMock).toHaveBeenCalled();
+  });
+
+  it("lists only the organizations the coworker's vendor may act in", async () => {
+    const organization = (id: string) => ({
+      organizationId: id,
+      role: "member",
+      organization: {
+        id,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        name: id,
+        slug: id,
+        logo: null,
+        metadata: null,
+      },
+    });
+    memberFindManyMock.mockResolvedValue([
+      organization("org_granted"),
+      organization("org_hidden"),
+    ]);
+    filterAuthorizedOrganizationIdsMock.mockResolvedValue(
+      new Set(["org_granted"]),
+    );
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request("http://localhost/me/organizations");
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.data.map((org: { id: string }) => org.id)).toEqual([
+      "org_granted",
+    ]);
+  });
+
+  it("rejects coworker on credits of an organization its vendor may not act in", async () => {
+    filterAuthorizedOrganizationIdsMock.mockResolvedValue(new Set());
+
+    const app = createUserRouteApp(CONTEXT_COWORKER);
+    const response = await app.request(
+      "http://localhost/me/organizations/org_1/credits",
+    );
+
+    expect(response.status).toBe(403);
+    expect(buildCreditsPayloadMock).not.toHaveBeenCalled();
   });
 
   it("rejects coworker with context headers on organization member", async () => {

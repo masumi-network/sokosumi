@@ -1,4 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { filterAuthorizedOrganizationIds } from "@/helpers/coworker-user-context-binding";
+import { forbidden } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { resolveMemberOrganizationById } from "@/helpers/organization";
 import { ok } from "@/helpers/response";
@@ -29,7 +31,7 @@ const route = withCoworkerContextHeaderParameters(
     method: "get",
     path: "/organizations/{organizationId}/credits",
     description:
-      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`.",
+      "Get organization-context credits for a member: first path segment is `me` or a user id; second is the organization id. Session user or coworker with matching authorized `X-Context-User-Id`. A coworker also needs its vendor to be able to act in that organization's workspace (granted, or an assigned task), otherwise 403.",
     tags: ["Users"],
     request: {
       params,
@@ -112,6 +114,16 @@ export default function mount(app: OpenAPIHonoWithAuth<UserRouteVariables>) {
       userId: resolvedUserId,
       tx: prisma,
     });
+    const authorizedOrganizationIds = await filterAuthorizedOrganizationIds(
+      c.var.authContext,
+      resolvedUserId,
+      [organization.id],
+    );
+    if (!authorizedOrganizationIds.has(organization.id)) {
+      throw forbidden(
+        "Coworker cannot act in this organization without a granted workspace access or assigned task relationship",
+      );
+    }
     const payload = await buildCreditsPayload({
       userId: resolvedUserId,
       organizationId: organization.id,
