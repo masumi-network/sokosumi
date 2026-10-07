@@ -308,7 +308,7 @@ For internal async-ack sync routes (immediate `200` response + background execut
 | `pnpm --filter @sokosumi/core vercel-build` | Vercel: `prisma:generate`, build, then `prisma migrate deploy` |
 | `pnpm core:start`                 | Run production build     |
 | `pnpm --filter core lint`         | Lint core app            |
-| `pnpm --filter core write-openapi-snapshot` | Writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
+| `pnpm --filter core write-openapi-snapshot` | Builds Core's workspace dependencies through turbo, then writes `packages/core-client/openapi-core.snapshot.json` (gitignored) from the in-memory v1 router for `openapi-ts` |
 | `pnpm --filter @sokosumi/core-client generate:snapshot` | Runs the snapshot script + regenerates `packages/core-client/src/generated` (no running Core server) |
 | `pnpm --filter @sokosumi/core-client generate` | Regenerates the Core client from `http://localhost:8787/v1/openapi.json` (Core must be running) |
 

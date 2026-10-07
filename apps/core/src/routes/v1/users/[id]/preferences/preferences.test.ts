@@ -9,8 +9,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext, AuthVariables } from "@/middleware/auth";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 
 import mountGetUserPreferences from "./get.js";
@@ -88,7 +88,9 @@ function createPreferencesApp(
   const userByIdApp = new OpenAPIHono<{
     Variables: AuthVariables & UserRouteVariables;
   }>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
+  applyUserRouteMiddleware(
+    userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
+  );
   mountGetUserPreferences(
     userByIdApp as unknown as OpenAPIHonoWithAuth<UserRouteVariables>,
   );

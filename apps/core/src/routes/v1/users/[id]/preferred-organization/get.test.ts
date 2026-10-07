@@ -2,10 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 import type { AuthenticationContext } from "@/middleware/auth";
-import { agentUserRouteAllowlistMiddleware } from "@/routes/v1/users/user-coworker-route-allowlist";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "@/routes/v1/users/user-route-context";
 import mountGetUserPreferredOrganization from "./get";
 
@@ -48,8 +47,7 @@ function createApp(authContext: AuthenticationContext = SESSION_USER) {
   });
 
   const userByIdApp = new OpenAPIHonoWithAuth<UserRouteVariables>();
-  userByIdApp.use("*", usersPathUserContextMiddleware);
-  userByIdApp.use("*", agentUserRouteAllowlistMiddleware);
+  applyUserRouteMiddleware(userByIdApp);
   mountGetUserPreferredOrganization(userByIdApp);
   app.route("/:id", userByIdApp);
   return app;

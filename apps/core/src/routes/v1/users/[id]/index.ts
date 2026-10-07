@@ -1,8 +1,7 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { agentUserRouteAllowlistMiddleware } from "../user-coworker-route-allowlist.js";
 import {
+  applyUserRouteMiddleware,
   type UserRouteVariables,
-  usersPathUserContextMiddleware,
 } from "../user-route-context.js";
 import mountPostUserBadgeCampaignSeen from "./badge-campaigns/[campaignId]/seen/post.js";
 import mountGetUserBadgeCampaigns from "./badge-campaigns/get.js";
@@ -51,10 +50,7 @@ import mountPutUserPreferredWorkspace from "./workspaces/preferred/put.js";
 
 const app = new OpenAPIHonoWithAuth<UserRouteVariables>();
 
-// The allowlist runs first: an agent on a route it may not call gets 403
-// before any context-workspace error that would only send it elsewhere.
-app.use("*", agentUserRouteAllowlistMiddleware);
-app.use("*", usersPathUserContextMiddleware);
+applyUserRouteMiddleware(app);
 
 mountGetUserCredits(app);
 mountGetUserDeletion(app);
