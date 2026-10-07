@@ -2906,14 +2906,18 @@
         "chooseProjectBody": "Ein Post wird über die Konten eines Projekts veröffentlicht."
       },
       "accountsNeedProject": {
-        "title": "X, YouTube, LinkedIn … verbinden",
-        "body": "Konten werden pro Projekt verbunden. Wähle ein Projekt in der Seitenleiste, um seine Konten zu verbinden oder zu verwalten."
+        "title": "Verbinde deine Social-Media-Konten",
+        "body": "Verwalte deine Kanäle an einem Ort. Wähle ein Projekt, um Konten zu verbinden und Beiträge zu entwerfen, zu planen und zu veröffentlichen."
       },
       "draftsNeedProject": {
         "title": "Entwürfe",
-        "body": "Entwürfe gehören zu einem Projekt. Wähle ein Projekt in der Seitenleiste, um seine Entwürfe zu sehen und fertigzustellen."
+        "body": "Wähle ein Projekt, um seine Entwürfe anzusehen und fertigzustellen."
       },
-      "loading": "Social wird geladen…"
+      "loading": "Social wird geladen…",
+      "pickProject": "Projekt auswählen",
+      "platforms": {
+        "label": "Social-Media-Plattformen"
+      }
     },
     "Error": {
       "title": "Etwas ist schiefgelaufen",

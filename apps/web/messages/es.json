@@ -2906,14 +2906,18 @@
         "chooseProjectBody": "Una publicación sale desde las cuentas conectadas a un proyecto."
       },
       "accountsNeedProject": {
-        "title": "Conectar X, YouTube, LinkedIn…",
-        "body": "Las cuentas se conectan por proyecto. Elige un proyecto en la barra lateral para conectar o gestionar sus cuentas."
+        "title": "Conecta tus cuentas de redes sociales",
+        "body": "Reúne tus canales en un solo lugar. Elige un proyecto para conectar cuentas y luego crear, programar y publicar tus publicaciones."
       },
       "draftsNeedProject": {
         "title": "Borradores",
-        "body": "Los borradores pertenecen a un proyecto. Elige un proyecto en la barra lateral para ver y terminar sus borradores."
+        "body": "Elige un proyecto para ver y terminar sus borradores."
       },
-      "loading": "Cargando Social…"
+      "loading": "Cargando Social…",
+      "pickProject": "Elegir un proyecto",
+      "platforms": {
+        "label": "Plataformas de redes sociales"
+      }
     },
     "Error": {
       "title": "Algo salió mal",
