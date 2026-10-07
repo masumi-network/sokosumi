@@ -24,6 +24,8 @@ const DATAFORSEO = { toolkitSlug: "dataforseo", name: "DataForSEO" };
 const DATAFORSEO_OK = 20000;
 /** "No Search Results": a task without items, not an error. */
 const NO_RESULTS = 40102;
+/** Live endpoints answer in up to ~15s; keyword ideas often take longer. */
+const LIVE_TIMEOUT_MS = 60_000;
 const MAX_KEYWORDS = 50;
 const TREND_MONTHS = 12;
 const MAX_ADVERTISERS = 25;
@@ -175,6 +177,7 @@ async function withPlatformDataForSeo<T>(
       toolkit: DATAFORSEO,
       label: "platform DataForSEO",
       toolSlugs,
+      timeoutMs: LIVE_TIMEOUT_MS,
     },
     run,
   );
@@ -359,14 +362,23 @@ export async function fetchMarketAds(
   const rows = await withPlatformDataForSeo(
     [ADS_ADVERTISERS, ADS_SEARCH],
     async (execute) => {
-      const advertisers = await execute(ADS_ADVERTISERS, {
-        tasks: query.keywords.map((keyword) => ({
-          keyword: encodeKeyword(keyword),
-          location_code: query.locationCode,
-        })),
-      });
+      // Live endpoints take one task per request: one call per keyword.
+      const perKeyword = await Promise.all(
+        query.keywords.map((keyword) =>
+          execute(ADS_ADVERTISERS, {
+            tasks: [
+              {
+                keyword: encodeKeyword(keyword),
+                location_code: query.locationCode,
+              },
+            ],
+          }),
+        ),
+      );
       const advertiserIds = rankAdvertiserIds(
-        taskItems(checkedTasks(advertisers, context), context),
+        perKeyword.flatMap((payload) =>
+          taskItems(checkedTasks(payload, context), context),
+        ),
         context,
       );
       if (advertiserIds.length === 0) return [];
