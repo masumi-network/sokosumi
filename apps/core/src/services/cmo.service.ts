@@ -20,6 +20,7 @@ import { isLocalDevHostname } from "@/config/cors-allow-origin";
 import { getEnv, getWebAppBaseUrl } from "@/config/env";
 import type { ProjectSocialProvider } from "@/config/social-providers";
 import { buildCreditsPayload } from "@/helpers/subscription";
+import { getUserWorkspace } from "@/helpers/user-workspaces";
 import {
   type BrandVisual,
   brandColors,
@@ -32,9 +33,9 @@ import { resolveSiteIconAsProjectLogo } from "@/lib/site-icon";
 import type { PresetRoute } from "@/lib/soko-bot/classifier";
 
 /**
- * CMO.xyz (Cuso) on Soko Bots. Each business gets its own organization
- * workspace, so Cuso is an ordinary Soko Bot there (one bot per person and
- * workspace) and every existing seam — turns, schedules, chat, Social,
+ * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
+ * (ADR 0053), as an ordinary Soko Bot in a Project of his own, so every
+ * existing seam — turns, schedules, chat, Social,
  * Content Studio, Tasks — works unchanged. This module adds what CMO needs on
  * top: onboarding, the Brand Brain and strategy records, the subscription
  * gate, and the packets Cuso's rhythms read.
@@ -669,32 +670,27 @@ export async function retryCmoOnboarding(
 }
 
 /**
- * Creates the business's organization, its marketing Project and Cuso, then
- * starts Cuso's first turn. One CMO workspace per person; a second call
- * returns the existing one.
+ * Hires Cuso into the Workspace the person chose (ADR 0053): his marketing
+ * Project and the CMO record go there, and his first turn starts. One CMO
+ * workspace per person; a second call returns the existing one.
  */
 export async function startCmoOnboarding(input: {
   userId: string;
+  workspaceId: string;
   websiteUrl: string;
   goals: string;
-  businessName?: string;
 }): Promise<CmoWorkspace> {
   const existing = await getCmoWorkspaceForUser(input.userId);
   if (existing) return existing;
 
+  // Throws not found unless the person can act in this workspace.
+  const workspace = await getUserWorkspace(input.userId, {
+    id: input.workspaceId,
+  });
   const businessName =
-    input.businessName?.trim() || cmoBusinessNameFromUrl(input.websiteUrl);
-  // Cuso works in the owner's own workspace, in one Project of his own, so
-  // everything he does is already organised when they open Sokosumi.
-  const { workspaceRepository } = await import(
-    "@sokosumi/database/repositories"
-  );
-  const { workspace } = await prisma.$transaction((tx) =>
-    workspaceRepository.ensurePersonalWorkspaceKeepingPreferred({
-      userId: input.userId,
-      tx,
-    }),
-  );
+    workspace.kind === "organization"
+      ? workspace.name
+      : cmoBusinessNameFromUrl(input.websiteUrl);
 
   const project = await prisma.project.create({
     data: {

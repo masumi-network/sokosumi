@@ -6683,9 +6683,12 @@ export type CmoUpNextItem = {
 };
 
 export type CmoOnboardingRequest = {
+    /**
+     * The Workspace to hire Cuso into, as `/v1/users/me/workspaces` lists it.
+     */
+    workspaceId: string;
     websiteUrl: string;
     goals: string;
-    businessName?: string;
 };
 
 export type CmoMockPlanRequest = {
@@ -45857,6 +45860,21 @@ export type StartCmoOnboardingErrors = {
      * Forbidden
      */
     403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not a Workspace the person can act in
+     */
+    404: {
         error: string;
         message: string;
         kind?: string;

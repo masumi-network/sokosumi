@@ -179,7 +179,10 @@ export default async function HomePage({ searchParams }: HomePageProps) {
     );
   }
   if (overview === null) {
-    return <Onboarding onboard={onboard} />;
+    // Cuso is hired where the person works now (ADR 0053).
+    const preferred =
+      workspaces.find((workspace) => workspace.preferred) ?? workspaces[0];
+    return <Onboarding workspace={preferred} onboard={onboard} />;
   }
   if (!overview.onboardedAt) {
     return (

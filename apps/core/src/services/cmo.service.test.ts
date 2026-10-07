@@ -13,6 +13,10 @@ const {
   eventFindFirst,
   expireTurn,
   startTurn,
+  createBot,
+  projectCreate,
+  cmoCreate,
+  getUserWorkspace,
 } = vi.hoisted(() => ({
   cmoFindUnique: vi.fn(),
   cmoUpdate: vi.fn(),
@@ -26,11 +30,20 @@ const {
   eventFindFirst: vi.fn(),
   expireTurn: vi.fn(),
   startTurn: vi.fn(),
+  createBot: vi.fn(),
+  projectCreate: vi.fn(),
+  cmoCreate: vi.fn(),
+  getUserWorkspace: vi.fn(),
 }));
 
 vi.mock("@/lib/db/prisma", () => ({
   default: {
-    cmoWorkspace: { findUnique: cmoFindUnique, update: cmoUpdate },
+    cmoWorkspace: {
+      findUnique: cmoFindUnique,
+      update: cmoUpdate,
+      create: cmoCreate,
+    },
+    project: { create: projectCreate },
     subscription: { findFirst: subscriptionFindFirst },
     workspace: { findUnique: workspaceFindUnique },
     sokoBotTurn: { findFirst: turnFindFirst },
@@ -53,8 +66,12 @@ vi.mock("@/config/env", async (importOriginal) => {
 vi.mock("@/services/social-posts.service", () => ({ cancelSocialPost }));
 
 vi.mock("@/services/soko-bot-control-plane.service", () => ({
-  sokoBotControlPlane: { expireTurn, startTurn },
+  sokoBotControlPlane: { expireTurn, startTurn, create: createBot },
 }));
+
+vi.mock("@/helpers/user-workspaces", () => ({ getUserWorkspace }));
+
+vi.mock("@vercel/functions", () => ({ waitUntil: vi.fn() }));
 
 import {
   approveCmoStrategy,
@@ -75,6 +92,7 @@ import {
   retryCmoOnboarding,
   revertCmoUpdate,
   saveCmoStrategy,
+  startCmoOnboarding,
 } from "./cmo.service";
 
 const strategy = {
@@ -548,6 +566,93 @@ describe("brand visual", () => {
       siteName: "Acme",
       designMdUrl: "https://blob/design.md",
     });
+  });
+});
+
+describe("startCmoOnboarding", () => {
+  const input = {
+    userId: "user-1",
+    workspaceId: "ws-1",
+    websiteUrl: "https://www.acme.io",
+    goals: "More leads",
+  };
+
+  beforeEach(() => {
+    cmoFindUnique.mockResolvedValue(null);
+    projectCreate.mockResolvedValue({ id: "project-1" });
+    createBot.mockResolvedValue({ id: "bot-1" });
+    cmoCreate.mockImplementation(async ({ data }) => ({
+      id: "cmo-1",
+      ...data,
+    }));
+    startTurn.mockResolvedValue({ turnId: "turn-1" });
+  });
+
+  it("hires Cuso into the organization the person chose, under its name", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "organization",
+      name: "Acme Inc",
+    });
+
+    await startCmoOnboarding(input);
+
+    expect(getUserWorkspace).toHaveBeenCalledWith("user-1", { id: "ws-1" });
+    expect(projectCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          workspaceId: "ws-1",
+          name: "CMO.xyz · Acme Inc",
+          websiteUrl: input.websiteUrl,
+        }),
+      }),
+    );
+    expect(createBot).toHaveBeenCalledWith(
+      expect.objectContaining({ workspaceId: "ws-1", projectId: "project-1" }),
+    );
+    expect(cmoCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "ws-1",
+        businessName: "Acme Inc",
+      }),
+    });
+  });
+
+  it("names a personal workspace's business after the website", async () => {
+    getUserWorkspace.mockResolvedValue({
+      id: "ws-1",
+      kind: "personal",
+      name: "Ana Example",
+    });
+
+    await startCmoOnboarding(input);
+
+    expect(cmoCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        workspaceId: "ws-1",
+        businessName: "acme.io",
+      }),
+    });
+  });
+
+  it("refuses a workspace the person is not in, before creating anything", async () => {
+    getUserWorkspace.mockRejectedValue(new Error("Workspace not found"));
+
+    await expect(startCmoOnboarding(input)).rejects.toThrow(
+      "Workspace not found",
+    );
+    expect(projectCreate).not.toHaveBeenCalled();
+    expect(createBot).not.toHaveBeenCalled();
+  });
+
+  it("returns the person's existing Cuso without hiring again", async () => {
+    cmoFindUnique.mockResolvedValue({ id: "cmo-0", workspaceId: "ws-0" });
+
+    await expect(startCmoOnboarding(input)).resolves.toMatchObject({
+      id: "cmo-0",
+    });
+    expect(getUserWorkspace).not.toHaveBeenCalled();
+    expect(projectCreate).not.toHaveBeenCalled();
   });
 });
 

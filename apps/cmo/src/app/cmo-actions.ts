@@ -52,9 +52,10 @@ export async function onboard(formData: FormData): Promise<void> {
     String(formData.get("websiteUrl") ?? ""),
   );
   const goals = String(formData.get("goals") ?? "").trim();
+  const workspaceId = String(formData.get("workspaceId") ?? "");
   const { error } = await startCmoOnboarding({
     ...core,
-    body: { websiteUrl, goals },
+    body: { workspaceId, websiteUrl, goals },
   });
   if (error) throw new Error("Could not start CMO");
   revalidatePath("/");

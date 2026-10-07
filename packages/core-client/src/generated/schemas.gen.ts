@@ -23544,6 +23544,11 @@ export const CmoUpNextItemSchema = {
 export const CmoOnboardingRequestSchema = {
     type: 'object',
     properties: {
+        workspaceId: {
+            type: 'string',
+            minLength: 1,
+            description: 'The Workspace to hire Cuso into, as `/v1/users/me/workspaces` lists it.'
+        },
         websiteUrl: {
             type: 'string',
             maxLength: 500,
@@ -23553,14 +23558,10 @@ export const CmoOnboardingRequestSchema = {
             type: 'string',
             minLength: 3,
             maxLength: 2000
-        },
-        businessName: {
-            type: 'string',
-            minLength: 1,
-            maxLength: 80
         }
     },
     required: [
+        'workspaceId',
         'websiteUrl',
         'goals'
     ]

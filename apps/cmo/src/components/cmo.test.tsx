@@ -108,11 +108,49 @@ const noop = {
 };
 
 describe("Onboarding", () => {
+  const organization = {
+    id: "ws-org",
+    kind: "organization" as const,
+    name: "Acme Inc",
+    websiteUrl: "https://acme.io",
+  };
+
   it("asks for the website and one main goal", () => {
-    const html = renderToStaticMarkup(<Onboarding onboard={async () => {}} />);
+    const html = renderToStaticMarkup(
+      <Onboarding
+        workspace={{ ...organization, kind: "personal", websiteUrl: null }}
+        onboard={async () => {}}
+      />,
+    );
     expect(html).toContain('name="websiteUrl"');
     expect(html).toContain('name="goals" value="More sales"');
     expect(html).toContain("Launch something");
+  });
+
+  it("hires into the workspace it shows, with its website filled in", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding workspace={organization} onboard={async () => {}} />,
+    );
+    expect(html).toContain('name="workspaceId" value="ws-org"');
+    expect(html).toContain('value="https://acme.io"');
+    expect(html).toContain("Acme Inc");
+    expect(html).toContain("plan and credits");
+  });
+
+  it("leaves a personal workspace's website empty and says nothing of paying", () => {
+    const html = renderToStaticMarkup(
+      <Onboarding
+        workspace={{
+          id: "ws-me",
+          kind: "personal",
+          name: "Ana Example",
+          websiteUrl: null,
+        }}
+        onboard={async () => {}}
+      />,
+    );
+    expect(html).toContain('name="workspaceId" value="ws-me"');
+    expect(html).not.toContain("plan and credits");
   });
 });
 

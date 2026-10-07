@@ -9,9 +9,14 @@ import { dateTimeSchema } from "@/helpers/datetime";
 
 export const cmoOnboardingRequestSchema = z
   .object({
+    workspaceId: z
+      .string()
+      .min(1)
+      .describe(
+        "The Workspace to hire Cuso into, as `/v1/users/me/workspaces` lists it.",
+      ),
     websiteUrl: z.string().trim().url().max(500),
     goals: z.string().trim().min(3).max(2_000),
-    businessName: z.string().trim().min(1).max(80).optional(),
   })
   .openapi("CmoOnboardingRequest");
 

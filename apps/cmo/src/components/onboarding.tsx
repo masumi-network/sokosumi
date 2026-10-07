@@ -2,6 +2,7 @@
 
 import "./onboarding/onboarding.css";
 
+import type { UserWorkspace } from "@sokosumi/core-client";
 import {
   ArrowRight,
   Globe,
@@ -31,11 +32,16 @@ const NEXT = [
 ];
 
 interface OnboardingProps {
+  /** Where Cuso is hired (ADR 0053): the person's preferred Workspace. */
+  workspace: Pick<UserWorkspace, "id" | "kind" | "name" | "websiteUrl">;
   onboard: (formData: FormData) => Promise<void>;
 }
 
-/** First run, step one: the website and the one goal that matters most. */
-export function Onboarding({ onboard }: OnboardingProps) {
+/**
+ * Hiring Cuso, step one: the website and the one goal that matters most.
+ * An organization's stored website starts the field; the person can change it.
+ */
+export function Onboarding({ workspace, onboard }: OnboardingProps) {
   const [goal, setGoal] = useState<string>(GOALS[0].label);
   return (
     <div className="ob">
@@ -44,6 +50,7 @@ export function Onboarding({ onboard }: OnboardingProps) {
       </header>
       <main className="ob-main">
         <form action={onboard} className="ob-start">
+          <input type="hidden" name="workspaceId" value={workspace.id} />
           <CusoCursor active={false} />
           <h1 className="ob-title">Hire Cuso, your AI CMO</h1>
           <p className="ob-lede">
@@ -60,6 +67,7 @@ export function Onboarding({ onboard }: OnboardingProps) {
                 placeholder="yourbusiness.com"
                 autoComplete="url"
                 inputMode="url"
+                defaultValue={workspace.websiteUrl ?? ""}
               />
             </span>
           </label>
@@ -81,6 +89,11 @@ export function Onboarding({ onboard }: OnboardingProps) {
             </div>
             <input type="hidden" name="goals" value={goal} />
           </fieldset>
+          {workspace.kind === "organization" ? (
+            <p className="ob-lede">
+              Cuso works in {workspace.name} and uses its plan and credits.
+            </p>
+          ) : null}
           <StartButton />
           <ol className="ob-next">
             {NEXT.map((line, index) => (

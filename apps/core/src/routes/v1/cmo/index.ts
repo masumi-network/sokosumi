@@ -162,6 +162,7 @@ app.openapi(
       ),
       401: jsonErrorResponse("Unauthorized"),
       403: jsonErrorResponse("Forbidden"),
+      404: jsonErrorResponse("Not a Workspace the person can act in"),
       409: jsonErrorResponse("Conflict"),
     },
   }),
