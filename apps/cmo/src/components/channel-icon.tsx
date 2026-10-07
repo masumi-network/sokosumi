@@ -22,11 +22,11 @@ function LinkedInMark(props: SvgProps) {
   return (
     <svg viewBox="0 32 448 448" {...props}>
       <path
-        fill="#0A66C2"
+        style={{ fill: "var(--mark-linkedin)" }}
         d="M416 32H31.9C14.3 32 0 46.5 0 64.3v383.4C0 465.5 14.3 480 31.9 480H416c17.6 0 32-14.5 32-32.3V64.3c0-17.8-14.4-32.3-32-32.3z"
       />
       <path
-        fill="#FFFFFF"
+        style={{ fill: "var(--mark-white)" }}
         d="M135.4 416H69V202.2h66.5V416zm-33.2-243c-21.3 0-38.5-17.3-38.5-38.5S80.9 96 102.2 96c21.2 0 38.5 17.3 38.5 38.5 0 21.3-17.2 38.5-38.5 38.5zm282.1 243h-66.4V312c0-24.8-.5-56.7-34.5-56.7-34.6 0-39.9 27-39.9 54.9V416h-66.4V202.2h63.7v29.2h.9c8.9-16.8 30.6-34.5 62.9-34.5 67.2 0 79.7 44.3 79.7 101.9V416z"
       />
     </svg>
@@ -45,11 +45,17 @@ function InstagramMark(props: SvgProps) {
           r="30.7"
           gradientUnits="userSpaceOnUse"
         >
-          <stop offset="0" stopColor="#FFD600" />
-          <stop offset="0.25" stopColor="#FF7A00" />
-          <stop offset="0.5" stopColor="#FF0069" />
-          <stop offset="0.75" stopColor="#D300C5" />
-          <stop offset="1" stopColor="#7638FA" />
+          <stop offset="0" style={{ stopColor: "var(--mark-instagram-1)" }} />
+          <stop
+            offset="0.25"
+            style={{ stopColor: "var(--mark-instagram-2)" }}
+          />
+          <stop offset="0.5" style={{ stopColor: "var(--mark-instagram-3)" }} />
+          <stop
+            offset="0.75"
+            style={{ stopColor: "var(--mark-instagram-4)" }}
+          />
+          <stop offset="1" style={{ stopColor: "var(--mark-instagram-5)" }} />
         </radialGradient>
       </defs>
       <rect width="24" height="24" rx="6" fill={`url(#${gradientId})`} />
@@ -60,7 +66,7 @@ function InstagramMark(props: SvgProps) {
         height="13"
         rx="4"
         fill="none"
-        stroke="#fff"
+        style={{ stroke: "var(--mark-white)" }}
         strokeWidth="1.8"
       />
       <circle
@@ -68,10 +74,10 @@ function InstagramMark(props: SvgProps) {
         cy="12"
         r="3.1"
         fill="none"
-        stroke="#fff"
+        style={{ stroke: "var(--mark-white)" }}
         strokeWidth="1.8"
       />
-      <circle cx="16.4" cy="7.6" r="1" fill="#fff" />
+      <circle cx="16.4" cy="7.6" r="1" style={{ fill: "var(--mark-white)" }} />
     </svg>
   );
 }
@@ -79,9 +85,14 @@ function InstagramMark(props: SvgProps) {
 function FacebookMark(props: SvgProps) {
   return (
     <svg viewBox="0 0 24 24" {...props}>
-      <circle cx="12" cy="12.044" r="12" fill="#0866FF" />
+      <circle
+        cx="12"
+        cy="12.044"
+        r="12"
+        style={{ fill: "var(--mark-facebook)" }}
+      />
       <path
-        fill="#FFFFFF"
+        style={{ fill: "var(--mark-white)" }}
         d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245A12 12 0 0 1 9.101 23.691Z"
       />
     </svg>
@@ -92,10 +103,13 @@ function YouTubeMark(props: SvgProps) {
   return (
     <svg viewBox="0 0 24 24" {...props}>
       <path
-        fill="#FF0000"
+        style={{ fill: "var(--mark-youtube)" }}
         d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"
       />
-      <path fill="#FFFFFF" d="M9.545 15.568V8.432L15.818 12z" />
+      <path
+        style={{ fill: "var(--mark-white)" }}
+        d="M9.545 15.568V8.432L15.818 12z"
+      />
     </svg>
   );
 }
@@ -106,8 +120,16 @@ const TIKTOK_PATH =
 function TikTokMark(props: SvgProps) {
   return (
     <svg viewBox="-1 -1 26 26" {...props}>
-      <path d={TIKTOK_PATH} fill="#25F4EE" transform="translate(-0.9 -0.9)" />
-      <path d={TIKTOK_PATH} fill="#FE2C55" transform="translate(0.9 0.9)" />
+      <path
+        d={TIKTOK_PATH}
+        style={{ fill: "var(--mark-tiktok-cyan)" }}
+        transform="translate(-0.9 -0.9)"
+      />
+      <path
+        d={TIKTOK_PATH}
+        style={{ fill: "var(--mark-tiktok-red)" }}
+        transform="translate(0.9 0.9)"
+      />
       <path d={TIKTOK_PATH} fill="currentColor" />
     </svg>
   );

@@ -21,6 +21,36 @@
   --radius: 10px;
   /* TEMPORARY font: PP Mori is the locked typeface; its files are not delivered yet. */
   --font-sans: "PP Mori", var(--font-inter), system-ui, sans-serif;
+  /* TEMPORARY accent for the signed-in app: one accent only. */
+  --accent: light-dark(#3d4ed6, #7381f0);
+  --accent-foreground: light-dark(#ffffff, #10121f);
+  --accent-soft: light-dark(rgb(61 78 214 / 0.08), rgb(115 129 240 / 0.16));
+  --ok: light-dark(#2f7d55, #5cc28d);
+  --ok-soft: color-mix(in srgb, var(--ok) 12%, transparent);
+  --warn: light-dark(#a3610f, #dd9a4a);
+  --warn-soft: color-mix(in srgb, var(--warn) 12%, transparent);
+  --warn-softer: color-mix(in srgb, var(--warn) 10%, transparent);
+  --warn-wash: color-mix(in srgb, var(--warn) 6%, var(--background));
+  --border-strong: color-mix(in srgb, var(--foreground) 30%, var(--border));
+  --sidebar: light-dark(#fafafa, #141414);
+  --hover: light-dark(#f2f2f2, #1f1f1f);
+  --scrim: rgb(0 0 0 / 0.3);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.08);
+  --radius-sm: 8px;
+  --radius-lg: 12px;
+  /* Channels' own marks keep their networks' colours. */
+  --mark-white: #ffffff;
+  --mark-linkedin: #0a66c2;
+  --mark-facebook: #0866ff;
+  --mark-youtube: #ff0000;
+  --mark-tiktok-cyan: #25f4ee;
+  --mark-tiktok-red: #fe2c55;
+  --mark-instagram-1: #ffd600;
+  --mark-instagram-2: #ff7a00;
+  --mark-instagram-3: #ff0069;
+  --mark-instagram-4: #d300c5;
+  --mark-instagram-5: #7638fa;
 }
 
 *,
@@ -433,18 +463,6 @@ p {
  * Sokosumi's web app: near-white sidebar, 64px header, 32px rows, hairline
  * borders, 14px body. One accent, kept for the action that matters.
  */
-:root {
-  /* TEMPORARY accent: the style guide leaves colour open; one accent only. */
-  --accent: light-dark(#3d4ed6, #7381f0);
-  --accent-foreground: light-dark(#ffffff, #10121f);
-  --accent-soft: light-dark(rgb(61 78 214 / 0.08), rgb(115 129 240 / 0.16));
-  --ok: light-dark(#2f7d55, #5cc28d);
-  --warn: light-dark(#a3610f, #dd9a4a);
-  --sidebar: light-dark(#fafafa, #141414);
-  --hover: light-dark(#f2f2f2, #1f1f1f);
-  --radius-sm: 8px;
-  --radius-lg: 12px;
-}
 
 /* The app has its own header in the sidebar. */
 body:has(.app) .site-header {
@@ -545,12 +563,12 @@ a.button {
 }
 
 .tag.ok {
-  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  background: var(--ok-soft);
   color: var(--ok);
 }
 
 .tag.warn {
-  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  background: var(--warn-soft);
   color: var(--warn);
 }
 
@@ -589,7 +607,7 @@ a.button {
   padding: 10px 14px;
   border: 0;
   border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  background: var(--warn-softer);
   font-size: 0.875rem;
   font-weight: 400;
 }
@@ -915,7 +933,7 @@ textarea {
   gap: 12px;
   padding: 12px 24px;
   border-bottom: 1px solid var(--border);
-  background: color-mix(in srgb, var(--warn) 6%, var(--background));
+  background: var(--warn-wash);
   font-size: 0.875rem;
 }
 
@@ -1340,14 +1358,13 @@ textarea {
 }
 
 .composer:focus-within {
-  border-color: color-mix(in srgb, var(--foreground) 30%, var(--border));
+  border-color: var(--border-strong);
 }
 
 .composer textarea {
   min-width: 0;
   padding: 14px 16px 4px;
   border: 0;
-  outline: none;
   resize: none;
   background: transparent;
   line-height: 1.5;
@@ -1637,7 +1654,7 @@ textarea {
     inset: 0;
     z-index: 25;
     border: 0;
-    background: rgb(0 0 0 / 0.3);
+    background: var(--scrim);
   }
 
   .grid2 {
@@ -1726,7 +1743,7 @@ textarea {
 .mp-toggle button.on {
   background: var(--background);
   color: var(--foreground);
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .mp-save {
@@ -1761,7 +1778,7 @@ textarea {
 
 .mp-plan.featured {
   border-color: var(--foreground);
-  box-shadow: 0 16px 40px rgb(0 0 0 / 0.08);
+  box-shadow: var(--shadow-lg);
 }
 
 .mp-plan.active {
@@ -1792,7 +1809,7 @@ textarea {
 }
 
 .mp-badge.current {
-  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  background: var(--ok-soft);
   color: var(--ok);
 }
 

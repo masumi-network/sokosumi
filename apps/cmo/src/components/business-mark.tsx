@@ -47,7 +47,7 @@ export function BusinessMark({
       style={{
         width: size,
         height: size,
-        ...(accent ? { background: accent, color: "#fff" } : {}),
+        ...(accent ? { background: accent, color: "var(--mark-white)" } : {}),
       }}
       aria-hidden="true"
     >

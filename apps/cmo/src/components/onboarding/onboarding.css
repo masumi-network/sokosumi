@@ -355,7 +355,6 @@ body:has(.ob) .site-header {
 
 .ob-input:focus,
 .ob-inline-input:focus {
-  outline: none;
   border-color: color-mix(in srgb, var(--accent) 55%, var(--ob-line));
   box-shadow: 0 0 0 3px var(--accent-soft);
 }
@@ -426,7 +425,6 @@ body:has(.ob) .site-header {
   padding: 0;
   min-width: 0;
   border: 0;
-  outline: none;
   background: none;
   color: var(--foreground);
   font: inherit;
