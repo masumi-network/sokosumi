@@ -7,7 +7,7 @@ import { sendRoomMessageAction } from "@/app/chat/actions";
 import { toActionResult } from "@/lib/actions/action-result";
 import { startSokoBotTurnAction } from "@/lib/actions/soko-bot/action";
 import { getSession } from "@/lib/auth/auth.server";
-import { chatResultPreviewService } from "@/lib/services/chat-result-preview.service";
+import { coreClientNoRedirect } from "@/lib/clients/core.client";
 import { chatRoomService } from "@/lib/services/chat-room.service";
 import { sokoBotService } from "@/lib/services/soko-bot.service";
 import { userService } from "@/lib/services/user.service";
@@ -54,11 +54,14 @@ export async function selectChatProjectAction(input: unknown) {
     // cannot inject a different project or reveal one whose access was revoked.
     const results =
       "turnId" in source
-        ? await chatResultPreviewService.forTurn(source.turnId)
-        : await chatResultPreviewService.forMessage(
-            source.roomId,
-            source.messageId,
-          );
+        ? (await coreClientNoRedirect.getMySokoBotTurnResults(source.turnId))
+            .data
+        : (
+            await coreClientNoRedirect.getChatRoomMessageResults(
+              source.roomId,
+              source.messageId,
+            )
+          ).data;
     const selector = results.find((result) => result.id === previewId);
     const project =
       selector?.state === "available" && selector.kind === "project_selection"
