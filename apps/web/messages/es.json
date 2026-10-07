@@ -2886,7 +2886,87 @@
       "campaigns": {
         "emptyTitle": "Conecta una cuenta publicitaria para ver las campañas",
         "emptyBody": "Las campañas de Google Ads y Meta Ads aparecerán aquí cuando conectes una cuenta.",
-        "emptyAction": "Ir a cuentas"
+        "emptyAction": "Ir a cuentas",
+        "noCampaignsTitle": "Aún no hay campañas en esta cuenta",
+        "noCampaignsBody": "Las campañas aparecerán aquí cuando esta cuenta publicitaria tenga alguna.",
+        "loading": "Cargando campañas…",
+        "account": "Cuenta publicitaria",
+        "rangeLabel": "Período",
+        "range": {
+          "7d": "7 días",
+          "30d": "30 días"
+        },
+        "tableLabel": "Campañas",
+        "columns": {
+          "name": "Campaña",
+          "status": "Estado",
+          "dailyBudget": "Presupuesto diario",
+          "spend": "Gasto",
+          "impressions": "Impresiones",
+          "clicks": "Clics",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversiones"
+        },
+        "status": {
+          "ACTIVE": "Activa",
+          "PAUSED": "En pausa",
+          "ENDED": "Finalizada",
+          "OTHER": "Otro"
+        },
+        "spendAndClicks": "Gasto {spend} · Clics {clicks}",
+        "actions": {
+          "label": "Acciones para {name}",
+          "pause": "Pausar",
+          "resume": "Reanudar",
+          "budget": "Cambiar presupuesto diario"
+        },
+        "cancel": "Cancelar",
+        "pauseDialog": {
+          "title": "¿Pausar {name}?",
+          "description": "Dejará de gastar hasta que la reanudes.",
+          "confirm": "Pausar"
+        },
+        "resumeDialog": {
+          "title": "¿Reanudar {name}?",
+          "description": "Volverá a gastar, hasta su presupuesto diario.",
+          "confirm": "Reanudar"
+        },
+        "budgetDialog": {
+          "title": "Cambiar presupuesto diario",
+          "description": "{name} gasta como máximo esta cantidad al día.",
+          "label": "Presupuesto diario ({currency})",
+          "save": "Guardar presupuesto",
+          "saving": "Guardando…",
+          "change": "El presupuesto diario cambia de {old} a {new}.",
+          "notSet": "sin definir",
+          "errors": {
+            "shared": "El presupuesto de esta campaña se gestiona en {provider} (presupuesto compartido o de conjunto de anuncios). Cámbialo allí.",
+            "required": "Introduce un presupuesto diario mayor que 0.",
+            "wholeNumber": "Usa un número entero para {currency}.",
+            "precision": "Usa como máximo {digits} decimales para {currency}."
+          }
+        },
+        "success": {
+          "updated": "Campaña actualizada correctamente"
+        },
+        "errors": {
+          "update": "No se pudo actualizar la campaña",
+          "notActive": {
+            "title": "Vuelve a conectar esta cuenta en Cuentas",
+            "description": "La conexión con esta cuenta publicitaria ya no está activa.",
+            "action": "Ir a cuentas"
+          },
+          "unavailable": {
+            "title": "{provider} aún no está disponible",
+            "description": "Todavía no está configurado para Sokosumi."
+          },
+          "failed": {
+            "title": "No se pudieron cargar las campañas",
+            "description": "Inténtalo de nuevo en un momento.",
+            "retry": "Reintentar"
+          }
+        }
       },
       "market": {
         "emptyTitle": "Configura tu mercado para ver palabras clave y anuncios en tendencia",

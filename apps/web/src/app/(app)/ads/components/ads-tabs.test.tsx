@@ -14,12 +14,28 @@ vi.mock("./ads-accounts", () => ({
   ),
 }));
 
+vi.mock("./ads-campaigns-skeleton", () => ({
+  AdsCampaignsSkeleton: () => <div>campaigns skeleton</div>,
+}));
+
+import type { ProjectAdAccount } from "@sokosumi/core-client";
+
 import { AdsTabs } from "./ads-tabs";
 
-function renderTabs(searchParams = "") {
+function renderTabs(
+  searchParams = "",
+  {
+    accounts = [],
+    campaigns = null,
+  }: { accounts?: ProjectAdAccount[]; campaigns?: React.ReactNode } = {},
+) {
   return render(
     <NuqsTestingAdapter searchParams={searchParams}>
-      <AdsTabs accounts={[]} projectId="project-1" />
+      <AdsTabs
+        accounts={accounts}
+        campaigns={campaigns}
+        projectId="project-1"
+      />
     </NuqsTestingAdapter>,
   );
 }
@@ -77,5 +93,21 @@ describe("AdsTabs", () => {
     );
 
     expect(screen.getByText("accounts.emptyTitle for project-1")).toBeVisible();
+  });
+
+  it("shows the server-rendered campaigns once an account is connected", () => {
+    renderTabs("", {
+      accounts: [{ id: "a1" } as ProjectAdAccount],
+      campaigns: <div>campaigns from the server</div>,
+    });
+
+    expect(screen.getByText("campaigns from the server")).toBeVisible();
+    expect(screen.queryByText("campaigns.emptyTitle")).not.toBeInTheDocument();
+  });
+
+  it("holds a skeleton while the server sends campaigns after a tab switch", () => {
+    renderTabs("", { accounts: [{ id: "a1" } as ProjectAdAccount] });
+
+    expect(screen.getByText("campaigns skeleton")).toBeVisible();
   });
 });

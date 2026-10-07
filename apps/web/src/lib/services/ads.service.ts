@@ -1,10 +1,13 @@
 import "server-only";
 
 import type {
+  AdRange,
   FinalizeProjectAdConnectionResponse,
   InitiateProjectSocialConnectionResponse,
+  ListAdCampaignsResponse,
   ProjectAdAccount,
   ProjectAdProvider,
+  UpdateAdCampaignRequest,
 } from "@sokosumi/core-client";
 import { coreClient } from "@/lib/clients/core.client";
 
@@ -70,6 +73,31 @@ export const adsService = (() => {
     });
   }
 
+  async function listCampaigns(
+    projectId: string,
+    accountId: string,
+    range: AdRange,
+  ): Promise<ListAdCampaignsResponse> {
+    const result =
+      await coreClient.getProjectsByIdAdsAccountsByAccountIdCampaigns(
+        { id: projectId, accountId },
+        { range },
+      );
+    return result.data;
+  }
+
+  async function updateCampaign(
+    projectId: string,
+    accountId: string,
+    campaignId: string,
+    changes: UpdateAdCampaignRequest,
+  ): Promise<void> {
+    await coreClient.patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId(
+      { id: projectId, accountId, campaignId },
+      changes,
+    );
+  }
+
   return {
     listAccounts,
     initiateConnection,
@@ -77,5 +105,7 @@ export const adsService = (() => {
     attachAccounts,
     disconnectAccount,
     discardConnection,
+    listCampaigns,
+    updateCampaign,
   };
 })();

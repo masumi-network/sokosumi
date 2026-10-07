@@ -2886,7 +2886,87 @@
       "campaigns": {
         "emptyTitle": "Connect an ad account to see campaigns",
         "emptyBody": "Campaigns from Google Ads and Meta Ads appear here once an account is connected.",
-        "emptyAction": "Go to accounts"
+        "emptyAction": "Go to accounts",
+        "noCampaignsTitle": "No campaigns in this account yet",
+        "noCampaignsBody": "Campaigns appear here once this ad account has some.",
+        "loading": "Loading campaigns…",
+        "account": "Ad account",
+        "rangeLabel": "Date range",
+        "range": {
+          "7d": "7 days",
+          "30d": "30 days"
+        },
+        "tableLabel": "Campaigns",
+        "columns": {
+          "name": "Campaign",
+          "status": "Status",
+          "dailyBudget": "Daily budget",
+          "spend": "Spend",
+          "impressions": "Impressions",
+          "clicks": "Clicks",
+          "ctr": "CTR",
+          "cpc": "CPC",
+          "conversions": "Conversions"
+        },
+        "status": {
+          "ACTIVE": "Active",
+          "PAUSED": "Paused",
+          "ENDED": "Ended",
+          "OTHER": "Other"
+        },
+        "spendAndClicks": "Spend {spend} · Clicks {clicks}",
+        "actions": {
+          "label": "Actions for {name}",
+          "pause": "Pause",
+          "resume": "Resume",
+          "budget": "Change daily budget"
+        },
+        "cancel": "Cancel",
+        "pauseDialog": {
+          "title": "Pause {name}?",
+          "description": "It stops spending until you resume it.",
+          "confirm": "Pause"
+        },
+        "resumeDialog": {
+          "title": "Resume {name}?",
+          "description": "It starts spending again, up to its daily budget.",
+          "confirm": "Resume"
+        },
+        "budgetDialog": {
+          "title": "Change daily budget",
+          "description": "{name} spends up to this amount per day.",
+          "label": "Daily budget ({currency})",
+          "save": "Save budget",
+          "saving": "Saving…",
+          "change": "Daily budget changes from {old} to {new}.",
+          "notSet": "not set",
+          "errors": {
+            "shared": "This campaign's budget is managed in {provider} (shared or ad-set budget). Change it there.",
+            "required": "Enter a daily budget greater than 0.",
+            "wholeNumber": "Use a whole number for {currency}.",
+            "precision": "Use at most {digits} decimal places for {currency}."
+          }
+        },
+        "success": {
+          "updated": "Campaign updated successfully"
+        },
+        "errors": {
+          "update": "Failed to update campaign",
+          "notActive": {
+            "title": "Reconnect this account in Accounts",
+            "description": "The connection to this ad account is no longer active.",
+            "action": "Go to accounts"
+          },
+          "unavailable": {
+            "title": "{provider} isn't available yet",
+            "description": "It is not set up for Sokosumi yet."
+          },
+          "failed": {
+            "title": "Failed to load campaigns",
+            "description": "Try again in a moment.",
+            "retry": "Try again"
+          }
+        }
       },
       "market": {
         "emptyTitle": "Set up your market to see trending keywords and ads",

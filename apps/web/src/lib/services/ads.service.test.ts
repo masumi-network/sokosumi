@@ -6,6 +6,8 @@ const coreClientMock = {
   deleteProjectsByIdAdsAccountsByAccountId: vi.fn(),
   deleteProjectsByIdAdsConnectionsByAdConnectionId: vi.fn(),
   getProjectsByIdAdsAccounts: vi.fn(),
+  getProjectsByIdAdsAccountsByAccountIdCampaigns: vi.fn(),
+  patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId: vi.fn(),
   postProjectsByIdAdsAccounts: vi.fn(),
   postProjectsByIdAdsConnectionsFinalize: vi.fn(),
   postProjectsByIdAdsConnectionsInitiate: vi.fn(),
@@ -144,5 +146,42 @@ describe("adsService", () => {
     const { adsService } = await import("./ads.service");
 
     await expect(adsService.listAccounts("project-1")).rejects.toThrow("boom");
+  });
+
+  it("lists an account's campaigns over a range", async () => {
+    const body = { campaigns: [], range: "LAST_7_DAYS", currency: "EUR" };
+    coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaigns.mockResolvedValue(
+      { data: body },
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await expect(
+      adsService.listCampaigns("project-1", "account-1", "LAST_7_DAYS"),
+    ).resolves.toEqual(body);
+    expect(
+      coreClientMock.getProjectsByIdAdsAccountsByAccountIdCampaigns,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1" },
+      { range: "LAST_7_DAYS" },
+    );
+  });
+
+  it("updates a campaign's status or budget", async () => {
+    coreClientMock.patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId.mockResolvedValue(
+      undefined,
+    );
+
+    const { adsService } = await import("./ads.service");
+
+    await adsService.updateCampaign("project-1", "account-1", "42", {
+      status: "PAUSED",
+    });
+    expect(
+      coreClientMock.patchProjectsByIdAdsAccountsByAccountIdCampaignsByCampaignId,
+    ).toHaveBeenCalledWith(
+      { id: "project-1", accountId: "account-1", campaignId: "42" },
+      { status: "PAUSED" },
+    );
   });
 });
