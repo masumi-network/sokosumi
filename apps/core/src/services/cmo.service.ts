@@ -35,8 +35,8 @@ import type { PresetRoute } from "@/lib/soko-bot/classifier";
 /**
  * CMO.xyz (Cuso) on Soko Bots. Cuso works in the Workspace the person chose
  * (ADR 0053), as an ordinary Soko Bot in a Project of his own, so every
- * existing seam — turns, schedules, chat, Social,
- * Content Studio, Tasks — works unchanged. This module adds what CMO needs on
+ * existing seam — turns, schedules, chat, Social, Content Studio, Tasks —
+ * works unchanged. This module adds what CMO needs on
  * top: onboarding, the Brand Brain and strategy records, the subscription
  * gate, and the packets Cuso's rhythms read.
  */
