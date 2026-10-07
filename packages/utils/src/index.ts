@@ -272,11 +272,6 @@ export {
   findHttpAutolinks,
 } from "./markdown-url-scan.js";
 export {
-  NextJobAction,
-  NextJobActionErrorType,
-  OnChainTransactionStatus,
-} from "./masumi-protocol.js";
-export {
   type MetadataRecord,
   serializeMetadataRecord,
 } from "./metadata-record.js";
