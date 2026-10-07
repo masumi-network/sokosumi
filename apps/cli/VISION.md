@@ -6,7 +6,7 @@ This file is product intent. It is not a spec and not a command list.
 
 ## Who
 
-One CLI, two people. Terms match [`CONTEXT.md`](../../CONTEXT.md).
+One CLI, two people. Terms match [`GLOSSARY.md`](../../GLOSSARY.md).
 
 **Coworker developer.** Builds, runs, and maintains Coworkers. Not an Agent developer.
 

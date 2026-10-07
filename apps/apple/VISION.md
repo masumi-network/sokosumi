@@ -44,7 +44,7 @@ Do not put this app under `apps/macos`. iOS would then look like a guest.
 
 ## Who
 
-End users of Sokosumi chat on a Mac, later iPhone/iPad. Not Coworker developers (that is `apps/cli`). Terms match [`CONTEXT.md`](../../CONTEXT.md).
+End users of Sokosumi chat on a Mac, later iPhone/iPad. Not Coworker developers (that is `apps/cli`). Terms match [`GLOSSARY.md`](../../GLOSSARY.md).
 
 ## Why it exists
 

@@ -10,6 +10,8 @@ Repo config: [`.linear.toml`](../../.linear.toml) (`workspace = "masumi"`, `team
 
 ## Conventions
 
+- **Link a PR only from the ticket it implements.** A spec or parent issue names merged docs by path (`GLOSSARY.md`, `docs/adr/…`). Linear moves an issue's state when a linked PR changes, and a PR URL in the description counts as a link.
+
 - **Create an issue**: `linear issue create --no-interactive --no-use-default-template --team SOK --project sokosumi-6357694ddd23 --title "..." --description-file <path> --state Triage --priority 3 --label Feature`. Apply domain labels (`Bug`, `Feature`, `Improvement`, `Core`, `App`, …) where obvious. Stdout is the issue URL; parse `SOK-XXX` from it.
 - **Read an issue**: `linear issue view SOK-555 --json --no-pager --no-download`. Comments are included. Branch name is `branchName`.
 - **List issues**: `linear issue query --team SOK --search "..." --limit 10 --json --no-pager`. `linear issue list` / `mine` is **your** unstarted issues only — not a team list.
