@@ -30673,7 +30673,7 @@ export type GetUsersByIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -30853,7 +30853,7 @@ export type GetUsersByIdDeletionData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -30946,7 +30946,7 @@ export type PutUsersByIdDesignMdData = {
     body?: DesignMdWrite;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31069,7 +31069,7 @@ export type GetUsersByIdMembersData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31176,7 +31176,7 @@ export type GetUsersByIdOrganizationsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31283,7 +31283,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdCreditsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -31467,7 +31467,7 @@ export type GetUsersByIdOrganizationsByOrganizationIdMemberData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -31564,7 +31564,7 @@ export type GetUsersByIdPreferencesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31697,7 +31697,7 @@ export type PatchUsersByIdPreferencesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31813,7 +31813,7 @@ export type GetUsersByIdPreferredOrganizationData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -31906,7 +31906,7 @@ export type PutUsersByIdPreferredOrganizationData = {
     body?: PreferredOrganization;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32029,7 +32029,7 @@ export type DeleteUsersByIdPersonalWorkspaceData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32137,7 +32137,7 @@ export type PostUsersByIdPersonalWorkspaceData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32245,7 +32245,7 @@ export type DeleteUsersByIdOauthConsentsByConsentIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -32364,7 +32364,7 @@ export type GetUsersByIdWorkspaceAccessData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32457,7 +32457,7 @@ export type GetUsersByIdWorkspacesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32550,7 +32550,7 @@ export type PostUsersByIdWorkspacesData = {
     body?: CreateUserWorkspace;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32673,7 +32673,7 @@ export type PutUsersByIdWorkspacesPreferredData = {
     body?: SetPreferredUserWorkspace;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -32781,7 +32781,7 @@ export type DeleteUsersByIdWorkspacesByWorkspaceIdData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -32908,7 +32908,7 @@ export type GetUsersByIdPendingOrganizationInvitationsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33001,7 +33001,7 @@ export type GetUsersByIdNoticesPendingData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33096,7 +33096,7 @@ export type PostUsersByIdNoticesByNoticeIdAcknowledgeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -33212,7 +33212,7 @@ export type GetUserBadgeCampaignsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33290,7 +33290,7 @@ export type MarkUserBadgeCampaignSeenData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -33365,7 +33365,7 @@ export type GetUsersByIdFilesData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33478,7 +33478,7 @@ export type PostUsersByIdFilesData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33616,7 +33616,7 @@ export type PostUsersByIdUtmAttributionData = {
     body?: UtmAttributionRequest;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33802,7 +33802,7 @@ export type GetUsersByIdSignUpData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33880,7 +33880,7 @@ export type GetUsersByIdCoworkerAccessData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -33973,7 +33973,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34070,7 +34070,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34167,7 +34167,7 @@ export type PostUsersByIdCoworkerAccessByAccessIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34264,7 +34264,7 @@ export type GetUsersByIdVendorGrantsData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34362,7 +34362,7 @@ export type PostUsersByIdVendorGrantsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34455,7 +34455,7 @@ export type PostUsersByIdVendorGrantsByGrantIdApproveData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         /**
@@ -34552,7 +34552,7 @@ export type PostUsersByIdVendorGrantsByGrantIdDenyData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         grantId: string;
@@ -34646,7 +34646,7 @@ export type PostUsersByIdVendorGrantsByGrantIdRevokeData = {
     body?: never;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
         grantId: string;
@@ -34746,7 +34746,7 @@ export type GetUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34845,7 +34845,7 @@ export type PostUsersByIdStripeCustomerData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -34944,7 +34944,7 @@ export type GetUsersByIdBillingDetailsData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35043,7 +35043,7 @@ export type GetUsersByIdSubscriptionData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35150,7 +35150,7 @@ export type GetUsersByIdData = {
     };
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };
@@ -35243,7 +35243,7 @@ export type PatchUsersByIdData = {
     body?: UpdateUserName;
     path: {
         /**
-         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.
+         * Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.
          */
         id: string;
     };

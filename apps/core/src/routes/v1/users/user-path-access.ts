@@ -18,7 +18,7 @@ export const USERS_PATH_ME = "me" as const;
 export const usersRoutePathUserIdSchema = z.string().openapi({
   param: { name: "id", in: "path" },
   description:
-    "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on operations that say so (the user profile, credits, and organization list and credits); every other user route answers them 403.",
+    "Pass the literal `me` for the authenticated user, or a concrete user id the caller is allowed to resolve. Coworkers and Soko Bots act as their context user only on the few user routes that accept agent context; every other user route answers them 403.",
   example: "me",
 });
 

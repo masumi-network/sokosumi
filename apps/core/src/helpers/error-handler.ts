@@ -12,6 +12,7 @@ import { matchedRouteTemplate } from "@/lib/route-template";
 import {
   type ErrorResponse,
   getErrorName,
+  type HTTPExceptionMetadata,
   shouldReportHttpException,
 } from "./error.js";
 
@@ -133,12 +134,7 @@ export const errorHandler: ErrorHandler = (error, c) => {
 
     const cause =
       typeof error.cause === "object" && error.cause !== null
-        ? (error.cause as {
-            extensions?: Record<string, unknown>;
-            kind?: string;
-            retryAfterSeconds?: number;
-            wwwAuthenticate?: string;
-          })
+        ? (error.cause as HTTPExceptionMetadata)
         : undefined;
 
     const extensions = mergeHttpExceptionExtensions(cause?.extensions);

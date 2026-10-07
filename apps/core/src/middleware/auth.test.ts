@@ -966,6 +966,30 @@ describe("authMiddleware", () => {
     expect(oauthConsentFindFirstMock).not.toHaveBeenCalled();
   });
 
+  it("returns 401, not 403, for a revoked grant whose token also lacks sokosumi:api", async () => {
+    oauthAccessTokenFindUniqueMock.mockResolvedValue({
+      token: "hashed_token",
+      expiresAt: new Date(Date.now() + 60_000),
+      userId: "user_oauth",
+      refreshId: "refresh_123",
+      refreshToken: { revoked: new Date() },
+      clientId: "client_123",
+      scopes: ["openid"],
+      user: { role: "user" },
+      client: {
+        disabled: false,
+        scopes: ["openid", "sokosumi:api"],
+      },
+    });
+
+    const app = createAppWithErrorHandler();
+    const response = await app.request("http://localhost/", {
+      headers: { authorization: "Bearer oauth_revoked_openid_only" },
+    });
+
+    expect(response.status).toBe(401);
+  });
+
   it("returns 403 insufficient_scope for OAuth tokens that only have openid and offline_access", async () => {
     oauthAccessTokenFindUniqueMock.mockResolvedValue({
       token: "hashed_token",
