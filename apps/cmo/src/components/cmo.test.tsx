@@ -119,7 +119,7 @@ describe("Onboarding", () => {
     const html = renderToStaticMarkup(
       <Onboarding
         workspace={{ ...organization, kind: "personal", websiteUrl: null }}
-        onboard={async () => {}}
+        onboard={async (state) => state}
       />,
     );
     expect(html).toContain('name="websiteUrl"');
@@ -129,7 +129,7 @@ describe("Onboarding", () => {
 
   it("hires into the workspace it shows, with its website filled in", () => {
     const html = renderToStaticMarkup(
-      <Onboarding workspace={organization} onboard={async () => {}} />,
+      <Onboarding workspace={organization} onboard={async (state) => state} />,
     );
     expect(html).toContain('name="workspaceId" value="ws-org"');
     expect(html).toContain('value="https://acme.io"');
@@ -146,7 +146,7 @@ describe("Onboarding", () => {
           name: "Ana Example",
           websiteUrl: null,
         }}
-        onboard={async () => {}}
+        onboard={async (state) => state}
       />,
     );
     expect(html).toContain('name="workspaceId" value="ws-me"');

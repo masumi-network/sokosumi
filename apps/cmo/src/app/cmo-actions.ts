@@ -19,6 +19,7 @@ import {
   type SubscriptionCatalog,
   startCmoOnboarding,
 } from "@sokosumi/core-client";
+import { normalizeWebsiteUrl } from "@sokosumi/utils";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
@@ -40,25 +41,45 @@ export async function loadOverview(): Promise<CmoOverview | null> {
   return data.data;
 }
 
-/** "acme.io" or "https://acme.io/" both become a full URL. */
-export async function normalizeWebsite(value: string): Promise<string> {
-  const trimmed = value.trim();
-  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+/** What the start form shows after a submit that did not finish. */
+export interface OnboardFormState {
+  /** Counts submits, so the form remounts with the values below. */
+  attempt: number;
+  websiteUrl: string;
+  errors: { websiteUrl?: string; form?: string };
 }
 
-export async function onboard(formData: FormData): Promise<void> {
-  const core = await requireCore();
-  const websiteUrl = await normalizeWebsite(
-    String(formData.get("websiteUrl") ?? ""),
-  );
+/**
+ * Hiring Cuso's start form: the website by the same rule as identity
+ * onboarding's organization step, then Core hires Cuso into the workspace.
+ */
+export async function onboard(
+  previous: OnboardFormState,
+  formData: FormData,
+): Promise<OnboardFormState> {
+  const typed = String(formData.get("websiteUrl") ?? "").trim();
   const goals = String(formData.get("goals") ?? "").trim();
   const workspaceId = String(formData.get("workspaceId") ?? "");
+  const result = { attempt: previous.attempt + 1, websiteUrl: typed };
+
+  const websiteUrl = normalizeWebsiteUrl(typed);
+  if (!websiteUrl) {
+    return {
+      ...result,
+      errors: { websiteUrl: "Enter a website, like acme.com." },
+    };
+  }
+
+  const core = await requireCore();
   const { error } = await startCmoOnboarding({
     ...core,
     body: { workspaceId, websiteUrl, goals },
   });
-  if (error) throw new Error("Could not start CMO");
+  if (error) {
+    return { ...result, errors: { form: "That did not work. Try again." } };
+  }
   revalidatePath("/");
+  return { ...result, errors: {} };
 }
 
 export async function approveStrategy(): Promise<CmoOverview> {

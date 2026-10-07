@@ -101,10 +101,8 @@ async function generateProjectDesignMd(
     apiKey: env.MASUMI_DESIGN_MD_API_KEY,
     apiUrl: env.MASUMI_DESIGN_MD_API_URL,
   });
-  const url = /^https?:\/\//i.test(websiteUrl)
-    ? websiteUrl
-    : `https://${websiteUrl}`;
-  let result = await client.submit({ url });
+  // Onboarding stores a full URL (CmoOnboardingRequest validates it).
+  let result = await client.submit({ url: websiteUrl });
   const deadline = Date.now() + DESIGN_MD_BUDGET_MS;
   while (
     result.isOk() &&
