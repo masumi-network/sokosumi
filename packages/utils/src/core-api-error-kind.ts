@@ -10,6 +10,7 @@
 export const CORE_API_ERROR_KINDS = {
   CALENDAR_CLIENT_UPGRADE_REQUIRED: "calendar_client_upgrade_required",
   CONCURRENCY_CONFLICT: "concurrency_conflict",
+  INTEGRATION_NOT_CONFIGURED: "integration_not_configured",
   INVOICE_INVALID: "invoice_invalid",
   INVOICE_NOT_FOUND: "invoice_not_found",
   INSUFFICIENT_BALANCE: "insufficient_balance",

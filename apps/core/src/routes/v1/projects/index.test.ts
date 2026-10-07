@@ -72,6 +72,11 @@ const AD_OPERATIONS = [
   ["get", "/ads/market/ads", ["200", "403", "404", "502", "503"]],
   ["post", "/ads/connections/initiate", ["201", "403", "404", "502", "503"]],
   ["post", "/ads/connections/finalize", ["200", "403", "404", "502", "503"]],
+  [
+    "delete",
+    "/ads/connections/{adConnectionId}",
+    ["204", "403", "404", "409", "502", "503"],
+  ],
 ] as const;
 
 const FORBIDDEN_CONTRACT_FIELDS = [

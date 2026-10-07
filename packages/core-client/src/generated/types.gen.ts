@@ -41194,6 +41194,156 @@ export type DeleteProjectsByIdAdsAccountsByAccountIdResponses = {
 
 export type DeleteProjectsByIdAdsAccountsByAccountIdResponse = DeleteProjectsByIdAdsAccountsByAccountIdResponses[keyof DeleteProjectsByIdAdsAccountsByAccountIdResponses];
 
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdData = {
+    body?: never;
+    headers?: {
+        /**
+         * Optional organization slug to set the organization context.
+         */
+        'X-Organization-Slug'?: string;
+    };
+    path: {
+        id: string;
+        adConnectionId: string;
+    };
+    query?: never;
+    url: '/projects/{id}/ads/connections/{adConnectionId}';
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors = {
+    /**
+     * Unauthorized
+     */
+    401: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Forbidden
+     */
+    403: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Not Found
+     */
+    404: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Conflict
+     */
+    409: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Unprocessable Entity
+     */
+    422: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Bad Gateway
+     */
+    502: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+    /**
+     * Service Unavailable
+     */
+    503: {
+        error: string;
+        message: string;
+        kind?: string;
+        retryAfterSeconds?: number;
+        meta: {
+            timestamp: Date;
+            requestId: string;
+            path: string;
+            method: string;
+        };
+    };
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdError = DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdErrors];
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses = {
+    /**
+     * Ad connection discarded
+     */
+    204: void;
+};
+
+export type DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponse = DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses[keyof DeleteProjectsByIdAdsConnectionsByAdConnectionIdResponses];
+
 export type GetProjectsByIdAdsAccountsByAccountIdCampaignsData = {
     body?: never;
     headers?: {

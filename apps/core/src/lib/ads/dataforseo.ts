@@ -1,6 +1,9 @@
 import { z } from "@hono/zod-openapi";
 
-import { ComposioConfigError } from "@/clients/composio.client";
+import {
+  ComposioConfigError,
+  getComposioConnectedAccount,
+} from "@/clients/composio.client";
 import { ComposioToolError } from "@/clients/social-post-providers/tools";
 import { getEnv } from "@/config/env";
 import { dateTimeSchema } from "@/helpers/datetime";
@@ -18,11 +21,11 @@ const ADS_ADVERTISERS =
   "DATAFORSEO_GET_SERP_GOOGLE_ADS_ADVERTISERS_LIVE_ADVANCED";
 const ADS_SEARCH = "DATAFORSEO_GET_SERP_GOOGLE_ADS_SEARCH_LIVE_ADVANCED";
 const DATAFORSEO = { toolkitSlug: "dataforseo", name: "DataForSEO" };
-/** Owner of the platform DataForSEO connection. */
-const PLATFORM_EXECUTOR_USER_ID = "sokosumi:platform";
 const DATAFORSEO_OK = 20000;
 /** "No Search Results": a task without items, not an error. */
 const NO_RESULTS = 40102;
+/** Live endpoints answer in up to ~15s; keyword ideas often take longer. */
+const LIVE_TIMEOUT_MS = 60_000;
 const MAX_KEYWORDS = 50;
 const TREND_MONTHS = 12;
 const MAX_ADVERTISERS = 25;
@@ -145,8 +148,12 @@ function refused(statusCode: number, statusMessage?: string | null) {
   });
 }
 
-/** Runs `run` on the platform DataForSEO connection; without it configured, raises a {@link ComposioConfigError}. */
-function withPlatformDataForSeo<T>(
+/**
+ * Runs `run` on the platform DataForSEO connection, as the Composio user that
+ * owns it (Composio only opens a session for the owner). Without the connection
+ * configured, or without an owner, raises a {@link ComposioConfigError}.
+ */
+async function withPlatformDataForSeo<T>(
   toolSlugs: readonly string[],
   run: (execute: ExecuteAdsTool) => Promise<T>,
 ): Promise<T> {
@@ -156,13 +163,21 @@ function withPlatformDataForSeo<T>(
       "COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID is not configured for Ads market lookups",
     );
   }
+  const { connectorUserId } =
+    await getComposioConnectedAccount(connectedAccountId);
+  if (!connectorUserId) {
+    throw new ComposioConfigError(
+      "COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID has no Composio user",
+    );
+  }
   return withAdsToolSession(
     {
       connectedAccountId,
-      executorUserId: PLATFORM_EXECUTOR_USER_ID,
+      executorUserId: connectorUserId,
       toolkit: DATAFORSEO,
       label: "platform DataForSEO",
       toolSlugs,
+      timeoutMs: LIVE_TIMEOUT_MS,
     },
     run,
   );
@@ -347,14 +362,23 @@ export async function fetchMarketAds(
   const rows = await withPlatformDataForSeo(
     [ADS_ADVERTISERS, ADS_SEARCH],
     async (execute) => {
-      const advertisers = await execute(ADS_ADVERTISERS, {
-        tasks: query.keywords.map((keyword) => ({
-          keyword: encodeKeyword(keyword),
-          location_code: query.locationCode,
-        })),
-      });
+      // Live endpoints take one task per request: one call per keyword.
+      const perKeyword = await Promise.all(
+        query.keywords.map((keyword) =>
+          execute(ADS_ADVERTISERS, {
+            tasks: [
+              {
+                keyword: encodeKeyword(keyword),
+                location_code: query.locationCode,
+              },
+            ],
+          }),
+        ),
+      );
       const advertiserIds = rankAdvertiserIds(
-        taskItems(checkedTasks(advertisers, context), context),
+        perKeyword.flatMap((payload) =>
+          taskItems(checkedTasks(payload, context), context),
+        ),
         context,
       );
       if (advertiserIds.length === 0) return [];

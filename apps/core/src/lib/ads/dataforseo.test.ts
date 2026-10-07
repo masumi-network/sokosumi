@@ -8,12 +8,14 @@ const m = vi.hoisted(() => ({
   createSession: vi.fn(),
   executeTool: vi.fn(),
   deleteSession: vi.fn(),
+  getConnectedAccount: vi.fn(),
 }));
 
 vi.mock("@/config/env", () => ({ getEnv: m.getEnv }));
 vi.mock("@/clients/composio.client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/clients/composio.client")>()),
   deleteComposioToolSession: m.deleteSession,
+  getComposioConnectedAccount: m.getConnectedAccount,
 }));
 vi.mock("@/clients/social-post-providers/tools", async (importOriginal) => ({
   ...(await importOriginal<
@@ -43,17 +45,18 @@ describe("fetchMarketKeywords", () => {
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
     m.createSession.mockResolvedValue("sess_1");
   });
 
-  it("runs the tool as the platform user on the platform connection", async () => {
+  it("runs the tool as the owner of the platform connection", async () => {
     m.executeTool.mockResolvedValue(task([]));
     await fetchMarketKeywords(query);
     expect(m.createSession).toHaveBeenCalledWith(
       expect.objectContaining({
         toolkitSlug: "dataforseo",
         connectedAccountId: "ca_seo",
-        executorUserId: "sokosumi:platform",
+        executorUserId: "pg-owner",
         toolSlugs: ["DATAFORSEO_GET_KW_GOOGLE_ADS_KW_FOR_KW_LIVE"],
         context: "create platform DataForSEO session",
       }),
@@ -68,6 +71,9 @@ describe("fetchMarketKeywords", () => {
           sort_by: "search_volume",
         },
       }),
+    );
+    expect(m.executeTool).toHaveBeenCalledWith(
+      expect.objectContaining({ timeoutMs: 60_000 }),
     );
     expect(m.deleteSession).toHaveBeenCalledWith(
       "sess_1",
@@ -228,6 +234,15 @@ describe("fetchMarketKeywords", () => {
     );
     expect(m.createSession).not.toHaveBeenCalled();
   });
+
+  it("raises a configuration error when the platform connection has no owner", async () => {
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: null });
+    await expect(fetchMarketKeywords(query)).rejects.toBeInstanceOf(
+      ComposioConfigError,
+    );
+    expect(m.getConnectedAccount).toHaveBeenCalledWith("ca_seo");
+    expect(m.createSession).not.toHaveBeenCalled();
+  });
 });
 
 const ADVERTISERS = "DATAFORSEO_GET_SERP_GOOGLE_ADS_ADVERTISERS_LIVE_ADVANCED";
@@ -272,10 +287,17 @@ describe("fetchMarketAds", () => {
   const searchTask = (items: unknown[]) =>
     task([{ type: "ads_search", items }]);
 
+  /** The n-th advertisers call (one per keyword) answers with the n-th task. */
   function mockTools(advertisers: unknown, search?: unknown) {
+    let advertiserCall = 0;
     m.executeTool.mockImplementation(
-      async ({ toolSlug }: { toolSlug: string }) =>
-        toolSlug === ADVERTISERS ? advertisers : search,
+      async ({ toolSlug }: { toolSlug: string }) => {
+        if (toolSlug !== ADVERTISERS) return search;
+        const n = advertiserCall++;
+        const tasks = (advertisers as { tasks?: unknown[] } | undefined)?.tasks;
+        if (!tasks?.length) return advertisers;
+        return { ...(advertisers as object), tasks: [tasks[n % tasks.length]] };
+      },
     );
   }
   const callsOf = (slug: string) =>
@@ -286,13 +308,14 @@ describe("fetchMarketAds", () => {
     m.getEnv.mockReturnValue({
       COMPOSIO_DATAFORSEO_CONNECTED_ACCOUNT_ID: "ca_seo",
     });
+    m.getConnectedAccount.mockResolvedValue({ connectorUserId: "pg-owner" });
     m.createSession.mockResolvedValue("sess_1");
     vi.useFakeTimers();
     vi.setSystemTime(NOW);
   });
   afterEach(() => vi.useRealTimers());
 
-  it("runs both tools in one platform session: a task per keyword, then the top advertisers", async () => {
+  it("runs both tools in one platform session: a call per keyword, then the top advertisers", async () => {
     mockTools(
       advertiserTasks([advertiser("AR1", 5)], [advertiser("AR2", 9)]),
       searchTask([]),
@@ -303,17 +326,18 @@ describe("fetchMarketAds", () => {
       expect.objectContaining({
         toolkitSlug: "dataforseo",
         connectedAccountId: "ca_seo",
-        executorUserId: "sokosumi:platform",
+        executorUserId: "pg-owner",
         toolSlugs: [ADVERTISERS, ADS_SEARCH],
       }),
     );
-    expect(callsOf(ADVERTISERS)).toHaveLength(1);
-    expect(callsOf(ADVERTISERS)[0]?.[0].arguments).toEqual({
-      tasks: [
-        { keyword: "running shoes", location_code: 2840 },
-        { keyword: "trail", location_code: 2840 },
-      ],
-    });
+    // DataForSEO live endpoints take one task per request.
+    expect(callsOf(ADVERTISERS).map(([arg]) => arg.arguments)).toEqual([
+      { tasks: [{ keyword: "running shoes", location_code: 2840 }] },
+      { tasks: [{ keyword: "trail", location_code: 2840 }] },
+    ]);
+    for (const [arg] of m.executeTool.mock.calls) {
+      expect(arg.timeoutMs).toBe(60_000);
+    }
     expect(callsOf(ADS_SEARCH)[0]?.[0].arguments).toEqual({
       advertiser_ids: ["AR2", "AR1"],
       location_code: 2840,
@@ -331,9 +355,7 @@ describe("fetchMarketAds", () => {
       locationCode: 2840,
     });
     expect(
-      callsOf(ADVERTISERS)[0]?.[0].arguments.tasks.map(
-        (t: { keyword: string }) => t.keyword,
-      ),
+      callsOf(ADVERTISERS).map(([arg]) => arg.arguments.tasks[0].keyword),
     ).toEqual(["c%2B%2B", "50%25 off", "a&b é"]);
   });
 

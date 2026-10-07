@@ -39,6 +39,8 @@ export async function withAdsToolSession<T>(
     toolkit: { toolkitSlug: string; name: string };
     label?: string;
     toolSlugs: readonly string[];
+    /** Per tool call; defaults to the Composio helper's 15s. */
+    timeoutMs?: number;
   },
   run: (execute: ExecuteAdsTool) => Promise<T>,
 ): Promise<T> {
@@ -59,6 +61,7 @@ export async function withAdsToolSession<T>(
         arguments: args,
         context: `run ${toolSlug}`,
         refused: `${name} refused the request`,
+        timeoutMs: input.timeoutMs,
       }),
     );
   } finally {
