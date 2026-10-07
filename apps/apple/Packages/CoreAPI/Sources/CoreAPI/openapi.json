@@ -27591,6 +27591,134 @@
           }
         }
       }
+    },
+    "/chats/skills": {
+      "get": {
+        "operationId": "searchChatSkills",
+        "description": "Search the skills.sh catalog for the chat skill picker, most installed first. Without a query, returns the top skills.",
+        "tags": [
+          "Chat Rooms"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100,
+              "example": "react"
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matching skills",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatSkillCatalogItem"
+                      }
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "pagination": {
+                          "$ref": "#/components/schemas/PaginationMetadata"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Unauthorized"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Authentication required"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "example": "organization_not_found"
+                    },
+                    "retryAfterSeconds": {
+                      "type": "integer",
+                      "minimum": 0,
+                      "example": 7
+                    },
+                    "meta": {
+                      "type": "object",
+                      "properties": {
+                        "timestamp": {
+                          "type": "string",
+                          "format": "date-time",
+                          "example": "2021-01-01T00:00:00.000Z"
+                        },
+                        "requestId": {
+                          "type": "string",
+                          "example": "5091b3ea-994f-4417-8e04-2efc05dd8673"
+                        },
+                        "path": {
+                          "type": "string",
+                          "example": "/v1/agents"
+                        },
+                        "method": {
+                          "type": "string",
+                          "example": "GET"
+                        }
+                      },
+                      "required": [
+                        "timestamp",
+                        "requestId",
+                        "path",
+                        "method"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "error",
+                    "message",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
@@ -28059,6 +28187,13 @@
           },
           "content": {
             "type": "string"
+          },
+          "resultPreviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChatResultDescriptor"
+            },
+            "maxItems": 6
           },
           "createdAt": {
             "type": "string",
@@ -29392,6 +29527,13 @@
               },
               "content": {
                 "type": "string"
+              },
+              "resultPreviews": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChatResultDescriptor"
+                },
+                "maxItems": 6
               },
               "createdAt": {
                 "type": "string",
@@ -31505,6 +31647,60 @@
         },
         "required": [
           "workspaceId"
+        ]
+      },
+      "ChatResultDescriptor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "capturedAt": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2021-01-01T00:00:00.000Z"
+          }
+        },
+        "required": [
+          "id",
+          "capturedAt"
+        ]
+      },
+      "ChatSkillCatalogItem": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "skills.sh id: owner/repo/skill.",
+            "example": "vercel-labs/agent-skills/vercel-react-best-practices"
+          },
+          "name": {
+            "type": "string",
+            "example": "vercel-react-best-practices"
+          },
+          "source": {
+            "type": "string",
+            "example": "vercel-labs/agent-skills"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "example": "React and Next.js performance guidelines."
+          },
+          "installs": {
+            "type": "integer",
+            "example": 761642
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "source",
+          "description",
+          "installs"
         ]
       }
     }

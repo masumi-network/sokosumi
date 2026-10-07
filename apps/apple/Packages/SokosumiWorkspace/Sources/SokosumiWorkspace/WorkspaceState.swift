@@ -756,7 +756,8 @@ public final class WorkspaceState: ObservableObject {
   /// Queue a local shell immediately, then POST in order. Invalid drafts stay
   /// with the composer; accepted sends retain a stable ID for safe retries.
   @discardableResult
-  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil, auth: AuthState) -> Bool {
+  public func sendMessage(_ content: String, attachments: [ComposeAttachment] = [], quote: Components.Schemas.ChatRoomMessageQuote? = nil,
+                          skills: [Components.Schemas.ChatRoomMessageSkill] = [], auth: AuthState) -> Bool {
     let draft = ComposerContent(content)
     guard let roomId = transcriptRoomId,
           let client = resolveClient(auth: auth) else { return false }
@@ -781,10 +782,11 @@ public final class WorkspaceState: ObservableObject {
     let mentions = ComposerMention.selected(in: draft.text, catalog: composerMentions)
     var shell = makeOutboundShell(clientMessageId: id, roomId: roomId, content: draft.text)
     shell.quote = quote
+    shell.skills = skills
     outbox.enqueue(shell, send: { [service] in
       try await service.createMessage(
         client: client, roomId: roomId, content: draft.text,
-        clientMessageId: id, mentions: mentions, quote: quote, organizationSlug: slug
+        clientMessageId: id, mentions: mentions, quote: quote, skillIds: skills.map(\.id), organizationSlug: slug
       )
     }, confirmed: { [weak self] message in
       guard let self else { return }
