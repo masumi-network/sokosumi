@@ -355,6 +355,48 @@ struct WorkspaceRealtimeTests {
     #expect(transport.operationIDs.filter { $0 == "get/chats/rooms/{id}/messages" }.count == 1)
   }
 
+  /// Row 38e1: the turn's completion arrives as a full update carrying the descriptors (web hydrates
+  /// `resultPreviews` from the realtime DTO), so the row reads its cards without a reload, through the room's
+  /// workspace.
+  @Test func aCompletionUpdateBringsTheDescriptorsAndTheRowReadsItsCards() async throws {
+    let replyId = "550e8400-e29b-41d4-a716-446655440730"
+    let card = "7d1f0c2a-0000-4000-8000-000000000001"
+    let locked = "7d1f0c2a-0000-4000-8000-000000000002"
+    let results = """
+    {"data":[{"id":"\(card)","state":"available","capturedAt":"\(realtimeTimestamp)","kind":"file","title":"plan.pdf",\
+    "status":null,"sourceHref":"/drive/files/f1?scope=org&organizationId=org_1"},{"id":"\(locked)","state":"unavailable"}],\
+    "meta":{"timestamp":"\(realtimeTimestamp)","requestId":"req-1"}}
+    """
+    let (state, auth, transport) = try realtimeState([
+      (200, workspacesBody(preferring: "org_1")), (200, realtimeUserBody),
+      (200, realtimeRoomsBody(ids: [roomA])),
+      (200, realtimePageBody(messages: [realtimeMessageJSON(id: replyId, roomId: roomA, content: "")])),
+      (200, realtimeReadBody(id: roomA)),
+      (200, results)
+    ])
+    await state.reload(auth: auth)
+    await waitForRealtimeIdle(state)
+    let placeholder = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: placeholder).isEmpty)
+
+    let answered = try await decodeRealtimeMessages([
+      realtimeMessageJSON(id: replyId, roomId: roomA, content: "Here is the plan.", editedAt: nil)
+        .replacingOccurrences(of: #""unfurls":null}"#,
+                              with: #""unfurls":null,"resultPreviews":[{"id":"\#(card)","capturedAt":"\#(realtimeTimestamp)"},{"id":"\#(locked)","capturedAt":"\#(realtimeTimestamp)"}]}"#)
+    ])
+    state.applyRealtimeMessage(roomId: roomA, eventType: .update, message: answered[0])
+    let reply = try #require(state.transcriptMessages.first { $0.id == replyId })
+    #expect(MessageResultPreviews.descriptorIds(of: reply) == [card, locked])
+
+    let previews = try await state.messageResultPreviews(reply, auth: auth)
+    #expect(previews.count == 2)
+    #expect(transport.operationIDs.last == "getChatRoomMessageResults")
+    let request = try #require(transport.requests.last)
+    #expect(request.path?.hasSuffix("/chats/rooms/\(roomA)/messages/\(replyId)/results") == true)
+    #expect(HTTPField.Name("X-Organization-Slug").flatMap { request.headerFields[$0] } == "acme")
+    state.reset()
+  }
+
   @Test func renameRowRetitlesTheOpenGroupDirect() async throws {
     let (state, auth, _) = try realtimeState([
       (200, workspacesBody()),

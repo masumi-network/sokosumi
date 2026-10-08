@@ -1,0 +1,300 @@
+import CoreAPI
+import SokosumiChat
+import SwiftUI
+
+/// Web's `max-w-xl`: a card stops growing at 576 pt.
+private let resultCardMaxWidth: CGFloat = 576
+
+/// Web `ResultPreviewCard`: the generic card, or the locked one for a result this viewer may not see.
+struct ResultPreviewCardView: View {
+  let item: ResultPreviewItem
+
+  var body: some View {
+    switch item {
+    case let .available(card):
+      GenericResultCard(card: card)
+    case .unavailable:
+      Label {
+        Text("Result unavailable or no longer accessible", tableName: chatResultsTable,
+             comment: "A result card the reader may not see (any more).")
+      } icon: {
+        Image(systemName: "lock").accessibilityHidden(true)
+      }
+      .font(.callout)
+      .foregroundStyle(.secondary)
+      .padding(12)
+      .frame(maxWidth: resultCardMaxWidth, alignment: .leading)
+      .background(Color.primary.opacity(0.03), in: .rect(cornerRadius: 8))
+      .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
+    }
+  }
+}
+
+/// The kind, the status, the title, the summary, the question, the detail rows, the outputs and the recorded time;
+/// a click anywhere that is not a control opens the source on web, as web's card-wide link does.
+private struct GenericResultCard: View {
+  let card: ResultPreviewCard
+  @Environment(\.openURL) private var openURL
+  @Environment(\.timeFormat) private var timeFormat
+  @Environment(\.locale) private var locale
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      header
+      Text(card.title)
+        .font(.callout.weight(.medium))
+        .fixedSize(horizontal: false, vertical: true)
+      if let summary = card.summary {
+        Text(summary)
+          .font(.callout)
+          .foregroundStyle(.secondary)
+          .lineLimit(5)
+      }
+      if let question = card.question {
+        Text(question)
+          .font(.callout)
+          .padding(8)
+          .frame(maxWidth: .infinity, alignment: .leading)
+          .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 6))
+      }
+      if !card.details.isEmpty {
+        Grid(alignment: .leadingFirstTextBaseline, horizontalSpacing: 12, verticalSpacing: 4) {
+          ForEach(Array(card.details.enumerated()), id: \.offset) { _, detail in
+            GridRow {
+              detailLabel(detail).foregroundStyle(.secondary)
+              detailValue(detail)
+            }
+          }
+        }
+        .font(.caption)
+      }
+      if !card.outputs.isEmpty {
+        WrappingRow(spacing: 8) {
+          ForEach(card.outputs) { output in
+            ResultOutputView(output: output)
+          }
+        }
+      }
+      Divider()
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Text("Recorded \(timeFormat.monthDayTime(card.capturedAt))", tableName: chatResultsTable,
+             comment: "When a result card was recorded. Argument: the date and time.")
+          .foregroundStyle(.secondary)
+        Spacer(minLength: 8)
+        Button(action: openSource) {
+          HStack(spacing: 4) {
+            Text("Open source", tableName: chatResultsTable, comment: "Opens the result card's source on web.")
+            Image(systemName: "arrow.up.right").accessibilityHidden(true)
+          }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Open source: \(card.title)", tableName: chatResultsTable,
+                                 comment: "Accessibility label of a result card. Argument: the result's title."))
+        .disabled(card.sourceURL == nil)
+      }
+      .font(.caption)
+    }
+    .padding(16)
+    .frame(maxWidth: resultCardMaxWidth, alignment: .leading)
+    .background(.background, in: .rect(cornerRadius: 8))
+    .overlay(RoundedRectangle(cornerRadius: 8).strokeBorder(Color.primary.opacity(0.12)))
+    .contentShape(.rect(cornerRadius: 8))
+    // The controls inside take their own clicks; the rest of the card is the source link.
+    .onTapGesture(perform: openSource)
+    .pointerStyle(.link)
+  }
+
+  private func openSource() {
+    if let url = card.sourceURL {
+      openURL(url)
+    }
+  }
+
+  private var header: some View {
+    HStack(alignment: .top, spacing: 12) {
+      HStack(spacing: 8) {
+        if let agent = card.agentName {
+          // Web `AgentIcon` at size-8; an icon this view cannot draw falls back to the agent's initials.
+          ParticipantAvatar(imageURL: card.agentIconURL, name: agent, size: 32)
+            .accessibilityHidden(true)
+        } else {
+          Image(systemName: card.kind.systemImage)
+            .foregroundStyle(.secondary)
+            .accessibilityHidden(true)
+        }
+        if let label = card.kind.label {
+          label.font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      Spacer(minLength: 0)
+      if let status = card.status {
+        status.label
+          .font(.caption)
+          .foregroundStyle(.secondary)
+          .padding(.horizontal, 8)
+          .padding(.vertical, 2)
+          .background(Color.primary.opacity(0.06), in: .rect(cornerRadius: 6))
+      }
+    }
+  }
+
+  private func detailLabel(_ detail: ResultPreviewCard.Detail) -> Text {
+    switch detail {
+    case .assignee: Text("Assigned to", tableName: chatResultsTable, comment: "Result card row: who the result is assigned to.")
+    case .project: Text("Project", tableName: chatResultsTable, comment: "Result card row: the result's project.")
+    case .destination: Text("Account", tableName: chatResultsTable, comment: "Result card row: the social account a post goes to.")
+    case .scheduled: Text("Scheduled for", tableName: chatResultsTable, comment: "Result card row: when the result runs next.")
+    case .recurrence: Text("Recurrence", tableName: chatResultsTable, comment: "Result card row: how the result repeats.")
+    }
+  }
+
+  @ViewBuilder
+  private func detailValue(_ detail: ResultPreviewCard.Detail) -> some View {
+    switch detail {
+    case let .assignee(value), let .project(value), let .destination(value):
+      Text(value)
+    case let .scheduled(date, timeZone):
+      // Web writes the time in the schedule's own zone and names it.
+      let zone = timeZone.flatMap(TimeZone.init(identifier:)) ?? .current
+      Text(timeFormat.monthDayTime(date, timeZone: zone) + (timeZone.map { " · \($0)" } ?? ""))
+    case let .recurrence(value):
+      Text(value).monospaced()
+    }
+  }
+}
+
+/// Web's output link: the file's name, type and size, and Download under it when Core offers one. Each opens on
+/// web until row 38e2 loads protected outputs in the app.
+private struct ResultOutputView: View {
+  let output: ResultPreviewCard.Output
+  @Environment(\.openURL) private var openURL
+  @Environment(\.locale) private var locale
+  @State private var hovered = false
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 4) {
+      Button {
+        if let url = output.openURL {
+          openURL(url)
+        }
+      } label: {
+        HStack(spacing: 8) {
+          Image(systemName: "doc.text").accessibilityHidden(true)
+          Text(description)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(8)
+        .background(Color.primary.opacity(hovered ? 0.1 : 0.06), in: .rect(cornerRadius: 6))
+        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.primary.opacity(0.12)))
+        .contentShape(.rect)
+      }
+      .buttonStyle(.plain)
+      .disabled(output.openURL == nil)
+      .onHover { hovered = $0 }
+      if let download = output.downloadURL {
+        Button {
+          openURL(download)
+        } label: {
+          HStack(spacing: 4) {
+            Image(systemName: "arrow.down.to.line").accessibilityHidden(true)
+            Text("Download", tableName: chatResultsTable, comment: "Downloads a result's output.")
+          }
+          .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text("Download \(output.name)", tableName: chatResultsTable,
+                                 comment: "Accessibility label of an output's download link. Argument: the file name."))
+      }
+    }
+    .font(.caption)
+  }
+
+  /// Web: `name · type · N bytes`, each part only when Core knows it.
+  private var description: String {
+    var parts = [output.name]
+    if let type = output.contentType {
+      parts.append(type)
+    }
+    if let size = output.sizeBytes {
+      // Resolved in the view's locale, as the `Text`s around it are.
+      parts.append(String(localized: LocalizedStringResource("\(size.formatted(.number.locale(locale))) bytes", table: chatResultsTable,
+                                                             locale: locale, comment: "An output's size. Argument: the formatted byte count.")))
+    }
+    return parts.joined(separator: " · ")
+  }
+}
+
+extension ResultPreviewCard.Kind {
+  /// Web's lucide icons as SF Symbols: ListTodo, CalendarClock, MessageSquare, ImageIcon, UserRound, FileText,
+  /// FolderKanban.
+  var systemImage: String {
+    switch self {
+    case .task: "checklist"
+    case .taskSchedule, .botSchedule: "calendar.badge.clock"
+    case .socialPost, .decision: "message"
+    case .studioJob: "photo"
+    case .job: "person"
+    case .file: "doc.text"
+    case .projectSelection: "folder"
+    }
+  }
+
+  /// Web `ChatResults.kind`; a project selection has no label there.
+  var label: Text? {
+    switch self {
+    case .task: Text("Task", tableName: chatResultsTable, comment: "The kind of a result card (task).")
+    case .taskSchedule: Text("Task schedule", tableName: chatResultsTable, comment: "The kind of a result card (task_schedule).")
+    case .botSchedule: Text("Bot follow-up", tableName: chatResultsTable, comment: "The kind of a result card (bot_schedule).")
+    case .socialPost: Text("Social post", tableName: chatResultsTable, comment: "The kind of a result card (social_post).")
+    case .studioJob: Text("Studio generation", tableName: chatResultsTable, comment: "The kind of a result card (studio_job).")
+    case .job: Text("Agent result", tableName: chatResultsTable, comment: "The kind of a result card (job).")
+    case .file: Text("File", tableName: chatResultsTable, comment: "The kind of a result card (file).")
+    case .decision: Text("Approval", tableName: chatResultsTable, comment: "The kind of a result card (decision).")
+    case .projectSelection: nil
+    }
+  }
+}
+
+extension ResultPreviewCard.Status {
+  /// Web `t.has(statusKey) ? t(statusKey) : result.status`; a job's status reads web's `JobStatusBadge` labels.
+  var label: Text {
+    switch self {
+    case let .job(raw):
+      Self.jobLabels[raw].map { Text($0) } ?? Text(verbatim: raw)
+    case let .result(raw):
+      Self.resultLabels[raw].map { Text($0) } ?? Text(verbatim: raw)
+    }
+  }
+
+  private static func status(_ key: StaticString, _ english: String.LocalizationValue) -> LocalizedStringResource {
+    LocalizedStringResource(key, defaultValue: english, table: chatResultsTable, comment: "A result card's status chip.")
+  }
+
+  private static let resultLabels: [String: LocalizedStringResource] = [
+    "DRAFT": status("status.DRAFT", "Draft"), "READY": status("status.READY", "Ready"),
+    "INPUT_REQUIRED": status("status.INPUT_REQUIRED", "Waiting for input"), "RUNNING": status("status.RUNNING", "Running"),
+    "COMPLETED": status("status.COMPLETED", "Completed"), "FAILED": status("status.FAILED", "Failed"),
+    "CANCELLED": status("status.CANCELLED", "Cancelled"), "ACTIVE": status("status.ACTIVE", "Active"),
+    "PAUSED": status("status.PAUSED", "Paused"), "ENDED": status("status.ENDED", "Ended"),
+    "SCHEDULED": status("status.SCHEDULED", "Scheduled"), "PUBLISHED": status("status.PUBLISHED", "Published"),
+    "QUEUED": status("status.QUEUED", "Queued"), "PENDING": status("status.PENDING", "Pending"),
+    "PROCESSING": status("status.PROCESSING", "Processing"), "ACCEPTED": status("status.ACCEPTED", "Accepted"),
+    "REJECTED": status("status.REJECTED", "Rejected"), "EXPIRED": status("status.EXPIRED", "Expired"),
+    "SUCCEEDED": status("status.SUCCEEDED", "Completed"), "SUBMITTING": status("status.SUBMITTING", "Submitting"),
+    "CANCELED": status("status.CANCELED", "Cancelled"),
+    "SUBMISSION_UNCERTAIN": status("status.SUBMISSION_UNCERTAIN", "Awaiting confirmation"),
+    "ORPHANED": status("status.ORPHANED", "Needs attention")
+  ]
+
+  private static let jobLabels: [String: LocalizedStringResource] = [
+    "started": status("jobStatus.started", "Started"), "completed": status("jobStatus.completed", "Completed"),
+    "processing": status("jobStatus.processing", "Working"), "input_required": status("jobStatus.input_required", "Input required"),
+    "result_pending": status("jobStatus.result_pending", "Result missing"), "failed": status("jobStatus.failed", "Failed"),
+    "payment_pending": status("jobStatus.payment_pending", "Payment pending"),
+    "payment_failed": status("jobStatus.payment_failed", "Payment failed"),
+    "refund_pending": status("jobStatus.refund_pending", "Refund requested"),
+    "refund_resolved": status("jobStatus.refund_resolved", "Refunded"),
+    "dispute_pending": status("jobStatus.dispute_pending", "Dispute pending"),
+    "dispute_resolved": status("jobStatus.dispute_resolved", "Dispute resolved")
+  ]
+}
