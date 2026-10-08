@@ -11,6 +11,7 @@ describe("users workspaces OpenAPI contract (ADR 0051)", () => {
   it("exposes the workspaces resource and the name update", () => {
     expect(doc.paths?.["/{id}/workspaces"]?.get).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces"]?.post).toBeDefined();
+    expect(doc.paths?.["/{id}/workspaces/preferred"]?.get).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces/preferred"]?.put).toBeDefined();
     expect(doc.paths?.["/{id}/workspaces/{workspaceId}"]?.delete).toBeDefined();
     expect(doc.paths?.["/{id}"]?.patch).toBeDefined();
